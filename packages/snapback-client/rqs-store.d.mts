@@ -155,6 +155,18 @@ export interface RqsResumeStore {
   isWriter(): boolean;
   whenLockSettled(): Promise<void>;
   outboxEmpty(): Promise<boolean>;
+  outboxRecords(): Promise<readonly Readonly<Record<string, unknown>>[]>;
+  outboxMarkQuarantined?(
+    id: string,
+    refusal: Readonly<{ code: string }>,
+  ): Promise<false | Readonly<{
+    count: number;
+    tombstones: readonly Readonly<Record<string, unknown>>[];
+  }>>;
+  outboxReenterQuarantined?(): Promise<false | Readonly<{
+    count: number;
+    clientMutationIds: readonly string[];
+  }>>;
   outboxEnqueueWithOperationIdentity?(
     record: Readonly<Record<string, unknown>>,
     authorityCohortKey: string,

@@ -110,7 +110,14 @@ projection. `host.restart` also fails as `SNAPBACK_HOST_OP_CLI_ONLY` over
 HTTP, but has no CLI command yet; its only current projection is the
 composed `snapback_restart` MCP tool, which spawns `host.stop` then
 `host.start` under one request id and envelope (a `snapback restart` CLI
-command is planned but not shipped).
+command is planned but not shipped). `snapback_stop` (and therefore the
+mutating half of `snapback_restart`) requires the same admin credential the
+HTTP host-ops route requires — it probes `POST /_snapback/api/host-ops`
+with the descriptor's managed admin token before signaling the process, and
+refuses without a valid token instead of stopping the server on local
+process access alone (LLP 0184 §Design/2 closes this gap in Phase 2;
+`snapback_start`'s fresh-spawn leg is unaffected, since there is no prior
+credential to hold when no server yet exists).
 `schema.reload`, `functions.reload`, and `acceptance.run` are pinned but
 unbuilt and fail as `SNAPBACK_HOST_OP_UNIMPLEMENTED`. All three families are
 registered at AdminWrite so an authenticated request reaches that structured
@@ -184,6 +191,50 @@ Query/explain reads, durable writes, credential-producing operations, and
 dev impersonation therefore keep distinct `RoutePolicy`, authority, effect,
 and response-sensitivity classifications even though they share one carrier.
 
+## Direct CLI/MCP projections beyond host-ops (LLP 0184 Phase 2 P1)
+
+Some agent-relevant reads live on their own `SystemApi` routes rather than
+the `/_snapback/api/host-ops` multiplexer above. Each now has a direct CLI
+command and a control-MCP tool:
+
+| Operation | CLI | MCP tool |
+| --- | --- | --- |
+| `data.scan` | `snapback data scan <table> [--limit N] [--offset N]` | `snapback_data_scan` |
+| `jobs.list` | `snapback jobs list` | `snapback_jobs_list` |
+| `jobs.show` | `snapback jobs show <id>` | `snapback_jobs_show` |
+
+`data.scan` projects `DataQuery` exactly as shipped — `table`, `limit`,
+`offset` — and **has no cursor**: the route does not have one. Offset paging
+is not stable under concurrent writes; a row can shift between pages between
+two calls issued moments apart. Prefer a narrow `--limit`, and treat a scan
+as a snapshot-ish sample rather than a guaranteed-complete enumeration under
+write load. A stable/snapshot-bound cursor would be a new storage semantic
+and is out of this projection's scope.
+
+```sh
+snapback data scan messages --limit 20 --ready-file .snapback/dev.ready.json
+```
+
+Both `data.scan` and the CLI's `secret-read-mint` mint a scoped,
+row/byte-budgeted secret-read lease automatically from the local readiness
+descriptor when one is not supplied — never by reading an arbitrary URL for
+credentials. `jobs.list`/`jobs.show` are the read-only half of LLP 0070's
+one-off job surface; draining jobs is a separate, mutating operation this
+slice does not add.
+
+Three `host-ops` asset operations also gained MCP tools this phase — the CLI
+paths (`snapback assets list|inspect|retry`) were already shipped:
+
+| Operation | MCP tool |
+| --- | --- |
+| `asset.list` | `snapback_asset_list` |
+| `asset.inspect` | `snapback_asset_inspect` |
+| `asset.retry` | `snapback_asset_retry` |
+
+The remaining asset operations (`put`, `gcSweep`, `delete`,
+`rotateSigningKey`, `exportCut`, `importCut`, `ensureSeedFixture`) stay
+CLI-only for now — see `snapback assets --help`.
+
 ## Respect admin, secret-read, and impersonation gates
 
 The admin credential authenticates the transport; it does not silently invent
@@ -200,6 +251,60 @@ The partial local `servicePrincipal`/scoped-token slice is admitted only by
 generated app-data calls. Host operations—including `function.run`—do not
 resolve scoped tokens into authority; use the operation's explicit admin or
 dev-impersonation gate instead.
+
+## Controlled mutations: config, cron, jobs, connections
+
+These operations sit beside the host-ops multiplexer — each is its own
+admin-gated `POST /_snapback/api/...` route, not a `host-ops` request — but
+now have the same direct CLI and control-MCP shape (LLP 0184 §P2's
+"controlled mutations" projections). Each is `AdminWrite` and every CLI form
+below accepts the same `--url`/`--ready-file`/`--token` target flags as
+`host inspect`.
+
+`config.unset` removes one config entry's stored value. It carries only the
+entry identifier — no secret value crosses the wire, so it needs no secret
+carrier (unlike `config.set`, which stays CLI-only pending a defined MCP
+secret carrier):
+
+```sh
+snapback config unset --entry stripe.secretKey --ready-file .snapback/dev.ready.json
+```
+
+or `snapback_config_unset` (`{ "entry": "stripe.secretKey" }`) through
+`snapback mcp-control`.
+
+`cron.tick` force-claims and runs every currently-due cron job; `cron.runOne`
+force-runs one named job regardless of its schedule:
+
+```sh
+snapback cron tick --ready-file .snapback/dev.ready.json
+snapback cron run nightly-digest --ready-file .snapback/dev.ready.json
+```
+
+or `snapback_cron_tick` / `snapback_cron_run` (`{ "name": "nightly-digest" }`).
+
+`jobs.drain` claims and runs due one-off jobs under an injected clock — the
+deterministic seam that lets acceptance suites drive due-ness without
+sleeping, instead of the wall clock `cron.tick` uses:
+
+```sh
+snapback jobs drain --ready-file .snapback/dev.ready.json --now-ms 1700000000000 --max-waves 3
+```
+
+or `snapback_jobs_drain` (`{ "nowMs": 1700000000000, "maxWaves": 3 }`, both
+optional — absent `nowMs` means wall clock).
+
+`connection.disconnect` is an explicit **debug perturbation** of one live
+connection — force-closing a connection for local recovery/repair testing.
+It is never application disconnect authority: the underlying route accepts
+no request body, so `reason` is recorded in the CLI/MCP receipt for the
+caller's own audit trail, not acknowledged by the server.
+
+```sh
+snapback connections disconnect conn_01h8x2 --reason "stuck presence repair" --ready-file .snapback/dev.ready.json
+```
+
+or `snapback_connection_disconnect` (`{ "connectionId": "conn_01h8x2", "reason": "stuck presence repair" }`).
 
 ## Anti-patterns
 

@@ -1,0 +1,628 @@
+{
+  "schemaVersion": "snapback.local-proof-selection-policy.v1",
+  "unknownPathDisposition": "all",
+  "affectedBaselineGroups": [
+    "exact-admin"
+  ],
+  "alwaysGates": [
+    "ref-check",
+    "ref-check-fixtures",
+    "ci-workflow-fixtures",
+    "proof-runner-fixtures",
+    "local-proof-inventory",
+    "affected-selector-fixtures",
+    "package-test-inventory"
+  ],
+  "dependencyOverrides": {
+    "snapback-cli-real-server": [
+      "current-binary-readiness",
+      "runtime-package-stage"
+    ],
+    "snapback-vite-real-server": [
+      "current-binary-readiness",
+      "runtime-package-stage"
+    ],
+    "versioned-seed-conformance": [
+      "current-binary-readiness",
+      "runtime-package-stage"
+    ]
+  },
+  "workflowRequirementMarkers": {
+    "native": [
+      "native-runtime-bootstrap",
+      "telemetry-smoke",
+      "cargo-clippy",
+      "rust-tests",
+      "current-binary-build",
+      "runtime-package-stage"
+    ],
+    "browser": [
+      "browser-availability"
+    ],
+    "cargoAudit": [
+      "cargo-audit"
+    ],
+    "privateRoot": [
+      "snapback-cli-real-server"
+    ]
+  },
+  "pathRules": [
+    {
+      "id": "selector-authority",
+      "disposition": "all",
+      "files": [
+        ".github/workflows/local-proof.yml",
+        "scripts/check-local-proof-gates.mjs",
+        "scripts/lib/proof-runner.sh",
+        "scripts/local-proof-selection-policy.v1.json",
+        "scripts/select-local-proof.mjs",
+        "scripts/verify-local-proof",
+        "tests/local_proof_inventory_v0.mjs",
+        "tests/local_proof_selection_v0.mjs",
+        "tests/proof_runner_v0.mjs",
+        "llp/0010-agent-dx-and-acceptance.spec.md",
+        "llp/0109-versioned-seed-evolution.spec.md",
+        "llp/0154-minimal-observability.rfc.md",
+        "llp/0175-local-proof-economics.rfc.md"
+      ]
+    },
+    {
+      "id": "shared-authority",
+      "disposition": "all",
+      "files": [
+        ".gitignore",
+        ".gitmodules",
+        ".node-version",
+        "Cargo.lock",
+        "Cargo.toml",
+        "bun.lock",
+        "build.rs",
+        "package.json",
+        "rust-toolchain.toml"
+      ],
+      "prefixes": [
+        ".github/actions/",
+        ".github/workflows/",
+        ".githooks/",
+        "schemas/",
+        "scripts/lib/",
+        "vendor/"
+      ]
+    },
+    {
+      "id": "telemetry-policy-and-source",
+      "groups": [
+        "telemetry"
+      ],
+      "files": [
+        "scripts/telemetry-phase1-evidence.mjs",
+        "scripts/telemetry-phase1-evidence.test.mjs",
+        "scripts/telemetry-phase1-idle-proof.mjs",
+        "scripts/verify-telemetry-phase1-proof",
+        "tests/acceptance/telemetry-phase1-benchmark-baseline.v1.json",
+        "tests/acceptance/telemetry-phase1-evidence-policy.v1.json"
+      ]
+    },
+    {
+      "id": "telemetry-retained-receipt",
+      "groups": [
+        "telemetry-receipt"
+      ],
+      "files": [
+        "tests/acceptance/telemetry-phase1-evidence.v1.json"
+      ]
+    },
+    {
+      "id": "local-store-carrier",
+      "groups": [
+        "local-store"
+      ],
+      "prefixes": [
+        "tests/acceptance/fixtures/local-persistent-store/",
+        "tests/acceptance/local-store-carrier-"
+      ]
+    },
+    {
+      "id": "versioned-seed",
+      "groups": [
+        "versioned-seed"
+      ],
+      "prefixes": [
+        "tests/conformance/versioned-seed",
+        "scripts/versioned-seed"
+      ]
+    },
+    {
+      "id": "guide",
+      "groups": [
+        "guide"
+      ],
+      "prefixes": [
+        "guide/"
+      ]
+    },
+    {
+      "id": "cloudflare",
+      "groups": [
+        "cloudflare"
+      ],
+      "prefixes": [
+        "cloudflare/"
+      ]
+    },
+    {
+      "id": "admin",
+      "groups": [
+        "exact-admin"
+      ],
+      "prefixes": [
+        "admin-ui/"
+      ]
+    },
+    {
+      "id": "swift-client",
+      "groups": [
+        "swift"
+      ],
+      "prefixes": [
+        "clients/swift/"
+      ]
+    },
+    {
+      "id": "client-packages",
+      "groups": [
+        "client"
+      ],
+      "prefixes": [
+        "packages/snapback-client/",
+        "packages/snapback-react/"
+      ]
+    },
+    {
+      "id": "codegen-packages",
+      "groups": [
+        "codegen",
+        "demos"
+      ],
+      "prefixes": [
+        "packages/snapback-codegen/",
+        "packages/snapback-contract/"
+      ]
+    },
+    {
+      "id": "distribution-packages",
+      "groups": [
+        "packaging",
+        "demos"
+      ],
+      "prefixes": [
+        "packages/snapback-app-cli/",
+        "packages/snapback-cli/",
+        "packages/snapback-runtime-",
+        "packages/snapback-vite/"
+      ]
+    },
+    {
+      "id": "harness-package",
+      "groups": [
+        "demos"
+      ],
+      "prefixes": [
+        "packages/snapback-harness/"
+      ]
+    },
+    {
+      "id": "other-package",
+      "disposition": "all",
+      "prefixes": [
+        "packages/"
+      ]
+    },
+    {
+      "id": "demo-and-harness",
+      "groups": [
+        "demos",
+        "codegen"
+      ],
+      "prefixes": [
+        "demos/"
+      ]
+    },
+    {
+      "id": "native-runtime",
+      "groups": [
+        "native",
+        "versioned-seed",
+        "telemetry"
+      ],
+      "prefixes": [
+        "src/"
+      ]
+    },
+    {
+      "id": "acceptance-tests",
+      "groups": [
+        "native",
+        "demos"
+      ],
+      "prefixes": [
+        "tests/acceptance/"
+      ]
+    },
+    {
+      "id": "conformance-tests",
+      "groups": [
+        "publication",
+        "native"
+      ],
+      "prefixes": [
+        "tests/conformance/"
+      ]
+    },
+    {
+      "id": "other-tests",
+      "disposition": "all",
+      "prefixes": [
+        "tests/"
+      ]
+    },
+    {
+      "id": "known-publication-scripts",
+      "groups": [
+        "publication",
+        "packaging"
+      ],
+      "prefixes": [
+        "scripts/capability-",
+        "scripts/check-agent-safe-publication",
+        "scripts/snapback-github-latest-proof",
+        "scripts/snapback-package-",
+        "scripts/snapback-promot",
+        "scripts/snapback-publish"
+      ]
+    },
+    {
+      "id": "guide-scripts",
+      "groups": [
+        "guide"
+      ],
+      "prefixes": [
+        "scripts/check-guide",
+        "scripts/generate-guide",
+        "scripts/guide-"
+      ]
+    },
+    {
+      "id": "other-scripts",
+      "disposition": "all",
+      "prefixes": [
+        "scripts/"
+      ]
+    },
+    {
+      "id": "agent-and-project-docs",
+      "groups": [],
+      "files": [
+        "AGENTS.md",
+        "CONTRIBUTING.md",
+        "LICENSE",
+        "README.md",
+        "ref-check",
+        "ref_check.py"
+      ],
+      "prefixes": [
+        ".agents/",
+        ".claude/",
+        ".cursor/",
+        ".opencode/",
+        ".pi/",
+        "diaries/",
+        "issues/",
+        "llp/",
+        "skills/"
+      ],
+      "suffixes": [
+        ".md"
+      ]
+    }
+  ],
+  "groups": {
+    "guide": {
+      "lane": "fast",
+      "gates": [
+        "generated-artifacts",
+        "guide-published-closure-fixtures",
+        "guide"
+      ]
+    },
+    "telemetry-receipt": {
+      "lane": "fast",
+      "gates": [
+        "telemetry-evidence-fixtures",
+        "telemetry-receipt-check"
+      ]
+    },
+    "publication": {
+      "lane": "affected",
+      "gates": [
+        "allowlist-install-fixtures",
+        "action-fetch-fence-fixtures",
+        "harness-envelope-fixtures",
+        "capability-maturity-fixtures",
+        "capability-maturity",
+        "agent-safe-publication-fixtures",
+        "agent-safe-publication",
+        "relation-activity-publication",
+        "sequence-allocation-publication",
+        "local-store-publication",
+        "snapshot-batch-parity",
+        "result-transform-ship-gate",
+        "promotion-fixtures",
+        "github-latest-proof-fixtures",
+        "revision-set-fixtures",
+        "control-catalog"
+      ]
+    },
+    "client": {
+      "lane": "affected",
+      "gates": [
+        "client-bundle-metrology",
+        "hermes-intrinsics",
+        "package-export-types",
+        "client-errors",
+        "live-wire-schema",
+        "provenance-unit",
+        "repo-layout-unit",
+        "codegen-regressions",
+        "exact-resolver-packages",
+        "provider-live-conformance",
+        "regression-reconnect-nuke",
+        "regression-fake-live",
+        "regression-handshake-loss",
+        "regression-gc-starvation",
+        "regression-overlay-crossroom",
+        "regression-mixed-transport",
+        "regression-multiplexed-lanes",
+        "regression-midflight-resync",
+        "regression-durable-bytes-resync",
+        "regression-poll-decode-resync",
+        "live-delta-e2e",
+        "snapback-client-package",
+        "snapback-react-package"
+      ]
+    },
+    "codegen": {
+      "lane": "affected",
+      "gates": [
+        "generated-artifacts",
+        "contract-meta",
+        "contract-meta-fixtures",
+        "demo-materialization",
+        "deployment-identity",
+        "generated-types",
+        "demo-surfaces",
+        "required-surface-builds",
+        "headsign-typecheck",
+        "artifact-path-hygiene",
+        "required-surface-build-fixtures",
+        "artifact-path-hygiene-fixtures",
+        "codegen-regressions",
+        "snapback-codegen-package",
+        "snapback-contract-package"
+      ]
+    },
+    "native": {
+      "lane": "affected",
+      "gates": [
+        "cargo-headroom-fixtures",
+        "runtime-link-fixtures",
+        "runtime-readiness-fixtures",
+        "toolchain-authority",
+        "native-runtime-bootstrap",
+        "ibex-doctor",
+        "ibex-bootstrap-fixtures",
+        "binary-provenance-drift",
+        "cargo-clippy",
+        "cargo-audit",
+        "rust-tests",
+        "auth-invalidation-report",
+        "cargo-test-profile-clean",
+        "current-binary-build",
+        "current-binary-readiness",
+        "runtime-package-stage",
+        "snapback-cli-real-server",
+        "snapback-vite-real-server",
+        "asset-conformance",
+        "app-cli-served-journey",
+        "app-cli-settlement-goldens",
+        "todo-headless",
+        "forked-parent",
+        "fork-parallel-dispositions",
+        "todo-v2-headless",
+        "workout-apps",
+        "todo-v2-register-boot",
+        "graffiti-widget-read",
+        "all-aboard-egress",
+        "all-aboard-startup-timing",
+        "file-drop-browser-relay",
+        "card-game-authority-scope",
+        "rbac-acceptance",
+        "provider-live-conformance",
+        "regression-reconnect-nuke",
+        "regression-fake-live",
+        "regression-handshake-loss",
+        "regression-gc-starvation",
+        "regression-overlay-crossroom",
+        "regression-mixed-transport",
+        "regression-multiplexed-lanes",
+        "regression-midflight-resync",
+        "regression-durable-bytes-resync",
+        "regression-poll-decode-resync",
+        "live-delta-e2e",
+        "exact-todo-contract",
+        "exact-todo-v2-contract",
+        "exact-graffiti-contract",
+        "exact-all-aboard-live",
+        "regression-optimistic-clobber",
+        "regression-ephemeral-wiring",
+        "regression-multilive-scoped"
+      ]
+    },
+    "packaging": {
+      "lane": "affected",
+      "gates": [
+        "runtime-package-authority-fixtures",
+        "package-cold-install-fixtures",
+        "local-source-package-closure",
+        "promotion-fixtures",
+        "github-latest-proof-fixtures",
+        "package-export-types",
+        "current-binary-build",
+        "current-binary-readiness",
+        "runtime-package-stage",
+        "snapback-cli-real-server",
+        "snapback-vite-real-server",
+        "snapback-app-cli-package",
+        "snapback-contract-package"
+      ]
+    },
+    "demos": {
+      "lane": "affected",
+      "gates": [
+        "generated-artifacts",
+        "demo-materialization",
+        "generated-types",
+        "demo-surfaces",
+        "required-surface-builds",
+        "headsign-typecheck",
+        "artifact-path-hygiene",
+        "required-surface-build-fixtures",
+        "artifact-path-hygiene-fixtures",
+        "server-process-lifecycle-fixtures",
+        "chrome-process-lifecycle-fixtures",
+        "harness-cleanup-fixtures",
+        "allowlist-install-fixtures",
+        "action-fetch-fence-fixtures",
+        "harness-envelope-fixtures",
+        "browser-availability",
+        "binary-provenance-drift",
+        "current-binary-build",
+        "current-binary-readiness",
+        "snapback-cli-real-server",
+        "snapback-vite-real-server",
+        "asset-conformance",
+        "app-cli-served-journey",
+        "app-cli-settlement-goldens",
+        "todo-headless",
+        "forked-parent",
+        "fork-parallel-dispositions",
+        "todo-v2-headless",
+        "workout-apps",
+        "todo-v2-register-boot",
+        "graffiti-widget-read",
+        "all-aboard-egress",
+        "all-aboard-startup-timing",
+        "file-drop-install",
+        "file-drop-typecheck",
+        "file-drop-browser-relay",
+        "auth-handshake",
+        "agent-authority-custody",
+        "auth-session-schema-parity",
+        "auth-coordinator-client",
+        "auth-invalidation-client",
+        "card-game-authority-scope",
+        "rbac-acceptance",
+        "client-errors",
+        "live-wire-schema",
+        "provenance-unit",
+        "repo-layout-unit",
+        "codegen-regressions",
+        "exact-resolver-packages",
+        "provider-live-conformance",
+        "regression-reconnect-nuke",
+        "regression-fake-live",
+        "regression-handshake-loss",
+        "regression-gc-starvation",
+        "regression-overlay-crossroom",
+        "regression-mixed-transport",
+        "regression-multiplexed-lanes",
+        "regression-midflight-resync",
+        "regression-durable-bytes-resync",
+        "regression-poll-decode-resync",
+        "live-delta-e2e",
+        "exact-todo-install",
+        "exact-todo-v2-install",
+        "exact-graffiti-install",
+        "exact-all-aboard-install",
+        "exact-todo-contract",
+        "exact-todo-v2-contract",
+        "exact-graffiti-contract",
+        "exact-all-aboard-live",
+        "regression-optimistic-clobber",
+        "regression-ephemeral-wiring",
+        "regression-multilive-scoped"
+      ]
+    },
+    "cloudflare": {
+      "lane": "affected",
+      "gates": [
+        "deployment-identity",
+        "all-aboard-egress",
+        "all-aboard-startup-timing",
+        "harness-envelope-fixtures",
+        "cloudflare-local-suite"
+      ]
+    },
+    "versioned-seed": {
+      "lane": "affected",
+      "gates": [
+        "local-store-publication",
+        "snapshot-batch-parity",
+        "current-binary-build",
+        "current-binary-readiness",
+        "versioned-seed-conformance"
+      ]
+    },
+    "telemetry": {
+      "lane": "affected",
+      "gates": [
+        "telemetry-evidence-fixtures",
+        "telemetry-receipt-check",
+        "telemetry-smoke",
+        "native-runtime-bootstrap"
+      ]
+    },
+    "exact-admin": {
+      "lane": "affected",
+      "gates": [
+        "browser-availability",
+        "exact-todo-install",
+        "exact-todo-v2-install",
+        "exact-graffiti-install",
+        "exact-all-aboard-install",
+        "exact-todo-contract",
+        "exact-todo-v2-contract",
+        "exact-graffiti-contract",
+        "exact-all-aboard-live",
+        "regression-optimistic-clobber",
+        "regression-ephemeral-wiring",
+        "regression-multilive-scoped",
+        "admin-install",
+        "admin-acceptance",
+        "exact-dependencies-required"
+      ]
+    },
+    "swift": {
+      "lane": "affected",
+      "gates": [
+        "swift-client"
+      ]
+    },
+    "local-store": {
+      "lane": "affected",
+      "gates": [
+        "local-store-carrier-receipt"
+      ]
+    }
+  }
+}

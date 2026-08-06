@@ -9,8 +9,8 @@ examples: [demos/triage-graph, demos/card-game, demos/todo-v2/surfaces/contract,
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-05
-reviewed-commit: HEAD
+reviewed: 2026-08-06
+reviewed-commit: 711e4d763d87cadf0c638bd15ed33a85427e4f11
 ---
 
 # Offline retention and mutation replay
@@ -141,8 +141,9 @@ JS arm and it is receipt-proven end to end by
 [`tests/acceptance/local-store-carrier-exit-v1.mjs`](repo:tests/acceptance/local-store-carrier-exit-v1.mjs)
 (run in the local proof; the retained 2026-08-04 run measured **16 PASS / 1
 GAP / 0 SKIPPED** after consuming Triage's qualified budget freeze; Fleet
-remains the one explicit GAP: its OQ5 direction was ruled 2026-08-05, while
-the reviewed `snapshot-batch.v2` profile, implementation, and fresh footprint/
+remains the one explicit GAP: its OQ5 direction was ruled 2026-08-05 and the
+`snapshot-batch.v2` profile was registered 2026-08-06 (LLP 0157 v0.11), while
+implementation, the frozen cross-language vectors, and the fresh footprint/
 hydration witness remain absent).
 
 Evidence scope, stated precisely: local target, Node process, file carrier,

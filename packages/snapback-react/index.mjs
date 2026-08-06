@@ -12,6 +12,7 @@ import {
   admittedReactEphemeralDefinition,
   admittedReactQueryGroup,
   admittedReactReference,
+  admittedReactSurface,
   assertPreparedReactBinding,
   canonicalizeClientValueV1,
   canonicalReactStoreKeyV1,
@@ -2269,7 +2270,7 @@ export function createSnapbackReactProvider(binding, options = {}) {
     if (preparedGroup !== null) void abandonConsumedReactQueryGroup(preparedGroup);
     throw error;
   }
-  return Object.freeze({
+  const provider = {
     kind: 'snapback.react-provider.v1',
     providerInstanceId,
     binding: prepared,
@@ -2282,7 +2283,11 @@ export function createSnapbackReactProvider(binding, options = {}) {
     resume: registry.resume,
     inspection: () => registry.inspection(),
     dispose: () => registry.dispose(),
-  });
+  };
+  provider.surface = (surface, params, surfaceOptions = {}) => (
+    bindSnapbackSurface(provider, surface, params, surfaceOptions)
+  );
+  return Object.freeze(provider);
 }
 
 export function SnapbackProvider({ binding = null, provider = null, children = null }) {
@@ -2657,6 +2662,408 @@ export function observeSnapbackPresence(providerValue, reference, options, liste
       await room?.cleanup;
     },
   });
+}
+
+function surfaceRefusal(code, message, details = {}) {
+  throw diagnosticError(code, message, details);
+}
+
+const SURFACE_REACT_LIFECYCLE = Symbol('snapback.surfaceReactLifecycle');
+
+function assertSurfaceGenerationCurrent(binding) {
+  if (binding.closed || binding.retired) {
+    surfaceRefusal(
+      'SNAPBACK_REACT_SURFACE_GENERATION_STALE',
+      'surface member call belongs to a retired parameter generation',
+      { surfaceId: binding.surface.id },
+    );
+  }
+}
+
+function admittedSurfaceParams(surface, params) {
+  if (!params || typeof params !== 'object' || Array.isArray(params)) {
+    surfaceRefusal('SNAPBACK_REACT_SURFACE_PARAMS_INVALID', 'surface params must be an object map');
+  }
+  const expected = Object.keys(surface.params).sort();
+  const actual = Object.keys(params).sort();
+  if (expected.length !== actual.length || expected.some((name, index) => name !== actual[index])) {
+    surfaceRefusal(
+      'SNAPBACK_REACT_SURFACE_PARAMS_INVALID',
+      'surface params must exactly match the generated declaration',
+      { expected, actual },
+    );
+  }
+  canonicalizeClientValueV1(params);
+  return immutableClone(params);
+}
+
+function surfaceOptions(surface, options) {
+  if (!options || typeof options !== 'object' || Array.isArray(options)) {
+    surfaceRefusal('SNAPBACK_REACT_SURFACE_OPTIONS_INVALID', 'surface options must be an object');
+  }
+  const unknownOptions = Object.keys(options).filter((name) => name !== 'presence');
+  if (unknownOptions.length > 0) {
+    surfaceRefusal('SNAPBACK_REACT_SURFACE_OPTIONS_INVALID', 'surface options contain unknown members', { members: unknownOptions });
+  }
+  const presence = options.presence ?? {};
+  if (!presence || typeof presence !== 'object' || Array.isArray(presence)) {
+    surfaceRefusal('SNAPBACK_REACT_SURFACE_OPTIONS_INVALID', 'surface presence options must be an object map');
+  }
+  const unknownPresence = Object.keys(presence).filter((name) => !Object.hasOwn(surface.presence, name));
+  if (unknownPresence.length > 0) {
+    surfaceRefusal('SNAPBACK_REACT_SURFACE_OPTIONS_INVALID', 'surface presence options name unknown members', { members: unknownPresence });
+  }
+  const normalized = {};
+  for (const name of Object.keys(surface.presence).sort()) {
+    const value = Object.hasOwn(presence, name) ? presence[name] : skip;
+    // @ref LLP 0179#react-projection — a presence publish value is application
+    // presence only. Self identity comes from the adopted session/connection,
+    // never from a userId smuggled in the declarative payload.
+    if (value !== skip && value && typeof value === 'object' && Object.hasOwn(value, 'userId')) {
+      surfaceRefusal(
+        'SNAPBACK_REACT_SURFACE_PRESENCE_IDENTITY_INPUT',
+        'surface presence payloads cannot carry userId; self identity is session-derived',
+        { member: name },
+      );
+    }
+    if (value !== skip) canonicalizeClientValueV1(value);
+    normalized[name] = value === skip ? skip : immutableClone(value);
+  }
+  return Object.freeze({ presence: Object.freeze(normalized) });
+}
+
+function resolveSurfaceBindingValue(value, params, inputValues) {
+  if (value.kind === 'param') return params[value.name];
+  if (value.kind === 'input') return inputValues[value.name];
+  if (value.kind === 'literal') return value.value;
+  if (value.kind === 'scope') {
+    return Object.fromEntries(Object.entries(value.fields).map(([name, child]) => (
+      [name, resolveSurfaceBindingValue(child, params, inputValues)]
+    )));
+  }
+  surfaceRefusal('SNAPBACK_REACT_SURFACE_INVALID', `unsupported generated surface binding ${String(value.kind)}`);
+}
+
+function surfaceMemberArgs(member, params, inputs = {}) {
+  const expected = Object.keys(member.inputs).sort();
+  const actual = Object.keys(inputs ?? {}).sort();
+  const required = expected.filter((name) => member.inputs[name].optional !== true);
+  if (
+    actual.some((name) => !Object.hasOwn(member.inputs, name))
+    || required.some((name) => !Object.hasOwn(inputs, name))
+  ) {
+    surfaceRefusal(
+      'SNAPBACK_REACT_SURFACE_INPUT_INVALID',
+      'surface member inputs do not match the generated binding',
+      { expected, required, actual },
+    );
+  }
+  canonicalizeClientValueV1(inputs);
+  return Object.fromEntries(Object.entries(member.bindings).map(([target, value]) => (
+    [target, resolveSurfaceBindingValue(value, params, inputs)]
+  )));
+}
+
+function presenceSurfaceView(state) {
+  return Object.freeze({ ...state, members: state.entries });
+}
+
+function surfaceSnapshot(binding) {
+  const group = binding.queryObserver?.snapshot()
+    ?? groupSnapshot(binding.provider, binding.readDescriptors);
+  const state = {};
+  const data = {};
+  for (const name of Object.keys(binding.surface.reads).sort()) {
+    state[name] = group.queries[name];
+    // Compact data is strictly a mechanical projection of owner state. An
+    // unready/error child remains undefined; retained/current rows remain
+    // distinguishable through state rather than being fabricated as [].
+    data[name] = state[name].data;
+  }
+  const presence = {};
+  for (const name of Object.keys(binding.surface.presence).sort()) {
+    const child = binding.presenceObservers[name]?.snapshot() ?? PRESENCE_SERVER_PENDING;
+    const cached = binding.presenceViews.get(child);
+    presence[name] = cached ?? presenceSurfaceView(child);
+    if (!cached && child && typeof child === 'object') binding.presenceViews.set(child, presence[name]);
+  }
+  const previous = binding.lastSnapshot;
+  if (
+    previous
+    && Object.keys(state).every((name) => previous.state[name] === state[name])
+    && Object.keys(presence).every((name) => previous.presence[name] === presence[name])
+  ) return previous;
+  binding.lastSnapshot = Object.freeze({
+    data: Object.freeze(data),
+    state: Object.freeze(state),
+    presence: Object.freeze(presence),
+    mutations: binding.mutations,
+    assets: binding.assets,
+    descriptor: binding.surface,
+  });
+  return binding.lastSnapshot;
+}
+
+function startSurfaceBinding(binding) {
+  if (binding.started || binding.closed) return;
+  binding.started = true;
+  const emit = () => {
+    binding.lastSnapshot = null;
+    for (const listener of [...binding.listeners]) listener();
+  };
+  if (binding.readDescriptors.length > 0) {
+    binding.queryObserver = observeSnapbackQueries(binding.provider, binding.readEntries, emit);
+  }
+  for (const [name, member] of Object.entries(binding.surface.presence)) {
+    binding.presenceObservers[name] = observeSnapbackPresence(
+      binding.provider,
+      member.reference,
+      {
+        scope: surfaceMemberArgs(member, binding.params).scope,
+        value: binding.options.presence[name],
+      },
+      emit,
+    );
+  }
+  emit();
+}
+
+function stopSurfaceBinding(binding) {
+  binding.queryObserver?.dispose();
+  binding.queryObserver = null;
+  const cleanups = Object.values(binding.presenceObservers).map((observer) => observer.dispose());
+  binding.presenceObservers = {};
+  binding.started = false;
+  binding.lastSnapshot = null;
+  return Promise.allSettled(cleanups);
+}
+
+// @ref LLP 0114#named-projections-from-accepted-rfcs — a surface is only a
+// projection over the provider registry. Reads use descriptor()/subscribeMany,
+// presence uses presenceDescriptor()/subscribePresence, and mutations use
+// runMutation, so low-level and surface consumers converge on canonical keys.
+export function bindSnapbackSurface(providerValue, surfaceReference, params, options = {}) {
+  const provider = assertProvider(providerValue);
+  const surface = admittedReactSurface(provider.binding, surfaceReference);
+  const binding = {
+    provider,
+    surface,
+    params: admittedSurfaceParams(surface, params),
+    options: surfaceOptions(surface, options),
+    listeners: new Set(),
+    started: false,
+    closed: false,
+    retired: false,
+    queryObserver: null,
+    presenceObservers: {},
+    presenceViews: new WeakMap(),
+    lastSnapshot: null,
+    mutations: null,
+    assets: null,
+    readEntries: null,
+    readDescriptors: null,
+    readSubscribers: Object.create(null),
+  };
+  const replaceReadProjection = () => {
+    binding.readEntries = Object.freeze(Object.fromEntries(
+      Object.entries(surface.reads).map(([name, member]) => [name, Object.freeze({
+        ref: member.reference,
+        args: surfaceMemberArgs(member, binding.params),
+      })]),
+    ));
+    binding.readDescriptors = Object.keys(binding.readEntries).length === 0
+      ? Object.freeze([])
+      : validateEntries(provider, binding.readEntries);
+  };
+  replaceReadProjection();
+  for (const name of Object.keys(surface.reads)) binding.readSubscribers[name] = new Set();
+  const migrateReadSubscribers = () => {
+    for (const [name, subscribers] of Object.entries(binding.readSubscribers)) {
+      const descriptor = binding.readDescriptors.find((candidate) => candidate.name === name);
+      for (const subscription of subscribers) {
+        const emit = () => subscription.listener(provider.registry.snapshot(descriptor));
+        const successor = provider.registry.subscribe(descriptor, emit);
+        subscription.lease.release();
+        subscription.descriptor = descriptor;
+        subscription.lease = successor;
+        subscription.listener(provider.registry.snapshot(descriptor));
+      }
+    }
+  };
+  binding.mutations = Object.freeze(Object.fromEntries(
+    Object.entries(surface.mutations).map(([name, member]) => [name, (inputs = {}) => {
+      assertSurfaceGenerationCurrent(binding);
+      return provider.registry.runMutation(
+        member.reference,
+        surfaceMemberArgs(member, binding.params, inputs),
+        null,
+      );
+    }]),
+  ));
+  binding.assets = Object.freeze(Object.fromEntries(
+    Object.entries(surface.assets ?? {}).map(([name, member]) => [name, Object.freeze({
+      reference: member.reference,
+      start(call) {
+        assertSurfaceGenerationCurrent(binding);
+        if (!call || typeof call !== 'object' || Array.isArray(call) || !Object.hasOwn(call, 'file')) {
+          surfaceRefusal('SNAPBACK_REACT_SURFACE_INPUT_INVALID', `surface asset ${name} requires a file`);
+        }
+        const allowed = new Set([
+          ...Object.keys(member.inputs),
+          'file', 'declaredFilename', 'declaredContentType', 'previewUrl',
+        ]);
+        const unknown = Object.keys(call).filter((field) => !allowed.has(field));
+        if (unknown.length > 0) {
+          surfaceRefusal('SNAPBACK_REACT_SURFACE_INPUT_INVALID', `surface asset ${name} has unknown call members`, { members: unknown });
+        }
+        const inputValues = Object.fromEntries(
+          Object.keys(member.inputs)
+            .filter((field) => Object.hasOwn(call, field))
+            .map((field) => [field, call[field]]),
+        );
+        return assetRegistryFor(provider).assets.start({
+          upload: member.reference,
+          args: surfaceMemberArgs(member, binding.params, inputValues),
+          file: call.file,
+          declaredFilename: call.declaredFilename ?? null,
+          declaredContentType: call.declaredContentType ?? null,
+          previewUrl: call.previewUrl ?? null,
+        });
+      },
+    })]),
+  ));
+  const reads = Object.freeze(Object.fromEntries(Object.keys(surface.reads).map((name) => [
+    name,
+    Object.freeze({
+      snapshot: () => provider.registry.snapshot(
+        binding.readDescriptors.find((descriptor) => descriptor.name === name),
+      ),
+      subscribe(listener) {
+        if (binding.closed) surfaceRefusal('SNAPBACK_REACT_PROVIDER_CLOSED', 'surface binding is closed');
+        const descriptor = binding.readDescriptors.find((candidate) => candidate.name === name);
+        const emit = () => listener(provider.registry.snapshot(descriptor));
+        const lease = provider.registry.subscribe(descriptor, emit);
+        const subscription = { listener, descriptor, lease };
+        binding.readSubscribers[name].add(subscription);
+        listener(provider.registry.snapshot(descriptor));
+        return () => {
+          if (!binding.readSubscribers[name].delete(subscription)) return;
+          subscription.lease.release();
+        };
+      },
+    }),
+  ])));
+  const publicBinding = {
+    artifactKind: 'boundSnapbackSurface',
+    descriptor: surface,
+    reads,
+    mutations: binding.mutations,
+    assets: binding.assets,
+    [SURFACE_REACT_LIFECYCLE]: Object.freeze({
+      activate() {
+        if (!binding.closed) binding.retired = false;
+      },
+      retire() {
+        binding.retired = true;
+      },
+    }),
+    update(nextParams, nextOptions = undefined) {
+      if (binding.closed) surfaceRefusal('SNAPBACK_REACT_PROVIDER_CLOSED', 'surface binding is closed');
+      binding.params = admittedSurfaceParams(surface, nextParams);
+      if (nextOptions !== undefined) binding.options = surfaceOptions(surface, nextOptions);
+      replaceReadProjection();
+      migrateReadSubscribers();
+      if (binding.queryObserver) binding.queryObserver.update(binding.readEntries);
+      if (binding.started) {
+        const emit = () => {
+          binding.lastSnapshot = null;
+          for (const listener of [...binding.listeners]) listener();
+        };
+        const predecessors = binding.presenceObservers;
+        const successors = {};
+        for (const [name, member] of Object.entries(surface.presence)) {
+          successors[name] = observeSnapbackPresence(
+            provider,
+            member.reference,
+            {
+              scope: surfaceMemberArgs(member, binding.params).scope,
+              value: binding.options.presence[name],
+            },
+            emit,
+          );
+        }
+        binding.presenceObservers = successors;
+        for (const observer of Object.values(predecessors)) void observer.dispose();
+      }
+      binding.lastSnapshot = null;
+      for (const listener of [...binding.listeners]) listener();
+    },
+    subscribe(listener) {
+      if (binding.closed) surfaceRefusal('SNAPBACK_REACT_PROVIDER_CLOSED', 'surface binding is closed');
+      binding.listeners.add(listener);
+      startSurfaceBinding(binding);
+      return () => {
+        binding.listeners.delete(listener);
+        if (binding.listeners.size !== 0) return;
+        queueMicrotask(() => {
+          if (binding.listeners.size === 0 && !binding.closed) void stopSurfaceBinding(binding);
+        });
+      };
+    },
+    snapshot: () => surfaceSnapshot(binding),
+    async dispose() {
+      if (binding.closed) return;
+      binding.closed = true;
+      binding.retired = true;
+      binding.listeners.clear();
+      for (const subscribers of Object.values(binding.readSubscribers)) {
+        for (const subscription of subscribers) subscription.lease.release();
+        subscribers.clear();
+      }
+      await stopSurfaceBinding(binding);
+    },
+  };
+  return Object.freeze(publicBinding);
+}
+
+export function observeSnapbackSurface(provider, surface, params, options, listener) {
+  const binding = bindSnapbackSurface(provider, surface, params, options);
+  const unsubscribe = binding.subscribe(() => listener(binding.snapshot()));
+  listener(binding.snapshot());
+  return Object.freeze({
+    snapshot: binding.snapshot,
+    reads: binding.reads,
+    mutations: binding.mutations,
+    assets: binding.assets,
+    update: binding.update,
+    async dispose() {
+      unsubscribe();
+      await binding.dispose();
+    },
+  });
+}
+
+function surfaceHookOptionsKey(options) {
+  const presence = Object.fromEntries(Object.entries(options?.presence ?? {}).map(([name, child]) => (
+    [name, child === skip ? { $snapbackSurfaceSkip: true } : child]
+  )));
+  return canonicalizeClientValueV1({ ...(options ?? {}), presence });
+}
+
+export function useSurface(surface, params, options = {}) {
+  const provider = useProvider();
+  const paramKey = canonicalizeClientValueV1(params);
+  const optionsKey = surfaceHookOptionsKey(options);
+  const binding = useMemo(
+    () => bindSnapbackSurface(provider, surface, params, options),
+    [provider, surface, paramKey, optionsKey],
+  );
+  useEffect(() => {
+    const lifecycle = binding[SURFACE_REACT_LIFECYCLE];
+    lifecycle.activate();
+    return lifecycle.retire;
+  }, [binding]);
+  return useSyncExternalStore(binding.subscribe, binding.snapshot, binding.snapshot);
 }
 
 export async function invokeSnapbackMutation(providerValue, reference, args, options = {}) {

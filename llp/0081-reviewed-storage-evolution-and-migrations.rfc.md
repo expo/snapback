@@ -5,7 +5,14 @@
 **Systems:** Schema evolution, Migrations, Storage portability, Deployment, Backup and restore, Code generation, CLI, Diagnostics, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-20
-**Revised:** 2026-08-05 (post-implementation fail-closed correction: the local
+**Revised:** 2026-08-06 (client tombstone-and-re-entry implementation: the JS
+client outbox now recognizes the sidecar's upgrade-required refusal family,
+atomically quarantines every pending intent under the first-cut
+compatibility-unclassified posture, exposes only stable redacted v1
+tombstones, keeps exact-leaf dependents held rather than failed, and provides
+explicit all-quarantine re-entry after successor admission. Per-intent
+compatibility classification/transformation from generated facts remains the
+named follow-on.) 2026-08-05 (post-implementation fail-closed correction: the local
 v1 in-place `BackfillField`/`CopyField` proof domain is new destinations only,
 matching the implemented rollback and content-digest oracle; `AddField` must
 name both a manifest-new and physically fresh column on fresh admission,
@@ -593,12 +600,44 @@ recovers an old-or-new runtime attachment. The supervisor neither reads nor
 rewrites queued mutation payloads itself.
 
 That hook is deliberately not this RFC's tombstone-and-re-entry
-implementation. The client/storage-evolution owner must still classify
-compatibility against generated facts, create the stable redacted tombstone,
-prevent silent replay under an incompatible schema, and drive explicit action
-re-entry after successor admission. Until that owner lands, the sidecar can
-surface and recover from the refusal but cannot claim the quarantine behavior
-specified in §4 or its acceptance rows.
+implementation. At the time the hook landed, the client/storage-evolution
+owner still had to classify compatibility against generated facts, create the
+stable redacted tombstone, prevent silent replay under an incompatible schema,
+and drive explicit action re-entry after successor admission. The dated
+implementation note below records the client-owned first cut; the sidecar
+contract remains unchanged and still neither reads nor rewrites queued payloads.
+
+#### Client tombstone-and-re-entry implementation note (2026-08-06)
+
+The `@expo/snapback-client` outbox now recognizes
+`SNAPBACK_UPGRADE_REQUIRED`, `SNAPBACK_CLIENT_UPGRADE_REQUIRED`,
+`SNAPBACK_MIGRATION_UPGRADE_REQUIRED`, and the closed
+`*_UPGRADE_REQUIRED` suffix family before ordinary replay failure handling.
+One such refusal atomically moves **every pending intent** to `quarantined`.
+This is the deliberately conservative first cut: exact-leaf/transitive
+dependents are labeled `dependent`, while every other pending record is
+`compatibility-unclassified`; none is marked `failed`, dropped, or selected by
+replay. Quarantined records continue to hold the full-resync/submission fence
+and count toward the unchanged 1,024-record outbox bound.
+
+The durable store privately retains the original intent and replay identity.
+Its observable projection is instead
+`snapback.outbox-quarantine-tombstone.v1`: `{status, clientMutationId,
+function, sequence, quarantinedAt, refusalCode, quarantineDisposition,
+causeClientMutationId, provenance:{source, payload:'redacted'}}`. It carries no
+arguments, authority context, read set, generated artifact facts, settlement
+claims, or optimistic payload. `client.quarantinedMutations()` returns those
+tombstones and `client.outboxStatus()` reports their count.
+
+After the application has successfully loaded/reconnected with successor
+artifacts, `client.reenterQuarantinedMutations()` explicitly returns the whole
+quarantine to `pending` in its original sequence and identity; the next normal
+drain supplies exactly-once replay. It does not automatically re-enter on
+connectivity, rewrite a payload, or infer compatibility. Per-intent
+classification and any transformation against successor generated
+function/schema facts remain a named codegen/Contract/client follow-on. Until
+that lands, applications must treat the explicit method call as their
+successor-admission assertion and use the conservative quarantine-all posture.
 
 Each plan declares one of:
 

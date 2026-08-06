@@ -63,6 +63,7 @@ export {
   admittedReactEphemeralDefinition,
   admittedReactQueryGroup,
   admittedReactReference,
+  admittedReactSurface,
   abandonConsumedReactQueryGroup,
   assertPreparedReactBinding,
   classifyRegeneratedReactReference,
@@ -131,7 +132,10 @@ import { resolveDefaultRqsStore } from './rqs-store-default.mjs';
 // lives in outbox-shared.mjs so the binding-receipt path in react-binding.mjs
 // — which cannot import this module without a cycle — applies the exact same
 // rule. sanitizeTransportError below still owns the provenance stamp.
-import { isConnectivityFailureError } from './outbox-shared.mjs';
+import {
+  isConnectivityFailureError,
+  OUTBOX_QUARANTINE_TOMBSTONE_FORMAT,
+} from './outbox-shared.mjs';
 
 // @ref LLP 0162#acceptance — once an operation identity is below the retained
 // outcome horizon, the client must expose unknown outcome and retain durable
@@ -160,6 +164,21 @@ const isOperationRangeRecoveryBlockedError = (error) => (
   || error?.diagnostic?.code === 'SNAPBACK_OPERATION_RANGE_REAUTH_REQUIRED'
   || error?.code === 'SNAPBACK_OPERATION_RANGE_REAUTH_REQUIRED'
 );
+
+// Mirrored from @expo/snapback-sidecar so the client/storage owner can enforce
+// LLP 0081 without importing the desktop supervisor. The suffix rule keeps
+// target-specific upgrade refusals inside the same fail-closed family.
+const DEFAULT_UPGRADE_REQUIRED_CODES = new Set([
+  'SNAPBACK_UPGRADE_REQUIRED',
+  'SNAPBACK_CLIENT_UPGRADE_REQUIRED',
+  'SNAPBACK_MIGRATION_UPGRADE_REQUIRED',
+]);
+
+const isUpgradeRequiredRefusal = (error) => {
+  const code = error?.diagnostic?.code ?? error?.code;
+  return typeof code === 'string'
+    && (DEFAULT_UPGRADE_REQUIRED_CODES.has(code) || /_UPGRADE_REQUIRED$/u.test(code));
+};
 
 const operationOutcomeFromError = (error) => {
   const outcome = error?.diagnostic?.details?.outcome;
@@ -5875,12 +5894,14 @@ export class SnapbackClient {
         supported: false,
         pending: 0,
         failed: 0,
+        quarantined: 0,
         resultGone: 0,
         replaying: false,
       });
     }
     let pending = 0;
     let failed = 0;
+    let quarantined = 0;
     let resultGone = 0;
     try {
       const records = typeof store.outboxRecords === 'function'
@@ -5889,6 +5910,7 @@ export class SnapbackClient {
       for (const record of records) {
         if (record?.status === 'failed') failed += 1;
         else if (record?.status === 'pending') pending += 1;
+        else if (record?.status === 'quarantined') quarantined += 1;
         else if (record?.status === 'result-gone') resultGone += 1;
       }
     } catch { /* counts stay zero; the store remains the authority */ }
@@ -5896,8 +5918,69 @@ export class SnapbackClient {
       supported: true,
       pending,
       failed,
+      quarantined,
       resultGone,
       replaying: this.__outboxReplayTask !== null,
+    });
+  }
+
+  /// Stable, payload-free LLP 0081 tombstones. The durable store privately
+  /// retains the complete intent for re-entry, but this public projection never
+  /// exposes args, auth context, read sets, generated facts, or optimistic data.
+  async quarantinedMutations() {
+    const store = this.#offlineQueueStore();
+    if (!store) return [];
+    return (await store.outboxRecords())
+      .filter((record) => record?.status === 'quarantined')
+      .map((record) => Object.freeze({
+        format: OUTBOX_QUARANTINE_TOMBSTONE_FORMAT,
+        status: 'quarantined',
+        id: record.id,
+        clientMutationId: record.clientMutationId ?? record.id,
+        function: record.function,
+        sequence: record.sequence,
+        quarantinedAt: record.quarantinedAt,
+        refusalCode: record.refusalCode,
+        quarantineDisposition: record.quarantineDisposition,
+        causeClientMutationId: record.causeClientMutationId,
+        provenance: Object.freeze({
+          source: 'server-replay-refusal',
+          payload: 'redacted',
+        }),
+      }));
+  }
+
+  /// Explicit first-cut successor admission. The application calls this only
+  /// after its successor artifacts have loaded/reconnected successfully. This
+  /// moves the whole quarantine back to pending without transforming payloads;
+  /// per-intent generated-fact classification is a named follow-on.
+  async reenterQuarantinedMutations() {
+    const store = this.#offlineQueueStore(true);
+    if (typeof store.outboxReenterQuarantined !== 'function') {
+      const error = new Error(
+        'SNAPBACK_OFFLINE_QUEUE_STORE_INCAPABLE: store cannot re-enter quarantined mutations',
+      );
+      error.code = 'SNAPBACK_OFFLINE_QUEUE_STORE_INCAPABLE';
+      throw error;
+    }
+    const result = await store.outboxReenterQuarantined();
+    if (!result) {
+      const error = new Error(
+        'SNAPBACK_OUTBOX_REENTRY_NOT_DURABLE: quarantined mutations were not re-entered',
+      );
+      error.code = 'SNAPBACK_OUTBOX_REENTRY_NOT_DURABLE';
+      throw error;
+    }
+    await this.#refreshOptimisticMutationViews('upgrade-required-reentry');
+    this.#recordOutboxDiagnostic({
+      code: 'SNAPBACK_OFFLINE_MUTATIONS_REENTERED',
+      count: result.count,
+      clientMutationIds: result.clientMutationIds,
+    });
+    this.#notifyOutboxListeners();
+    return Object.freeze({
+      reentered: result.count,
+      clientMutationIds: Object.freeze([...result.clientMutationIds]),
     });
   }
 
@@ -6129,9 +6212,11 @@ export class SnapbackClient {
   /// Replay every pending queued mutation in client-local sequence order
   /// (LLP 0008: ordering uses the sequence, never a wall clock). Success
   /// settles the record and schedules its exactly-once ledger ACK; a server
-  /// refusal is drop-and-mark-failed (never retried, visible as failed
-  /// client state); a connectivity failure stops the drain with the record
-  /// still pending. Single-flight: concurrent calls share one drain.
+  /// refusal is drop-and-mark-failed (never retried, visible as failed client
+  /// state), except LLP 0081 upgrade-required refusals, which quarantine the
+  /// incompatible queue for explicit successor re-entry; a connectivity
+  /// failure stops the drain with the record still pending. Single-flight:
+  /// concurrent calls share one drain.
   async replayQueuedMutations() {
     if (this.__outboxReplayTask) return this.__outboxReplayTask;
     const task = this.#replayOutboxOnce().finally(() => {
@@ -6150,19 +6235,20 @@ export class SnapbackClient {
     } catch {
       store = null;
     }
-    if (!store) return { replayed: 0, failed: 0, remaining: 0 };
+    if (!store) return { replayed: 0, failed: 0, quarantined: 0, remaining: 0 };
     if (typeof store.whenLockSettled === 'function') await store.whenLockSettled();
     if (typeof store.isWriter === 'function' && store.isWriter() !== true) {
-      return { replayed: 0, failed: 0, remaining: 0, stopped: true };
+      return { replayed: 0, failed: 0, quarantined: 0, remaining: 0, stopped: true };
     }
     let pending;
     try {
       pending = await store.outboxPending();
     } catch {
-      return { replayed: 0, failed: 0, remaining: 0 };
+      return { replayed: 0, failed: 0, quarantined: 0, remaining: 0 };
     }
     let replayed = 0;
     let failed = 0;
+    let quarantined = 0;
     let stopped = false;
     for (const queuedRecord of pending) {
       let record = queuedRecord;
@@ -6186,6 +6272,10 @@ export class SnapbackClient {
           reason: prepared.record?.failure?.message,
         });
         continue;
+      }
+      if (prepared?.status === 'quarantined') {
+        stopped = true;
+        break;
       }
       if (prepared?.status !== 'ready' || !prepared.record) continue;
       record = prepared.record;
@@ -6380,6 +6470,39 @@ export class SnapbackClient {
           stopped = true;
           break;
         }
+        if (isUpgradeRequiredRefusal(error)) {
+          const refusalCode = error?.diagnostic?.code ?? error?.code;
+          if (typeof store.outboxMarkQuarantined !== 'function') {
+            stopped = true;
+            this.#recordOutboxDiagnostic({
+              code: 'SNAPBACK_OUTBOX_QUARANTINE_UNSUPPORTED',
+              mutation: record.function,
+              clientMutationId: record.id,
+              refusalCode,
+            });
+            break;
+          }
+          let held = false;
+          try {
+            held = await store.outboxMarkQuarantined(record.id, { code: refusalCode });
+          } catch { /* handled below: pending is safer than silent loss */ }
+          if (!held) {
+            stopped = true;
+            break;
+          }
+          quarantined += held.count;
+          stopped = true;
+          await this.#refreshOptimisticMutationViews('upgrade-required-quarantine');
+          this.#recordOutboxDiagnostic({
+            code: 'SNAPBACK_OFFLINE_MUTATIONS_QUARANTINED',
+            mutation: record.function,
+            clientMutationId: record.id,
+            refusalCode,
+            quarantined: held.count,
+            disposition: 'tombstone-and-re-entry',
+          });
+          break;
+        }
         // LLP 0008: a mutation the server refused on replay is dropped and
         // marked failed, never retried — observable client state.
         let markedFailed = false;
@@ -6408,9 +6531,10 @@ export class SnapbackClient {
       remaining = (await store.outboxRecords())
         .filter((record) => (
           record?.status === 'pending' || record?.status === 'result-gone'
+          || record?.status === 'quarantined'
         )).length;
     } catch { /* inspection only */ }
-    return { replayed, failed, remaining, stopped };
+    return { replayed, failed, quarantined, remaining, stopped };
   }
 
   async mutate(ref, {

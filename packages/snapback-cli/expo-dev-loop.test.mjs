@@ -19,9 +19,9 @@ import {
   createSupervisedExpoEnvironment,
 } from '../snapback-expo/index.mjs';
 import {
-  invokeSnapbackMutation,
   observeSnapbackPresence,
   observeSnapbackQueries,
+  observeSnapbackSurface,
 } from '@expo/snapback-react';
 
 import {
@@ -398,9 +398,10 @@ try {
     join(settled.backendRoot, 'generated', 'app.descriptor.json'),
     'utf8',
   ));
-  const api = (await import(
+  const generated = await import(
     `${pathToFileURL(join(settled.backendRoot, 'generated', 'api.mjs')).href}?e1=${Date.now()}`
-  )).default;
+  );
+  const api = generated.default;
   const appState = appStateHarness();
   const environment = createSupervisedExpoEnvironment({
     exchangeOrigin: supervisor.exchangeOrigin,
@@ -432,8 +433,27 @@ try {
     () => query.snapshot().queries.rows.status === 'ready',
     { label: 'provider live query ready' },
   );
+  const surfaceStates = [];
+  const surface = observeSnapbackSurface(
+    provider,
+    generated.app.surfaces.fixtureSurface,
+    { roomId: 'expo-e1-room' },
+    {},
+    (state) => { surfaceStates.push(state); },
+  );
+  await eventually(
+    () => surface.snapshot().state.rows.status === 'ready',
+    { label: 'surface live query ready' },
+  );
+  assert.strictEqual(
+    surface.snapshot().state.rows,
+    query.snapshot().queries.rows,
+    'real low-level and surface reads must share the canonical store snapshot',
+  );
+  assert.equal(provider.inspection().stores, 1);
+  assert.equal(provider.inspection().serverSubscriptions, 1);
   const firstBody = `expo-e1-first-${process.pid}`;
-  await invokeSnapbackMutation(provider, api.publishLiveRow, { body: firstBody });
+  await surface.mutations.publish({ body: firstBody });
   await eventually(
     () => query.snapshot().queries.rows.status === 'ready'
       && query.snapshot().queries.rows.data.some((row) => row.body === firstBody),
@@ -464,7 +484,7 @@ try {
     () => {},
   );
   await eventually(
-    () => provider.inspection().presenceConsumers === 2,
+    () => provider.inspection().presenceConsumers === 3,
     { label: 'equivalent presence consumer share' },
   );
   assert.equal(provider.inspection().presenceStores, 1);
@@ -522,14 +542,18 @@ try {
   assert.equal(provider.inspection().serverSubscriptions, 1);
   assert.equal(provider.inspection().presenceSubscriptions, 1);
   const secondBody = `expo-e1-second-${process.pid}`;
-  await invokeSnapbackMutation(provider, api.publishLiveRow, { body: secondBody });
+  await surface.mutations.publish({ body: secondBody });
   await eventually(
     () => query.snapshot().queries.rows.data.some((row) => row.body === secondBody),
     { label: 'successor ordinary mutation observation' },
   );
   assert(queryStates.length > 0, 'live-query projections must reach the fixture');
+  assert(surfaceStates.length > 0, 'surface projections must reach the fixture');
   assert(presenceStates.length > 0, 'presence projections must reach the fixture');
 
+  await surface.dispose();
+  assert.equal(provider.inspection().stores, 1, 'surface cleanup retains its low-level sibling');
+  assert.equal(provider.inspection().presenceStores, 1, 'surface cleanup retains its low-level room sibling');
   query.dispose();
   await presence.dispose();
   offBoot();

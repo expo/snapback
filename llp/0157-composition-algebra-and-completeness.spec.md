@@ -6,7 +6,29 @@
 Client SDK, Live queries, Wire Protocol, Codegen, Admin console, Testing
 **Author:** Charlie Cheever / Claude (Fable 5) / Codex
 **Date:** 2026-08-02
-**Revised:** 2026-08-05 (Charlie owner ruling: narrow relational-composite
+**Revised:** 2026-08-06, later (v0.11.1, residual-review disposition: the
+§D8 `sbsb2` restart biconditional is conditioned on decode validity —
+well-formed, unexpired, non-future-issued, current
+`formatVersion`/`keyGeneration` — with decode-validity failures collapsing
+to `SNAPBACK_SNAPSHOT_BATCH_CURSOR_INVALID` before any epoch or parent
+comparison per the implemented v1 decode-first rule, and the
+expired-plus-changed-epoch overlap near-miss added to the §D8(d) and A14
+vector obligations; applies the recorded supplementary round-2
+Claude-family review's R2-1 (MATERIAL) left undispositioned by the v0.11
+close-out, plus its R2-4 (LLP 0080 gate phrasing de-circularized) and
+R2-6's LLP 0135 §2.4 residue (stream/restore-epoch folded into the v1
+restart side, `expired` into the collapse list); one dated amendment,
+labeled unreviewed per the close-out's re-entry rule); 2026-08-06 (v0.11,
+`snapshot-batch.v2` / `sbsb2` reviewed
+profile registration: the fourth and final plan profile is registered — a
+static tuple of 2–8 `bounded_children_v1@1` / `relational_query_v1@1` nodes
+with at least one relational node and summed `take` ≤ 1,024 — with the exact
+`sbsb2` cursor record and budget, the §D3 assignment rows, the §D4
+classification, and the sealing/resume/work-accounting pins fixed by
+LLP 0135's 2026-08-05 ruling, plus the required cross-language parity-vector
+obligations. Registration is semantic only and consumes the profile-registry
+growth budget; implementation, frozen vectors, and capability publication
+remain separately gated); 2026-08-05 (Charlie owner ruling: narrow relational-composite
 direction accepted; `snapshot-batch.v2` / `sbsb2` is reserved as the fourth
 profile, reusing `relational_query_v1@1` and §D2–§D7, with activation still
 gated on the exact reviewed registry/cursor amendment and executable evidence);
@@ -176,8 +198,9 @@ substrate, and this Spec owns exactly it:
    with cross-query normalization registered as a gated upgrade this Spec
    does not admit.
 8. **The coordinated cursor-family grammar** — on this Spec's acceptance,
-   the common `sbbc1`/`sbsb1` AEAD envelope registry and the complete
-   `sbsb1` body/budget live here. Existing `sbbc1` bytes do not change.
+   the common `sbbc1`/`sbsb1`/`sbsb2` AEAD envelope registry and the
+   complete `sbsb1` and `sbsb2` bodies/budgets live here. Existing `sbbc1`
+   bytes do not change.
 
 ## Scope and authority
 
@@ -194,10 +217,10 @@ to its section, owner, or blocking dependency. It does **not** own:
   the sealed `absent` envelope, ceilings, v1 classification, and the
   maturity/acknowledgment route remain LLP 0135 Part 2's. This Spec owns
   only the cross-family cursor grammar and the identity/witness/store layers
-  around that execution (§D8). LLP 0135's 2026-08-05 OQ5 ruling now directs
-  narrow `relational_query_v1@1` admission in reserved `snapshot-batch.v2`;
-  this Spec owns the still-required exact reviewed registry/cursor amendment,
-  not the product decision itself.
+  around that execution (§D8). LLP 0135's 2026-08-05 OQ5 ruling directed
+  narrow `relational_query_v1@1` admission through `snapshot-batch.v2`; this
+  Spec's 2026-08-06 v0.11 amendment lands that exact reviewed registry/cursor
+  registration (§D1, §D3, §D4, §D8), not the product decision itself.
 - **Wire encodings.** The status, proof, and inspection facts get wire
   shapes as dated amendments with LLP 0093/0094.
 - **Store carriers and the authorization fence machinery.** LLP 0008
@@ -257,8 +280,8 @@ The active node-class registry is exact:
 
 | `classId` | `classVersion` | Owner-normalized record | Single node | Multi-node profile | Parent group |
 | --- | ---: | --- | --- | --- | --- |
-| `relational_query_v1` | 1 | LLP 0080 `RelationalQueryPlanV1` | admitted | owner-directed for reserved `snapshot-batch.v2`; activation awaits the reviewed profile amendment | none |
-| `bounded_children_v1` | 1 | LLP 0110 `BoundedChildrenQueryPlanV1` | admitted | `snapshot-batch.v1` | required |
+| `relational_query_v1` | 1 | LLP 0080 `RelationalQueryPlanV1` | admitted | `snapshot-batch.v2` (registered 2026-08-06, below) | none |
+| `bounded_children_v1` | 1 | LLP 0110 `BoundedChildrenQueryPlanV1` | admitted | `snapshot-batch.v1`; `snapshot-batch.v2` | required |
 | `exported_query_v1` | 1 | `ExportedQueryPlanV1` below, reconstructed from the served function manifest | not admitted as an algebra single-node API | `mixed-route.v2` | none |
 | `single_table_v1` | 1 | LLP 0004/0007 `SingleTablePlanV1` | admitted through `single-node.v1` | not admitted | none |
 
@@ -312,18 +335,57 @@ and is not inferred from this row. This amendment is semantic acceptance only:
 the separately commissioned implementation must satisfy the existing
 proof/wire/store gates before any target publishes support or a capability.
 
+**Dated profile registration (2026-08-06, per the 2026-08-05 LLP 0135
+relational-composite owner ruling):** `snapshot-batch.v2` is the fourth plan
+profile. It admits a static tuple of two through eight nodes, each one
+complete, individually valid, owner-admitted `bounded_children_v1@1` or
+`relational_query_v1@1` plan under its own governing document unchanged, with
+**at least one relational node** and the sum of node `take` values at most
+1,024. It consumes no class slot: `relational_query_v1@1` remains LLP 0080's
+existing class. Every §D2–§D7 field layout and hash grammar is reused
+unchanged — the only schema change is the enumerated addition of
+`"snapshot-batch.v2"` to `NormalizedCompositePlanV1.profileId` and
+`CursorProfileIdV1`, and every predecessor record instance's bytes are
+unchanged. The profile adds its registry rows, the §D3 cursor-profile
+assignment, and the §D8 `sbsb2` cursor family, and no algebra-wide identity,
+completeness, authorization, or liveness axis. The tuple is static: no node
+argument may reference another node's output, and no predicate, aggregate,
+traversal, maintained projection, or data-dependent invocation enters through
+the composite. Its capability id is `snapshot_batch_v2`, which will enter the
+registry at `experimental` through LLP 0134 §1's same-commit introduction
+record when the implementation lands, under LLP 0135 §2.6's
+admission-acknowledgment gate restated exactly: an ordinary artifact claiming
+the composite must acknowledge `snapshot_batch_v2` and every composed
+**experimental** capability id — for a tuple containing a bounded-child node,
+exactly `snapshot_batch_v2` plus `bounded_children_v1`; `relational_query_v1`
+is Stable, so its acknowledgment is a no-op and is never required, and an
+all-relational tuple acknowledges `snapshot_batch_v2` alone. Admission
+refusals reuse LLP 0135 §3's registered diagnostics; any v2-specific
+admission code (for example, the no-relational-node profile refusal) is
+registered there with the implementing slice under §D1 rule 1's placeholder
+rule. LLP 0135 Part 2 remains the execution owner; its one-snapshot,
+seal-entirely, coordinated-resume, and ceiling semantics extend to this
+profile exactly as pinned in §D4 and §D8. Registration is semantic only, and
+the gate distinguishes landing work from claims: the separately commissioned
+executor, admission path, and vector generation may land as ordinary
+implementation work, but until the executor, the frozen cross-language parity
+vectors §D8 specifies, and the target's own capability publication authority
+are all green, no target may admit or require the profile at runtime, no
+shipped generated artifact may require the capability (acceptance-corpus
+fixtures may), and no support, capability, or implementation claim may be
+published.
+
 **Growth stop rule.** The active registry has exactly four node classes and
-three plan profiles (`single-node.v1`, `snapshot-batch.v1`,
-`mixed-route.v2`). The 2026-08-05 owner ruling reserves
-`snapshot-batch.v2` as the fourth profile; it does not become active until its
-reviewed amendment lands. A successor may grow to at most six
-active classes and four plan profiles, one class or profile per reviewed
-amendment. A proposal that exceeds either ceiling, introduces a new
+four plan profiles (`single-node.v1`, `snapshot-batch.v1`, `mixed-route.v2`,
+`snapshot-batch.v2`). The 2026-08-06 registration above consumed the fourth
+and final plan-profile slot. A successor may still grow to at most six active
+classes, one class per reviewed amendment, but **no further plan profile may
+arrive as an incremental amendment**: a proposal for a fifth profile, a
+seventh class or anything else exceeding either ceiling, a new
 algebra-wide identity/completeness/authorization axis instead of reusing
-§D2–D7, or needs more than one new class/profile in one workload slice must
-stop and commission an RFC that reconsiders the composition thesis. It may not
-arrive as incremental Spec accretion. This is LLP 0155's cumulative
-vocabulary/design-work budget.
+§D2–D7, or more than one new class in one workload slice must stop and
+commission an RFC that reconsiders the composition thesis. This is LLP 0155's
+cumulative vocabulary/design-work budget, now exhausted on the profile axis.
 
 A composite declares a **static tuple** of nodes. The algebra admits:
 
@@ -355,14 +417,15 @@ Closure rules, normative:
    admitted-class registry is the single place a new class is recorded,
    with a dated note citing the owner's admitting decision.
 3. **Substrate admission is the substrate's.** Which classes may appear
-   in a *multi-node* composite is LLP 0135's admission question (v1:
-   `bounded_children_v1` only, 2–8 nodes, summed `take` ≤ 1,024). The
-   algebra is defined over all registered classes. LLP 0135's 2026-08-05 OQ5
-   ruling directs the narrow `snapshot-batch.v2` / `sbsb2` successor to admit
-   `relational_query_v1@1` alongside `bounded_children_v1@1`. Activation still
-   requires the exact reviewed plan/cursor profile registration here. It
-   reuses the record shapes in §D2–D7; it extends the profile registry and
-   admission list, not the node vocabulary or liveness inference rules.
+   in a *multi-node* composite is LLP 0135's admission question
+   (`snapshot-batch.v1`: `bounded_children_v1` only, 2–8 nodes, summed
+   `take` ≤ 1,024; `snapshot-batch.v2`, per the 2026-08-05 owner ruling:
+   `bounded_children_v1@1` and/or `relational_query_v1@1`, 2–8 nodes, at
+   least one relational node, summed `take` ≤ 1,024). The algebra is defined
+   over all registered classes. The v2 profile's exact registration is the
+   2026-08-06 dated amendment above; it reuses the record shapes in §D2–D7
+   and extends the profile registry and admission list, not the node
+   vocabulary or liveness inference rules.
 4. **Refusal is closed.** Every rejection names a stable reason: the
    unadmitted class, the dynamic reference, the exceeded ceiling, or
    the sugar construct that failed to compile (§D5). Silent narrowing
@@ -583,7 +646,9 @@ is SHA-256 over `snapback:merged-args-contract:v1:` plus this record's JCS.
 ```ts
 {
   format: "snapback.normalized-composite-plan.v1",
-  profileId: "single-node.v1" | "snapshot-batch.v1" | "mixed-route.v2",
+  profileId:
+    | "single-node.v1" | "snapshot-batch.v1"
+    | "mixed-route.v2" | "snapshot-batch.v2",
   nodes: readonly {
     position: number,                  // dense 0..N-1
     nodePlan: NodePlanRecordV1,
@@ -602,15 +667,17 @@ For `single-node.v1`, `nodes` has one entry and
 `parentAuthorizationGroups` is exactly empty, including for a standalone
 `bounded_children_v1` plan. The registry's `required` parent-group column
 governs only a multi-node profile.
-For `snapshot-batch.v1`, each `keyJcsBase64url` is the base64url-no-pad
-encoding of LLP 0135 §2.2's exact `ParentAuthorizationKeyV1` JCS bytes.
-Groups are ordered by their smallest member; every node whose §D1 registry row
-says `required` appears in exactly one group, every `none` node appears in no
-group, and each member list is ascending. Current `snapshot-batch.v1` contains
-only required `bounded_children_v1` nodes. Encoding bytes rather than a JSON
-reparse preserves the grouping identity exactly; the owner-directed
-`snapshot-batch.v2` successor can therefore add relational nodes without
-inventing fake parents.
+For `snapshot-batch.v1` and `snapshot-batch.v2`, each `keyJcsBase64url` is the
+base64url-no-pad encoding of LLP 0135 §2.2's exact `ParentAuthorizationKeyV1`
+JCS bytes. Groups are ordered by their smallest member; every node whose §D1
+registry row says `required` appears in exactly one group, every `none` node
+appears in no group, and each member list is ascending. `snapshot-batch.v1`
+contains only required `bounded_children_v1` nodes. In `snapshot-batch.v2`,
+exactly the `bounded_children_v1` positions appear in groups; a
+`relational_query_v1` node appears in no group and no substitute parent is
+invented, so an all-relational tuple carries `parentAuthorizationGroups: []`.
+Encoding bytes rather than a JSON reparse preserves the grouping identity
+exactly.
 
 For `mixed-route.v2`, nodes are the route-manifest order of
 `exported_query_v1` children and `parentAuthorizationGroups` is exactly empty.
@@ -926,9 +993,11 @@ type CursorProfileIdV1 =
   | "relational-query.v1"
   | "bounded-children.v1"
   | "snapshot-batch.v1"
+  | "snapshot-batch.v2"
 ```
 
-The total v1 assignment registry is:
+The total cursor-profile assignment registry is (`mixed-route.v2` has no
+cursor and therefore no row, per §D2):
 
 | Plan profile | Node class(es) | `CursorProfileIdV1` | Node boundary variant |
 | --- | --- | --- | --- |
@@ -936,6 +1005,7 @@ The total v1 assignment registry is:
 | `single-node.v1` | `bounded_children_v1` | `bounded-children.v1` | `bounded-children.v1` |
 | `single-node.v1` | `single_table_v1` | `none.v1` | none; canonical empty vector |
 | `snapshot-batch.v1` | all `bounded_children_v1` | `snapshot-batch.v1` | one `bounded-children.v1` variant per nonterminal node |
+| `snapshot-batch.v2` | `bounded_children_v1` and/or `relational_query_v1`, at least one relational | `snapshot-batch.v2` | per nonterminal node, the class-selected `bounded-children.v1` or `relational-query.v1` variant |
 
 `none.v1` is active for exactly the owner-proved, unpaginated
 `single_table_v1@1` row above. The class has no public input or output cursor:
@@ -944,9 +1014,11 @@ visible boundary vector is the canonical empty vector. A class/profile pair
 absent from the table, any attempted `none.v1` cursor credential, or a
 profile/boundary mismatch refuses.
 `relational-query.v1` names LLP 0080's cursor; `bounded-children.v1` names LLP
-0110's standalone cursor; and `snapshot-batch.v1` names §D8's coordinated
-cursor. These names are minted here and enter proof bytes. Acceptance carries
-the naming concurrence in the LLP 0080/0110/0135 boundary notes.
+0110's standalone cursor; `snapshot-batch.v1` names §D8's coordinated
+cursor; and `snapshot-batch.v2` names §D8's `sbsb2` coordinated cursor
+(registered 2026-08-06). These names are minted here and enter proof bytes.
+Acceptance carries the naming concurrence in the LLP 0080/0110/0135 boundary
+notes.
 
 The complete nonterminal node boundary is:
 
@@ -1260,6 +1332,15 @@ coincidence, not from replaying deltas.
    delivery:"live_replace",pageDomain:"cursor-free-first-page"},
    invalidation:"table-granular-resnapshot",retention:"none"}`. This Spec
    changes no owner value and admits **no retained composite** in v1.
+   **A `snapshot-batch.v2` composite carries the byte-identical fixed
+   record** (2026-08-06 registration): cursor-free first-page
+   `live_replace` only, table-granular resnapshot over the union of every
+   node's declared dependency set — including each relational node's
+   complete conservative set (LLP 0080 §3) under LLP 0080 §4's
+   table-granular invalidation rule — and `retention:"none"`. No
+   `live_delta`, no proved-disjoint skip, no retained composite, no local
+   relational re-evaluation over fragments, and no retained-relational
+   claim; LLP 0080's opaque-snapshot-only retention rule is untouched.
 4. **The meet algebra is a successor profile, not a v1 fact.** When a
    successor profile wants richer classification (retained composites,
    composite delta), it must define each axis as an explicit ordered
@@ -1704,9 +1785,9 @@ one-snapshot evaluation, parent-auth dedup, seal-entirely results, ceilings,
 live classification, maturity, and diagnostics. This section owns the shared
 cursor grammar commissioned for the queued LLP 0135 implementation half.
 
-### Common `sbbc1` / `sbsb1` envelope
+### Common `sbbc1` / `sbsb1` / `sbsb2` envelope
 
-Both families use:
+All three families use:
 
 ```text
 PREFIX "." BASE64URL_NO_PAD(
@@ -1714,7 +1795,8 @@ PREFIX "." BASE64URL_NO_PAD(
 )
 ```
 
-`PREFIX` is exactly `sbbc1` or `sbsb1`; the prefixes are mutually exclusive.
+`PREFIX` is exactly `sbbc1`, `sbsb1`, or `sbsb2`; the prefixes are mutually
+exclusive and mutually prefix-free.
 The 32-byte `key` is HKDF-SHA-256 with the resume root as input key material,
 the family's purpose bytes as salt, and UTF-8 `keyGeneration` as info. `aad`
 is the purpose bytes followed by, in order, app id, database id, and target
@@ -1733,6 +1815,7 @@ Family registry:
 | --- | --- | ---: | --- | --- |
 | `sbbc1` | `snapback:bounded-children-cursor:xchacha20:v1` | 1,024 bytes | compact UTF-8 JSON in the existing field order | LLP 0110 body semantics; this section owns the shared envelope registration |
 | `sbsb1` | `snapback:snapshot-batch-cursor:xchacha20:v1` | 8,192 bytes | ordered compact UTF-8 JSON defined below | this Spec |
+| `sbsb2` | `snapback:snapshot-batch-cursor:xchacha20:v2` | 8,192 bytes | ordered compact UTF-8 JSON defined below | this Spec |
 
 The existing `sbbc1` body field order is frozen unchanged:
 `formatVersion`, `keyGeneration`, `appId`, `databaseId`,
@@ -1812,7 +1895,8 @@ after `"args":`; nested boundary values use their §D3
 Unix-epoch milliseconds and satisfy
 `expiresAt - issuedAt === 1_209_600_000`. Independent Rust/JS fixed-nonce
 vectors freeze these exact plaintext bytes. This serializer applies only to
-new `sbsb1`; existing `sbbc1` serialization and vector bytes remain unchanged.
+new `sbsb1` and `sbsb2`; existing `sbbc1` serialization and vector bytes
+remain unchanged.
 
 The 8,192-byte wire cap leaves 8,186 base64url characters after `sbsb1.`, at
 most 6,139 decoded bytes, and 6,099 plaintext bytes after the 24-byte nonce and
@@ -1852,24 +1936,323 @@ terminal—are point-read and visibility-checked at the new snapshot. Nontermina
 nodes resume from their bound state; terminal nodes examine zero child-range
 entries. The continuation is present iff at least one node is nonterminal.
 Visibility and sealing precede cursor validation, preserving byte-identical
-missing/invisible results even for malformed input. Authenticated parent
-incarnation/version change yields
-`SNAPBACK_SNAPSHOT_BATCH_RESTART_REQUIRED`; malformed, expired, cross-app,
-cross-plan, cross-parent, cross-authority, or boundary-invalid credentials
-collapse to `SNAPBACK_SNAPSHOT_BATCH_CURSOR_INVALID`. `sbbc1` refuses in a
-batch and `sbsb1` refuses in a standalone node.
+missing/invisible results even for malformed input. Authenticated
+stream/restore-epoch or parent incarnation/version change yields
+`SNAPBACK_SNAPSHOT_BATCH_RESTART_REQUIRED`, under the same
+cross-authority-first precedence the `sbsb2` section pins for the
+`sbsb1`/`sbsb2` families (LLP 0110's `sbbc1` keeps its own owner binding
+and restart outcomes):
+the authority-partition comparison is evaluated before the epoch
+comparison, so a genuine rotation (which changes both) collapses to
+`SNAPBACK_SNAPSHOT_BATCH_CURSOR_INVALID` and the restart-on-epoch outcome
+is the tamper-only case — the implemented v1 order; malformed, expired,
+cross-app, cross-plan, cross-parent, cross-authority, or boundary-invalid
+credentials collapse to `SNAPBACK_SNAPSHOT_BATCH_CURSOR_INVALID`. `sbbc1`
+refuses in a batch and `sbsb1` refuses in a standalone node; the complete
+both-direction cross-profile refusal rule, which also covers `sbsb2` and
+each surface's precheck precedence, is stated once in the `sbsb2` section
+below and applies to this family too.
 
 The same JSON field name `planHash` deliberately carries two owner-specific
 identities: existing `sbbc1` preserves LLP 0110's current serialized
-`BoundedChildrenPlan` identity and fixed vector; `sbsb1` carries §D2
+`BoundedChildrenPlan` identity and fixed vector; `sbsb1` and `sbsb2` carry §D2
 `PlanHashV1`. No family refactor may replace one with the other.
+
+### `sbsb2` plaintext and budget
+
+Registered 2026-08-06, per the 2026-08-05 LLP 0135 relational-composite owner
+ruling (§D1's dated registration). `sbsb2` is `snapshot-batch.v2`'s only
+resume credential. It reuses `sbsb1`'s envelope, ordered-compact-JSON
+serializer, 8,192-byte wire cap, and therefore the identical arithmetic:
+8,186 base64url characters after `sbsb2.`, at most 6,139 decoded bytes, and a
+6,099-byte plaintext budget after the 24-byte nonce and 16-byte tag. Every
+body member with the same name as an `sbsb1` member carries its `sbsb1`
+semantics unchanged — `groupIndex` zero-based dense in §D2 group order,
+`parentAuthorizationKeyDigest` under the
+`snapback:parent-authorization-key:v1:` domain, `nodes` dense in position
+order, verbatim canonical `args` bytes, and the millisecond timestamps with
+the exact 1,209,600,000 delta — with only `formatVersion: 2` and the widened
+node state union differing. Its plaintext is the following closed record in
+this exact field order:
+
+```ts
+{
+  formatVersion: 2,
+  keyGeneration: string,
+  appId: string,
+  databaseId: string,
+  targetProfileId: string,
+  streamEpoch: string,
+  function: string,                  // exact exported function id
+  planHash: `sha256:${string}`,      // recomputed PlanHashV1
+  args: unknown,                     // complete merged non-cursor CanonicalClientValueV1
+  parentGroups: readonly {
+    groupIndex: number,
+    parentAuthorizationKeyDigest: `sha256:${string}`,
+    parentId: string,
+    parentIncarnation: string,
+    parentVersion: number
+  }[],
+  nodes: readonly {
+    position: number,
+    nodePlanHash: `sha256:${string}`,
+    state:
+      | { kind: "terminal" }
+      | {
+          kind: "boundary",             // bounded_children_v1 nodes only
+          orderFields: readonly string[],
+          boundary: readonly unknown[],
+          rowId: string
+        }
+      | {
+          kind: "relational-boundary",  // relational_query_v1 nodes only
+          orderFields: readonly string[],
+          boundary: readonly unknown[],
+          rowId: string
+        }
+  }[],
+  authorityPartition: `sha256:${string}`, // AuthorityPartitionDigestV1
+  issuedAt: number,
+  expiresAt: number
+}
+```
+
+**Cursor binding.** The body binds the complete merged normalized arguments
+once: `args` is the exact §D2 `canonicalArgs` JSON bytes embedded verbatim,
+as in `sbsb1`, never a cursor-local re-encoding. The per-node state union is
+closed. A `bounded_children_v1` node keeps `sbsb1`'s boundary/terminal
+mapping byte-for-byte: its nonterminal state is the same `kind:"boundary"`
+projection of §D3's `bounded-children.v1` `NodePageBoundaryV1` variant
+(`orderFields`, `boundary`, child-`_id` `rowId`, in that member order). A
+`relational_query_v1` node's state is either terminal or
+`kind:"relational-boundary"`: the one-to-one projection of §D3's
+`relational-query.v1` variant — LLP 0080's complete root-window boundary,
+with the plan's ordered root `orderFields`, the last consumed root's aligned
+`boundary` values, and the separate root-`_id` tie-break as `rowId`, in that
+member order. No other boundary projection is admitted; a state tag that does
+not match the node's registered class refuses with
+`SNAPBACK_SNAPSHOT_BATCH_CURSOR_INVALID`. `parentGroups` binds exactly the
+`bounded_children_v1` dedup groups in §D2 group order, dense and ascending; a
+relational node appears in no group, carries no substitute parent binding,
+and an all-relational tuple emits `parentGroups:[]` — the empty array, never
+an omitted member. No `sbbc1` credential and no LLP 0080 standalone
+relational cursor appears inside the body or in any composite result;
+per-node cursor identity does not survive composition.
+
+**Budget.** The pre-read maximum-template computation is `sbsb1`'s, extended
+per class. Every body member is counted at its serialized worst case. Each
+bounded-child node compares terminal framing against its owner-declared
+worst-case `kind:"boundary"` state under the unchanged parent template
+widths, which apply only to bounded-child groups. Each relational node
+compares terminal framing against its worst-case
+`kind:"relational-boundary"` state, computable because this profile closes
+the admitted order-field type set: a v2 relational node's declared root
+order fields must each be a portable string carrying the schema-level,
+write-enforced `maxEncodedBytes` bound, a table-scoped id, a
+JavaScript-safe integer, or a boolean — the same closed template types the
+v1 budget uses — and a relational plan declaring any other order-field type
+(notably float, `v.real()`, whose RFC 8785 spelling width no owner closes
+though LLP 0080 admits it for standalone ordering, and equally the
+string-shaped `principal` and `assetRef` declarations, which carry no
+`maxEncodedBytes` bound; `relationIncarnation` is framework-owned, never an
+application order axis, and likewise outside the closed set) refuses
+composition under this profile at establishment with
+`SNAPBACK_SNAPSHOT_BATCH_CURSOR_BUDGET_EXCEEDED`, its standalone admission
+unchanged. The template widths are pinned to the digit, and they govern the
+`sbsb1` template's order values identically — one family template, not two:
+a string order value counts its declared `maxEncodedBytes` at the maximum
+JSON escape expansion of six characters per bounded byte plus the two
+framing quotes; an id-typed **order field** is application data with no
+inherent length bound, so it must carry the same schema-level,
+write-enforced `maxEncodedBytes` bound a string order field requires and
+counts it at the same six-character expansion plus quotes; the
+framework-minted root-`_id` tie-break needs no declaration and counts 256
+unescaped bytes plus the two framing quotes, a deliberate ceiling above
+LLP 0148's 20–38-character minted spelling, sound because `_id` is a
+system field no write may supply; a JavaScript-safe integer order value
+counts 17 characters (`-9007199254740991`); and a boolean order value
+counts 5 (`false`). The nonnegative `parentVersion` keeps its 16-digit pin
+above. The shipped v1 template's reconciliations — the one-character
+boolean/integer under-counts and its hard 256-byte substitution for
+id-typed order fields in place of the required declaration — are tracked
+as an implementation ticket, not a license to under-count. Missing bounds,
+an unbounded key-generation
+spelling, or a maximum over 6,099 refuses before the first page with
+`SNAPBACK_SNAPSHOT_BATCH_CURSOR_BUDGET_EXCEEDED`; mint still checks the
+8,192-byte wire cap as defense in depth, and disagreement is an invariant
+failure, never a terminal result or a data-dependent pagination cliff.
+
+**Resume and restart.** One continuation resumes all nodes together at a new
+single snapshot. On every resume, all deduplicated bounded-child parents —
+groups whose nodes are terminal included — are point-read and
+visibility-checked at the new snapshot; an authenticated parent incarnation
+or `_version` change yields `SNAPBACK_SNAPSHOT_BATCH_RESTART_REQUIRED` and
+restarts the whole composite. A relational node has no parent point-read and
+**no substitute parent `_version`**: its revalidation is exactly the
+fail-closed plan, argument, authority-partition, stream/restore-epoch, and
+order-schema boundary validation, and its resumed root window carries LLP
+0080 §2's guarantee — no skipped and no duplicated untouched root, with the
+stated tolerance for concurrently moved roots — through the composite
+unchanged. Nonterminal nodes resume from their bound state; a terminal
+bounded-child node examines zero child-range entries, and a terminal
+relational node examines zero root-range entries and performs zero
+joined-side lookups. The continuation is present iff at least one node is
+nonterminal. Visibility and sealing precede cursor validation, preserving
+byte-identical missing/invisible results even for malformed input.
+
+The public outcomes of **validating a continuation presented to a
+`snapshot-batch.v2` composite** are total and exactly two, following the
+implemented v1 rule, and the partition is reached only after the sealing
+precheck: every deduplicated bounded-child parent is point-read and
+visibility-checked first, and a parent that is absent or invisible seals the
+whole tuple with the byte-identical `absent` envelope **before** cursor
+validation, even when the presented credential also carries that parent's
+changed incarnation or `_version`. After every parent is present and
+visible, `SNAPBACK_SNAPSHOT_BATCH_RESTART_REQUIRED` is returned exactly when
+a credential that authenticated under the current app/database/target AAD
+**and decoded validly — well-formed, unexpired, non-future-issued, current
+`formatVersion` and `keyGeneration`; decode-validity failures collapse to
+`SNAPBACK_SNAPSHOT_BATCH_CURSOR_INVALID` before any epoch or parent
+comparison, following the implemented v1 decode-first rule —** carries a
+changed stream/restore epoch or a changed incarnation or `_version` for a
+still-visible bounded-child parent. The epoch axis is
+exact: `streamEpoch` is the same authorization-stream/restore incarnation
+the bound partition carries as
+`AuthorityPartitionV1.principalDataScope.authorizationStreamIncarnation`,
+so a genuine rotation changes both members; the cross-authority collapse is
+evaluated **before** the epoch comparison and wins, making the
+restart-on-epoch outcome reachable only for a credential whose bound
+authority partition still matches the current one (a tampered or
+inconsistently minted epoch) — the same order the shipped v1 validator
+applies. **Every** other credential-validation failure — malformed bytes,
+authentication failure (which cross-app, cross-database, and cross-target
+mismatches become, since all three ride the AAD and the `…:v2` purpose
+bytes), expiry, wrong `formatVersion` or `keyGeneration`, cross-function,
+cross-plan, cross-`args`, cross-parent, cross-authority,
+node/group-binding mismatch, state-tag/class mismatch,
+order-schema-invalid boundary, and cross-profile presentation to this
+composite — collapses to `SNAPBACK_SNAPSHOT_BATCH_CURSOR_INVALID`. Restart
+precedence follows LLP 0110's rule: only a credential authenticated for the
+current app/database/target may select the more specific restart outcome;
+unauthenticated bytes never do. Failures outside credential validation keep
+their own owners' outcomes and are not in this partition: a cursor-bearing
+subscribe refuses with `SNAPBACK_SNAPSHOT_BATCH_LIVE_CURSOR_UNSUPPORTED`
+before any storage work and therefore before the sealing precheck; a
+custody-ground mint failure refuses the page under the envelope rule above
+with the distinct public custody diagnostic
+`SNAPBACK_SNAPSHOT_BATCH_CURSOR_MINT_UNAVAILABLE` (LLP 0135 §2.4; it is
+never `SNAPBACK_SNAPSHOT_BATCH_CURSOR_INVALID` and never a terminal page);
+and a result-contract mismatch refuses at load. Cross-profile refusal is
+total in both directions, scoped by each surface's own precedence: a
+receiving surface's visibility/sealing prechecks remain authoritative and
+may seal (or return the standalone owner's indistinguishable absent result)
+before any cursor validation occurs; once a surface reaches cursor
+validation, a foreign-family credential refuses under that surface's
+owner code — `sbsb1` in a `snapshot-batch.v2` composite and `sbsb2` in a
+`snapshot-batch.v1` composite (both `SNAPBACK_SNAPSHOT_BATCH_CURSOR_INVALID`),
+`sbsb2` at a standalone node under that node owner's cursor-invalid code
+(`SNAPBACK_RELATIONAL_CURSOR_INVALID`,
+`SNAPBACK_BOUNDED_CHILDREN_CURSOR_INVALID`), and `sbbc1` and LLP 0080's
+standalone relational credential each in any batch.
+
+**Sealing.** LLP 0135 §2.3's seal-entirely rule extends unchanged and seals
+only through bounded-child parents: a bounded-child parent's absence or
+invisibility seals the entire mixed tuple with the byte-identical
+`{kind:"absent", nodes:null, continuation:null}` envelope, disclosing no
+sealing node, count, or cause. An authorized relational node that emits zero
+rows is a **visible empty page**, never `absent`; missing or invisible joined
+rows keep LLP 0080's `inner`/`left` semantics and never seal.
+Invocation-level authorization refusal of a relational plan refuses the whole
+composite with its closed refusal (§D3 `refused`); it is never recoded as
+parent absence. An all-relational tuple has no parent and therefore no
+reachable sealed envelope; its declared result contract nevertheless carries
+LLP 0135 §2.3's unnarrowed two-arm `SnapshotBatchRow` envelope — every
+`snapshot-batch.v2` composite does — with the `absent` arm statically
+unreachable but never removed. The envelope **arm set** is therefore never a
+function of the tuple's class mix or of `absent`'s static reachability, and
+no `resultContractHash` or `QueryMaterializationKeyV1` difference arises
+from the arm set; the visible-arm payload still varies normally with the
+declaration-ordered node classes and projections, so class mix rotates
+`PlanHashV1`, the authored `resultContractHash`, and therefore
+`QueryMaterializationKeyV1` through §D2's ordinary rotation table.
+In the `visible` row, a bounded-child node
+contributes its own cursor-free `{parent, children}` page unchanged and a
+relational node contributes its own cursor-free `RelationalResultEncodingV1`
+row array; the declared result contract must exactly match the
+declaration-ordered tuple under that two-arm envelope, else
+`SNAPBACK_SNAPSHOT_BATCH_RESULT_CONTRACT_INVALID` refuses at load.
+
+**Work accounting.** The composite ceiling is a static fact of the normalized
+plan, encoded in `PlanHashV1`, summing every owner's per-node ceiling, each
+pinned to the digit here: for each bounded-child node, `take + 1` examined
+child-range entries, and exactly `0` when `take` is `0` (LLP 0110 §1.2),
+plus one point-read per deduplicated parent declaration; for each relational
+node, exactly `take` examined root-range entries, and `0` when `take` is
+`0` — LLP 0080 §2's pipeline consumes at most `take` authorized roots with
+no lookahead entry (a page consuming fewer than `take` roots is terminal),
+under §1's index-served admission with no residual post-index predicate and
+the owner-field-leading index that keeps invisible roots out of the
+examined range — plus **exactly one joined-side unique-index lookup per
+relational root consumed**, including a root later omitted by an `inner`
+join, at most `take` lookups per relational node per page. The §D6 unit is
+exact: a node's `examinedEntryCeiling` is exactly its examined
+index-entry count — `takeᵢ + 1` for a bounded-child node (`0` at
+`take: 0`), `takeᵢ` for a relational node; parent point-reads are projected
+separately through §D6's `parentAuthorizationGroupCount`; and the
+per-relational-node joined-lookup ceiling (`takeᵢ`) is deliberately not a
+v1 §D6 field — A14's work instrumentation covers it. LLP 0135 §2.5's v1
+`Σ (takeᵢ + 1)` remains that profile's honest upper bound over the same
+per-node declarations. No target
+may replace those indexed operations with an unbounded scan; acceptance
+instruments the ceiling exactly as LLP 0080 §Acceptance's index-served root
+bound instruments examined entries. Summed node `take` stays at most 1,024.
+
+**Cross-language acceptance vectors — specified here, frozen by the
+implementation.** Before any target may admit or require the profile at
+runtime, and before any support, capability, or implementation claim is
+published, the committed `sbsb1` parity pattern (oracle A4's shared
+fixture with independent consumers) must be reproduced for `sbsb2`: the Rust
+reference emits fixed-nonce golden vectors into one committed shared fixture;
+the Rust test consumes that fixture with plaintext byte-equality, wire
+equality, and an in-module drift guard; and at least one independent
+client-language consumer, registered in the local proof, re-derives the HKDF
+key, length-framed AAD, and XChaCha20-Poly1305 envelope from primitives to
+byte-identical wire and round-tripped plaintext. The vector set must contain
+at least: (a) a mixed tuple with a nonterminal bounded-child state, a
+nonterminal relational state, one terminal node of each class, and non-empty
+`parentGroups`; (b) an all-relational tuple with `parentGroups:[]`; (c) a
+maximum-width template vector at exactly 6,099 plaintext bytes plus the
+6,100-byte establishment-time refusal, exercising every closed template
+type at its pinned width — a bounded string and a bounded id order field at
+maximum escape expansion, the root-`_id` at the 256-byte ceiling, the
+17-character safe-integer extreme, and both boolean spellings; and (d) decode
+near-misses covering the total outcome rule — `sbsb1`/`sbsb2` cross-prefix
+in both directions, a state tag mismatching the node's registered class,
+the cross-app/database/target/function/plan/args/parent/authority/expiry/
+boundary-invalid collapse cases, the two authenticated restart cases
+(tampered `streamEpoch` with the bound authority partition intact; changed
+parent incarnation/`_version` on a still-visible parent), the
+decode-validity overlap near-miss (an authenticated credential that is
+expired and also carries a changed epoch or changed parent facts →
+`SNAPBACK_SNAPSHOT_BATCH_CURSOR_INVALID`, proving decode-validity collapse
+precedes the restart comparison), the
+genuine-rotation case (both members changed) collapsing to cursor-invalid,
+and cross-family presentations both ways — a foreign credential at a
+visible-parent surface refusing under that surface's owner code, and the
+same credential at an absent/invisible-parent surface sealing (or
+returning the standalone owner's absent result) before cursor validation.
+This amendment authors those vector
+obligations; generating and freezing the vectors, like the executor itself,
+is the separately commissioned implementation, and no support or capability
+fact exists until both languages are green.
 
 ### Ownership transition
 
 Charlie accepted this Spec on 2026-08-03. This section is therefore the
-canonical cursor-family registry and `sbsb1` grammar; LLP 0110 continues to
-own bounded-child body semantics and LLP 0135 continues to own execution
-semantics. The acceptance landing records dated boundary notes in LLP 0080, LLP 0110,
+canonical cursor-family registry and `sbsb1`/`sbsb2` grammar; LLP 0110
+continues to own bounded-child body semantics, LLP 0080 continues to own the
+relational grammar and standalone cursor, and LLP 0135 continues to own
+execution semantics. The acceptance landing records dated boundary notes in LLP 0080, LLP 0110,
 LLP 0135, LLP 0114, LLP 0053, and LLP 0043 for profile names, cursor
 ownership, provider/query-key seams, and store migration, so no future editor
 changes one copy alone. The held
@@ -1885,7 +2268,7 @@ or explicitly blocked. “Implementing slice” alone is not a disposition.
 | Source obligation | Normative owner / dependency | Executable oracle |
 | --- | --- | --- |
 | Option-3a static composition; owner-governed vocabulary | §D1; LLP 0135 execution | A4, A11; Triage/Fleet exit |
-| Vocabulary/design-work stop rule | §D1: 2/2 v1, hard 6 classes/4 profiles, one-per-amendment and RFC escalation | registry/refusal corpus |
+| Vocabulary/design-work stop rule | §D1: 4 classes of 6, 4 profiles of 4 (profile axis exhausted 2026-08-06), one class per reviewed amendment, no further profile except by RFC escalation | registry/refusal corpus |
 | Cursor coordination, partial seal, parent dedup, result identity | LLP 0135 execution + §D2 identity + §D8 cursor grammar | A2, A4–A6 |
 | Canonical args and one plan/materialization identity | §D2 | A2–A3 |
 | Per-child liveness without shape inference; LLP 0090 mixed successor seam | §D2/D4; the successor owns its new artifact/wire profile | A3 |
@@ -1908,7 +2291,7 @@ or explicitly blocked. “Implementing slice” alone is not a disposition.
 | Cross-query normalization | not admitted; §D7/OQ2 evidence gate | adversarial projection only if proposed |
 | Aggregates including `count` | out; LLP 0130 SD-2 | none here |
 | Interim fail-closed cap milestone | §D3 rule; current tree proves only imperative `collect()` refusal, not the public witness or an LLP 0080 composition milestone | A1 |
-| Move-1 Triage/Fleet exit | normative transcription below; OQ5 direction is ruled, while Fleet still awaits the reviewed `snapshot-batch.v2` registration, implementation, and workload receipt | workload receipts |
+| Move-1 Triage/Fleet exit | normative transcription below; OQ5's reviewed `snapshot-batch.v2` registration landed 2026-08-06 (§D1/§D8), while Fleet still awaits its implementation, frozen vectors, and fresh workload receipt | workload receipts |
 
 The current tree's `SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED` is specifically the
 inline-handler `collect()` 1,024-row seam in
@@ -2036,13 +2419,58 @@ required output, and forbidden output.
     abandonment purge every live-child registration and grant while leaving
     no state for the read-only child. Re-running the LLP 0112 format-1
     acceptance yields byte-identical request/response shapes.
+14. **A14 — `snapshot-batch.v2` grammar and admission.** Independent Rust/JS
+    encoders reproduce §D8's complete `sbsb2` vector set: the mixed and
+    all-relational fixed-nonce goldens, the 6,099/6,100 maximum-template
+    boundary, and every §D8 total-outcome near-miss — cross-prefix in both
+    directions, a state tag mismatching the node's registered class, the
+    cross-app/database/target/function/plan/args/parent/authority/expiry/
+    boundary-invalid collapses to `SNAPBACK_SNAPSHOT_BATCH_CURSOR_INVALID`,
+    the tamper-only epoch restart, the still-visible parent
+    incarnation/`_version` restart, the expired-plus-changed-epoch overlap
+    collapsing to `SNAPBACK_SNAPSHOT_BATCH_CURSOR_INVALID` before the
+    restart comparison, the genuine stream-rotation collapse,
+    and the cross-family visible-parent (owner code) versus
+    absent/invisible-parent (seals first) presentations. A mixed tuple whose
+    bounded-child parent disappears or becomes invisible seals
+    byte-identically to v1's envelope — including when the presented
+    credential also carries that parent's changed `_version`, proving the
+    sealing precheck precedes the restart partition; an authorized zero-row
+    relational node returns a visible empty page; an invocation-level relational
+    authorization refusal refuses the composite and is never recoded as
+    absence; an all-relational tuple never produces the sealed envelope
+    while its generated result contract still carries the unnarrowed
+    two-arm envelope, and a contract narrowed to the visible arm refuses at
+    load with `SNAPBACK_SNAPSHOT_BATCH_RESULT_CONTRACT_INVALID`. A
+    cursor-bearing subscribe refuses with
+    `SNAPBACK_SNAPSHOT_BATCH_LIVE_CURSOR_UNSUPPORTED` before storage,
+    exactly as in A11. A one-node tuple, a nine-node tuple, a tuple with no
+    relational node declared under `snapshot-batch.v2`, and a summed `take`
+    of 1,025 each refuse at admission with LLP 0135 §3's closed codes; an
+    artifact missing the `snapshot_batch_v2` acknowledgment — or missing
+    `bounded_children_v1`'s when a bounded-child node is composed — refuses
+    at admission, while the all-relational golden case (b) admits with
+    `snapshot_batch_v2` acknowledged alone. A relational node whose string
+    root order field carries no schema-level write-enforced
+    `maxEncodedBytes`, or whose declared order-field type is outside §D8's
+    closed template set, refuses before the first page with
+    `SNAPBACK_SNAPSHOT_BATCH_CURSOR_BUDGET_EXCEEDED`. A bounded-child
+    `take: 0` node derives a ceiling of exactly `0` examined child-range
+    entries while its deduplicated parent point-read still occurs, and a
+    relational `take: 0` node derives `0` examined root-range entries and
+    `0` joined lookups. Work instrumentation
+    proves each page performs at most the summed declared ceilings —
+    examined child-range entries, parent point-reads, examined root-range
+    entries, and exactly one joined-side unique lookup per consumed
+    relational root — and no unbounded scan on any target.
 
 ### Move-1 workload exit (LLP 0155 normative transcription)
 
 Fresh provider-native Triage Graph and Fleet Observatory implementations must
-prove all of the following. The LLP 0135 OQ5 direction is now ruled; Fleet
-remains blocked on the reviewed `snapshot-batch.v2` registration,
-implementation, and fresh witness:
+prove all of the following. The LLP 0135 OQ5 direction is ruled and the
+reviewed `snapshot-batch.v2` registration landed 2026-08-06 (§D1/§D8); Fleet
+remains blocked on its implementation, frozen cross-language vectors, and
+fresh witness:
 
 - required screens use generated composites, not JS collection joins;
 - the client retains only the desired bounded query results;
@@ -2119,7 +2547,12 @@ The LLP 0114 UI-level react-store key remains unchanged and resolves to the
 new semantic address after admission.
 
 `sbbc1` does not migrate: its existing wire and fixed-nonce vector remain
-exact. `sbsb1` has no deployed predecessor. LLP 0090's implemented mixed-route
+exact. No credential migrates into `sbsb2`: `snapshot-batch.v1`, `sbsb1`,
+and `snapshot_batch_v1` remain byte-compatible, bounded-children-only, and
+independently supported where already qualified (the contributor local
+target per LLP 0135's 2026-08-03 implementation record; support-false
+elsewhere); registering the v2 profile reinterprets no v1 composite,
+credential, or capability fact. LLP 0090's implemented mixed-route
 profile uses a new artifact/wire version as its amendment requires; it consumes this
 Spec's per-child identity/capability facts and does not reinterpret LLP 0112
 format 1.
@@ -2137,13 +2570,16 @@ fence beside LLP 0053's. §D8 deliberately does own the cursor wire grammar.
 
 ## Open questions
 
-1. **Direction resolved 2026-08-05; exact amendment open.** Charlie ruled to
-   admit `relational_query_v1@1` narrowly through reserved
-   `snapshot-batch.v2` / `sbsb2`. LLP 0135's successor ruling governs the
-   closed semantics; this Spec must still land the reviewed plan/cursor
-   profile registration reusing the existing class and §D2–D7 record shapes.
-   **Move 1's Fleet exit then additionally requires implementation and its
-   fresh workload receipt** (§Commission crosswalk).
+1. **Resolved 2026-08-06: the reviewed amendment landed.** Charlie's
+   2026-08-05 ruling admitted `relational_query_v1@1` narrowly through
+   `snapshot-batch.v2` / `sbsb2`; the v0.11 amendment registers the exact
+   profile row, `sbsb2` cursor record and budget, cursor-profile assignment,
+   classification, sealing/resume/work-accounting pins, and required
+   parity-vector obligations (§D1, §D3, §D4, §D8), reusing the existing
+   class and §D2–D7 record shapes unchanged. LLP 0135's successor ruling
+   continues to govern the closed execution semantics. **Move 1's Fleet exit
+   now requires only implementation, the frozen cross-language vectors, and
+   its fresh workload receipt** (§Commission crosswalk).
 2. The normalization evidence bar (§D7): the adversarial-projection
    fixture corpus and who owns its review — with LLP 0155 OQ2.
 3. A free-standing typed to-one node class: needed, or does LLP 0080's
@@ -2206,6 +2642,21 @@ registry's fourth profile. It consumes no class slot:
 profile activation. The exact cursor record, registry row, vectors, and
 acceptance corpus must land as a reviewed amendment before codegen or any
 target may admit, require, implement, or advertise `snapshot_batch_v2`.
+
+The v0.11 dated amendment (2026-08-06) is that reviewed registration:
+`snapshot-batch.v2` is the fourth and final plan profile, with the exact
+`sbsb2` cursor record and budget, the §D3 assignment rows, the §D4
+classification, the §D8 sealing/resume/work-accounting pins, and the
+required cross-language parity-vector obligations. The profile-registry
+growth budget is now consumed (§D1's growth stop rule). Registration is
+semantic only and authorizes the separately commissioned implementation work
+to proceed; until the executor, the frozen vectors, and each target's own
+capability publication authority are all green, no target may admit or
+require the profile at runtime, no shipped generated artifact may require
+the capability (acceptance-corpus fixtures may), and no support,
+capability, or implementation claim may be published. The Fleet Observatory
+carrier-exit row stays an honest GAP until the post-implementation fresh
+workload receipt exists.
 
 ## `single_table_v1` activation and local publication — 2026-08-04
 

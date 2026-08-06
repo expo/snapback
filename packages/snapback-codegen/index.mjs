@@ -1884,6 +1884,7 @@ export async function generateInProcess(backendDir, options = {}) {
   const configDefs = [];
   const projectionDefs = [];
   const assetUploadDefs = [];
+  const surfaceDefs = [];
 
   // @ref LLP 0108#final-author-reconciliation-after-round-3 — codegen
   // evaluates only an opaque marker in the definition sandbox, then binds
@@ -1985,6 +1986,10 @@ export async function generateInProcess(backendDir, options = {}) {
     }
     if (isIsolatedDefinition(def, 'asset-upload')) {
       assetUploadDefs.push({ exportName: name, def });
+      continue;
+    }
+    if (isIsolatedDefinition(def, 'surface')) {
+      surfaceDefs.push({ exportName: name, def });
       continue;
     }
     if (!isIsolatedDefinition(def, 'function')) continue;
@@ -4166,6 +4171,9 @@ export async function generateInProcess(backendDir, options = {}) {
   if (diagnostics.some((d) => d.severity === 'error')) {
     return { ok: false, diagnostics };
   }
+  const functionSourceSpans = exportedDefinitionSourceSpans(
+    graphEntrySource(functionsGraph, functionsPath),
+  );
   const generatedReferences = buildGeneratedReferences(
     appId,
     functionManifest.functions,
@@ -4177,11 +4185,24 @@ export async function generateInProcess(backendDir, options = {}) {
     { schemaVersion: artifactVersion, appId, schemaHash, bundleHash, inputsHash },
     functionDefinitionSourceSpans,
   );
+  const generatedSurfaces = buildGeneratedSurfaces({
+    appId,
+    surfaceDefs,
+    functionsModule,
+    schemaDef,
+    generatedReferences,
+    functionSourceSpans,
+    err,
+  });
+  if (diagnostics.some((d) => d.severity === 'error')) {
+    return { ok: false, diagnostics };
+  }
   const appDescriptor = createAppDescriptorV1({
     app: appId,
     schema: schemaHash,
     functions: bundleHash,
     api: generatedReferences.api,
+    surfaces: generatedSurfaces,
     requiredCapabilities: [...requiredTargetCapabilities],
   });
   // @ref LLP 0178#integration-with-the-descriptor-spine — descriptor
@@ -4225,6 +4246,7 @@ export async function generateInProcess(backendDir, options = {}) {
   const appTypes = renderAppTypes(
     functionManifest.functions,
     assetUploadIntents,
+    generatedSurfaces,
   );
   const apiModule = renderApiModule(
     functionManifest.functions,
@@ -8899,6 +8921,329 @@ function generatedReferenceSourceSpan(sourceSpans, name, fallbackFile) {
     : { file: fallbackFile };
 }
 
+function surfaceContract(validator) {
+  return validatorResultValue(validator, { args: true });
+}
+
+function sameSurfaceContract(left, right) {
+  return canonicalResultJson(surfaceContract(left)) === canonicalResultJson(surfaceContract(right));
+}
+
+function surfaceLiteralMatchesValidator(value, validator) {
+  if (value === undefined) return validator?.optional === true;
+  if (!validator?.__validator) return false;
+  if (validator.resultKind === 'null') return value === null;
+  if (validator.resultKind === 'literal') return Object.is(value, validator.literal);
+  if (validator.resultKind === 'array' || validator.resultKind === 'vector') {
+    return Array.isArray(value)
+      && (validator.resultKind !== 'vector' || value.length === validator.dimensions)
+      && value.every((entry) => surfaceLiteralMatchesValidator(entry, validator.element ?? { __validator: true, primitive: 'number' }));
+  }
+  if (validator.resultKind === 'union') {
+    return (validator.variants ?? []).some((variant) => surfaceLiteralMatchesValidator(value, variant));
+  }
+  if (validator.primitive === 'object') {
+    if (value === null || typeof value !== 'object' || Array.isArray(value)) return false;
+    const fields = validator.fields ?? {};
+    return Object.keys(value).every((name) => fields[name] !== undefined)
+      && Object.entries(fields).every(([name, field]) => (
+        Object.hasOwn(value, name)
+          ? surfaceLiteralMatchesValidator(value[name], field)
+          : field.optional === true
+      ));
+  }
+  if (idFieldTypeTable(validator.fieldType) !== null || validator.fieldType === 'Principal') {
+    return typeof value === 'string';
+  }
+  if (validator.primitive === 'string') return typeof value === 'string';
+  if (validator.primitive === 'boolean') return typeof value === 'boolean';
+  if (validator.primitive === 'number') return typeof value === 'number' && Number.isFinite(value);
+  if (validator.primitive === 'unknown') return true;
+  return value !== undefined;
+}
+
+// @ref LLP 0179#binding-is-not-authorization — generation performs only
+// closed argument/scope substitution. It never binds, derives, or records a
+// session principal; runtime authority remains an independent registry axis.
+function buildGeneratedSurfaces({
+  appId,
+  surfaceDefs,
+  functionsModule,
+  schemaDef,
+  generatedReferences,
+  functionSourceSpans,
+  err,
+}) {
+  const surfaces = dict();
+  const canonicalDefinition = (value) => canonicalResultJson(value);
+  const functionDefinitions = Object.entries(functionsModule)
+    .filter(([, value]) => isIsolatedDefinition(value, 'function'));
+  const assetDefinitions = Object.entries(functionsModule)
+    .filter(([, value]) => isIsolatedDefinition(value, 'asset-upload'));
+  const ephemeralDefinitions = Object.entries(schemaDef.ephemeral?.collections ?? {})
+    .filter(([, value]) => isIsolatedDefinition(value, 'ephemeral-collection'));
+  const schemaVersion = Object.values(generatedReferences.api.queries)[0]?.schemaVersion
+    ?? Object.values(generatedReferences.api.mutations)[0]?.schemaVersion
+    ?? Object.values(generatedReferences.api.ephemeral)[0]?.schemaVersion
+    ?? SCHEMA_VERSION;
+
+  const report = (code, surface, member, message, details = {}) => {
+    err(code, 'surface', `${surface}${member ? `.${member}` : ''}: ${message}`, {
+      surface,
+      ...(member ? { member } : {}),
+      ...details,
+    });
+  };
+
+  for (const { exportName: surfaceName, def } of surfaceDefs) {
+    if (!IDENT.test(surfaceName) || RESERVED_WORDS.has(surfaceName)) {
+      report('SNAPBACK_SURFACE_INVALID_IDENTIFIER', surfaceName, null, 'surface export name must be a portable identifier');
+      continue;
+    }
+    const params = dict();
+    let valid = true;
+    for (const [name, validator] of Object.entries(def.params ?? {})) {
+      if (!IDENT.test(name) || RESERVED_WORDS.has(name)) {
+        report('SNAPBACK_SURFACE_INVALID_IDENTIFIER', surfaceName, null, `invalid parameter ${name}`, { parameter: name });
+        valid = false;
+        continue;
+      }
+      const validatorValid = validateAuthoringValidator(validator, `${surfaceName} parameter ${name}`, (message) => {
+        report('SNAPBACK_SURFACE_PARAMETER_TYPE_MISMATCH', surfaceName, null, message, { parameter: name });
+      }, new Set(), 'argument');
+      if (!validatorValid) valid = false;
+      params[name] = surfaceContract(validator);
+    }
+
+    const compileLeaf = (
+      authored,
+      validator,
+      namespace,
+      memberPath,
+      inputs,
+      usedInputs,
+      allowScopeRecord = true,
+    ) => {
+      if (validator?.fieldType === 'Principal') {
+        report(
+          'SNAPBACK_SURFACE_AUTH_BINDING_REFUSED',
+          surfaceName,
+          memberPath,
+          'surface application data cannot bind an authority principal',
+        );
+        valid = false;
+        return null;
+      }
+      if (authored?.__surfaceValue === true && authored.kind === 'param') {
+        const parameter = def.params?.[authored.name];
+        if (!parameter) {
+          report('SNAPBACK_SURFACE_PARAMETER_UNKNOWN', surfaceName, memberPath, `binding names unknown parameter ${authored.name}`, { parameter: authored.name });
+          valid = false;
+          return null;
+        }
+        if (!sameSurfaceContract(parameter, validator)) {
+          report('SNAPBACK_SURFACE_PARAMETER_TYPE_MISMATCH', surfaceName, memberPath, `parameter ${authored.name} does not match its target contract`, { parameter: authored.name });
+          valid = false;
+          return null;
+        }
+        return { kind: 'param', name: authored.name };
+      }
+      if (authored?.__surfaceValue === true && authored.kind === 'input') {
+        if (namespace !== 'mutations' && namespace !== 'assets') {
+          report('SNAPBACK_SURFACE_MEMBER_CLASS_UNSUPPORTED', surfaceName, memberPath, 'input(...) is admitted only for mutation and asset calls in S1');
+          valid = false;
+          return null;
+        }
+        if (usedInputs.has(authored.name)) {
+          report('SNAPBACK_SURFACE_BINDING_AMBIGUOUS', surfaceName, memberPath, `input ${authored.name} is bound more than once`, { input: authored.name });
+          valid = false;
+          return null;
+        }
+        usedInputs.add(authored.name);
+        inputs[authored.name] = {
+          contract: surfaceContract(validator),
+          optional: validator.optional === true,
+        };
+        return { kind: 'input', name: authored.name };
+      }
+      if (authored && typeof authored === 'object' && !Array.isArray(authored)) {
+        if (!allowScopeRecord || validator?.primitive !== 'object') {
+          report(
+            'SNAPBACK_SURFACE_BINDING_UNPORTABLE',
+            surfaceName,
+            memberPath,
+            'bounded scope records are admitted only at one object-keyed target level',
+          );
+          valid = false;
+          return null;
+        }
+        const fields = validator.fields ?? {};
+        const compiledFields = dict();
+        for (const field of Object.keys(authored)) {
+          if (!Object.hasOwn(fields, field)) {
+            report('SNAPBACK_SURFACE_INPUT_UNKNOWN', surfaceName, memberPath, `scope names unknown field ${field}`, { input: field });
+            valid = false;
+          }
+        }
+        for (const [field, fieldValidator] of Object.entries(fields)) {
+          if (!Object.hasOwn(authored, field)) {
+            if (fieldValidator.optional !== true) {
+              report('SNAPBACK_SURFACE_REQUIRED_INPUT_UNBOUND', surfaceName, memberPath, `required scope field ${field} is not bound`, { input: field });
+              valid = false;
+            }
+            continue;
+          }
+          const leaf = compileLeaf(
+            authored[field],
+            fieldValidator,
+            namespace,
+            memberPath,
+            inputs,
+            usedInputs,
+            false,
+          );
+          if (leaf) compiledFields[field] = leaf;
+        }
+        return { kind: 'scope', fields: compiledFields };
+      }
+      try {
+        canonicalResultJson(authored);
+      } catch {
+        report('SNAPBACK_SURFACE_BINDING_UNPORTABLE', surfaceName, memberPath, 'literal binding is not portable JSON');
+        valid = false;
+        return null;
+      }
+      if (!surfaceLiteralMatchesValidator(authored, validator)) {
+        report('SNAPBACK_SURFACE_PARAMETER_TYPE_MISMATCH', surfaceName, memberPath, 'literal binding does not match its target contract');
+        valid = false;
+        return null;
+      }
+      return { kind: 'literal', value: authored };
+    };
+
+    const compileMembers = (namespace) => {
+      const output = dict();
+      for (const [memberName, binding] of Object.entries(def[namespace] ?? {})) {
+        const memberPath = `${namespace}.${memberName}`;
+        if (!IDENT.test(memberName) || RESERVED_WORDS.has(memberName)) {
+          report('SNAPBACK_SURFACE_INVALID_IDENTIFIER', surfaceName, memberPath, 'member name must be a portable identifier');
+          valid = false;
+          continue;
+        }
+        const expectedDefinitionKind = namespace === 'presence'
+          ? 'ephemeral-collection'
+          : namespace === 'assets'
+            ? 'asset-upload'
+            : 'function';
+        if (binding?.__surfaceBinding !== true
+          || binding.reference?.__snapbackDefinitionKind !== expectedDefinitionKind) {
+          report('SNAPBACK_SURFACE_MEMBER_CLASS_UNSUPPORTED', surfaceName, memberPath, `unsupported ${namespace} member class`);
+          valid = false;
+          continue;
+        }
+        const candidates = (namespace === 'presence'
+          ? ephemeralDefinitions
+          : namespace === 'assets'
+            ? assetDefinitions
+            : functionDefinitions)
+          .filter(([, candidate]) => canonicalDefinition(candidate) === canonicalDefinition(binding.reference));
+        if (candidates.length !== 1) {
+          report(
+            candidates.length === 0 ? 'SNAPBACK_SURFACE_REFERENCE_UNKNOWN' : 'SNAPBACK_SURFACE_BINDING_AMBIGUOUS',
+            surfaceName,
+            memberPath,
+            candidates.length === 0 ? 'binding target is not a generated app member' : 'binding target has multiple generated export identities',
+          );
+          valid = false;
+          continue;
+        }
+        const [targetName, targetDefinition] = candidates[0];
+        let reference;
+        let targetArgs;
+        if (namespace === 'reads') {
+          reference = generatedReferences.api.queries[targetName];
+          targetArgs = targetDefinition.args ?? {};
+        } else if (namespace === 'mutations') {
+          reference = generatedReferences.api.mutations[targetName];
+          targetArgs = targetDefinition.args ?? {};
+        } else if (namespace === 'presence') {
+          reference = generatedReferences.api.ephemeral[targetName];
+          targetArgs = {
+            scope: {
+              __validator: true,
+              fieldType: 'Json',
+              primitive: 'object',
+              optional: false,
+              fields: targetDefinition.scope ?? {},
+            },
+          };
+        } else {
+          reference = generatedReferences.api.assets[targetName];
+          targetArgs = targetDefinition.args ?? {};
+        }
+        if (!reference) {
+          report('SNAPBACK_SURFACE_MEMBER_CLASS_UNSUPPORTED', surfaceName, memberPath, `target ${targetName} is in the wrong generated namespace`, { target: targetName });
+          valid = false;
+          continue;
+        }
+        const authoredBindings = binding.bindings ?? {};
+        for (const target of Object.keys(authoredBindings)) {
+          if (!Object.hasOwn(targetArgs, target)) {
+            report('SNAPBACK_SURFACE_INPUT_UNKNOWN', surfaceName, memberPath, `binding names unknown target input ${target}`, { input: target });
+            valid = false;
+          }
+        }
+        const compiledBindings = dict();
+        const inputs = dict();
+        const usedInputs = new Set();
+        for (const [target, validator] of Object.entries(targetArgs)) {
+          if (!Object.hasOwn(authoredBindings, target)) {
+            if (validator.optional !== true) {
+              report('SNAPBACK_SURFACE_REQUIRED_INPUT_UNBOUND', surfaceName, memberPath, `required target input ${target} is not bound`, { input: target });
+              valid = false;
+            }
+            continue;
+          }
+          const leaf = compileLeaf(authoredBindings[target], validator, namespace, memberPath, inputs, usedInputs);
+          if (leaf) compiledBindings[target] = leaf;
+        }
+        output[memberName] = {
+          artifactKind: 'surfaceMemberBinding',
+          reference,
+          bindings: compiledBindings,
+          inputs,
+        };
+      }
+      return output;
+    };
+
+    if (Object.keys(def.commands ?? {}).length > 0) {
+      report('SNAPBACK_SURFACE_MEMBER_CLASS_UNSUPPORTED', surfaceName, null, 'commands are reserved for descriptor slice S2');
+      valid = false;
+    }
+    const reads = compileMembers('reads');
+    const mutations = compileMembers('mutations');
+    const assets = compileMembers('assets');
+    const presence = compileMembers('presence');
+    if (!valid) continue;
+    surfaces[surfaceName] = {
+      artifactKind: 'surfaceDescriptor',
+      schemaVersion,
+      appId,
+      id: `${appId}:surface:${surfaceName}`,
+      name: surfaceName,
+      sourceSpan: generatedReferenceSourceSpan(functionSourceSpans, surfaceName, 'functions.mjs'),
+      params,
+      reads,
+      mutations,
+      commands: {},
+      assets,
+      presence,
+    };
+  }
+  return surfaces;
+}
+
 function buildGeneratedReferences(
   appId,
   functions,
@@ -9043,6 +9388,7 @@ function renderAppBindingModule(functions, descriptorIdentity, trustedCompositio
     `export const artifacts = deepFreeze(${stableJson({ trustedCompositionActivation })});\n` +
     `const hydratedDescriptor = structuredClone(descriptorDocument);\n` +
     `for (const namespace of [hydratedDescriptor.api.queries, hydratedDescriptor.api.mutations]) { for (const reference of Object.values(namespace)) Object.defineProperty(reference, 'artifacts', { value: artifacts, enumerable: false }); }\n` +
+    `for (const surface of Object.values(hydratedDescriptor.surfaces)) { for (const member of Object.values(surface.reads)) member.reference = hydratedDescriptor.api.queries[member.reference.name]; for (const member of Object.values(surface.mutations)) member.reference = hydratedDescriptor.api.mutations[member.reference.name]; for (const member of Object.values(surface.assets)) member.reference = hydratedDescriptor.api.assets[member.reference.name]; for (const member of Object.values(surface.presence)) member.reference = hydratedDescriptor.api.ephemeral[member.reference.name]; }\n` +
     `/** @type {import('./app.d.ts').GeneratedAppDescriptorV1} */\n` +
     `export const app = deepFreeze(hydratedDescriptor);\n` +
     `${aliases.join('\n')}\n` +
@@ -9068,7 +9414,41 @@ function renderAppModule(functions, appBindingIdentity) {
     `export { default } from ${JSON.stringify(bindingSpecifier)};\n`;
 }
 
-function renderAppTypes(functions, assetUploadIntents = []) {
+function surfaceContractType(value) {
+  if (!value || typeof value !== 'object') return 'unknown';
+  if (value.kind === 'null') return 'null';
+  if (value.kind === 'string' || value.kind === 'assetRef') return 'string';
+  if (value.kind === 'principal') return 'Principal';
+  if (value.kind === 'id') return `Id<${JSON.stringify(value.table)}>`;
+  if (value.kind === 'integer' || value.kind === 'finiteReal') return 'number';
+  if (value.kind === 'boolean') return 'boolean';
+  if (value.kind === 'literal') return JSON.stringify(value.value);
+  if (value.kind === 'json') return 'unknown';
+  if (value.kind === 'array') return `ReadonlyArray<${surfaceContractType(value.element)}>`;
+  if (value.kind === 'tuple') return `readonly [${(value.elements ?? []).map(surfaceContractType).join(', ')}]`;
+  if (value.kind === 'vector') return `ReadonlyArray<number> & { readonly length: ${value.dimensions} }`;
+  if (value.kind === 'union') return (value.variants ?? []).map(surfaceContractType).join(' | ');
+  if (value.kind === 'object') {
+    const fields = (value.fields ?? []).map((field) => (
+      `${JSON.stringify(field.name)}${field.required === false ? '?' : ''}: ${surfaceContractType(field.value)}`
+    ));
+    return fields.length === 0 ? 'Record<string, never>' : `{ ${fields.join('; ')} }`;
+  }
+  return 'unknown';
+}
+
+function renderSurfaceTypeMap(members, referenceNamespace) {
+  const entries = Object.entries(members ?? {}).map(([name, member]) => {
+    const inputs = Object.entries(member.inputs ?? {});
+    const inputType = inputs.length === 0
+      ? 'Record<string, never>'
+      : `{ ${inputs.map(([inputName, descriptor]) => `${JSON.stringify(inputName)}${descriptor.optional ? '?' : ''}: ${surfaceContractType(descriptor.contract)}`).join('; ')} }`;
+    return `${JSON.stringify(name)}: SurfaceMemberDescriptor<${referenceNamespace}[${JSON.stringify(member.reference.name)}], ${inputType}>`;
+  });
+  return entries.length === 0 ? 'Record<string, never>' : `{ ${entries.join('; ')} }`;
+}
+
+function renderAppTypes(functions, assetUploadIntents = [], surfaces = {}) {
   const standalone = standaloneDescriptorFunctions(functions);
   const queryNames = standalone
     .filter(({ kind }) => kind === 'Query' || kind === 'LiveQuery')
@@ -9080,13 +9460,40 @@ function renderAppTypes(functions, assetUploadIntents = []) {
   const union = (names) => names.join(' | ') || 'never';
   const lines = [
     HEADER,
-    "import type { GeneratedApi, GeneratedArtifacts, GeneratedEphemeral, GeneratedQueryGroups } from './api.d.ts';",
+    "import type { GeneratedApi, GeneratedArtifacts, GeneratedEphemeral, GeneratedQueryGroups, Id, Principal } from './api.d.ts';",
     `export type GeneratedAppQueryName = ${union(queryNames)};`,
     `export type GeneratedAppMutationName = ${union(mutationNames)};`,
     `export type GeneratedAppAssetName = ${union(assetNames)};`,
     'export type CapabilityRequirement = string;',
     'export type CommandDescriptor = never;',
-    'export type SurfaceDescriptor = never;',
+    'export interface SurfaceMemberDescriptor<Reference = unknown, Input = Record<string, never>> {',
+    "  readonly artifactKind: 'surfaceMemberBinding';",
+    '  readonly reference: Reference;',
+    '  readonly bindings: Readonly<Record<string, unknown>>;',
+    '  readonly inputs: Readonly<Record<string, unknown>>;',
+    '  readonly __input?: Input;',
+    '}',
+    'export interface SurfaceDescriptor<Params = Record<string, never>, Reads = Record<string, never>, Mutations = Record<string, never>, Presence = Record<string, never>, Assets = Record<string, never>> {',
+    "  readonly artifactKind: 'surfaceDescriptor';",
+    '  readonly id: string;',
+    '  readonly name: string;',
+    '  readonly params: Readonly<Record<string, unknown>>;',
+    '  readonly reads: Reads;',
+    '  readonly mutations: Mutations;',
+    '  readonly presence: Presence;',
+    '  readonly commands: Readonly<Record<string, never>>;',
+    '  readonly assets: Assets;',
+    '  readonly __params?: Params;',
+    '}',
+    'export interface GeneratedAppSurfaces {',
+    ...Object.entries(surfaces).map(([name, surface]) => {
+      const params = Object.entries(surface.params ?? {});
+      const paramType = params.length === 0
+        ? 'Record<string, never>'
+        : `{ ${params.map(([paramName, contract]) => `${JSON.stringify(paramName)}: ${surfaceContractType(contract)}`).join('; ')} }`;
+      return `  readonly ${JSON.stringify(name)}: SurfaceDescriptor<${paramType}, ${renderSurfaceTypeMap(surface.reads, 'GeneratedApi')}, ${renderSurfaceTypeMap(surface.mutations, 'GeneratedApi')}, ${renderSurfaceTypeMap(surface.presence, 'GeneratedEphemeral')}, ${renderSurfaceTypeMap(surface.assets, 'GeneratedApi')}>;`;
+    }),
+    '}',
     'export interface AppDescriptorV1 {',
     "  readonly format: 'snapback.app.v1';",
     '  readonly identity: Readonly<{ app: string; schema: string; functions: string; descriptor: `sha256:${string}` }>;',
@@ -9098,7 +9505,7 @@ function renderAppTypes(functions, assetUploadIntents = []) {
     '    queryGroups: GeneratedQueryGroups;',
     '  }>;',
     '  readonly commands: Readonly<Record<string, CommandDescriptor>>;',
-    '  readonly surfaces: Readonly<Record<string, SurfaceDescriptor>>;',
+    '  readonly surfaces: Readonly<GeneratedAppSurfaces>;',
     '  readonly capabilities: Readonly<{ required: readonly CapabilityRequirement[] }>;',
     '}',
     'export type GeneratedAppDescriptorV1 = AppDescriptorV1;',
@@ -10063,7 +10470,10 @@ function typeForGeneratedValidator(val) {
   else if (idTable !== null) type = `Id<'${idTable}'>`;
   else type = { string: 'string', boolean: 'boolean', number: 'number', unknown: 'unknown' }[val.primitive] ?? 'unknown';
   if (val.primitive === 'object') {
-    type = `{ ${Object.entries(val.fields ?? {}).map(([name, field]) => `${name}${field.optional ? '?' : ''}: ${typeForGeneratedValidator(field).replace(/ \| undefined$/, '')}`).join('; ')} }`;
+    const fields = Object.entries(val.fields ?? {});
+    type = fields.length === 0
+      ? 'Record<string, never>'
+      : `{ ${fields.map(([name, field]) => `${name}${field.optional ? '?' : ''}: ${typeForGeneratedValidator(field).replace(/ \| undefined$/, '')}`).join('; ')} }`;
   }
   return val.optional ? `${type} | undefined` : type;
 }
@@ -10098,7 +10508,10 @@ function typeForValidator(val) {
       .map((variant) => typeForValidator(variant).replace(/ \| undefined$/, ''))
       .join(' | ');
   } else if (val.primitive === 'object') {
-    type = `{ ${Object.entries(val.fields ?? {}).map(([name, field]) => `${name}${field.optional ? '?' : ''}: ${typeForValidator(field).replace(/ \| undefined$/, '')}`).join('; ')} }`;
+    const fields = Object.entries(val.fields ?? {});
+    type = fields.length === 0
+      ? 'Record<string, never>'
+      : `{ ${fields.map(([name, field]) => `${name}${field.optional ? '?' : ''}: ${typeForValidator(field).replace(/ \| undefined$/, '')}`).join('; ')} }`;
   }
   return val.optional ? `${type} | undefined` : type;
 }
@@ -10749,7 +11162,7 @@ async function buildDefinitionBundle(
 function definitionFacadeSource(entryPath, definePath, resultKey, kind) {
   const entry = JSON.stringify(entryPath);
   const define = JSON.stringify(definePath);
-  const imports = `import { isAssetUploadDef, isConfigDef, isCronDef, isEphemeralCollectionDef, isEphemeralDef, isFunctionDef, isMaintainedProjectionDef, isRoutesDef, isTableDef } from ${define};`;
+  const imports = `import { isAssetUploadDef, isConfigDef, isCronDef, isEphemeralCollectionDef, isEphemeralDef, isFunctionDef, isMaintainedProjectionDef, isRoutesDef, isSurfaceBinding, isSurfaceDef, isTableDef } from ${define};`;
   const normalization = String.raw`
 function __snapbackDefinitionKind(value) {
   if (isFunctionDef(value)) return 'function';
@@ -10759,6 +11172,7 @@ function __snapbackDefinitionKind(value) {
   if (isEphemeralCollectionDef(value)) return 'ephemeral-collection';
   if (isRoutesDef(value)) return 'routes';
   if (isMaintainedProjectionDef(value)) return 'maintained-projection';
+  if (isSurfaceDef(value)) return 'surface';
   return null;
 }
 function __snapbackKnownMarkerKind(value) {
@@ -10766,6 +11180,7 @@ function __snapbackKnownMarkerKind(value) {
   if (definitionKind !== null) return definitionKind;
   if (isTableDef(value)) return 'table';
   if (isEphemeralDef(value)) return 'ephemeral';
+  if (isSurfaceBinding(value)) return 'surface-binding';
   return null;
 }
 function __snapbackOwnDescriptor(value, key) {

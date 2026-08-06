@@ -10,18 +10,74 @@ VERIFY_EXACT="${SNAPBACK_VERIFY_EXACT:-auto}"
 # transitive dependents become BLOCKED, so one failed producer cannot turn into
 # dozens of repeated server-start timeouts (LLP 0175 D1).
 KEEP_GOING=0
+PROOF_CADENCE="complete"
+PROOF_BASE_REVISION=""
+PROOF_SELECTION_RECEIPT=""
 case "${SNAPBACK_PROOF_KEEP_GOING:-}" in
     1|true|TRUE|yes|on) KEEP_GOING=1 ;;
 esac
-for proof_arg in "$@"; do
-    case "$proof_arg" in
-        --keep-going) KEEP_GOING=1 ;;
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --keep-going)
+            KEEP_GOING=1
+            shift
+            ;;
+        --complete)
+            PROOF_CADENCE="complete"
+            shift
+            ;;
+        --affected)
+            [ "$#" -ge 2 ] || {
+                printf '[snapback-verify] --affected requires a Git base revision\n' >&2
+                exit 2
+            }
+            PROOF_CADENCE="affected"
+            PROOF_BASE_REVISION="$2"
+            shift 2
+            ;;
+        --selection-receipt)
+            [ "$#" -ge 2 ] || {
+                printf '[snapback-verify] --selection-receipt requires a path\n' >&2
+                exit 2
+            }
+            PROOF_SELECTION_RECEIPT="$2"
+            shift 2
+            ;;
         *)
-            printf '[snapback-verify] unknown argument: %s\n' "$proof_arg" >&2
+            printf '[snapback-verify] unknown argument: %s\n' "$1" >&2
             exit 2
             ;;
     esac
 done
+
+if [ -n "$PROOF_SELECTION_RECEIPT" ] && [ -n "$PROOF_BASE_REVISION" ]; then
+    printf '[snapback-verify] --selection-receipt and --affected are mutually exclusive\n' >&2
+    exit 2
+fi
+
+PROOF_SELECTION_RESULTS="${SNAPBACK_PROOF_SELECTION_RESULTS:-$ROOT/target/proof/local-proof-selection.json}"
+PROOF_SELECTED_GATES="$ROOT/target/proof/local-proof-selected-gates.txt"
+mkdir -p "$ROOT/target/proof"
+if [ -n "$PROOF_SELECTION_RECEIPT" ]; then
+    node "$ROOT/scripts/select-local-proof.mjs" validate "$PROOF_SELECTION_RECEIPT"
+    PROOF_CADENCE="$(node -e \
+        'process.stdout.write(JSON.parse(require("fs").readFileSync(process.argv[1], "utf8")).cadence)' \
+        "$PROOF_SELECTION_RECEIPT")"
+else
+    selection_args=(
+        plan
+        --cadence "$PROOF_CADENCE"
+        --head HEAD
+        --output "$PROOF_SELECTION_RESULTS"
+    )
+    if [ "$PROOF_CADENCE" = "affected" ]; then
+        selection_args+=(--base "$PROOF_BASE_REVISION")
+    fi
+    node "$ROOT/scripts/select-local-proof.mjs" "${selection_args[@]}"
+    PROOF_SELECTION_RECEIPT="$PROOF_SELECTION_RESULTS"
+fi
+node "$ROOT/scripts/select-local-proof.mjs" gates "$PROOF_SELECTION_RECEIPT" \
+    > "$PROOF_SELECTED_GATES"
 
 # @ref LLP 0175#d1--make-keep-going-dependency-aware — named gates retain
 # structured timings and distinguish root FAIL from transitive BLOCKED.
@@ -31,7 +87,12 @@ PROOF_RESULTS="${SNAPBACK_PROOF_RESULTS:-$ROOT/target/proof/local-proof-results.
 proof_runner_init local-proof "$PROOF_RESULTS" "$KEEP_GOING"
 
 run() {
-    proof_gate "$@"
+    local gate_id="$1"
+    if grep -Fqx -- "$gate_id" "$PROOF_SELECTED_GATES"; then
+        proof_gate "$@"
+    else
+        proof_not_selected "$gate_id" "not selected by $PROOF_CADENCE proof policy"
+    fi
 }
 
 not_selected() {
@@ -44,6 +105,12 @@ finish() {
 
 exact_available() {
     command -v bun >/dev/null 2>&1 || return 1
+    # Required CI mode owns the frozen surface installs below. Do not require
+    # their ignored node_modules outputs to exist before those producer gates
+    # get a chance to run on a clean checkout.
+    if [ "$VERIFY_EXACT" = "1" ]; then
+        return 0
+    fi
     [ -f "$ROOT/demos/all-aboard/surfaces/contract/node_modules/@exact/contract/package.json" ] ||
         [ -f "$ROOT/demos/cursors-web/surfaces/contract/node_modules/@exact/contract/package.json" ]
 }
@@ -104,6 +171,7 @@ run runtime-link-fixtures -- node --test tests/runtime_link_smoke_v0.mjs
 run runtime-readiness-fixtures -- node --test tests/runtime_readiness_receipt_v0.mjs
 run proof-runner-fixtures -- node --test tests/proof_runner_v0.mjs
 run local-proof-inventory -- node --test tests/local_proof_inventory_v0.mjs
+run affected-selector-fixtures -- node --test tests/local_proof_selection_v0.mjs
 run package-test-inventory -- node scripts/check-package-test-inventory.mjs
 # @ref LLP 0134#9-acceptance — closed maturity records and the pushed-range
 # transition pin are checked before generated artifacts or native builds.
@@ -222,9 +290,10 @@ run harness-cleanup-fixtures -- node demos/_kit/tests/harness-cleanup-failures.m
 run browser-availability -- scripts/check-browser-availability
 run ibex-bootstrap-fixtures -- node tests/ibex_bootstrap_v0.mjs
 # @ref LLP 0154#d7--aggregates-a-watermarked-state-machine-mergeable-by-construction —
-# reopen the retained clean-release receipt, keep the validator's transitive-
-# closure regression, and exercise the nondefault proof feature at smoke scale
-# in every recurring local/CI proof.
+# reopen the retained clean-release receipt as historical evidence, report its
+# rolling CURRENT/LAGGING/OVERDUE state without requiring main to stop, keep the
+# validator's transitive-closure regression, and exercise the nondefault proof
+# feature at smoke scale until LLP 0175's affected selector owns that cadence.
 run telemetry-evidence-fixtures -- node --test scripts/telemetry-phase1-evidence.test.mjs
 run telemetry-receipt-check -- scripts/verify-telemetry-phase1-proof --check
 run telemetry-smoke --requires native-runtime-bootstrap -- \

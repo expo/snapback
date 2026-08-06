@@ -1,8 +1,13 @@
 import {
+  bind,
   defineJsMutation,
   defineLiveQuery,
+  defineSurface,
+  input,
+  param,
   v,
 } from '@expo/snapback-codegen/define';
+import { fixturePresence } from './surface-model.mjs';
 
 export const liveRows = defineLiveQuery({ table: 'liveRows', args: {} });
 export const primaryRows = defineLiveQuery({ table: 'primaryRows', args: {} });
@@ -14,6 +19,20 @@ export const publishLiveRow = defineJsMutation({
   source: 'handlers.mjs',
   exportName: 'publishLiveRow',
   writes: ['liveRows'],
+});
+
+// @ref LLP 0179#lifecycle-identity-and-composition — this real-runtime E1
+// fixture composes the same live store and presence room exercised through
+// the low-level projection in expo-dev-loop.test.mjs.
+export const fixtureSurface = defineSurface({
+  params: { roomId: v.string() },
+  reads: { rows: bind(liveRows) },
+  mutations: { publish: bind(publishLiveRow, { body: input('body') }) },
+  presence: {
+    fixture: bind(fixturePresence, {
+      scope: { roomId: param('roomId') },
+    }),
+  },
 });
 
 export const writePrimaryAndActivity = defineJsMutation({

@@ -367,6 +367,20 @@ export function createMemoryRqsResumeStore({
       return applied.result;
     },
 
+    async outboxMarkQuarantined(id, refusal) {
+      if (!requireWriter()) return false;
+      const applied = outboxOps.markQuarantined(state.outbox, id, refusal, now());
+      state.outbox = applied.state;
+      return structuredClone(applied.result);
+    },
+
+    async outboxReenterQuarantined() {
+      if (!requireWriter()) return false;
+      const applied = outboxOps.reenterQuarantined(state.outbox);
+      state.outbox = applied.state;
+      return structuredClone(applied.result);
+    },
+
     async outboxMarkResultGone(id, resultGone) {
       if (!requireWriter()) return false;
       const applied = outboxOps.markResultGone(state.outbox, id, resultGone);
@@ -419,6 +433,8 @@ export function createMemoryRqsResumeStore({
         outbox: Object.freeze({
           pending: pendingOutboxRecords(state.outbox).length,
           failed: allOutboxRecords(state.outbox).filter((r) => r.status === 'failed').length,
+          quarantined: allOutboxRecords(state.outbox)
+            .filter((r) => r.status === 'quarantined').length,
           resultGone: allOutboxRecords(state.outbox)
             .filter((r) => r.status === 'result-gone').length,
           pendingAcknowledgements: state.outbox.acks.length,

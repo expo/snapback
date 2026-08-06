@@ -6,7 +6,11 @@
 Live queries, Relational queries, Optimistic updates, Auth, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-08-03
-**Revised:** 2026-08-05 (Fleet blocker reconciliation: LLP 0135 OQ5's product
+**Revised:** 2026-08-06 (Fleet blocker update: the reviewed
+`snapshot-batch.v2` registration landed as LLP 0157 v0.11; the carrier row
+remains GAP pending implementation, frozen cross-language vectors, and a
+fresh Fleet witness — LLP 0157 §D1's gate list is canonical.)
+2026-08-05 (Fleet blocker reconciliation: LLP 0135 OQ5's product
 direction is ruled in favor of narrow `snapshot-batch.v2`; the carrier row
 remains GAP pending reviewed profile registration, implementation, and a fresh
 Fleet witness.) 2026-08-05 (D1/DK-9 diagnostic-spelling reconciliation: the
@@ -1903,10 +1907,11 @@ The dated 2026-08-04 carrier exit is 16 PASS / 1 Fleet GAP / 0 skipped, and
 the dated Triage Move-1 exit is 8/8. Those retained receipts satisfy the local
 publication predicate and are bound by
 `src/local-persistent-store-publication.v1.json`. Fleet remains the sole
-carrier-exit GAP. The 2026-08-05 LLP 0135 OQ5 direction is ruled, but the
-reviewed `snapshot-batch.v2` registration, implementation, and fresh Fleet
-witness have not landed; the GAP does not retract the explicitly qualified
-local publication.
+carrier-exit GAP. The 2026-08-05 LLP 0135 OQ5 direction is ruled and the
+reviewed `snapshot-batch.v2` registration landed 2026-08-06 (LLP 0157
+v0.11), but implementation, the frozen cross-language vectors, and the fresh
+Fleet witness have not landed; the GAP does not retract the explicitly
+qualified local publication.
 
 ## Guardrails
 
@@ -2185,8 +2190,9 @@ Micro-profile packaging; no change to outbox/settlement custody semantics
    reaped-context memory / 1,024 consumed-request outcomes / 1,024
    released-registration tombstones / 64-byte identifiers / 256 KiB
    broker messages) await the corrected, reason-based Triage custody freeze and
-   Fleet's footprint after reviewed `snapshot-batch.v2` registration and
-   implementation before their first measured revision. The immutable
+   Fleet's footprint after the registered (2026-08-06, LLP 0157 v0.11)
+   `snapshot-batch.v2` profile's implementation before their first measured
+   revision. The immutable
    2026-08-03 Triage predecessor captured pre-
    maintenance payloads and is superseded for this purpose; the fresh dated
    fixture must retain one registered payload and compact the 20 released
@@ -2287,8 +2293,9 @@ contributor-source `LocalCapabilityPublicationV1` carrier for
 qualified Triage successor receipts, and the exact implementation sources;
 it does not generalize to Fleet, public packages, remote services, or hosted
 targets. The Fleet footprint/hydration leg remains an explicit GAP after the
-2026-08-05 LLP 0135 OQ5 direction ruling, pending the reviewed
-`snapshot-batch.v2` registration, implementation, and fresh witness.
+2026-08-05 LLP 0135 OQ5 direction ruling, pending `snapshot-batch.v2`
+implementation, frozen cross-language vectors, and the fresh witness (its
+reviewed registration landed 2026-08-06, LLP 0157 v0.11).
 
 The source-owned `local-persistent-store-publication.anchor.v1.json` is the
 only carrier selector: its closed `published` record names `single_table_v1`

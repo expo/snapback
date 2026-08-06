@@ -150,3 +150,64 @@ The Android receipt closed with backend, Metro, bootstrap, and all three port
 forwards reclaimed; the emulator and adb daemon were stopped. With the prior
 iOS half, LLP 0176 G1's no-URL boot exit evidence is complete for
 simulator/emulator. No physical-device or LLP 0064 claim follows.
+
+## 2026-08-06 — LLP 0179 S1 conversation surface
+
+### What changed
+
+The same Expo golden-path fixture now carries a small messaging backend beside
+the G1 receipt path: conversations, messages, a reaction mutation, and
+connection-owned typing presence. Codegen emits one `conversation` surface
+that binds `conversationId` across the two live reads, the mutation, and the
+presence scope. The screen consumes the accepted north-star shape through the
+existing E1 provider; a headless provider test exercises the same generated
+surface without React.
+
+I chose this fixture over the older messaging demo because the S1 question is
+specifically whether the generated surface survives the no-URL Sessions/E1
+provider path. Keeping the conversation deliberately small avoided importing
+reply previews, aggregates, or the G2 simulator receipt into this slice.
+
+### What felt good
+
+- The surface implementation could stay a projection over the LLP 0114
+  registry. An equivalent low-level query and the surface read share the same
+  snapshot object and one upstream subscription; typing consumers share one
+  room. There is no surface-specific transport or cache to explain.
+- Binding `conversationId` once made the reaction call meaningfully smaller
+  while the portable descriptor retained every target-to-source mapping.
+  Generated TypeScript rejects both a repeated `conversationId` call input and
+  a `userId` field in the empty typing payload.
+- Pairing `data.messages` with `state.messages` kept the rendering path terse
+  without losing pending/error/freshness/retention facts. Pending and authority
+  replacement remain `undefined`; the projection never manufactures an empty
+  array.
+
+### What felt bad or surprising
+
+- Surface declaration values cross the isolated definition evaluator, so
+  authored reference identity is intentionally lost. Resolving a bound child
+  required structural matching against the generated function or ephemeral
+  namespace and a loud ambiguity refusal.
+- The provider admission path previously ignored descriptor surfaces even
+  though it admitted all of their children. S1 needed a small admission index
+  so a surface cannot be borrowed from another prepared app.
+- Empty-object TypeScript emission had historically produced `{}`, which in
+  TypeScript accepts arbitrary properties. The typing lane exposed that this
+  was too weak: it now emits `Record<string, never>`, making the no-identity
+  payload contract real rather than documentary.
+
+These observations came from implementing a newly accepted RFC, not from
+knowledge the current guide claimed to cover. The guide still has no surface
+page; per the delivery plan that page can wait for the G2 exit/falsification
+work, so this entry does not file a `guide-gap` ticket.
+
+### Comparison and boundary
+
+Compared with assembling the same resource hook around React Query plus a
+Supabase realtime channel, the generated binding removes repeated resource
+arguments and makes cleanup/canonical ownership testable at one provider seam.
+The cost is a stricter codegen declaration and descriptor-admission pipeline.
+This entry proves S1 machinery and an E1 headless/React boot only. It does not
+claim the separate G2 falsification checkpoint, simulator receipts, commands,
+aggregates, or reply-preview behavior.

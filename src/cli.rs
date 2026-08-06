@@ -13,6 +13,7 @@ use clap::Parser;
 use rusqlite::OptionalExtension as _;
 use serde::Deserialize;
 use serde_json::{Value, json};
+use std::collections::HashMap;
 use std::ffi::OsString;
 use std::io::{self, ErrorKind, IsTerminal, Read as _};
 use std::net::IpAddr;
@@ -723,7 +724,8 @@ impl Default for Args {
 #[derive(Debug, Parser)]
 #[command(
     name = "snapback",
-    about = "Snapback local server + host operations (LLP 0024 first slice)"
+    about = "Snapback local server, host operations, and embedded Guide",
+    after_help = "Documentation:\n  snapback guide [QUERY]  Browse or search the build-bound Snapback Guide\n  snapback mcp            Serve the same Guide as read-only MCP resources"
 )]
 pub struct Cli {
     #[command(subcommand)]
@@ -797,6 +799,41 @@ pub enum HostCommand {
         #[command(subcommand)]
         command: ErrorsCommand,
     },
+    /// data.scan — bounded read-only table projection (LLP 0184 P1).
+    Data {
+        #[command(subcommand)]
+        command: DataCommand,
+    },
+    /// config.status / config.plan / config.verify (LLP 0036; LLP 0184 P1
+    /// backfill) plus config.unset (LLP 0184 §P2/§P3) — non-secret config
+    /// planning, verification, and entry removal. `config unset` carries only
+    /// an entry identifier; no secret value crosses the wire, unlike
+    /// `config set`, which is not projected here (LLP 0184 §P3).
+    Config {
+        #[command(subcommand)]
+        command: ConfigCommand,
+    },
+    /// cron.tick / cron.runOne — the admin-gated forced dispatch surface
+    /// (LLP 0184 §P2: typed CLI/MCP projection of the existing
+    /// admin-write route; bounded work, ordinary receipts).
+    Cron {
+        #[command(subcommand)]
+        command: CronCommand,
+    },
+    /// jobs.list / jobs.show (LLP 0184 P1 read-only inspection) plus
+    /// jobs.drain (LLP 0184 §P2's injected-clock typed projection of the
+    /// existing `POST /_snapback/api/jobs/drain` route).
+    Jobs {
+        #[command(subcommand)]
+        command: JobsCommand,
+    },
+    /// connection.disconnect — an explicit debug perturbation of one live
+    /// connection, never presented as application disconnect authority
+    /// (LLP 0184 §P2).
+    Connections {
+        #[command(subcommand)]
+        command: ConnectionsCommand,
+    },
     /// debug.networkProfile* — inspect or change the process-local network
     /// condition profile through the shared host-ops envelope.
     #[command(name = "network-profile")]
@@ -846,6 +883,16 @@ pub enum HostCommand {
     Fork {
         #[command(subcommand)]
         command: ForkCommand,
+    },
+    // @ref LLP 0187#t4--build-the-out-of-repo-funnel-before-it-is-tested-for-real —
+    // the packaged native runtime is the checkout-independent guide carrier.
+    // @ref LLP 0061#4-distribution-and-discovery — the CLI searches the same
+    // build-bound corpus served over HTTP and MCP rather than a second copy.
+    /// Show the build-bound Guide channels or search matching Markdown sections.
+    Guide {
+        /// Words to find together in a Guide section. Omit to show all channels.
+        #[arg(value_name = "QUERY")]
+        query: Vec<String>,
     },
     /// Serve the build-bound Snapback Guide as read-only MCP resources over
     /// stdio. This is the resource-first Phase 2b slice; it exposes no tools.
@@ -1107,6 +1154,142 @@ pub enum ErrorsCommand {
         target: TargetArgs,
         #[arg(long)]
         open_before: String,
+    },
+}
+
+/// @ref LLP 0184#p2-controlled-mutations — typed CLI/MCP projections of the
+/// existing admin-gated cron dispatch routes, with an injected clock for
+/// `tick` so acceptance never depends on wall-clock due-ness.
+#[derive(clap::Subcommand)]
+pub enum CronCommand {
+    /// cron.tick — force-claim and run every currently-due cron job.
+    Tick {
+        #[command(flatten)]
+        target: TargetArgs,
+    },
+    /// cron.runOne — force-claim and run one named cron job regardless of
+    /// its schedule.
+    Run {
+        #[command(flatten)]
+        target: TargetArgs,
+        /// The cron job's declared name.
+        name: String,
+    },
+}
+
+/// @ref LLP 0184#p2-controlled-mutations — `connection.disconnect` is an
+/// explicit debug perturbation of the existing admin-gated route
+/// (`POST /_snapback/api/connections/{id}/disconnect`), never application
+/// disconnect authority. `reason` is recorded in this command's own receipt
+/// (the route itself carries no request body today); the readiness
+/// descriptor's startup nonce is verified by the ordinary target-resolution
+/// path before the request is sent, so a stale/reused server can never be
+/// the disconnect target.
+#[derive(clap::Subcommand)]
+pub enum ConnectionsCommand {
+    /// connection.disconnect — force-close one live connection by id.
+    Disconnect {
+        #[command(flatten)]
+        target: TargetArgs,
+        /// The connection id to disconnect.
+        connection_id: String,
+        /// Why this debug perturbation is being invoked (recorded in the
+        /// receipt printed on success).
+        #[arg(long)]
+        reason: String,
+    },
+}
+
+#[derive(clap::Subcommand)]
+pub enum DataCommand {
+    /// data.scan — bounded read-only projection over `DataQuery`'s shipped
+    /// fields: table, limit, offset. Not a cursor: the route has none, and
+    /// offset paging is not stable under concurrent writes — a row can shift
+    /// pages between two calls. Prefer a narrow `--limit` and re-scan rather
+    /// than relying on offset continuity across a long-lived operator
+    /// session.
+    ///
+    /// @ref LLP 0184#p1-read-and-diagnose — matches `DataQuery` as shipped;
+    ///   a stable/snapshot-bound cursor is a storage-owner amendment, out of
+    ///   this pure-projection scope.
+    Scan {
+        #[command(flatten)]
+        target: TargetArgs,
+        /// The table to scan.
+        table: String,
+        #[arg(long, default_value_t = 50)]
+        limit: usize,
+        #[arg(long, default_value_t = 0)]
+        offset: usize,
+        /// A previously minted scoped secret-read lease. Omit to mint one
+        /// automatically from the ready file (requires --ready-file).
+        #[arg(long)]
+        secret_read_lease: Option<String>,
+    },
+}
+
+/// @ref LLP 0184#p2-controlled-mutations — `config.unset` carries no secret
+/// value, so it needs no secret carrier; it is a direct, `AdminWrite`
+/// projection of the existing `POST /_snapback/api/config/unset` route.
+#[derive(clap::Subcommand)]
+pub enum ConfigCommand {
+    /// config.status — the full per-entry state machine: names, states,
+    /// generations, diagnostics. Never values.
+    Status {
+        #[command(flatten)]
+        target: TargetArgs,
+    },
+    /// config.plan — dry-run facts for setting an entry: write locus,
+    /// required credentials, the apply boundary, and whether this transport
+    /// would accept a value write. No write occurs.
+    Plan {
+        #[command(flatten)]
+        target: TargetArgs,
+        /// Narrow the plan to one declared entry; omitted plans every entry.
+        #[arg(long)]
+        entry: Option<String>,
+    },
+    /// config.verify — run one entry's probe action and report ok/not-ok
+    /// plus the probe diagnostic. Never returns the configured value.
+    Verify {
+        #[command(flatten)]
+        target: TargetArgs,
+        entry: String,
+    },
+    /// config.unset — remove a config entry's stored value.
+    Unset {
+        #[command(flatten)]
+        target: TargetArgs,
+        /// The config entry identifier (e.g. `stripe.secretKey`).
+        #[arg(long)]
+        entry: String,
+    },
+}
+
+#[derive(clap::Subcommand)]
+pub enum JobsCommand {
+    /// jobs.list — the bounded one-off job inspection page (read-only).
+    List {
+        #[command(flatten)]
+        target: TargetArgs,
+    },
+    /// jobs.show — one job's full recorded state by id (read-only).
+    Show {
+        #[command(flatten)]
+        target: TargetArgs,
+        id: String,
+    },
+    /// jobs.drain — claim and run due one-off jobs under an injected clock.
+    Drain {
+        #[command(flatten)]
+        target: TargetArgs,
+        /// The injected drain clock in epoch milliseconds. Absent means wall
+        /// clock.
+        #[arg(long)]
+        now_ms: Option<u64>,
+        /// Bounded cascade waves (server default 1 when absent).
+        #[arg(long)]
+        max_waves: Option<usize>,
     },
 }
 
@@ -1578,6 +1761,161 @@ impl std::fmt::Debug for TargetArgs {
     }
 }
 
+const DEFAULT_SERVED_GUIDE_URL: &str = "http://127.0.0.1:4287/_snapback/guide";
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct GuideSectionMatch {
+    path: String,
+    heading: String,
+    anchor: String,
+}
+
+fn markdown_heading(line: &str) -> Option<&str> {
+    let trimmed = line.trim_start();
+    let level = trimmed.bytes().take_while(|byte| *byte == b'#').count();
+    if !(1..=6).contains(&level) || trimmed.as_bytes().get(level) != Some(&b' ') {
+        return None;
+    }
+    let heading = trimmed[level + 1..].trim();
+    (!heading.is_empty()).then_some(heading)
+}
+
+fn markdown_anchor(heading: &str) -> String {
+    let mut anchor = String::new();
+    for character in heading.chars().flat_map(char::to_lowercase) {
+        if character.is_alphanumeric() || character == '_' || character == '-' {
+            anchor.push(character);
+        } else if character.is_whitespace() {
+            anchor.push('-');
+        }
+    }
+    if anchor.is_empty() {
+        "section".to_owned()
+    } else {
+        anchor
+    }
+}
+
+fn search_guide_sections_in(
+    files: &[crate::guide::EmbeddedGuideFile],
+    query: &str,
+) -> Vec<GuideSectionMatch> {
+    let query = query.to_lowercase();
+    let mut matches = Vec::new();
+
+    for file in files {
+        if !file.path.ends_with(".md") || file.path == crate::guide::FLAT_PATH {
+            continue;
+        }
+        let Ok(markdown) = std::str::from_utf8(file.bytes) else {
+            continue;
+        };
+        let mut anchor_counts = HashMap::<String, usize>::new();
+        let mut current: Option<(String, String, String)> = None;
+        let mut active_fence = None;
+
+        let finish_section = |current: Option<(String, String, String)>,
+                              matches: &mut Vec<GuideSectionMatch>| {
+            if let Some((heading, anchor, text)) = current
+                && text.to_lowercase().contains(&query)
+            {
+                matches.push(GuideSectionMatch {
+                    path: file.path.to_owned(),
+                    heading,
+                    anchor,
+                });
+            }
+        };
+
+        for line in markdown.lines() {
+            let trimmed = line.trim_start();
+            let fence = if trimmed.starts_with("```") {
+                Some('`')
+            } else if trimmed.starts_with("~~~") {
+                Some('~')
+            } else {
+                None
+            };
+            if let Some(fence) = fence {
+                match active_fence {
+                    Some(active) if active == fence => active_fence = None,
+                    None => active_fence = Some(fence),
+                    _ => {}
+                }
+            }
+
+            if active_fence.is_none()
+                && let Some(heading) = markdown_heading(line)
+            {
+                finish_section(current.take(), &mut matches);
+                let base_anchor = markdown_anchor(heading);
+                let count = anchor_counts.entry(base_anchor.clone()).or_default();
+                let anchor = if *count == 0 {
+                    base_anchor
+                } else {
+                    format!("{base_anchor}-{count}")
+                };
+                *count += 1;
+                current = Some((heading.to_owned(), anchor, format!("{heading}\n")));
+            } else if let Some((_, _, text)) = &mut current {
+                text.push_str(line);
+                text.push('\n');
+            }
+        }
+        finish_section(current, &mut matches);
+    }
+
+    matches
+}
+
+fn search_guide_sections(query: &str) -> Vec<GuideSectionMatch> {
+    search_guide_sections_in(crate::guide::EMBEDDED_GUIDE_FILES, query)
+}
+
+fn render_guide_command(query_words: &[String]) -> String {
+    let query = query_words.join(" ");
+    let query = query.trim();
+    if query.is_empty() {
+        return format!(
+            "Snapback Guide documentation channels\n\
+             \n\
+             The URLs below use the first default dev port. If Snapback selected another port, replace the origin with the one printed by snapback dev or snapback start.\n\
+             \n\
+             Start with the capability index: {DEFAULT_SERVED_GUIDE_URL}/capabilities.md\n\
+             Browse the Guide:             {DEFAULT_SERVED_GUIDE_URL}\n\
+             Flat agent projection:         {DEFAULT_SERVED_GUIDE_URL}/flat.md\n\
+             Search this embedded build:    snapback guide <query>\n\
+             Read through MCP:              snapback mcp\n\
+             MCP entry resource:            snapback-guide://manifest\n"
+        );
+    }
+
+    let matches = search_guide_sections(query);
+    if matches.is_empty() {
+        return format!(
+            "No embedded Guide sections matched {query:?}.\nStart with the capability index: {DEFAULT_SERVED_GUIDE_URL}/capabilities.md\n"
+        );
+    }
+
+    let mut output = format!("Embedded Guide sections matching {query:?}:\n");
+    for matched in &matches {
+        output.push_str(&format!(
+            "- {}#{} — {}\n  {DEFAULT_SERVED_GUIDE_URL}/{}#{}\n",
+            matched.path, matched.anchor, matched.heading, matched.path, matched.anchor
+        ));
+    }
+    output.push_str(&format!("{} section(s) matched.\n", matches.len()));
+    output
+}
+
+fn guide_command(query: &[String]) -> anyhow::Result<()> {
+    use std::io::Write as _;
+
+    std::io::stdout()
+        .write_all(render_guide_command(query).as_bytes())
+        .context("failed to write Guide output")
+}
+
 pub async fn run_from_env() -> anyhow::Result<()> {
     let cli = Cli::parse();
     reject_misdirected_serve_flags(&cli)?;
@@ -1835,6 +2173,10 @@ pub async fn run_from_env() -> anyhow::Result<()> {
         }
         Some(HostCommand::Telemetry { command }) => telemetry_command(command),
         Some(HostCommand::Errors { command }) => errors_command(command),
+        Some(HostCommand::Config { command }) => config_command(command),
+        Some(HostCommand::Cron { command }) => cron_command(command),
+        Some(HostCommand::Jobs { command }) => jobs_command(command),
+        Some(HostCommand::Connections { command }) => connections_command(command),
         Some(HostCommand::NetworkProfile { command }) => match command {
             NetworkProfileCommand::Get { target } => {
                 host_op_via_http(&target, json!({ "operation": "debug.networkProfileGet" }))
@@ -1847,11 +2189,13 @@ pub async fn run_from_env() -> anyhow::Result<()> {
                 }),
             ),
         },
+        Some(HostCommand::Data { command }) => data_command(command),
         Some(HostCommand::Auth { command }) => match command {
             AuthCommand::Backup { db, output } => auth_backup(&db, &output).await,
             AuthCommand::Restore { from, db } => auth_restore(&from, &db),
         },
         Some(HostCommand::Fork { command }) => fork_command(command).await,
+        Some(HostCommand::Guide { query }) => guide_command(&query),
         Some(HostCommand::Mcp) => crate::guide_mcp::run_stdio(),
         Some(HostCommand::BuildIdentity) => {
             println!(
@@ -3905,6 +4249,49 @@ fn telemetry_command(command: TelemetryCommand) -> anyhow::Result<()> {
     }
 }
 
+/// Generic admin GET, reusing the telemetry transport helper (it is not
+/// telemetry-specific: any admin-authenticated JSON GET fits it).
+fn admin_json_get(
+    target: &TargetArgs,
+    path: &str,
+    query: Vec<(&'static str, String)>,
+) -> anyhow::Result<Value> {
+    telemetry_json_get(target, path, query, None)
+}
+
+/// data.scan — LLP 0184 P1: a bounded, as-shipped projection of `DataQuery`
+/// (table/limit/offset, no cursor). Mirrors telemetry's automatic scoped
+/// secret-read lease minting; a Dev-policy server does not require the lease
+/// today (only Sessions-policy does), but minting it unconditionally keeps
+/// one code path correct under both policies rather than special-casing.
+fn data_command(command: DataCommand) -> anyhow::Result<()> {
+    match command {
+        DataCommand::Scan {
+            target,
+            table,
+            limit,
+            offset,
+            secret_read_lease,
+        } => {
+            let lease = telemetry_secret_read_lease(
+                &target,
+                secret_read_lease,
+                SecretReadScope::Table(table.clone()),
+                u64::try_from(limit).unwrap_or(u64::MAX),
+                4 * 1024 * 1024,
+            )?;
+            let response = telemetry_json_get(
+                &target,
+                &format!("/_snapback/api/data/{table}"),
+                vec![("limit", limit.to_string()), ("offset", offset.to_string())],
+                Some(&lease),
+            )?;
+            println!("{}", serde_json::to_string_pretty(&response)?);
+            Ok(())
+        }
+    }
+}
+
 fn errors_json_post(target: &TargetArgs, value: Value) -> anyhow::Result<Value> {
     let resolved = resolve_http_target_for_operation(target, false)?;
     let token = target
@@ -4055,6 +4442,208 @@ fn errors_command(command: ErrorsCommand) -> anyhow::Result<()> {
                 }),
             )?;
             println!("{}", serde_json::to_string_pretty(&response)?);
+            Ok(())
+        }
+    }
+}
+
+/// Minimal percent-encoding for one dynamic path segment (cron job names,
+/// connection ids). No existing CLI helper in this module needed one before
+/// these commands; this avoids pulling in a new dependency for two call
+/// sites while still refusing to build an unescaped URL from caller input.
+fn path_segment_escape(raw: &str) -> String {
+    let mut escaped = String::with_capacity(raw.len());
+    for byte in raw.bytes() {
+        match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                escaped.push(byte as char);
+            }
+            _ => escaped.push_str(&format!("%{byte:02X}")),
+        }
+    }
+    escaped
+}
+
+/// A generic admin-gated JSON POST, shared by the LLP 0184 §P2 typed
+/// projections below (`config.unset`, `cron.tick`/`cron.runOne`,
+/// `jobs.drain`). Mirrors `errors_json_post`'s token resolution exactly, one
+/// level more generic (an arbitrary path instead of one hardcoded route).
+fn admin_json_post(target: &TargetArgs, path: &str, value: Value) -> anyhow::Result<Value> {
+    let resolved = resolve_http_target_for_operation(target, false)?;
+    let token = target
+        .token
+        .clone()
+        .or_else(|| std::env::var("SNAPBACK_ADMIN_TOKEN").ok())
+        .filter(|token| !token.is_empty())
+        .or(resolved.minted_token);
+    let mut request = ureq::post(&format!("{}{path}", resolved.server_url));
+    if let Some(token) = token {
+        request = request.set("x-snapback-admin-token", &token);
+    }
+    match request.send_json(value) {
+        Ok(response) => response
+            .into_json()
+            .with_context(|| format!("{path} response was not JSON")),
+        Err(ureq::Error::Status(status, response)) => {
+            let body = response
+                .into_string()
+                .unwrap_or_else(|_| "<unreadable response>".to_owned());
+            anyhow::bail!("{path} failed with HTTP {status}: {body}")
+        }
+        Err(error) => Err(error).context(format!("{path} request failed")),
+    }
+}
+
+/// The `connection.disconnect` sibling of `admin_json_post`: the route
+/// returns `204 No Content` on success (no envelope to print), so this
+/// reports only failure. LLP 0184 §P2: the route carries no request body
+/// today, so `reason` is a client-recorded receipt field, not a
+/// server-acknowledged one — the printed receipt says so.
+fn admin_json_post_no_content(target: &TargetArgs, path: &str, value: Value) -> anyhow::Result<()> {
+    let resolved = resolve_http_target_for_operation(target, false)?;
+    let token = target
+        .token
+        .clone()
+        .or_else(|| std::env::var("SNAPBACK_ADMIN_TOKEN").ok())
+        .filter(|token| !token.is_empty())
+        .or(resolved.minted_token);
+    let mut request = ureq::post(&format!("{}{path}", resolved.server_url));
+    if let Some(token) = token {
+        request = request.set("x-snapback-admin-token", &token);
+    }
+    match request.send_json(value) {
+        Ok(_response) => Ok(()),
+        Err(ureq::Error::Status(status, response)) => {
+            let body = response
+                .into_string()
+                .unwrap_or_else(|_| "<unreadable response>".to_owned());
+            anyhow::bail!("{path} failed with HTTP {status}: {body}")
+        }
+        Err(error) => Err(error).context(format!("{path} request failed")),
+    }
+}
+
+/// config.status / config.plan / config.verify — LLP 0036-owned, non-secret
+/// projections (LLP 0184 P1 backfill), plus config.unset (LLP 0184 §P2):
+/// `config.unset` direct CLI projection; LLP 0036 pairs it with a 1:1
+/// `snapback_config_unset` MCP tool landed alongside
+/// (`packages/snapback-cli/mcp-control.mjs`).
+fn config_command(command: ConfigCommand) -> anyhow::Result<()> {
+    match command {
+        ConfigCommand::Status { target } => {
+            let response = admin_json_get(&target, "/_snapback/api/config/status", Vec::new())?;
+            println!("{}", serde_json::to_string_pretty(&response)?);
+            Ok(())
+        }
+        ConfigCommand::Plan { target, entry } => {
+            let mut query = Vec::new();
+            if let Some(entry) = entry {
+                query.push(("entry", entry));
+            }
+            let response = admin_json_get(&target, "/_snapback/api/config/plan", query)?;
+            println!("{}", serde_json::to_string_pretty(&response)?);
+            Ok(())
+        }
+        ConfigCommand::Verify { target, entry } => {
+            let response = admin_json_post(
+                &target,
+                "/_snapback/api/config/verify",
+                json!({ "entry": entry }),
+            )?;
+            println!("{}", serde_json::to_string_pretty(&response)?);
+            Ok(())
+        }
+        ConfigCommand::Unset { target, entry } => {
+            let response = admin_json_post(
+                &target,
+                "/_snapback/api/config/unset",
+                json!({ "entry": entry, "source": "cli" }),
+            )?;
+            println!("{}", serde_json::to_string_pretty(&response)?);
+            Ok(())
+        }
+    }
+}
+
+/// @ref LLP 0184#p2-controlled-mutations — `cron.tick`/`cron.runOne` direct
+/// CLI projections of the existing admin-gated forced-dispatch routes.
+fn cron_command(command: CronCommand) -> anyhow::Result<()> {
+    match command {
+        CronCommand::Tick { target } => {
+            let response = admin_json_post(&target, "/_snapback/api/cron/tick", json!({}))?;
+            println!("{}", serde_json::to_string_pretty(&response)?);
+            Ok(())
+        }
+        CronCommand::Run { target, name } => {
+            let path = format!("/_snapback/api/cron/{}/run", path_segment_escape(&name));
+            let response = admin_json_post(&target, &path, json!({}))?;
+            println!("{}", serde_json::to_string_pretty(&response)?);
+            Ok(())
+        }
+    }
+}
+
+/// jobs.list / jobs.show — read-only one-off job inspection (LLP 0184 P1),
+/// plus jobs.drain (LLP 0184 §P2)'s direct CLI projection; the injected
+/// `nowMs`/`maxWaves` fields are the same deterministic seam
+/// `JobsDrainRequest` already accepts (`src/admin.rs`).
+fn jobs_command(command: JobsCommand) -> anyhow::Result<()> {
+    match command {
+        JobsCommand::List { target } => {
+            let response = admin_json_get(&target, "/_snapback/api/jobs", Vec::new())?;
+            println!("{}", serde_json::to_string_pretty(&response)?);
+            Ok(())
+        }
+        JobsCommand::Show { target, id } => {
+            let response = admin_json_get(&target, &format!("/_snapback/api/jobs/{id}"), Vec::new())?;
+            println!("{}", serde_json::to_string_pretty(&response)?);
+            Ok(())
+        }
+        JobsCommand::Drain {
+            target,
+            now_ms,
+            max_waves,
+        } => {
+            let mut body = serde_json::Map::new();
+            if let Some(now_ms) = now_ms {
+                body.insert("nowMs".to_owned(), json!(now_ms));
+            }
+            if let Some(max_waves) = max_waves {
+                body.insert("maxWaves".to_owned(), json!(max_waves));
+            }
+            let response =
+                admin_json_post(&target, "/_snapback/api/jobs/drain", Value::Object(body))?;
+            println!("{}", serde_json::to_string_pretty(&response)?);
+            Ok(())
+        }
+    }
+}
+
+/// @ref LLP 0184#p2-controlled-mutations — `connection.disconnect` as an
+/// explicit debug perturbation: the receipt this command prints is a client
+/// record of `reason` and target, not a server-returned envelope, because
+/// the underlying route (`src/admin.rs`'s `disconnect`) returns no body.
+fn connections_command(command: ConnectionsCommand) -> anyhow::Result<()> {
+    match command {
+        ConnectionsCommand::Disconnect {
+            target,
+            connection_id,
+            reason,
+        } => {
+            let path = format!(
+                "/_snapback/api/connections/{}/disconnect",
+                path_segment_escape(&connection_id)
+            );
+            admin_json_post_no_content(&target, &path, json!({ "reason": reason }))?;
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&json!({
+                    "operation": "connection.disconnect",
+                    "connectionId": connection_id,
+                    "reason": reason,
+                    "ok": true,
+                }))?
+            );
             Ok(())
         }
     }
@@ -7760,17 +8349,21 @@ mod tests {
     use super::{
         AdminArgs, AdminCommand, Args, AssetsCommand, AuthCommand, AuthConstructionFailure,
         AuthCoordinatorReadinessReceipt, AuthProgramConstructionReceipts,
-        BEFORE_STARTUP_TARGET_RESERVATION, Cli, ErrorsCommand, ForkCommand, HostCommand,
+        BEFORE_STARTUP_TARGET_RESERVATION, Cli, ConfigCommand, ConnectionsCommand, CronCommand,
+        ErrorsCommand, ForkCommand, HostCommand, JobsCommand,
         ManagedPath, NetworkProfileCommand, ReadyFileTarget, ResolvedHttpTarget, SessionCommand,
         TargetArgs, TelemetryCommand, automatic_reap_before_create, bind_first_available,
         bind_listener, console_claim_fragment_url, console_fragment_url, fork_secret_disposition,
         managed_startup_paths, mint_secret_read_via_http, parse_fork_ttl,
-        parse_network_profile_selection, parse_run_args, path_with_filename_suffix,
+        parse_network_profile_selection, parse_run_args, path_segment_escape,
+        path_with_filename_suffix,
         prepare_database_path, prepare_database_path_for_startup, quiet_stop_fork,
-        reject_misdirected_serve_flags, resolve_http_target, runtime_auth_program_readiness,
-        validate_path_disjointness, validated_console_origin, validated_secret_read_root_path,
-        write_ready_file_atomic, write_ready_file_atomic_protected,
+        reject_misdirected_serve_flags, render_guide_command, resolve_http_target,
+        runtime_auth_program_readiness, search_guide_sections_in, validate_path_disjointness,
+        validated_console_origin, validated_secret_read_root_path, write_ready_file_atomic,
+        write_ready_file_atomic_protected,
     };
+    use crate::guide::EmbeddedGuideFile;
     use crate::instance_lock::TargetInstanceReservation;
     use clap::{CommandFactory, Parser};
     use serde_json::json;
@@ -7778,6 +8371,64 @@ mod tests {
     use std::path::{Path, PathBuf};
     use std::time::Duration;
     use tokio::net::TcpListener;
+
+    #[test]
+    fn guide_cli_parses_multiword_queries_and_root_help_names_both_channels() {
+        let cli = Cli::parse_from(["snapback", "guide", "live", "query"]);
+        match cli.command {
+            Some(HostCommand::Guide { query }) => {
+                assert_eq!(query, ["live", "query"]);
+            }
+            _ => panic!("expected guide command"),
+        }
+
+        let help = Cli::command().render_long_help().to_string();
+        assert!(help.contains("snapback guide [QUERY]"), "{help}");
+        assert!(help.contains("snapback mcp"), "{help}");
+    }
+
+    #[test]
+    fn guide_search_returns_matching_sections_with_stable_markdown_anchors() {
+        let files = [
+            EmbeddedGuideFile {
+                path: "backend/example.md",
+                bytes: b"---\ntitle: Example\n---\n# Example page\nIntro.\n## Live queries\nUse the live query handle.\n## Live queries\nSecond live query spelling.\n",
+                content_type: "text/markdown; charset=utf-8",
+            },
+            EmbeddedGuideFile {
+                path: crate::guide::FLAT_PATH,
+                bytes: b"# Duplicate projection\nlive query handle\n",
+                content_type: "text/markdown; charset=utf-8",
+            },
+        ];
+
+        let matches = search_guide_sections_in(&files, "live query");
+        assert_eq!(
+            matches,
+            [
+                super::GuideSectionMatch {
+                    path: "backend/example.md".to_owned(),
+                    heading: "Live queries".to_owned(),
+                    anchor: "live-queries".to_owned(),
+                },
+                super::GuideSectionMatch {
+                    path: "backend/example.md".to_owned(),
+                    heading: "Live queries".to_owned(),
+                    anchor: "live-queries-1".to_owned(),
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn guide_channel_output_starts_with_capabilities_and_names_flat_and_mcp() {
+        let output = render_guide_command(&[]);
+        let capability = output.find("/capabilities.md").unwrap();
+        let browse = output.find("Browse the Guide").unwrap();
+        assert!(capability < browse, "{output}");
+        assert!(output.contains("/_snapback/guide/flat.md"), "{output}");
+        assert!(output.contains("snapback mcp"), "{output}");
+    }
 
     #[test]
     fn fork_cli_pins_finite_ttl_and_explicit_secret_opt_in() {
@@ -9591,6 +10242,117 @@ mod tests {
             .unwrap()["name"],
             "tiny"
         );
+    }
+
+    // @ref LLP 0184#p2-controlled-mutations — parse coverage for the LLP
+    // 0184 §P2 typed CLI verbs (config.unset, cron.tick/runOne, jobs.drain,
+    // connection.disconnect). These only assert clap wiring; the HTTP-level
+    // behavior is covered by mcp-control.test.mjs's real-server acceptance
+    // (the equivalent MCP tools share the same served routes).
+    #[test]
+    fn config_unset_cli_parses_entry_and_target() {
+        let parsed = Cli::parse_from([
+            "snapback",
+            "config",
+            "unset",
+            "--entry",
+            "stripe.secretKey",
+            "--url",
+            "http://127.0.0.1:4287",
+        ]);
+        assert!(matches!(
+            parsed.command,
+            Some(HostCommand::Config {
+                command: ConfigCommand::Unset { entry, .. }
+            }) if entry == "stripe.secretKey"
+        ));
+    }
+
+    #[test]
+    fn cron_cli_parses_tick_and_run() {
+        let tick = Cli::parse_from(["snapback", "cron", "tick", "--url", "http://127.0.0.1:4287"]);
+        assert!(matches!(
+            tick.command,
+            Some(HostCommand::Cron {
+                command: CronCommand::Tick { .. }
+            })
+        ));
+
+        let run = Cli::parse_from([
+            "snapback",
+            "cron",
+            "run",
+            "nightly-digest",
+            "--url",
+            "http://127.0.0.1:4287",
+        ]);
+        assert!(matches!(
+            run.command,
+            Some(HostCommand::Cron {
+                command: CronCommand::Run { name, .. }
+            }) if name == "nightly-digest"
+        ));
+    }
+
+    #[test]
+    fn jobs_drain_cli_parses_injected_clock_and_waves() {
+        let parsed = Cli::parse_from([
+            "snapback",
+            "jobs",
+            "drain",
+            "--url",
+            "http://127.0.0.1:4287",
+            "--now-ms",
+            "1700000000000",
+            "--max-waves",
+            "3",
+        ]);
+        assert!(matches!(
+            parsed.command,
+            Some(HostCommand::Jobs {
+                command: JobsCommand::Drain {
+                    now_ms: Some(1_700_000_000_000),
+                    max_waves: Some(3),
+                    ..
+                }
+            })
+        ));
+    }
+
+    #[test]
+    fn connections_disconnect_cli_requires_a_reason() {
+        let parsed = Cli::parse_from([
+            "snapback",
+            "connections",
+            "disconnect",
+            "conn_abc123",
+            "--reason",
+            "stuck presence repair",
+            "--url",
+            "http://127.0.0.1:4287",
+        ]);
+        assert!(matches!(
+            parsed.command,
+            Some(HostCommand::Connections {
+                command: ConnectionsCommand::Disconnect { connection_id, reason, .. }
+            }) if connection_id == "conn_abc123" && reason == "stuck presence repair"
+        ));
+
+        let missing_reason = Cli::try_parse_from([
+            "snapback",
+            "connections",
+            "disconnect",
+            "conn_abc123",
+            "--url",
+            "http://127.0.0.1:4287",
+        ]);
+        assert!(missing_reason.is_err());
+    }
+
+    #[test]
+    fn path_segment_escape_encodes_reserved_bytes() {
+        assert_eq!(path_segment_escape("nightly-digest"), "nightly-digest");
+        assert_eq!(path_segment_escape("a/b c"), "a%2Fb%20c");
     }
 
     #[test]

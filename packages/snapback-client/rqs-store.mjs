@@ -529,6 +529,14 @@ export function createIndexedDbRqsResumeStore({
       return outboxWrite((state) => outboxOps.markFailed(state, id, failure));
     },
 
+    async outboxMarkQuarantined(id, refusal) {
+      return outboxWrite((state) => outboxOps.markQuarantined(state, id, refusal, now()));
+    },
+
+    async outboxReenterQuarantined() {
+      return outboxWrite((state) => outboxOps.reenterQuarantined(state));
+    },
+
     async outboxMarkResultGone(id, resultGone) {
       return outboxWrite((state) => outboxOps.markResultGone(state, id, resultGone));
     },
@@ -819,6 +827,8 @@ export function createIndexedDbRqsResumeStore({
         outbox: Object.freeze({
           pending: pendingOutboxRecords(outboxState).length,
           failed: allOutboxRecords(outboxState).filter((r) => r.status === 'failed').length,
+          quarantined: allOutboxRecords(outboxState)
+            .filter((r) => r.status === 'quarantined').length,
           resultGone: allOutboxRecords(outboxState)
             .filter((r) => r.status === 'result-gone').length,
           pendingAcknowledgements: outboxState.acks.length,

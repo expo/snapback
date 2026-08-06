@@ -241,3 +241,18 @@ client.previewVersionedSeed(seedArtifact, {
 });
 // @ts-expect-error clear preview requires a predecessor stream.
 client.previewVersionedSeed(null, { operation: 'clear' });
+
+client.replayQueuedMutations().then((outcome) => outcome.quarantined.toFixed());
+client.quarantinedMutations().then((tombstones) => {
+  const first = tombstones[0];
+  if (first) {
+    first.status satisfies 'quarantined';
+    first.provenance.payload satisfies 'redacted';
+    // @ts-expect-error the public tombstone never exposes a queued payload.
+    first.args;
+  }
+});
+client.reenterQuarantinedMutations().then((outcome) => {
+  outcome.reentered.toFixed();
+  outcome.clientMutationIds[0]?.toUpperCase();
+});

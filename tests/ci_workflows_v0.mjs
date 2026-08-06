@@ -17,6 +17,7 @@ assert.deepEqual(workflowNames, [
   'public-package-proof.yml',
   'ref-check.yml',
   'required-surface-builds.yml',
+  'telemetry-latest-main.yml',
 ]);
 
 const deploymentIdentityWorkflow = readFileSync(
@@ -177,7 +178,7 @@ for (const name of workflowNames) {
     );
   }
 }
-assert.equal(setupNodeCount, 8, 'the Node-using workflow inventory changed; review and update this count');
+assert.equal(setupNodeCount, 9, 'the Node-using workflow inventory changed; review and update this count');
 // 30 -> 31 (2026-08-02): the expo-large local-proof runner does not include
 // Chrome, so the required admin browser-security lane now provisions one
 // through a pinned action instead of inheriting an ambient browser.
@@ -185,7 +186,34 @@ assert.equal(setupNodeCount, 8, 'the Node-using workflow inventory changed; revi
 // the canonical proof even when the proof itself is red.
 // 32 -> 38 (2026-08-05): LLP 0062's Linux final-artifact qualification adds
 // six pinned actions: checkout, Node, Bun, cache restore/save, and upload.
-assert.equal(actionCount, 38, 'the reviewed workflow action inventory changed; review and update this count');
+// 38 -> 44 (2026-08-06): rolling telemetry evidence adds a coalesced Linux
+// producer with checkout, Node, Bun, Hermes/Cargo caches, and artifact upload.
+assert.equal(actionCount, 44, 'the reviewed workflow action inventory changed; review and update this count');
+
+const telemetryLatestMain = readFileSync(
+  join(workflowDir, 'telemetry-latest-main.yml'),
+  'utf8',
+);
+assert.match(
+  telemetryLatestMain,
+  /schedule:[\s\S]*cron:[\s\S]*workflow_dispatch:/u,
+  'rolling telemetry proof must be scheduled and manually dispatchable',
+);
+assert.match(
+  telemetryLatestMain,
+  /group:\s*telemetry-latest-main[\s\S]*cancel-in-progress:\s*false/u,
+  'rolling telemetry proof must finish one snapshot while coalescing pending heads',
+);
+assert.match(
+  telemetryLatestMain,
+  /SNAPBACK_TELEMETRY_PHASE1_RECEIPT:[\s\S]*scripts\/verify-telemetry-phase1-proof --full/u,
+  'rolling telemetry proof must produce an exact candidate outside the tracked carrier',
+);
+assert.match(
+  telemetryLatestMain,
+  /sqlite3[\s\S]*telemetry-phase1-\$\{\{ github\.sha \}\}/u,
+  'rolling telemetry proof must provision the idle witness and retain a revision-named artifact',
+);
 
 const publicPackageProof = readFileSync(
   join(workflowDir, 'public-package-proof.yml'),
@@ -234,6 +262,36 @@ assert.match(
 
 const localProof = readFileSync(join(workflowDir, 'local-proof.yml'), 'utf8');
 assert.match(localProof, /SNAPBACK_VERIFY_EXACT:\s*"1"/, 'canonical CI must require Exact/admin checks');
+assert.match(
+  localProof,
+  /schedule:[\s\S]*cron:[\s\S]*workflow_dispatch:/u,
+  'complete local proof must be scheduled and manually dispatchable',
+);
+assert.match(
+  localProof,
+  /PROOF_CADENCE:[^\n]*schedule[^\n]*workflow_dispatch[^\n]*complete[^\n]*affected/u,
+  'push/PR proof must select affected gates while schedule/manual retains complete cadence',
+);
+assert.match(
+  localProof,
+  /group:[^\n]*schedule[^\n]*workflow_dispatch[^\n]*latest-main[^\n]*event_name == 'push'[^\n]*github\.sha[^\n]*github\.ref/u,
+  'main push proofs must use a commit-unique group while scheduled complete and PR runs may coalesce',
+);
+assert.match(
+  localProof,
+  /cancel-in-progress:[^\n]*github\.event_name == 'pull_request'/u,
+  'only superseded pull-request affected proofs may be cancelled',
+);
+assert.match(
+  localProof,
+  /node scripts\/select-local-proof\.mjs[\s\S]*requires_native[\s\S]*scripts\/verify-local-proof --selection-receipt/u,
+  'CI must plan once, condition heavyweight setup, and reopen the exact selector receipt',
+);
+assert.match(
+  localProof,
+  /Initialize native runtime submodules[\s\S]*if:\s*steps\.selection\.outputs\.requires_native == 'true'[\s\S]*git submodule update --init --recursive/u,
+  'large native submodules must be demand-loaded only for native selections',
+);
 assert.match(
   localProof,
   /id:\s*setup-chrome[\s\S]*browser-actions\/setup-chrome@[0-9a-f]{40}[\s\S]*chrome-version:\s*stable/,
@@ -288,6 +346,11 @@ const headroomStepStart = localProof.indexOf('      - name: Require workspace di
 const headroomStepEnd = localProof.indexOf('\n      - ', headroomStepStart + 1);
 assert(headroomStepStart >= 0 && headroomStepEnd > headroomStepStart, 'disk headroom step block must be bounded');
 const headroomStep = localProof.slice(headroomStepStart, headroomStepEnd);
+assert.match(
+  headroomStep,
+  /if:\s*steps\.selection\.outputs\.requires_native == 'true'/u,
+  'fast docs/guide selections must not pay the native disk-admission cost',
+);
 assert.match(
   headroomStep,
   /SNAPBACK_CI_DISK_HEADROOM_LOW/,
@@ -411,6 +474,11 @@ assert(
   prepareHermesStart > localProof.indexOf('      - name: Cache Hermes Linux build')
     && prepareHermesStart < verifyProofStart,
   'canonical CI must prepare an exact cache miss before the local-proof preflight',
+);
+assert.match(
+  localProof,
+  /target\/proof\/local-proof-results\.jsonl[\s\S]*target\/proof\/local-proof-selection\.json/u,
+  'CI must retain both execution results and their exact selection authority',
 );
 const prepareHermesEnd = localProof.indexOf('\n      - ', prepareHermesStart + 1);
 assert.match(

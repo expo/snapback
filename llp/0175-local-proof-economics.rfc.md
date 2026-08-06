@@ -1,7 +1,7 @@
 # LLP 0175: Local-proof economics and verdict latency
 
 **Type:** RFC
-**Status:** Draft
+**Status:** Accepted
 **Systems:** Testing, Developer experience, Build, Tooling, CI
 **Author:** Claude (Opus 5) / Codex (GPT-5) / Charlie Cheever
 **Date:** 2026-08-05
@@ -13,7 +13,24 @@ cadence selection and remaining D3 work stay
 open). 2026-08-05 (whole-document rewrite: adds affected-test cadence,
 dependency-aware keep-going, workflow amplification, receipt cadence, and
 test-governance findings; demotes unproven Cargo parallelism and test-target
-consolidation from primary remedies)
+consolidation from primary remedies). 2026-08-06 (first Phase-2 cadence slice:
+telemetry full evidence moves to a six-hour/on-demand coalesced latest-head
+producer; retained receipt integrity no longer requires a quiet main, while
+exact-current evidence remains
+mandatory for release and capability promotion. LLP 0154 carries the amended
+trust contract). 2026-08-06 (accepted by co-author Charlie Cheever for
+implementation and direct delivery; the affected-selector tranche follows.)
+2026-08-06 (D2 selector implementation: a checked 131-gate policy binds the
+exact diff and inventory, closes prerequisites, fails broad for unknown/shared
+paths, preserves mandatory Contract/Exact and admin behavior, and replays four
+historical defect diffs. Push/PR runs use affected selection; six-hour/manual
+runs retain the complete inventory.) 2026-08-06 (ship-review corrections:
+required Exact mode reaches frozen surface installs from a clean checkout;
+Contract and harness owners select their direct fixtures; telemetry
+exact-current release/promotion wiring is recorded honestly as an open
+blocker; obsolete cadence prose removed; main-push affected runs use
+commit-unique concurrency so a replaced pending run cannot create an uncovered
+diff gap.)
 **Related:** LLP 0010, LLP 0032, LLP 0109, LLP 0115, LLP 0145, LLP 0154,
 issues/closed/20260802-local-proof-is-cancelled-before-it-can-finish-on-main.md,
 issues/closed/20260802-verify-local-proof-stops-at-the-first-failure.md,
@@ -275,6 +292,13 @@ Run on every PR and `main` push, on `expo-small` where possible. Target: under
 Unknown files or an unclassified path fail closed into the broader affected
 proof; they never silently select no tests.
 
+The implemented fast boundary always runs reference integrity, workflow
+integrity, proof-runner/inventory fixtures, selector replay fixtures, and the
+package-test inventory. Explicit LLP/issue/diary docs remain on that boundary;
+guide inputs add generated-artifact and guide closure checks. The selector
+emits its exact chosen and `NOT_SELECTED` inventories even when no affected
+group is needed.
+
 #### D2.2 Affected proof
 
 Run on every PR and `main` push for the subsystem(s) selected by a checked
@@ -295,6 +319,17 @@ Shared authorities such as `Cargo.toml`, `Cargo.lock`, `package.json`, the root
 lockfile, toolchain pins, common harnesses, workflow definitions, and the path
 map itself deliberately fan out to all affected suites.
 
+The authority now lives beside the runner in
+`scripts/local-proof-selection-policy.v1.json`. It classifies all 131 stable
+canonical gates into fast/affected groups; `scripts/select-local-proof.mjs`
+binds the base/head diff, policy bytes, parsed gate inventory, selected groups,
+prerequisite closure, and heavyweight-tool requirements into one reopenable
+receipt. Any unknown path, workflow/selector change, root toolchain authority,
+or other shared authority selects every gate. Every affected code selection
+also includes LLP 0010's Contract/Exact and admin behavior lanes. Historical
+replay fixtures cover client resume ordering, native storage/route behavior,
+Cloudflare deployment identity, and generated required surfaces.
+
 #### D2.3 Complete latest-main proof
 
 Run the complete canonical inventory against the newest `main` revision on a
@@ -308,6 +343,24 @@ per-change attribution for the failures most likely to be introduced by that
 change; the complete proof detects dependency-map mistakes and cross-subsystem
 interactions.
 
+The canonical `local-proof` workflow now runs this complete inventory every
+six hours and on manual dispatch under a non-cancelling latest-main concurrency
+group. Pull requests and `main` pushes use affected selection instead; pull
+request updates cancel their superseded affected run, while each `main` push
+uses a commit-unique concurrency group so GitHub cannot replace a pending diff
+with a later event that does not contain it. The workflow plans selection
+before installing Bun, Chrome, Rust, Cargo audit, or the large Ibex submodule
+and skips those setup costs when the selected closure does not need them. Both
+the selection receipt and gate JSONL are retained on green or red.
+
+Telemetry Phase 1 was the first slice to establish this latest-main pattern.
+Its separate six-hour/manual workflow still produces one clean Linux evidence
+snapshot, while the canonical workflow described above now supplies the
+complete inventory cadence. Telemetry candidates remain historical evidence
+when `main` advances; ordinary receipt assessment reports
+`CURRENT | LAGGING | OVERDUE | DIVERGED` without misclassifying valid older
+measurements as corrupt.
+
 #### D2.4 Nightly, release, and platform proof
 
 Historical compatibility, clean-machine package installation, expensive
@@ -315,6 +368,16 @@ retained-evidence smoke/full modes, and promised platform tuples run on their
 relevant affected changes and again at nightly or release cadence. Release
 claims remain blocked unless their complete required matrix is recent and
 green.
+
+For retained telemetry evidence, three executable claims are distinct:
+historical validation, rolling-head assessment, and exact-current release /
+capability-promotion authority. The scheduled full producer owns rolling
+health; ordinary merges may proceed with an explicit ancestral
+`LAGGING`/`OVERDUE` receipt. A frozen release candidate is required to pass the
+exact-current mode, but no repository release/promotion caller invokes that
+mode yet. Telemetry therefore cannot authorize either operation until
+`issues/20260806-telemetry-currentness-not-wired-to-release-promotion.md` is
+resolved. LLP 0154's 2026-08-06 amendment is the normative trust contract.
 
 No test is moved to nightly merely because it is slow. Its cadence follows the
 risk it covers: a seed change still runs seed compatibility before landing; an
@@ -528,11 +591,13 @@ This RFC is implemented only when all of the following hold:
 
 ## Open questions
 
-- **OQ1 — latest-main trigger:** use a fixed schedule, a debounced latest-head
-  dispatcher, or an existing fleet coordinator? The required semantics are one
-  bounded current-head proof, not a particular GitHub mechanism.
-- **OQ2 — selector authority:** should the path-to-suite map live beside the
-  proof script or in a generated manifest owned by package/demo metadata?
+- **OQ1 — latest-main trigger (resolved for the current inventory):** both the
+  canonical proof and telemetry full producer use fixed six-hour GitHub
+  schedules plus manual dispatch and non-cancelling latest-main concurrency
+  groups that coalesce pending heads.
+- **OQ2 — selector authority (resolved for Phase 1):** the checked JSON policy
+  lives beside the proof script. Package/demo-owned generated fragments remain
+  a possible later refactor, not a prerequisite for fail-closed selection.
 - **OQ3 — receipt input closures:** which telemetry and performance inputs are
   truly claim-affecting, and which broad source bindings are accidental? Any
   narrowing requires the owning LLP's evidence review.
@@ -560,8 +625,9 @@ This RFC is implemented only when all of the following hold:
 
 ## Status
 
-Draft, partially implemented. Phase 0 and the first two native-deduplication
-legs now have executable code:
+Accepted, partially implemented. Phase 0, the fast/affected selector, the
+latest-main cadence, and the first two native-deduplication legs now have
+executable code:
 
 - `scripts/verify-local-proof` names and times every gate, records
   `PASS | FAIL | BLOCKED | NOT_SELECTED` as JSONL, and declares the generated,
@@ -577,14 +643,29 @@ legs now have executable code:
   default bring-up/clean-machine claim; and
 - repeated bootstrap calls reuse only a coherent restricted-handler-VM receipt
   for the clean exact current revision and debug identity. Dirty trees and
-  receipt mismatch rebuild normally; and
+  receipt mismatch rebuild normally;
+- the telemetry slice of Phase 2 has a scheduled/on-demand latest-main Linux
+  producer, while ordinary receipt checks separate historical validity from
+  rolling lag; its exact-current validator exists, but release/promotion
+  wiring remains an explicit blocker; and
 - CI decides whether target cleanup is required before deleting test artifacts;
   measured-safe headroom preserves them for the final build and versioned-seed
-  witnesses, while low or unmeasurable headroom still cleans fail-safe.
+  witnesses, while low or unmeasurable headroom still cleans fail-safe;
+- every canonical gate is classified by a checked policy, selected gates close
+  over their producers, unknown/shared paths run everything, and four
+  historical defect diffs replay to the gates that caught them;
+- explicit docs/guide changes exercise a fast boundary, while affected code
+  retains required Contract/Exact and admin behavior and reports its exact
+  selection receipt; and
+- the complete inventory now runs on six-hour/manual latest-main cadence rather
+  than once per push, with heavyweight setup conditional on selected claims.
 
 No test, assertion, platform obligation, capability gate, or receipt claim was
 removed. The measured 7.5-minute doctor saving and bootstrap savings remain
 projections until a green integrated CI run produces the new timing artifact.
-D2 cadence selection, D3.4–D3.6, D4 experiments, the complete D5 ownership/risk
-metadata, and Acceptance items 1–2/4–10 remain open. The next recommended move
-is D2's fail-closed fast/affected selector, informed by the new gate timings.
+D3.4–D3.6, D4 experiments, the complete D5 ownership/risk metadata, ten-run
+latency evidence, exact-current telemetry release/promotion wiring, and the
+final release/promotion green-history condition remain open. The next
+recommended move is to observe affected-selection and complete-latest-main
+artifacts long enough to validate the latency targets before pursuing D3.4
+predecessor caching or D3.5 behavior deduplication.

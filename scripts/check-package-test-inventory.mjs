@@ -107,6 +107,7 @@ const inventories = [
       'micro.test.mjs',
       'optimistic-rebase-acceptance.test.mjs',
       'optimistic-rebase.test.mjs',
+      'outbox-quarantine.test.mjs',
       'outbox-store.test.mjs',
       'package.test.mjs',
       'push-registry.test.mjs',
@@ -182,6 +183,7 @@ const inventories = [
       'presence.test.mjs',
       'subscribe-retry.test.mjs',
       'subscribe-runtime-import-failure.test.mjs',
+      'surface.test.mjs',
       'webcrypto-fallback.test.mjs',
     ],
   },
@@ -595,7 +597,11 @@ const total = results.reduce((sum, result) => sum + result.count, 0);
 // backend/Metro/provider/routing/leak/cleanup acceptance loop.
 // 214 -> 215 (2026-08-06, LLP 0114 receipt race): @expo/snapback-react gains
 // the IndexedDB/Web Locks cold-boot binding regression.
-assert.equal(total, 215, 'reviewed package/admin test count changed');
+// 215 -> 216 (2026-08-06, LLP 0081 quarantine seam): @expo/snapback-client
+// gains the upgrade-required tombstone, dependent hold, and re-entry suite.
+// 216 -> 217 (2026-08-06, LLP 0179 S1): @expo/snapback-react gains the
+// generated-surface canonical-store/room, replacement, and cleanup suite.
+assert.equal(total, 217, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }

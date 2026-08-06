@@ -117,6 +117,11 @@ try {
     'snapback_network_profile_get', 'snapback_network_profile_set',
     'snapback_telemetry_stats', 'snapback_telemetry_events', 'snapback_telemetry_export',
     'snapback_errors_issues', 'snapback_errors_issue', 'snapback_errors_transition',
+    // LLP 0184 §P2's controlled-mutation and asset-family direct tools.
+    'snapback_config_unset', 'snapback_cron_tick', 'snapback_cron_run', 'snapback_jobs_drain',
+    'snapback_connection_disconnect',
+    'snapback_asset_delete', 'snapback_asset_gc_sweep', 'snapback_asset_rotate_signing_key',
+    'snapback_asset_export_cut', 'snapback_asset_import_cut',
   ]) {
     assert.ok(names.includes(pinned), `missing pinned control tool ${pinned}`);
   }
@@ -369,6 +374,86 @@ try {
   const restoredProfile = await client.call('snapback_network_profile_set', { profile: 'normal' });
   assert.equal(restoredProfile.structuredContent.ok, true, JSON.stringify(restoredProfile.structuredContent));
   assert.equal(restoredProfile.structuredContent.data.profile.name, 'normal');
+
+  // LLP 0184 §P2's controlled mutations: config.unset, cron.tick/runOne,
+  // jobs.drain, and connection.disconnect all sit outside the host-ops
+  // multiplexer, so this proves postAdminRoute's own envelope wrapping
+  // against the real routes, not just the host-ops-proxied tools above.
+  const unsetMissingEntry = await client.call('snapback_config_unset', { entry: 'no.such.entry' });
+  assert.equal(unsetMissingEntry.structuredContent.operation, 'config.unset');
+  // config.unset is defined over any entry identifier, present or absent
+  // (LLP 0036's own semantics); a fresh app has no configured entries, so
+  // this call still reaches the route and confirms the wrapper's success
+  // path rather than only its failure path.
+  assert.notEqual(unsetMissingEntry.isError, true, JSON.stringify(unsetMissingEntry));
+  assert.equal(unsetMissingEntry.structuredContent.data.entry, 'no.such.entry');
+
+  const cronTick = await client.call('snapback_cron_tick');
+  assert.equal(cronTick.structuredContent.operation, 'cron.tick');
+  assert.notEqual(cronTick.isError, true, JSON.stringify(cronTick));
+  assert.ok(Array.isArray(cronTick.structuredContent.data.runs), JSON.stringify(cronTick.structuredContent));
+
+  const cronRunUnknown = await client.call('snapback_cron_run', { name: 'no-such-cron-job' });
+  assert.equal(cronRunUnknown.structuredContent.operation, 'cron.runOne');
+  assert.equal(cronRunUnknown.structuredContent.ok, false, JSON.stringify(cronRunUnknown.structuredContent));
+
+  const jobsDrain = await client.call('snapback_jobs_drain', { nowMs: Date.now(), maxWaves: 1 });
+  assert.equal(jobsDrain.structuredContent.operation, 'jobs.drain');
+  assert.notEqual(jobsDrain.isError, true, JSON.stringify(jobsDrain));
+  assert.equal(jobsDrain.structuredContent.data.artifactKind, 'snapback.jobs-drain/v0');
+
+  // connection.disconnect is a debug perturbation, never application
+  // disconnect authority: an unknown connection id still reaches the route
+  // (proving the wrapper's envelope shape) and the receipt records the
+  // client-supplied reason regardless of the server's own outcome.
+  const disconnectUnknown = await client.call('snapback_connection_disconnect', {
+    connectionId: 'conn_does_not_exist',
+    reason: 'acceptance: unknown-connection probe',
+  });
+  assert.equal(disconnectUnknown.structuredContent.operation, 'connection.disconnect');
+  assert.notEqual(disconnectUnknown.isError, true, JSON.stringify(disconnectUnknown));
+  assert.equal(disconnectUnknown.structuredContent.ok, true, JSON.stringify(disconnectUnknown.structuredContent));
+  assert.equal(disconnectUnknown.structuredContent.data.reason, 'acceptance: unknown-connection probe');
+
+  // Asset family: gcSweep (deterministic under an injected clock) and
+  // rotateSigningKey are both safe, idempotent-enough to run in this
+  // acceptance pass; export/delete against a real asset are covered by the
+  // existing CLI asset acceptance and are not duplicated here.
+  const gcSweep = await client.call('snapback_asset_gc_sweep', { nowMs: Date.now() });
+  assert.equal(gcSweep.structuredContent.operation, 'asset.gcSweep');
+  assert.notEqual(gcSweep.isError, true, JSON.stringify(gcSweep));
+  assert.equal(gcSweep.structuredContent.ok, true, JSON.stringify(gcSweep.structuredContent));
+
+  const rotateKey = await client.call('snapback_asset_rotate_signing_key');
+  assert.equal(rotateKey.structuredContent.operation, 'asset.rotateSigningKey');
+  assert.notEqual(rotateKey.isError, true, JSON.stringify(rotateKey));
+  assert.equal(rotateKey.structuredContent.ok, true, JSON.stringify(rotateKey.structuredContent));
+
+  // LLP 0184 §Design/2: `snapback_stop` (and, by composition, the mutating
+  // half of `snapback_restart`) must refuse without the same admin
+  // credential the host-ops HTTP surface requires — proven negatively here,
+  // not just positively by every prior successful stop/restart call above.
+  // Break the admin-token carrier the same way managedAdminToken's own
+  // validation would reject it (missing file), stop must refuse, and the
+  // server must still be running afterward — proving the refusal happened
+  // before any process signal, not after a stop that then failed to report.
+  const adminTokenPath = `${database}.admin-token`;
+  const adminTokenBackupPath = `${adminTokenPath}.bak`;
+  assert.ok(existsSync(adminTokenPath), 'expected an auto-minted admin-token carrier for the loopback dev server');
+  const { renameSync } = await import('node:fs');
+  renameSync(adminTokenPath, adminTokenBackupPath);
+  try {
+    const stopWithoutCredential = await client.call('snapback_stop');
+    assert.equal(stopWithoutCredential.structuredContent.operation, 'host.stop');
+    assert.equal(stopWithoutCredential.structuredContent.ok, false, JSON.stringify(stopWithoutCredential.structuredContent));
+    assert.match(
+      stopWithoutCredential.structuredContent.diagnostics[0].code,
+      /SNAPBACK_(MCP_ADMIN_CREDENTIAL_REQUIRED|DEV_ADMIN_TOKEN_FILE_INVALID)/,
+    );
+    assert.ok(existsSync(readyFile), 'stop must not have signaled the server without the admin credential');
+  } finally {
+    renameSync(adminTokenBackupPath, adminTokenPath);
+  }
 
   const stopped = await client.call('snapback_stop');
   assert.equal(stopped.structuredContent.operation, 'host.stop');

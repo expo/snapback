@@ -611,6 +611,8 @@ export interface PreparedReactBinding {
   readonly references: Readonly<Record<string, SnapbackFunctionReference>>;
   readonly ephemeral: Readonly<Record<string, SnapbackEphemeralReference>>;
   readonly groups: Readonly<Record<string, SnapbackQueryGroupReference>>;
+  readonly assetIntents: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
+  readonly surfaces: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
   prepareQueryGroup<Ref extends SnapbackQueryGroupReference>(
     reference: Ref,
     params: QueryGroupParams<Ref>,
@@ -776,8 +778,36 @@ export interface RqsStoreInfo {
 export interface OutboxReplayOutcome {
   readonly replayed: number;
   readonly failed: number;
+  readonly quarantined: number;
   readonly remaining: number;
   readonly stopped?: boolean;
+}
+
+/** Stable LLP 0081 payload-free observation of one held mutation. The durable
+ * client store privately retains the intent for explicit successor re-entry. */
+export interface QuarantinedMutationTombstone {
+  readonly format: 'snapback.outbox-quarantine-tombstone.v1';
+  readonly status: 'quarantined';
+  readonly id: string;
+  readonly clientMutationId: string;
+  readonly function: string;
+  readonly sequence: number;
+  readonly quarantinedAt: number;
+  readonly refusalCode: string;
+  readonly quarantineDisposition:
+    | 'upgrade-required-refusal'
+    | 'dependent'
+    | 'compatibility-unclassified';
+  readonly causeClientMutationId: string;
+  readonly provenance: Readonly<{
+    readonly source: 'server-replay-refusal';
+    readonly payload: 'redacted';
+  }>;
+}
+
+export interface QuarantinedMutationReentryOutcome {
+  readonly reentered: number;
+  readonly clientMutationIds: readonly string[];
 }
 
 /** Live outbox facts (pure projection of the durable store's records plus
@@ -787,6 +817,8 @@ export interface OutboxStatus {
   readonly supported: boolean;
   readonly pending: number;
   readonly failed: number;
+  /** Upgrade-incompatible intents held for explicit successor re-entry. */
+  readonly quarantined: number;
   /** Outcome-known operations whose retained result payload is gone. These
    * are not replayable failures and keep ordered successors fenced. */
   readonly resultGone: number;
@@ -1192,6 +1224,11 @@ export class SnapbackClient {
   readonly rqsStoreInfo: RqsStoreInfo;
   /** Drain the durable outbox in sequence order (single-flight). */
   replayQueuedMutations(): Promise<OutboxReplayOutcome>;
+  /** Payload-free tombstones for upgrade-incompatible queued intents. */
+  quarantinedMutations(): Promise<readonly QuarantinedMutationTombstone[]>;
+  /** Explicitly return the whole quarantine to pending after successor
+   * artifact admission. This first cut does no per-intent transformation. */
+  reenterQuarantinedMutations(): Promise<QuarantinedMutationReentryOutcome>;
   /** Complete settlements recoverable after a crash before caller publication. */
   settledMutations(options?: { readonly userId?: string | null }): Promise<readonly SettledMutation[]>;
   /** Make recovered settlements eligible for same-authority ACK piggyback. */
@@ -1464,6 +1501,10 @@ export function admittedReactQueryGroup(
   binding: unknown,
   reference: SnapbackQueryGroupReference,
 ): SnapbackQueryGroupReference;
+export function admittedReactSurface(
+  binding: unknown,
+  reference: Readonly<Record<string, unknown>>,
+): Readonly<Record<string, unknown>>;
 export function admittedReactReference(
   binding: unknown,
   reference: SnapbackFunctionReference,

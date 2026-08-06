@@ -1,0 +1,10 @@
+{
+  "schemaVersion": "snapback.telemetry-phase1-evidence-policy.v1",
+  "rollingAssessment": {
+    "maxAgeHours": 24,
+    "overdueFailsOrdinaryMerge": false
+  },
+  "release": {
+    "requireCurrent": true
+  }
+}
