@@ -3343,6 +3343,7 @@ pub fn admit_creation(
     let path = registry.join("root.admission-lock");
     let file = fs::OpenOptions::new()
         .create(true)
+        .truncate(false)
         .read(true)
         .write(true)
         .open(&path)
@@ -5909,7 +5910,7 @@ mod tests {
         let source = source_database(directory.path());
         let destination = directory.path().join("fork");
         publish(&source, &destination, "app-a", "parent-a", 42, None).unwrap();
-        let mut fork = crate::local::LocalSnapback::open(&destination.join("app.sqlite3")).unwrap();
+        let mut fork = crate::local::LocalSnapback::open(destination.join("app.sqlite3")).unwrap();
         let manual_cron = match fork.claim_manual_cron_run("any-job", 43) {
             Ok(_) => panic!("a fork must never claim a manual cron run"),
             Err(error) => error,

@@ -20,3 +20,14 @@ activation path.
 
 Filed by the Move-1 closure session, which hit them as pre-existing red
 while landing an unrelated series.
+
+## 2026-08-06 wave-drift recheck
+
+At combined proof revision `6dd113755596be98d2f91b22503db9fb251a5861`,
+the admin coverage test is green, while
+`server::tests::s5_d10_production_diagnostic_inventory_cannot_drift` remains
+red with `SNAPBACK_FORK_APP_BINDING_MISMATCH`,
+`SNAPBACK_FORK_APP_BINDING_REQUIRED`, and the newly observed
+`SNAPBACK_FORK_WRITER_COVERAGE_GAP` unclassified. The wave-drift pass made no
+fork correctness change; classification and requalification remain with the
+actively owned fork/app-binding lane.
