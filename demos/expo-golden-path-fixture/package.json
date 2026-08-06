@@ -7,10 +7,12 @@
   "scripts": {
     "generate": "node ../../packages/snapback-codegen/index.mjs snapback",
     "start": "expo start",
+    "test:g2": "bun run generate && node tests/g2-falsification.mjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "expo": "~57.0.7",
+    "expo-image-picker": "~57.0.7",
     "react": "19.2.3",
     "react-native": "0.86.2",
     "@expo/snapback-client": "file:.snapback/local-source-packages/client.0f489654aa82ef0d152980d821caa249c8969b59fa826f7a76a8a59283b50e6e.tgz",

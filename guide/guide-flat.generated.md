@@ -8070,11 +8070,8 @@ optional boot-state fallback, still with no URL or binding prop:
 ```tsx source=demos/expo-golden-path-fixture/App.tsx
 export default function App() {
   return (
-    <SnapbackExpoProvider
-      app={app}
-      fallback={(state: ExpoBootState) => <BootFallback state={state} />}
-    >
-      <ReceiptScreen />
+    <SnapbackExpoProvider app={app} fallback={(state: ExpoBootState) => <BootFallback state={state} />}>
+      <G2DemoProvider><G2Screens /></G2DemoProvider>
     </SnapbackExpoProvider>
   );
 }

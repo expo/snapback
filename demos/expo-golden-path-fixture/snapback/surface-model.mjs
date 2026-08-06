@@ -1,18 +1,17 @@
 import { allow, ephemeral, v } from '../../_kit/define.mjs';
 
-// @ref LLP 0179#react-projection — typing contains presence facts only. The
-// connection/session adopted by the provider owns self identity; userId is
-// deliberately absent from the publish payload.
+// @ref LLP 0179#react-projection — connection/session authority owns presence
+// identity. The authored payload is only non-authoritative display copy.
 export const typing = ephemeral.collection({
   scope: { conversationId: v.id('conversations') },
   routing: ['conversationId'],
   key: 'connection',
   ttlMs: 4_000,
   maxTtlMs: 8_000,
-  maxValueBytes: 64,
+  maxValueBytes: 128,
   publishRate: { sustainedHz: 4, burst: 8 },
   delivery: { mode: 'latest', dispatchMs: 80 },
-  value: v.object({}),
+  value: v.object({ displayName: v.string() }),
   publish: allow.all(),
   subscribe: allow.all(),
 });

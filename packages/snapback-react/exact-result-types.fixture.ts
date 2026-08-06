@@ -103,23 +103,25 @@ useSnapbackQuery(createTodo, { title: 'wrong' });
 create({ body: 'wrong key' });
 
 // @ref LLP 0179#react-projection — the emitted surface declaration removes
-// bound params from child calls and preserves the empty typing payload.
+// bound params from child calls while retaining the authored typing payload.
 declare const conversationId: Id<'conversations'>;
 declare const messageId: Id<'messages'>;
+declare const userId: Id<'users'>;
 declare const conversationApp: ConversationAppDescriptor;
 const conversation = useSurface(
   conversationApp.surfaces.conversation,
   { conversationId },
-  { presence: { typing: {} } },
+  { presence: { typing: { displayName: 'Ada' } } },
 );
-conversation.mutations.react({ messageId, emoji: '👍' });
-conversation.data.messages?.[0]?.body.toUpperCase();
+conversation.mutations.addReaction({ messageId, userId, emoji: '👍' });
+conversation.data.messages?.[0]?.text?.toUpperCase();
 conversation.state.messages.retention;
-conversation.presence.typing.members[0]?.value;
+conversation.presence.typing.members[0]?.value.displayName.toUpperCase();
 // @ts-expect-error conversationId is already bound at the surface.
-conversation.mutations.react({ conversationId, messageId, emoji: '👍' });
+conversation.mutations.addReaction({ conversationId, messageId, userId, emoji: '👍' });
 useSurface(conversationApp.surfaces.conversation, { conversationId }, {
   presence: { typing: {
+    displayName: 'Ada',
     // @ts-expect-error typing identity is session-derived, not a publish member.
     userId: 'forged',
   } },

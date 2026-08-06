@@ -1,8 +1,11 @@
 # Expo golden-path fixture
 
-This is the minimal LLP 0176 G1 fixture: one Sessions-mode backend, one live
-query, one ordinary mutation, and one Expo screen booted by
-`<SnapbackExpoProvider app={app}>` without a URL prop.
+This fixture began as LLP 0176 G1's minimal no-URL Expo app and now also hosts
+G2's Relay Room conversation-surface falsification checkpoint. The current
+screen boots with `<SnapbackExpoProvider app={app}>`, shows a conversation list
+and message thread, and consumes `app.surfaces.conversation` through
+`useSurface`. The dated G1 simulator/emulator evidence remains under
+[`receipts/`](./receipts/).
 
 From the repository root, materialize the local package closure and generated
 application artifacts:
@@ -33,9 +36,23 @@ node ../../packages/snapback-cli/cli.mjs dev snapback \
   --email g1-android@snapback.test
 ```
 
-The screen automatically sends one mutation after the seeded live query is
-ready, then renders `G1_IOS_PASS` or `G1_ANDROID_PASS` only after that row
-returns through the live query. It also emits structured `SNAPBACK_G1_EVENT`
-console markers for a simulator/emulator log receipt.
+Those commands remain the supervised launch shape. The dated G1 receipts were
+captured when the fixture screen automatically sent one mutation and emitted
+`G1_IOS_PASS`/`G1_ANDROID_PASS` plus structured `SNAPBACK_G1_EVENT` markers.
+The current G2 comparison screen does not reproduce those historical markers;
+the retained G1 simulator/emulator evidence is under [`receipts/`](./receipts/).
 
-The dated real-device evidence is under [`receipts/`](./receipts/).
+For the G2 headless checkpoint, use an explicitly qualified runtime binary:
+
+```sh
+SNAPBACK_RUNTIME_BINARY=/path/to/snapback bun run test:g2
+bun run typecheck
+```
+
+`test:g2` regenerates the fixture and exercises current surface data, bound
+mutation arguments, canonical subscription ownership, capability refusal, and
+the process-cold offline path. Its cold-offline check is deliberately a
+negative witness: the test suite is green when it reproduces the current
+descriptor-mode refusal. The G2 checkpoint itself is therefore **FAIL**, not
+PASS; see
+[`20260806-g2-falsification-baseline.md`](./receipts/20260806-g2-falsification-baseline.md).

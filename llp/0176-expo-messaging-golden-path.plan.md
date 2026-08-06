@@ -7,7 +7,11 @@ Ephemeral state, Code generation, Developer experience, Packaging, Local
 server lifecycle, Testing, Competitive evaluation
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-05
-**Revised:** 2026-08-06 (k) — G1 exit complete: the author accepted LLPs
+**Revised:** 2026-08-06 (l) — G2 falsification checkpoint: the Relay Room
+surface rebuild passed the frozen shrinkage bar but failed process-cold
+retained rendering because AppDescriptor binding preparation cannot adopt the
+legacy persisted receipt offline; G2 remains open, G3 is halted, and Status
+remains Review. Earlier same day (k) — G1 exit complete: the author accepted LLPs
 0179/0180, whose acceptance amends LLP 0114 with the `useSurface` and
 `useSnapbackCommand` named projections (see LLP 0114 §Named projections
 from accepted RFCs); combined with the two receipt halves below, every G1
@@ -606,6 +610,24 @@ now met: G2 and G3 may truthfully call their React semantics settled.
 iOS simulator, and Android emulator without duplicate subscriptions or cleanup
 leaks, and the falsification checkpoint passes both halves against at least
 one real bakeoff fixture.
+
+**2026-08-06 falsification checkpoint — FAIL; Status unchanged.** Relay Room
+was frozen as the cleaner comparison because its two Snapback-specific screens
+place every low-level state beside the UI it drives and already contain zero
+manual subscription cleanup. The `useSurface` rebuild passed Half 1 at 339
+versus 510 physical screen lines (171 lines/33.5% smaller, beyond the frozen
+26-line/5.0% bar). Half 2 failed frozen fact 6: after an online run persisted
+both current message rows and the exact binding receipt, a fresh offline client
+using the generated AppDescriptor refused during binding preparation before a
+provider/surface could expose retained state. The descriptor intentionally
+omits server-owned function interiors and the legacy receipt cannot reconstruct
+the admitted deployment view, so `react-binding.mjs` rethrows connectivity in
+descriptor mode instead of adopting the receipt. This is the checkpoint's
+required design-defect outcome, not a partial pass: G2 has not exited and G3
+setup is halted. Baseline, fact-by-fact result, reproduction, and verdict are in
+[`20260806-g2-falsification-baseline.md`](../demos/expo-golden-path-fixture/receipts/20260806-g2-falsification-baseline.md);
+the repair is tracked by
+[`20260806-app-descriptor-use-surface-blocks-cold-retained-boot.md`](../issues/20260806-app-descriptor-use-surface-blocks-cold-retained-boot.md).
 
 ### G3 — one online image-send command
 

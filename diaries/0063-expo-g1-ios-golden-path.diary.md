@@ -211,3 +211,63 @@ The cost is a stricter codegen declaration and descriptor-admission pipeline.
 This entry proves S1 machinery and an E1 headless/React boot only. It does not
 claim the separate G2 falsification checkpoint, simulator receipts, commands,
 aggregates, or reply-preview behavior.
+
+## 2026-08-06 — G2 Relay Room falsification checkpoint
+
+### Freeze and rebuild
+
+I chose Relay Room rather than Tandem for the required comparison. Relay's
+conversation-list and thread files are Snapback-specific and keep the query,
+mutation, connection, outbox, asset, and presence hooks beside the UI they
+drive. Tandem's 881-line shared presentation layer plus separate 223-line
+Snapback adapter would make a screen-only reduction harder to attribute. Relay
+was also the stricter target because its original screens already had zero
+manual subscription cleanup.
+
+Before touching rebuild code, I froze the exact files and Git blobs, 510
+physical lines, 35 hook call sites across 14 APIs, zero cleanup lines, an
+advance 26-line/5% reduction bar, and all 18 retained/error/capability facts in
+the G2 receipt. The rebuilt screens are 339 lines and use 23 hook call sites
+across 10 APIs. One `useSurface` now owns the thread's five reads, five bound
+mutations, and scoped typing room, while connection, outbox, and raw asset-task
+state remain explicit because they are not surface-owned facts.
+
+### What felt good
+
+- The thread finally reads like a product resource: `data.messages` sits beside
+  `state.messages`, and bound mutations no longer repeat `conversationId`.
+- Online headless acceptance confirmed that the surface and a low-level sibling
+  share the same five upstream owners. Compactness did not require a second
+  cache or a cleanup protocol.
+- Rich state remained available after projection. A retained-state unit witness
+  simultaneously observed retained/refreshing/stale facts and the same message
+  array through `data`; mutation refusal stayed a rejected promise.
+
+### What failed
+
+The mandatory real cold-client path falsified the design. An online
+AppDescriptor boot persisted the exact binding receipt and retained message
+rows. After closing that client/store, stopping the server, and reopening a
+fresh store/client, descriptor-mode `prepareReactBinding` threw `fetch failed`
+before a provider or `useSurface` could exist. The client intentionally refuses
+receipt adoption here: the portable descriptor omits server-owned function
+interiors, while the legacy receipt does not retain the admitted deployment
+view needed to reconstruct them safely.
+
+This is worse than a missing “retained” flag. Snapback possesses the retained
+rows and the projection preserves their rich state, but the preferred
+`<SnapbackExpoProvider app={app}>` entry point makes them unreachable exactly
+when the screen needs “Saved history.” The 33.5% shrinkage therefore passes
+Half 1 and still cannot rescue Half 2. Per the gate, the overall checkpoint is
+FAIL and no G3 command work started.
+
+Compared with React plus Convex or Supabase, Snapback's surface removes more
+repeated resource plumbing and gives canonical ownership a crisp test seam.
+But an application-owned mature cache can normally be opened before a network
+round trip; having durable rows that the generated descriptor cannot admit
+offline is a sharper failure than simply lacking first-class retention.
+
+The receipt is
+`demos/expo-golden-path-fixture/receipts/20260806-g2-falsification-baseline.md`.
+The design defect is tracked in
+`issues/20260806-app-descriptor-use-surface-blocks-cold-retained-boot.md`.
