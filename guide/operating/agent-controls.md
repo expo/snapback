@@ -86,7 +86,7 @@ documentation absence never appears as success.
 ## Generated inventory
 
 <!-- BEGIN GENERATED CONTROL CATALOG: CONTROL CATALOG INVENTORY -->
-The embedded build catalog contains **114 operations** at digest `sha256:ea592be166581bc0a3b33c446e3e43dcae3ce83cda94a868bac7d2b711580694`. The counts and inventory below are generated; do not edit them by hand.
+The embedded build catalog contains **114 operations** at digest `sha256:3727bea45be4d72acf856b36b7158b91fc835a7f7f9d81b43d1e4d9635e245d0`. The counts and inventory below are generated; do not edit them by hand.
 
 | Axis | Value | Count |
 | --- | --- | ---: |
@@ -209,11 +209,49 @@ The embedded build catalog contains **114 operations** at digest `sha256:ea592be
 | `schema.load` | `native` | `direct` | `shipped` | snapback host load --schema <path> | snapback_load_schema | — |
 | `schema.reload` | `apiOnly` | `unavailable` | `unbuilt` | — | — | — |
 | `secretRead.mint` | `cliOnly` | `direct` | `shipped` | snapback secret-read-mint | — | — |
-| `storage.operation-coverage.activate` | `apiOnly` | `direct` | `shipped` | — | — | — |
-| `storage.protected-erasure` | `apiOnly` | `direct` | `shipped` | — | — | — |
+| `storage.operation-coverage.activate` | `apiOnly` | `direct` | `shipped` | — | — | operating/agent-controls.md#specialist-api-operations-apionly |
+| `storage.protected-erasure` | `apiOnly` | `direct` | `shipped` | — | — | operating/agent-controls.md#specialist-api-operations-apionly |
 | `telemetry.events` | `native` | `direct` | `shipped` | snapback telemetry events | snapback_telemetry_events | operating/host-ops.md |
 | `telemetry.export` | `native` | `direct` | `shipped` | snapback telemetry export | snapback_telemetry_export | operating/host-ops.md |
 | `telemetry.stats` | `native` | `direct` | `shipped` | snapback telemetry stats | snapback_telemetry_stats | operating/host-ops.md |
 | `test.<subpath-determined-by-coordinator>` | `none` | `internal` | `shipped` | — | — | — |
 | `test.corruptMeta` | `none` | `internal` | `shipped` | — | — | — |
 <!-- END GENERATED CONTROL CATALOG: CONTROL CATALOG INVENTORY -->
+
+## Specialist API operations (apiOnly)
+
+Two shipped operator operations are deliberately `apiOnly`: they have typed
+HTTP contracts but no CLI or MCP tool yet (usage evidence drives promotion —
+LLP 0184 OQ2). Both take the ordinary admin credential
+(`x-snapback-admin-token` or `x-snapback-console-credential`) against the
+local instance from your readiness descriptor.
+
+### Permanently erase one protected row
+
+`POST /_snapback/api/storage/protected-erasure` (LLP 0165). Body (closed):
+`{"operationId": "<caller-minted retry id>", "qualifiedTable": "<table>",
+"rowId": "<row id>"}`. Irreversibly deletes the canonical row and its
+retained journal history, invalidates every registered checkpoint copy, and
+returns a durable authority/target-bound receipt
+(`protected-record-erasure.receipt-v1`). Copies that cannot be destroyed yet
+are reported as `openObligations`; repeat the SAME `operationId` to resume
+them — exact retries are idempotent, while reuse with a different authority
+or target refuses. This is destructive and privacy/compliance-sensitive:
+catalog posture is `humanApprovalRequired` — confirm with a human before
+invoking. A refusal names the exact diagnostic; a fresh `operationId`
+against an already-erased row fails target-not-found rather than
+succeeding.
+
+### Activate operation-coverage writer admission
+
+`POST /_snapback/api/storage/operation-coverage/activate` (LLP 0163). Body
+(closed, v1): `{"schemaVersion": 1, "target": "local-dev-sqlite-ibex",
+"coverageProfile": "local-envelope-mapped-writers.v1"}`. Rechecks the closed
+writer inventory, persists and arms the exact writer manifest (ordinary and
+host-child lanes), and returns the active manifest
+(`operation.coverage-activation-response-v1`); the manifest survives restart
+and re-arms on database open. An exact repeat is idempotent. Activation
+changes future write admission (covered writers then require envelope
+authority) but deletes nothing — and success does **not** publish the
+AgentSafe capability; LLP 0162/0163's performance, review, complete-target,
+and author-acceptance gates remain independent.

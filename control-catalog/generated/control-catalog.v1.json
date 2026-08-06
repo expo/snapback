@@ -1,11 +1,11 @@
 {
   "schemaVersion": "snapback.control-catalog.v1",
-  "catalogDigest": "sha256:ea592be166581bc0a3b33c446e3e43dcae3ce83cda94a868bac7d2b711580694",
+  "catalogDigest": "sha256:3727bea45be4d72acf856b36b7158b91fc835a7f7f9d81b43d1e4d9635e245d0",
   "buildIdentity": {
-    "sourceCommit": "4e8a2560a55ff2230847ac792db7cd5610401206",
-    "dirty": false
+    "sourceCommit": "826bfcd3fd280f6d842536be9eb87cf4a8b053e7",
+    "dirty": true
   },
-  "generatedAtCommit": "4e8a2560a55ff2230847ac792db7cd5610401206",
+  "generatedAtCommit": "826bfcd3fd280f6d842536be9eb87cf4a8b053e7",
   "entries": [
     {
       "operation": "acceptance.run",
@@ -5228,15 +5228,19 @@
     {
       "operation": "storage.operation-coverage.activate",
       "title": "storage.operation-coverage.activate",
-      "intents": [],
+      "intents": [
+        "activate operation coverage",
+        "commit envelope writer manifest",
+        "arm writer authority",
+        "agent-safe writer admission"
+      ],
       "status": "shipped",
       "domain": "systemApi",
       "surfaceAccess": "apiOnly",
       "operability": "direct",
       "availability": {
         "targets": [
-          "local",
-          "derived-hosted"
+          "local"
         ]
       },
       "policy": {
@@ -5249,7 +5253,7 @@
         "readOnly": false,
         "destructive": false,
         "approvalPosture": null,
-        "idempotent": false,
+        "idempotent": true,
         "openWorld": false,
         "persistsAcrossRestart": true
       },
@@ -5261,9 +5265,9 @@
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "operating/agent-controls.md#specialist-api-operations-apionly",
       "authorities": [
-        "llp/0031-server-route-taxonomy"
+        "llp/0163-operation-identity-and-commit-envelope"
       ],
       "sources": [
         "src/server.rs route_registry()"
@@ -5272,7 +5276,13 @@
     {
       "operation": "storage.protected-erasure",
       "title": "storage.protected-erasure",
-      "intents": [],
+      "intents": [
+        "protected erasure",
+        "permanently erase one row",
+        "destroy row history",
+        "compliance delete",
+        "invalidate checkpoints for a row"
+      ],
       "status": "shipped",
       "domain": "systemApi",
       "surfaceAccess": "apiOnly",
@@ -5293,7 +5303,7 @@
         "readOnly": false,
         "destructive": true,
         "approvalPosture": "humanApprovalRequired",
-        "idempotent": false,
+        "idempotent": true,
         "openWorld": false,
         "persistsAcrossRestart": true
       },
@@ -5305,9 +5315,9 @@
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "operating/agent-controls.md#specialist-api-operations-apionly",
       "authorities": [
-        "llp/0031-server-route-taxonomy"
+        "llp/0165-proof-domains-and-checkpoints"
       ],
       "sources": [
         "src/server.rs route_registry()"
