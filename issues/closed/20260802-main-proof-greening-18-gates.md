@@ -1672,3 +1672,27 @@ new release or capability-promotion claim, with a rolling full proof requested.
 No host repair, admin access, bootstrap bypass, telemetry remint, npm publish,
 or second capstone run is part of this batch. A complete KEEP-GOING proof on
 the exact committed candidate is the closing gate before this branch lands.
+
+### Final main integration and carrier refresh — 2026-08-06
+
+The closing candidate merged completed `main` through `3d6a23196`. Main had
+independently supplied the remediation-schema external inventory entry and
+the more specific fork binding HTTP classes, so the merge retained those
+newer classifications and removed the wave's two duplicate 500 entries. The
+exact diagnostic inventory, schema inventory, remediation registry, and both
+fork journeys pass after that reconciliation.
+
+The first 135-gate complete KEEP-GOING proof at `f3ba4492c` then had exactly
+one root failure and no blocked gates: the local-store carrier receipt still
+pinned the pre-landing digest of `demos/_kit/chrome-process.mjs`. Its full
+coded recorder reran every browser and file leg against Chrome 151 and the
+qualified native runtime, producing 17 PASS / 0 GAP / 0 SKIPPED from a clean
+source revision. The retained receipt SHA-256 is
+`2b00c62556a6459a76d5953edb763179ea1f0b8b3a4558c4e1d5a3004a299d52`;
+the bundle-attribution receipt SHA-256 is
+`bea628a201de74f913d0f19697b819321b83c1a3337890ac114f3f9745c308d1`.
+The mechanical publication finalizer propagated that receipt into the
+persistent-store carrier SHA-256
+`58d126434325cf9516dea998df6b33076af78acca3d544d30ff719365c4b25db`.
+The retained receipt check, persistent-store conformance check, and both
+agent-safe publication states now pass without changing a capability claim.

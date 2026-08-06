@@ -2,21 +2,9 @@
   "schemaVersion": "snapback.local-persistent-store.bundle-attribution.v1",
   "date": "2026-08-06",
   "source": {
-    "revision": "877e01fac68ac133cfc23c3b91b4002a65817606",
-    "dirty": true,
-    "dirtyPaths": [
-      "demos/fleet-observatory-move1/snapback/generated/artifacts.json",
-      "demos/fleet-observatory-move1/snapback/trusted-composition-activation.json",
-      "demos/triage-graph/snapback/generated/artifacts.json",
-      "demos/triage-graph/snapback/trusted-composition-activation.json",
-      "tests/acceptance/fixtures/fleet-observatory/budget-freeze.2026-08-06.v1.json",
-      "tests/acceptance/fixtures/fleet-observatory/move1-exit.2026-08-06.v1.json",
-      "tests/acceptance/fixtures/fleet-observatory/runtime-readiness.2026-08-06.v1.json",
-      "tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-06.v1.json",
-      "tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-06.v1.json",
-      "tests/acceptance/fleet-observatory-move1-v1-evidence.md",
-      "tests/acceptance/triage-graph-move1-v1-evidence.md"
-    ],
+    "revision": "f3ba4492ccaec3ac8d5a7ec83a8f63e1d62e03c7",
+    "dirty": false,
+    "dirtyPaths": [],
     "files": [
       {
         "path": "tests/acceptance/local-store-carrier-exit-v1.mjs",
@@ -92,7 +80,7 @@
       },
       {
         "path": "demos/_kit/chrome-process.mjs",
-        "sha256": "88b945747108253fb3c3020560bce59e540aeac0ffb3b945dc7a26e23f9dbb64"
+        "sha256": "b0fddcdb0a10d9ca50b0078e2b216aeb54f89a9a5d07a763c28298ca6af164ca"
       },
       {
         "path": "demos/triage-graph/demo.snapback.json",

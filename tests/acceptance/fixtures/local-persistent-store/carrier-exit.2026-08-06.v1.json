@@ -6,8 +6,8 @@
     "LLP 0166#executable-acceptance",
     "LLP 0166#d9--carriers-storage-profiles-arms-and-the-bundle"
   ],
-  "startedAt": "2026-08-06T21:30:44.712Z",
-  "completedAt": "2026-08-06T21:37:49.400Z",
+  "startedAt": "2026-08-06T23:41:51.277Z",
+  "completedAt": "2026-08-06T23:43:50.685Z",
   "runtime": {
     "node": "v24.18.0",
     "platform": "darwin",
@@ -15,21 +15,9 @@
     "hostnameClass": "local-evidence-machine"
   },
   "source": {
-    "revision": "877e01fac68ac133cfc23c3b91b4002a65817606",
-    "dirty": true,
-    "dirtyPaths": [
-      "demos/fleet-observatory-move1/snapback/generated/artifacts.json",
-      "demos/fleet-observatory-move1/snapback/trusted-composition-activation.json",
-      "demos/triage-graph/snapback/generated/artifacts.json",
-      "demos/triage-graph/snapback/trusted-composition-activation.json",
-      "tests/acceptance/fixtures/fleet-observatory/budget-freeze.2026-08-06.v1.json",
-      "tests/acceptance/fixtures/fleet-observatory/move1-exit.2026-08-06.v1.json",
-      "tests/acceptance/fixtures/fleet-observatory/runtime-readiness.2026-08-06.v1.json",
-      "tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-06.v1.json",
-      "tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-06.v1.json",
-      "tests/acceptance/fleet-observatory-move1-v1-evidence.md",
-      "tests/acceptance/triage-graph-move1-v1-evidence.md"
-    ],
+    "revision": "f3ba4492ccaec3ac8d5a7ec83a8f63e1d62e03c7",
+    "dirty": false,
+    "dirtyPaths": [],
     "files": [
       {
         "path": "tests/acceptance/local-store-carrier-exit-v1.mjs",
@@ -105,7 +93,7 @@
       },
       {
         "path": "demos/_kit/chrome-process.mjs",
-        "sha256": "88b945747108253fb3c3020560bce59e540aeac0ffb3b945dc7a26e23f9dbb64"
+        "sha256": "b0fddcdb0a10d9ca50b0078e2b216aeb54f89a9a5d07a763c28298ca6af164ca"
       },
       {
         "path": "demos/triage-graph/demo.snapback.json",
@@ -283,11 +271,11 @@
           2,
           3
         ],
-        "relaunchToReadableMs": 2441.94,
+        "relaunchToReadableMs": 1537.406,
         "browser": {
           "executable": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-          "version": "Google Chrome 150.0.7871.187",
-          "executableSha256": "a1d93d90e7ebb90245d225d70334ca6b37b1cbf65ba2f37dd01d3eba0fdd8331"
+          "version": "Google Chrome 151.0.7922.76",
+          "executableSha256": "a995a39f7997f5cf7ecbf514b87bf0c31aed607bf399ab0b723304dbba6f8576"
         },
         "profile": {
           "callerRetained": true,
@@ -296,12 +284,12 @@
         },
         "cleanup": {
           "firstBrowser": {
-            "pid": 42753,
+            "pid": 77379,
             "requestedSignal": "SIGKILL",
             "processTreeExitAttested": true
           },
           "finalBrowser": {
-            "pid": 44544,
+            "pid": 77728,
             "requestedSignal": "SIGTERM",
             "processTreeExitAttested": true
           },
@@ -399,7 +387,7 @@
           {
             "type": "boundary",
             "boundary": "before-rename",
-            "pid": 58889,
+            "pid": 57699,
             "exit": {
               "code": null,
               "signal": "SIGKILL"
@@ -410,7 +398,7 @@
           {
             "type": "boundary",
             "boundary": "after-rename-before-directory-sync",
-            "pid": 58896,
+            "pid": 57707,
             "exit": {
               "code": null,
               "signal": "SIGKILL"
@@ -443,12 +431,12 @@
       "status": "PASS",
       "evidence": {
         "serverBinary": "target/debug/snapback",
-        "serverBinarySha256": "c5e95e19f6e6316a205ced00a7144765867abf1f9e39057869b55a1fb543cbe6",
+        "serverBinarySha256": "f4462e9e96cb96af49b05a5f69a7b0be6acbcb2d63375f96acae425cb69f091e",
         "launchRung": "configured",
         "backendStoppedBeforeRelaunch": true,
         "activationPreparation": {
           "format": "snapback.composition-activation-preparation.v1",
-          "activationHash": "sha256:f529ec1a309f52b9bffd7c336193343609e15e94d2537baaf3402084ab88296e",
+          "activationHash": "sha256:ce5ec269d295c2713e316c857705c357fcf657c361e6d498b53dee63f92df8f0",
           "sourceClass": "temporary-backend-source",
           "next": "rerun Snapback codegen for this backend"
         },
@@ -490,7 +478,7 @@
         },
         "materialization": {
           "records": 1,
-          "qmk1": "qmk1.3loxNE-IMjOEwJW-c0s1UPNewRufQOi6UnoENja4s-4",
+          "qmk1": "qmk1.Uo_LN1nk-c_2vMm111WkmLrobxAaqZja1T2iaT6zPWY",
           "freshness": "retained",
           "fragments": 1,
           "leaseCustody": 1
@@ -659,7 +647,7 @@
           "version": 7,
           "token": "sbrt1.carrier-exit.7"
         },
-        "maintenanceMs": 355975.185
+        "maintenanceMs": 93722.289
       }
     },
     {
