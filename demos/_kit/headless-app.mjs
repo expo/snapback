@@ -114,6 +114,9 @@ export async function openHeadlessApp(metaUrl, {
     provisioned,
     repoRoot,
     server,
+    // Only present when opened via forkFrom — exposes the fork lifecycle
+    // (id, TTL, create envelope, diff, drop) to fork-aware acceptance suites.
+    fork: server.fork ?? null,
     close: async () => {
       try {
         await client.closeAuth();

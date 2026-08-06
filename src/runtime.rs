@@ -4974,6 +4974,48 @@ mod private_failure_carrier_tests {
 }
 
 #[cfg(test)]
+mod handler_result_bridge_tests {
+    use super::{IbexHostContext, run_ibex_handler_with_context};
+    use crate::auth::admission::AdmissionLease;
+    use crate::auth::invocation::{HandlerAuthProjection, ResolvedAppAuthority};
+    use crate::manifest::{HandlerInput, IbexModule};
+    use crate::storage::{DbRead, LocalDatabase, MembershipWriter};
+
+    /// @ref LLP 0108#result-contract-vocabulary — the handler bridge preserves
+    /// the complete post-JSON image; declared per-string/result ceilings are
+    /// enforced after this transfer, never implemented as silent clipping.
+    #[test]
+    fn successful_string_result_larger_than_failure_metadata_bound_roundtrips_exactly() {
+        let db = LocalDatabase::memory().expect("memory database");
+        let authority = ResolvedAppAuthority::Anonymous;
+        let mut invocation = IbexHostContext::new_with_projection(
+            DbRead::Live(&db),
+            HandlerInput::default(),
+            HandlerAuthProjection::from_authority(&authority),
+            AdmissionLease::unmanaged(0, 0),
+            MembershipWriter::from_resolved(&authority),
+            false,
+        )
+        .expect("runtime context");
+        let module = IbexModule {
+            source: r#"
+              globalThis.__snapbackHandlers = {
+                async probe() { return { body: 'x'.repeat(44084) }; }
+              };
+            "#
+            .to_owned(),
+            export: "probe".to_owned(),
+        };
+
+        let result = run_ibex_handler_with_context(&module, &mut invocation, None)
+            .expect("large handler result crosses the VM bridge");
+        let body = result["body"].as_str().expect("body string");
+        assert_eq!(body.len(), 44_084);
+        assert_eq!(body, "x".repeat(44_084));
+    }
+}
+
+#[cfg(test)]
 mod membership_bridge_tests {
     use super::{IbexHostContext, run_ibex_handler_with_context, with_host_call_trace};
     use crate::auth::admission::AdmissionLease;

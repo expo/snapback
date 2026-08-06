@@ -1,6 +1,7 @@
 # Guide gap: operating local instance forks
 
 **Opened:** 2026-08-03
+**Closed:** 2026-08-05
 **Kind:** guide-gap
 **Owner:** Charlie
 **Source:** LLP 0158 F1; Diary 0054
@@ -60,3 +61,9 @@ Status reconciliation — 2026-08-05: LLP 0158 subsequently reached Accepted.
 That status settles the local design but does not change this resolution's
 nonclaim: `agent_safe_derived_deployment_fork_v1` still has distinct
 qualification and publication gates and its public tuple remains `Missing`.
+
+LLP 0185 Phase 1 subsequently extended the page with automatic expiry
+enforcement, bounded inspection and scalar projections, publication recovery,
+resource admission, and actionable diagnostics. The capability row remains
+target `none` and maturity `partial`; the guide checks pass without advertising
+a shipped capability.

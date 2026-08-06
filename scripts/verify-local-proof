@@ -346,7 +346,7 @@ run todo-headless --requires current-binary-readiness -- node demos/todo/tests/a
 # @ref LLP 0158#implementation-path-local-v1-explored-2026-08-03 — the F1
 # acceptance-harness option preserves realistic parent state, verifies fork
 # isolation, and tears down through the exact registry-bound drop lifecycle.
-run todo-forked-parent --requires current-binary-readiness -- node demos/todo/tests/acceptance/forked-parent.mjs
+run forked-parent --requires current-binary-readiness -- node demos/todo/tests/acceptance/forked-parent.mjs
 run todo-v2-headless --requires current-binary-readiness -- node demos/todo-v2/tests/acceptance/headless.mjs
 # Five deliberately different app kernels keep relational reads, trusted
 # runtime values, cron/live demand, route bundles, and membership authority in

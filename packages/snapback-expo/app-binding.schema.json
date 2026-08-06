@@ -1,0 +1,112 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://snapback.dev/schemas/app-binding.v1.schema.json",
+  "title": "Snapback AppBinding v1",
+  "oneOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["format", "source", "descriptorIdentity", "target", "capabilities", "provenance", "integrity"],
+      "properties": {
+        "format": { "const": "snapback.app-binding.v1" },
+        "source": { "const": "supervised-dev" },
+        "descriptorIdentity": { "type": "string", "minLength": 1 },
+        "target": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["app", "schema", "functions", "origin", "routing"],
+          "properties": {
+            "app": { "type": "string", "minLength": 1 },
+            "schema": { "type": "string", "minLength": 1 },
+            "functions": { "type": "string", "minLength": 1 },
+            "origin": { "type": "string", "format": "uri", "minLength": 1 },
+            "routing": { "enum": ["loopback", "port-forward"] }
+          }
+        },
+        "capabilities": { "$ref": "#/$defs/capabilities" },
+        "provenance": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["supervisorGeneration", "issuedAt", "expiresAt"],
+          "properties": {
+            "supervisorGeneration": { "type": "string", "minLength": 1 },
+            "issuedAt": { "type": "string", "format": "date-time" },
+            "expiresAt": { "type": "string", "format": "date-time" }
+          }
+        },
+        "integrity": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["channel"],
+          "properties": { "channel": { "const": "local-supervised-ipc" } }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["format", "source", "descriptorIdentity", "target", "capabilities", "provenance", "integrity"],
+      "properties": {
+        "format": { "const": "snapback.app-binding.v1" },
+        "source": { "const": "release" },
+        "descriptorIdentity": { "type": "string", "minLength": 1 },
+        "target": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["app", "schema", "functions", "origin", "routing"],
+          "properties": {
+            "app": { "type": "string", "minLength": 1 },
+            "schema": { "type": "string", "minLength": 1 },
+            "functions": { "type": "string", "minLength": 1 },
+            "origin": { "type": "string", "format": "uri", "pattern": "^https://" },
+            "routing": { "const": "https" }
+          }
+        },
+        "capabilities": { "$ref": "#/$defs/capabilities" },
+        "provenance": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["environment", "releaseChannel", "buildReceipt"],
+          "properties": {
+            "environment": { "type": "string", "minLength": 1 },
+            "releaseChannel": { "type": "string", "minLength": 1 },
+            "buildReceipt": { "type": "string", "minLength": 1 }
+          }
+        },
+        "integrity": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["channel", "signature"],
+              "properties": {
+                "channel": { "const": "signed-artifact" },
+                "signature": { "type": "string", "minLength": 1 }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["channel"],
+              "properties": { "channel": { "const": "embedded-at-build" } }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["offered"],
+      "properties": {
+        "offered": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  }
+}

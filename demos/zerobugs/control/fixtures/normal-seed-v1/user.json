@@ -1,0 +1,142 @@
+[
+  {
+    "_id": "user_804808a3aa5ef7440e34bd42",
+    "id": "2wKdbVVF7qtnn5bx92sr9",
+    "login": "alexhking",
+    "avatar": "https://avatars.githubusercontent.com/u/25096?v=4",
+    "role": "crew",
+    "githubID": 25096,
+    "name": "Alexander King",
+    "email": " alex@zbugs.io"
+  },
+  {
+    "_id": "user_f57940f9cf974984ee36c7b2",
+    "id": "9Fw3n6EQS8mzE126AFJxb",
+    "login": "KeKs0r",
+    "avatar": "https://avatars.githubusercontent.com/u/2970814?v=4",
+    "role": "user",
+    "githubID": 2970814,
+    "name": "Marc Höffl",
+    "email": " marc@zbugs.io"
+  },
+  {
+    "_id": "user_b8222266f94aa6b36a6b5999",
+    "id": "FPEhfZQwiEMgpk3WnEY72",
+    "login": "pcorpet",
+    "avatar": "https://avatars.githubusercontent.com/u/7937848?v=4",
+    "role": "user",
+    "githubID": 7937848,
+    "name": "Pascal Corpet",
+    "email": " pascal@zbugs.io"
+  },
+  {
+    "_id": "user_37617f38bd751da58ed19276",
+    "id": "Gg4MskWt3M-ttzzlrJ9jn",
+    "login": "grgbkr",
+    "avatar": "https://avatars.githubusercontent.com/u/19158916?v=4",
+    "role": "crew",
+    "githubID": 19158916,
+    "name": "Greg Baker",
+    "email": " greg@zbugs.io"
+  },
+  {
+    "_id": "user_188a39cce5c928cdcac022e3",
+    "id": "OeVnr1y5bEM_Yg06sUFtD",
+    "login": "aboodman",
+    "avatar": "https://avatars.githubusercontent.com/u/80388?v=4",
+    "role": "crew",
+    "githubID": 80388,
+    "name": "Aaron Boodman",
+    "email": " aaron@zbugs.io"
+  },
+  {
+    "_id": "user_47a7fdef09689e6736359a9c",
+    "id": "_4MJeHV4T-qZb52fyNwQ9",
+    "login": "jesseditson",
+    "avatar": "https://avatars.githubusercontent.com/u/370239?v=4",
+    "role": "user",
+    "githubID": 370239,
+    "name": "Jesse Ditson",
+    "email": " jesse@zbugs.io"
+  },
+  {
+    "_id": "user_a4f0bd6a43d9e088a7554324",
+    "id": "ieK09sy2C_AIWE8KRkrQR",
+    "login": "darkgnotic",
+    "avatar": "https://avatars.githubusercontent.com/u/132324914?v=4",
+    "role": "crew",
+    "githubID": 132324914,
+    "name": "Darick Tong",
+    "email": " darick@zbugs.io"
+  },
+  {
+    "_id": "user_83c0fb5f3b11efd040c7a3e1",
+    "id": "jpRvILZ1tibPsQXKvb3cF",
+    "login": "ingar",
+    "avatar": "https://avatars.githubusercontent.com/u/85998?v=4",
+    "role": "user",
+    "githubID": 85998,
+    "name": "Ingar Shu",
+    "email": " ingar@zbugs.io"
+  },
+  {
+    "_id": "user_e819b67a09d33b9d0381cd91",
+    "id": "nqYkxAGMnzk7Y5STjZryV",
+    "login": "arv",
+    "avatar": "https://avatars.githubusercontent.com/u/45845?v=4",
+    "role": "crew",
+    "githubID": 45845,
+    "name": "Erik Arvidsson",
+    "email": " erik@zbugs.io"
+  },
+  {
+    "_id": "user_914adfec54718af5b7088e45",
+    "id": "pFCse65icLsHqrf1TJMuV",
+    "login": "linear[bot]",
+    "avatar": "https://avatars.githubusercontent.com/in/20150?v=4",
+    "role": "user",
+    "githubID": 44709815,
+    "name": "linear[bot]",
+    "email": " linear@zbugs.io"
+  },
+  {
+    "_id": "user_8e631e7733027ef2527e916b",
+    "id": "pgyTvcxh2hjmq2l4WKzK6",
+    "login": "cesara",
+    "avatar": "https://avatars.githubusercontent.com/u/807848?v=4",
+    "role": "crew",
+    "githubID": 807848,
+    "name": "Cesar Alaestante",
+    "email": " cesar@zbugs.io"
+  },
+  {
+    "_id": "user_66bdd01207feb530676cc44a",
+    "id": "tDY6IbKdVqbBlRBc3XMwF",
+    "login": "tantaman",
+    "avatar": "https://avatars.githubusercontent.com/u/1009003?v=4",
+    "role": "crew",
+    "githubID": 1009003,
+    "name": "Matt Wonlaw",
+    "email": " matt@zbugs.io"
+  },
+  {
+    "_id": "user_d074c959e0e5e3a4822bd6e6",
+    "id": "vxBeM-NB6tEvoQuhMhFJ9",
+    "login": "jamischarles",
+    "avatar": "https://avatars.githubusercontent.com/u/606014?v=4",
+    "role": "user",
+    "githubID": 606014,
+    "name": "Jamis Charles",
+    "email": " jamis@zbugs.io"
+  },
+  {
+    "_id": "user_885982503097c2548c6cba45",
+    "id": "yJ5hiysWE-LBcDfT44lR8",
+    "login": "phritz",
+    "avatar": "https://avatars.githubusercontent.com/u/157153?v=4",
+    "role": "user",
+    "githubID": 157153,
+    "name": "Phritz",
+    "email": " phritz@zbugs.io"
+  }
+]

@@ -57,11 +57,12 @@ needed, before product code ran live:
   `@expo/snapback-contract` from npm and fail without a manual override
   (`issues/20260805-local-source-package-closure-needs-contract-override.md`);
 - runtime bootstrap plus three codegen correction rounds;
-- a broken managed dev loop — `snapback dev` cannot parse the native
-  `load`'s two-document JSON success output and aborts with a misleading
-  `SNAPBACK_DEV_SERVER_LOAD_FAILED`, forcing the agent to diagnose against
-  the raw binary and hand-write a custom launcher
-  (`issues/20260805-managed-dev-multi-json-load.md`) — diary 0058 calls
+- a managed dev-loop defect at measurement time — `snapback dev` could not
+  parse the native `load`'s two-document JSON success output and aborted with
+  a misleading `SNAPBACK_DEV_SERVER_LOAD_FAILED`, forcing the agent to
+  diagnose against the raw binary and hand-write a custom launcher
+  (`issues/closed/20260805-managed-dev-multi-json-load.md`, resolved
+  2026-08-05) — diary 0058 calls
   this "the biggest Snapback detour";
 - manual load/reset steps the Convex lane had no analogue of.
 

@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "a3876c921792dc65f42609185663db9d07088363"
+    "commit": "892cb31480e80f88beb7b0a51c08816114647b4e"
   },
   "nav": {
     ".": [
@@ -1479,7 +1479,7 @@
       "examples": [],
       "reviewed": "2026-08-05",
       "reviewedCommit": "f3c7d9fbb394a413370a9264f22e72b6f151a25e",
-      "sha256": "9839fdf6f78bf92591852bb24c0c776911bd2b18d6a3b39db22d40c16e04d794",
+      "sha256": "cf0c37ac094754a74ab6f2b31ed1015888d721102b404bc164c81dc8b0b36daf",
       "snippets": []
     },
     "clients.app-cli": {
@@ -1709,10 +1709,15 @@
         "llp/0064-native-client-surfaces.rfc.md",
         "llp/0114-first-class-react-and-query-groups.spec.md",
         "llp/0176-expo-messaging-golden-path.plan.md",
+        "llp/0181-zero-configuration-expo.rfc.md",
         "packages/snapback-client/index.mjs",
         "packages/snapback-client/react-binding.mjs",
         "packages/snapback-client/rqs-store-default.mjs",
         "packages/snapback-client/rqs-store-expo.mjs",
+        "packages/snapback-expo/app-binding.mjs",
+        "packages/snapback-expo/config-plugin.cjs",
+        "packages/snapback-expo/index.mjs",
+        "packages/snapback-expo/provider.mjs",
         "packages/snapback-react/index.mjs",
         "scripts/install-local-snapback-packages.mjs",
         "demos/partiful-matrix/tests/acceptance/native-react-expo.mjs",
@@ -1721,6 +1726,7 @@
       "examples": [
         "demos/partiful-matrix/native/react-expo",
         "packages/snapback-client/webcrypto-fallback.test.mjs",
+        "packages/snapback-expo/provider.test.mjs",
         "packages/snapback-react/webcrypto-fallback.test.mjs",
         "packages/snapback-client/rqs-store-expo.test.mjs",
         "packages/snapback-client/rqs-resume-expo.test.mjs",
@@ -1731,8 +1737,12 @@
       ],
       "reviewed": "2026-08-05",
       "reviewedCommit": "f3c7d9fbb394a413370a9264f22e72b6f151a25e",
-      "sha256": "7caebcbf1a5d5ed169ff9d02774b66ab0851d0f49d065bb4dbb726568dbd4445",
+      "sha256": "0bfd5643855d63ee286604d3bf52fdb8baeb32dd3a5fe568da441acbc8f2f2d3",
       "snippets": [
+        {
+          "lang": "tsx",
+          "class": "fragment"
+        },
         {
           "lang": "ts",
           "class": "fragment"
@@ -2160,7 +2170,7 @@
       ],
       "reviewed": "2026-08-05",
       "reviewedCommit": "f3c7d9fbb394a413370a9264f22e72b6f151a25e",
-      "sha256": "7f51903c1210d81cb359a94bb1cabe801de24e22bc640bbbfa46585506765e36",
+      "sha256": "bf2e2a49e951f5f3c6db419d6d571f5300a55e03dca1c29c79ca16570d6967d7",
       "snippets": [
         {
           "lang": "json",
@@ -2331,11 +2341,12 @@
       ],
       "examples": [
         "demos/todo/tests/acceptance/forked-parent.mjs",
+        "tests/instance_fork_cli_v1.rs",
         "tests/acceptance/instance-fork-fleet-dogfood.2026-08-03.v1.json"
       ],
-      "reviewed": "2026-08-04",
+      "reviewed": "2026-08-05",
       "reviewedCommit": "HEAD",
-      "sha256": "9564b114b16be3c49ee11f84c85f5cbe33b328ae7a11732d0268b47f520ccc54",
+      "sha256": "1b64c30d8e532793208b1a759df3c46b027e8b01d5750e7c9eecef4f671d8cb5",
       "snippets": [
         {
           "lang": "js",
@@ -3145,5 +3156,5 @@
     "routes": 116,
     "hostOps": 37
   },
-  "contentHash": "6d3e078580b6eb73c289d81de158174eb1b170385e5e0af66e8503478e9fb170"
+  "contentHash": "ac22613ff040e109d40a9f64fa16fb1d3fe6d85ba5a87d07b33b7122f161f6b8"
 }

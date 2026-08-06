@@ -71,6 +71,23 @@
       "name": "@expo/snapback-contract",
       "version": "0.1.0",
     },
+    "packages/snapback-expo": {
+      "name": "@expo/snapback-expo",
+      "version": "0.1.0",
+      "dependencies": {
+        "@expo/snapback-client": "workspace:*",
+        "@expo/snapback-react": "workspace:*",
+      },
+      "peerDependencies": {
+        "expo": ">=57.0.0 <58.0.0",
+        "react": ">=19.0.0 <20.0.0",
+        "react-native": ">=0.86.0 <0.87.0",
+      },
+      "optionalPeers": [
+        "expo",
+        "react-native",
+      ],
+    },
     "packages/snapback-hosted-supervisor": {
       "name": "@expo/snapback-hosted-supervisor",
       "version": "0.1.0",
@@ -256,6 +273,8 @@
     "@expo/snapback-codegen": ["@expo/snapback-codegen@workspace:packages/snapback-codegen"],
 
     "@expo/snapback-contract": ["@expo/snapback-contract@workspace:packages/snapback-contract"],
+
+    "@expo/snapback-expo": ["@expo/snapback-expo@workspace:packages/snapback-expo"],
 
     "@expo/snapback-hosted-supervisor": ["@expo/snapback-hosted-supervisor@workspace:packages/snapback-hosted-supervisor"],
 

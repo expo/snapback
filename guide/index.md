@@ -239,6 +239,9 @@ you never build around a feature because you didn't know it existed.
 - [Backend error tracking](./operating/error-tracking.md) — group eligible
   backend failures, inspect raw exemplars under scoped authority, and triage
   release-aware issue state from the console, CLI, or MCP.
+- [Local instance forks](./operating/instance-forks.md) — give each worktree a
+  finite-TTL, quarantined copy of realistic local state; run fork-aware
+  acceptance and retain bounded app-row diff receipts (partial/unpublished).
 
 ### Deploying
 - [Immutable releases and deploy plans](./deploying/releases.md) — build the

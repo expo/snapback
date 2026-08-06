@@ -16,6 +16,10 @@ remain Missing pending performance, review, and author acceptance);
 host-writer retry/capacity/purge/rotation lifecycle corpus; coverage remains
 dormant pending the remaining branch, cross-lane, performance, review, and
 author-acceptance gates)
+**Reconciled:** 2026-08-05 (LLP 0185 Phase 0 — this focused ticket owns LLP
+0163's public carrier, writer inventory, activation, explanation transport,
+host identities, and row-13 measurement; LLP 0165 retains the global journal-
+completeness choke point and LLP 0162 retains row-completion authority)
 **Systems:** Sync, Client integration, Storage, Jobs, Migrations, Testing
 **Related:** LLP 0043, LLP 0133, LLP 0162, LLP 0163
 
@@ -28,6 +32,17 @@ exact generated owner create/update facts, and migration remains explicitly
 uncovered. The aggregate publication/terminal split now has a truthful
 Pending→supplement lifecycle, but H1/H2/C remain carrier-only and
 review/publication gates are still open.
+
+## Scope fence after LLP 0185 Phase 0
+
+This ticket owns LLP 0163's public carrier, target writer inventory,
+envelope-hook routing, coverage-manifest activation, explanation transport,
+host identity callers, and its row-13 measurements — the LLP 0162 row
+1–4/13/14 legs enumerated below. It does **not** own LLP 0165's global
+generated lane-writer facade plus SQLite-authorizer completeness choke point,
+even though both efforts meet in row 4. The consolidated row ledger remains
+`issues/20260803-agent-safe-storage-acceptance-tail.md`; neither ticket may
+mark a row complete independently of LLP 0162.
 
 **Qualification update — 2026-08-05:** C31 was abandoned before review
 results or performance after the mandatory fetch found newer main. C32 is the

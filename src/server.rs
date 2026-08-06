@@ -1403,9 +1403,9 @@ impl DetachedActionHost {
 
 impl IbexActionHost for DetachedActionHost {
     fn validate_host_call(&mut self, op: &str) -> SnapbackResult<()> {
-        if let Some(family) = crate::instance_fork::EgressFamily::for_derived_host_op(op) {
+        if crate::instance_fork::EgressFamily::for_derived_host_op(op).is_some() {
             let snapback = self.lock_live(op)?;
-            snapback.deny_derived_fork_egress(family, now_millis())?;
+            snapback.deny_derived_fork_host_op(op, now_millis())?;
         }
         // This atomic generation fence keeps ordinary runtime/id/log calls off
         // the global instance mutex. A mutation rechecks while holding that
@@ -25629,7 +25629,9 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_FORK_APP_ID_REQUIRED"
         | "SNAPBACK_FORK_APP_ROOT_INVALID"
         | "SNAPBACK_FORK_ID_INVALID"
+        | "SNAPBACK_FORK_PROJECTION_UNAVAILABLE"
         | "SNAPBACK_FORK_REAP_CLOCK_INVALID"
+        | "SNAPBACK_FORK_RENEW_EXPIRED"
         | "SNAPBACK_FORK_SOURCE_INVALID"
         | "SNAPBACK_FORK_TTL_INVALID"
         | "SNAPBACK_HISTORY_PAGE_INVALID"
@@ -25688,6 +25690,7 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_BRANCH_GRANT_STALE"
         | "SNAPBACK_CHECKPOINT_INVALID"
         | "SNAPBACK_FORK_DIFF_RETENTION_GAP"
+        | "SNAPBACK_FORK_SERVER_EXPIRED"
         | "SNAPBACK_OPERATION_EPOCH_CLOSED"
         | "SNAPBACK_PROMOTION_TICKET_EXPIRED" => StatusCode::GONE,
         "SNAPBACK_BRANCH_BYTE_LIMIT_EXCEEDED"
@@ -25698,6 +25701,7 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         "SNAPBACK_BRANCH_LIVE_LIMIT_EXCEEDED"
         | "SNAPBACK_BRANCH_OPERATION_LIMIT_EXCEEDED"
         | "SNAPBACK_CHECKPOINT_WAL_BUDGET_EXCEEDED"
+        | "SNAPBACK_FORK_RESOURCE_LIMIT_REFUSED"
         | "SNAPBACK_OPERATION_RANGE_EXHAUSTED"
         | "SNAPBACK_PROMOTION_CONTENTION_EXHAUSTED" => StatusCode::TOO_MANY_REQUESTS,
         "SNAPBACK_FORK_BOOT_TIMEOUT"
@@ -25727,6 +25731,11 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_FORK_LOAD_FAILED"
         | "SNAPBACK_FORK_READY_INVALID"
         | "SNAPBACK_FORK_REGISTRY_INVALID"
+        | "SNAPBACK_FORK_REGISTRY_STALE"
+        | "SNAPBACK_FORK_PUBLICATION_PARTIAL"
+        | "SNAPBACK_FORK_EXPIRED_REAP_FAILED"
+        | "SNAPBACK_FORK_SIDECAR_MALFORMED"
+        | "SNAPBACK_FORK_SIDECAR_MISSING"
         | "SNAPBACK_FORK_STOP_FAILED"
         | "SNAPBACK_FORK_STOP_UNVERIFIED"
         | "SNAPBACK_HISTORY_CORRUPT"
@@ -39883,7 +39892,9 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_FORK_APP_ID_REQUIRED",
         "SNAPBACK_FORK_APP_ROOT_INVALID",
         "SNAPBACK_FORK_ID_INVALID",
+        "SNAPBACK_FORK_PROJECTION_UNAVAILABLE",
         "SNAPBACK_FORK_REAP_CLOCK_INVALID",
+        "SNAPBACK_FORK_RENEW_EXPIRED",
         "SNAPBACK_FORK_SOURCE_INVALID",
         "SNAPBACK_FORK_TTL_INVALID",
         "SNAPBACK_HISTORY_PAGE_INVALID",
@@ -40568,6 +40579,7 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_BRANCH_LIVE_LIMIT_EXCEEDED",
         "SNAPBACK_BRANCH_OPERATION_LIMIT_EXCEEDED",
         "SNAPBACK_CHECKPOINT_WAL_BUDGET_EXCEEDED",
+        "SNAPBACK_FORK_RESOURCE_LIMIT_REFUSED",
         "SNAPBACK_OPERATION_RANGE_EXHAUSTED",
         "SNAPBACK_OPERATION_PENDING_CAPACITY_FULL",
         "SNAPBACK_PROMOTION_HEAD_RESERVED",
@@ -40775,6 +40787,8 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_FORK_LOAD_FAILED",
         "SNAPBACK_FORK_READY_INVALID",
         "SNAPBACK_FORK_REGISTRY_INVALID",
+        "SNAPBACK_FORK_REGISTRY_STALE",
+        "SNAPBACK_FORK_EXPIRED_REAP_FAILED",
         "SNAPBACK_FORK_STOP_FAILED",
         "SNAPBACK_FORK_STOP_UNVERIFIED",
         "SNAPBACK_HISTORY_CORRUPT",
@@ -40865,8 +40879,11 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_FORK_LINEAGE_INVALID",
         "SNAPBACK_FORK_NESTED_REFUSED",
         "SNAPBACK_FORK_PATH_INVALID",
+        "SNAPBACK_FORK_PUBLICATION_PARTIAL",
         "SNAPBACK_FORK_QUARANTINED",
         "SNAPBACK_FORK_RECEIPT_INVALID",
+        "SNAPBACK_FORK_SIDECAR_MALFORMED",
+        "SNAPBACK_FORK_SIDECAR_MISSING",
         "SNAPBACK_FORK_SIDECAR_COLLISION",
         "SNAPBACK_FORK_TEST_CRASH_CUT",
         // LLP 0080 §2 keyset invariant: the dispatch layer builds boundaries
@@ -41194,6 +41211,7 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_BRANCH_GRANT_STALE",
         "SNAPBACK_CHECKPOINT_INVALID",
         "SNAPBACK_FORK_DIFF_RETENTION_GAP",
+        "SNAPBACK_FORK_SERVER_EXPIRED",
         "SNAPBACK_OPERATION_EPOCH_CLOSED",
         "SNAPBACK_OPERATION_RESULT_EXPIRED",
         "SNAPBACK_PROMOTION_TICKET_EXPIRED",

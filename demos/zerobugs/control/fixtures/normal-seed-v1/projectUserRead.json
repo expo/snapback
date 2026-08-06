@@ -1,0 +1,98 @@
+[
+  {
+    "_id": "projectUserRead_17b6b4bc0327c8ebd4cf85e8",
+    "projectID": "project_babdfa87a3230f74c50296e0",
+    "userID": "user_804808a3aa5ef7440e34bd42",
+    "isCreator": false,
+    "isAssignee": false,
+    "isCrew": true
+  },
+  {
+    "_id": "projectUserRead_4172ff5fd6c9ff96a22f3616",
+    "projectID": "project_babdfa87a3230f74c50296e0",
+    "userID": "user_d074c959e0e5e3a4822bd6e6",
+    "isCreator": true,
+    "isAssignee": false,
+    "isCrew": false
+  },
+  {
+    "_id": "projectUserRead_457ac3b3a4f61f86702c260a",
+    "projectID": "project_babdfa87a3230f74c50296e0",
+    "userID": "user_b8222266f94aa6b36a6b5999",
+    "isCreator": true,
+    "isAssignee": false,
+    "isCrew": false
+  },
+  {
+    "_id": "projectUserRead_4a1bdab15ea0c2ec5285f207",
+    "projectID": "project_babdfa87a3230f74c50296e0",
+    "userID": "user_885982503097c2548c6cba45",
+    "isCreator": true,
+    "isAssignee": false,
+    "isCrew": false
+  },
+  {
+    "_id": "projectUserRead_5b6ca409a0c57c19448f2624",
+    "projectID": "project_babdfa87a3230f74c50296e0",
+    "userID": "user_47a7fdef09689e6736359a9c",
+    "isCreator": true,
+    "isAssignee": true,
+    "isCrew": false
+  },
+  {
+    "_id": "projectUserRead_9e64d8c9e08d7a2eec6925f2",
+    "projectID": "project_babdfa87a3230f74c50296e0",
+    "userID": "user_e819b67a09d33b9d0381cd91",
+    "isCreator": true,
+    "isAssignee": false,
+    "isCrew": true
+  },
+  {
+    "_id": "projectUserRead_a9a1089e52e65947459d6924",
+    "projectID": "project_babdfa87a3230f74c50296e0",
+    "userID": "user_8e631e7733027ef2527e916b",
+    "isCreator": true,
+    "isAssignee": false,
+    "isCrew": true
+  },
+  {
+    "_id": "projectUserRead_c5fc5de2cd08cff1fb793a19",
+    "projectID": "project_babdfa87a3230f74c50296e0",
+    "userID": "user_37617f38bd751da58ed19276",
+    "isCreator": true,
+    "isAssignee": false,
+    "isCrew": true
+  },
+  {
+    "_id": "projectUserRead_d57ae34f83fdb08f4de81e6a",
+    "projectID": "project_babdfa87a3230f74c50296e0",
+    "userID": "user_188a39cce5c928cdcac022e3",
+    "isCreator": true,
+    "isAssignee": false,
+    "isCrew": true
+  },
+  {
+    "_id": "projectUserRead_dbcc9e4bb6233bcdb8707d54",
+    "projectID": "project_babdfa87a3230f74c50296e0",
+    "userID": "user_66bdd01207feb530676cc44a",
+    "isCreator": true,
+    "isAssignee": false,
+    "isCrew": true
+  },
+  {
+    "_id": "projectUserRead_e6a3e3d4bfbfbc63c1a510a3",
+    "projectID": "project_babdfa87a3230f74c50296e0",
+    "userID": "user_a4f0bd6a43d9e088a7554324",
+    "isCreator": true,
+    "isAssignee": false,
+    "isCrew": true
+  },
+  {
+    "_id": "projectUserRead_f055747cacac4d2d2ca6acec",
+    "projectID": "project_babdfa87a3230f74c50296e0",
+    "userID": "user_83c0fb5f3b11efd040c7a3e1",
+    "isCreator": true,
+    "isAssignee": false,
+    "isCrew": false
+  }
+]

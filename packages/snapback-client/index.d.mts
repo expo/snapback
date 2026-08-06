@@ -84,6 +84,28 @@ export interface ArtifactGeneration {
   readonly inputsHash: string;
 }
 
+/** Stable LLP 0179 application descriptor accepted by React binding
+ * preparation. Environment endpoints and authority remain separate inputs. */
+export interface SnapbackAppDescriptorV1 {
+  readonly format: 'snapback.app.v1';
+  readonly identity: Readonly<{
+    app: string;
+    schema: string;
+    functions: string;
+    descriptor: string;
+  }>;
+  readonly api: Readonly<{
+    queries: object;
+    mutations: object;
+    assets: object;
+    ephemeral: object;
+    queryGroups: object;
+  }>;
+  readonly commands: Readonly<Record<string, unknown>>;
+  readonly surfaces: Readonly<Record<string, unknown>>;
+  readonly capabilities: Readonly<{ required: readonly string[] }>;
+}
+
 export interface SettlementIdentityClaims {
   readonly implementationHash: string;
   readonly activation: ArtifactGeneration;
@@ -1015,6 +1037,7 @@ export class SnapbackClient {
   ): Promise<RegisterOutcomeV1>;
   prepareReactBinding(options: {
     readonly generatedManifest:
+      | SnapbackAppDescriptorV1
       | Readonly<Record<string, unknown>>
       | {
           readonly functions: Readonly<Record<string, unknown>>;

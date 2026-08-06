@@ -1,0 +1,65 @@
+{
+  "name": "@expo/snapback-expo",
+  "version": "0.1.0",
+  "description": "Zero-configuration Expo binding, provider, lifecycle, and config plugin for Snapback applications.",
+  "files": [
+    "README.md",
+    "app-binding.d.mts",
+    "app-binding.mjs",
+    "app-binding.schema.json",
+    "app.plugin.js",
+    "config-plugin.cjs",
+    "config-plugin.d.mts",
+    "index.d.mts",
+    "index.mjs",
+    "provider.mjs"
+  ],
+  "exports": {
+    ".": {
+      "types": "./index.d.mts",
+      "import": "./index.mjs"
+    },
+    "./app-binding": {
+      "types": "./app-binding.d.mts",
+      "import": "./app-binding.mjs"
+    },
+    "./app-binding.schema.json": "./app-binding.schema.json",
+    "./app.plugin": {
+      "types": "./config-plugin.d.mts",
+      "require": "./app.plugin.js",
+      "default": "./app.plugin.js"
+    },
+    "./config-plugin": {
+      "types": "./config-plugin.d.mts",
+      "require": "./config-plugin.cjs",
+      "default": "./config-plugin.cjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "dependencies": {
+    "@expo/snapback-client": "workspace:*",
+    "@expo/snapback-react": "workspace:*"
+  },
+  "peerDependencies": {
+    "expo": ">=57.0.0 <58.0.0",
+    "react": ">=19.0.0 <20.0.0",
+    "react-native": ">=0.86.0 <0.87.0"
+  },
+  "peerDependenciesMeta": {
+    "expo": {
+      "optional": true
+    },
+    "react-native": {
+      "optional": true
+    }
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "test": "node ../../scripts/ensure-workspace-hoist.mjs && node app-binding.test.mjs && node config-plugin.test.mjs && node provider.test.mjs && node package.test.mjs && node package-closure.test.mjs && ../../node_modules/.bin/tsc --noEmit --strict --target es2022 --module esnext --moduleResolution bundler types.fixture.ts"
+  }
+}

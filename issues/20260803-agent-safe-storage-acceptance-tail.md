@@ -2,6 +2,9 @@
 
 **Status:** Open
 **Opened:** 2026-08-03 (Track B integrated implementation pass)
+**Reconciled:** 2026-08-05 (LLP 0185 Phase 0 assigned each remaining proof leg
+to its contract owner without changing row state); 2026-08-05 (LLP 0185 Phase
+3 derived-deployment evidence is recorded below without changing row state)
 **Updated:** 2026-08-05 (exact merged C30 stopped before performance after Codex found Host-lease and pending-capacity projection gaps; prospective C31 validates them globally and closes client-suppression closure symmetry; capabilities remain Missing); 2026-08-05 (exact C29 stopped before performance after two NOT READY reviews; prospective C30 closes terminal-supplement retention coherence, automatic sessions ACK custody, the public explanation oracle, Host terminal/pending rollback proof, and accepted-0158 status drift; capabilities remain Missing); 2026-08-05 (merged C28 stopped before performance after two NOT READY reviews; prospective C29 repairs automatic sessions range custody, Host tombstone schema nullability, terminal-time coherence, and pending-writer rollback proof; capabilities remain Missing); 2026-08-05 (C27 terminated pre-result with no artifacts; C28 repairs tombstone comparison, contiguous floors, bounded ranges, and transactional writer guards; capabilities remain Missing); 2026-08-04 (pre-result row-13 protocol repair: the author-ratified
 contention ceiling now matches the frozen 1,000-ms reservation and separate
 500-ms maximum promotion-commit duration; the absolute recorder binds exact
@@ -68,6 +71,12 @@ normally merged and regenerated successor; all capability states remain
 The detailed LLP 0163 public-carrier work remains in its existing focused
 ticket. F1's operating guide and fork-aware acceptance-harness work remains in
 the guide-gap ticket rather than being conflated with this implementation tail.
+
+The ownership split is contractual, not a state change: LLP 0163 owns public
+carrier/inventory/activation/explanation/host-identity work; LLP 0164 owns the
+fork, diff, quarantine, and promotion rows; LLP 0165 owns the generated writer
+facade, checkpoint custody, and domain-separated proof joins; LLP 0162 retains
+the consolidated acceptance and author-bound publication authority.
 
 ## C27 pre-result abandonment and C28 repair — 2026-08-05
 
@@ -403,6 +412,27 @@ or modified here. Remaining integrated writer coverage, fixed-Air
 performance/p99, final own-correctness, independent review, author acceptance,
 and publication gates also stay open. LLP 0164 remains `Draft`; no capability
 state changes above `Missing` are made here.
+
+### Dated LLP 0185 Phase 3 evidence (2026-08-05, derived-deployment class only)
+
+Recorded as input evidence for the owners above; it does not close a row or
+publish a capability on its own.
+
+- **Row 5:** module and live-server fixtures prove parent commits after the
+  fork point stay invisible to the fork, with bidirectional isolation, diff
+  attribution, concurrent-lifecycle determinism, stale-registry completion,
+  distinct-port concurrency, SIGKILL, and missing-ready outcomes.
+- **Row 6:** the shared derived-fork host-operation gate is tested per family,
+  including manual cron, provider-adapter selection, and an unclassified-op
+  fail-closed rule. Push-receipt maintenance, a VM-level JS fetch negative,
+  and `CaptureOnly` for this class remain outside that dated evidence.
+- **Row 7:** live, stale, and revoked parent grants are absent after mint, and
+  bidirectional parent/fork bearer replay is refused with data-level no-commit
+  proof. Production wired-auth legs remain independently gated.
+- **Row 8:** fork-count, per-fork bytes, total bytes, diff work, and renewal
+  lifetime refuse deterministically with observed usage; bounded renewal has a
+  seven-cut recovery matrix. Limit ratification, true disk-pressure simulation,
+  and the separate digest-work/replay-floor legs remain with their owners.
 
 ## Review and publication gates
 

@@ -5,7 +5,11 @@
 **Systems:** Storage, Migrations, Diagnostics, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-03
-**Revised:** 2026-08-04 (protected-erasure acceptance-tail audit — production
+**Revised:** 2026-08-05 (LLP 0185 Phase 0 ownership reconciliation — clarified
+that this Spec, not LLP 0163 or LLP 0164, owns the global generated-writer plus
+SQLite-authorizer journal-completeness choke point; the neighboring Specs own
+their manifest and diff-surface inputs. No acceptance row changed state.);
+2026-08-04 (protected-erasure acceptance-tail audit — production
 transactions and focused corpus now cover simultaneous exact and divergent
 command retries in addition to the already integrated admission/publication
 race, producer cancellation, crash/reopen, reachable/unreachable copies,
@@ -341,12 +345,13 @@ parallel corpus here.
    bound.
 2. *(Executed 2026-08-03.)* Concrete per-domain preimage field lists and
    golden vectors are recorded above and generated from the Rust implementation.
-3. LLP 0163 composition details of the write-authority choke point — both
-   controls (the generated transaction API with lane-writer token AND the
-   SQLite authorizer) are decided by LLP 0162 §4. Promotion proof and ordinary
-   history-operation joins are integrated; open here are the generated-facade
-   surface, authorizer enforcement, and migration path for existing direct-SQL
-   write sites.
+3. This Spec owns the global write-authority choke point. Both controls (the
+   generated transaction API with lane-writer token AND the SQLite authorizer)
+   are decided by LLP 0162 §4; LLP 0163 supplies the target writer inventory,
+   envelope-hook routing, and active coverage manifest, but does not close
+   journal completeness. Promotion proof and ordinary history-operation joins
+   are integrated; open here are the generated-facade surface, authorizer
+   enforcement, and migration path for existing direct-SQL write sites.
 4. *(Executed 2026-08-04.)* The full migration receipt binds a separately
    implemented expected-value oracle and adversarial drift corpus. The
    registered protected-record product command supplies the previously missing

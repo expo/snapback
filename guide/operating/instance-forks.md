@@ -5,11 +5,11 @@ order: 7
 audience: agent-first
 capabilities: [operating.instance-forks]
 authorities: [llp/0158-instance-forking.rfc.md, src/cli.rs, src/instance_fork.rs, demos/_kit/instance-fork.mjs]
-examples: [demos/todo/tests/acceptance/forked-parent.mjs, tests/acceptance/instance-fork-fleet-dogfood.2026-08-03.v1.json]
+examples: [demos/todo/tests/acceptance/forked-parent.mjs, tests/instance_fork_cli_v1.rs, tests/acceptance/instance-fork-fleet-dogfood.2026-08-03.v1.json]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-04
+reviewed: 2026-08-05
 reviewed-commit: HEAD
 ---
 
@@ -48,20 +48,35 @@ target/debug/snapback fork create \
   --fork-root /absolute/path/to/shared-fork-root
 ```
 
-The JSON `hostOpsResult` contains `data.readyFile`, `data.database`,
+The default JSON `hostOpsResult` contains `data.readyFile`, `data.database`,
 `data.receipt.lineage.forkId`, and the effective `serverUrl`. Treat the ready
 file as the connection handoff. Do not infer a port, reuse the parent's admin
-token, or discover a database by scanning directories.
+token, or discover a database by scanning directories. For a shell that needs
+exactly one value, add `--format url`, `fork-id`, `database-path`,
+`ready-path`, or `admin-token-path`; JSON remains the primary automation
+contract.
 
 The fork operation does all of these before it returns:
 
+- sweeps already-expired, safely verifiable forks in the selected fork root,
+  completes any stale registry bookkeeping whose fork directory is already
+  gone (reported as `data.automaticReap.clearedStaleRegistryIds`), or refuses
+  creation if any expired target cannot be proved safe to remove;
+- checks resource admission and refuses deterministically with
+  `SNAPBACK_FORK_RESOURCE_LIMIT_REFUSED` when the managed fork count, the
+  source database's estimated bytes, or the fork root's total byte budget
+  would exceed the configured limits (`--max-forks`, `--max-fork-bytes`,
+  `--max-total-bytes`; defaults are provisional constants pending
+  ratification), reporting the admitted usage as `data.resourceAdmission`;
 - takes a consistent local snapshot and records the exact fork point;
 - scrubs copied sessions, agent credentials, and operational claims;
 - rotates authorization and data-stream identities and mints fresh sidecars;
 - loads the schema and functions generated in `--app-root`;
 - boots cron, durable jobs, and asset maintenance inert;
 - applies fail-closed `deny-all-v1` host egress; and
-- records a finite expiry in the fork-root lifecycle registry.
+- records a finite expiry in the fork-root lifecycle registry; and
+- starts a server that refuses boot after expiry and checks its expiry while
+  serving.
 
 Use a shared, explicit fork root when several worktrees derive from one
 parent. Each `fork create` chooses a UUID-named direct child by default, so
@@ -88,9 +103,9 @@ makes `close()` perform an exact registry-bound `fork drop`:
 ```
 
 Register `close()` with the shared acceptance cleanup stack immediately. The
-finite TTL is a backstop for interruption, not a substitute for attested test
-cleanup. Do not pass a seed on the fork path: replacing realistic parent state
-would defeat the option's purpose.
+finite TTL is an automatically enforced backstop for interruption, not a
+substitute for attested test cleanup. Do not pass a seed on the fork path:
+replacing realistic parent state would defeat the option's purpose.
 
 After the suite writes, retain the bounded review receipt before cleanup:
 
@@ -107,19 +122,26 @@ journal-derived app-row receipt. The maintained Todo proof starts from a
 parent-only edge-case row, mutates the fork, checks the receipt, and verifies
 the live parent never sees the fork-only row.
 
-## Review, list, and dispose forks
+## Inspect, review, and dispose forks
 
-All lifecycle commands re-bind advisory registry entries to the fork's local
-lineage, mint receipt, database, and ready descriptor before reading,
+`list` is the deliberately advisory registry projection. Safety-sensitive
+`inspect`, `diff`, `drop`, and `reap` re-bind each selected entry to the fork's
+local lineage, mint receipt, database, and ready descriptor before reading,
 signalling, or deleting anything:
 
 ```sh
 target/debug/snapback fork list \
   --app-root "$PWD" --fork-root /absolute/path/to/shared-fork-root
 
+target/debug/snapback fork inspect "$FORK_ID" \
+  --app-root "$PWD" --fork-root /absolute/path/to/shared-fork-root
+
 target/debug/snapback fork diff "$FORK_ID" \
   --app-root "$PWD" --fork-root /absolute/path/to/shared-fork-root \
   --out /absolute/path/to/fork-diff.json
+
+target/debug/snapback fork renew "$FORK_ID" --ttl 2h \
+  --app-root "$PWD" --fork-root /absolute/path/to/shared-fork-root
 
 target/debug/snapback fork drop "$FORK_ID" \
   --app-root "$PWD" --fork-root /absolute/path/to/shared-fork-root
@@ -128,10 +150,82 @@ target/debug/snapback fork reap --now-ms "$PORTABLE_NOW_MS" \
   --app-root "$PWD" --fork-root /absolute/path/to/shared-fork-root
 ```
 
-`drop` stops and removes exactly one verified fork. `reap` is deterministic:
-the caller supplies a portable millisecond clock and the command removes only
-verified forks whose finite expiry is at or before that clock. Nested forks
-are refused in local v1.
+`inspect` is the bounded status projection: fork and parent identity, fork
+point and expiry, process health, database/ready/admin-token paths,
+scrubbed-or-copied secret disposition, inert cron/jobs/assets posture,
+`deny-all-v1` egress, and a diff count/coverage summary without full rows. Its
+five `--format` scalar values match `create`, so a script can write, for
+example, `FORK_URL=$(... fork inspect "$FORK_ID" --format url ...)` without
+parsing display text.
+
+`renew` extends one fork's finite expiry from now by `--ttl`, bounded by a
+configured maximum total lifetime from creation. It re-binds the exact
+registry identity first, refuses to shorten or clear the expiry, refuses an
+already-expired fork outright (`SNAPBACK_FORK_RENEW_EXPIRED` — reap and
+recreate instead), and emits a durable `snapback.fork-renew.v1` receipt both
+in the envelope and beside the fork database. A renewal that crashes mid-way
+is completed by `fork recover` from its durable intent; a running fork server
+re-reads the renewed expiry at its old deadline and keeps serving.
+
+`drop` stops and removes exactly one verified fork; concurrent drop/reap of
+the same fork settles with one winner and `SNAPBACK_FORK_NOT_FOUND` for the
+rest, never a torn teardown. Explicit `reap` is a deterministic test and
+operations surface: the caller supplies a portable millisecond clock and the
+command removes only verified forks whose finite expiry is at or before that
+clock, and additionally completes stale registry entries whose fork
+directory is already gone (`data.clearedStaleRegistryIds`). `list` binds
+every entry it can and reports the rest under `data.unboundRegistry` with
+warning diagnostics instead of failing wholesale; it also projects
+`data.resourceUsage` (fork count, total bytes, default limits). Normal
+creation needs no injected clock: it uses the system clock to sweep the same
+fork-root scope first and reports the reaped IDs in `data.automaticReap`. If
+that sweep cannot safely remove every expired fork, creation fails closed
+with `SNAPBACK_FORK_EXPIRED_REAP_FAILED`.
+
+A derived server independently reads its recorded expiry. It refuses an
+already-expired boot, then checks at least once per second while serving and
+exits with `SNAPBACK_FORK_SERVER_EXPIRED` when the deadline arrives. That
+expiry exit deliberately retains the non-secret ready descriptor: a later
+`create`, `drop`, or `reap` can bind the recorded PID to the exact fork and
+prove it gone before deleting storage. Nested forks are refused in local v1.
+
+## Recover interrupted publication
+
+Creation publishes through private staging and an advisory registry. If a
+crash leaves an incomplete direct child, recover by its exact destination —
+not by scanning a root or trusting a possibly stale registry row:
+
+```sh
+target/debug/snapback fork recover /absolute/path/to/shared-fork-root/FORK_UUID \
+  --app-root "$PWD" --fork-root /absolute/path/to/shared-fork-root
+```
+
+For pre-publication S0–S3 state, recovery removes disposable staging and
+best-effort registry intent. For a published-but-unreconciled S4 destination,
+it verifies local database lineage and minted evidence, reconciles the
+registry when possible, and removes the publication sentinel. The JSON result
+identifies the recovery disposition and registry outcome. Registry repair is
+advisory: complete local evidence governs boot safety. The command refuses
+unbounded lineage and does not start a process; after recovery, inspect or
+dispose the repaired managed state explicitly.
+
+## Act on fork diagnostics
+
+Fork failures use stable `SNAPBACK_FORK_*` codes. Preserve the code and
+details object in automation; the message is for people.
+
+| Diagnostic | Action |
+| --- | --- |
+| `SNAPBACK_FORK_PUBLICATION_PARTIAL` | Run `fork recover` on the exact sentinel-bearing destination before boot. |
+| `SNAPBACK_FORK_QUARANTINED` | Treat the database as non-bootable; recover its managed publication rather than clearing stamps by hand. |
+| `SNAPBACK_FORK_LINEAGE_INVALID` | Stop. Do not trust or delete the target until its local lineage provenance is understood. |
+| `SNAPBACK_FORK_SIDECAR_MISSING` / `SNAPBACK_FORK_SIDECAR_MALFORMED` | Do not reuse parent credentials or invent replacements; recover if publication is partial, otherwise recreate the fork. |
+| `SNAPBACK_FORK_REGISTRY_STALE` | Treat the registry as advisory and inspect the named exact path; never recursively sweep based only on the row. |
+| `SNAPBACK_FORK_STOP_UNVERIFIED` | Resolve the missing/stale ready descriptor or live PID; Snapback intentionally will not signal or delete an unproved target. |
+| `SNAPBACK_FORK_EXPIRED_REAP_FAILED` | Inspect the reported expired targets and restore enough evidence to stop/reap them safely before retrying create. |
+| `SNAPBACK_FORK_SERVER_EXPIRED` | Expected finite-TTL enforcement: use `create` or explicit `reap` to prove the stopped process and remove the fork, or `renew` **before** expiry to extend it. |
+| `SNAPBACK_FORK_RENEW_EXPIRED` | Renewal never resurrects: the fork is already past expiry — reap it and create a fresh fork. |
+| `SNAPBACK_FORK_RESOURCE_LIMIT_REFUSED` | A configured bound refused deterministically; the details name the resource (`fork-count`, `fork-bytes`, `total-bytes`, `diff-work`, `renewal-lifetime`) and the observed usage. Drop forks, raise the explicit flag, or bound the request. |
 
 ## Read the diff at its real boundary
 
@@ -146,8 +240,11 @@ fork point**, in commit order. It explicitly omits:
 
 It is a review aid, not a complete audit and not production migration
 admission. A long-lived fork can also outlive its journal floor; then diff
-refuses instead of returning an incomplete receipt. Use the reviewed migration
-rehearsal flow for production apply decisions.
+refuses instead of returning an incomplete receipt. The attributed span is
+also work-bounded: past `--max-rows` (default 100k) diff refuses with
+`SNAPBACK_FORK_RESOURCE_LIMIT_REFUSED` and the observed row count instead of
+materializing an unbounded receipt. Use the reviewed migration rehearsal flow
+for production apply decisions.
 
 ## Know what the quarantine does not promise
 
@@ -155,6 +252,15 @@ rehearsal flow for production apply decisions.
   runtime. They do not contain a malicious same-user process that can open the
   parent's files or make its own network calls; that requires an OS/container
   boundary.
+- **Workloads containing arbitrary native code need an OS isolation boundary
+  you provide.** The fork's `deny-all-v1` gate mediates Snapback-owned egress
+  and custody surfaces only. If the app under test loads native modules,
+  shells out, or executes untrusted code, run the fork server inside an OS
+  containment tier — a dedicated OS user, a container (the fork directory and
+  ready file are self-contained and bind-mountable), or a VM — and treat the
+  fork root as inside that boundary. Snapback does not ship an integrated
+  sandbox tier today; if one is added later it will be advertised as a
+  separate containment tier, not folded into the runtime quarantine claim.
 - The default is secret scrubbing. `--with-secrets` is an explicit high-risk
   opt-in for the config-secret sibling; it does not weaken credential minting
   or egress denial.

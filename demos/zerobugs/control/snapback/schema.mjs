@@ -141,6 +141,109 @@ export const issueNotifications = defineTable({
   .index('by_issue_user', ['issueID', 'userID'], { unique: true })
   .sync();
 
+// W-IDENTITY: one server-derived Snapback principal is bound to one frozen
+// source user row. `sourceUserID` is retained for OAuth lookup/audit, while
+// `userID` is the typed physical reference used by private source rows. The
+// fixture leaves this table empty; Lane 2 writes bindings after minting real
+// principals, as required by the sessions seed contract.
+export const identityBinding = defineTable({
+  principal: v.principal(),
+  userID: v.id('user'),
+  sourceUserID: v.string(),
+})
+  .index('by_principal', ['principal'], { unique: true })
+  .index('by_user', ['userID'], { unique: true })
+  .index('by_source_user_id', ['sourceUserID'], { unique: true });
+
+// W-READMODEL: one row per (project,user) that participates as an issue
+// creator, issue assignee, or non-rocibot crew picker candidate. The booleans
+// record every applicable membership reason so each picker branch stays
+// bounded without fabricating a source membership table.
+export const projectUserRead = defineTable({
+  projectID: v.id('project'),
+  userID: v.id('user'),
+  isCreator: v.boolean(),
+  isAssignee: v.boolean(),
+  isCrew: v.boolean(),
+})
+  .index('by_project_user', ['projectID', 'userID'], { unique: true })
+  .index('by_project_creator', ['projectID', 'isCreator', 'userID'])
+  .index('by_project_assignee', ['projectID', 'isAssignee', 'userID'])
+  .index('by_project_crew', ['projectID', 'isCrew', 'userID'])
+  .index('by_user_project', ['userID', 'projectID'], { unique: true })
+  .sync();
+
+// W-READMODEL: one row per issue carrying only list membership, visibility,
+// filter, and stable `(sort field, source id)` cursor facts. Rich issue fields
+// remain authoritative in `issue`; this row never claims graph completeness.
+export const issueListRead = defineTable({
+  issueID: v.id('issue'),
+  sourceIssueID: v.string(),
+  projectID: v.id('project'),
+  creatorID: v.id('user'),
+  assigneeID: v.optional(v.id('user')),
+  open: v.boolean(),
+  visibility: v.string(),
+  modified: v.number(),
+  created: v.number(),
+})
+  .index('by_issue', ['issueID'], { unique: true })
+  .index('by_source_issue_id', ['sourceIssueID'], { unique: true })
+  .index('by_project_modified', ['projectID', 'modified', 'sourceIssueID'])
+  .index('by_project_created', ['projectID', 'created', 'sourceIssueID'])
+  .index('by_project_open_modified', ['projectID', 'open', 'modified', 'sourceIssueID'])
+  .index('by_project_open_created', ['projectID', 'open', 'created', 'sourceIssueID'])
+  .index('by_project_creator_modified', ['projectID', 'creatorID', 'modified', 'sourceIssueID'])
+  .index('by_project_creator_created', ['projectID', 'creatorID', 'created', 'sourceIssueID'])
+  .index('by_project_open_creator_modified', ['projectID', 'open', 'creatorID', 'modified', 'sourceIssueID'])
+  .index('by_project_open_creator_created', ['projectID', 'open', 'creatorID', 'created', 'sourceIssueID'])
+  .index('by_project_assignee_modified', ['projectID', 'assigneeID', 'modified', 'sourceIssueID'])
+  .index('by_project_assignee_created', ['projectID', 'assigneeID', 'created', 'sourceIssueID'])
+  .index('by_project_open_assignee_modified', ['projectID', 'open', 'assigneeID', 'modified', 'sourceIssueID'])
+  .index('by_project_open_assignee_created', ['projectID', 'open', 'assigneeID', 'created', 'sourceIssueID'])
+  .sync();
+
+// W-READMODEL: one row per source issue-label edge. The explicit project
+// partition makes repeated all-selected-label membership checks bounded while
+// retaining typed references to the authoritative source rows.
+export const issueLabelRead = defineTable({
+  projectID: v.id('project'),
+  issueID: v.id('issue'),
+  labelID: v.id('label'),
+})
+  .index('by_issue_label', ['issueID', 'labelID'], { unique: true })
+  .index('by_project_label_issue', ['projectID', 'labelID', 'issueID'], { unique: true })
+  .index('by_project_issue_label', ['projectID', 'issueID', 'labelID'], { unique: true });
+
+// W-READMODEL: one row per issue containing the title, description, and the
+// deterministic `(created,id)` concatenation of comment bodies used to rebuild
+// the search corpus. It is intentionally not syncable: search result release
+// remains server-authorized, and the search declaration lands with Lane 3.
+export const issueSearchDocument = defineTable({
+  issueID: v.id('issue'),
+  sourceIssueID: v.string(),
+  projectID: v.id('project'),
+  visibility: v.string(),
+  title: v.string(),
+  description: v.string(),
+  commentText: v.string(),
+})
+  .index('by_issue', ['issueID'], { unique: true })
+  .index('by_source_issue_id', ['sourceIssueID'], { unique: true })
+  .index('by_project_visibility_issue', ['projectID', 'visibility', 'sourceIssueID']);
+
+// W-SEARCH-EPOCH: one row per (project, visibility class) carries only a
+// monotone invalidation epoch. It contains no query text or result membership;
+// a client that observes a change performs a fresh bounded search.
+export const searchEpoch = defineTable({
+  projectID: v.id('project'),
+  visibility: v.string(),
+  epoch: v.integer(),
+})
+  .index('by_project_visibility', ['projectID', 'visibility'], { unique: true })
+  .index('by_visibility_project', ['visibility', 'projectID'], { unique: true })
+  .sync();
+
 export default defineSchema(
   {
     user,
@@ -153,6 +256,12 @@ export default defineSchema(
     emoji,
     userPref,
     issueNotifications,
+    identityBinding,
+    projectUserRead,
+    issueListRead,
+    issueLabelRead,
+    issueSearchDocument,
+    searchEpoch,
   },
   { auth: { mode: 'sessions' } },
 );

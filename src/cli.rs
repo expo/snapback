@@ -842,6 +842,7 @@ pub enum HostCommand {
         command: AuthCommand,
     },
     /// Create and operate finite-TTL, non-promotable local derived deployments.
+    /// Lifecycle: create -> inspect/list -> diff -> drop/reap/recover.
     Fork {
         #[command(subcommand)]
         command: ForkCommand,
@@ -1267,8 +1268,10 @@ pub enum AuthCommand {
 }
 
 #[derive(clap::Subcommand)]
+#[command(after_help = "Lifecycle examples:\n  snapback fork create --from parent.ready.json --ttl 2h --app-root .\n  snapback fork inspect <fork-id> --app-root .\n  snapback fork diff <fork-id> --app-root .\n  snapback fork drop <fork-id> --app-root .\n  snapback fork reap --now-ms <unix-ms> --app-root .\n  snapback fork recover <destination> --app-root .")]
 pub enum ForkCommand {
-    /// Materialize, scrub/mint, boot, and return a ready derived deployment.
+    /// Sweep expired managed forks first, then materialize, scrub/mint, boot,
+    /// and return a finite-lived ready derived deployment.
     Create {
         /// Parent SQLite database or a live server readiness descriptor.
         #[arg(long = "from")]
@@ -1291,6 +1294,18 @@ pub enum ForkCommand {
         /// Runtime readiness descriptor. Defaults inside the fork directory.
         #[arg(long)]
         ready_file: Option<PathBuf>,
+        /// Refuse creation once this many managed forks exist.
+        #[arg(long, default_value_t = crate::instance_fork::MANAGED_FORK_MAX_COUNT)]
+        max_forks: usize,
+        /// Refuse a source database set larger than this many bytes.
+        #[arg(long, default_value_t = crate::instance_fork::MANAGED_FORK_MAX_FORK_BYTES)]
+        max_fork_bytes: u64,
+        /// Refuse when existing forks plus this copy would exceed this budget.
+        #[arg(long, default_value_t = crate::instance_fork::MANAGED_FORK_MAX_TOTAL_BYTES)]
+        max_total_bytes: u64,
+        /// Output JSON (default) or one shell-friendly scalar path/identity.
+        #[arg(long, value_enum, default_value = "json")]
+        format: ForkOutputFormat,
     },
     /// List advisory lifecycle records without changing them.
     List {
@@ -1298,6 +1313,18 @@ pub enum ForkCommand {
         app_root: PathBuf,
         #[arg(long)]
         fork_root: Option<PathBuf>,
+    },
+    /// Inspect identity, expiry, process health, paths, isolation posture, and
+    /// a bounded app-row diff summary for one registry-bound fork.
+    Inspect {
+        fork_id: String,
+        #[arg(long, default_value = ".")]
+        app_root: PathBuf,
+        #[arg(long)]
+        fork_root: Option<PathBuf>,
+        /// Output JSON (default) or one shell-friendly scalar path/identity.
+        #[arg(long, value_enum, default_value = "json")]
+        format: ForkOutputFormat,
     },
     /// Render the app-row-only post-fork journal receipt.
     Diff {
@@ -1308,10 +1335,26 @@ pub enum ForkCommand {
         fork_root: Option<PathBuf>,
         #[arg(long)]
         out: Option<PathBuf>,
+        /// Refuse an attributed journal span larger than this many rows.
+        #[arg(long, default_value_t = crate::instance_fork::FORK_DIFF_MAX_ROWS)]
+        max_rows: u64,
     },
     /// Stop and delete exactly one registry-bound fork.
     Drop {
         fork_id: String,
+        #[arg(long, default_value = ".")]
+        app_root: PathBuf,
+        #[arg(long)]
+        fork_root: Option<PathBuf>,
+    },
+    /// Extend one fork's finite expiry within the configured maximum total
+    /// lifetime. Renewal never shortens or clears the expiry and never
+    /// resurrects an already-expired fork.
+    Renew {
+        fork_id: String,
+        /// Finite duration from now, such as 30m or 2h.
+        #[arg(long)]
+        ttl: String,
         #[arg(long, default_value = ".")]
         app_root: PathBuf,
         #[arg(long)]
@@ -1326,6 +1369,26 @@ pub enum ForkCommand {
         #[arg(long)]
         fork_root: Option<PathBuf>,
     },
+    /// Repair a crash-interrupted publication from its authoritative local
+    /// evidence, or reap matching unpublished staging state.
+    Recover {
+        /// Exact destination path or direct-child name under --fork-root.
+        destination: PathBuf,
+        #[arg(long, default_value = ".")]
+        app_root: PathBuf,
+        #[arg(long)]
+        fork_root: Option<PathBuf>,
+    },
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, clap::ValueEnum)]
+pub enum ForkOutputFormat {
+    Json,
+    Url,
+    ForkId,
+    DatabasePath,
+    ReadyPath,
+    AdminTokenPath,
 }
 
 impl std::fmt::Debug for HostCommand {
@@ -2097,6 +2160,55 @@ fn now_ms() -> u64 {
         .unwrap_or(0)
 }
 
+async fn wait_for_derived_fork_expiry(
+    database: Option<PathBuf>,
+    lineage: Option<crate::instance_fork::DerivedForkLineageV1>,
+) -> (crate::instance_fork::DerivedForkLineageV1, u64) {
+    let Some(lineage) = lineage else {
+        return std::future::pending().await;
+    };
+    let Some(mut expires_at_ms) = lineage.expires_at_ms else {
+        return std::future::pending().await;
+    };
+    loop {
+        let observed_at_ms = now_ms();
+        if observed_at_ms >= expires_at_ms {
+            // A completed `fork renew` moves the database lineage, which is
+            // the expiry authority — the boot-time copy is only a schedule.
+            // Mid-renewal reads (sentinel window, carrier rewrite) fail
+            // transiently, so retry briefly before accepting expiry.
+            let mut renewed_to = None;
+            if let Some(database) = database.as_deref() {
+                for _ in 0..40 {
+                    match crate::instance_fork::refreshed_lineage(database) {
+                        Ok(Some(current))
+                            if current
+                                .expires_at_ms
+                                .is_some_and(|expiry| expiry > observed_at_ms) =>
+                        {
+                            renewed_to = current.expires_at_ms;
+                            break;
+                        }
+                        Ok(_) => break,
+                        Err(_) => {
+                            tokio::time::sleep(std::time::Duration::from_millis(250)).await;
+                        }
+                    }
+                }
+            }
+            match renewed_to {
+                Some(new_expiry) => {
+                    expires_at_ms = new_expiry;
+                    continue;
+                }
+                None => return (lineage, observed_at_ms),
+            }
+        }
+        let delay_ms = expires_at_ms.saturating_sub(observed_at_ms).clamp(1, 1_000);
+        tokio::time::sleep(std::time::Duration::from_millis(delay_ms)).await;
+    }
+}
+
 fn stored_app_id(database: &Path) -> anyhow::Result<String> {
     let conn = rusqlite::Connection::open(database)?;
     let stored: Option<String> = conn
@@ -2173,6 +2285,24 @@ fn fork_envelope(
     server_url: Option<String>,
     data: Value,
 ) -> HostOpsResult {
+    fork_envelope_with_diagnostics(
+        operation,
+        app_id,
+        app_root,
+        server_url,
+        data,
+        Vec::new(),
+    )
+}
+
+fn fork_envelope_with_diagnostics(
+    operation: &str,
+    app_id: String,
+    app_root: Option<&Path>,
+    server_url: Option<String>,
+    data: Value,
+    diagnostics: Vec<crate::diagnostic::Diagnostic>,
+) -> HostOpsResult {
     HostOpsResult {
         schema_version: SNAPBACK_SCHEMA_VERSION.to_owned(),
         result_kind: HOST_OPS_RESULT_KIND.to_owned(),
@@ -2188,7 +2318,7 @@ fn fork_envelope(
         authority: None,
         artifacts: HostOpsArtifacts::default(),
         data,
-        diagnostics: Vec::new(),
+        diagnostics,
         next: Vec::new(),
         secret_read_tables: Vec::new(),
         secret_read_rows: 0,
@@ -2204,6 +2334,270 @@ fn fork_secret_disposition(with_secrets: bool, database: &Path) -> &'static str 
         "copy-requested-source-absent"
     } else {
         "scrubbed"
+    }
+}
+
+fn managed_fork_secret_disposition(
+    target: &crate::instance_fork::ManagedForkTargetV1,
+) -> &'static str {
+    match target
+        .receipt
+        .custody
+        .get("sidecar:*.config.json")
+        .copied()
+    {
+        Some(crate::instance_fork::CustodyDisposition::Copy)
+            if crate::config::ConfigStore::path_for_database(&target.database).is_file() =>
+        {
+            "copied-explicitly"
+        }
+        Some(crate::instance_fork::CustodyDisposition::Copy) => "copy-requested-source-absent",
+        _ => "scrubbed",
+    }
+}
+
+#[derive(Default)]
+struct ForkProjectionScalars {
+    url: Option<String>,
+    fork_id: Option<String>,
+    database_path: Option<String>,
+    ready_path: Option<String>,
+    admin_token_path: Option<String>,
+}
+
+fn print_fork_projection(
+    format: ForkOutputFormat,
+    envelope: &HostOpsResult,
+    scalars: &ForkProjectionScalars,
+) -> anyhow::Result<()> {
+    if format == ForkOutputFormat::Json {
+        print_envelope(&serde_json::to_value(envelope)?);
+        return Ok(());
+    }
+    let value = match format {
+        ForkOutputFormat::Json => unreachable!(),
+        ForkOutputFormat::Url => scalars.url.as_deref(),
+        ForkOutputFormat::ForkId => scalars.fork_id.as_deref(),
+        ForkOutputFormat::DatabasePath => scalars.database_path.as_deref(),
+        ForkOutputFormat::ReadyPath => scalars.ready_path.as_deref(),
+        ForkOutputFormat::AdminTokenPath => scalars.admin_token_path.as_deref(),
+    };
+    let value = value.context(
+        "SNAPBACK_FORK_PROJECTION_UNAVAILABLE: requested scalar is not available for this fork",
+    )?;
+    println!("{value}");
+    Ok(())
+}
+
+fn resolve_fork_destination(root: &Path, requested: PathBuf) -> anyhow::Result<PathBuf> {
+    let destination = if requested.is_absolute() {
+        requested
+    } else {
+        root.join(requested)
+    };
+    let parent = destination
+        .parent()
+        .context("SNAPBACK_FORK_PATH_INVALID: fork destination has no parent")?;
+    anyhow::ensure!(
+        std::fs::canonicalize(parent)? == root,
+        "SNAPBACK_FORK_PATH_INVALID: destination must be a direct child of the fork root"
+    );
+    anyhow::ensure!(
+        destination.file_name().is_some(),
+        "SNAPBACK_FORK_PATH_INVALID: destination must have a direct-child name"
+    );
+    Ok(destination)
+}
+
+#[derive(Debug, Default)]
+struct ForkReapOutcome {
+    reaped: Vec<String>,
+    cleared_stale_registry: Vec<String>,
+}
+
+/// Reap every expired fork and complete any partial cleanup, tolerating
+/// concurrent lifecycle actors: an entry that disappears mid-sweep was
+/// cleaned up by its other owner, and a registry entry whose directory is
+/// already gone is stale bookkeeping to clear, never a reason to wedge the
+/// remaining forks' cleanup (LLP 0185 Phase 3 item 5).
+fn reap_managed_forks(root: &Path, now_ms: u64) -> anyhow::Result<ForkReapOutcome> {
+    let mut outcome = ForkReapOutcome::default();
+    for fork_id in crate::instance_fork::managed_registry_ids(root)? {
+        // Holding the cleanup lock across bind → stop → drop means a
+        // concurrent drop/reap either finished before we bound (observed as
+        // NOT_FOUND) or waits until we finish — never a torn mid-teardown.
+        let lock = crate::instance_fork::lock_cleanup(root, &fork_id)?;
+        match crate::instance_fork::managed_target(root, &fork_id) {
+            Ok(target) => {
+                let expired = target
+                    .entry
+                    .lineage
+                    .expires_at_ms
+                    .is_some_and(|expires| expires <= now_ms);
+                if !expired {
+                    continue;
+                }
+                if let Some(ready) = target.ready_file.as_deref() {
+                    let _ = quiet_stop_fork(ready, &target.database)?;
+                }
+                crate::instance_fork::drop_managed_locked(root, &fork_id)?;
+                outcome.reaped.push(fork_id);
+                lock.dispose();
+            }
+            Err(error) if error.diagnostic.code == "SNAPBACK_FORK_NOT_FOUND" => {
+                lock.dispose();
+            }
+            Err(error) if error.diagnostic.code == "SNAPBACK_FORK_REGISTRY_STALE" => {
+                crate::instance_fork::clear_stale_registry_entry_locked(root, &fork_id)?;
+                outcome.cleared_stale_registry.push(fork_id);
+                lock.dispose();
+            }
+            Err(error) => return Err(error.into()),
+        }
+    }
+    outcome.reaped.sort();
+    outcome.cleared_stale_registry.sort();
+    Ok(outcome)
+}
+
+fn automatic_reap_before_create(
+    root: &Path,
+    observed_at_ms: u64,
+) -> anyhow::Result<ForkReapOutcome> {
+    reap_managed_forks(root, observed_at_ms).map_err(|error| {
+        anyhow::Error::new(
+            crate::diagnostic::SnapbackError::error(
+                "SNAPBACK_FORK_EXPIRED_REAP_FAILED",
+                "instanceFork",
+                "create refused: expired managed fork(s) were present and could not all be swept",
+            )
+            .with_details(json!({
+                "observedAtMs": observed_at_ms,
+                "cause": error.to_string(),
+            })),
+        )
+    })
+}
+
+fn fork_process_health(
+    target: &crate::instance_fork::ManagedForkTargetV1,
+) -> (Value, Vec<crate::diagnostic::Diagnostic>, Option<String>) {
+    let Some(ready_file) = target.ready_file.as_deref() else {
+        return (
+            json!({
+                "status": "not-recorded",
+                "responding": false,
+                "pid": null,
+                "checkedAtMs": now_ms(),
+            }),
+            Vec::new(),
+            None,
+        );
+    };
+    if !ready_file.is_file() {
+        return (
+            json!({
+                "status": "stale-ready-file",
+                "responding": false,
+                "pid": null,
+                "checkedAtMs": now_ms(),
+            }),
+            vec![crate::diagnostic::Diagnostic::warning(
+                "SNAPBACK_FORK_REGISTRY_STALE",
+                "instanceFork",
+                "registry records a ready file that no longer exists",
+            )
+            .with_details(json!({ "readyFile": ready_file }))],
+            None,
+        );
+    }
+    let descriptor = match read_trusted_json_file(ready_file)
+        .ok()
+        .and_then(|value| HostReadyDescriptor::validate(&value).ok())
+    {
+        Some(descriptor) => descriptor,
+        None => {
+            return (
+                json!({
+                    "status": "unverifiable",
+                    "responding": false,
+                    "pid": null,
+                    "checkedAtMs": now_ms(),
+                }),
+                vec![crate::diagnostic::Diagnostic::warning(
+                    "SNAPBACK_FORK_READY_INVALID",
+                    "instanceFork",
+                    "recorded fork readiness descriptor is missing or malformed",
+                )
+                .with_details(json!({ "readyFile": ready_file }))],
+                None,
+            );
+        }
+    };
+    if let Err(error) = verify_fork_ready_database(&descriptor, &target.database) {
+        return (
+            json!({
+                "status": "unverifiable",
+                "responding": false,
+                "pid": descriptor.pid,
+                "checkedAtMs": now_ms(),
+            }),
+            vec![crate::diagnostic::Diagnostic::warning(
+                "SNAPBACK_FORK_READY_INVALID",
+                "instanceFork",
+                "recorded readiness descriptor is not bound to the fork database",
+            )
+            .with_details(json!({ "reason": error.to_string() }))],
+            None,
+        );
+    }
+    let health = fetch_health(&descriptor.server_url);
+    if verify_live_descriptor_identity(&descriptor, &health, "fork.inspect").is_ok() {
+        return (
+            json!({
+                "status": "responding",
+                "responding": true,
+                "pid": descriptor.pid,
+                "checkedAtMs": now_ms(),
+                "serverUrl": descriptor.server_url,
+            }),
+            Vec::new(),
+            Some(descriptor.server_url),
+        );
+    }
+    match process_is_proven_gone(descriptor.pid) {
+        Ok(true) => (
+            json!({
+                "status": "stopped",
+                "responding": false,
+                "pid": descriptor.pid,
+                "checkedAtMs": now_ms(),
+                "serverUrl": descriptor.server_url,
+            }),
+            vec![crate::diagnostic::Diagnostic::warning(
+                "SNAPBACK_FORK_REGISTRY_STALE",
+                "instanceFork",
+                "fork process is gone but its recorded ready descriptor remains",
+            )
+            .with_details(json!({ "pid": descriptor.pid }))],
+            Some(descriptor.server_url),
+        ),
+        Ok(false) | Err(_) => (
+            json!({
+                "status": "unverifiable",
+                "responding": false,
+                "pid": descriptor.pid,
+                "checkedAtMs": now_ms(),
+                "serverUrl": descriptor.server_url,
+            }),
+            vec![crate::diagnostic::Diagnostic::warning(
+                "SNAPBACK_FORK_STOP_UNVERIFIED",
+                "instanceFork",
+                "fork PID may still be live, but its process identity cannot be verified",
+            )
+            .with_details(json!({ "pid": descriptor.pid }))],
+            Some(descriptor.server_url),
+        ),
     }
 }
 
@@ -2278,14 +2672,21 @@ fn quiet_stop_fork(ready_file: &Path, expected_database: &Path) -> anyhow::Resul
             diagnostic.message
         );
     }
-    anyhow::ensure!(
-        std::process::Command::new("kill")
-            .arg(descriptor.pid.to_string())
-            .status()
-            .context("failed to signal fork server")?
-            .success(),
-        "SNAPBACK_FORK_STOP_FAILED: fork server did not accept SIGTERM"
-    );
+    let signalled = std::process::Command::new("kill")
+        .arg(descriptor.pid.to_string())
+        .status()
+        .context("failed to signal fork server")?
+        .success();
+    if !signalled {
+        // The server can exit between identity verification and the signal
+        // (self-shutdown at expiry, or a concurrent stop). Losing that race
+        // is a completed stop, not a failure.
+        if process_is_proven_gone(descriptor.pid)? {
+            remove_ready_after_process_gone(ready_file)?;
+            return Ok(None);
+        }
+        anyhow::bail!("SNAPBACK_FORK_STOP_FAILED: fork server did not accept SIGTERM");
+    }
     for _ in 0..40 {
         if fetch_health(&descriptor.server_url).is_err() {
             break;
@@ -2307,6 +2708,13 @@ fn quiet_stop_fork(ready_file: &Path, expected_database: &Path) -> anyhow::Resul
 }
 
 async fn fork_command(command: ForkCommand) -> anyhow::Result<()> {
+    fork_command_with_clock(command, now_ms).await
+}
+
+async fn fork_command_with_clock<F>(command: ForkCommand, clock: F) -> anyhow::Result<()>
+where
+    F: Fn() -> u64,
+{
     // @ref LLP 0158#implementation-path-local-v1-explored-2026-08-03 —
     // F0b is a finite-TTL, non-promotable derived deployment with an
     // explicit secret opt-in, inert workers, and fail-closed egress.
@@ -2319,15 +2727,27 @@ async fn fork_command(command: ForkCommand) -> anyhow::Result<()> {
             fork_root: requested_root,
             destination,
             ready_file,
+            max_forks,
+            max_fork_bytes,
+            max_total_bytes,
+            format,
         } => {
             let app_root = std::fs::canonicalize(&app_root).with_context(|| {
                 format!("SNAPBACK_FORK_APP_ROOT_INVALID: {}", app_root.display())
             })?;
             let root = fork_root(&app_root, requested_root)?;
+            let created_at_ms = clock();
+            let automatically_reaped = automatic_reap_before_create(&root, created_at_ms)?;
             let source = from.unwrap_or_else(|| app_root.join(".snapback/dev.sqlite3"));
             let (source_database, app_id, parent_instance_id) = source_from_path(&source)?;
+            let limits = crate::instance_fork::ForkResourceLimits {
+                max_forks,
+                max_fork_bytes,
+                max_total_bytes,
+            };
+            let resource_usage =
+                crate::instance_fork::enforce_creation_limits(&root, &source_database, &limits)?;
             let ttl_ms = parse_fork_ttl(&ttl)?;
-            let created_at_ms = now_ms();
             let expires_at_ms = created_at_ms
                 .checked_add(ttl_ms)
                 .context("SNAPBACK_FORK_TTL_INVALID: expiry exceeds the portable clock")?;
@@ -2335,18 +2755,10 @@ async fn fork_command(command: ForkCommand) -> anyhow::Result<()> {
                 expires_at_ms <= crate::manifest::PORTABLE_TIMESTAMP_MAX_MS,
                 "SNAPBACK_FORK_TTL_INVALID: expiry exceeds the portable clock"
             );
-            let destination = match destination {
-                Some(path) if path.is_absolute() => path,
-                Some(path) => root.join(path),
-                None => root.join(format!("fork-{}", uuid::Uuid::now_v7())),
-            };
-            let destination_parent = destination
-                .parent()
-                .context("fork destination has no parent")?;
-            anyhow::ensure!(
-                std::fs::canonicalize(destination_parent)? == root,
-                "SNAPBACK_FORK_PATH_INVALID: destination must be a direct child of the fork root"
-            );
+            let destination = resolve_fork_destination(
+                &root,
+                destination.unwrap_or_else(|| PathBuf::from(format!("fork-{}", Uuid::now_v7()))),
+            )?;
             let receipt = startup_blocking(|| {
                 crate::instance_fork::publish_managed(
                     &source_database,
@@ -2513,10 +2925,29 @@ async fn fork_command(command: ForkCommand) -> anyhow::Result<()> {
                     "egressPolicy": "deny-all-v1",
                     "assetCustody": "refuse-asset-bearing-source",
                     "secrets": fork_secret_disposition(with_secrets, &database),
+                    "automaticReap": {
+                        "observedAtMs": created_at_ms,
+                        "reapedForkIds": automatically_reaped.reaped,
+                        "clearedStaleRegistryIds": automatically_reaped.cleared_stale_registry,
+                    },
+                    "resourceAdmission": {
+                        "usage": resource_usage,
+                        "limits": {
+                            "maxForks": limits.max_forks,
+                            "maxForkBytes": limits.max_fork_bytes,
+                            "maxTotalBytes": limits.max_total_bytes,
+                        },
+                    },
                 }),
             );
-            print_envelope(&serde_json::to_value(envelope)?);
-            Ok(())
+            let scalars = ForkProjectionScalars {
+                url: Some(descriptor.server_url),
+                fork_id: Some(receipt.lineage.fork_id.clone()),
+                database_path: Some(database.display().to_string()),
+                ready_path: Some(ready_file.display().to_string()),
+                admin_token_path: Some(declared_admin.display().to_string()),
+            };
+            print_fork_projection(format, &envelope, &scalars)
         }
         ForkCommand::List {
             app_root,
@@ -2524,32 +2955,150 @@ async fn fork_command(command: ForkCommand) -> anyhow::Result<()> {
         } => {
             let app_root = std::fs::canonicalize(app_root)?;
             let root = fork_root(&app_root, requested_root)?;
-            let entries = crate::instance_fork::list_managed(&root)?;
+            // One stale or corrupt registry entry must not hide every other
+            // fork from the operator; bind what proves out and surface the
+            // rest as diagnostics (LLP 0185 Phase 3 item 5).
+            let mut entries = Vec::new();
+            let mut unbound = Vec::new();
+            let mut diagnostics = Vec::new();
+            for fork_id in crate::instance_fork::managed_registry_ids(&root)? {
+                match crate::instance_fork::managed_target(&root, &fork_id) {
+                    Ok(target) => entries.push(target.entry),
+                    Err(error) if error.diagnostic.code == "SNAPBACK_FORK_NOT_FOUND" => {}
+                    Err(error) => {
+                        let code = error.diagnostic.code.clone();
+                        unbound.push(json!({ "forkId": fork_id, "code": code }));
+                        diagnostics.push(
+                            crate::diagnostic::Diagnostic::warning(
+                                error.diagnostic.code,
+                                "instanceFork",
+                                "registry entry could not be bound to local fork evidence",
+                            )
+                            .with_details(json!({ "forkId": fork_id })),
+                        );
+                    }
+                }
+            }
+            entries.sort_by(|left, right| left.lineage.fork_id.cmp(&right.lineage.fork_id));
             let app_id = entries
                 .first()
                 .map(|entry| entry.lineage.app_id.clone())
                 .unwrap_or_else(|| "unknown".to_owned());
-            let envelope = fork_envelope(
+            let resource_usage = json!({
+                "forkCount": entries.len() + unbound.len(),
+                "totalBytes": crate::instance_fork::directory_tree_bytes(&root)?,
+                "defaultLimits": {
+                    "maxForks": crate::instance_fork::MANAGED_FORK_MAX_COUNT,
+                    "maxForkBytes": crate::instance_fork::MANAGED_FORK_MAX_FORK_BYTES,
+                    "maxTotalBytes": crate::instance_fork::MANAGED_FORK_MAX_TOTAL_BYTES,
+                    "maxLifetimeMs": crate::instance_fork::MANAGED_FORK_MAX_LIFETIME_MS,
+                    "maxDiffRows": crate::instance_fork::FORK_DIFF_MAX_ROWS,
+                },
+            });
+            let envelope = fork_envelope_with_diagnostics(
                 "fork.list",
                 app_id,
                 Some(&app_root),
                 None,
-                json!({ "forkRoot": root, "forks": entries }),
+                json!({
+                    "forkRoot": root,
+                    "forks": entries,
+                    "unboundRegistry": unbound,
+                    "resourceUsage": resource_usage,
+                }),
+                diagnostics,
             );
             print_envelope(&serde_json::to_value(envelope)?);
             Ok(())
+        }
+        ForkCommand::Inspect {
+            fork_id,
+            app_root,
+            fork_root: requested_root,
+            format,
+        } => {
+            let app_root = std::fs::canonicalize(app_root)?;
+            let root = fork_root(&app_root, requested_root)?;
+            let target = crate::instance_fork::managed_target(&root, &fork_id)?;
+            let (process_health, mut diagnostics, server_url) = fork_process_health(&target);
+            let diff_database = target.database.clone();
+            let diff_summary = match startup_blocking(|| {
+                crate::instance_fork::diff_receipt(&diff_database)
+            }) {
+                Ok(receipt) => json!({
+                    "schemaVersion": "snapback.fork-diff-summary.v1",
+                    "available": true,
+                    "attributedRowCount": receipt.rows.len(),
+                    "tableCounts": receipt.table_counts,
+                    "observedHeadVersion": receipt.observed_head_version,
+                    "coverage": receipt.coverage,
+                    "omissions": receipt.omissions,
+                }),
+                Err(error) => {
+                    diagnostics.push(error.diagnostic);
+                    json!({
+                        "schemaVersion": "snapback.fork-diff-summary.v1",
+                        "available": false,
+                    })
+                }
+            };
+            let ready_path = target
+                .ready_file
+                .as_deref()
+                .map(|path| path.display().to_string());
+            let admin_token_path = crate::admin::admin_token_sibling(&target.database);
+            let status = json!({
+                "schemaVersion": "snapback.fork-status.v1",
+                "forkId": target.entry.lineage.fork_id,
+                "parentInstanceId": target.entry.lineage.parent_instance_id,
+                "parentIdentityKind": "recorded-source-provenance",
+                "appId": target.entry.lineage.app_id,
+                "forkPointVersion": target.entry.lineage.fork_point_version,
+                "createdAtMs": target.entry.lineage.created_at_ms,
+                "expiresAtMs": target.entry.lineage.expires_at_ms,
+                "processHealth": process_health,
+                "databasePath": target.database,
+                "readyPath": target.ready_file,
+                "adminTokenPath": admin_token_path,
+                "secretDisposition": managed_fork_secret_disposition(&target),
+                "workerPosture": {
+                    "cron": "inert",
+                    "jobs": "inert",
+                    "assets": "inert",
+                },
+                "egressPosture": "deny-all-v1",
+                "diffSummary": diff_summary,
+            });
+            let envelope = fork_envelope_with_diagnostics(
+                "fork.inspect",
+                target.entry.lineage.app_id.clone(),
+                Some(&app_root),
+                server_url.clone(),
+                json!({ "status": status }),
+                diagnostics,
+            );
+            let scalars = ForkProjectionScalars {
+                url: server_url,
+                fork_id: Some(fork_id),
+                database_path: Some(target.database.display().to_string()),
+                ready_path,
+                admin_token_path: Some(admin_token_path.display().to_string()),
+            };
+            print_fork_projection(format, &envelope, &scalars)
         }
         ForkCommand::Diff {
             fork_id,
             app_root,
             fork_root: requested_root,
             out,
+            max_rows,
         } => {
             let app_root = std::fs::canonicalize(app_root)?;
             let root = fork_root(&app_root, requested_root)?;
             let target = crate::instance_fork::managed_target(&root, &fork_id)?;
-            let receipt =
-                startup_blocking(|| crate::instance_fork::diff_receipt(&target.database))?;
+            let receipt = startup_blocking(|| {
+                crate::instance_fork::diff_receipt_bounded(&target.database, max_rows)
+            })?;
             if let Some(path) = out.as_ref() {
                 std::fs::write(path, serde_json::to_vec_pretty(&receipt)?)?;
             }
@@ -2570,6 +3119,7 @@ async fn fork_command(command: ForkCommand) -> anyhow::Result<()> {
         } => {
             let app_root = std::fs::canonicalize(app_root)?;
             let root = fork_root(&app_root, requested_root)?;
+            let lock = crate::instance_fork::lock_cleanup(&root, &fork_id)?;
             let target = crate::instance_fork::managed_target(&root, &fork_id)?;
             let stopped_pid = target
                 .ready_file
@@ -2577,13 +3127,38 @@ async fn fork_command(command: ForkCommand) -> anyhow::Result<()> {
                 .map(|ready| quiet_stop_fork(ready, &target.database))
                 .transpose()?
                 .flatten();
-            crate::instance_fork::drop_managed(&root, &fork_id)?;
+            crate::instance_fork::drop_managed_locked(&root, &fork_id)?;
+            lock.dispose();
             let envelope = fork_envelope(
                 "fork.drop",
                 target.entry.lineage.app_id,
                 Some(&app_root),
                 None,
                 json!({ "forkId": fork_id, "stoppedPid": stopped_pid, "dropped": true }),
+            );
+            print_envelope(&serde_json::to_value(envelope)?);
+            Ok(())
+        }
+        ForkCommand::Renew {
+            fork_id,
+            ttl,
+            app_root,
+            fork_root: requested_root,
+        } => {
+            let app_root = std::fs::canonicalize(app_root)?;
+            let root = fork_root(&app_root, requested_root)?;
+            let ttl_ms = parse_fork_ttl(&ttl)?;
+            let renewed_at_ms = clock();
+            let receipt = startup_blocking(|| {
+                crate::instance_fork::renew_managed(&root, &fork_id, renewed_at_ms, ttl_ms)
+            })?;
+            let entry = crate::instance_fork::managed_entry(&root, &fork_id)?;
+            let envelope = fork_envelope(
+                "fork.renew",
+                entry.lineage.app_id.clone(),
+                Some(&app_root),
+                None,
+                json!({ "receipt": receipt, "registry": entry }),
             );
             print_envelope(&serde_json::to_value(envelope)?);
             Ok(())
@@ -2599,28 +3174,95 @@ async fn fork_command(command: ForkCommand) -> anyhow::Result<()> {
                 now_ms <= crate::manifest::PORTABLE_TIMESTAMP_MAX_MS,
                 "SNAPBACK_FORK_REAP_CLOCK_INVALID: reap clock exceeds the portable timestamp range"
             );
-            let expired = crate::instance_fork::expired_managed(&root, now_ms)?;
-            let mut reaped = Vec::new();
-            for entry in expired {
-                let target = crate::instance_fork::managed_target(&root, &entry.lineage.fork_id)?;
-                if let Some(ready) = target.ready_file.as_deref() {
-                    let _ = quiet_stop_fork(ready, &target.database)?;
-                }
-                crate::instance_fork::drop_managed(&root, &entry.lineage.fork_id)?;
-                reaped.push(entry.lineage.fork_id);
-            }
-            reaped.sort();
+            let outcome = reap_managed_forks(&root, now_ms)?;
             let receipt = crate::instance_fork::ForkReapReceiptV1 {
                 schema_version: "snapback.fork-reap.v1".to_owned(),
                 now_ms,
-                reaped_fork_ids: reaped,
+                reaped_fork_ids: outcome.reaped,
             };
             let envelope = fork_envelope(
                 "fork.reap",
                 "unknown".to_owned(),
                 Some(&app_root),
                 None,
-                json!({ "receipt": receipt }),
+                json!({
+                    "receipt": receipt,
+                    "clearedStaleRegistryIds": outcome.cleared_stale_registry,
+                }),
+            );
+            print_envelope(&serde_json::to_value(envelope)?);
+            Ok(())
+        }
+        ForkCommand::Recover {
+            destination,
+            app_root,
+            fork_root: requested_root,
+        } => {
+            let app_root = std::fs::canonicalize(app_root)?;
+            let root = fork_root(&app_root, requested_root)?;
+            let destination = resolve_fork_destination(&root, destination)?;
+            let was_partial = destination.join(crate::instance_fork::STAGING_SENTINEL).is_file();
+            // A published directory, partial or complete, must carry a finite
+            // product lineage. Pre-publication staging is safe to reap without
+            // granting it serving authority.
+            if destination.is_dir() {
+                let receipt: crate::instance_fork::ForkMintReceiptV1 = serde_json::from_slice(
+                    &std::fs::read(destination.join(crate::instance_fork::MINT_RECEIPT_FILE))
+                        .context(
+                            "SNAPBACK_FORK_EVIDENCE_INCOMPLETE: partial publication has no mint receipt",
+                        )?,
+                )
+                .context("SNAPBACK_FORK_RECEIPT_INVALID: recovery receipt is malformed")?;
+                anyhow::ensure!(
+                    receipt.lineage.expires_at_ms.is_some(),
+                    "SNAPBACK_FORK_TTL_INVALID: product recovery refuses an unbounded derived fork"
+                );
+            }
+            let recover_root = root.clone();
+            let recover_destination = destination.clone();
+            startup_blocking(|| {
+                crate::instance_fork::recover(&recover_root, &recover_destination)
+            })?;
+
+            let receipt = if destination.is_dir() {
+                serde_json::from_slice::<crate::instance_fork::ForkMintReceiptV1>(
+                    &std::fs::read(destination.join(crate::instance_fork::MINT_RECEIPT_FILE))
+                        .context(
+                            "SNAPBACK_FORK_EVIDENCE_INCOMPLETE: recovered destination has no mint receipt",
+                        )?,
+                )
+                .context("SNAPBACK_FORK_RECEIPT_INVALID: recovered mint receipt is malformed")?
+                .into()
+            } else {
+                None
+            };
+            let registry = receipt.as_ref().and_then(|receipt| {
+                crate::instance_fork::managed_entry(&root, &receipt.lineage.fork_id).ok()
+            });
+            let disposition = match (was_partial, destination.exists()) {
+                (true, true) => "published-recovered",
+                (false, true) => "already-published",
+                (_, false) => "unpublished-staging-reaped-or-absent",
+            };
+            let app_id = receipt
+                .as_ref()
+                .map(|receipt| receipt.lineage.app_id.clone())
+                .unwrap_or_else(|| "unknown".to_owned());
+            let fork_id = receipt
+                .as_ref()
+                .map(|receipt| receipt.lineage.fork_id.clone());
+            let envelope = fork_envelope(
+                "fork.recover",
+                app_id,
+                Some(&app_root),
+                None,
+                json!({
+                    "forkRoot": root,
+                    "destination": destination,
+                    "disposition": disposition,
+                    "forkId": fork_id,
+                    "registry": registry,
+                }),
             );
             print_envelope(&serde_json::to_value(envelope)?);
             Ok(())
@@ -4779,6 +5421,8 @@ async fn run_composed(
         }
     };
     let derived_fork_boot = snapback.is_derived_fork();
+    let derived_fork_lineage = snapback.derived_fork_identity().cloned();
+    debug_assert_eq!(derived_fork_boot, derived_fork_lineage.is_some());
 
     // Assemble exactly one provider before listener bind. This is inspection,
     // not activation: an uninitialized catalog remains dormant and no keyring
@@ -5319,7 +5963,7 @@ async fn run_composed(
         );
     }
     println!("admin console: http://{local_addr}/_snapback/admin");
-    if let Some(db_path) = database_path {
+    if let Some(db_path) = &database_path {
         println!("sqlite database: {}", db_path.display());
     }
     // @ref LLP 0017#security-defaults — be explicit about how admin is gated.
@@ -5410,8 +6054,11 @@ async fn run_composed(
         .bind(listener)?
         .serve_with_graceful_shutdown(shutdown_signal());
     tokio::pin!(server);
-    let server_result: anyhow::Result<()> = tokio::select! {
-        result = &mut server => result.map_err(anyhow::Error::new),
+    let fork_expiry =
+        wait_for_derived_fork_expiry(database_path.clone(), derived_fork_lineage);
+    tokio::pin!(fork_expiry);
+    let (server_result, expired_fork_shutdown): (anyhow::Result<()>, bool) = tokio::select! {
+        result = &mut server => (result.map_err(anyhow::Error::new), false),
         stopped = auth_expiry_worker.stopped() => {
             let _ = auth_coordinator.fail_global_closed();
             let error = stopped.err().unwrap_or_else(|| {
@@ -5421,7 +6068,12 @@ async fn run_composed(
                     "the process-local session expiry worker stopped unexpectedly",
                 )
             });
-            Err(anyhow::Error::new(error))
+            (Err(anyhow::Error::new(error)), false)
+        }
+        (lineage, observed_at_ms) = &mut fork_expiry => {
+            let error = crate::instance_fork::server_expired_error(&lineage, observed_at_ms);
+            eprintln!("{}: {}", error.diagnostic.code, error.diagnostic.message);
+            (Err(anyhow::Error::new(error)), true)
         }
     };
     if let Some(scheduler) = cron_scheduler {
@@ -5442,7 +6094,13 @@ async fn run_composed(
     if let Some(target) = ready_target.as_ref() {
         let _ = target.remove_impersonation_capability();
         let _ = target.remove_secret_read_root();
-        let _ = target.remove_published();
+        // Keep the non-secret descriptor after an expiry-driven shutdown.
+        // The next registry-bound reap can then verify the recorded PID is
+        // gone before removing the directory; deleting it here would discard
+        // the only safe process-identity proof available to the reaper.
+        if !expired_fork_shutdown {
+            let _ = target.remove_published();
+        }
     }
     // An in-memory instance's minted token dies with the process; remove the
     // ready-file-sibling token file it was handed off through (ENG-23443).
@@ -7063,7 +7721,8 @@ mod tests {
         AuthCoordinatorReadinessReceipt, AuthProgramConstructionReceipts,
         BEFORE_STARTUP_TARGET_RESERVATION, Cli, ErrorsCommand, ForkCommand, HostCommand,
         ManagedPath, NetworkProfileCommand, ReadyFileTarget, ResolvedHttpTarget, SessionCommand,
-        TargetArgs, TelemetryCommand, bind_first_available, bind_listener,
+        TargetArgs, TelemetryCommand,
+        automatic_reap_before_create, bind_first_available, bind_listener,
         console_claim_fragment_url, console_fragment_url, fork_secret_disposition,
         managed_startup_paths, mint_secret_read_via_http, parse_fork_ttl,
         parse_network_profile_selection, parse_run_args, path_with_filename_suffix,
@@ -7073,7 +7732,7 @@ mod tests {
         write_ready_file_atomic, write_ready_file_atomic_protected,
     };
     use crate::instance_lock::TargetInstanceReservation;
-    use clap::Parser;
+    use clap::{CommandFactory, Parser};
     use serde_json::json;
     use std::io::{Read as _, Write as _};
     use std::path::{Path, PathBuf};
@@ -7115,6 +7774,87 @@ mod tests {
             }
             _ => panic!("expected fork create"),
         }
+    }
+
+    #[test]
+    fn fork_help_exposes_one_coherent_lifecycle_and_scalar_formats() {
+        let fork_help = Cli::command()
+            .find_subcommand_mut("fork")
+            .expect("fork command")
+            .render_long_help()
+            .to_string();
+        for lifecycle_word in [
+            "create", "inspect", "list", "diff", "renew", "drop", "reap", "recover",
+        ] {
+            assert!(fork_help.contains(lifecycle_word), "{lifecycle_word}: {fork_help}");
+        }
+
+        let cli = Cli::parse_from([
+            "snapback",
+            "fork",
+            "inspect",
+            "019fd4b0-f093-7a30-835e-0c4e9ae7c7a1",
+            "--format",
+            "admin-token-path",
+        ]);
+        assert!(matches!(
+            cli.command,
+            Some(HostCommand::Fork {
+                command: ForkCommand::Inspect {
+                    format: super::ForkOutputFormat::AdminTokenPath,
+                    ..
+                }
+            })
+        ));
+    }
+
+    #[test]
+    fn fork_create_refuses_when_automatic_sweep_cannot_prove_stop() {
+        let directory = tempfile::tempdir().unwrap();
+        let source = directory.path().join("parent.sqlite3");
+        let database = crate::storage::LocalDatabase::open(&source).unwrap();
+        drop(database);
+        let root = directory.path().join("forks");
+        std::fs::create_dir(&root).unwrap();
+        let destination = root.join("fork-a");
+        let receipt = crate::instance_fork::publish_managed(
+            &source,
+            &destination,
+            "app-a",
+            "parent-a",
+            100,
+            200,
+            false,
+        )
+        .unwrap();
+        let ready = destination.join("fork.ready.json");
+        std::fs::write(&ready, b"{}").unwrap();
+        crate::instance_fork::record_managed_runtime(
+            &root,
+            &receipt.lineage.fork_id,
+            &ready,
+            None,
+        )
+        .unwrap();
+
+        let error = automatic_reap_before_create(&root, 200).unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("SNAPBACK_FORK_EXPIRED_REAP_FAILED"),
+            "{error}"
+        );
+        let snapback_error = error
+            .downcast_ref::<crate::diagnostic::SnapbackError>()
+            .expect("typed refusal");
+        assert!(
+            snapback_error.diagnostic.details["cause"]
+                .as_str()
+                .is_some_and(|cause| cause.contains("SNAPBACK_FORK_READY_INVALID")),
+            "the refusal carries the exact per-fork cause, got {:?}",
+            snapback_error.diagnostic.details
+        );
+        assert!(destination.is_dir(), "failed sweep must fail closed");
     }
 
     #[test]
