@@ -783,6 +783,40 @@ export interface OutboxReplayOutcome {
   readonly stopped?: boolean;
 }
 
+export interface OutboxFreshSnapshotBarrierV1 {
+  readonly schemaVersion: 'snapback.outbox-fresh-snapshot-barrier.v1';
+  readonly status: 'passed';
+  readonly kind: 'full-snapshot';
+}
+
+export interface OutboxDispositionCounts {
+  readonly pending: number;
+  readonly failed: number;
+  readonly quarantined: number;
+  readonly resultGone: number;
+}
+
+/** Checked receipt for an explicit cross-origin sidecar store handoff. The
+ * global default store remains per-origin; only a caller-injected durable
+ * store can enter this path. */
+export interface OutboxAdoptionReceipt {
+  readonly schemaVersion: 'snapback.outbox-adoption.v1';
+  readonly candidateOrigin: string;
+  readonly clientStoreId: string;
+  readonly writer: true;
+  readonly freshSnapshotBarrier: OutboxFreshSnapshotBarrierV1;
+  readonly artifactGeneration: ArtifactGeneration;
+  readonly before: OutboxDispositionCounts;
+  readonly after: OutboxDispositionCounts;
+  readonly pendingBefore: number;
+  readonly replayed: number;
+  readonly failedDelta: number;
+  readonly quarantinedDelta: number;
+  readonly resultGoneDelta: number;
+  readonly remaining: number;
+  readonly stopped: boolean;
+}
+
 /** Stable LLP 0081 payload-free observation of one held mutation. The durable
  * client store privately retains the intent for explicit successor re-entry. */
 export interface QuarantinedMutationTombstone {
@@ -1224,6 +1258,16 @@ export class SnapbackClient {
   readonly rqsStoreInfo: RqsStoreInfo;
   /** Drain the durable outbox in sequence order (single-flight). */
   replayQueuedMutations(): Promise<OutboxReplayOutcome>;
+  /** Explicit sidecar-only handoff of one caller-owned durable store across a
+   * transport-origin change. Requires an app-owned full-snapshot barrier,
+   * exact artifact generation, store identity, and writer custody. */
+  adoptQueuedMutations(options: {
+    readonly expectedClientStoreId: string;
+    readonly expectedGeneration: ArtifactGeneration;
+    readonly afterFreshSnapshot: () =>
+      | OutboxFreshSnapshotBarrierV1
+      | Promise<OutboxFreshSnapshotBarrierV1>;
+  }): Promise<OutboxAdoptionReceipt>;
   /** Payload-free tombstones for upgrade-incompatible queued intents. */
   quarantinedMutations(): Promise<readonly QuarantinedMutationTombstone[]>;
   /** Explicitly return the whole quarantine to pending after successor

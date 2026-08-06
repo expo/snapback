@@ -234,6 +234,38 @@ export const DEFAULT_POLL_CADENCE_MS = 1_500;
 const SNAPBACK_ID_TABLE = /^[A-Za-z_][A-Za-z0-9_]*$/u;
 const SNAPBACK_OPAQUE_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$/u;
 
+const freezeDeep = (value) => {
+  if (value !== null && typeof value === 'object' && !Object.isFrozen(value)) {
+    for (const member of Object.values(value)) freezeDeep(member);
+    Object.freeze(value);
+  }
+  return value;
+};
+
+const isUnresolvedOutboxRecord = (record) => (
+  record?.status === 'pending'
+  || record?.status === 'quarantined'
+  || record?.status === 'result-gone'
+);
+
+const outboxDispositionCounts = (records) => {
+  const counts = { pending: 0, failed: 0, quarantined: 0, resultGone: 0 };
+  for (const record of records) {
+    if (record?.status === 'pending') counts.pending += 1;
+    else if (record?.status === 'failed') counts.failed += 1;
+    else if (record?.status === 'quarantined') counts.quarantined += 1;
+    else if (record?.status === 'result-gone') counts.resultGone += 1;
+  }
+  return counts;
+};
+
+const outboxAdoptionError = (code, message, details = {}) => {
+  const error = new Error(`${code}: ${message}`);
+  error.code = code;
+  error.diagnostic = { code, message, details };
+  return error;
+};
+
 function searchReferenceInvalid(message, details = {}) {
   const error = new Error(`SNAPBACK_SEARCH_REFERENCE_INVALID: ${message}`);
   error.code = 'SNAPBACK_SEARCH_REFERENCE_INVALID';
@@ -6202,8 +6234,12 @@ export class SnapbackClient {
   /// failure stops the drain with the record still pending. Single-flight:
   /// concurrent calls share one drain.
   async replayQueuedMutations() {
+    return this.#replayQueuedMutationsWithOptions();
+  }
+
+  async #replayQueuedMutationsWithOptions(options = undefined) {
     if (this.__outboxReplayTask) return this.__outboxReplayTask;
-    const task = this.#replayOutboxOnce().finally(() => {
+    const task = this.#replayOutboxOnce(options).finally(() => {
       if (this.__outboxReplayTask === task) this.__outboxReplayTask = null;
       this.#notifyOutboxListeners();
     });
@@ -6212,7 +6248,7 @@ export class SnapbackClient {
     return task;
   }
 
-  async #replayOutboxOnce() {
+  async #replayOutboxOnce({ preserveTerminalFailures = false } = {}) {
     let store = null;
     try {
       store = this.#offlineQueueStore();
@@ -6222,7 +6258,11 @@ export class SnapbackClient {
     if (!store) return { replayed: 0, failed: 0, quarantined: 0, remaining: 0 };
     if (typeof store.whenLockSettled === 'function') await store.whenLockSettled();
     if (typeof store.isWriter === 'function' && store.isWriter() !== true) {
-      return { replayed: 0, failed: 0, quarantined: 0, remaining: 0, stopped: true };
+      // @ref LLP 0008#decision-dk-9--client-local-store-mandate-2026-07-02 —
+      // a non-writer may inspect the shared durable domain but may not mutate
+      // it. Never turn that custody refusal into a misleading empty queue.
+      const remaining = (await store.outboxRecords()).filter(isUnresolvedOutboxRecord).length;
+      return { replayed: 0, failed: 0, quarantined: 0, remaining, stopped: true };
     }
     let pending;
     try {
@@ -6487,6 +6527,24 @@ export class SnapbackClient {
           });
           break;
         }
+        if (preserveTerminalFailures) {
+          // Sidecar adoption is a reversible stop/start handoff. A candidate
+          // identity refusal must leave the durable intent pending so the
+          // predecessor can be reattached; the ordinary reconnect path below
+          // retains LLP 0008's drop-and-mark-failed behavior.
+          //
+          // This preserves pending work across a stop/start cut. It does not
+          // make the sidecar zero-request-downtime; that needs a stable front
+          // door or overlapping runtimes owned by a separate design.
+          this.#recordOutboxDiagnostic({
+            code: 'SNAPBACK_OUTBOX_ADOPTION_REPLAY_REFUSED',
+            mutation: record.function,
+            clientMutationId: record.id,
+            reason: error?.diagnostic?.code ?? error?.code ?? error?.message,
+          });
+          stopped = true;
+          break;
+        }
         // LLP 0008: a mutation the server refused on replay is dropped and
         // marked failed, never retried — observable client state.
         let markedFailed = false;
@@ -6519,6 +6577,121 @@ export class SnapbackClient {
         )).length;
     } catch { /* inspection only */ }
     return { replayed, failed, quarantined, remaining, stopped };
+  }
+
+  /**
+   * Adopt the caller-owned durable outbox after a sidecar transport change.
+   * This is an explicit opt-in store handoff: default per-origin store
+   * selection remains unchanged, so unrelated servers never merge queues.
+   *
+   * @ref LLP 0129#phase-2b-desktop-sidecar-first-rung-note--2026-08-05 —
+   * pending-work-preserving replacement is a checked follow-on to the cold
+   * stop/start rung, not a literal zero-request-downtime claim.
+   */
+  async adoptQueuedMutations({
+    expectedClientStoreId,
+    expectedGeneration,
+    afterFreshSnapshot,
+  } = {}) {
+    if (typeof expectedClientStoreId !== 'string' || expectedClientStoreId.length === 0) {
+      throw new TypeError('adoptQueuedMutations requires expectedClientStoreId');
+    }
+    const expectedArtifactGeneration = normalizeExpectedGeneration(
+      expectedGeneration,
+      'adoptQueuedMutations expectedGeneration',
+    );
+    if (typeof afterFreshSnapshot !== 'function') {
+      throw new TypeError('adoptQueuedMutations requires an afterFreshSnapshot function');
+    }
+    const store = this.#offlineQueueStore(true);
+
+    const barrier = normalizeOutboxFreshSnapshotBarrier(await afterFreshSnapshot());
+    if (barrier === null) {
+      throw outboxAdoptionError(
+        'SNAPBACK_OUTBOX_ADOPTION_FRESH_SNAPSHOT_REQUIRED',
+        'the application fresh-snapshot barrier returned no passed v1 evidence',
+      );
+    }
+
+    if (typeof store.whenLockSettled === 'function') await store.whenLockSettled();
+    if (typeof store.isWriter !== 'function' || store.isWriter() !== true) {
+      throw outboxAdoptionError(
+        'SNAPBACK_OUTBOX_ADOPTION_NOT_WRITER',
+        'the adopted durable store has not acquired single-writer custody',
+      );
+    }
+    if (typeof store.readStoreMeta !== 'function') {
+      throw outboxAdoptionError(
+        'SNAPBACK_OUTBOX_ADOPTION_STORE_ID_UNAVAILABLE',
+        'the adopted durable store cannot attest clientStoreId',
+      );
+    }
+    const observedClientStoreId = (await store.readStoreMeta())?.clientStoreId;
+    if (observedClientStoreId !== expectedClientStoreId) {
+      throw outboxAdoptionError(
+        'SNAPBACK_OUTBOX_ADOPTION_STORE_ID_MISMATCH',
+        'the candidate client opened a different durable store domain',
+        { expectedClientStoreId, observedClientStoreId: observedClientStoreId ?? null },
+      );
+    }
+
+    const inspection = await this.inspect();
+    const candidateGeneration = artifactGenerationFromInspection(inspection);
+    if (
+      candidateGeneration === null
+      || !sameArtifactGeneration(candidateGeneration, expectedArtifactGeneration)
+    ) {
+      throw outboxAdoptionError(
+        'SNAPBACK_OUTBOX_ADOPTION_INCOMPATIBLE_SUCCESSOR',
+        'the candidate app/schema/function generation does not exactly match the predecessor',
+        { expectedGeneration: expectedArtifactGeneration, observedGeneration: candidateGeneration },
+      );
+    }
+
+    const beforeRecords = await store.outboxRecords();
+    const before = outboxDispositionCounts(beforeRecords);
+    for (const record of beforeRecords.filter((entry) => entry?.status === 'pending')) {
+      const recordGeneration = record.expectedGeneration === null
+        || record.expectedGeneration === undefined
+        ? null
+        : normalizeExpectedGeneration(
+          record.expectedGeneration,
+          `pending outbox record ${record.id} expectedGeneration`,
+        );
+      if (
+        recordGeneration === null
+        || !sameArtifactGeneration(recordGeneration, expectedArtifactGeneration)
+      ) {
+        throw outboxAdoptionError(
+          'SNAPBACK_OUTBOX_ADOPTION_INTENT_INCOMPATIBLE',
+          'a pending intent is not exactly bound to the predecessor artifact generation',
+          { clientMutationId: record.id, expectedGeneration: expectedArtifactGeneration },
+        );
+      }
+    }
+
+    const replay = await this.#replayQueuedMutationsWithOptions({
+      preserveTerminalFailures: true,
+    });
+    const after = outboxDispositionCounts(await store.outboxRecords());
+    const receipt = {
+      schemaVersion: 'snapback.outbox-adoption.v1',
+      candidateOrigin: this.baseUrl,
+      clientStoreId: observedClientStoreId,
+      writer: store.isWriter() === true,
+      freshSnapshotBarrier: barrier,
+      artifactGeneration: candidateGeneration,
+      before,
+      after,
+      pendingBefore: before.pending,
+      replayed: replay.replayed,
+      failedDelta: Math.max(0, after.failed - before.failed),
+      quarantinedDelta: Math.max(0, after.quarantined - before.quarantined),
+      resultGoneDelta: Math.max(0, after.resultGone - before.resultGone),
+      remaining: after.pending + after.quarantined + after.resultGone,
+      stopped: replay.stopped === true,
+    };
+    return freezeDeep(receipt);
   }
 
   async mutate(ref, {
@@ -12499,22 +12672,71 @@ const EXPECTED_GENERATION_KEYS = Object.freeze([
   'inputsHash',
 ]);
 
-function expectedGeneration(ref) {
-  if (typeof ref !== 'object' || ref === null || ref.expectedGeneration == null) return null;
-  const value = ref.expectedGeneration;
+function normalizeExpectedGeneration(value, label) {
   if (
     typeof value !== 'object'
+    || value === null
     || Array.isArray(value)
+    || Object.keys(value).length !== EXPECTED_GENERATION_KEYS.length
     || Object.keys(value).some((key) => !EXPECTED_GENERATION_KEYS.includes(key))
     || EXPECTED_GENERATION_KEYS.some(
       (key) => typeof value[key] !== 'string' || value[key].length === 0,
     )
   ) {
-    throw new TypeError(
-      'Snapback function reference expectedGeneration must be the complete generated artifact identity',
-    );
+    throw new TypeError(`${label} must be the complete generated artifact identity`);
   }
   return Object.fromEntries(EXPECTED_GENERATION_KEYS.map((key) => [key, value[key]]));
+}
+
+const sameArtifactGeneration = (left, right) => (
+  EXPECTED_GENERATION_KEYS.every((key) => left?.[key] === right?.[key])
+);
+
+function artifactGenerationFromInspection(inspection) {
+  const schema = inspection?.schema;
+  const functions = inspection?.functions;
+  const value = {
+    schemaVersion: schema?.schemaVersion,
+    appId: schema?.appId,
+    schemaHash: schema?.schemaHash,
+    bundleHash: functions?.bundleHash,
+    inputsHash: schema?.inputsHash,
+  };
+  if (
+    schema?.appId !== functions?.appId
+    || schema?.schemaVersion !== functions?.schemaVersion
+    || schema?.inputsHash !== functions?.inputsHash
+  ) return null;
+  try {
+    return normalizeExpectedGeneration(value, 'candidate inspection generation');
+  } catch {
+    return null;
+  }
+}
+
+function normalizeOutboxFreshSnapshotBarrier(value) {
+  if (
+    value === null
+    || typeof value !== 'object'
+    || Array.isArray(value)
+    || Object.keys(value).length !== 3
+    || value.schemaVersion !== 'snapback.outbox-fresh-snapshot-barrier.v1'
+    || value.status !== 'passed'
+    || value.kind !== 'full-snapshot'
+  ) return null;
+  return Object.freeze({
+    schemaVersion: value.schemaVersion,
+    status: value.status,
+    kind: value.kind,
+  });
+}
+
+function expectedGeneration(ref) {
+  if (typeof ref !== 'object' || ref === null || ref.expectedGeneration == null) return null;
+  return normalizeExpectedGeneration(
+    ref.expectedGeneration,
+    'Snapback function reference expectedGeneration',
+  );
 }
 
 function validateGeneratedArguments(ref, args, name = functionName(ref)) {

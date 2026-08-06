@@ -6,7 +6,7 @@
 // demos/public-dashboard/tests/acceptance/offline-local-first.mjs.
 
 import assert from 'node:assert/strict';
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
@@ -31,6 +31,33 @@ const TEST_AUTHORITY_DESCRIPTOR = Object.freeze({
   sessionGeneration: 1,
 });
 const TEST_SESSION_USER_ID = '018f0d90-7b25-7a22-8c33-445566778899';
+const TEST_ARTIFACT_GENERATION = Object.freeze({
+  schemaVersion: 'snapback.v0',
+  appId: 'outbox-adoption-test',
+  schemaHash: `sha256:${'a'.repeat(64)}`,
+  bundleHash: `sha256:${'b'.repeat(64)}`,
+  inputsHash: `sha256:${'c'.repeat(64)}`,
+});
+const TEST_FRESH_SNAPSHOT_BARRIER = Object.freeze({
+  schemaVersion: 'snapback.outbox-fresh-snapshot-barrier.v1',
+  status: 'passed',
+  kind: 'full-snapshot',
+});
+
+const adoptionInspection = (generation = TEST_ARTIFACT_GENERATION) => ({
+  schema: {
+    schemaVersion: generation.schemaVersion,
+    appId: generation.appId,
+    schemaHash: generation.schemaHash,
+    inputsHash: generation.inputsHash,
+  },
+  functions: {
+    schemaVersion: generation.schemaVersion,
+    appId: generation.appId,
+    bundleHash: generation.bundleHash,
+    inputsHash: generation.inputsHash,
+  },
+});
 
 const sessionHandshake = (authorityDescriptor, userId = TEST_SESSION_USER_ID) => ({
   protocolVersion: 1,
@@ -660,6 +687,181 @@ test('mutate queues on connectivity failure and replays exactly-once', async (t)
     [],
     'a successful response confirms the sent acknowledgements',
   );
+});
+
+test('checked sidecar adoption drains one injected store against the candidate origin', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const clientStoreId = (await store.readStoreMeta()).clientStoreId;
+  await store.outboxEnqueue({
+    id: 'cm-sidecar-adoption',
+    function: 'createThing',
+    args: { title: 'pending across origin' },
+    expectedGeneration: TEST_ARTIFACT_GENERATION,
+  });
+  const delivered = [];
+  globalThis.fetch = async (url, init = {}) => {
+    if (String(url).endsWith('/inspect')) return Response.json(adoptionInspection());
+    const body = JSON.parse(init.body);
+    delivered.push({ url: String(url), body });
+    return Response.json({ result: { ok: true }, version: 7 });
+  };
+  const candidate = new SnapbackClient('http://127.0.0.1:41002', {
+    rqsStore: store,
+    offlineQueue: true,
+  });
+  const receipt = await candidate.adoptQueuedMutations({
+    expectedClientStoreId: clientStoreId,
+    expectedGeneration: TEST_ARTIFACT_GENERATION,
+    afterFreshSnapshot: async () => TEST_FRESH_SNAPSHOT_BARRIER,
+  });
+  assert.equal(receipt.schemaVersion, 'snapback.outbox-adoption.v1');
+  assert.equal(receipt.clientStoreId, clientStoreId);
+  assert.equal(receipt.writer, true);
+  assert.equal(receipt.pendingBefore, 1);
+  assert.equal(receipt.replayed, 1);
+  assert.equal(receipt.remaining, 0);
+  assert.equal(receipt.stopped, false);
+  assert.deepEqual(receipt.before, { pending: 1, failed: 0, quarantined: 0, resultGone: 0 });
+  assert.deepEqual(receipt.after, { pending: 0, failed: 0, quarantined: 0, resultGone: 0 });
+  assert.equal(delivered[0].url, 'http://127.0.0.1:41002/mutation/createThing');
+  assert.equal(delivered[0].body.clientMutationId, 'cm-sidecar-adoption');
+  assert.equal(Object.isFrozen(receipt), true);
+  assert.equal(Object.isFrozen(receipt.before), true);
+});
+
+test('sidecar adoption refuses freshness, store, writer, and artifact divergence before replay', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const directory = mkdtempSync(join(tmpdir(), 'snapback-outbox-adoption-writer-'));
+  const firstStore = createFileRqsResumeStore({
+    directory,
+    identity: 'sidecar-adoption-writer',
+    clientStoreId: 'sidecar-adoption-writer-store',
+  });
+  await firstStore.whenLockSettled();
+  await firstStore.outboxEnqueue({
+    id: 'cm-sidecar-writer-fence',
+    function: 'createThing',
+    args: {},
+    expectedGeneration: TEST_ARTIFACT_GENERATION,
+  });
+  const secondStore = createFileRqsResumeStore({
+    directory,
+    identity: 'sidecar-adoption-writer',
+  });
+  t.after(async () => {
+    await secondStore.close();
+    await firstStore.close();
+    rmSync(directory, { recursive: true, force: true });
+  });
+  await secondStore.whenLockSettled();
+  assert.equal(secondStore.isWriter(), false);
+  const nonWriter = new SnapbackClient('http://127.0.0.1:41003', {
+    rqsStore: secondStore,
+    offlineQueue: true,
+  });
+  await assert.rejects(
+    () => nonWriter.adoptQueuedMutations({
+      expectedClientStoreId: 'sidecar-adoption-writer-store',
+      expectedGeneration: TEST_ARTIFACT_GENERATION,
+      afterFreshSnapshot: async () => TEST_FRESH_SNAPSHOT_BARRIER,
+    }),
+    (error) => error.code === 'SNAPBACK_OUTBOX_ADOPTION_NOT_WRITER',
+  );
+  const fencedReplay = await nonWriter.replayQueuedMutations();
+  assert.deepEqual(
+    { remaining: fencedReplay.remaining, stopped: fencedReplay.stopped },
+    { remaining: 1, stopped: true },
+    'a non-writer reports the authoritative visible queue instead of zero',
+  );
+
+  const writerClient = new SnapbackClient('http://127.0.0.1:41004', {
+    rqsStore: firstStore,
+    offlineQueue: true,
+  });
+  let unexpectedDispatches = 0;
+  globalThis.fetch = async () => {
+    unexpectedDispatches += 1;
+    throw new Error('adoption prerequisite refusal must precede network dispatch');
+  };
+  await assert.rejects(
+    () => writerClient.adoptQueuedMutations({
+      expectedClientStoreId: 'sidecar-adoption-writer-store',
+      expectedGeneration: TEST_ARTIFACT_GENERATION,
+      afterFreshSnapshot: async () => ({
+        ...TEST_FRESH_SNAPSHOT_BARRIER,
+        kind: 'incremental',
+      }),
+    }),
+    (error) => error.code === 'SNAPBACK_OUTBOX_ADOPTION_FRESH_SNAPSHOT_REQUIRED',
+  );
+  await assert.rejects(
+    () => writerClient.adoptQueuedMutations({
+      expectedClientStoreId: 'different-sidecar-store',
+      expectedGeneration: TEST_ARTIFACT_GENERATION,
+      afterFreshSnapshot: async () => TEST_FRESH_SNAPSHOT_BARRIER,
+    }),
+    (error) => error.code === 'SNAPBACK_OUTBOX_ADOPTION_STORE_ID_MISMATCH',
+  );
+  assert.equal(unexpectedDispatches, 0);
+  globalThis.fetch = async (url) => {
+    assert.match(String(url), /\/inspect$/u, 'artifact mismatch refuses before mutation dispatch');
+    return Response.json(adoptionInspection({
+      ...TEST_ARTIFACT_GENERATION,
+      bundleHash: `sha256:${'d'.repeat(64)}`,
+    }));
+  };
+  await assert.rejects(
+    () => writerClient.adoptQueuedMutations({
+      expectedClientStoreId: 'sidecar-adoption-writer-store',
+      expectedGeneration: TEST_ARTIFACT_GENERATION,
+      afterFreshSnapshot: async () => TEST_FRESH_SNAPSHOT_BARRIER,
+    }),
+    (error) => error.code === 'SNAPBACK_OUTBOX_ADOPTION_INCOMPATIBLE_SUCCESSOR',
+  );
+  assert.equal((await firstStore.outboxPending()).length, 1);
+});
+
+test('sidecar adoption keeps identity-divergent intent pending for rollback', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const clientStoreId = (await store.readStoreMeta()).clientStoreId;
+  await store.outboxEnqueue({
+    id: 'cm-sidecar-identity-divergence',
+    function: 'createThing',
+    args: { title: 'different identity' },
+    expectedGeneration: TEST_ARTIFACT_GENERATION,
+  });
+  globalThis.fetch = async (url) => {
+    if (String(url).endsWith('/inspect')) return Response.json(adoptionInspection());
+    return Response.json({
+      diagnostic: {
+        code: 'SNAPBACK_CLIENT_MUTATION_ID_REUSED',
+        message: 'client mutation identity diverged',
+      },
+    }, { status: 409 });
+  };
+  const candidate = new SnapbackClient('http://127.0.0.1:41005', {
+    rqsStore: store,
+    offlineQueue: true,
+  });
+  const receipt = await candidate.adoptQueuedMutations({
+    expectedClientStoreId: clientStoreId,
+    expectedGeneration: TEST_ARTIFACT_GENERATION,
+    afterFreshSnapshot: async () => TEST_FRESH_SNAPSHOT_BARRIER,
+  });
+  assert.deepEqual(
+    {
+      replayed: receipt.replayed,
+      failedDelta: receipt.failedDelta,
+      remaining: receipt.remaining,
+      stopped: receipt.stopped,
+    },
+    { replayed: 0, failedDelta: 0, remaining: 1, stopped: true },
+  );
+  const [retained] = await store.outboxRecords();
+  assert.equal(retained.status, 'pending');
+  assert.equal(retained.id, 'cm-sidecar-identity-divergence');
 });
 
 test('opt-in client range transport allocates before first mutation and reuses one retry carrier', async (t) => {

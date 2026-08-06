@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "5616db4311e39373da23ae709a078d5eae61bd36"
+    "commit": "e15abe4970467339c5a671d55b6fb74579177379"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -1688,7 +1688,7 @@
       ],
       "reviewed": "2026-08-03",
       "reviewedCommit": "c442237dedd412d1fe66a85c7a0ed463eba1e013",
-      "sha256": "9bb5883459da65583fa70e25712f523c5ba563bb2d685f00d299eb7b85353725",
+      "sha256": "56f1779d1172079c34ca92c0015e30f0f1f4b90e9a0b86b5cb79b34296fd9b20",
       "snippets": [
         {
           "lang": "js",
@@ -3013,11 +3013,12 @@
         "demos/public-dashboard",
         "demos/warble",
         "packages/snapback-contract/agent-authority-contract.test.mjs",
-        "packages/snapback-react/offline.test.mjs"
+        "packages/snapback-react/offline.test.mjs",
+        "tests/acceptance/desktop-sidecar-v1.mjs"
       ],
       "reviewed": "2026-08-06",
       "reviewedCommit": "711e4d763d87cadf0c638bd15ed33a85427e4f11",
-      "sha256": "fde971949340552da32f8e05c9a0628c1b999f33f59748ce740994cc738a5287",
+      "sha256": "5367f35a6f8f2067bfe02e76ce91e2116ec3a53aa4faeef53d46cd44e9b4d154",
       "snippets": [
         {
           "lang": "js",
@@ -3262,5 +3263,5 @@
     "routes": 120,
     "hostOps": 41
   },
-  "contentHash": "d4db5e01c88d349a755fff79face0847a0ad21eac7a972150e3527e2cbc86a5c"
+  "contentHash": "086336ffd8d60f3a4e8d66b7e4eb83cc642325c4b6112e900ffcb3cfd3e0cfab"
 }

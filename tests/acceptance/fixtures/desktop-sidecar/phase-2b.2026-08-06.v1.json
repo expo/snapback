@@ -1,0 +1,149 @@
+{
+  "schemaVersion": "snapback.desktop-sidecar-acceptance.v1",
+  "date": "2026-08-06",
+  "status": "PASS",
+  "authority": [
+    "LLP 0129 Phase 2b",
+    "LLP 0030 attach"
+  ],
+  "source": {
+    "revision": "fc00370d79b969c659194a98d26643027114769e",
+    "dirty": true,
+    "files": [
+      {
+        "path": "packages/snapback-sidecar/index.mjs",
+        "sha256": "4845f4ab827cac115e4b67debc6ba4179f2922e22a52557fefbae11c499b68ad"
+      },
+      {
+        "path": "packages/snapback-sidecar/index.d.mts",
+        "sha256": "85add08f3d3fb92d9f6b0f4f8ab949bd221437e83963a7217a214a86734fbf78"
+      },
+      {
+        "path": "packages/snapback-client/index.mjs",
+        "sha256": "eb510de010ddf466aad5d8cb18d30ad3780c165b592c9f8ea61cf721967e13d4"
+      },
+      {
+        "path": "packages/snapback-client/index.d.mts",
+        "sha256": "95d79560bf696cda24267676b66b6e7b492e4ed4ceb6caa797135a03ef94687c"
+      },
+      {
+        "path": "tests/acceptance/desktop-sidecar-v1.mjs",
+        "sha256": "c04b0c95a24aad1101712ef6d9658508f51ccc9951c9dbec4338190a6f37261d"
+      }
+    ]
+  },
+  "runtime": {
+    "platform": "darwin",
+    "architecture": "arm64",
+    "binary": "target/debug/snapback",
+    "binarySha256": "f15062ac523d12fc3a0a26a73e7c7e3da5f45aa41526f93ad4d1d52dcbac12ec"
+  },
+  "sections": {
+    "healthyStart": {
+      "status": "PASS",
+      "descriptorValidated": true,
+      "healthNonceAttested": true,
+      "capabilityHandles": [
+        "admin-token",
+        "secret-read-root",
+        "impersonation"
+      ],
+      "secretSerialization": "redacted"
+    },
+    "portCustody": {
+      "status": "PASS",
+      "requested": 0,
+      "actualReportedByDescriptor": true,
+      "fixedPort": false
+    },
+    "crashRestart": {
+      "status": "PASS",
+      "errorCode": "SIDECAR_CHILD_DIED",
+      "restartAttempts": 1,
+      "boundedMaximum": 1,
+      "newProcessAttached": true
+    },
+    "pendingOutboxSwap": {
+      "status": "PASS",
+      "pendingBefore": 1,
+      "queuedBy": "same-client transport failure",
+      "clientMutationId": "mut_01kzbjwmr7ee89ef2d7akrt62b",
+      "candidateReplay": {
+        "schemaVersion": "snapback.outbox-adoption.v1",
+        "candidateOrigin": "http://127.0.0.1:50864",
+        "clientStoreId": "desktop-sidecar-acceptance",
+        "writer": true,
+        "freshSnapshotBarrier": {
+          "schemaVersion": "snapback.outbox-fresh-snapshot-barrier.v1",
+          "status": "passed",
+          "kind": "full-snapshot"
+        },
+        "artifactGeneration": {
+          "schemaVersion": "snapback.v0",
+          "appId": "app",
+          "schemaHash": "sha256:f4a89ccec3c43035",
+          "bundleHash": "sha256:e42b77b817b8dad0",
+          "inputsHash": "1a4accf251a5b3715cf8a30059690cf266dcc29c1a2c57100c0c9fd827869b2d"
+        },
+        "before": {
+          "pending": 1,
+          "failed": 0,
+          "quarantined": 0,
+          "resultGone": 0
+        },
+        "after": {
+          "pending": 0,
+          "failed": 0,
+          "quarantined": 0,
+          "resultGone": 0
+        },
+        "pendingBefore": 1,
+        "replayed": 1,
+        "failedDelta": 0,
+        "quarantinedDelta": 0,
+        "resultGoneDelta": 0,
+        "remaining": 0,
+        "stopped": false
+      },
+      "successfulSwapEventEmitted": true,
+      "candidateOrigin": "http://127.0.0.1:50864",
+      "candidateStartupNonce": "019fd72e-5345-77d0-9fb4-58b2936871f5",
+      "clientStoreId": "desktop-sidecar-acceptance",
+      "writer": true,
+      "pendingAfter": 0,
+      "durableRecordStatus": "settled",
+      "rowCountUnchangedByDuplicate": true,
+      "duplicateVersion": 2,
+      "disposition": "pending-work-preserving stop/start swap"
+    },
+    "emptyOutboxSwap": {
+      "status": "PASS",
+      "pendingBefore": 0,
+      "reboundUrl": "http://127.0.0.1:50847",
+      "replayedAfterAttach": 0,
+      "pendingAfter": 0,
+      "outcome": "swapped",
+      "outboxCustody": "client-file-store"
+    },
+    "failClosedMatrix": {
+      "status": "PASS",
+      "identityDivergence": "candidate stopped; predecessor reattached; intent pending",
+      "writerFenceNotAcquired": "candidate stopped; predecessor reattached; intent pending",
+      "incompatibleSuccessor": "candidate stopped; predecessor reattached; intent pending"
+    },
+    "gracefulStop": {
+      "status": "PASS",
+      "nativeNonceVerifiedStop": true,
+      "childExited": true,
+      "descriptorRemoved": true,
+      "healthUnavailable": true
+    }
+  },
+  "explicitFollowOns": {
+    "llp0081": "upgrade-required hook only; tombstone-and-re-entry quarantine not implemented",
+    "llp0123": "package seal is consumed; an in-serving-process boot witness remains separate",
+    "pendingOutboxHotSwap": "built for one explicit caller-owned shared sidecar store with checked adoption",
+    "zeroRequestDowntime": "not claimed: the supervisor still stops the predecessor before starting the candidate; a stable front door or overlapping runtimes is separate work",
+    "inProcessEmbedding": "no stable ABI; separately gated spike remains"
+  }
+}
