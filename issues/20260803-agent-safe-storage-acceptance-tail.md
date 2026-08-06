@@ -5,7 +5,7 @@
 **Reconciled:** 2026-08-05 (LLP 0185 Phase 0 assigned each remaining proof leg
 to its contract owner without changing row state); 2026-08-05 (LLP 0185 Phase
 3 derived-deployment evidence is recorded below without changing row state)
-**Updated:** 2026-08-05 (C32 abandoned before qualifying dual review completed or performance; two newer mainline cuts merged normally and C33 is prospective; capabilities remain Missing); 2026-08-05 (exact merged C30 stopped before performance after Codex found Host-lease and pending-capacity projection gaps; prospective C31 validates them globally and closes client-suppression closure symmetry; capabilities remain Missing); 2026-08-05 (exact C29 stopped before performance after two NOT READY reviews; prospective C30 closes terminal-supplement retention coherence, automatic sessions ACK custody, the public explanation oracle, Host terminal/pending rollback proof, and accepted-0158 status drift; capabilities remain Missing); 2026-08-05 (merged C28 stopped before performance after two NOT READY reviews; prospective C29 repairs automatic sessions range custody, Host tombstone schema nullability, terminal-time coherence, and pending-writer rollback proof; capabilities remain Missing); 2026-08-05 (C27 terminated pre-result with no artifacts; C28 repairs tombstone comparison, contiguous floors, bounded ranges, and transactional writer guards; capabilities remain Missing); 2026-08-04 (pre-result row-13 protocol repair: the author-ratified
+**Updated:** 2026-08-06 (landed a0852be produced a preserved paired failure on faster-side range-read p95; absolute did not run, fix-forward restores per-call range preparation, and all capabilities remain Missing); 2026-08-05 (C32 abandoned before qualifying dual review completed or performance; two newer mainline cuts merged normally and C33 is prospective; capabilities remain Missing); 2026-08-05 (exact merged C30 stopped before performance after Codex found Host-lease and pending-capacity projection gaps; prospective C31 validates them globally and closes client-suppression closure symmetry; capabilities remain Missing); 2026-08-05 (exact C29 stopped before performance after two NOT READY reviews; prospective C30 closes terminal-supplement retention coherence, automatic sessions ACK custody, the public explanation oracle, Host terminal/pending rollback proof, and accepted-0158 status drift; capabilities remain Missing); 2026-08-05 (merged C28 stopped before performance after two NOT READY reviews; prospective C29 repairs automatic sessions range custody, Host tombstone schema nullability, terminal-time coherence, and pending-writer rollback proof; capabilities remain Missing); 2026-08-05 (C27 terminated pre-result with no artifacts; C28 repairs tombstone comparison, contiguous floors, bounded ranges, and transactional writer guards; capabilities remain Missing); 2026-08-04 (pre-result row-13 protocol repair: the author-ratified
 contention ceiling now matches the frozen 1,000-ms reservation and separate
 500-ms maximum promotion-commit duration; the absolute recorder binds exact
 baseline and compiled-candidate bytes, and its 128/eight-writer p99 uses the
@@ -57,6 +57,17 @@ cuts or re-review. The merged tree lands after proportional verification;
 row 13 runs immediately afterward against the landed commit. All capability
 states remain `Missing` until that result and every other named gate pass.
 
+**Post-landing performance result — 2026-08-06:** Landed commit
+`a0852be190d7a908e2419ccaac43f30eee977ee2` produced a preserved paired
+record, SHA-256
+`8e1f6a4cbbe786eb4eba71c8dc435457331d87446dd26a39a80314a4c6272ab0`.
+Eight of nine read/write comparisons and every idle gate passed;
+current-range p95 alone crossed the unchanged faster-side equivalence edge at
+median -4.1812% with bootstrap 90% interval -5.9841% to -1.4621%. The
+absolute process did not run. The production range path now returns to the
+pinned pre-profile per-call preparation boundary for a fix-forward successor;
+the measurement contract and every `Missing` state remain unchanged.
+
 ## Remaining acceptance work
 
 | LLP 0162 row | State through 2026-08-04 | Required closure |
@@ -73,7 +84,7 @@ states remain `Missing` until that result and every other named gate pass.
 | 10 — strict promotion | Partial | Frozen v1 no-effect contention/fairness/crash evidence is joined by atomic multi-operation retention. Any captured intent or approved effect fact—including effect-plus-write and transitive effect-dependent chains—refuses strict promotion before canonical mutation with `SNAPBACK_PROMOTION_CAPTURE_ONLY_UNSUPPORTED`. Public effect-bearing promotion remains outside this Track B publication scope; global writer coverage and applicable performance/review remain independent gates. |
 | 11 — history/checkpoint | Partial | Schema publication now atomically projects finite v2 per-record policy, removal erases retained detail, and current/per-version auth plus visible-only pagination/horizon and per-record pruning are covered without changing legacy v1 `maxRows`. The registered-copy sweep invalidates the complete materialized inventory before deletion and preserves crash/unreachable obligations, but it is not yet atomic with canonical protected-record deletion; close that new-checkpoint race and the remaining lifecycle corpus. |
 | 12 — boundary proof | Partial | Promotion and full migration verification are independently derived; migration's separate evaluator has explicit-value/equivalence plus executor-drift and staged-corruption negatives. Checkpoint concurrent-writer/publication/receipt-only no-upcast negatives are covered. Finish the remaining row-wide boundary integrations/coverage before an aggregate claim. |
-| 13 — performance | Partial | C27, C31, and C32 produced no qualifying result; C28, C29, and C30 were stopped by review before any performance process. C33 received dual READY and is landing through normal mainline merges under the 2026-08-06 ruling; the unchanged paired and conditional absolute recorders run immediately afterward against the landed commit. |
+| 13 — performance | Partial | C33's landed successor `a0852be` validly failed only current-range p95 on the faster-side interval; its preserved paired record is bound above and the absolute process did not run. The fix-forward restores the pinned per-call range preparation boundary without changing the measurement contract. A new landed successor must pass the unchanged paired and conditional absolute gates. |
 | 14 — identity lifecycle | Partial | First-party job/cron/migration carriers and transport-level client exclusion are landed. C31 adds automatic sessions range/ACK carriage, bounded successor capacity, required-nullable decoding, global suppression/pending/supplement/lease corruption checks, comparison-complete capacity, out-of-order floor, young-window, and exact final-reclamation negatives; fresh integrated review/publication proof remains. |
 
 The detailed LLP 0163 public-carrier work remains in its existing focused
