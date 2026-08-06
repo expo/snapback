@@ -1,6 +1,6 @@
 # Zerobugs Stage 0.5 current-surface control plan
 
-Status: Lane 1 fixture compiler and bounded loader implemented; later behavioral lanes not started
+Status: Lane 1 complete; Lane 2 implemented with runtime-independent checks passing and the loopback live gate awaiting the supervising session
 Governing contract: `demos/zerobugs/manifest/acceptance.v1.md`  
 Source inventory: `demos/zerobugs/stage0/inventory.v1.md`  
 Source pin: `rocicorp/mono@25c2c7308d3eb674d2d895022c9da11ef0c742fb`, `apps/zbugs`  
@@ -18,9 +18,11 @@ all remain in scope.
 
 The current state provides the plan, ten source tables plus support schema,
 deterministic normal/policy fixture compiler, bounded authenticated loader,
+five-actor local identity binding, principal-derived role/ownership helpers,
 generated-artifact inputs, and a minimal React boot. It does **not** claim the
 19-query/16-mutator product corpus, composition gateway, pinned UI, or ZB gate
-lanes are implemented. It also does not claim a hosted target, production
+lanes are implemented. Lane 2's live transition gate also remains awaiting an
+outside-sandbox run. This control does not claim a hosted target, production
 OAuth, durable notification product capability, or large-fixture
 qualification.
 
@@ -388,7 +390,7 @@ attempt. Using a row before that update fails ZB0.
 | `W-REDUCER` / duplicate handwritten reducer | Current generated optimism cannot express 11 new-verb and some branch/upsert/delete shapes. Owner: control mutation lane. | `src/data/mutations.ts` / TBD-before-use | Bespoke typed capture-and-set; removed when generated admission exists. | Visible facts only; never predicts authority, hidden recipients, or delivery. | D5 lowering/admission. |
 | `W-PENDING` / server-only pending | Hidden branch/subscription/effect state is not safely locally evaluable. Owner: control mutation lane. | `src/data/mutations.ts`, UI pending components / TBD-before-use | Supported authoritative mutation with honest pending; retained until admitted carrier exists. | No speculative protected fact or false settlement. | D5. |
 | `W-WINDOW` / app-owned window controller | No current source-equivalent `useZeroVirtualizer` primitive. Owner: control UI lane. | `src/windowing/*`, list/comments pages / TBD-before-use | Bespoke controller over supported bounded queries; retained through control. | Generation-fenced requests; parent policy on comments; honest completeness. | D4 window workstream. |
-| `W-IDENTITY` / identity binding table | Snapback principals and frozen source user ids are distinct namespaces. Owner: auth composition. | `snapback/schema.mjs:144-156`; `scripts/build-fixture.mts:345-369`; actor metadata in `fixtures/normal-seed-v1/fixture.json:7-33` and `tests/fixtures/fixture-digests.json:20-46` | App-owned table over supported sessions/external broker; retained through control. | Only server-derived principal writes/reads binding; no caller user-id authority. | D7 auth profile. |
+| `W-IDENTITY` / identity binding table | Snapback principals and frozen source user ids are distinct namespaces. Owner: auth composition. | `snapback/schema.mjs:144-156`; closed actor map and reusable guards `snapback/functions.mjs:56-152`; loaded-fixture proof and acceptance surfaces `snapback/functions.mjs:212-440`; receipt harness `scripts/bind-actors.mts:9-235`; runtime-independent witnesses `tests/lane2-functions.test.mts:123-254`; live seven-actor/transition gate `tests/acceptance/lane2-live.mts:46-222`; actor metadata in `fixtures/normal-seed-v1/fixture.json:7-33` and `tests/fixtures/fixture-digests.json:20-46` | Implemented as an acceptance-only, frozen-five, one-to-one binding bootstrap over supported dev sessions. Rebinding, unknown source users, role mismatches, sixth actors, and binding after closure refuse. `fixtureInspectTable` closes after the first binding. Retained through control; live gate awaits the supervising session. The adopted-bearer harness ends the server session through the shipped `/auth/logout` route (`authLogout` correctly refuses without browser `AuthCoordinator` custody); external user switch uses `replaceBearerToken`, which blanks predecessor state before refetch. | The stored principal is always `ctx.auth.userId`; every private helper resolves principal → binding → source row and accepts no caller user id. The acceptance actor selector is trusted only inside this fixture-gated bootstrap: current handler auth does not expose the verified mint email, so the mutation additionally requires the complete frozen fixture, exact actor/source/role map, one-to-one rows, five-row closure, and gateway omission. | D7 auth profile. |
 | `C-GATEWAY` / versioned composition gateway | Native Snapback does not own all nine frozen arbitrary routes or GitHub OAuth. Owner: composition lane. | `composition/zerobugs-control-composition.v1.json`, `composition/server.mts`, `composition/routes/*` / TBD-before-use | Formally versioned bespoke D7 companion; local supported control component; no native claim. | Narrow route/function allowlist, session custody, redirect/token/secret policy, owned cleanup. | D7 routes/auth. |
 | `C-NOTIFY` / durable app ledger and worker | `backend.notifications` is an explicit GAP; current jobs are local experimental. Owner: effect composition. | `snapback/schema.mjs`, `snapback/functions.mjs`, `composition/effects/*` / TBD-before-use | Supported actions + experimental jobs + bespoke ledger; local partial, hosted GAP. | Intent in mutation transaction; idempotency/fencing; explicit ambiguous outcomes; secrets by name. | D7 effects; first-class notification capability. |
 | `C-ASSET` / source URL adapter and attachment metadata | Native local asset lifecycle differs from S3 presign/Markdown URL source shape. Owner: asset composition. | `snapback/schema.mjs`, `snapback/functions.mjs`, `composition/routes/upload.mts`, `src/assets/upload.ts` / TBD-before-use | Supported local asset capability + bespoke response/Markdown adapter; hosted GAP. | Server MIME/size/checksum, typed attachment, declared delivery/CORS, GC, no credential logging. | D7 assets/routes. |
@@ -448,6 +450,19 @@ artifact freshness into a live-load claim.
   ≤900-row `ingestFixtureBatch` pattern exists only as demo folklore in
   `demos/zero-bakeoff/apps/fleet-observatory/snapback/functions.mjs`; finding
   and adapting it required repository search outside `guide/`.
+
+- **2026-08-05 — binding a session principal to an app-owned source identity.**
+  The sessions guide clearly documents `ctx.auth.userId`, dev-session minting,
+  logout, and external bearer replacement, but has no intent-indexed recipe
+  for securely populating an app-owned principal-to-source-user table. Handler
+  auth exposes the verified principal but not the verified email supplied to
+  `session mint`, so an in-handler actor/email claim cannot independently prove
+  which frozen source row the principal should own. Lane 2 confines that claim
+  to an acceptance-only mutation over the exact loaded fixture, a closed
+  actor/source/role map, one-to-one refusal, five-row closure, and gateway
+  omission. A production external broker still needs a trusted identity claim
+  or privileged provisioning path; this harness is not presented as that
+  product-auth design.
 
 ## Lane 1 validation
 
@@ -549,3 +564,43 @@ The observed overall digest equals the compiled contract digest exactly.
 Lane 1's completion check (sequencing row 1) is met: counts/ids/digests pass,
 typed refs and the read-model rebuild digest pass, and `snapback generate`
 passes. Lane 2 (local auth/identity composition) is next.
+
+## Lane 2 validation
+
+Run on 2026-08-05 from `demos/zerobugs/control`. The Codex sandbox cannot bind
+loopback, so every runtime-independent check ran here and the live server gate
+is explicitly left for the supervising session.
+
+| Command | Result |
+| --- | --- |
+| `bun run generate` | PASS, exit 0: 16 tables and seven acceptance-only operations (five queries, two mutations), 38 generated files. The only two warnings remain the declared fixture-only `v.json()`/unknown-result degradation facts. |
+| `bun run test:lane2` | PASS, exit 0: generation plus eight Bun tests. The four Lane 2 tests exercise explicit session gates, identity-free private args, all five frozen bindings and every rebind refusal, sixth/unknown actor refusal, missing and role-mismatched source refusal, unbound-principal refusal, crew and internal-visibility refusal for an ordinary user, creator admission and assignee ownership refusal, principal-owned overlay selection, and closure of the broad fixture inspector after identity bootstrap begins. The four Lane 1 loader tests also remain green. |
+| `bun run typecheck` | PASS, exit 0. |
+| `bun run build` | PASS, exit 0; Vite 8 built the client. The only extra output was the upstream `optimizeDeps.rollupOptions` deprecation warning. |
+| `bun build tests/acceptance/lane2-live.mts --target=bun --outfile=/private/tmp/zerobugs-lane2-live-check.mjs` | PASS, exit 0: the live harness and its 51-module dependency graph parse and bundle for Bun. |
+| `./ref-check --verbose` (repository root) | PASS, exit 0: 188 LLP documents, 3,155 refs in 7,801 files, 0 errors, 0 unchecked. |
+| `node scripts/check-guide.mjs` (repository root) | **BLOCKED OUTSIDE LANE SCOPE, exit 1:** 56 pages, 174 snippets, 111 routes + 37 host-ops joined, with 43 drift warnings. The errors are pre-existing/missing generated examples under `demos/competitive-checkpoint` and `demos/todo-v2`, plus a stale root `guide/guide-manifest.generated.json`. Lane 2 changes no `guide/` file, and its write boundary is `demos/zerobugs/control/`, so no out-of-scope regeneration or example repair was attempted. |
+| `git diff --check` | PASS, exit 0. |
+| `SNAPBACK_READY_FILE=<ready-file> SNAPBACK_RUNTIME_BINARY=<runtime-binary> bun tests/acceptance/lane2-live.mts` | **AWAITING SUPERVISING LIVE RUN.** Against the already Lane-1-loaded scratch database, this emits the deterministic `zerobugs-actor-bindings.v1` receipt and a `zerobugs-lane2-live.v1` receipt, or exits nonzero. It covers the five authenticated actors plus anonymous and forged-bearer attacker semantics; deterministic distinct-email minting; exact source bindings; rebind and actor-set closure; unbound, crew, ownership, anonymous, and attacker refusals; `/auth/logout` invalidation of the current and copied stale adopted bearer; `replaceBearerToken` transition to removed-member without predecessor overlay exposure; caller-selected private-id rejection; and post-bind fixture-inspector closure. Principals are recorded as returned by session mint but are not incorporated into a digest. |
+
+The shipped auth surface does have explicit transition primitives, so Lane 2
+does not record a logout/invalidation product gap. Browser coordinator custody
+uses `authLogout()`; this adopted-bearer harness drives the shipped
+`/auth/logout` endpoint directly because `authLogout()` intentionally refuses
+without an `AuthCoordinator`. `replaceBearerToken()` then provides the
+documented external user-switch barrier. Completion row 2 is not marked met
+until the final command passes on a live server.
+
+### Lane 2 completion — live actor harness PASS
+
+Run on 2026-08-05 by the supervising session (outside the codex sandbox)
+against a fresh server + full Lane 1 fixture load. All nine expected checks
+executed and passed: five frozen actors bind deterministically with rebinding
+refused; unbound principals, anonymous callers, and forged/expired bearers are
+refused on principal-bound paths; the crew guard admits crew-admin and refuses
+ordinary; ownership admits creator and refuses assignee; the logout route and
+user switching retire the predecessor's private overlay; and no private
+overlay path accepts a caller-selected identity. Receipt schema
+`zerobugs-lane2-live.v1` (expectedChecks 9 / executedChecks 9 / status ok).
+Sequencing row 2's completion check is met; Lane 3 (query/read-model corpus)
+is next.
