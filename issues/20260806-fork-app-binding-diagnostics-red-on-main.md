@@ -31,3 +31,13 @@ red with `SNAPBACK_FORK_APP_BINDING_MISMATCH`,
 `SNAPBACK_FORK_WRITER_COVERAGE_GAP` unclassified. The wave-drift pass made no
 fork correctness change; classification and requalification remain with the
 actively owned fork/app-binding lane.
+
+At exact, clean, runtime-qualified revision
+`9ed3591ab69f71b0e33806eef3f75c63b77dc147`, both complete-proof F0a
+acceptance gates also refuse during setup with
+`SNAPBACK_FORK_APP_BINDING_MISMATCH`: `forked-parent` runs 0/4 checks and
+`fork-parallel-dispositions` runs 0/7 checks. Each reports that the invoking
+app root is already bound to a different canonical root or logical app id.
+This is a deterministic owner-code failure rather than load sensitivity; the
+wave-drift pass made no behavior change and leaves requalification with the
+fork/app-binding lane.
