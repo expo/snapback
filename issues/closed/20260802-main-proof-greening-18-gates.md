@@ -1003,3 +1003,32 @@ has SHA-256
 `185ffca385e6f739f36271ec419caa26ea3534de41c4bc9bb18e96e2417ecab1`.
 The 120-second idle interval observed zero storage mutations, zero read bytes,
 zero write bytes, 3/10 allowed CPU ticks (30/100 ms), and zero RSS-page growth.
+
+### AppDescriptor landing race and regenerated publication carriers — 2026-08-05
+
+While the `5c9737aaa` Linux producer was running, main advanced to
+`2bb84423b59e81e4afa865339765142ad2769bc2`, the AppDescriptor spine landing.
+The first prospective-merge proof for this pass therefore failed
+`deployment-identity` and `required-surface-builds`: clean-checkout codegen
+materialized the new `app.binding.mjs`, `app.d.ts`, `app.descriptor.json`, and
+`app.mjs` projections, so All Aboard's committed review manifest and the
+other selected review/package projections no longer matched the generator.
+The same landing added `app-descriptor.test.mjs`; after the merge, the
+canonical package inventory correctly selects 207 tests.
+
+This pass regenerated the review manifests for every backend selected by
+`scripts/check-generated-artifacts` and retained the complete AppDescriptor
+projection sets for Team Chat and the packaged comparator and push-seam
+fixtures. The generated-artifact gate reproduces them byte-for-byte; package
+inventory, all 86 typed export subpaths, all 54 frozen bundle profiles and
+their behavior train, deployment identity, both required production surface
+builds, and artifact-path hygiene pass. No generated source definition or
+push-seam behavior was changed.
+
+Because the AppDescriptor landing changed `packages/snapback-codegen` and the
+retained packaged fixture projections, it also changed the telemetry proof's
+reviewed source closure. The otherwise-green `5c9737aaa` receipt above is
+therefore honestly superseded rather than rebound to the new candidate. This
+is batched publication-carrier, suite-fixture, inventory, and receipt drift
+attributable to `2bb84423b`; it is not a correctness failure in the actively
+owned PUSH-01 seam or F0a fork code.
