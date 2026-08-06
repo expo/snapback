@@ -55,6 +55,12 @@
     },
     "debug.networkProfileGet": { "operability": "direct" },
     "debug.networkProfileSet": { "operability": "direct" },
+    "debug.live.forceResync": {
+      "operability": "direct",
+      "availabilityTargets": ["local"],
+      "adminClient": "forceLiveResync",
+      "note": "LLP 0184 §B, LANDED: single-subscription v1 scope only (connection-wide targeting deliberately deferred — OQ4). Target rule matches data.patch's (§A, not yet landed as of this row): local-non-production only, gated by AppState::debug_perturbation_target_authority — refused on a primary hosted/production target AND on any derived instance (local or hosted) until LLP 0158 grants recognition for this specific purpose. This is NOT debug.networkProfileSet's hosted-derived exception (a different, narrower LLP 0158 grant \"solely for network-profile activation\"), so 'derived-hosted' is deliberately excluded from availabilityTargets here unlike the network-profile rows above. CLI (`snapback debug force-resync`), MCP (`snapback_live_force_resync`), and AdminClient (`forceLiveResync`) all landed from the same host operation; the console leg (admin-ui/app.contract) was NOT reached in this pass — the operation is otherwise complete (server, CLI, MCP, AdminClient, acceptance tests) but has no console button yet. `projections.console` intentionally stays null; do not read that as the operation being unavailable."
+    },
     "asset.put": { "operability": "direct", "mcpDeferralReason": "Assets: full typed CLI, zero MCP tools today — the RFC's (cliOnly, direct) worked example (§Product contract). MCP projection is a Phase 2 P1 item." },
     "asset.ensureSeedFixture": { "operability": "direct", "mcpDeferralReason": "Assets family; see asset.put." },
     "asset.inspect": { "operability": "direct", "note": "LLP 0184 Phase 2 P1: gained snapback_asset_inspect; now (native, direct)." },

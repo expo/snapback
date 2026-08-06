@@ -504,6 +504,20 @@ export class AdminClient {
     );
   }
 
+  // @ref LLP 0184#b-forced-live-resync--add-now — a thin projection of the
+  //   `debug.live.forceResync` host operation (there is no dedicated
+  //   `/debug/live/force-resync` route the way network profiles have one;
+  //   this operation is host-ops-only, like most of LLP 0024's surface).
+  //   `startupNonce` fences the request to one exact running process and
+  //   must come from a readiness descriptor or equivalent trusted source
+  //   the caller already holds — this client does not mint or discover it.
+  forceLiveResync({ connectionId, subscriptionId, reason, clearRetained = false, startupNonce }) {
+    return this.#req('POST', '/host-ops', {
+      operation: 'debug.live.forceResync',
+      input: { connectionId, subscriptionId, reason, clearRetained, startupNonce },
+    });
+  }
+
   telemetryStats(filter = {}) {
     return this.#req(
       'GET',

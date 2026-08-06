@@ -652,6 +652,17 @@
       "responseSensitivity": "OperatorMetadata"
     },
     {
+      "operation": "host_ops.debug.live.forceResync",
+      "parentPath": "/_snapback/api/host-ops",
+      "transport": "HostOps",
+      "class": "SystemApi",
+      "pathPolicy": "AdminWrite",
+      "credentialResolution": "AdminCredential",
+      "invocationAuthority": "Operator",
+      "effectPolicy": "None",
+      "responseSensitivity": "OperatorMetadata"
+    },
+    {
       "operation": "host_ops.telemetry.stats",
       "parentPath": "/_snapback/api/host-ops",
       "transport": "HostOps",
@@ -1219,7 +1230,8 @@
       "asset.delete",
       "asset.rotateSigningKey",
       "debug.networkProfileGet",
-      "debug.networkProfileSet"
+      "debug.networkProfileSet",
+      "debug.live.forceResync"
     ],
     "cliOnly": [
       "host.start",

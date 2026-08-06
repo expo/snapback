@@ -34,13 +34,16 @@ pub const TELEMETRY_EXPORT_HOST_ENVELOPE_ALLOWANCE: usize = 64 * 1024;
 /// Operations this endpoint serves in the first slice.
 ///
 /// This includes the six `branch.*` operations, the ten `asset.*` operations
-/// dispatched inline by the `execute_host_op_with_profile` match arm, and the two
+/// dispatched inline by the `execute_host_op_with_profile` match arm, the two
 /// `debug.networkProfile{Get,Set}` operations dispatched entirely in
-/// `src/server.rs` (outside that match arm, via `network_profile_result`).
-/// These groups are fully served today; they belong here so
-/// `host_op_diagnostic` recognizes their spelling instead of rewriting it to
-/// `"unrecognized"` in diagnostics.
-pub const SERVED_HOST_OPS: [&str; 38] = [
+/// `src/server.rs` (outside that match arm, via `network_profile_result`),
+/// and `debug.live.forceResync` (LLP 0184 §B), dispatched the same way as
+/// the `debug.networkProfile*` pair — outside the match arm, gated by
+/// `AppState::debug_perturbation_target_authority` rather than
+/// `require_operation_profile`. These groups are fully served today; they
+/// belong here so `host_op_diagnostic` recognizes their spelling instead of
+/// rewriting it to `"unrecognized"` in diagnostics.
+pub const SERVED_HOST_OPS: [&str; 39] = [
     "app.inspect",
     "app.reset",
     "app.seed.ensure.v1",
@@ -79,6 +82,7 @@ pub const SERVED_HOST_OPS: [&str; 38] = [
     "asset.rotateSigningKey",
     "debug.networkProfileGet",
     "debug.networkProfileSet",
+    "debug.live.forceResync",
 ];
 
 /// Pinned by LLP 0024 but process-lifecycle verbs: `host.start`/`host.stop`
@@ -955,6 +959,45 @@ pub(crate) fn data_patch_result(
             profile,
             false,
             envelope_authority,
+            Value::Object(Default::default()),
+            vec![error.diagnostic],
+        ),
+    }
+}
+
+/// LLP 0184 §B: `debug.live.forceResync`'s envelope wrapper, the same small
+/// shape as [`network_profile_result`] but tagged with its own admin
+/// authority annotation.
+pub(crate) fn force_live_resync_result(
+    snapback: &LocalSnapback,
+    request: &HostOpsRequest,
+    server_url: Option<String>,
+    profile: crate::admin::ServerProfile,
+    outcome: Result<Value, SnapbackError>,
+) -> HostOpsResult {
+    let request_id = request.request_id.clone().unwrap_or_else(new_request_id);
+    let operation = request.operation.clone();
+    let authority = authority_admin("host-ops forced-live-resync debug perturbation gate");
+    match outcome {
+        Ok(data) => host_ops_result(
+            snapback,
+            request_id,
+            operation,
+            server_url,
+            profile,
+            true,
+            authority,
+            data,
+            Vec::new(),
+        ),
+        Err(error) => host_ops_result(
+            snapback,
+            request_id,
+            operation,
+            server_url,
+            profile,
+            false,
+            authority,
             Value::Object(Default::default()),
             vec![error.diagnostic],
         ),

@@ -2595,6 +2595,50 @@ impl AppState {
         )
     }
 
+    /// LLP 0184 §B's (and, when it lands, §A's) *local-non-production-only*
+    /// target rule for operator debug perturbations more dangerous than a
+    /// network-profile activation. This deliberately does NOT reuse
+    /// [`Self::network_profile_authority`]'s `permits` predicate: that gate
+    /// extends an explicit hosted-derived exception LLP 0158 grants "solely
+    /// for network-profile activation" (its own text) — a different,
+    /// narrower grant than the one these perturbations would need. Until
+    /// LLP 0158's owner makes that grant for this purpose, every derived
+    /// instance (local or hosted) and every hosted/production target is
+    /// refused; only a local, non-production, non-derived instance is
+    /// eligible.
+    ///
+    /// @ref LLP 0184#b-forced-live-resync--add-now — "Target rule matches
+    ///   §A's: local non-production instances in v1; refused on a primary
+    ///   hosted/production target; refused on a derived instance too until
+    ///   LLP 0158 grants recognition for this purpose."
+    pub(crate) fn debug_perturbation_target_authority(&self) -> Result<(), SnapbackError> {
+        let authority = self.network_profile_authority();
+        let allowed = matches!(
+            authority.server_profile,
+            Some(ServerProfile::Dev | ServerProfile::Demo | ServerProfile::Test)
+        ) && matches!(
+            authority.deployment,
+            Some(crate::auth::deployment::AuthDeploymentTarget::Local)
+        ) && authority.derived_instance_present == Some(false);
+        if allowed {
+            return Ok(());
+        }
+        Err(SnapbackError::error(
+            "SNAPBACK_DEBUG_PERTURBATION_TARGET_REFUSED",
+            "debug",
+            "this operator debug perturbation is local-non-production-only in v1; refused on a primary hosted/production target and on any derived instance until LLP 0158 grants recognition for this purpose",
+        )
+        .with_details(serde_json::json!({
+            "serverProfile": authority.server_profile.map(ServerProfile::as_str),
+            "deployment": authority.deployment.map(|deployment| match deployment {
+                crate::auth::deployment::AuthDeploymentTarget::Local => "local",
+                crate::auth::deployment::AuthDeploymentTarget::Hosted => "hosted",
+            }),
+            "hostedServingPresent": authority.hosted_serving_present,
+            "derivedInstancePresent": authority.derived_instance_present,
+        })))
+    }
+
     /// Both startup and runtime surfaces terminate at this one state-changing
     /// gate; callers may parse different transport representations but cannot
     /// select around classification or provenance capture.
@@ -5955,6 +5999,63 @@ mod tests {
         assert_eq!(
             put.credential_resolution,
             CredentialResolution::AdminCredential
+        );
+    }
+
+    /// @ref LLP 0184#b-forced-live-resync--add-now — v1's local-non-
+    /// production-only target rule for §B (and, when it lands, §A):
+    /// allowed only on a local, non-production, non-derived instance;
+    /// refused on production and on a derived instance even though that
+    /// same derived instance IS extended debug.networkProfileSet's
+    /// separate, narrower hosted-derived exception (proving the two gates
+    /// are genuinely independent, not accidentally identical).
+    #[test]
+    fn debug_perturbation_target_authority_is_local_non_production_only() {
+        let mut local_dev_context = ServerContext::new("127.0.0.1", 0, true);
+        local_dev_context.profile = ServerProfile::Dev;
+        let local_dev = AppState::from_snapback(LocalSnapback::memory().unwrap(), local_dev_context);
+        assert!(local_dev.debug_perturbation_target_authority().is_ok());
+
+        let mut local_prod_context = ServerContext::new("127.0.0.1", 0, true);
+        local_prod_context.profile = ServerProfile::Prod;
+        let local_prod = AppState::from_snapback(LocalSnapback::memory().unwrap(), local_prod_context);
+        let refusal = local_prod
+            .debug_perturbation_target_authority()
+            .expect_err("a production profile must refuse this perturbation");
+        assert_eq!(
+            refusal.diagnostic.code, "SNAPBACK_DEBUG_PERTURBATION_TARGET_REFUSED",
+        );
+
+        // A derived instance stays refused even though it is local and
+        // even though the SAME instance already qualifies for
+        // debug.networkProfileSet's distinct hosted-derived exception —
+        // the two gates must not accidentally collapse into one.
+        let directory = tempfile::tempdir().unwrap();
+        let source = directory.path().join("parent.sqlite3");
+        drop(crate::storage::LocalDatabase::open(&source).unwrap());
+        let destination = directory.path().join("fork");
+        let receipt =
+            crate::instance_fork::publish(&source, &destination, "app-a", "parent-a", 42, None)
+                .unwrap();
+        let mut derived_context = ServerContext::new("127.0.0.1", 0, true);
+        derived_context.profile = ServerProfile::Dev;
+        let derived = AppState::from_snapback(
+            LocalSnapback::open(destination.join(&receipt.database_file)).unwrap(),
+            derived_context,
+        );
+        assert!(derived.derived_instance_identity.is_some());
+        // The distinct, narrower grant this gate deliberately does NOT
+        // inherit: the same derived instance already passes the
+        // network-profile activation gate (see
+        // `network_profile_authority_captures_boot_validated_derived_identity`
+        // above, which proves `derived_instance_present: Some(true)` is
+        // exactly the fact that gate's `permits()` treats as eligible).
+        let derived_refusal = derived
+            .debug_perturbation_target_authority()
+            .expect_err("a derived instance must refuse this perturbation until LLP 0158 grants recognition");
+        assert_eq!(
+            derived_refusal.diagnostic.code,
+            "SNAPBACK_DEBUG_PERTURBATION_TARGET_REFUSED",
         );
     }
 

@@ -849,6 +849,13 @@ pub enum HostCommand {
         #[command(subcommand)]
         command: NetworkProfileCommand,
     },
+    /// debug.live.forceResync — a non-production debug perturbation forcing
+    /// one live subscription through the normal resync-required recovery
+    /// path (LLP 0184 §B).
+    Debug {
+        #[command(subcommand)]
+        command: DebugCommand,
+    },
     /// Mint one short-lived, scoped administrative data-read lease. This is a
     /// ready-file-only operation because the proof root is local operator
     /// authority and can never be discovered from a URL.
@@ -1212,6 +1219,47 @@ pub enum ConnectionsCommand {
         /// receipt printed on success).
         #[arg(long)]
         reason: String,
+    },
+}
+
+/// @ref LLP 0184#b-forced-live-resync--add-now — v1 targets exactly one
+/// subscription, fenced by connection id + subscription id (the same
+/// UUIDv7 identity the operator inspect projection already exposes) plus
+/// the running server's startup nonce. Connection-wide targeting is
+/// explicitly out of v1 scope (OQ4), not silently reachable through this
+/// command. Non-production, local-only; refused on a primary
+/// hosted/production target or a derived instance until LLP 0158 grants
+/// recognition for this purpose.
+#[derive(clap::Subcommand)]
+pub enum DebugCommand {
+    /// debug.live.forceResync — force one live subscription to re-snapshot
+    /// through the normal `resync_required` recovery path. Changes no
+    /// application data.
+    #[command(name = "force-resync")]
+    ForceResync {
+        #[command(flatten)]
+        target: TargetArgs,
+        /// The connection id the subscription is open on.
+        #[arg(long = "connection-id")]
+        connection_id: String,
+        /// The live subscription id to force through resync.
+        #[arg(long = "subscription-id")]
+        subscription_id: String,
+        /// Why this debug perturbation is being invoked (a closed
+        /// operator/test reason, recorded in the receipt printed on
+        /// success).
+        #[arg(long)]
+        reason: String,
+        /// Whether the client must also discard any retained rows for this
+        /// subscription rather than keep them until the fresh snapshot
+        /// lands.
+        #[arg(long = "clear-retained")]
+        clear_retained: bool,
+        /// The target server's startup nonce. Defaults to the value already
+        /// recorded in `--ready-file`'s readiness descriptor; required
+        /// explicitly when targeting `--url` directly.
+        #[arg(long = "startup-nonce")]
+        startup_nonce: Option<String>,
     },
 }
 
@@ -2274,6 +2322,31 @@ pub async fn run_from_env() -> anyhow::Result<()> {
                     "input": parse_network_profile_selection(&profile)?,
                 }),
             ),
+        },
+        Some(HostCommand::Debug { command }) => match command {
+            DebugCommand::ForceResync {
+                target,
+                connection_id,
+                subscription_id,
+                reason,
+                clear_retained,
+                startup_nonce,
+            } => {
+                let startup_nonce = resolve_startup_nonce(&target, startup_nonce)?;
+                host_op_via_http(
+                    &target,
+                    json!({
+                        "operation": "debug.live.forceResync",
+                        "input": {
+                            "connectionId": connection_id,
+                            "subscriptionId": subscription_id,
+                            "reason": reason,
+                            "clearRetained": clear_retained,
+                            "startupNonce": startup_nonce,
+                        },
+                    }),
+                )
+            }
         },
         Some(HostCommand::Data { command }) => data_command(command),
         Some(HostCommand::Auth { command }) => match command {
@@ -4201,6 +4274,36 @@ fn host_op_via_http(target: &TargetArgs, request: Value) -> anyhow::Result<()> {
         std::process::exit(1);
     }
     Ok(())
+}
+
+/// LLP 0184 §B: `debug.live.forceResync` fences on the target's startup
+/// nonce so the request cannot silently land on a different process than
+/// the operator inspected. `--ready-file`'s descriptor already carries the
+/// nonce the running server minted at boot; `--url`-only targeting has no
+/// local descriptor to read it from, so the caller must supply
+/// `--startup-nonce` explicitly in that case.
+fn resolve_startup_nonce(target: &TargetArgs, explicit: Option<String>) -> anyhow::Result<String> {
+    if let Some(nonce) = explicit.filter(|value| !value.is_empty()) {
+        return Ok(nonce);
+    }
+    if let Some(path) = &target.ready_file {
+        let value = read_trusted_json_file(path)?;
+        let descriptor = HostReadyDescriptor::validate(&value).map_err(|problems| {
+            anyhow::anyhow!(
+                "{} is not a valid readiness descriptor: {}",
+                path.display(),
+                problems.join("; ")
+            )
+        })?;
+        return descriptor
+            .startup_nonce
+            .clone()
+            .context("readiness descriptor has no startupNonce");
+    }
+    anyhow::bail!(
+        "debug force-resync requires a startup nonce: pass --ready-file (the nonce is read \
+         from its readiness descriptor) or --startup-nonce explicitly when targeting --url"
+    )
 }
 
 fn post_host_op(target: &TargetArgs, request: Value) -> anyhow::Result<Value> {
@@ -8636,8 +8739,8 @@ mod tests {
         AdminArgs, AdminCommand, Args, AssetsCommand, AuthCommand, AuthConstructionFailure,
         AuthCoordinatorReadinessReceipt, AuthProgramConstructionReceipts,
         BEFORE_STARTUP_TARGET_RESERVATION, Cli, ConfigCommand, ConnectionsCommand, ControlsCommand,
-        CronCommand, DataCommand, DataPatchArgs, EphemeralCommand, ErrorsCommand, ForkCommand,
-        HostCommand, JobsCommand,
+        CronCommand, DataCommand, DataPatchArgs, DebugCommand, EphemeralCommand, ErrorsCommand,
+        ForkCommand, HostCommand, JobsCommand,
         ManagedPath, NetworkProfileCommand, ReadyFileTarget, ResolvedHttpTarget, SessionCommand,
         TargetArgs, TelemetryCommand, automatic_reap_before_create, bind_first_available,
         bind_listener, console_claim_fragment_url, console_fragment_url, fork_secret_disposition,
@@ -8646,6 +8749,7 @@ mod tests {
         path_with_filename_suffix,
         prepare_database_path, prepare_database_path_for_startup, quiet_stop_fork,
         reject_misdirected_serve_flags, render_guide_command, resolve_http_target,
+        resolve_startup_nonce,
         runtime_auth_program_readiness, search_guide_sections_in, validate_path_disjointness,
         validated_console_origin, validated_secret_read_root_path, write_ready_file_atomic,
         write_ready_file_atomic_protected,
@@ -10671,6 +10775,114 @@ mod tests {
             "http://127.0.0.1:4287",
         ]);
         assert!(missing_reason.is_err());
+    }
+
+    /// @ref LLP 0184#b-forced-live-resync--add-now — `snapback debug
+    /// force-resync` parses connection id, subscription id, reason, and
+    /// the optional `--clear-retained`/`--startup-nonce` flags; a missing
+    /// reason (a required closed operator/test disclosure, matching
+    /// `connections disconnect`'s precedent) is refused at parse time.
+    #[test]
+    fn debug_force_resync_cli_parses_required_and_optional_fields() {
+        let parsed = Cli::parse_from([
+            "snapback",
+            "debug",
+            "force-resync",
+            "--connection-id",
+            "conn_abc123",
+            "--subscription-id",
+            "sub_def456",
+            "--reason",
+            "acceptance test",
+            "--clear-retained",
+            "--startup-nonce",
+            "explicit-nonce",
+            "--url",
+            "http://127.0.0.1:4287",
+        ]);
+        assert!(matches!(
+            parsed.command,
+            Some(HostCommand::Debug {
+                command: DebugCommand::ForceResync {
+                    ref connection_id,
+                    ref subscription_id,
+                    ref reason,
+                    clear_retained: true,
+                    startup_nonce: Some(ref startup_nonce),
+                    ..
+                }
+            }) if connection_id == "conn_abc123"
+                && subscription_id == "sub_def456"
+                && reason == "acceptance test"
+                && startup_nonce == "explicit-nonce"
+        ));
+
+        let missing_reason = Cli::try_parse_from([
+            "snapback",
+            "debug",
+            "force-resync",
+            "--connection-id",
+            "conn_abc123",
+            "--subscription-id",
+            "sub_def456",
+            "--url",
+            "http://127.0.0.1:4287",
+        ]);
+        assert!(missing_reason.is_err());
+    }
+
+    /// `resolve_startup_nonce` reads the nonce straight from the ready
+    /// file's own readiness descriptor when the caller does not supply one
+    /// explicitly, and refuses when neither is available (`--url` alone).
+    #[test]
+    fn resolve_startup_nonce_reads_ready_file_descriptor_or_refuses() {
+        assert_eq!(
+            resolve_startup_nonce(
+                &TargetArgs {
+                    url: Some("http://127.0.0.1:4287".to_owned()),
+                    ready_file: None,
+                    token: None,
+                    impersonation_capability_stdin: false,
+                },
+                Some("explicit".to_owned()),
+            )
+            .unwrap(),
+            "explicit",
+        );
+
+        let dir = tempfile::tempdir().unwrap();
+        let ready_file = dir.path().join("ready.json");
+        crate::secure_file::write_owner_only(
+            &ready_file,
+            serde_json::to_string(&stop_descriptor(Some("descriptor-nonce")))
+                .unwrap()
+                .as_bytes(),
+        )
+        .unwrap();
+        assert_eq!(
+            resolve_startup_nonce(
+                &TargetArgs {
+                    url: None,
+                    ready_file: Some(ready_file),
+                    token: None,
+                    impersonation_capability_stdin: false,
+                },
+                None,
+            )
+            .unwrap(),
+            "descriptor-nonce",
+        );
+
+        let no_source = resolve_startup_nonce(
+            &TargetArgs {
+                url: Some("http://127.0.0.1:4287".to_owned()),
+                ready_file: None,
+                token: None,
+                impersonation_capability_stdin: false,
+            },
+            None,
+        );
+        assert!(no_source.is_err());
     }
 
     #[test]

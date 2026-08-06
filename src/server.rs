@@ -15286,6 +15286,24 @@ pub fn operation_registry() -> Vec<OperationSpec> {
             ResponseSensitivity::OperatorMetadata,
             SessionModeOverlay::NONE,
         ),
+        // @ref LLP 0184#b-forced-live-resync--add-now — a non-production
+        //   debug perturbation, AdminWrite like `debug.networkProfileSet`,
+        //   but gated by `AppState::debug_perturbation_target_authority`
+        //   (local-non-production-only) rather than the network-profile
+        //   activation gate's hosted-derived exception.
+        operation(
+            "host_ops.debug.live.forceResync",
+            "/_snapback/api/host-ops",
+            HostOps,
+            RouteClass::SystemApi,
+            RoutePolicy::AdminWrite,
+            CredentialResolution::AdminCredential,
+            InvocationAuthority::Operator,
+            LegacyBodyPolicy::NotApplicable,
+            EffectPolicy::None,
+            ResponseSensitivity::OperatorMetadata,
+            SessionModeOverlay::NONE,
+        ),
         // @ref LLP 0154#d5--the-query-contract-typed-operations-projected-everywhere —
         //   typed telemetry operations are one-to-one host-op projections;
         //   export is a finite continuable page on this JSON carrier.
@@ -15923,6 +15941,7 @@ pub(crate) fn host_ops_operation_spec(
         "app.inspect" => "host_ops.app.inspect",
         "debug.networkProfileGet" => "host_ops.debug.networkProfileGet",
         "debug.networkProfileSet" => "host_ops.debug.networkProfileSet",
+        "debug.live.forceResync" => "host_ops.debug.live.forceResync",
         "app.reset" => "host_ops.app.reset",
         "app.seed.ensure.v1" => "host_ops.app.seed.ensure.v1",
         "app.seed.preview.v1" => "host_ops.app.seed.preview.v1",
@@ -18145,6 +18164,118 @@ async fn host_ops_handler_inner(
             crate::host_ops::network_profile_result(
                 snapback, &request, server_url, profile, outcome,
             )
+        })
+        .await;
+        return Ok(Json(result));
+    }
+
+    // @ref LLP 0184#b-forced-live-resync--add-now — a non-production debug
+    //   perturbation dispatched outside the main match arm, the same shape
+    //   as the `debug.networkProfile{Get,Set}` block above: AdminWrite,
+    //   then a target-rule gate distinct from the network-profile
+    //   activation gate (this operation is NOT extended the hosted-derived
+    //   exception LLP 0158 grants "solely for network-profile activation").
+    if request.operation == "debug.live.forceResync" {
+        crate::admin::authorize_host_operation(
+            &ctx,
+            &headers,
+            &request.operation,
+            None,
+            false,
+            policy_mode,
+            &secret_reads,
+            None,
+        )?;
+        runtime.debug_perturbation_target_authority()?;
+        let outcome = (|| -> Result<(String, String, String, bool), SnapbackError> {
+            let input = request.input.clone().ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_HOST_OP_INPUT_MISSING",
+                    "host-ops",
+                    "debug.live.forceResync requires connectionId, subscriptionId, reason, and startupNonce under input",
+                )
+            })?;
+            let connection_id = input
+                .get("connectionId")
+                .and_then(Value::as_str)
+                .filter(|value| !value.is_empty())
+                .ok_or_else(|| {
+                    SnapbackError::error(
+                        "SNAPBACK_HOST_OP_INPUT_MISSING",
+                        "host-ops",
+                        "debug.live.forceResync requires a non-empty string connectionId",
+                    )
+                })?
+                .to_owned();
+            let subscription_id = input
+                .get("subscriptionId")
+                .and_then(Value::as_str)
+                .filter(|value| !value.is_empty())
+                .ok_or_else(|| {
+                    SnapbackError::error(
+                        "SNAPBACK_HOST_OP_INPUT_MISSING",
+                        "host-ops",
+                        "debug.live.forceResync requires a non-empty string subscriptionId",
+                    )
+                })?
+                .to_owned();
+            let reason = input
+                .get("reason")
+                .and_then(Value::as_str)
+                .filter(|value| !value.is_empty())
+                .ok_or_else(|| {
+                    SnapbackError::error(
+                        "SNAPBACK_HOST_OP_INPUT_MISSING",
+                        "host-ops",
+                        "debug.live.forceResync requires a non-empty string reason (a closed operator/test reason)",
+                    )
+                })?
+                .to_owned();
+            let startup_nonce = input
+                .get("startupNonce")
+                .and_then(Value::as_str)
+                .filter(|value| !value.is_empty())
+                .ok_or_else(|| {
+                    SnapbackError::error(
+                        "SNAPBACK_HOST_OP_INPUT_MISSING",
+                        "host-ops",
+                        "debug.live.forceResync requires the target's startupNonce, fencing the request to this exact running process",
+                    )
+                })?;
+            if startup_nonce != runtime.server_startup_nonce() {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_LIVE_FORCE_RESYNC_STARTUP_NONCE_MISMATCH",
+                    "host-ops",
+                    "the supplied startupNonce does not match the running process; a forced resync is refused rather than fenced against a possibly different server",
+                )
+                .with_details(json!({ "expected": runtime.server_startup_nonce() })));
+            }
+            let clear_retained = input
+                .get("clearRetained")
+                .and_then(Value::as_bool)
+                .unwrap_or(false);
+            Ok((connection_id, subscription_id, reason, clear_retained))
+        })();
+        let outcome = match outcome {
+            Ok((connection_id, subscription_id, reason, clear_retained)) => {
+                with_snapback(&state, move |snapback| {
+                    snapback.force_live_resync(
+                        &connection_id,
+                        &subscription_id,
+                        &reason,
+                        clear_retained,
+                    )
+                })
+                .await
+                .map(|receipt| {
+                    serde_json::to_value(&receipt)
+                        .expect("ForceLiveResyncReceipt is a serializable closed DTO")
+                })
+            }
+            Err(error) => Err(error),
+        };
+        let result = with_snapback(&state, move |snapback| {
+            crate::host_ops::force_live_resync_result(snapback, &request, server_url, profile, outcome)
         })
         .await;
         return Ok(Json(result));
@@ -25114,7 +25245,11 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_PUSH_PROVIDER_OVERRIDE_REFUSED"
         | "SNAPBACK_PUSH_RECEIPT_CLAIM_STALE"
         | "SNAPBACK_PUSH_SEND_FAILED"
-        | "SNAPBACK_PUSH_REGISTRY_CORRUPT" => StatusCode::INTERNAL_SERVER_ERROR,
+        | "SNAPBACK_PUSH_REGISTRY_CORRUPT"
+        // @ref LLP 0184#b-forced-live-resync--add-now — an infallible-in-
+        //   practice serde encode failure of a closed DTO; a server
+        //   invariant, not a caller-fixable input.
+        | "SNAPBACK_LIVE_FORCE_RESYNC_ENCODE_FAILED" => StatusCode::INTERNAL_SERVER_ERROR,
         // @ref LLP 0132#query-surface — malformed query/value carriers and a
         // mutation that exceeds the fixed maintenance admission ceiling are
         // caller-fixable. Retrying the unchanged request cannot succeed.
@@ -25144,6 +25279,9 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         "SNAPBACK_UNKNOWN_CRON_JOB"
         | "SNAPBACK_JOB_UNKNOWN"
         | "SNAPBACK_UNKNOWN_SUBSCRIPTION"
+        // @ref LLP 0184#b-forced-live-resync--add-now — the target
+        //   subscription id is not currently open.
+        | "SNAPBACK_LIVE_FORCE_RESYNC_SUBSCRIPTION_NOT_FOUND"
         | "SNAPBACK_ERROR_ISSUE_NOT_FOUND"
         | "SNAPBACK_AUTH_MODE_DEV"
         // @ref LLP 0055#principal-kinds — an operation naming a principal that is
@@ -25158,6 +25296,11 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         //   membership row is absent, so this is a scoped not-found result.
         | "SNAPBACK_MEMBERSHIP_SELF_NOT_FOUND" => StatusCode::NOT_FOUND,
         "SNAPBACK_ARTIFACT_IDENTITY_MISMATCH"
+        // @ref LLP 0184#b-forced-live-resync--add-now — the given
+        //   subscription id is open on a different connection than fenced;
+        //   the fence itself is intact (not a not-found), so this is a
+        //   conflict, not a 404.
+        | "SNAPBACK_LIVE_FORCE_RESYNC_CONNECTION_MISMATCH"
         // @ref LLP 0154#d5--the-query-contract-typed-operations-projected-everywhere —
         //   a continuation or frozen export snapshot bound to retired sibling
         //   state conflicts with the current store and must be restarted.
@@ -25302,7 +25445,13 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_STANDARD_PATTERN_PRINCIPAL_UNSUPPORTED"
         // LLP 0081 §2: apply without a binding authenticated approval.
         | "SNAPBACK_MIGRATION_APPROVAL_REQUIRED"
-        | "SNAPBACK_PROFILE_FORBIDS" => StatusCode::FORBIDDEN,
+        | "SNAPBACK_PROFILE_FORBIDS"
+        // @ref LLP 0184#b-forced-live-resync--add-now — target-rule refusal
+        //   (local-non-production-only) and a startup-nonce that does not
+        //   match the running process are both authorization refusals, not
+        //   caller-fixable-by-retry input errors.
+        | "SNAPBACK_DEBUG_PERTURBATION_TARGET_REFUSED"
+        | "SNAPBACK_LIVE_FORCE_RESYNC_STARTUP_NONCE_MISMATCH" => StatusCode::FORBIDDEN,
         "SNAPBACK_ADMIN_TOKEN_REQUIRED"
         | "SNAPBACK_ADMIN_SECRET_READ_REQUIRED"
         | "SNAPBACK_CONNECTION_TOKEN_REQUIRED"
@@ -40949,6 +41098,9 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_PROTECTED_ERASURE_AUTHORITY_INVALID",
         "SNAPBACK_NETWORK_PROFILE_FORBIDDEN",
         "SNAPBACK_ADMIN_DISABLED",
+        // @ref LLP 0184#b-forced-live-resync--add-now
+        "SNAPBACK_DEBUG_PERTURBATION_TARGET_REFUSED",
+        "SNAPBACK_LIVE_FORCE_RESYNC_STARTUP_NONCE_MISMATCH",
         "SNAPBACK_ADMIN_APPROVAL_UNAVAILABLE",
         "SNAPBACK_ADMIN_CLAIM_UNAVAILABLE",
         "SNAPBACK_ADMIN_CONSOLE_MINT_UNAVAILABLE",
@@ -41017,6 +41169,8 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_UNKNOWN_FIELD",
         "SNAPBACK_UNKNOWN_FUNCTION",
         "SNAPBACK_UNKNOWN_SUBSCRIPTION",
+        // @ref LLP 0184#b-forced-live-resync--add-now
+        "SNAPBACK_LIVE_FORCE_RESYNC_SUBSCRIPTION_NOT_FOUND",
         "SNAPBACK_UNKNOWN_TABLE",
         "SNAPBACK_ERROR_ISSUE_NOT_FOUND",
         "SNAPBACK_ASSET_INTENT_UNKNOWN",
@@ -41126,6 +41280,8 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_AUTH_REFRESH_SUPERSEDED",
         "SNAPBACK_AUTH_TABLE_COLLISION",
         "SNAPBACK_ARTIFACT_IDENTITY_MISMATCH",
+        // @ref LLP 0184#b-forced-live-resync--add-now
+        "SNAPBACK_LIVE_FORCE_RESYNC_CONNECTION_MISMATCH",
         "SNAPBACK_CLIENT_MUTATION_ID_REUSED",
         "SNAPBACK_CLIENT_MUTATION_LEGACY_AUTH_QUARANTINED",
         "SNAPBACK_CONFIG_VERIFY_STALE",
@@ -41365,6 +41521,8 @@ globalThis.__snapbackHandlers = {
     // diagnostics that never normally become an `ApiError`. If one does reach
     // that boundary, the fail-safe class is still 500 rather than a false 4xx.
     const INTERNAL_SERVER_ERROR_DIAGNOSTICS: &[&str] = &[
+        // @ref LLP 0184#b-forced-live-resync--add-now
+        "SNAPBACK_LIVE_FORCE_RESYNC_ENCODE_FAILED",
         // Reviewed LLP 0158/0163/0164/0165 server-authored state, proof,
         // journal, custody, I/O, and test-crash invariants.
         "SNAPBACK_BENCH_RANGE_EXHAUSTED",

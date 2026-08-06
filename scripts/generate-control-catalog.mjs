@@ -104,6 +104,7 @@ const CLI_PROJECTIONS = {
   'function.run': 'snapback host run',
   'debug.networkProfileGet': 'snapback network-profile get',
   'debug.networkProfileSet': 'snapback network-profile set',
+  'debug.live.forceResync': 'snapback debug force-resync',
   'telemetry.stats': 'snapback telemetry stats',
   'telemetry.events': 'snapback telemetry events',
   'telemetry.export': 'snapback telemetry export',
@@ -152,6 +153,7 @@ const CLI_PROJECTIONS = {
 const GUIDE_ANCHORS = {
   'debug.networkProfileGet': 'operating/network-profiles.md#read-the-active-profile',
   'debug.networkProfileSet': 'operating/network-profiles.md#set-a-profile',
+  'debug.live.forceResync': 'operating/host-ops.md',
   'app.inspect': 'operating/host-ops.md',
   'telemetry.stats': 'operating/host-ops.md',
   'telemetry.events': 'operating/host-ops.md',
@@ -227,6 +229,14 @@ function applyOverride(entry, override) {
   if (override.sources) entry.sources = override.sources;
   if (override.unavailableReason) entry.unavailableReason = override.unavailableReason;
   if (override.internalReason) entry.internalReason = override.internalReason;
+  // @ref LLP 0184#b-forced-live-resync--add-now — availability.targets
+  //   carries a target refusal (e.g. "derived-hosted excluded until LLP
+  //   0158 grants recognition for this purpose"); it is a distinct fact
+  //   from operability and must be authorable per row, not hardcoded to
+  //   the host-ops-family default of every local/derived-hosted target.
+  if (override.availabilityTargets) entry.availability.targets = override.availabilityTargets;
+  if (override.adminClient) entry.projections.adminClient = override.adminClient;
+  if (override.console) entry.projections.console = override.console;
   if (override.projectionCredentials) {
     entry.policy.projectionCredentials = override.projectionCredentials;
   }

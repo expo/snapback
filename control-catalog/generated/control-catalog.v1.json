@@ -1,11 +1,11 @@
 {
   "schemaVersion": "snapback.control-catalog.v1",
-  "catalogDigest": "sha256:d50a314a6ad6ea12926715ac43d09cb68a19bd6e150716ad4690f3b6331bba59",
+  "catalogDigest": "sha256:2f880df34ac4e2296a22201283f2e47f542769850eb2c96d282031a583583f81",
   "buildIdentity": {
-    "sourceCommit": "b5ccf3c14308db5e7d0116518a5767e87cad84ff",
-    "dirty": false
+    "sourceCommit": "86b86117fd1c60d801056620994920bb33a2833c",
+    "dirty": true
   },
-  "generatedAtCommit": "b5ccf3c14308db5e7d0116518a5767e87cad84ff",
+  "generatedAtCommit": "86b86117fd1c60d801056620994920bb33a2833c",
   "entries": [
     {
       "operation": "acceptance.run",
@@ -13,10 +13,6 @@
       "intents": [],
       "status": "unbuilt",
       "domain": "hostOps",
-      "hostOpsDisposition": "pinnedUnbuilt",
-      "registeredOperations": [
-        "host_ops.acceptance.run"
-      ],
       "surfaceAccess": "mcpOnly",
       "operability": "unavailable",
       "unavailableReason": {
@@ -293,10 +289,6 @@
       "intents": [],
       "status": "shipped",
       "domain": "hostOps",
-      "hostOpsDisposition": "served",
-      "registeredOperations": [
-        "host_ops.app.inspect"
-      ],
       "surfaceAccess": "native",
       "operability": "direct",
       "availability": {
@@ -342,10 +334,6 @@
       "intents": [],
       "status": "shipped",
       "domain": "hostOps",
-      "hostOpsDisposition": "served",
-      "registeredOperations": [
-        "host_ops.app.reset"
-      ],
       "surfaceAccess": "native",
       "operability": "direct",
       "availability": {
@@ -397,10 +385,6 @@
       "intents": [],
       "status": "shipped",
       "domain": "hostOps",
-      "hostOpsDisposition": "served",
-      "registeredOperations": [
-        "host_ops.app.seed.clear.v1"
-      ],
       "surfaceAccess": "apiOnly",
       "operability": "direct",
       "availability": {
@@ -446,10 +430,6 @@
       "intents": [],
       "status": "shipped",
       "domain": "hostOps",
-      "hostOpsDisposition": "served",
-      "registeredOperations": [
-        "host_ops.app.seed.ensure.v1"
-      ],
       "surfaceAccess": "apiOnly",
       "operability": "direct",
       "availability": {
@@ -495,10 +475,6 @@
       "intents": [],
       "status": "shipped",
       "domain": "hostOps",
-      "hostOpsDisposition": "served",
-      "registeredOperations": [
-        "host_ops.app.seed.preview.v1"
-      ],
       "surfaceAccess": "apiOnly",
       "operability": "direct",
       "availability": {
@@ -544,10 +520,6 @@
       "intents": [],
       "status": "shipped",
       "domain": "hostOps",
-      "hostOpsDisposition": "served",
-      "registeredOperations": [
-        "host_ops.app.seed.reset-install.v1"
-      ],
       "surfaceAccess": "apiOnly",
       "operability": "direct",
       "availability": {
@@ -593,10 +565,6 @@
       "intents": [],
       "status": "shipped",
       "domain": "hostOps",
-      "hostOpsDisposition": "served",
-      "registeredOperations": [
-        "host_ops.asset.delete"
-      ],
       "surfaceAccess": "native",
       "operability": "direct",
       "availability": {
@@ -642,10 +610,6 @@
       "intents": [],
       "status": "shipped",
       "domain": "hostOps",
-      "hostOpsDisposition": "served",
-      "registeredOperations": [
-        "host_ops.asset.ensureSeedFixture"
-      ],
       "surfaceAccess": "cliOnly",
       "operability": "direct",
       "availability": {
@@ -692,10 +656,6 @@
       "intents": [],
       "status": "shipped",
       "domain": "hostOps",
-      "hostOpsDisposition": "served",
-      "registeredOperations": [
-        "host_ops.asset.exportCut"
-      ],
       "surfaceAccess": "native",
       "operability": "direct",
       "availability": {
@@ -741,10 +701,6 @@
       "intents": [],
       "status": "shipped",
       "domain": "hostOps",
-      "hostOpsDisposition": "served",
-      "registeredOperations": [
-        "host_ops.asset.gcSweep"
-      ],
       "surfaceAccess": "native",
       "operability": "direct",
       "availability": {
@@ -790,10 +746,6 @@
       "intents": [],
       "status": "shipped",
       "domain": "hostOps",
-      "hostOpsDisposition": "served",
-      "registeredOperations": [
-        "host_ops.asset.importCut"
-      ],
       "surfaceAccess": "native",
       "operability": "direct",
       "availability": {
@@ -839,10 +791,6 @@
       "intents": [],
       "status": "shipped",
       "domain": "hostOps",
-      "hostOpsDisposition": "served",
-      "registeredOperations": [
-        "host_ops.asset.inspect"
-      ],
       "surfaceAccess": "native",
       "operability": "direct",
       "availability": {
@@ -888,10 +836,6 @@
       "intents": [],
       "status": "shipped",
       "domain": "hostOps",
-      "hostOpsDisposition": "served",
-      "registeredOperations": [
-        "host_ops.asset.list"
-      ],
       "surfaceAccess": "native",
       "operability": "direct",
       "availability": {
@@ -937,10 +881,6 @@
       "intents": [],
       "status": "shipped",
       "domain": "hostOps",
-      "hostOpsDisposition": "served",
-      "registeredOperations": [
-        "host_ops.asset.put"
-      ],
       "surfaceAccess": "cliOnly",
       "operability": "direct",
       "availability": {
@@ -987,10 +927,6 @@
       "intents": [],
       "status": "shipped",
       "domain": "hostOps",
-      "hostOpsDisposition": "served",
-      "registeredOperations": [
-        "host_ops.asset.retry"
-      ],
       "surfaceAccess": "native",
       "operability": "direct",
       "availability": {
@@ -1036,10 +972,6 @@
       "intents": [],
       "status": "shipped",
       "domain": "hostOps",
-      "hostOpsDisposition": "served",
-      "registeredOperations": [
-        "host_ops.asset.rotateSigningKey"
-      ],
       "surfaceAccess": "native",
       "operability": "direct",
       "availability": {
@@ -1131,10 +1063,6 @@
       "intents": [],
       "status": "shipped",
       "domain": "hostOps",
-      "hostOpsDisposition": "served",
-      "registeredOperations": [
-        "host_ops.auth.mintSession"
-      ],
       "surfaceAccess": "apiOnly",
       "operability": "direct",
       "availability": {
@@ -1180,10 +1108,6 @@
       "intents": [],
       "status": "shipped",
       "domain": "hostOps",
-      "hostOpsDisposition": "served",
-      "registeredOperations": [
-        "host_ops.auth.rescueCollidingTable"
-      ],
       "surfaceAccess": "apiOnly",
       "operability": "direct",
       "availability": {
@@ -1229,10 +1153,6 @@
       "intents": [],
       "status": "shipped",
       "domain": "hostOps",
-      "hostOpsDisposition": "served",
-      "registeredOperations": [
-        "host_ops.branch.create.v1"
-      ],
       "surfaceAccess": "apiOnly",
       "operability": "unavailable",
       "unavailableReason": {
@@ -1283,10 +1203,6 @@
       "intents": [],
       "status": "shipped",
       "domain": "hostOps",
-      "hostOpsDisposition": "served",
-      "registeredOperations": [
-        "host_ops.branch.drop.v1"
-      ],
       "surfaceAccess": "apiOnly",
       "operability": "unavailable",
       "unavailableReason": {
@@ -1337,10 +1253,6 @@
       "intents": [],
       "status": "shipped",
       "domain": "hostOps",
-      "hostOpsDisposition": "served",
-      "registeredOperations": [
-        "host_ops.branch.execute.v1"
-      ],
       "surfaceAccess": "apiOnly",
       "operability": "unavailable",
       "unavailableReason": {
@@ -1391,10 +1303,6 @@
       "intents": [],
       "status": "shipped",
       "domain": "hostOps",
-      "hostOpsDisposition": "served",
-      "registeredOperations": [
-        "host_ops.branch.inspect.v1"
-      ],
       "surfaceAccess": "apiOnly",
       "operability": "unavailable",
       "unavailableReason": {
@@ -1445,10 +1353,6 @@
       "intents": [],
       "status": "shipped",
       "domain": "hostOps",
-      "hostOpsDisposition": "served",
-      "registeredOperations": [
-        "host_ops.branch.list.v1"
-      ],
       "surfaceAccess": "apiOnly",
       "operability": "unavailable",
       "unavailableReason": {
@@ -1499,10 +1403,6 @@
       "intents": [],
       "status": "shipped",
       "domain": "hostOps",
-      "hostOpsDisposition": "served",
-      "registeredOperations": [
-        "host_ops.branch.reap.v1"
-      ],
       "surfaceAccess": "apiOnly",
       "operability": "unavailable",
       "unavailableReason": {
@@ -3020,139 +2920,6 @@
       "internalReason": "Console session-bootstrap plumbing; see console.credential."
     },
     {
-      "operation": "control.catalog.describe",
-      "title": "Describe one Snapback control operation",
-      "intents": [],
-      "status": "shipped",
-      "domain": "systemApi",
-      "surfaceAccess": "native",
-      "operability": "direct",
-      "availability": {
-        "targets": [
-          "local",
-          "derived-hosted"
-        ]
-      },
-      "policy": {
-        "authority": "operator",
-        "routePolicy": "AdminRead",
-        "effect": "None",
-        "responseSensitivity": "OperatorMetadata"
-      },
-      "behavior": {
-        "readOnly": true,
-        "destructive": false,
-        "approvalPosture": null,
-        "idempotent": true,
-        "openWorld": false,
-        "persistsAcrossRestart": false
-      },
-      "projections": {
-        "cli": "snapback controls describe <operation>",
-        "mcp": "snapback-controls://operation/{operation}",
-        "hostOps": null,
-        "http": "GET /_snapback/api/control-catalog/operations/{operation}",
-        "adminClient": null,
-        "console": null
-      },
-      "guide": "operating/agent-controls.md#describe-one-operation",
-      "authorities": [
-        "llp/0031-server-route-taxonomy"
-      ],
-      "sources": [
-        "src/server.rs route_registry()"
-      ]
-    },
-    {
-      "operation": "control.catalog.instance.read",
-      "title": "Running Snapback instance availability snapshot",
-      "intents": [],
-      "status": "shipped",
-      "domain": "systemApi",
-      "surfaceAccess": "mcpOnly",
-      "operability": "direct",
-      "availability": {
-        "targets": [
-          "local",
-          "derived-hosted"
-        ]
-      },
-      "policy": {
-        "authority": "operator",
-        "routePolicy": "AdminRead",
-        "effect": "None",
-        "responseSensitivity": "OperatorMetadata"
-      },
-      "behavior": {
-        "readOnly": true,
-        "destructive": false,
-        "approvalPosture": null,
-        "idempotent": true,
-        "openWorld": false,
-        "persistsAcrossRestart": false
-      },
-      "projections": {
-        "cli": null,
-        "mcp": "snapback-controls://instance",
-        "hostOps": null,
-        "http": "GET /_snapback/api/control-catalog/instance",
-        "adminClient": null,
-        "console": null
-      },
-      "guide": "operating/agent-controls.md#build-versus-instance-identity",
-      "authorities": [
-        "llp/0031-server-route-taxonomy"
-      ],
-      "sources": [
-        "src/server.rs route_registry()"
-      ],
-      "cliDeferralReason": "The v1 CLI stays honestly build-only/offline. Instance availability is served by the admin-gated HTTP endpoint and the control MCP resource; invocation admission remains authoritative."
-    },
-    {
-      "operation": "control.catalog.read",
-      "title": "Snapback control catalog — searchable index",
-      "intents": [],
-      "status": "shipped",
-      "domain": "systemApi",
-      "surfaceAccess": "native",
-      "operability": "direct",
-      "availability": {
-        "targets": [
-          "local",
-          "derived-hosted"
-        ]
-      },
-      "policy": {
-        "authority": "operator",
-        "routePolicy": "AdminRead",
-        "effect": "None",
-        "responseSensitivity": "OperatorMetadata"
-      },
-      "behavior": {
-        "readOnly": true,
-        "destructive": false,
-        "approvalPosture": null,
-        "idempotent": true,
-        "openWorld": false,
-        "persistsAcrossRestart": false
-      },
-      "projections": {
-        "cli": "snapback controls list",
-        "mcp": "snapback-controls://catalog",
-        "hostOps": null,
-        "http": "GET /_snapback/api/control-catalog",
-        "adminClient": null,
-        "console": null
-      },
-      "guide": "operating/agent-controls.md#search-the-build-catalog",
-      "authorities": [
-        "llp/0031-server-route-taxonomy"
-      ],
-      "sources": [
-        "src/server.rs route_registry()"
-      ]
-    },
-    {
       "operation": "cron.runOne",
       "title": "Force-run one named cron job",
       "intents": [],
@@ -3296,110 +3063,6 @@
       ]
     },
     {
-      "operation": "data.patch.apply",
-      "title": "Apply one previewed bounded direct row patch",
-      "intents": [],
-      "status": "shipped",
-      "domain": "hostOps",
-      "hostOpsDisposition": "served",
-      "registeredOperations": [
-        "host_ops.data.patch.apply",
-        "host_ops.data.patch.apply.impersonated"
-      ],
-      "surfaceAccess": "native",
-      "operability": "direct",
-      "availability": {
-        "targets": [
-          "local"
-        ]
-      },
-      "policy": {
-        "authority": "AnonymousAdminBypass",
-        "routePolicy": "AdminWrite",
-        "effect": "None",
-        "responseSensitivity": "SensitiveApplicationData"
-      },
-      "behavior": {
-        "readOnly": false,
-        "destructive": true,
-        "approvalPosture": "confirmFirst",
-        "idempotent": false,
-        "openWorld": false,
-        "persistsAcrossRestart": true
-      },
-      "projections": {
-        "cli": "snapback data patch --apply --input <file|->",
-        "mcp": "snapback_data_patch_apply",
-        "hostOps": "data.patch.apply",
-        "http": "POST /_snapback/api/host-ops",
-        "adminClient": null,
-        "console": null
-      },
-      "guide": "operating/data-patch.md#apply",
-      "authorities": [
-        "llp/0024-agent-operating-surface",
-        "llp/0184-agent-accessible-control-plane"
-      ],
-      "sources": [
-        "src/data_patch.rs",
-        "src/local.rs",
-        "src/server.rs",
-        "packages/snapback-cli/mcp-control.mjs"
-      ]
-    },
-    {
-      "operation": "data.patch.preview",
-      "title": "Preview one bounded direct row patch",
-      "intents": [],
-      "status": "shipped",
-      "domain": "hostOps",
-      "hostOpsDisposition": "served",
-      "registeredOperations": [
-        "host_ops.data.patch.preview",
-        "host_ops.data.patch.preview.impersonated"
-      ],
-      "surfaceAccess": "native",
-      "operability": "direct",
-      "availability": {
-        "targets": [
-          "local"
-        ]
-      },
-      "policy": {
-        "authority": "AnonymousAdminBypass",
-        "routePolicy": "AdminWrite",
-        "effect": "None",
-        "responseSensitivity": "SensitiveApplicationData"
-      },
-      "behavior": {
-        "readOnly": false,
-        "destructive": false,
-        "approvalPosture": null,
-        "idempotent": false,
-        "openWorld": false,
-        "persistsAcrossRestart": false
-      },
-      "projections": {
-        "cli": "snapback data patch --preview --input <file|->",
-        "mcp": "snapback_data_patch_preview",
-        "hostOps": "data.patch.preview",
-        "http": "POST /_snapback/api/host-ops",
-        "adminClient": null,
-        "console": null
-      },
-      "guide": "operating/data-patch.md#preview",
-      "authorities": [
-        "llp/0024-agent-operating-surface",
-        "llp/0184-agent-accessible-control-plane"
-      ],
-      "sources": [
-        "src/data_patch.rs",
-        "src/local.rs",
-        "src/server.rs",
-        "packages/snapback-cli/mcp-control.mjs"
-      ]
-    },
-    {
       "operation": "data.scan",
       "title": "Bounded read-only table scan",
       "intents": [],
@@ -3444,15 +3107,55 @@
       ]
     },
     {
+      "operation": "debug.live.forceResync",
+      "title": "Force one live subscription to resync (debug perturbation)",
+      "intents": [],
+      "status": "shipped",
+      "domain": "hostOps",
+      "surfaceAccess": "native",
+      "operability": "direct",
+      "availability": {
+        "targets": [
+          "local"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "routePolicy": "AdminWrite",
+        "effect": "None",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": true,
+        "approvalPosture": "confirmFirst",
+        "idempotent": true,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": "snapback debug force-resync",
+        "mcp": "snapback_live_force_resync",
+        "hostOps": "debug.live.forceResync",
+        "http": "POST /_snapback/api/host-ops",
+        "adminClient": "forceLiveResync",
+        "console": null
+      },
+      "guide": "operating/host-ops.md",
+      "authorities": [
+        "llp/0024-agent-operating-surface"
+      ],
+      "sources": [
+        "src/host_ops.rs",
+        "packages/snapback-cli/mcp-control.mjs"
+      ]
+    },
+    {
       "operation": "debug.networkProfileGet",
       "title": "Read the active network condition profile",
       "intents": [],
       "status": "shipped",
       "domain": "hostOps",
-      "hostOpsDisposition": "served",
-      "registeredOperations": [
-        "host_ops.debug.networkProfileGet"
-      ],
       "surfaceAccess": "native",
       "operability": "direct",
       "availability": {
@@ -3503,10 +3206,6 @@
       "intents": [],
       "status": "shipped",
       "domain": "hostOps",
-      "hostOpsDisposition": "served",
-      "registeredOperations": [
-        "host_ops.debug.networkProfileSet"
-      ],
       "surfaceAccess": "native",
       "operability": "direct",
       "availability": {
@@ -3781,58 +3480,11 @@
       ]
     },
     {
-      "operation": "ephemeral.operatorDelete",
-      "title": "Operator-bypass delete of one ephemeral entry (debug/repair)",
-      "intents": [],
-      "status": "shipped",
-      "domain": "systemApi",
-      "surfaceAccess": "native",
-      "operability": "direct",
-      "availability": {
-        "targets": [
-          "local"
-        ]
-      },
-      "policy": {
-        "authority": "operator",
-        "routePolicy": "AdminWrite",
-        "effect": "None",
-        "responseSensitivity": "SensitiveApplicationData"
-      },
-      "behavior": {
-        "readOnly": false,
-        "destructive": true,
-        "approvalPosture": "confirmFirst",
-        "idempotent": true,
-        "openWorld": false,
-        "persistsAcrossRestart": true
-      },
-      "projections": {
-        "cli": "snapback ephemeral operator-delete",
-        "mcp": "snapback_ephemeral_operator_delete",
-        "hostOps": null,
-        "http": "POST /_snapback/api/ephemeral/operator/delete",
-        "adminClient": null,
-        "console": null
-      },
-      "guide": "realtime/ephemeral-state.md#delete-one-entry-as-an-operator",
-      "authorities": [
-        "llp/0031-server-route-taxonomy"
-      ],
-      "sources": [
-        "src/server.rs route_registry()"
-      ]
-    },
-    {
       "operation": "errors.issue",
       "title": "Inspect one error issue",
       "intents": [],
       "status": "shipped",
       "domain": "hostOps",
-      "hostOpsDisposition": "served",
-      "registeredOperations": [
-        "host_ops.errors.issue"
-      ],
       "surfaceAccess": "native",
       "operability": "direct",
       "availability": {
@@ -3878,10 +3530,6 @@
       "intents": [],
       "status": "shipped",
       "domain": "hostOps",
-      "hostOpsDisposition": "served",
-      "registeredOperations": [
-        "host_ops.errors.issues"
-      ],
       "surfaceAccess": "native",
       "operability": "direct",
       "availability": {
@@ -3927,10 +3575,6 @@
       "intents": [],
       "status": "shipped",
       "domain": "hostOps",
-      "hostOpsDisposition": "served",
-      "registeredOperations": [
-        "host_ops.errors.transition"
-      ],
       "surfaceAccess": "native",
       "operability": "direct",
       "availability": {
@@ -3976,11 +3620,6 @@
       "intents": [],
       "status": "shipped",
       "domain": "hostOps",
-      "hostOpsDisposition": "served",
-      "registeredOperations": [
-        "host_ops.function.explain",
-        "host_ops.function.explain.impersonated"
-      ],
       "surfaceAccess": "apiOnly",
       "operability": "direct",
       "availability": {
@@ -4026,14 +3665,6 @@
       "intents": [],
       "status": "shipped",
       "domain": "hostOps",
-      "hostOpsDisposition": "served",
-      "registeredOperations": [
-        "host_ops.function.run.query",
-        "host_ops.function.run.mutation",
-        "host_ops.function.run.action",
-        "host_ops.function.run.unknown",
-        "host_ops.function.run.impersonated"
-      ],
       "surfaceAccess": "native",
       "operability": "direct",
       "availability": {
@@ -4079,10 +3710,6 @@
       "intents": [],
       "status": "shipped",
       "domain": "hostOps",
-      "hostOpsDisposition": "served",
-      "registeredOperations": [
-        "host_ops.functions.load"
-      ],
       "surfaceAccess": "native",
       "operability": "direct",
       "availability": {
@@ -4128,10 +3755,6 @@
       "intents": [],
       "status": "unbuilt",
       "domain": "hostOps",
-      "hostOpsDisposition": "pinnedUnbuilt",
-      "registeredOperations": [
-        "host_ops.functions.reload"
-      ],
       "surfaceAccess": "apiOnly",
       "operability": "unavailable",
       "unavailableReason": {
@@ -4274,10 +3897,6 @@
       "intents": [],
       "status": "shipped",
       "domain": "hostOps",
-      "hostOpsDisposition": "cliOnly",
-      "registeredOperations": [
-        "host_ops.host.restart"
-      ],
       "surfaceAccess": "mcpOnly",
       "operability": "direct",
       "availability": {
@@ -4332,10 +3951,6 @@
       "intents": [],
       "status": "shipped",
       "domain": "hostOps",
-      "hostOpsDisposition": "cliOnly",
-      "registeredOperations": [
-        "host_ops.host.start"
-      ],
       "surfaceAccess": "cliOnly",
       "operability": "direct",
       "availability": {
@@ -4382,10 +3997,6 @@
       "intents": [],
       "status": "shipped",
       "domain": "hostOps",
-      "hostOpsDisposition": "cliOnly",
-      "registeredOperations": [
-        "host_ops.host.stop"
-      ],
       "surfaceAccess": "cliOnly",
       "operability": "direct",
       "availability": {
@@ -4887,10 +4498,6 @@
       "intents": [],
       "status": "shipped",
       "domain": "hostOps",
-      "hostOpsDisposition": "served",
-      "registeredOperations": [
-        "host_ops.schema.load"
-      ],
       "surfaceAccess": "native",
       "operability": "direct",
       "availability": {
@@ -4936,10 +4543,6 @@
       "intents": [],
       "status": "unbuilt",
       "domain": "hostOps",
-      "hostOpsDisposition": "pinnedUnbuilt",
-      "registeredOperations": [
-        "host_ops.schema.reload"
-      ],
       "surfaceAccess": "apiOnly",
       "operability": "unavailable",
       "unavailableReason": {
@@ -5133,10 +4736,6 @@
       "intents": [],
       "status": "shipped",
       "domain": "hostOps",
-      "hostOpsDisposition": "served",
-      "registeredOperations": [
-        "host_ops.telemetry.events"
-      ],
       "surfaceAccess": "native",
       "operability": "direct",
       "availability": {
@@ -5182,10 +4781,6 @@
       "intents": [],
       "status": "shipped",
       "domain": "hostOps",
-      "hostOpsDisposition": "served",
-      "registeredOperations": [
-        "host_ops.telemetry.export"
-      ],
       "surfaceAccess": "native",
       "operability": "direct",
       "availability": {
@@ -5231,10 +4826,6 @@
       "intents": [],
       "status": "shipped",
       "domain": "hostOps",
-      "hostOpsDisposition": "served",
-      "registeredOperations": [
-        "host_ops.telemetry.stats"
-      ],
       "surfaceAccess": "native",
       "operability": "direct",
       "availability": {

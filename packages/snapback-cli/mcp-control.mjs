@@ -780,6 +780,32 @@ export const CONTROL_TOOLS = [
     },
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
   },
+  // @ref LLP 0184#b-forced-live-resync--add-now — v1 targets exactly one
+  // subscription, fenced by connectionId + subscriptionId (the same UUIDv7
+  // identity the operator inspect projection already exposes) plus the
+  // running server's startupNonce, filled in from this server's own
+  // readiness descriptor — never a caller-supplied value, so an agent
+  // cannot fence a request against a server other than the one this MCP
+  // process is actually managing. Connection-wide targeting is explicitly
+  // out of v1 scope (OQ4). Local non-production only; refused on a primary
+  // hosted/production target or a derived instance until LLP 0158 grants
+  // recognition for this purpose.
+  {
+    name: 'snapback_live_force_resync',
+    operation: 'debug.live.forceResync',
+    title: 'Force one live subscription to resync (debug perturbation)',
+    description: 'Force one live subscription through the normal resync_required recovery path for local debugging. Changes no application data.',
+    inputSchema: {
+      type: 'object', additionalProperties: false, required: ['connectionId', 'subscriptionId', 'reason'],
+      properties: {
+        connectionId: { type: 'string' },
+        subscriptionId: { type: 'string' },
+        reason: { type: 'string', description: 'Why this debug perturbation is being invoked; recorded in the receipt.' },
+        clearRetained: { type: 'boolean', description: 'Also discard retained rows on the client rather than keep them until the fresh snapshot lands. Defaults to false.' },
+      },
+    },
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
+  },
   // @ref LLP 0184#p2-controlled-mutations — direct MCP tools for the
   // already-shipped asset delete/GC/key-rotation/export/import CLI paths.
   // asset.list/inspect/retry are the P1 read/diagnose projection (a
@@ -1851,6 +1877,23 @@ export class McpControlServer {
           startupNonce: descriptor.startupNonce,
         }, descriptor);
         return this.toolResult(this.adminRouteEnvelope('ephemeral.operatorDelete', id, result));
+      }
+      case 'snapback_live_force_resync': {
+        // @ref LLP 0184#b-forced-live-resync--add-now — startupNonce comes
+        // only from this server's own readiness descriptor, never from
+        // caller-supplied args; the server independently verifies it
+        // matches the running process before touching any subscription.
+        const descriptor = this.currentDescriptor();
+        return this.servedResult({
+          operation: 'debug.live.forceResync',
+          input: {
+            connectionId: args.connectionId,
+            subscriptionId: args.subscriptionId,
+            reason: args.reason,
+            clearRetained: args.clearRetained === true,
+            startupNonce: descriptor.startupNonce,
+          },
+        });
       }
       // @ref LLP 0184#p2-controlled-mutations — asset delete/GC/key-rotation/
       // export/import direct MCP tools; all route through the host-ops
