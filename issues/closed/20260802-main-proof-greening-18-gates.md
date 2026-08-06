@@ -1287,3 +1287,45 @@ The idle interval observed zero storage mutations, zero process read bytes,
 zero process write bytes, 3/10 allowed CPU ticks, and zero RSS-page growth
 against an eight-page ceiling. This fresh carrier, not any superseded
 predecessor, closes the exact merge-reconciled batch.
+
+### G2/main-wave proof-carrier reconciliation — 2026-08-06
+
+Main advanced through the LLP 0179 conversation surface
+(`c7a8b90312ac979830df6948023689af169166a3`), the IndexedDB binding-receipt
+writer-election repair (`4ac8387f080a2659484fc09916ff22a076dc4ca8`), and LLP
+0081 tombstone-and-re-entry custody
+(`6ec40820dc853f79c9207f9c9f008e81242f8348`). The combined codegen change
+rotated every selected review manifest, the trusted Latency/Triage/Contention
+activations, the packaged push-seam graph, the Expo golden-path review
+manifest, and the All Aboard deployment identity. The real producers passed:
+Latency 5/5, Triage 8/8 over 250,000 events, Contention 8/8 with seven frozen
+checks, and the browser-backed local store carrier 16 PASS / 1 declared GAP /
+0 SKIPPED. Two acceptance fixtures now import the generated API rather than
+parsing a codegen-era-specific source literal, while retaining the same strict
+identity checks. Generated artifacts reproduce byte-for-byte, both deployment
+identities match, and package inventory selects 217 declared tests.
+
+The client bundle ratchet had two overlapping attributable clusters. The
+writer-election and quarantine landings evolved six narrow outbox/RQS
+closures and also flow into the two React application closures; G2 separately
+adds its surface implementation to those React closures. One batched
+prospective carrier, `baseline.aug6-client-capabilities.v1.json`, advances
+exactly those eight profiles while preserving and SHA-binding every
+predecessor. Its complete behavior train passed at committed source
+`b3434f0a1da63430692934b68f0b6baddc7f530a`; receipt SHA-256 is
+`367b50303d8d3dda3876387bb31fab23b91085be0cc897a000689305b4792f29` and
+the 54-profile current report SHA-256 is
+`979fc3b4bea20866a7b582bed5b2287d3fa1c94a26959e8a73d0df35c12254af`.
+The first production write exposed and repaired two instrument fixtures: its
+surface behavior train now materializes the ignored Expo descriptor through
+normal codegen, and its final same-process self-check admits only the exact
+just-written receipt at committed `HEAD`; ordinary checks still require one
+reachable Git carrier.
+
+These are generated/publication, deployment, suite-fixture, inventory, and
+spec-governed bundle-carrier debts attributed to their named landings. No
+correctness change was made to the actively owned PUSH-01 seam or F0a fork
+implementation. Because this carrier and its retained proof sources postdate
+the `5980c2106` telemetry measurement above, that Linux receipt remains valid
+for its own candidate but is superseded for the final batch. A fresh exact
+Linux producer is still required after the receipt itself is committed.

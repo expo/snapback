@@ -134,3 +134,23 @@ the final self-check. The repair admits an uncommitted carrier revision only
 for that exact just-written receipt and requires it to equal committed `HEAD`.
 Ordinary `--check` still requires exactly one reachable carrier introduction,
 so the exception cannot bless a later dirty or untracked ledger.
+
+The corrected producer completed at exact committed source
+`b3434f0a1da63430692934b68f0b6baddc7f530a`. Its immutable eight-profile
+receipt has SHA-256
+`367b50303d8d3dda3876387bb31fab23b91085be0cc897a000689305b4792f29`;
+the regenerated 54-profile current report has SHA-256
+`979fc3b4bea20866a7b582bed5b2287d3fa1c94a26959e8a73d0df35c12254af`.
+The complete train passed. The exact minified / gzip / Brotli deltas retained
+against the three immutable predecessors are:
+
+- React applications: `external-react-application` +24,708 / +7,636 / +6,611;
+  `react-external` +22,841 / +7,574 / +6,638. These totals include both the
+  custody landings and G2; the headline ~17.7 kB step is G2's later portion.
+- Custody closures: outbox +1,847 / +583 / +523; registered RQS +0 / +1 / +4;
+  RQS store +2,545 / +805 / +696; default +3,210 / +920 / +837; Expo +2,079 /
+  +599 / +569; file +2,124 / +618 / +501.
+
+This closes the ratchet failure. The receipt commit is followed by a normal
+history-bound `--check`; success there, not the write-mode exception, is the
+closure oracle.
