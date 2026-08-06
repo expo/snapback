@@ -23504,7 +23504,7 @@ mod guarded_commit_tests {
             .execute_mutation_idempotent(&plan, &input, &identity)
             .expect("argOpt-shaped omitted property commits without SNAPBACK_ARG_MISSING");
         assert_eq!(committed.output.changed_count, 1);
-        let row_id = committed.generated_ids.first().expect("generated item id");
+        let row_id = &committed.changes.first().expect("inserted changed row").id;
         let row = db
             .get("items", row_id)
             .expect("read committed item")
