@@ -5,7 +5,11 @@
 **Systems:** Application data API, Relational queries, Mutations, Code generation, Authorization, Live Queries, Storage portability, Contract/Exact, Diagnostics, Testing, Demo apps
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-27
-**Revised:** 2026-08-06 (dated boundary note for LLP 0157 v0.11's
+**Revised:** 2026-08-06 (author ruling: single-table public-package
+advertisement amendment — for `single_table_v1` only, packaged advertisement
+by clean-release build identity + embedded carrier + packaged-closure
+qualification receipt; signed `PackageCapabilityAttestationV1` deferred to
+the 2026-09-30 review; see dated section). 2026-08-06 (dated boundary note for LLP 0157 v0.11's
 `snapshot-batch.v2` registration: bounded-child positions keep this Spec's
 mapping/point-read/restart semantics under LLP 0135's unchanged seal-entirely
 rule; no byte, semantic, or support fact changes). 2026-08-05 (Fleet GAP wording reconciled after LLP 0135 OQ5's
@@ -1846,4 +1850,78 @@ continue to require the release-key-verified
 require their own target-scoped publication authority; until those carriers
 exist, `single_table_v1` is absent from support and remains a structured GAP
 there. LLP 0166 cross-references this authority and continues to own the store,
-retention, Arm-A, and connected prove-or-fresh semantics.
+retention, Arm-A, and connected prove-or-fresh semantics. The dated 2026-08-06
+amendment below narrows the public-package half of this paragraph for
+`single_table_v1` only.
+
+## Single-table public-package advertisement amendment — 2026-08-06
+
+**Author ruling (Charlie Cheever, 2026-08-06), executing
+`issues/20260806-published-closure-gates-offline-retention.md` — "Route 2".**
+This amendment deliberately narrows the reviewed fail-closed packaged trust
+root above, by author signature, for exactly one capability id. It exists
+because the published `@expo/snapback-*` closure could not reach the
+platform offline-retention contract the guide teaches (diary 0065 collapsed
+the offline scoring edge), the signed-attestation lane was never built, and
+the release cadence is still the LLP 0041 sole-consumer posture where 0.1.x
+closures publish with relaxed ceremony.
+
+For `single_table_v1` only, a `public-package` build of the local
+`local-dev-sqlite-ibex` target may derive positive support from the exact
+conjunction of:
+
+1. **Clean-release public-package build identity.** The compiled binary
+   identity carries `buildDistribution: public-package`, a known
+   (non-`unknown`) git commit, `gitDirty: false`, and the `release` build
+   profile — the `assertPublicPackageBuildIdentity` posture already enforced
+   by `scripts/runtime-package-authority.mjs` for the relation/activity GAPs.
+2. **The embedded contributor carrier chain, unchanged.** The same
+   source-owned anchor → carrier → carrier-exit/Triage-receipt →
+   source-digest chain required of contributor-source builds must validate
+   byte-for-byte. The public-package cut adds no evidence binding and may
+   weaken none.
+3. **A packaged-closure qualification receipt.** A
+   `snapback.packaged-store-qualification.v1` receipt minted by running the
+   LLP 0166 store acceptance corpus against a staged packaged closure served
+   by a binary with identity (1). The receipt binds the package-closure
+   digest, the exact minting binary identity (git commit, build profile,
+   build distribution), and the embedded carrier digest. The runtime
+   revalidates all three bindings before advertising; an absent, malformed,
+   tampered, wrong-binary, wrong-carrier, or wrong-schema receipt withholds
+   the id as the same structured GAP as before this amendment.
+
+The receipt is minted under an explicitly named, env-gated qualification
+mode whose only purpose is resolving the bootstrap circularity (the packaged
+binary must serve the capability once so the acceptance corpus can run
+against it before any receipt exists). The mode admits `single_table_v1`
+solely for that run, marks the served capability manifest with a structured
+qualification-mode fact so no downstream proof or consumer can mistake the
+instance for production authority, and is inert on contributor-source
+builds. A qualification-mode instance is not production support; the receipt
+it mints is what production instances verify.
+
+Boundaries, restated so this cannot creep:
+
+- `bounded_children_v1`, `write_activity_v1`, `sequence_allocation_v1`,
+  `agent_safe_storage_v1`, and `agent_safe_derived_deployment_fork_v1` keep
+  the unamended packaged trust root and keep failing closed on
+  public-package builds. Their mandatory negatives are unchanged.
+- Hosted and remote-service profiles are untouched; `single_table_v1`
+  remains a structured GAP there.
+- Static experimental maturity is unchanged: a consuming app must still list
+  `single_table_v1` in `acknowledgedExperimentalCapabilities` before
+  artifact admission accepts it, so the widened surface reaches only
+  consumers who explicitly acknowledged the experimental contract.
+- The substitution/tamper negatives above remain mandatory in their
+  amended form: what changes is that "public-package must fail" becomes
+  "public-package **without a valid qualification receipt** must fail."
+
+The release-key-signed `PackageCapabilityAttestationV1` remains the target
+end state for every packaged capability, this one included. It is explicitly
+deferred, not cancelled: owner Charlie, review 2026-09-30, per the standing
+GAP row in `guide/capabilities.md` (backend.sequences) that already carries
+that owner/date. When the signed attestation lane lands, it supersedes the
+receipt conjunction above and this amendment collapses into it. Each 0.1.x
+release meanwhile re-mints the qualification receipt against its own staged
+closure during release staging; a receipt minted for one closure/binary pair
+grants nothing to any other.

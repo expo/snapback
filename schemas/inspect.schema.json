@@ -1965,6 +1965,10 @@
         "outboundActions": {
           "type": "boolean"
         },
+        "packagedStoreQualificationMode": {
+          "description": "Instance-live bootstrap marker for the staged packaged-store\nqualification corpus. Absence/false is the only production posture.",
+          "type": "boolean"
+        },
         "permissionDiagnostics": {
           "type": "boolean"
         },

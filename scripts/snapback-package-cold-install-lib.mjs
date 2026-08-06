@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import {
   constants as fsConstants,
   lstatSync,
+  readFileSync,
   readdirSync,
   realpathSync,
 } from 'node:fs';
@@ -84,6 +85,90 @@ export function validateColdInstallAgentDigest(
     throw new Error(`packaged CLI did not discover ${requiredFunctionName}`);
   }
   return Object.freeze({ appId, functionId: operation.value.id });
+}
+
+/**
+ * Materialize an immutable staged tarball closure in one fresh external app.
+ * This is the small reusable core shared by focused package qualification
+ * witnesses; the full publication proof layers its ledger/browser gates on
+ * top of the same npm-install posture.
+ */
+export async function coldInstallStagedPackageClosure({
+  stagedDir,
+  appDir,
+  environment = process.env,
+  timeoutMs = 240_000,
+}) {
+  const stage = resolve(stagedDir);
+  const application = resolve(appDir);
+  for (const [label, path] of [['staged directory', stage], ['application directory', application]]) {
+    const metadata = lstatSync(path);
+    if (!metadata.isDirectory() || metadata.isSymbolicLink()) {
+      throw new TypeError(`${label} must be a non-symlink directory`);
+    }
+  }
+  const tarballs = readdirSync(stage)
+    .filter((name) => name.endsWith('.tgz'))
+    .sort()
+    .map((name) => join(stage, name));
+  if (tarballs.length === 0) throw new TypeError('staged directory contains no .tgz package closure');
+
+  const packageClosure = [];
+  const names = new Set();
+  for (const tarball of tarballs) {
+    const extracted = spawnSync('tar', ['-xzOf', tarball, 'package/package.json'], {
+      encoding: 'utf8',
+      maxBuffer: 4 * 1024 * 1024,
+    });
+    if (extracted.status !== 0) {
+      throw new Error(`cannot inspect staged tarball ${basename(tarball)}: ${extracted.stderr || extracted.stdout}`);
+    }
+    let manifest;
+    try {
+      manifest = JSON.parse(extracted.stdout);
+    } catch (error) {
+      throw new TypeError(`staged tarball ${basename(tarball)} has invalid package.json`, { cause: error });
+    }
+    if (
+      typeof manifest.name !== 'string'
+      || manifest.name.length === 0
+      || typeof manifest.version !== 'string'
+      || manifest.version.length === 0
+      || names.has(manifest.name)
+    ) {
+      throw new TypeError(`staged tarball ${basename(tarball)} has invalid or duplicate package identity`);
+    }
+    names.add(manifest.name);
+    packageClosure.push(Object.freeze({
+      name: manifest.name,
+      version: manifest.version,
+      sha256: `sha256:${createHash('sha256').update(readFileSync(tarball)).digest('hex')}`,
+    }));
+  }
+
+  await runAsync('npm', [
+    'install',
+    '--ignore-scripts',
+    '--no-audit',
+    '--no-fund',
+    '--package-lock=false',
+    ...tarballs,
+  ], {
+    cwd: application,
+    env: environment,
+    timeout: timeoutMs,
+  });
+  for (const entry of packageClosure) {
+    const installed = join(application, 'node_modules', ...entry.name.split('/'));
+    const metadata = lstatSync(installed);
+    if (!metadata.isDirectory() || metadata.isSymbolicLink()) {
+      throw new Error(`${entry.name} is not a materialized staged-package install`);
+    }
+  }
+  return Object.freeze({
+    tarballs: Object.freeze([...tarballs]),
+    packageClosure: Object.freeze(packageClosure),
+  });
 }
 
 const PLAYWRIGHT_HEADLESS_EXECUTABLE_NAMES = new Set([

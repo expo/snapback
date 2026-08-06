@@ -200,6 +200,33 @@ export function scrubDynamicLoaderEnvironment(environment = process.env) {
   return clean;
 }
 
+const PACKAGED_STORE_QUALIFICATION_RECEIPT_ENV =
+  'SNAPBACK_PACKAGED_STORE_QUALIFICATION_RECEIPT';
+const PACKAGED_STORE_QUALIFICATION_RECEIPT_FILE =
+  'packaged-store-qualification.receipt.json';
+
+// @ref LLP 0110#single-table-public-package-advertisement-amendment--2026-08-06
+// — a co-installed receipt is ambient only for the exact adjacent runtime;
+// an explicit caller environment always wins.
+export function runtimeSpawnEnvironment(binary, environment = process.env) {
+  const clean = scrubDynamicLoaderEnvironment(environment);
+  if (Object.hasOwn(clean, PACKAGED_STORE_QUALIFICATION_RECEIPT_ENV)) return clean;
+  const binaryPath = resolve(binary);
+  const receiptPath = join(dirname(binaryPath), PACKAGED_STORE_QUALIFICATION_RECEIPT_FILE);
+  if (!existsSync(receiptPath)) return clean;
+  try {
+    const metadata = lstatSync(receiptPath);
+    if (!metadata.isFile() || metadata.isSymbolicLink()) return clean;
+    const realBinaryDirectory = realpathSync(dirname(binaryPath));
+    const realReceipt = realpathSync(receiptPath);
+    if (dirname(realReceipt) !== realBinaryDirectory) return clean;
+  } catch {
+    return clean;
+  }
+  clean[PACKAGED_STORE_QUALIFICATION_RECEIPT_ENV] = receiptPath;
+  return clean;
+}
+
 export function resolveRuntimeBinary(options = {}) {
   const override = options.runtimeBinary ?? process.env.SNAPBACK_RUNTIME_BINARY;
   if (override) {
@@ -386,7 +413,7 @@ export async function doctor(options = {}) {
   const checks = [];
   const launch = spawnSync(runtime.binary, ['--help'], {
     encoding: 'utf8',
-    env: scrubDynamicLoaderEnvironment(options.env),
+    env: runtimeSpawnEnvironment(runtime.binary, options.env),
     timeout: 15_000,
   });
   if (launch.status !== 0) {
@@ -459,7 +486,7 @@ export async function doctor(options = {}) {
     mkdirSync(stateRoot, { recursive: true });
     child = spawn(runtime.binary, ['start', '--ready-file', readyFile, '--db', database], {
       cwd: projectRoot,
-      env: scrubDynamicLoaderEnvironment(options.env),
+      env: runtimeSpawnEnvironment(runtime.binary, options.env),
       stdio: ['ignore', 'ignore', 'ignore'],
     });
     const descriptor = validateDevTarget(
@@ -1501,7 +1528,7 @@ export function validateDevTarget(descriptor, { readyFile, database }) {
 export function native(binary, args, options = {}) {
   return spawnSync(binary, args, {
     cwd: options.cwd,
-    env: scrubDynamicLoaderEnvironment(options.env),
+    env: runtimeSpawnEnvironment(binary, options.env),
     encoding: 'utf8',
     timeout: options.timeout ?? 30_000,
   });
@@ -1830,7 +1857,7 @@ export function spawnManagedRuntime(binary, args, {
   const requested = Array.isArray(stdio) ? stdio : ['ignore', stdio, stdio];
   const child = spawn(binary, args, {
     cwd,
-    env: scrubDynamicLoaderEnvironment(env),
+    env: runtimeSpawnEnvironment(binary, env),
     // Capture bounded startup diagnostics so a strict artifact decoder
     // refusal can be classified. Forwarding below preserves the caller's
     // requested human/test output behavior.
@@ -2907,7 +2934,7 @@ function nativeHelp(options, command = null) {
     const runtime = resolveRuntimeBinary(options);
     const result = spawnSync(runtime.binary, command === null ? ['--help'] : [command, '--help'], {
       encoding: 'utf8',
-      env: scrubDynamicLoaderEnvironment(options.env),
+      env: runtimeSpawnEnvironment(runtime.binary, options.env),
     });
     if (result.error) throw result.error;
     return {
@@ -3953,7 +3980,7 @@ export async function runCli(argv, options = {}) {
   const delegatedArgs = command === undefined ? [] : [command, ...args];
   const result = spawnSync(runtime.binary, delegatedArgs, {
     stdio: 'inherit',
-    env: scrubDynamicLoaderEnvironment(options.env),
+    env: runtimeSpawnEnvironment(runtime.binary, options.env),
   });
   if (result.error) throw result.error;
   return result.status ?? 1;
@@ -3963,5 +3990,6 @@ export const __test = {
   loadGenerated,
   readReadyDescriptor,
   runtimePackages: Object.fromEntries(RUNTIME_PACKAGES),
+  runtimeSpawnEnvironment,
   scrubDynamicLoaderEnvironment,
 };

@@ -6,8 +6,10 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
+use std::ffi::OsStr;
 use std::fmt;
 use std::str::FromStr;
+use std::sync::OnceLock;
 
 pub use crate::search::types::{
     FullTextSearchFactsV1, SearchClauseV1, SearchCursorLimitsV1, SearchCursorV1,
@@ -10330,8 +10332,267 @@ struct LocalPersistentStorePublicationAnchorV1 {
     carrier_sha256: String,
 }
 
+pub(crate) const PACKAGED_STORE_QUALIFICATION_SCHEMA_VERSION: &str =
+    "snapback.packaged-store-qualification.v1";
+pub(crate) const PACKAGED_STORE_QUALIFICATION_SUITE_ID: &str =
+    "packaged-store-qualification-v1";
+const PACKAGED_STORE_QUALIFICATION_RECEIPT_ENV: &str =
+    "SNAPBACK_PACKAGED_STORE_QUALIFICATION_RECEIPT";
+const PACKAGED_STORE_QUALIFICATION_MODE_ENV: &str =
+    "SNAPBACK_PACKAGED_STORE_QUALIFICATION_MODE";
+const PACKAGED_STORE_QUALIFICATION_RECEIPT_MAX_BYTES: u64 = 4 * 1024 * 1024;
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub(crate) struct PackagedStoreClosureEntryV1 {
+    pub(crate) name: String,
+    pub(crate) version: String,
+    pub(crate) sha256: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub(crate) struct PackagedStoreQualificationSuiteV1 {
+    pub(crate) id: String,
+    pub(crate) pass: u64,
+    pub(crate) fail: u64,
+    pub(crate) skipped: u64,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub(crate) struct PackagedStoreBinaryIdentityV1 {
+    pub(crate) crate_version: String,
+    pub(crate) git_commit: String,
+    pub(crate) git_dirty: bool,
+    pub(crate) build_profile: String,
+    pub(crate) build_distribution: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub(crate) struct PackagedStoreQualificationReceiptV1 {
+    pub(crate) schema_version: String,
+    pub(crate) capability_id: String,
+    pub(crate) date: String,
+    pub(crate) binary_identity: PackagedStoreBinaryIdentityV1,
+    pub(crate) embedded_carrier_sha256: String,
+    pub(crate) package_closure: Vec<PackagedStoreClosureEntryV1>,
+    pub(crate) package_closure_sha256: String,
+    pub(crate) suite: PackagedStoreQualificationSuiteV1,
+}
+
 fn sha256_prefixed(bytes: &[u8]) -> String {
     format!("sha256:{:x}", Sha256::digest(bytes))
+}
+
+fn sha256_is_well_formed_nonzero(value: &str) -> bool {
+    value.len() == 71
+        && value.starts_with("sha256:")
+        && value[7..].bytes().all(|byte| byte.is_ascii_hexdigit())
+        && value[7..].bytes().any(|byte| byte != b'0')
+}
+
+fn packaged_store_date_is_well_formed(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    if bytes.len() != 10
+        || bytes[4] != b'-'
+        || bytes[7] != b'-'
+        || bytes
+            .iter()
+            .enumerate()
+            .any(|(index, byte)| index != 4 && index != 7 && !byte.is_ascii_digit())
+    {
+        return false;
+    }
+    let Ok(year) = value[0..4].parse::<u32>() else {
+        return false;
+    };
+    let Ok(month) = value[5..7].parse::<u32>() else {
+        return false;
+    };
+    let Ok(day) = value[8..10].parse::<u32>() else {
+        return false;
+    };
+    let leap = year.is_multiple_of(4) && (!year.is_multiple_of(100) || year.is_multiple_of(400));
+    let max_day = match month {
+        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+        4 | 6 | 9 | 11 => 30,
+        2 if leap => 29,
+        2 => 28,
+        _ => return false,
+    };
+    (1..=max_day).contains(&day)
+}
+
+fn packaged_store_closure_canonical_text(
+    package_closure: &[PackagedStoreClosureEntryV1],
+) -> Option<String> {
+    if package_closure.is_empty() {
+        return None;
+    }
+    let mut entries = package_closure.iter().collect::<Vec<_>>();
+    entries.sort_by(|left, right| left.name.cmp(&right.name));
+    let mut previous_name: Option<&str> = None;
+    let mut canonical = String::new();
+    for entry in entries {
+        if entry.name.is_empty()
+            || entry.version.is_empty()
+            || entry.name.chars().any(char::is_whitespace)
+            || entry.version.chars().any(char::is_whitespace)
+            || !sha256_is_well_formed_nonzero(&entry.sha256)
+            || previous_name == Some(entry.name.as_str())
+        {
+            return None;
+        }
+        previous_name = Some(&entry.name);
+        canonical.push_str(&entry.name);
+        canonical.push('@');
+        canonical.push_str(&entry.version);
+        canonical.push(' ');
+        canonical.push_str(&entry.sha256);
+        canonical.push('\n');
+    }
+    Some(canonical)
+}
+
+pub(crate) fn packaged_store_closure_sha256(
+    package_closure: &[PackagedStoreClosureEntryV1],
+) -> Option<String> {
+    packaged_store_closure_canonical_text(package_closure)
+        .map(|canonical| sha256_prefixed(canonical.as_bytes()))
+}
+
+pub(crate) fn packaged_store_qualification_suite_is_qualified(
+    suite: &PackagedStoreQualificationSuiteV1,
+) -> bool {
+    suite.id == PACKAGED_STORE_QUALIFICATION_SUITE_ID
+        && suite.pass > 0
+        && suite.fail == 0
+        && suite.skipped == 0
+}
+
+fn packaged_store_identity_facts_are_qualified(
+    crate_version: &str,
+    git_commit: &str,
+    git_dirty: bool,
+    build_profile: &str,
+    build_distribution: &str,
+) -> bool {
+    crate_version == env!("CARGO_PKG_VERSION")
+        && git_commit.len() == 40
+        && git_commit.bytes().all(|byte| byte.is_ascii_hexdigit())
+        && !git_dirty
+        && build_profile == "release"
+        && build_distribution == crate::identity::BUILD_DISTRIBUTION_PUBLIC_PACKAGE
+}
+
+pub(crate) fn packaged_store_runtime_identity_is_qualified(
+    identity: &crate::identity::BinaryIdentity,
+    build_distribution: &str,
+) -> bool {
+    packaged_store_identity_facts_are_qualified(
+        &identity.crate_version,
+        &identity.git_commit,
+        identity.git_dirty,
+        &identity.build_profile,
+        build_distribution,
+    )
+}
+
+pub(crate) fn stamp_packaged_store_qualification_receipt(
+    date: &str,
+    identity: &crate::identity::BinaryIdentity,
+    build_distribution: &str,
+    package_closure: Vec<PackagedStoreClosureEntryV1>,
+    suite: PackagedStoreQualificationSuiteV1,
+) -> Option<PackagedStoreQualificationReceiptV1> {
+    if !packaged_store_date_is_well_formed(date)
+        || !packaged_store_runtime_identity_is_qualified(identity, build_distribution)
+        || !packaged_store_qualification_suite_is_qualified(&suite)
+    {
+        return None;
+    }
+    let package_closure_sha256 = packaged_store_closure_sha256(&package_closure)?;
+    Some(PackagedStoreQualificationReceiptV1 {
+        schema_version: PACKAGED_STORE_QUALIFICATION_SCHEMA_VERSION.to_owned(),
+        capability_id: "single_table_v1".to_owned(),
+        date: date.to_owned(),
+        binary_identity: PackagedStoreBinaryIdentityV1 {
+            crate_version: identity.crate_version.clone(),
+            git_commit: identity.git_commit.clone(),
+            git_dirty: identity.git_dirty,
+            build_profile: identity.build_profile.clone(),
+            build_distribution: build_distribution.to_owned(),
+        },
+        embedded_carrier_sha256: sha256_prefixed(LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES),
+        package_closure,
+        package_closure_sha256,
+        suite,
+    })
+}
+
+fn packaged_store_qualification_receipt_is_qualified(
+    receipt_bytes: &[u8],
+    git_commit: &str,
+    git_dirty: bool,
+    build_profile: &str,
+    build_distribution: &str,
+) -> bool {
+    if !packaged_store_identity_facts_are_qualified(
+        env!("CARGO_PKG_VERSION"),
+        git_commit,
+        git_dirty,
+        build_profile,
+        build_distribution,
+    ) {
+        return false;
+    }
+    let Ok(receipt) =
+        serde_json::from_slice::<PackagedStoreQualificationReceiptV1>(receipt_bytes)
+    else {
+        return false;
+    };
+    receipt.schema_version == PACKAGED_STORE_QUALIFICATION_SCHEMA_VERSION
+        && receipt.capability_id == "single_table_v1"
+        && packaged_store_date_is_well_formed(&receipt.date)
+        && receipt.binary_identity.crate_version == env!("CARGO_PKG_VERSION")
+        && receipt.binary_identity.git_commit == git_commit
+        && receipt.binary_identity.git_dirty == git_dirty
+        && receipt.binary_identity.build_profile == build_profile
+        && receipt.binary_identity.build_distribution == build_distribution
+        && receipt.embedded_carrier_sha256
+            == sha256_prefixed(LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES)
+        && packaged_store_closure_sha256(&receipt.package_closure)
+            .is_some_and(|digest| digest == receipt.package_closure_sha256)
+        && packaged_store_qualification_suite_is_qualified(&receipt.suite)
+}
+
+fn packaged_store_qualification_mode_from_value(value: Option<&OsStr>) -> bool {
+    value.is_some_and(|value| !value.is_empty())
+}
+
+fn packaged_store_qualification_mode() -> bool {
+    static MODE: OnceLock<bool> = OnceLock::new();
+    *MODE.get_or_init(|| {
+        let value = std::env::var_os(PACKAGED_STORE_QUALIFICATION_MODE_ENV);
+        packaged_store_qualification_mode_from_value(value.as_deref())
+    })
+}
+
+fn packaged_store_qualification_receipt_bytes() -> Option<&'static [u8]> {
+    static RECEIPT: OnceLock<Option<Vec<u8>>> = OnceLock::new();
+    RECEIPT
+        .get_or_init(|| {
+            let path = std::env::var_os(PACKAGED_STORE_QUALIFICATION_RECEIPT_ENV)?;
+            let metadata = std::fs::metadata(&path).ok()?;
+            if !metadata.is_file() || metadata.len() > PACKAGED_STORE_QUALIFICATION_RECEIPT_MAX_BYTES
+            {
+                return None;
+            }
+            std::fs::read(path).ok()
+        })
+        .as_deref()
 }
 
 /// Validate the private, source-embedded publication carrier before deriving
@@ -10483,8 +10744,8 @@ fn local_sequence_allocation_publication_verified() -> bool {
 /// Validate the exact local store/class publication carrier. The carrier
 /// composes the retained carrier-exit receipt with the separately qualified
 /// Triage successor receipts. The carrier exit in turn digest-binds the
-/// qualified Fleet successor; public packages and other targets require their
-/// own authority.
+/// qualified Fleet successor. Public packages require the dated
+/// qualification conjunction; other targets require their own authority.
 ///
 /// @ref LLP 0110#local-persistent-store-publication-authority-amendment--2026-08-04
 /// — support follows the source-owned carrier and exact evidence/source
@@ -10493,15 +10754,51 @@ fn local_sequence_allocation_publication_verified() -> bool {
 /// connected prove-or-fresh store semantics remain part of the bound class.
 fn local_persistent_store_publication_verified_for(
     build_distribution: &str,
+    git_commit: &str,
+    git_dirty: bool,
+    build_profile: &str,
+    qualification_receipt_bytes: Option<&[u8]>,
     carrier_bytes: &[u8],
     anchor_bytes: &[u8],
     carrier_exit_receipt_bytes: &[u8],
     triage_move1_receipt_bytes: &[u8],
     triage_budget_receipt_bytes: &[u8],
 ) -> bool {
-    if build_distribution != crate::identity::BUILD_DISTRIBUTION_CONTRIBUTOR_SOURCE {
+    if !local_persistent_store_contributor_chain_verified(
+        carrier_bytes,
+        anchor_bytes,
+        carrier_exit_receipt_bytes,
+        triage_move1_receipt_bytes,
+        triage_budget_receipt_bytes,
+    ) {
         return false;
     }
+    match build_distribution {
+        crate::identity::BUILD_DISTRIBUTION_CONTRIBUTOR_SOURCE => true,
+        // @ref LLP 0110#single-table-public-package-advertisement-amendment--2026-08-06
+        // — public-package support is the unchanged contributor carrier chain
+        // plus clean release identity and an exact packaged-closure receipt.
+        crate::identity::BUILD_DISTRIBUTION_PUBLIC_PACKAGE => qualification_receipt_bytes
+            .is_some_and(|receipt| {
+                packaged_store_qualification_receipt_is_qualified(
+                    receipt,
+                    git_commit,
+                    git_dirty,
+                    build_profile,
+                    build_distribution,
+                )
+            }),
+        _ => false,
+    }
+}
+
+fn local_persistent_store_contributor_chain_verified(
+    carrier_bytes: &[u8],
+    anchor_bytes: &[u8],
+    carrier_exit_receipt_bytes: &[u8],
+    triage_move1_receipt_bytes: &[u8],
+    triage_budget_receipt_bytes: &[u8],
+) -> bool {
     let Ok(anchor) =
         serde_json::from_slice::<LocalPersistentStorePublicationAnchorV1>(anchor_bytes)
     else {
@@ -10632,6 +10929,10 @@ fn local_persistent_store_receipts_qualified(
 fn local_persistent_store_publication_verified() -> bool {
     local_persistent_store_publication_verified_for(
         crate::identity::build_distribution(),
+        "unknown",
+        true,
+        "debug",
+        None,
         LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES,
         LOCAL_PERSISTENT_STORE_PUBLICATION_ANCHOR_BYTES,
         LOCAL_PERSISTENT_STORE_CARRIER_EXIT_RECEIPT_BYTES,
@@ -10679,6 +10980,7 @@ pub struct TargetCapabilityFacts {
     local_agent_safe_storage_publication_v1_verified: bool,
     local_agent_safe_derived_fork_publication_v1_verified: bool,
     local_persistent_store_publication_v1_verified: bool,
+    packaged_store_qualification_mode: bool,
     asset_lifecycle_local_fs_registered: bool,
     asset_image_finalization_registered: bool,
     asset_reference_gc_registered: bool,
@@ -10687,10 +10989,47 @@ pub struct TargetCapabilityFacts {
 
 impl TargetCapabilityFacts {
     fn local_auth_aware() -> Self {
-        Self::local_auth_aware_for_distribution(crate::identity::build_distribution())
+        let build_distribution = crate::identity::build_distribution();
+        let identity = crate::identity::binary_identity();
+        let (qualification_receipt_bytes, qualification_mode) =
+            if build_distribution == crate::identity::BUILD_DISTRIBUTION_PUBLIC_PACKAGE {
+                (
+                    packaged_store_qualification_receipt_bytes(),
+                    packaged_store_qualification_mode(),
+                )
+            } else {
+                (None, false)
+            };
+        Self::local_auth_aware_with_packaged_store_evidence(
+            build_distribution,
+            &identity.git_commit,
+            identity.git_dirty,
+            &identity.build_profile,
+            qualification_receipt_bytes,
+            qualification_mode,
+        )
     }
 
+    #[cfg(test)]
     fn local_auth_aware_for_distribution(build_distribution: &str) -> Self {
+        Self::local_auth_aware_with_packaged_store_evidence(
+            build_distribution,
+            "unknown",
+            true,
+            "debug",
+            None,
+            false,
+        )
+    }
+
+    fn local_auth_aware_with_packaged_store_evidence(
+        build_distribution: &str,
+        git_commit: &str,
+        git_dirty: bool,
+        build_profile: &str,
+        qualification_receipt_bytes: Option<&[u8]>,
+        qualification_mode: bool,
+    ) -> Self {
         let local_relation_activity_publication_v1_verified =
             local_relation_activity_publication_verified_for(
                 build_distribution,
@@ -10713,15 +11052,39 @@ impl TargetCapabilityFacts {
             crate::agent_safe_publication::derived_fork_publication_verified_for_distribution(
                 build_distribution,
             );
-        let local_persistent_store_publication_v1_verified =
-            local_persistent_store_publication_verified_for(
+        let receipt_verified = local_persistent_store_publication_verified_for(
+            build_distribution,
+            git_commit,
+            git_dirty,
+            build_profile,
+            qualification_receipt_bytes,
+            LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES,
+            LOCAL_PERSISTENT_STORE_PUBLICATION_ANCHOR_BYTES,
+            LOCAL_PERSISTENT_STORE_CARRIER_EXIT_RECEIPT_BYTES,
+            LOCAL_PERSISTENT_STORE_TRIAGE_MOVE1_RECEIPT_BYTES,
+            LOCAL_PERSISTENT_STORE_TRIAGE_BUDGET_RECEIPT_BYTES,
+        );
+        // @ref LLP 0110#single-table-public-package-advertisement-amendment--2026-08-06
+        // — the marked bootstrap exception exists only for an intact public-
+        // package store carrier and cannot widen any other capability gate.
+        let packaged_store_qualification_mode = qualification_mode
+            && build_distribution == crate::identity::BUILD_DISTRIBUTION_PUBLIC_PACKAGE
+            && packaged_store_identity_facts_are_qualified(
+                env!("CARGO_PKG_VERSION"),
+                git_commit,
+                git_dirty,
+                build_profile,
                 build_distribution,
+            )
+            && local_persistent_store_contributor_chain_verified(
                 LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES,
                 LOCAL_PERSISTENT_STORE_PUBLICATION_ANCHOR_BYTES,
                 LOCAL_PERSISTENT_STORE_CARRIER_EXIT_RECEIPT_BYTES,
                 LOCAL_PERSISTENT_STORE_TRIAGE_MOVE1_RECEIPT_BYTES,
                 LOCAL_PERSISTENT_STORE_TRIAGE_BUDGET_RECEIPT_BYTES,
             );
+        let local_persistent_store_publication_v1_verified =
+            receipt_verified || packaged_store_qualification_mode;
         // @ref LLP 0109#166-the-manifest-is-an-executable-advertisement-gate — both local capability ids
         // are advertised only after the closed executable suite passes every
         // mandatory local row; LLP 0109 remains Review, so registry maturity
@@ -10795,6 +11158,7 @@ impl TargetCapabilityFacts {
             local_agent_safe_storage_publication_v1_verified,
             local_agent_safe_derived_fork_publication_v1_verified,
             local_persistent_store_publication_v1_verified,
+            packaged_store_qualification_mode,
         }
     }
 
@@ -10818,6 +11182,7 @@ impl TargetCapabilityFacts {
             local_agent_safe_storage_publication_v1_verified: false,
             local_agent_safe_derived_fork_publication_v1_verified: false,
             local_persistent_store_publication_v1_verified: false,
+            packaged_store_qualification_mode: false,
             ..Self::local_auth_aware()
         }
     }
@@ -10833,6 +11198,7 @@ impl TargetCapabilityFacts {
     fn with_local_persistent_store_publication_withheld(mut self) -> Self {
         self.single_table_v1_registered = false;
         self.local_persistent_store_publication_v1_verified = false;
+        self.packaged_store_qualification_mode = false;
         self
     }
 
@@ -11447,6 +11813,18 @@ pub struct CapabilityManifest {
     /// publication carrier validates and installs the candidate facts.
     #[serde(default, rename = "agentSafe", alias = "agent_safe")]
     pub agent_safe: AgentSafeCapabilityExtensionV1,
+    /// Instance-live bootstrap marker for the staged packaged-store
+    /// qualification corpus. Absence/false is the only production posture.
+    // @ref LLP 0166#public-package-advertisement-amendment--2026-08-06 —
+    // qualification mode must be visible so it cannot be mistaken for
+    // receipt-backed production authority.
+    #[serde(
+        default,
+        rename = "packagedStoreQualificationMode",
+        alias = "packaged_store_qualification_mode",
+        skip_serializing_if = "bool_is_false"
+    )]
+    pub packaged_store_qualification_mode: bool,
     #[serde(
         default,
         rename = "authProtocols",
@@ -11935,6 +12313,10 @@ pub(crate) fn vm_lifecycle_fresh() -> String {
     "fresh-per-invocation".to_owned()
 }
 
+fn bool_is_false(value: &bool) -> bool {
+    !*value
+}
+
 pub(crate) const VM_LIFECYCLE_WARM_POOLED_RESET: &str = "warm-pooled-reset";
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
@@ -12084,6 +12466,8 @@ impl CapabilityManifest {
             supported_capabilities: Vec::new(),
             capability_maturity: BTreeMap::new(),
             agent_safe: AgentSafeCapabilityExtensionV1::missing(),
+            packaged_store_qualification_mode: capability_facts
+                .packaged_store_qualification_mode,
             auth_protocols: Some(AuthProtocols::V1),
             hosted_auth: crate::auth::deployment::HostedAuthCapabilities::local_target(),
             storage_engine: "sqlite".to_owned(),
@@ -12536,6 +12920,7 @@ impl CapabilityManifest {
     }
 
     fn refresh_supported_capabilities(&mut self, facts: TargetCapabilityFacts) {
+        self.packaged_store_qualification_mode = facts.packaged_store_qualification_mode;
         self.supported_capabilities = TargetCapabilityId::ALL
             .into_iter()
             .filter(|capability| capability.is_supported_by(self, facts))
@@ -14667,12 +15052,86 @@ mod membership_manifest_grammar_tests {
         }
     }
 
+    const PACKAGED_STORE_TEST_GIT_COMMIT: &str =
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+
+    fn packaged_store_test_receipt_bytes() -> Vec<u8> {
+        let identity = crate::identity::BinaryIdentity {
+            crate_version: env!("CARGO_PKG_VERSION").to_owned(),
+            git_commit: PACKAGED_STORE_TEST_GIT_COMMIT.to_owned(),
+            git_dirty: false,
+            build_profile: "release".to_owned(),
+            startup_nonce: "test-nonce".to_owned(),
+        };
+        let receipt = stamp_packaged_store_qualification_receipt(
+            "2026-08-06",
+            &identity,
+            crate::identity::BUILD_DISTRIBUTION_PUBLIC_PACKAGE,
+            vec![PackagedStoreClosureEntryV1 {
+                name: "@expo/snapback-client".to_owned(),
+                version: "0.1.11".to_owned(),
+                sha256: format!("sha256:{}", "1".repeat(64)),
+            }],
+            PackagedStoreQualificationSuiteV1 {
+                id: PACKAGED_STORE_QUALIFICATION_SUITE_ID.to_owned(),
+                pass: 3,
+                fail: 0,
+                skipped: 0,
+            },
+        )
+        .expect("clean public-package fixture stamps");
+        serde_json::to_vec(&receipt).expect("packaged-store receipt serializes")
+    }
+
+    fn public_packaged_store_verified(
+        receipt: Option<&[u8]>,
+        git_commit: &str,
+        git_dirty: bool,
+        build_profile: &str,
+    ) -> bool {
+        local_persistent_store_publication_verified_for(
+            crate::identity::BUILD_DISTRIBUTION_PUBLIC_PACKAGE,
+            git_commit,
+            git_dirty,
+            build_profile,
+            receipt,
+            LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES,
+            LOCAL_PERSISTENT_STORE_PUBLICATION_ANCHOR_BYTES,
+            LOCAL_PERSISTENT_STORE_CARRIER_EXIT_RECEIPT_BYTES,
+            LOCAL_PERSISTENT_STORE_TRIAGE_MOVE1_RECEIPT_BYTES,
+            LOCAL_PERSISTENT_STORE_TRIAGE_BUDGET_RECEIPT_BYTES,
+        )
+    }
+
     #[test]
     fn single_table_publication_tamper_and_package_substitutions_fail_closed() {
+        let valid_receipt = packaged_store_test_receipt_bytes();
+        // @ref LLP 0110#single-table-public-package-advertisement-amendment--2026-08-06
+        // — the amended positive requires a valid receipt and clean release
+        // identity in addition to the intact contributor carrier chain.
+        assert!(public_packaged_store_verified(
+            Some(&valid_receipt),
+            PACKAGED_STORE_TEST_GIT_COMMIT,
+            false,
+            "release",
+        ));
+        // @ref LLP 0110#single-table-public-package-advertisement-amendment--2026-08-06
+        // — public packages without the qualification receipt still fail.
+        assert!(!public_packaged_store_verified(
+            None,
+            PACKAGED_STORE_TEST_GIT_COMMIT,
+            false,
+            "release",
+        ));
+
         let mut tampered_carrier = LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES.to_vec();
         tampered_carrier[0] ^= 1;
         assert!(!local_persistent_store_publication_verified_for(
             crate::identity::BUILD_DISTRIBUTION_CONTRIBUTOR_SOURCE,
+            "ignored",
+            true,
+            "debug",
+            None,
             &tampered_carrier,
             LOCAL_PERSISTENT_STORE_PUBLICATION_ANCHOR_BYTES,
             LOCAL_PERSISTENT_STORE_CARRIER_EXIT_RECEIPT_BYTES,
@@ -14683,6 +15142,10 @@ mod membership_manifest_grammar_tests {
         tampered_anchor[0] ^= 1;
         assert!(!local_persistent_store_publication_verified_for(
             crate::identity::BUILD_DISTRIBUTION_CONTRIBUTOR_SOURCE,
+            "ignored",
+            true,
+            "debug",
+            None,
             LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES,
             &tampered_anchor,
             LOCAL_PERSISTENT_STORE_CARRIER_EXIT_RECEIPT_BYTES,
@@ -14704,6 +15167,22 @@ mod membership_manifest_grammar_tests {
             mutate(&mut anchor);
             assert!(!local_persistent_store_publication_verified_for(
                 crate::identity::BUILD_DISTRIBUTION_CONTRIBUTOR_SOURCE,
+                "ignored",
+                true,
+                "debug",
+                None,
+                LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES,
+                &serde_json::to_vec(&anchor).expect("tampered anchor serializes"),
+                LOCAL_PERSISTENT_STORE_CARRIER_EXIT_RECEIPT_BYTES,
+                LOCAL_PERSISTENT_STORE_TRIAGE_MOVE1_RECEIPT_BYTES,
+                LOCAL_PERSISTENT_STORE_TRIAGE_BUDGET_RECEIPT_BYTES,
+            ));
+            assert!(!local_persistent_store_publication_verified_for(
+                crate::identity::BUILD_DISTRIBUTION_PUBLIC_PACKAGE,
+                PACKAGED_STORE_TEST_GIT_COMMIT,
+                false,
+                "release",
+                Some(&valid_receipt),
                 LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES,
                 &serde_json::to_vec(&anchor).expect("tampered anchor serializes"),
                 LOCAL_PERSISTENT_STORE_CARRIER_EXIT_RECEIPT_BYTES,
@@ -14713,12 +15192,113 @@ mod membership_manifest_grammar_tests {
         }
         assert!(!local_persistent_store_publication_verified_for(
             crate::identity::BUILD_DISTRIBUTION_PUBLIC_PACKAGE,
+            PACKAGED_STORE_TEST_GIT_COMMIT,
+            false,
+            "release",
+            Some(&valid_receipt),
+            &tampered_carrier,
+            LOCAL_PERSISTENT_STORE_PUBLICATION_ANCHOR_BYTES,
+            LOCAL_PERSISTENT_STORE_CARRIER_EXIT_RECEIPT_BYTES,
+            LOCAL_PERSISTENT_STORE_TRIAGE_MOVE1_RECEIPT_BYTES,
+            LOCAL_PERSISTENT_STORE_TRIAGE_BUDGET_RECEIPT_BYTES,
+        ));
+
+        let mut tampered_receipt = valid_receipt.clone();
+        tampered_receipt[0] ^= 1;
+        assert!(!public_packaged_store_verified(
+            Some(&tampered_receipt),
+            PACKAGED_STORE_TEST_GIT_COMMIT,
+            false,
+            "release",
+        ));
+        assert!(!public_packaged_store_verified(
+            Some(&valid_receipt),
+            "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            false,
+            "release",
+        ));
+        assert!(!public_packaged_store_verified(
+            Some(&valid_receipt),
+            PACKAGED_STORE_TEST_GIT_COMMIT,
+            true,
+            "release",
+        ));
+        assert!(!public_packaged_store_verified(
+            Some(&valid_receipt),
+            PACKAGED_STORE_TEST_GIT_COMMIT,
+            false,
+            "debug",
+        ));
+
+        let receipt_mutations: [fn(&mut Value); 17] = [
+            |receipt| receipt["schemaVersion"] = json!("snapback.packaged-store-qualification.v2"),
+            |receipt| receipt["capabilityId"] = json!("bounded_children_v1"),
+            |receipt| receipt["date"] = json!("2026-02-30"),
+            |receipt| receipt["binaryIdentity"]["crateVersion"] = json!("0.0.0"),
+            |receipt| receipt["binaryIdentity"]["gitCommit"] = json!("b".repeat(40)),
+            |receipt| receipt["binaryIdentity"]["gitDirty"] = json!(true),
+            |receipt| receipt["binaryIdentity"]["buildProfile"] = json!("debug"),
+            |receipt| {
+                receipt["binaryIdentity"]["buildDistribution"] = json!(
+                    crate::identity::BUILD_DISTRIBUTION_CONTRIBUTOR_SOURCE
+                )
+            },
+            |receipt| receipt["embeddedCarrierSha256"] = json!(format!("sha256:{}", "2".repeat(64))),
+            |receipt| receipt["packageClosureSha256"] = json!(format!("sha256:{}", "3".repeat(64))),
+            |receipt| receipt["packageClosure"][0]["sha256"] = json!(format!("sha256:{}", "0".repeat(64))),
+            |receipt| receipt["packageClosure"][0]["sha256"] = json!("sha256:not-a-digest"),
+            |receipt| receipt["suite"]["id"] = json!("some-other-suite"),
+            |receipt| receipt["suite"]["fail"] = json!(1),
+            |receipt| receipt["suite"]["skipped"] = json!(1),
+            |receipt| receipt["suite"]["pass"] = json!(0),
+            |receipt| receipt["unexpected"] = json!(true),
+        ];
+        for mutate in receipt_mutations {
+            let mut receipt: Value =
+                serde_json::from_slice(&valid_receipt).expect("valid receipt parses");
+            mutate(&mut receipt);
+            let receipt = serde_json::to_vec(&receipt).expect("mutated receipt serializes");
+            assert!(!public_packaged_store_verified(
+                Some(&receipt),
+                PACKAGED_STORE_TEST_GIT_COMMIT,
+                false,
+                "release",
+            ));
+        }
+        assert!(!local_persistent_store_publication_verified_for(
+            "unrecognized-distribution",
+            PACKAGED_STORE_TEST_GIT_COMMIT,
+            false,
+            "release",
+            Some(&valid_receipt),
             LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES,
             LOCAL_PERSISTENT_STORE_PUBLICATION_ANCHOR_BYTES,
             LOCAL_PERSISTENT_STORE_CARRIER_EXIT_RECEIPT_BYTES,
             LOCAL_PERSISTENT_STORE_TRIAGE_MOVE1_RECEIPT_BYTES,
             LOCAL_PERSISTENT_STORE_TRIAGE_BUDGET_RECEIPT_BYTES,
         ));
+
+        let unsorted = vec![
+            PackagedStoreClosureEntryV1 {
+                name: "z-package".to_owned(),
+                version: "1.0.0".to_owned(),
+                sha256: format!("sha256:{}", "4".repeat(64)),
+            },
+            PackagedStoreClosureEntryV1 {
+                name: "a-package".to_owned(),
+                version: "2.0.0".to_owned(),
+                sha256: format!("sha256:{}", "5".repeat(64)),
+            },
+        ];
+        let expected_canonical = format!(
+            "a-package@2.0.0 sha256:{}\nz-package@1.0.0 sha256:{}\n",
+            "5".repeat(64),
+            "4".repeat(64),
+        );
+        assert_eq!(
+            packaged_store_closure_canonical_text(&unsorted).as_deref(),
+            Some(expected_canonical.as_str()),
+        );
         let withheld = CapabilityManifest::local_v0_with_facts(
             Vec::new(),
             TargetCapabilityFacts::local_auth_aware()
@@ -14734,6 +15314,120 @@ mod membership_manifest_grammar_tests {
                 .capability_gaps
                 .iter()
                 .any(|gap| gap == "single_table_v1")
+        );
+    }
+
+    #[test]
+    fn packaged_store_qualification_mode_is_public_package_only_and_manifest_honest() {
+        assert!(!packaged_store_qualification_mode_from_value(None));
+        assert!(!packaged_store_qualification_mode_from_value(Some(
+            OsStr::new("")
+        )));
+        assert!(packaged_store_qualification_mode_from_value(Some(
+            OsStr::new("1")
+        )));
+        assert!(packaged_store_qualification_mode_from_value(Some(
+            OsStr::new("0")
+        )));
+
+        let packaged_facts =
+            TargetCapabilityFacts::local_auth_aware_with_packaged_store_evidence(
+                crate::identity::BUILD_DISTRIBUTION_PUBLIC_PACKAGE,
+                PACKAGED_STORE_TEST_GIT_COMMIT,
+                false,
+                "release",
+                None,
+                true,
+            );
+        let packaged = CapabilityManifest::local_v0_with_facts(
+            local_v0_default_capability_gaps(),
+            packaged_facts,
+        );
+        assert!(packaged.packaged_store_qualification_mode);
+        assert!(
+            packaged
+                .supported_capabilities
+                .contains(&TargetCapabilityId::SingleTableV1)
+        );
+        assert!(
+            !packaged
+                .capability_gaps
+                .iter()
+                .any(|gap| gap == "single_table_v1")
+        );
+        for untouched in [
+            TargetCapabilityId::BoundedChildrenV1,
+            TargetCapabilityId::WriteActivityV1,
+            TargetCapabilityId::SequenceAllocationV1,
+            TargetCapabilityId::AgentSafeStorageV1,
+            TargetCapabilityId::AgentSafeDerivedDeploymentForkV1,
+        ] {
+            assert!(
+                !packaged.supported_capabilities.contains(&untouched),
+                "qualification mode must not widen {}",
+                untouched.as_str(),
+            );
+        }
+
+        let without_mode = CapabilityManifest::local_v0_with_facts(
+            local_v0_default_capability_gaps(),
+            TargetCapabilityFacts::local_auth_aware_with_packaged_store_evidence(
+                crate::identity::BUILD_DISTRIBUTION_PUBLIC_PACKAGE,
+                PACKAGED_STORE_TEST_GIT_COMMIT,
+                false,
+                "release",
+                None,
+                false,
+            ),
+        );
+        assert!(!without_mode.packaged_store_qualification_mode);
+        assert!(
+            without_mode
+                .capability_gaps
+                .iter()
+                .any(|gap| gap == "single_table_v1")
+        );
+
+        let contributor_with_mode = CapabilityManifest::local_v0_with_facts(
+            local_v0_default_capability_gaps(),
+            TargetCapabilityFacts::local_auth_aware_with_packaged_store_evidence(
+                crate::identity::BUILD_DISTRIBUTION_CONTRIBUTOR_SOURCE,
+                PACKAGED_STORE_TEST_GIT_COMMIT,
+                false,
+                "release",
+                None,
+                true,
+            ),
+        );
+        let contributor_without_mode = CapabilityManifest::local_v0_with_facts(
+            local_v0_default_capability_gaps(),
+            TargetCapabilityFacts::local_auth_aware_with_packaged_store_evidence(
+                crate::identity::BUILD_DISTRIBUTION_CONTRIBUTOR_SOURCE,
+                "unknown",
+                true,
+                "debug",
+                None,
+                false,
+            ),
+        );
+        assert_eq!(contributor_with_mode, contributor_without_mode);
+        assert!(!contributor_with_mode.packaged_store_qualification_mode);
+        assert!(
+            serde_json::to_value(&contributor_with_mode)
+                .expect("contributor manifest serializes")
+                .get("packagedStoreQualificationMode")
+                .is_none(),
+            "false qualification mode must not leak into declared manifests",
+        );
+        let committed: Value = serde_json::from_slice(include_bytes!(
+            "../schemas/capability.manifest.local-dev-sqlite-ibex.json"
+        ))
+        .expect("committed local manifest parses");
+        assert_eq!(
+            serde_json::to_value(&contributor_without_mode)
+                .expect("contributor manifest serializes"),
+            committed,
+            "the contributor-source declared manifest remains byte-shape identical",
         );
     }
 
