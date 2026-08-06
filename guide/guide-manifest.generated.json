@@ -2,11 +2,11 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "896ec7fdadccf3c8be33dee9f4eebe98d5de819b"
+    "commit": "77bf3726c162c108559b239cda83c541aa84fe1a"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
-    "newestPublished": "0.1.9"
+    "newestPublished": "0.1.10"
   },
   "nav": {
     ".": [
@@ -1757,7 +1757,7 @@
       ],
       "reviewed": "2026-08-06",
       "reviewedCommit": "4ac8387f080a2659484fc09916ff22a076dc4ca8",
-      "sha256": "0786d7bd778ca0d8790af0e1fb0f545eac708d69ee0414427447ffc8c82abba3",
+      "sha256": "dbefb59a61222cced784a0634dc1688c99dc073e2b1129613364711cd0ea9c20",
       "snippets": [
         {
           "lang": "json",
@@ -1884,7 +1884,7 @@
         "local"
       ],
       "maturity": "partial",
-      "since": "0.1.10",
+      "since": "0.1.11",
       "unreleased": true,
       "capabilities": [
         "clients.surfaces"
@@ -1917,7 +1917,7 @@
       ],
       "reviewed": "2026-08-06",
       "reviewedCommit": "HEAD",
-      "sha256": "cb8c87470f5d984d6375a5699a5cff3ba8301d752b7494da5608e328f8d1a363",
+      "sha256": "d3bbb6cfbfce5cf785726b2802ffa7b5d8cc43e7a8f1f5400f12407e49349096",
       "snippets": [
         {
           "lang": "js",
@@ -2377,7 +2377,6 @@
       ],
       "maturity": "shipped",
       "since": "0.1.10",
-      "unreleased": true,
       "capabilities": [
         "operating.data-patch"
       ],
@@ -2398,7 +2397,7 @@
       ],
       "reviewed": "2026-08-06",
       "reviewedCommit": "HEAD",
-      "sha256": "30d854665c636b3d0bcfcf70284cad6330acd79279f21fa07c5f41cb1e1507d1",
+      "sha256": "b28f48c4fdb5257f5091fc30a6a30b6754cc0b266ffebe9c74448a1e6330527a",
       "snippets": [
         {
           "lang": "json",
@@ -2722,7 +2721,7 @@
       ],
       "reviewed": "2026-08-06",
       "reviewedCommit": "6e158169b3c908b8be149db4487a71dc35738470",
-      "sha256": "c8721b8770cd8a2eb86e4d8bbc30355e02b4ab8740d14d1e52a31246d21596a1",
+      "sha256": "4d1b6b6edb088e618d4a595d00c124b2198c49f8527e32ca1e2032dc4a3c86fb",
       "snippets": [
         {
           "lang": "tsx",
@@ -3366,5 +3365,5 @@
     "routes": 122,
     "hostOps": 43
   },
-  "contentHash": "f0d4aff525b869e1f7385f63270899dc02354d200adea09ee14fa2835d392ab3"
+  "contentHash": "68ef52e10d368872313cd619fb8e181cd2056d774151a89b78e2fb56f91048ab"
 }

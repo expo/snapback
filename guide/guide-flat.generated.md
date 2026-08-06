@@ -7851,7 +7851,7 @@ examples: [packages/snapback-react/surface.test.mjs, packages/snapback-react/com
 status: current
 targets: [local]
 maturity: partial
-since: 0.1.10
+since: 0.1.11
 unreleased: true
 reviewed: 2026-08-06
 reviewed-commit: HEAD
@@ -7864,7 +7864,7 @@ reviewed-commit: HEAD
 > [auth/targets](../auth/targets.md).
 
 > **Unreleased.** This surface is newer than the newest published Snapback
-> closure, 0.1.9. Use a runtime built from this checkout until 0.1.10 ships.
+> closure, 0.1.10. Use a runtime built from this checkout until 0.1.11 ships.
 
 An **application surface** is one generated, parameterized composition of the
 reads, ordinary mutations, asset-bearing commands, raw asset intents, and
@@ -8583,14 +8583,7 @@ back to `curl`, raw host operations, or a one-off verification script.
 
 ## Run the supervised Expo development loop
 
-<!-- since: 0.1.10 unreleased -->
-
-> **Unreleased.** `@expo/snapback-expo` is in the source tree but not in the
-> newest published closure (`0.1.9`): a packaged consumer on
-> `@expo/snapback-*@0.1.8` cannot install the config plugin or provider this
-> section configures from npm. Use the source-checkout install above until
-> the package joins a published closure
-> (`issues/20260806-snapback-expo-package-not-in-publishable-closure.md`).
+<!-- since: 0.1.10 -->
 
 The north-star boot has three application-visible pieces: the config-plugin
 entry, the generated `app`, and `SnapbackExpoProvider`. There is no backend URL
@@ -12986,7 +12979,6 @@ status: current
 targets: [local]
 maturity: shipped
 since: 0.1.10
-unreleased: true
 reviewed: 2026-08-06
 reviewed-commit: HEAD
 ---
@@ -12996,9 +12988,6 @@ reviewed-commit: HEAD
 > **Local target only.** This page describes the local dev/test target.
 > Hosted targets make deliberately weaker or different claims — see
 > [auth/targets](../auth/targets.md).
-
-> **Unreleased.** This surface is newer than the newest published Snapback
-> closure, 0.1.9. Use a runtime built from this checkout until 0.1.10 ships.
 
 Use `data.patch` to correct known fields on one existing row without adding a
 raw SQL, insert, delete, or arbitrary update surface. Preview validates the
@@ -13730,11 +13719,7 @@ introspection. Keep imperative overlays in headless/React code and generated
 ephemeral links in Contract code—do not mix a second polling or publish lane
 into the same surface.
 
-<!-- since: 0.1.10 unreleased -->
-
-> **Unreleased.** The operator-delete control is in the source tree but not
-> in the newest published closure (`0.1.9`). Expected in the next published
-> closure.
+<!-- since: 0.1.10 -->
 
 ## Delete one entry as an operator
 

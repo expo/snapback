@@ -9,7 +9,7 @@ examples: [packages/snapback-react/surface.test.mjs, packages/snapback-react/com
 status: current
 targets: [local]
 maturity: partial
-since: 0.1.10
+since: 0.1.11
 unreleased: true
 reviewed: 2026-08-06
 reviewed-commit: HEAD
@@ -22,7 +22,7 @@ reviewed-commit: HEAD
 > [auth/targets](../auth/targets.md).
 
 > **Unreleased.** This surface is newer than the newest published Snapback
-> closure, 0.1.9. Use a runtime built from this checkout until 0.1.10 ships.
+> closure, 0.1.10. Use a runtime built from this checkout until 0.1.11 ships.
 
 An **application surface** is one generated, parameterized composition of the
 reads, ordinary mutations, asset-bearing commands, raw asset intents, and
