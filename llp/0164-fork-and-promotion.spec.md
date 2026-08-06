@@ -5,7 +5,7 @@
 **Systems:** Storage, Runtime, Effects, Auth, Agent experience, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-03
-**Revised:** 2026-08-06 (receipt-evolution acknowledgement — the local target's net receipt advanced to snapback.fork-net-diff.v2 with writer-coverage and attribution-absence facts and the authorizer-backed-app-rows-v1 class under this Spec's target-choice delegation; LLP 0158 carries the wire contract, LLP 0165 the class semantics; Draft/Missing unchanged); 2026-08-06 (derived-deployment reconciliation — row-5 parent-write fixture recorded closed at module and live-server level, §Diff target-choice delegation recorded exercised by the retained-base net diff, asset coverage-fact satisfaction stated, LLP 0185 added to Related; Draft/Missing unchanged); 2026-08-05 (LLP 0185 Phase 0 ownership reconciliation — this
+**Revised:** 2026-08-06 (receipt-evolution acknowledgement — the local target's net receipt advanced to snapback.fork-net-diff.v3 with stream-qualified boundaries, a canonical digest, writer-coverage and attribution-absence facts, and the registered-connection-defensive-app-rows-v1 class under this Spec's target-choice delegation; LLP 0158 carries the wire contract, LLP 0165 the class semantics; Draft/Missing unchanged); 2026-08-06 (derived-deployment reconciliation — row-5 parent-write fixture recorded closed at module and live-server level, §Diff target-choice delegation recorded exercised by the retained-base net diff, asset coverage-fact satisfaction stated, LLP 0185 added to Related; Draft/Missing unchanged); 2026-08-05 (LLP 0185 Phase 0 ownership reconciliation — this
 Spec owns the remaining row-5 derived post-fork-parent-write fixture and both
 row-9 diff oracles; LLP 0158 remains the derived-deployment contract authority
 and LLP 0165 retains only journal-completeness closure. No row state changed.);
@@ -492,23 +492,23 @@ capability claim changes.
   the exact net receipt with the substrate named on every receipt
   (`retained-base-v1`), per this Spec's "target's choice, named on the
   receipt" clause. LLP 0158 carries the wire contract; LLP 0185 Phase 4
-  tracks the executable tail. Naming hazard worth noting: two distinct
-  receipt types currently share the `ForkDiffReceiptV1` Rust name — the
-  in-app branch receipt in `src/fork_promotion.rs` and the
-  derived-deployment attributed-sequence receipt in `src/instance_fork.rs`.
-  They serialize different schemas and are not interchangeable.
+  tracks the executable tail. The in-app branch's genuinely attributed
+  `ForkDiffReceiptV1` remains distinct from the derived deployment's honestly
+  non-attributed `ForkDiffReceiptV3` journal sequence; they serialize different
+  schemas and are not interchangeable.
 - **Receipt evolution under the same delegation — 2026-08-06.** The local
   target's closed net receipt advanced incompatibly to
-  `snapback.fork-net-diff.v2`, adding a separate `writerCoverage` fact, a
+  `snapback.fork-net-diff.v3`, adding stream-qualified `(base, head]`
+  identities, a canonical domain-separated receipt digest, a separate `writerCoverage` fact, a
   machine-readable `attribution: "absent-v1"` fact, and the completeness
-  class `authorizer-backed-app-rows-v1` — claimed only when the fork's
+  class `registered-connection-defensive-app-rows-v1` — claimed only when the fork's
   entire post-fork-point write window is provably armed through LLP 0165's
   generated-writer/SQLite-authorizer choke point AND the journal cross-check
   passes; unarmed, late-armed, or retention-gap forks fail closed to
   `journal-enumerated-v1`. Only complete-pair cold-start forks (schema and
   functions admitted atomically before listener bind, coverage armed before
   reachability) can claim the upgraded class; partial manifest layouts
-  return `writerCoverageReceipt: null`. LLP 0158 carries the v2 wire
+  return `writerCoverageReceipt: null`. LLP 0158 carries the v3 wire
   contract and LLP 0165 owns the completeness-class semantics; this record
   is this Spec's acknowledgement that the delegation produced them.
 - **Asset coverage in diffs.** LLP 0162 §4 requires asset coverage as a

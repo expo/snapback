@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs::{self, File};
-use std::io::{ErrorKind, Write};
+use std::io::{ErrorKind, Read, Write};
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
@@ -22,6 +22,9 @@ pub const RENEW_RECEIPT_FILE: &str = "fork-renew-receipt.json";
 pub const BASE_SNAPSHOT_FILE: &str = "fork-base.sqlite3";
 pub const BASE_RECEIPT_FILE: &str = "fork-base-receipt.json";
 pub const APP_ROW_COVERAGE_RECEIPT_FILE: &str = "fork-app-row-coverage-receipt.json";
+pub const APP_BINDING_RECEIPT_FILE: &str = "fork-app-binding-receipt.json";
+pub const APP_BINDING_INTENT_FILE: &str = ".snapback-fork-app-binding-intent.v1.json";
+pub const APP_ROOT_IDENTITY_FILE: &str = "instance-fork-app-identity.v1.json";
 pub const REGISTRY_DIRECTORY: &str = ".snapback-fork-registry";
 const LINEAGE_META_KEY: &str = "instance_fork_lineage_v1";
 const QUARANTINE_META_KEY: &str = "instance_fork_quarantine_v1";
@@ -36,6 +39,8 @@ pub const ASSET_CUT_INCOMPLETE_CODE: &str = "SNAPBACK_FORK_ASSET_CUT_INCOMPLETE"
 pub const ASSET_CUT_UNSUPPORTED_CODE: &str = "SNAPBACK_FORK_ASSET_CUT_UNSUPPORTED";
 pub const DIFF_ORACLE_MISMATCH_CODE: &str = "SNAPBACK_FORK_DIFF_ORACLE_MISMATCH";
 pub const WRITER_COVERAGE_INVALID_CODE: &str = "SNAPBACK_FORK_WRITER_COVERAGE_INVALID";
+pub const APP_BINDING_REQUIRED_CODE: &str = "SNAPBACK_FORK_APP_BINDING_REQUIRED";
+pub const APP_BINDING_MISMATCH_CODE: &str = "SNAPBACK_FORK_APP_BINDING_MISMATCH";
 
 /// Maximum total lifetime for a managed fork, binding creation through every
 /// renewal (LLP 0185 Phase 3 item 6's "configured maximum"; author-ratified
@@ -53,6 +58,7 @@ pub const MANAGED_FORK_MAX_COUNT: usize = 16;
 pub const MANAGED_FORK_MAX_FORK_BYTES: u64 = 4 * 1024 * 1024 * 1024;
 pub const MANAGED_FORK_MAX_TOTAL_BYTES: u64 = 16 * 1024 * 1024 * 1024;
 pub const FORK_DIFF_MAX_ROWS: u64 = 100_000;
+pub const FORK_DIFF_MAX_BYTES: u64 = 64 * 1024 * 1024;
 
 #[derive(Clone, Copy, Debug)]
 pub struct ForkResourceLimits {
@@ -77,6 +83,23 @@ pub struct ForkResourceUsageV1 {
     pub fork_count: usize,
     pub existing_bytes: u64,
     pub estimated_fork_bytes: u64,
+}
+
+/// The invocation identity every lifecycle selector must present. The
+/// canonical root prevents two worktrees with the same logical app id from
+/// sharing authority merely because they point at one explicit fork root.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ExpectedForkAppV1 {
+    pub canonical_app_root: PathBuf,
+    pub app_id: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct AppRootIdentityV1 {
+    schema_version: String,
+    canonical_app_root: String,
+    app_id: String,
 }
 
 #[cfg(test)]
@@ -104,6 +127,117 @@ fn run_diff_after_header_hook() {
 
 fn fork_error(code: &'static str, message: impl Into<String>) -> SnapbackError {
     SnapbackError::error(code, "instanceFork", message)
+}
+
+fn canonical_app_root_string(app_root: &Path) -> SnapbackResult<(PathBuf, String)> {
+    let canonical = fs::canonicalize(app_root).map_err(|error| {
+        fork_error(
+            "SNAPBACK_FORK_APP_ROOT_INVALID",
+            format!("cannot resolve invoking app root {}: {error}", app_root.display()),
+        )
+    })?;
+    let encoded = canonical.to_str().ok_or_else(|| {
+        fork_error(
+            "SNAPBACK_FORK_APP_ROOT_INVALID",
+            "invoking app root must have a UTF-8 canonical path",
+        )
+    })?;
+    Ok((canonical.clone(), encoded.to_owned()))
+}
+
+/// Establish the invoking root's logical identity at create time. Subsequent
+/// lifecycle verbs load this independent expected identity rather than
+/// trusting the selected registry row to identify its own caller.
+pub fn ensure_expected_app(
+    app_root: &Path,
+    app_id: &str,
+) -> SnapbackResult<ExpectedForkAppV1> {
+    if app_id.is_empty() {
+        return Err(fork_error(
+            APP_BINDING_REQUIRED_CODE,
+            "fork lifecycle app identity requires a non-empty logical app id",
+        ));
+    }
+    let (canonical_app_root, encoded_root) = canonical_app_root_string(app_root)?;
+    let path = canonical_app_root
+        .join(".snapback")
+        .join(APP_ROOT_IDENTITY_FILE);
+    let expected = AppRootIdentityV1 {
+        schema_version: "snapback.fork-app-identity.v1".to_owned(),
+        canonical_app_root: encoded_root,
+        app_id: app_id.to_owned(),
+    };
+    match fs::read(&path) {
+        Ok(bytes) => {
+            let recorded: AppRootIdentityV1 = serde_json::from_slice(&bytes).map_err(|error| {
+                fork_error(
+                    APP_BINDING_REQUIRED_CODE,
+                    format!("invoking app-root identity is malformed: {error}"),
+                )
+            })?;
+            if recorded != expected {
+                return Err(fork_error(
+                    APP_BINDING_MISMATCH_CODE,
+                    "invoking app root is already bound to a different canonical root or logical app id",
+                )
+                .with_details(json!({
+                    "expectedAppRoot": expected.canonical_app_root,
+                    "expectedAppId": expected.app_id,
+                })));
+            }
+        }
+        Err(error) if error.kind() == ErrorKind::NotFound => {
+            let directory = path.parent().expect("app identity has a parent");
+            fs::create_dir_all(directory)
+                .map_err(|error| io_error("create app-root identity directory", error))?;
+            write_json_sync(&path, &expected)?;
+            sync_directory(directory)?;
+        }
+        Err(error) => return Err(io_error("read app-root identity", error)),
+    }
+    Ok(ExpectedForkAppV1 {
+        canonical_app_root,
+        app_id: app_id.to_owned(),
+    })
+}
+
+/// Load the caller-controlled expected identity for every selecting command.
+/// Roots created before this binding existed fail closed instead of being
+/// grandfathered into cross-root authority.
+pub fn load_expected_app(app_root: &Path) -> SnapbackResult<ExpectedForkAppV1> {
+    let (canonical_app_root, encoded_root) = canonical_app_root_string(app_root)?;
+    let path = canonical_app_root
+        .join(".snapback")
+        .join(APP_ROOT_IDENTITY_FILE);
+    let bytes = fs::read(&path).map_err(|error| {
+        if error.kind() == ErrorKind::NotFound {
+            fork_error(
+                APP_BINDING_REQUIRED_CODE,
+                "invoking app root has no lifecycle identity binding; legacy/unbound forks cannot be selected",
+            )
+        } else {
+            io_error("read app-root identity", error)
+        }
+    })?;
+    let recorded: AppRootIdentityV1 = serde_json::from_slice(&bytes).map_err(|error| {
+        fork_error(
+            APP_BINDING_REQUIRED_CODE,
+            format!("invoking app-root identity is malformed: {error}"),
+        )
+    })?;
+    if recorded.schema_version != "snapback.fork-app-identity.v1"
+        || recorded.canonical_app_root != encoded_root
+        || recorded.app_id.is_empty()
+    {
+        return Err(fork_error(
+            APP_BINDING_MISMATCH_CODE,
+            "invoking app-root identity does not match its canonical path",
+        ));
+    }
+    Ok(ExpectedForkAppV1 {
+        canonical_app_root,
+        app_id: recorded.app_id,
+    })
 }
 
 fn io_error(context: &'static str, error: std::io::Error) -> SnapbackError {
@@ -731,6 +865,19 @@ pub struct ForkRegistryEntryV1 {
     pub app_root: Option<String>,
 }
 
+/// Fork-local, digest-bound identity tying lifecycle authority to the app
+/// root that invoked creation. This remains separate from lineage because the
+/// logical data lineage is portable while lifecycle custody is worktree-local.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ForkAppBindingReceiptV1 {
+    pub schema_version: String,
+    pub fork_id: String,
+    pub app_id: String,
+    pub canonical_app_root: String,
+    pub receipt_digest: String,
+}
+
 /// A registry row only after it has been re-bound to authoritative evidence
 /// inside one real direct-child fork directory. Callers must use these paths
 /// instead of joining advisory registry strings themselves.
@@ -738,6 +885,7 @@ pub struct ForkRegistryEntryV1 {
 pub struct ManagedForkTargetV1 {
     pub entry: ForkRegistryEntryV1,
     pub receipt: ForkMintReceiptV1,
+    pub app_binding: ForkAppBindingReceiptV1,
     pub destination: PathBuf,
     pub database: PathBuf,
     pub ready_file: Option<PathBuf>,
@@ -755,17 +903,31 @@ pub struct ForkDiffRowV1 {
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct ForkDiffReceiptV1 {
+pub struct ForkDiffCommitBoundaryV1 {
+    pub data_version_stream: String,
+    pub commit_version: u64,
+    /// The emitted range is `(base, head]`: base is `exclusive`, head is
+    /// `inclusive`.
+    pub version_boundary: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ForkDiffReceiptV3 {
     pub schema_version: String,
     pub fork_id: String,
     pub app_id: String,
     pub parent_instance_id: String,
     pub fork_point_version: u64,
     pub observed_head_version: u64,
+    pub base: ForkDiffCommitBoundaryV1,
+    pub head: ForkDiffCommitBoundaryV1,
+    pub attribution: String,
     pub rows: Vec<ForkDiffRowV1>,
     pub table_counts: BTreeMap<String, u64>,
     pub coverage: Vec<String>,
     pub omissions: Vec<String>,
+    pub receipt_digest: String,
 }
 
 /// Evidence binding one retained post-mint base snapshot to its fork
@@ -815,8 +977,8 @@ pub struct ForkNetDiffRowV1 {
     pub post_image: Option<Value>,
 }
 
-/// The exact net base-to-head diff — a distinct receipt from the attributed
-/// `snapback.fork-diff.v1` sequence per the frozen compatibility rules. The
+/// The exact net base-to-head diff — a distinct receipt from the journal
+/// `snapback.fork-journal-diff.v3` sequence per the frozen compatibility rules. The
 /// row set is computed from the retained base and current head directly (an
 /// independent oracle, not the journal), then cross-checked against the
 /// folded journal where retention still covers the fork point.
@@ -831,13 +993,15 @@ pub struct ForkNetDiffWriterCoverageV1 {
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct ForkNetDiffReceiptV2 {
+pub struct ForkNetDiffReceiptV3 {
     pub schema_version: String,
     pub fork_id: String,
     pub app_id: String,
     pub parent_instance_id: String,
     pub fork_point_version: u64,
     pub observed_head_version: u64,
+    pub base: ForkDiffCommitBoundaryV1,
+    pub head: ForkDiffCommitBoundaryV1,
     pub substrate: String,
     pub completeness: String,
     pub journal_consistency: String,
@@ -846,6 +1010,7 @@ pub struct ForkNetDiffReceiptV2 {
     pub rows: Vec<ForkNetDiffRowV1>,
     pub table_counts: BTreeMap<String, u64>,
     pub domains: BTreeMap<String, String>,
+    pub receipt_digest: String,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -934,6 +1099,194 @@ fn fork_app_row_coverage_digest(
     hasher.update(b"snapback:derived-fork-app-row-coverage:v1\n");
     hasher.update(body);
     Ok(format!("sha256:{:x}", hasher.finalize()))
+}
+
+fn fork_app_binding_digest(receipt: &ForkAppBindingReceiptV1) -> SnapbackResult<String> {
+    use sha2::Digest as _;
+    let value = json!({
+        "schemaVersion": receipt.schema_version,
+        "forkId": receipt.fork_id,
+        "appId": receipt.app_id,
+        "canonicalAppRoot": receipt.canonical_app_root,
+    });
+    let canonical = crate::rqs::jcs(&value).map_err(|error| {
+        fork_error(
+            APP_BINDING_REQUIRED_CODE,
+            format!("fork app binding is not canonically digestible: {error:?}"),
+        )
+    })?;
+    let mut digest = sha2::Sha256::new();
+    digest.update(b"snapback:fork-app-binding-receipt:v1\n");
+    digest.update(canonical.as_bytes());
+    Ok(format!("sha256:{:x}", digest.finalize()))
+}
+
+fn fork_diff_receipt_digest<T: Serialize>(
+    receipt: &T,
+    domain: &'static [u8],
+) -> SnapbackResult<String> {
+    use sha2::Digest as _;
+    let mut value = serde_json::to_value(receipt).map_err(|error| {
+        fork_error(
+            "SNAPBACK_FORK_RECEIPT_INVALID",
+            format!("fork diff receipt is not serializable: {error}"),
+        )
+    })?;
+    let object = value.as_object_mut().ok_or_else(|| {
+        fork_error(
+            "SNAPBACK_FORK_RECEIPT_INVALID",
+            "fork diff receipt digest preimage is not an object",
+        )
+    })?;
+    object.remove("receiptDigest");
+    let canonical = crate::rqs::jcs(&value).map_err(|error| {
+        fork_error(
+            "SNAPBACK_FORK_RECEIPT_INVALID",
+            format!("fork diff receipt is not canonically digestible: {error:?}"),
+        )
+    })?;
+    let mut digest = sha2::Sha256::new();
+    digest.update(domain);
+    digest.update(canonical.as_bytes());
+    Ok(format!("sha256:{:x}", digest.finalize()))
+}
+
+fn journal_diff_receipt_digest(receipt: &ForkDiffReceiptV3) -> SnapbackResult<String> {
+    fork_diff_receipt_digest(receipt, b"snapback:fork-journal-diff-receipt:v3\n")
+}
+
+fn net_diff_receipt_digest(receipt: &ForkNetDiffReceiptV3) -> SnapbackResult<String> {
+    fork_diff_receipt_digest(receipt, b"snapback:fork-net-diff-receipt:v3\n")
+}
+
+fn write_fork_app_binding(
+    staging: &Path,
+    receipt: &ForkMintReceiptV1,
+    expected: &ExpectedForkAppV1,
+) -> SnapbackResult<ForkAppBindingReceiptV1> {
+    let encoded_root = expected.canonical_app_root.to_str().ok_or_else(|| {
+        fork_error(
+            "SNAPBACK_FORK_APP_ROOT_INVALID",
+            "invoking app root must have a UTF-8 canonical path",
+        )
+    })?;
+    if expected.app_id != receipt.lineage.app_id {
+        return Err(fork_error(
+            APP_BINDING_MISMATCH_CODE,
+            "source logical app id does not match the invoking app-root identity",
+        ));
+    }
+    let mut binding = ForkAppBindingReceiptV1 {
+        schema_version: "snapback.fork-app-binding.v1".to_owned(),
+        fork_id: receipt.lineage.fork_id.clone(),
+        app_id: receipt.lineage.app_id.clone(),
+        canonical_app_root: encoded_root.to_owned(),
+        receipt_digest: String::new(),
+    };
+    binding.receipt_digest = fork_app_binding_digest(&binding)?;
+    write_json_sync(&staging.join(APP_BINDING_RECEIPT_FILE), &binding)?;
+    Ok(binding)
+}
+
+fn write_staging_app_binding(
+    staging: &Path,
+    expected: &ExpectedForkAppV1,
+) -> SnapbackResult<()> {
+    let encoded_root = expected.canonical_app_root.to_str().ok_or_else(|| {
+        fork_error(
+            "SNAPBACK_FORK_APP_ROOT_INVALID",
+            "invoking app root must have a UTF-8 canonical path",
+        )
+    })?;
+    write_json_sync(
+        &staging.join(APP_BINDING_INTENT_FILE),
+        &AppRootIdentityV1 {
+            schema_version: "snapback.fork-app-identity.v1".to_owned(),
+            canonical_app_root: encoded_root.to_owned(),
+            app_id: expected.app_id.clone(),
+        },
+    )
+}
+
+fn validate_staging_app_binding(
+    staging: &Path,
+    expected: &ExpectedForkAppV1,
+) -> SnapbackResult<()> {
+    let bytes = fs::read(staging.join(APP_BINDING_INTENT_FILE)).map_err(|error| {
+        if error.kind() == ErrorKind::NotFound {
+            fork_error(
+                APP_BINDING_REQUIRED_CODE,
+                "staged publication has no invoking app-root binding; legacy/unbound recovery is refused",
+            )
+        } else {
+            io_error("read staged app binding", error)
+        }
+    })?;
+    let recorded: AppRootIdentityV1 = serde_json::from_slice(&bytes).map_err(|error| {
+        fork_error(
+            APP_BINDING_REQUIRED_CODE,
+            format!("staged app-root binding is malformed: {error}"),
+        )
+    })?;
+    let expected_root = expected.canonical_app_root.to_str().ok_or_else(|| {
+        fork_error(
+            "SNAPBACK_FORK_APP_ROOT_INVALID",
+            "invoking app root must have a UTF-8 canonical path",
+        )
+    })?;
+    if recorded.schema_version != "snapback.fork-app-identity.v1"
+        || recorded.canonical_app_root != expected_root
+        || recorded.app_id != expected.app_id
+    {
+        return Err(fork_error(
+            APP_BINDING_MISMATCH_CODE,
+            "staged publication is bound to a different invoking app root or logical app id",
+        ));
+    }
+    Ok(())
+}
+
+fn read_fork_app_binding(
+    destination: &Path,
+    receipt: &ForkMintReceiptV1,
+) -> SnapbackResult<ForkAppBindingReceiptV1> {
+    let path = destination.join(APP_BINDING_RECEIPT_FILE);
+    let metadata = fs::symlink_metadata(&path).map_err(|error| {
+        if error.kind() == ErrorKind::NotFound {
+            fork_error(
+                APP_BINDING_REQUIRED_CODE,
+                "fork has no app-root binding receipt; legacy/unbound lifecycle selection is refused",
+            )
+        } else {
+            io_error("inspect fork app binding", error)
+        }
+    })?;
+    if metadata.file_type().is_symlink() || !metadata.is_file() {
+        return Err(fork_error(
+            APP_BINDING_REQUIRED_CODE,
+            "fork app-root binding is not a real direct-child file",
+        ));
+    }
+    let binding: ForkAppBindingReceiptV1 = serde_json::from_slice(
+        &fs::read(&path).map_err(|error| io_error("read fork app binding", error))?,
+    )
+    .map_err(|error| {
+        fork_error(
+            APP_BINDING_REQUIRED_CODE,
+            format!("fork app-root binding is malformed: {error}"),
+        )
+    })?;
+    if binding.schema_version != "snapback.fork-app-binding.v1"
+        || binding.fork_id != receipt.lineage.fork_id
+        || binding.app_id != receipt.lineage.app_id
+        || binding.receipt_digest != fork_app_binding_digest(&binding)?
+    {
+        return Err(fork_error(
+            APP_BINDING_MISMATCH_CODE,
+            "fork app-root binding does not match the mint receipt identity",
+        ));
+    }
+    Ok(binding)
 }
 
 fn writer_coverage_invalid(message: impl Into<String>) -> SnapbackError {
@@ -1657,8 +2010,11 @@ impl DerivedForkRuntime {
     /// closed effect family; no request URL/body/token enters this table.
     pub fn deny(&self, family: EgressFamily, now_ms: u64) -> SnapbackError {
         let recorded = (|| -> SnapbackResult<()> {
-            let conn = Connection::open(&self.database_path)?;
-            conn.execute(
+            let writer = crate::storage::open_registered_system_writer_v1(
+                &self.database_path,
+                crate::storage::RegisteredSystemWriterPurposeV1::DerivedForkEgressMarker,
+            )?;
+            writer.conn().execute(
                 "INSERT INTO _snapback_fork_egress_attempts_v1(
                    family,attempts,first_attempt_at_ms,last_attempt_at_ms
                  ) VALUES(?1,1,?2,?2)
@@ -1734,6 +2090,7 @@ fn registry_entry(
     state: &str,
     destination: &Path,
     receipt: &ForkMintReceiptV1,
+    app_binding: Option<&ForkAppBindingReceiptV1>,
 ) -> ForkRegistryEntryV1 {
     ForkRegistryEntryV1 {
         format_version: 1,
@@ -1746,7 +2103,7 @@ fn registry_entry(
         lineage: receipt.lineage.clone(),
         database_file: receipt.database_file.clone(),
         ready_file: None,
-        app_root: None,
+        app_root: app_binding.map(|binding| binding.canonical_app_root.clone()),
     }
 }
 
@@ -1757,9 +2114,10 @@ fn reconcile_registry(parent: &Path, destination: &Path, receipt: &ForkMintRecei
         let directory = parent.join(REGISTRY_DIRECTORY);
         fs::create_dir_all(&directory)
             .map_err(|error| io_error("create fork registry during recovery", error))?;
+        let app_binding = read_fork_app_binding(destination, receipt)?;
         write_json_sync(
             &registry_path(parent, &receipt.lineage.fork_id),
-            &registry_entry("published", destination, receipt),
+            &registry_entry("published", destination, receipt, Some(&app_binding)),
         )?;
         sync_directory(&directory)
     })();
@@ -1788,6 +2146,7 @@ pub fn publish(
         false,
         None,
         false,
+        None,
     )
 }
 
@@ -1826,6 +2185,9 @@ pub fn publish_managed(
             "maxLifetimeMs": MANAGED_FORK_MAX_LIFETIME_MS,
         })));
     }
+    let app_root = destination.parent().unwrap_or_else(|| Path::new("."));
+    fs::create_dir_all(app_root).map_err(|error| io_error("create managed fork root", error))?;
+    let expected = ensure_expected_app(app_root, app_id)?;
     publish_with_options(
         source_database,
         destination,
@@ -1836,6 +2198,7 @@ pub fn publish_managed(
         with_secrets,
         Some(expires_at_ms),
         false,
+        Some(&expected),
     )
 }
 
@@ -1870,6 +2233,9 @@ pub fn publish_managed_with_base(
             "maxLifetimeMs": MANAGED_FORK_MAX_LIFETIME_MS,
         })));
     }
+    let app_root = destination.parent().unwrap_or_else(|| Path::new("."));
+    fs::create_dir_all(app_root).map_err(|error| io_error("create managed fork root", error))?;
+    let expected = ensure_expected_app(app_root, app_id)?;
     publish_with_options(
         source_database,
         destination,
@@ -1880,6 +2246,75 @@ pub fn publish_managed_with_base(
         with_secrets,
         Some(expires_at_ms),
         retain_base,
+        Some(&expected),
+    )
+}
+
+/// [`publish_managed_bound_with_base`] without retained-base materialization.
+#[allow(clippy::too_many_arguments)]
+pub fn publish_managed_bound(
+    source_database: &Path,
+    destination: &Path,
+    expected: &ExpectedForkAppV1,
+    parent_instance_id: &str,
+    now_ms: u64,
+    expires_at_ms: u64,
+    with_secrets: bool,
+) -> SnapbackResult<ForkMintReceiptV1> {
+    publish_managed_bound_with_base(
+        source_database,
+        destination,
+        expected,
+        parent_instance_id,
+        now_ms,
+        expires_at_ms,
+        with_secrets,
+        false,
+    )
+}
+
+/// Product publication with the invoking app-root identity bound before the
+/// registry intent and authoritative directory rename. This is the only
+/// managed create entry point lifecycle commands may later select.
+#[allow(clippy::too_many_arguments)]
+pub fn publish_managed_bound_with_base(
+    source_database: &Path,
+    destination: &Path,
+    expected: &ExpectedForkAppV1,
+    parent_instance_id: &str,
+    now_ms: u64,
+    expires_at_ms: u64,
+    with_secrets: bool,
+    retain_base: bool,
+) -> SnapbackResult<ForkMintReceiptV1> {
+    if expires_at_ms <= now_ms || expires_at_ms > crate::manifest::PORTABLE_TIMESTAMP_MAX_MS {
+        return Err(fork_error(
+            "SNAPBACK_FORK_TTL_INVALID",
+            "fork expiry must be later than creation and within the portable timestamp range",
+        ));
+    }
+    if expires_at_ms.saturating_sub(now_ms) > MANAGED_FORK_MAX_LIFETIME_MS {
+        return Err(fork_error(
+            RESOURCE_LIMIT_REFUSED_CODE,
+            "fork create refused: the requested TTL exceeds the maximum fork lifetime",
+        )
+        .with_details(json!({
+            "resource": "fork-lifetime",
+            "requestedExpiresAtMs": expires_at_ms,
+            "maxLifetimeMs": MANAGED_FORK_MAX_LIFETIME_MS,
+        })));
+    }
+    publish_with_options(
+        source_database,
+        destination,
+        &expected.app_id,
+        parent_instance_id,
+        now_ms,
+        None,
+        with_secrets,
+        Some(expires_at_ms),
+        retain_base,
+        Some(expected),
     )
 }
 
@@ -1890,9 +2325,9 @@ pub fn record_managed_runtime(
     fork_root: &Path,
     fork_id: &str,
     ready_file: &Path,
-    app_root: Option<&Path>,
+    expected: &ExpectedForkAppV1,
 ) -> SnapbackResult<ForkRegistryEntryV1> {
-    let target = managed_target(fork_root, fork_id)?;
+    let target = managed_target(fork_root, fork_id, expected)?;
     let path = registry_path(fork_root, fork_id);
     let mut entry = target.entry;
     let destination = target.destination;
@@ -1918,7 +2353,7 @@ pub fn record_managed_runtime(
         )
     })?;
     entry.ready_file = Some(destination.join(ready_name).display().to_string());
-    entry.app_root = app_root.map(|path| path.display().to_string());
+    entry.app_root = Some(target.app_binding.canonical_app_root);
     write_json_sync(&path, &entry)?;
     sync_directory(&fork_root.join(REGISTRY_DIRECTORY))?;
     Ok(entry)
@@ -1964,17 +2399,24 @@ pub fn managed_registry_ids(fork_root: &Path) -> SnapbackResult<Vec<String>> {
     Ok(ids)
 }
 
-pub fn list_managed(fork_root: &Path) -> SnapbackResult<Vec<ForkRegistryEntryV1>> {
+pub fn list_managed(
+    fork_root: &Path,
+    expected: &ExpectedForkAppV1,
+) -> SnapbackResult<Vec<ForkRegistryEntryV1>> {
     let mut entries = Vec::new();
     for recorded_id in managed_registry_ids(fork_root)? {
-        entries.push(managed_target(fork_root, &recorded_id)?.entry);
+        entries.push(managed_target(fork_root, &recorded_id, expected)?.entry);
     }
     entries.sort_by(|left, right| left.lineage.fork_id.cmp(&right.lineage.fork_id));
     Ok(entries)
 }
 
-pub fn managed_entry(fork_root: &Path, fork_id: &str) -> SnapbackResult<ForkRegistryEntryV1> {
-    Ok(managed_target(fork_root, fork_id)?.entry)
+pub fn managed_entry(
+    fork_root: &Path,
+    fork_id: &str,
+    expected: &ExpectedForkAppV1,
+) -> SnapbackResult<ForkRegistryEntryV1> {
+    Ok(managed_target(fork_root, fork_id, expected)?.entry)
 }
 
 fn validate_fork_id(fork_id: &str) -> SnapbackResult<()> {
@@ -2076,11 +2518,43 @@ fn load_registry_entry(fork_root: &Path, fork_id: &str) -> SnapbackResult<ForkRe
     Ok(entry)
 }
 
+fn validate_registry_app_binding(
+    entry: &ForkRegistryEntryV1,
+    expected: &ExpectedForkAppV1,
+) -> SnapbackResult<()> {
+    let recorded_root = entry.app_root.as_deref().ok_or_else(|| {
+        fork_error(
+            APP_BINDING_REQUIRED_CODE,
+            "registry entry has no app-root identity; legacy/unbound lifecycle selection is refused",
+        )
+    })?;
+    let expected_root = expected.canonical_app_root.to_str().ok_or_else(|| {
+        fork_error(
+            "SNAPBACK_FORK_APP_ROOT_INVALID",
+            "invoking app root must have a UTF-8 canonical path",
+        )
+    })?;
+    if recorded_root != expected_root || entry.lineage.app_id != expected.app_id {
+        return Err(fork_error(
+            APP_BINDING_MISMATCH_CODE,
+            "registry entry is bound to a different invoking app root or logical app id",
+        )
+        .with_details(json!({
+            "expectedAppRoot": expected_root,
+            "expectedAppId": expected.app_id,
+        })));
+    }
+    Ok(())
+}
+
 /// Re-bind advisory lifecycle state to the fork's local mint receipt and DB
 /// lineage before any read, signal, deletion, or expiry decision.
 // @ref LLP 0158#design-sketch — registry state is advisory bookkeeping; local
 // S0-S5 evidence is the authority for a derived deployment.
-pub fn managed_target(fork_root: &Path, fork_id: &str) -> SnapbackResult<ManagedForkTargetV1> {
+fn managed_target_evidence(
+    fork_root: &Path,
+    fork_id: &str,
+) -> SnapbackResult<ManagedForkTargetV1> {
     let root = fs::canonicalize(fork_root)
         .map_err(|error| io_error("resolve managed fork root", error))?;
     let entry = load_registry_entry(&root, fork_id)?;
@@ -2182,6 +2656,19 @@ pub fn managed_target(fork_root: &Path, fork_id: &str) -> SnapbackResult<Managed
             "registry, mint receipt, and database lineage do not identify the same fork",
         ));
     }
+    let app_binding = read_fork_app_binding(&destination, &receipt)?;
+    let recorded_app_root = entry.app_root.as_deref().ok_or_else(|| {
+        fork_error(
+            APP_BINDING_REQUIRED_CODE,
+            "registry entry has no app-root identity; legacy/unbound lifecycle selection is refused",
+        )
+    })?;
+    if recorded_app_root != app_binding.canonical_app_root {
+        return Err(fork_error(
+            APP_BINDING_MISMATCH_CODE,
+            "registry and fork-local app-root binding receipts disagree",
+        ));
+    }
 
     let ready_file = entry
         .ready_file
@@ -2219,10 +2706,47 @@ pub fn managed_target(fork_root: &Path, fork_id: &str) -> SnapbackResult<Managed
     Ok(ManagedForkTargetV1 {
         entry,
         receipt,
+        app_binding,
         destination,
         database,
         ready_file,
     })
+}
+
+/// Re-bind advisory lifecycle state to local fork evidence and the invoking
+/// app identity before returning any selected fork facts. Same-app-id roots
+/// remain distinct; either the canonical root or logical id mismatch refuses.
+// @ref LLP 0158#open-questions — OQ9 requires exact instance selection and
+// rejects app-id-only control in every multi-instance lifecycle operation.
+pub fn managed_target(
+    fork_root: &Path,
+    fork_id: &str,
+    expected: &ExpectedForkAppV1,
+) -> SnapbackResult<ManagedForkTargetV1> {
+    let root = fs::canonicalize(fork_root)
+        .map_err(|error| io_error("resolve managed fork root", error))?;
+    let registry_entry = load_registry_entry(&root, fork_id)?;
+    validate_registry_app_binding(&registry_entry, expected)?;
+    let target = managed_target_evidence(fork_root, fork_id)?;
+    let expected_root = expected.canonical_app_root.to_str().ok_or_else(|| {
+        fork_error(
+            "SNAPBACK_FORK_APP_ROOT_INVALID",
+            "invoking app root must have a UTF-8 canonical path",
+        )
+    })?;
+    if target.app_binding.canonical_app_root != expected_root
+        || target.app_binding.app_id != expected.app_id
+    {
+        return Err(fork_error(
+            APP_BINDING_MISMATCH_CODE,
+            "selected fork is bound to a different invoking app root or logical app id",
+        )
+        .with_details(json!({
+            "expectedAppRoot": expected_root,
+            "expectedAppId": expected.app_id,
+        })));
+    }
+    Ok(target)
 }
 
 /// A per-fork advisory lock serializing destructive lifecycle actions. A
@@ -2268,9 +2792,13 @@ impl ForkCleanupLock {
 /// Remove exactly one registry-bound fork directory. Callers stop a live
 /// child first; path validation prevents registry corruption from widening the
 /// deletion target.
-pub fn drop_managed(fork_root: &Path, fork_id: &str) -> SnapbackResult<ForkRegistryEntryV1> {
+pub fn drop_managed(
+    fork_root: &Path,
+    fork_id: &str,
+    expected: &ExpectedForkAppV1,
+) -> SnapbackResult<ForkRegistryEntryV1> {
     let lock = lock_cleanup(fork_root, fork_id)?;
-    let entry = drop_managed_locked(fork_root, fork_id)?;
+    let entry = drop_managed_locked(fork_root, fork_id, expected)?;
     lock.dispose();
     Ok(entry)
 }
@@ -2281,8 +2809,9 @@ pub fn drop_managed(fork_root: &Path, fork_id: &str) -> SnapbackResult<ForkRegis
 pub fn drop_managed_locked(
     fork_root: &Path,
     fork_id: &str,
+    expected: &ExpectedForkAppV1,
 ) -> SnapbackResult<ForkRegistryEntryV1> {
-    let target = managed_target(fork_root, fork_id)?;
+    let target = managed_target(fork_root, fork_id, expected)?;
     let entry = target.entry;
     // A concurrent drop/reap may win the directory removal between the
     // evidence re-bind above and this call. Duplicate cleanup of the same
@@ -2305,9 +2834,13 @@ pub fn drop_managed_locked(
 /// Complete a partial cleanup: remove one registry entry whose recorded fork
 /// directory is already gone. Refuses while the destination still exists, so
 /// this can never widen into deleting fork state — only stale bookkeeping.
-pub fn clear_stale_registry_entry(fork_root: &Path, fork_id: &str) -> SnapbackResult<()> {
+pub fn clear_stale_registry_entry(
+    fork_root: &Path,
+    fork_id: &str,
+    expected: &ExpectedForkAppV1,
+) -> SnapbackResult<()> {
     let lock = lock_cleanup(fork_root, fork_id)?;
-    clear_stale_registry_entry_locked(fork_root, fork_id)?;
+    clear_stale_registry_entry_locked(fork_root, fork_id, expected)?;
     lock.dispose();
     Ok(())
 }
@@ -2316,10 +2849,12 @@ pub fn clear_stale_registry_entry(fork_root: &Path, fork_id: &str) -> SnapbackRe
 pub fn clear_stale_registry_entry_locked(
     fork_root: &Path,
     fork_id: &str,
+    expected: &ExpectedForkAppV1,
 ) -> SnapbackResult<()> {
     let root = fs::canonicalize(fork_root)
         .map_err(|error| io_error("resolve managed fork root", error))?;
     let entry = load_registry_entry(&root, fork_id)?;
+    validate_registry_app_binding(&entry, expected)?;
     if root.join(&entry.destination).exists() {
         return Err(fork_error(
             "SNAPBACK_FORK_EVIDENCE_MISMATCH",
@@ -2376,21 +2911,23 @@ fn maybe_renew_cut(cut_at: Option<RenewCut>, point: RenewCut) -> SnapbackResult<
 pub fn renew_managed(
     fork_root: &Path,
     fork_id: &str,
+    expected: &ExpectedForkAppV1,
     now_ms: u64,
     ttl_ms: u64,
 ) -> SnapbackResult<ForkRenewReceiptV1> {
-    renew_managed_with_cut(fork_root, fork_id, now_ms, ttl_ms, None)
+    renew_managed_with_cut(fork_root, fork_id, expected, now_ms, ttl_ms, None)
 }
 
 fn renew_managed_with_cut(
     fork_root: &Path,
     fork_id: &str,
+    expected: &ExpectedForkAppV1,
     now_ms: u64,
     ttl_ms: u64,
     cut_at: Option<RenewCut>,
 ) -> SnapbackResult<ForkRenewReceiptV1> {
     let _lock = lock_cleanup(fork_root, fork_id)?;
-    let target = managed_target(fork_root, fork_id)?;
+    let target = managed_target(fork_root, fork_id, expected)?;
     let lineage = target.receipt.lineage.clone();
     let previous_expires_at_ms = lineage.expires_at_ms.ok_or_else(|| {
         fork_error(
@@ -2484,13 +3021,16 @@ fn apply_renewal(
     let renewed = &intent.lineage;
     let lineage_json = serde_json::to_string(renewed)
         .map_err(|error| fork_error("SNAPBACK_FORK_LINEAGE_INVALID", error.to_string()))?;
-    let conn = Connection::open(database)?;
-    conn.execute(
+    let writer = crate::storage::open_registered_system_writer_v1(
+        database,
+        crate::storage::RegisteredSystemWriterPurposeV1::DerivedForkLifecycle,
+    )?;
+    writer.conn().execute(
         "UPDATE _snapback_meta SET value=?2 WHERE key=?1",
         params![LINEAGE_META_KEY, lineage_json],
     )?;
-    sync_sqlite_set(database, &conn, None)?;
-    drop(conn);
+    sync_sqlite_set(database, writer.conn(), None)?;
+    drop(writer);
     maybe_renew_cut(cut_at, RenewCut::AfterDatabaseUpdate)?;
 
     let receipt_path = destination.join(MINT_RECEIPT_FILE);
@@ -2515,11 +3055,15 @@ fn apply_renewal(
         let registry_directory = fork_root.join(REGISTRY_DIRECTORY);
         fs::create_dir_all(&registry_directory)
             .map_err(|error| io_error("create fork registry for renewal", error))?;
+        let app_binding = read_fork_app_binding(destination, &mint)?;
         let mut entry = fs::read(&registry)
             .ok()
             .and_then(|bytes| serde_json::from_slice::<ForkRegistryEntryV1>(&bytes).ok())
-            .unwrap_or_else(|| registry_entry("published", destination, &mint));
+            .unwrap_or_else(|| {
+                registry_entry("published", destination, &mint, Some(&app_binding))
+            });
         entry.lineage = renewed.clone();
+        entry.app_root = Some(app_binding.canonical_app_root);
         write_json_sync(&registry, &entry)?;
         sync_directory(&registry_directory)
     })();
@@ -2651,6 +3195,50 @@ pub fn enforce_creation_limits(
     })
 }
 
+/// Root-wide admission guard. The caller keeps this value alive from the
+/// count/byte observation through registry intent and directory publication,
+/// making a boundary decision linearizable across concurrent creators.
+pub struct ForkCreationAdmission {
+    _file: File,
+    usage: ForkResourceUsageV1,
+}
+
+impl ForkCreationAdmission {
+    pub fn usage(&self) -> ForkResourceUsageV1 {
+        self.usage
+    }
+}
+
+pub fn admit_creation(
+    fork_root: &Path,
+    source_database: &Path,
+    limits: &ForkResourceLimits,
+    retain_base: bool,
+) -> SnapbackResult<ForkCreationAdmission> {
+    let registry = fork_root.join(REGISTRY_DIRECTORY);
+    fs::create_dir_all(&registry)
+        .map_err(|error| io_error("create fork registry for admission lock", error))?;
+    let path = registry.join("root.admission-lock");
+    let file = fs::OpenOptions::new()
+        .create(true)
+        .read(true)
+        .write(true)
+        .open(&path)
+        .map_err(|error| io_error("open fork admission lock", error))?;
+    #[cfg(unix)]
+    {
+        use std::os::fd::AsRawFd as _;
+        if unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_EX) } != 0 {
+            return Err(io_error(
+                "acquire fork-root admission lock",
+                std::io::Error::last_os_error(),
+            ));
+        }
+    }
+    let usage = enforce_creation_limits(fork_root, source_database, limits, retain_base)?;
+    Ok(ForkCreationAdmission { _file: file, usage })
+}
+
 /// Re-read the lineage currently persisted in a fork database, ignoring the
 /// staging sentinel. The serving watchdog uses this at its expiry deadline so
 /// a completed renewal extends the running server instead of being ignored.
@@ -2660,14 +3248,18 @@ pub fn refreshed_lineage(
     Ok(inspect_evidence(database_path)?.map(|runtime| runtime.lineage))
 }
 
-pub fn expired_managed(fork_root: &Path, now_ms: u64) -> SnapbackResult<Vec<ForkRegistryEntryV1>> {
+pub fn expired_managed(
+    fork_root: &Path,
+    expected: &ExpectedForkAppV1,
+    now_ms: u64,
+) -> SnapbackResult<Vec<ForkRegistryEntryV1>> {
     if now_ms > crate::manifest::PORTABLE_TIMESTAMP_MAX_MS {
         return Err(fork_error(
             "SNAPBACK_FORK_REAP_CLOCK_INVALID",
             "reap clock exceeds the portable timestamp range",
         ));
     }
-    Ok(list_managed(fork_root)?
+    Ok(list_managed(fork_root, expected)?
         .into_iter()
         .filter(|entry| {
             entry
@@ -2678,10 +3270,64 @@ pub fn expired_managed(fork_root: &Path, now_ms: u64) -> SnapbackResult<Vec<Fork
         .collect())
 }
 
+fn diff_commit_boundaries(
+    conn: &Connection,
+    database_path: &Path,
+    runtime: &DerivedForkRuntime,
+    observed_head_version: u64,
+) -> SnapbackResult<(ForkDiffCommitBoundaryV1, ForkDiffCommitBoundaryV1)> {
+    let directory = database_path.parent().unwrap_or_else(|| Path::new("."));
+    let mint: ForkMintReceiptV1 = serde_json::from_slice(
+        &fs::read(directory.join(MINT_RECEIPT_FILE))
+            .map_err(|error| io_error("read fork mint receipt for diff boundary", error))?,
+    )
+    .map_err(|_| {
+        fork_error(
+            "SNAPBACK_FORK_RECEIPT_INVALID",
+            "fork mint receipt is malformed while binding diff boundaries",
+        )
+    })?;
+    if mint.format_version != 1 || mint.lineage != runtime.lineage {
+        return Err(fork_error(
+            "SNAPBACK_FORK_EVIDENCE_MISMATCH",
+            "fork mint receipt does not bind the diff base identity",
+        ));
+    }
+    let head_stream = crate::seed_identity::strict_current_data_version_stream(conn)?
+        .ok_or_else(|| {
+            fork_error(
+                "SNAPBACK_FORK_EVIDENCE_MISMATCH",
+                "fork diff head has no active data-version stream",
+            )
+        })?;
+    if head_stream != mint.data_version_stream {
+        return Err(fork_error(
+            "SNAPBACK_FORK_EVIDENCE_MISMATCH",
+            "fork diff cannot span a data-version stream rotation",
+        )
+        .with_details(json!({
+            "baseDataVersionStream": mint.data_version_stream,
+            "headDataVersionStream": head_stream,
+        })));
+    }
+    Ok((
+        ForkDiffCommitBoundaryV1 {
+            data_version_stream: mint.data_version_stream.clone(),
+            commit_version: runtime.lineage.fork_point_version,
+            version_boundary: "exclusive".to_owned(),
+        },
+        ForkDiffCommitBoundaryV1 {
+            data_version_stream: head_stream,
+            commit_version: observed_head_version,
+            version_boundary: "inclusive".to_owned(),
+        },
+    ))
+}
+
 /// Render the app-row-only inspection artifact promised by LLP 0158 with the
 /// default diff-work bound. The explicit omissions are part of the contract,
 /// not documentation garnish.
-pub fn diff_receipt(database_path: &Path) -> SnapbackResult<ForkDiffReceiptV1> {
+pub fn diff_receipt(database_path: &Path) -> SnapbackResult<ForkDiffReceiptV3> {
     diff_receipt_bounded(database_path, FORK_DIFF_MAX_ROWS)
 }
 
@@ -2691,7 +3337,7 @@ pub fn diff_receipt(database_path: &Path) -> SnapbackResult<ForkDiffReceiptV1> {
 pub fn diff_receipt_bounded(
     database_path: &Path,
     max_rows: u64,
-) -> SnapbackResult<ForkDiffReceiptV1> {
+) -> SnapbackResult<ForkDiffReceiptV3> {
     // Diff is an offline lifecycle inspection surface, not serving admission.
     // It must remain available to explain or clean up an expired fork even
     // though LocalDatabase::open refuses to boot that same database.
@@ -2719,13 +3365,13 @@ pub fn diff_receipt_bounded(
         return Err(fork_error(
             "SNAPBACK_FORK_DIFF_RETENTION_GAP",
             format!(
-                "journal retention floor {retention_floor} is newer than fork point {}; an exact attributed diff is no longer available",
+                "journal retention floor {retention_floor} is newer than fork point {}; an exact journal sequence is no longer available",
                 runtime.lineage.fork_point_version
             ),
         ));
     }
     run_diff_after_header_hook();
-    let attributed_rows: u64 = tx.query_row(
+    let journal_rows: u64 = tx.query_row(
         "SELECT COUNT(*)
            FROM _snapback_changes
           WHERE version > ?1
@@ -2734,15 +3380,15 @@ pub fn diff_receipt_bounded(
         [runtime.lineage.fork_point_version],
         |row| row.get(0),
     )?;
-    if attributed_rows > max_rows {
+    if journal_rows > max_rows {
         return Err(fork_error(
             RESOURCE_LIMIT_REFUSED_CODE,
-            "fork diff refused: the attributed journal span exceeds the diff-work limit",
+            "fork diff refused: the journal span exceeds the diff-work limit",
         )
         .with_details(json!({
             "resource": "diff-work",
             "limitRows": max_rows,
-            "attributedRows": attributed_rows,
+            "journalRows": journal_rows,
         })));
     }
     let mut statement = tx.prepare(
@@ -2787,16 +3433,25 @@ pub fn diff_receipt_bounded(
     for row in &rows {
         *table_counts.entry(row.table.clone()).or_insert(0) += 1;
     }
-    Ok(ForkDiffReceiptV1 {
-        schema_version: "snapback.fork-diff.v1".to_owned(),
+    let (base, head) = diff_commit_boundaries(
+        &tx,
+        database_path,
+        &runtime,
+        observed_head_version,
+    )?;
+    let mut receipt = ForkDiffReceiptV3 {
+        schema_version: "snapback.fork-journal-diff.v3".to_owned(),
         fork_id: runtime.lineage.fork_id,
         app_id: runtime.lineage.app_id,
         parent_instance_id: runtime.lineage.parent_instance_id,
         fork_point_version: runtime.lineage.fork_point_version,
         observed_head_version,
+        base,
+        head,
+        attribution: "absent-v1".to_owned(),
         rows,
         table_counts,
-        coverage: vec!["committed app-row journal entries after forkPointVersion".to_owned()],
+        coverage: vec!["committed app-row journal entries in (base, head]".to_owned()],
         omissions: BTreeSet::from([
             "asset blob operations".to_owned(),
             "auth and credential state".to_owned(),
@@ -2806,7 +3461,10 @@ pub fn diff_receipt_bounded(
         ])
         .into_iter()
         .collect(),
-    })
+        receipt_digest: String::new(),
+    };
+    receipt.receipt_digest = journal_diff_receipt_digest(&receipt)?;
+    Ok(receipt)
 }
 
 fn verified_fork_app_row_coverage(
@@ -2912,6 +3570,78 @@ pub fn verified_derived_fork_app_row_coverage(
     )
 }
 
+#[derive(Clone, Copy, Debug)]
+struct NetDiffWorkLimitsV1 {
+    max_journal_rows: u64,
+    max_scanned_rows: u64,
+    max_bytes: u64,
+    max_output_rows: u64,
+}
+
+#[derive(Default)]
+struct NetDiffWorkV1 {
+    journal_rows: u64,
+    scanned_rows: u64,
+    observed_bytes: u64,
+}
+
+impl NetDiffWorkV1 {
+    fn observe_journal(
+        &mut self,
+        bytes: u64,
+        limits: NetDiffWorkLimitsV1,
+    ) -> SnapbackResult<()> {
+        self.journal_rows = self.journal_rows.saturating_add(1);
+        self.observed_bytes = self.observed_bytes.saturating_add(bytes);
+        self.enforce("journal", limits)
+    }
+
+    fn observe_scan(
+        &mut self,
+        bytes: u64,
+        limits: NetDiffWorkLimitsV1,
+        phase: &str,
+    ) -> SnapbackResult<()> {
+        self.scanned_rows = self.scanned_rows.saturating_add(1);
+        self.observed_bytes = self.observed_bytes.saturating_add(bytes);
+        self.enforce(phase, limits)
+    }
+
+    fn enforce(&self, phase: &str, limits: NetDiffWorkLimitsV1) -> SnapbackResult<()> {
+        let exceeded = if self.journal_rows > limits.max_journal_rows {
+            Some(("journal-rows", limits.max_journal_rows, self.journal_rows))
+        } else if self.scanned_rows > limits.max_scanned_rows {
+            Some(("scanned-rows", limits.max_scanned_rows, self.scanned_rows))
+        } else if self.observed_bytes > limits.max_bytes {
+            Some(("bytes", limits.max_bytes, self.observed_bytes))
+        } else {
+            None
+        };
+        let Some((limit_kind, limit, observed)) = exceeded else {
+            return Ok(());
+        };
+        Err(fork_error(
+            RESOURCE_LIMIT_REFUSED_CODE,
+            "fork net diff refused while streaming bounded work",
+        )
+        .with_details(json!({
+            "resource": "diff-work",
+            "phase": phase,
+            "limitKind": limit_kind,
+            "limit": limit,
+            "observed": observed,
+            "journalRows": self.journal_rows,
+            "scannedRows": self.scanned_rows,
+            "observedBytes": self.observed_bytes,
+            "limits": {
+                "journalRows": limits.max_journal_rows,
+                "scannedRows": limits.max_scanned_rows,
+                "bytes": limits.max_bytes,
+            }
+        })))
+    }
+}
+
 /// The exact net base-to-head diff (LLP 0185 Phase 4). The row set is
 /// computed by comparing the digest-verified retained base against the
 /// current head directly — an oracle independent of the journal — and the
@@ -2921,7 +3651,22 @@ pub fn verified_derived_fork_app_row_coverage(
 pub fn net_diff_receipt(
     database_path: &Path,
     max_rows: u64,
-) -> SnapbackResult<ForkNetDiffReceiptV2> {
+) -> SnapbackResult<ForkNetDiffReceiptV3> {
+    net_diff_receipt_with_limits(
+        database_path,
+        NetDiffWorkLimitsV1 {
+            max_journal_rows: max_rows,
+            max_scanned_rows: max_rows,
+            max_bytes: FORK_DIFF_MAX_BYTES,
+            max_output_rows: max_rows,
+        },
+    )
+}
+
+fn net_diff_receipt_with_limits(
+    database_path: &Path,
+    limits: NetDiffWorkLimitsV1,
+) -> SnapbackResult<ForkNetDiffReceiptV3> {
     let runtime = inspect_published_evidence(database_path)?.ok_or_else(|| {
         fork_error(
             "SNAPBACK_FORK_EVIDENCE_INCOMPLETE",
@@ -2967,6 +3712,7 @@ pub fn net_diff_receipt(
         rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
     )?;
     let tx = head.transaction()?;
+    let wal_bytes = validate_sqlite_wal_integrity(database_path, limits.max_bytes)?;
     let head_schema = crate::storage::active_schema_manifest_from_connection(&tx)?;
     let observed_head_version = tx.query_row(
         "SELECT version FROM _snapback_version WHERE id=1",
@@ -2976,6 +3722,10 @@ pub fn net_diff_receipt(
     let retention_floor = crate::storage::change_journal_floor_on(&tx)?;
     let coverage_receipt = verified_fork_app_row_coverage(&tx, directory, &runtime)?;
     let journal_cross_check_available = retention_floor <= runtime.lineage.fork_point_version;
+    let mut work = NetDiffWorkV1 {
+        observed_bytes: wal_bytes,
+        ..NetDiffWorkV1::default()
+    };
     let mut journaled = BTreeSet::new();
     let mut latest_covered_journal_post_images = BTreeMap::<
         String,
@@ -2983,21 +3733,27 @@ pub fn net_diff_receipt(
     >::new();
     if journal_cross_check_available {
         let mut statement = tx.prepare(
-            "SELECT table_name,row_id,op,row_json FROM _snapback_changes
+            "SELECT table_name,row_id,op,row_json,
+                    length(CAST(table_name AS BLOB))
+                      + length(CAST(row_id AS BLOB))
+                      + length(CAST(op AS BLOB))
+                      + COALESCE(length(CAST(row_json AS BLOB)), 0)
+               FROM _snapback_changes
               WHERE version > ?1
                 AND table_name NOT GLOB '_snapback_*'
                 AND table_name NOT GLOB '_auth_*'
               ORDER BY version,id",
         )?;
-        for row in statement.query_map([runtime.lineage.fork_point_version], |row| {
-            Ok((
-                row.get::<_, String>(0)?,
-                row.get::<_, String>(1)?,
-                row.get::<_, String>(2)?,
-                row.get::<_, Option<String>>(3)?,
-            ))
-        })? {
-            let (table, row_id, operation, row_json) = row?;
+        let mut rows = statement.query([runtime.lineage.fork_point_version])?;
+        while let Some(row) = rows.next()? {
+            // Read SQLite's byte count before materializing any untrusted text
+            // into Rust-owned strings or inserting it into the diff maps.
+            let journal_bytes = row.get::<_, u64>(4)?;
+            work.observe_journal(journal_bytes, limits)?;
+            let table = row.get::<_, String>(0)?;
+            let row_id = row.get::<_, String>(1)?;
+            let operation = row.get::<_, String>(2)?;
+            let row_json = row.get::<_, Option<String>>(3)?;
             journaled.insert((table.clone(), row_id.clone()));
             if coverage_receipt.is_some() {
                 let post_image = match (operation.as_str(), row_json) {
@@ -3070,8 +3826,22 @@ pub fn net_diff_receipt(
         let head_table = head_schema
             .as_ref()
             .and_then(|schema| schema.tables.iter().find(|candidate| candidate.name == *table));
-        let base_rows = read_app_table_rows(&base, table, base_table)?;
-        let head_rows = read_app_table_rows(&tx, table, head_table)?;
+        let base_rows = read_app_table_rows(
+            &base,
+            table,
+            base_table,
+            &mut work,
+            limits,
+            "base-scan",
+        )?;
+        let head_rows = read_app_table_rows(
+            &tx,
+            table,
+            head_table,
+            &mut work,
+            limits,
+            "head-scan",
+        )?;
         if let Some(latest_rows) = latest_covered_journal_post_images.get(table) {
             for (row_id, journal_post_image) in latest_rows {
                 if head_rows.get(row_id) != journal_post_image.as_ref() {
@@ -3111,15 +3881,18 @@ pub fn net_diff_receipt(
             }
         }
     }
-    if rows.len() as u64 > max_rows {
+    if rows.len() as u64 > limits.max_output_rows {
         return Err(fork_error(
             RESOURCE_LIMIT_REFUSED_CODE,
             "fork net diff refused: the net row set exceeds the diff-work limit",
         )
         .with_details(json!({
             "resource": "diff-work",
-            "limitRows": max_rows,
+            "limitRows": limits.max_output_rows,
             "netRows": rows.len(),
+            "journalRows": work.journal_rows,
+            "scannedRows": work.scanned_rows,
+            "observedBytes": work.observed_bytes,
         })));
     }
 
@@ -3157,7 +3930,7 @@ pub fn net_diff_receipt(
         }) {
             return Err(fork_error(
                 DIFF_ORACLE_MISMATCH_CODE,
-                "the journal does not explain a net base-to-head change; the attributed receipt cannot be trusted for this span",
+                "the journal does not explain a net base-to-head change; the journal receipt cannot be trusted for this span",
             )
             .with_details(json!({
                 "table": unexplained.table,
@@ -3185,7 +3958,7 @@ pub fn net_diff_receipt(
     let completeness = if coverage_receipt.is_some()
         && journal_consistency == "journal-cross-check-verified"
     {
-        "authorizer-backed-app-rows-v1"
+        "registered-connection-defensive-app-rows-v1"
     } else {
         "journal-enumerated-v1"
     };
@@ -3193,13 +3966,21 @@ pub fn net_diff_receipt(
     // @ref LLP 0165#derived-fork-authorizer-backed-net-diff--2026-08-06 —
     //   writer authority and journal consistency are separate receipt facts;
     //   both must pass before the app-row completeness spelling upgrades.
-    Ok(ForkNetDiffReceiptV2 {
-        schema_version: "snapback.fork-net-diff.v2".to_owned(),
+    let (base, head) = diff_commit_boundaries(
+        &tx,
+        database_path,
+        &runtime,
+        observed_head_version,
+    )?;
+    let mut receipt = ForkNetDiffReceiptV3 {
+        schema_version: "snapback.fork-net-diff.v3".to_owned(),
         fork_id: runtime.lineage.fork_id,
         app_id: runtime.lineage.app_id,
         parent_instance_id: runtime.lineage.parent_instance_id,
         fork_point_version: runtime.lineage.fork_point_version,
         observed_head_version,
+        base,
+        head,
         substrate: "retained-base-v1".to_owned(),
         completeness: completeness.to_owned(),
         journal_consistency,
@@ -3218,7 +3999,10 @@ pub fn net_diff_receipt(
             ("telemetry".to_owned(), "omitted".to_owned()),
             ("sidecars".to_owned(), "omitted".to_owned()),
         ]),
-    })
+        receipt_digest: String::new(),
+    };
+    receipt.receipt_digest = net_diff_receipt_digest(&receipt)?;
+    Ok(receipt)
 }
 
 /// Every row of one app table as a canonical JSON object keyed by `_id`.
@@ -3229,6 +4013,9 @@ fn read_app_table_rows(
     conn: &Connection,
     table: &str,
     manifest: Option<&crate::manifest::TableManifest>,
+    work: &mut NetDiffWorkV1,
+    limits: NetDiffWorkLimitsV1,
+    phase: &str,
 ) -> SnapbackResult<BTreeMap<String, Value>> {
     let quoted = format!("\"{}\"", table.replace('"', "\"\""));
     let mut statement = match conn.prepare(&format!("SELECT * FROM {quoted}")) {
@@ -3262,6 +4049,20 @@ fn read_app_table_rows(
                     )
                 })?
                 .to_owned();
+            let bytes = table
+                .len()
+                .saturating_add(row_id.len())
+                .saturating_add(
+                    serde_json::to_vec(&document)
+                        .map_err(|error| {
+                            fork_error(
+                                "SNAPBACK_FORK_DIFF_INVALID",
+                                format!("app row cannot be measured for diff work: {error}"),
+                            )
+                        })?
+                        .len(),
+                );
+            work.observe_scan(bytes as u64, limits, phase)?;
             rows.insert(row_id, document);
             continue;
         }
@@ -3292,7 +4093,22 @@ fn read_app_table_rows(
                 format!("app table {table} has a row without a string _id"),
             ));
         };
-        rows.insert(row_id, Value::Object(object));
+        let document = Value::Object(object);
+        let bytes = table
+            .len()
+            .saturating_add(row_id.len())
+            .saturating_add(
+                serde_json::to_vec(&document)
+                    .map_err(|error| {
+                        fork_error(
+                            "SNAPBACK_FORK_DIFF_INVALID",
+                            format!("app row cannot be measured for diff work: {error}"),
+                        )
+                    })?
+                    .len(),
+            );
+        work.observe_scan(bytes as u64, limits, phase)?;
+        rows.insert(row_id, document);
     }
     Ok(rows)
 }
@@ -3308,6 +4124,7 @@ fn publish_with_options(
     with_secrets: bool,
     expires_at_ms: Option<u64>,
     retain_base: bool,
+    expected_app: Option<&ExpectedForkAppV1>,
 ) -> SnapbackResult<ForkMintReceiptV1> {
     if destination.exists() {
         return Err(fork_error(
@@ -3338,6 +4155,9 @@ fn publish_with_options(
     File::create(&sentinel)
         .and_then(|file| file.sync_all())
         .map_err(|error| io_error("write fork staging sentinel", error))?;
+    if let Some(expected) = expected_app {
+        write_staging_app_binding(&staging, expected)?;
+    }
     maybe_cut(cut_at, PublicationCut::AfterSentinelWrite)?;
     sync_directory(&staging)?;
     maybe_cut(cut_at, PublicationCut::AfterSentinelDirectorySync)?;
@@ -3383,6 +4203,13 @@ fn publish_with_options(
         with_secrets,
         expires_at_ms,
     )?;
+    let app_binding = expected_app
+        .map(|expected| write_fork_app_binding(&staging, &receipt, expected))
+        .transpose()?;
+    if app_binding.is_some() {
+        fs::remove_file(staging.join(APP_BINDING_INTENT_FILE))
+            .map_err(|error| io_error("remove staged app binding intent", error))?;
+    }
     copy_fork_private_assets(source_database, &staging, &staging_database)?;
     maybe_cut(cut_at, PublicationCut::AfterAssetCopy)?;
     if retain_base {
@@ -3395,7 +4222,10 @@ fn publish_with_options(
     fs::create_dir_all(&registry_directory)
         .map_err(|error| io_error("create fork registry", error))?;
     let registry = registry_path(parent, &receipt.lineage.fork_id);
-    write_json_sync(&registry, &registry_entry("intent", destination, &receipt))?;
+    write_json_sync(
+        &registry,
+        &registry_entry("intent", destination, &receipt, app_binding.as_ref()),
+    )?;
     sync_directory(&registry_directory)?;
     maybe_cut(cut_at, PublicationCut::AfterRegistryIntent)?;
 
@@ -3406,7 +4236,7 @@ fn publish_with_options(
     maybe_cut(cut_at, PublicationCut::AfterParentDirectorySync)?;
     let registry_result = write_json_sync(
         &registry,
-        &registry_entry("published", destination, &receipt),
+        &registry_entry("published", destination, &receipt, app_binding.as_ref()),
     );
     if registry_result.is_ok() {
         let _ = sync_directory(&registry_directory);
@@ -3565,8 +4395,221 @@ fn file_sha256(path: &Path) -> SnapbackResult<String> {
     Ok(format!("sha256:{:x}", hasher.finalize()))
 }
 
-/// Recover solely from local staging/published evidence. A missing or corrupt
-/// advisory registry is deliberately ignored.
+fn wal_integrity_error(reason: impl Into<String>) -> SnapbackError {
+    fork_error(
+        "SNAPBACK_FORK_EVIDENCE_MISMATCH",
+        "fork diff refused a malformed or concurrently changing SQLite WAL",
+    )
+    .with_details(json!({
+        "evidence": "sqlite-wal",
+        "reason": reason.into(),
+    }))
+}
+
+fn wal_checksum_words(bytes: &[u8], big_endian: bool, mut checksum: [u32; 2]) -> [u32; 2] {
+    debug_assert_eq!(bytes.len() % 8, 0);
+    for words in bytes.chunks_exact(8) {
+        let first = if big_endian {
+            u32::from_be_bytes(words[0..4].try_into().expect("four-byte WAL word"))
+        } else {
+            u32::from_le_bytes(words[0..4].try_into().expect("four-byte WAL word"))
+        };
+        let second = if big_endian {
+            u32::from_be_bytes(words[4..8].try_into().expect("four-byte WAL word"))
+        } else {
+            u32::from_le_bytes(words[4..8].try_into().expect("four-byte WAL word"))
+        };
+        checksum[0] = checksum[0]
+            .wrapping_add(first)
+            .wrapping_add(checksum[1]);
+        checksum[1] = checksum[1]
+            .wrapping_add(second)
+            .wrapping_add(checksum[0]);
+    }
+    checksum
+}
+
+/// SQLite deliberately treats a malformed WAL header or invalid trailing
+/// frame as an absent/shorter log during recovery. That is correct database
+/// recovery behavior, but a diff receipt must not silently bind the older
+/// visible prefix after raw file tampering. Validate the documented WAL
+/// header, salts, and cumulative frame checksums within the diff byte budget
+/// before emitting evidence.
+fn validate_sqlite_wal_integrity(database_path: &Path, max_bytes: u64) -> SnapbackResult<u64> {
+    let wal_path = PathBuf::from(format!("{}-wal", database_path.display()));
+    let mut file = match File::open(&wal_path) {
+        Ok(file) => file,
+        Err(error) if error.kind() == ErrorKind::NotFound => return Ok(0),
+        Err(error) => return Err(io_error("open fork WAL for diff validation", error)),
+    };
+    let metadata = file
+        .metadata()
+        .map_err(|error| io_error("inspect fork WAL for diff validation", error))?;
+    let observed_bytes = metadata.len();
+    if observed_bytes > max_bytes {
+        return Err(fork_error(
+            RESOURCE_LIMIT_REFUSED_CODE,
+            "fork net diff refused before reading an oversized WAL",
+        )
+        .with_details(json!({
+            "resource": "diff-work",
+            "phase": "wal-integrity",
+            "limitKind": "bytes",
+            "limit": max_bytes,
+            "observed": observed_bytes,
+            "observedBytes": observed_bytes,
+        })));
+    }
+    let mut bytes = Vec::with_capacity(observed_bytes as usize);
+    (&mut file)
+        .take(max_bytes.saturating_add(1))
+        .read_to_end(&mut bytes)
+        .map_err(|error| io_error("read fork WAL for diff validation", error))?;
+    let final_len = file
+        .metadata()
+        .map_err(|error| io_error("reinspect fork WAL for diff validation", error))?
+        .len();
+    if bytes.len() as u64 != observed_bytes || final_len != observed_bytes {
+        return Err(wal_integrity_error("wal-changed-during-validation"));
+    }
+    if bytes.is_empty() {
+        return Ok(0);
+    }
+    if bytes.len() < 32 {
+        return Err(wal_integrity_error("truncated-header"));
+    }
+    let magic = u32::from_be_bytes(bytes[0..4].try_into().expect("WAL magic"));
+    if magic & !1 != 0x377f_0682 {
+        return Err(wal_integrity_error("invalid-magic"));
+    }
+    if u32::from_be_bytes(bytes[4..8].try_into().expect("WAL version")) != 3_007_000 {
+        return Err(wal_integrity_error("unsupported-format-version"));
+    }
+    let page_size = u32::from_be_bytes(bytes[8..12].try_into().expect("WAL page size"));
+    if !(512..=65_536).contains(&page_size) || !page_size.is_power_of_two() {
+        return Err(wal_integrity_error("invalid-page-size"));
+    }
+    let checksum_big_endian = magic & 1 == 1;
+    let mut checksum = wal_checksum_words(&bytes[..24], checksum_big_endian, [0, 0]);
+    let stored_header_checksum = [
+        u32::from_be_bytes(bytes[24..28].try_into().expect("WAL checksum one")),
+        u32::from_be_bytes(bytes[28..32].try_into().expect("WAL checksum two")),
+    ];
+    if checksum != stored_header_checksum {
+        return Err(wal_integrity_error("header-checksum-mismatch"));
+    }
+    let frame_size = 24usize.saturating_add(page_size as usize);
+    if (bytes.len() - 32) % frame_size != 0 {
+        return Err(wal_integrity_error("truncated-frame"));
+    }
+    let salt = &bytes[16..24];
+    for frame in bytes[32..].chunks_exact(frame_size) {
+        if u32::from_be_bytes(frame[0..4].try_into().expect("WAL frame page")) == 0 {
+            return Err(wal_integrity_error("zero-frame-page"));
+        }
+        if &frame[8..16] != salt {
+            return Err(wal_integrity_error("frame-salt-mismatch"));
+        }
+        checksum = wal_checksum_words(&frame[..8], checksum_big_endian, checksum);
+        checksum = wal_checksum_words(&frame[24..], checksum_big_endian, checksum);
+        let stored_frame_checksum = [
+            u32::from_be_bytes(frame[16..20].try_into().expect("frame checksum one")),
+            u32::from_be_bytes(frame[20..24].try_into().expect("frame checksum two")),
+        ];
+        if checksum != stored_frame_checksum {
+            return Err(wal_integrity_error("frame-checksum-mismatch"));
+        }
+    }
+    Ok(observed_bytes)
+}
+
+fn validate_destination_app_binding(
+    destination: &Path,
+    expected: &ExpectedForkAppV1,
+) -> SnapbackResult<()> {
+    let receipt: ForkMintReceiptV1 = serde_json::from_slice(
+        &fs::read(destination.join(MINT_RECEIPT_FILE)).map_err(|error| {
+            if error.kind() == ErrorKind::NotFound {
+                fork_error(
+                    APP_BINDING_REQUIRED_CODE,
+                    "published destination has no mint receipt for app-root binding",
+                )
+            } else {
+                io_error("read recovery mint receipt", error)
+            }
+        })?,
+    )
+    .map_err(|error| {
+        fork_error(
+            "SNAPBACK_FORK_RECEIPT_INVALID",
+            format!("recovery mint receipt is malformed: {error}"),
+        )
+    })?;
+    let binding = read_fork_app_binding(destination, &receipt)?;
+    let expected_root = expected.canonical_app_root.to_str().ok_or_else(|| {
+        fork_error(
+            "SNAPBACK_FORK_APP_ROOT_INVALID",
+            "invoking app root must have a UTF-8 canonical path",
+        )
+    })?;
+    if binding.canonical_app_root != expected_root || binding.app_id != expected.app_id {
+        return Err(fork_error(
+            APP_BINDING_MISMATCH_CODE,
+            "recovery destination is bound to a different invoking app root or logical app id",
+        ));
+    }
+    Ok(())
+}
+
+/// Product recovery validates the invoking app before completing or reaping
+/// any exact destination or staging publication. Unknown legacy staging is
+/// left untouched and refused rather than becoming cross-root cleanup.
+pub fn recover_bound(
+    parent: &Path,
+    destination: &Path,
+    expected: &ExpectedForkAppV1,
+) -> SnapbackResult<()> {
+    if destination.exists() {
+        validate_destination_app_binding(destination, expected)?;
+        let receipt: ForkMintReceiptV1 = serde_json::from_slice(
+            &fs::read(destination.join(MINT_RECEIPT_FILE))
+                .map_err(|error| io_error("read bound recovery mint receipt", error))?,
+        )
+        .map_err(|error| {
+            fork_error(
+                "SNAPBACK_FORK_RECEIPT_INVALID",
+                format!("recovery mint receipt is malformed: {error}"),
+            )
+        })?;
+        if receipt.lineage.expires_at_ms.is_none() {
+            return Err(fork_error(
+                "SNAPBACK_FORK_TTL_INVALID",
+                "product recovery refuses an unbounded derived fork",
+            ));
+        }
+    } else if let Some(name) = destination.file_name().and_then(|value| value.to_str()) {
+        let prefix = format!(".{name}.staging-");
+        for entry in fs::read_dir(parent)
+            .map_err(|error| io_error("scan bound fork staging directories", error))?
+        {
+            let entry = entry.map_err(|error| io_error("read bound fork staging entry", error))?;
+            if !entry.file_name().to_string_lossy().starts_with(&prefix) {
+                continue;
+            }
+            if entry.path().join(MINT_RECEIPT_FILE).is_file() {
+                validate_destination_app_binding(&entry.path(), expected)?;
+            } else {
+                validate_staging_app_binding(&entry.path(), expected)?;
+            }
+        }
+    }
+    recover(parent, destination)
+}
+
+/// Recover solely from local staging/published evidence after the product
+/// caller has established app-root authority. A missing or corrupt advisory
+/// registry is deliberately ignored.
+#[doc(hidden)]
 pub fn recover(parent: &Path, destination: &Path) -> SnapbackResult<()> {
     if destination.exists() && destination.join(STAGING_SENTINEL).exists() {
         let receipt_path = destination.join(MINT_RECEIPT_FILE);
@@ -3689,6 +4732,10 @@ pub fn recover(parent: &Path, destination: &Path) -> SnapbackResult<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn managed_expected(root: &Path) -> ExpectedForkAppV1 {
+        ensure_expected_app(root, "app-a").unwrap()
+    }
 
     fn app_row_schema() -> crate::manifest::SchemaManifest {
         crate::manifest::SchemaManifest {
@@ -4781,7 +5828,7 @@ mod tests {
         assert_eq!(error.diagnostic.code, SERVER_EXPIRED_CODE);
         assert_eq!(error.diagnostic.details["forkId"], receipt.lineage.fork_id);
         assert_eq!(
-            managed_target(&root, &receipt.lineage.fork_id)
+            managed_target(&root, &receipt.lineage.fork_id, &managed_expected(&root))
                 .unwrap()
                 .entry
                 .lineage,
@@ -4856,7 +5903,7 @@ mod tests {
             )
             .exists()
         );
-        drop_managed(&root, &scrubbed.lineage.fork_id).unwrap();
+        drop_managed(&root, &scrubbed.lineage.fork_id, &managed_expected(&root)).unwrap();
 
         let destination = root.join("fork-a");
         let receipt =
@@ -4880,7 +5927,7 @@ mod tests {
                 &root,
                 &receipt.lineage.fork_id,
                 &outside_ready,
-                Some(Path::new("/worktree")),
+                &managed_expected(&root),
             )
             .unwrap_err()
             .diagnostic
@@ -4891,14 +5938,14 @@ mod tests {
             &root,
             &receipt.lineage.fork_id,
             &ready,
-            Some(Path::new("/worktree")),
+            &managed_expected(&root),
         )
         .unwrap();
-        assert_eq!(list_managed(&root).unwrap().len(), 1);
-        assert!(expired_managed(&root, 199).unwrap().is_empty());
-        assert_eq!(expired_managed(&root, 200).unwrap().len(), 1);
+        assert_eq!(list_managed(&root, &managed_expected(&root)).unwrap().len(), 1);
+        assert!(expired_managed(&root, &managed_expected(&root), 199).unwrap().is_empty());
+        assert_eq!(expired_managed(&root, &managed_expected(&root), 200).unwrap().len(), 1);
         assert_eq!(
-            managed_entry(&root, "../../escape")
+            managed_entry(&root, "../../escape", &managed_expected(&root))
                 .unwrap_err()
                 .diagnostic
                 .code,
@@ -4926,8 +5973,8 @@ mod tests {
         assert_eq!(diff.table_counts["todos"], 1);
         assert!(diff.omissions.iter().any(|item| item.contains("auth")));
 
-        drop_managed(&root, &receipt.lineage.fork_id).unwrap();
-        assert!(list_managed(&root).unwrap().is_empty());
+        drop_managed(&root, &receipt.lineage.fork_id, &managed_expected(&root)).unwrap();
+        assert!(list_managed(&root, &managed_expected(&root)).unwrap().is_empty());
         assert!(!destination.exists());
     }
 
@@ -4948,7 +5995,7 @@ mod tests {
         traversal.database_file = "../outside.sqlite3".to_owned();
         write_json_sync(&registry, &traversal).unwrap();
         assert_eq!(
-            managed_target(&root, &receipt.lineage.fork_id)
+            managed_target(&root, &receipt.lineage.fork_id, &managed_expected(&root))
                 .unwrap_err()
                 .diagnostic
                 .code,
@@ -4963,7 +6010,7 @@ mod tests {
         redirected.database_file = "keep".to_owned();
         write_json_sync(&registry, &redirected).unwrap();
         assert_eq!(
-            drop_managed(&root, &receipt.lineage.fork_id)
+            drop_managed(&root, &receipt.lineage.fork_id, &managed_expected(&root))
                 .unwrap_err()
                 .diagnostic
                 .code,
@@ -4976,7 +6023,7 @@ mod tests {
         wrong_lineage.lineage.fork_id = Uuid::now_v7().to_string();
         write_json_sync(&registry, &wrong_lineage).unwrap();
         assert_eq!(
-            managed_target(&root, &receipt.lineage.fork_id)
+            managed_target(&root, &receipt.lineage.fork_id, &managed_expected(&root))
                 .unwrap_err()
                 .diagnostic
                 .code,
@@ -5005,7 +6052,7 @@ mod tests {
         );
         write_json_sync(&registry, &entry).unwrap();
         assert_eq!(
-            managed_target(&root, &receipt.lineage.fork_id)
+            managed_target(&root, &receipt.lineage.fork_id, &managed_expected(&root))
                 .unwrap_err()
                 .diagnostic
                 .code,
@@ -5025,7 +6072,7 @@ mod tests {
                 .unwrap();
         fs::remove_dir_all(&destination).unwrap();
         assert_eq!(
-            managed_target(&root, &receipt.lineage.fork_id)
+            managed_target(&root, &receipt.lineage.fork_id, &managed_expected(&root))
                 .unwrap_err()
                 .diagnostic
                 .code,
@@ -5131,11 +6178,13 @@ mod tests {
                 publish_managed(&source, &destination, "app-a", "parent-a", 100, 200_000, false)
                     .unwrap();
             let outcomes = std::thread::scope(|scope| {
+                let expected = managed_expected(&root);
                 let handles = (0..4)
                     .map(|_| {
                         let root = root.clone();
                         let fork_id = receipt.lineage.fork_id.clone();
-                        scope.spawn(move || drop_managed(&root, &fork_id))
+                        let expected = expected.clone();
+                        scope.spawn(move || drop_managed(&root, &fork_id, &expected))
                     })
                     .collect::<Vec<_>>();
                 handles
@@ -5176,7 +6225,11 @@ mod tests {
         // While the fork directory exists the entry is not stale; clearing
         // must refuse rather than orphan a live fork's bookkeeping.
         assert_eq!(
-            clear_stale_registry_entry(&root, &receipt.lineage.fork_id)
+            clear_stale_registry_entry(
+                &root,
+                &receipt.lineage.fork_id,
+                &managed_expected(&root),
+            )
                 .unwrap_err()
                 .diagnostic
                 .code,
@@ -5189,10 +6242,19 @@ mod tests {
             vec![receipt.lineage.fork_id.clone()],
             "id enumeration keeps working over a stale entry"
         );
-        clear_stale_registry_entry(&root, &receipt.lineage.fork_id).unwrap();
+        clear_stale_registry_entry(
+            &root,
+            &receipt.lineage.fork_id,
+            &managed_expected(&root),
+        )
+        .unwrap();
         assert!(managed_registry_ids(&root).unwrap().is_empty());
         assert_eq!(
-            clear_stale_registry_entry(&root, &receipt.lineage.fork_id)
+            clear_stale_registry_entry(
+                &root,
+                &receipt.lineage.fork_id,
+                &managed_expected(&root),
+            )
                 .unwrap_err()
                 .diagnostic
                 .code,
@@ -5219,7 +6281,8 @@ mod tests {
             SERVER_EXPIRED_CODE
         );
 
-        let renewed = renew_managed(&root, &fork_id, 150, 299_850).unwrap();
+        let renewed =
+            renew_managed(&root, &fork_id, &managed_expected(&root), 150, 299_850).unwrap();
         assert_eq!(renewed.schema_version, "snapback.fork-renew.v1");
         assert_eq!(renewed.previous_expires_at_ms, 200_000);
         assert_eq!(renewed.expires_at_ms, 300_000);
@@ -5227,12 +6290,17 @@ mod tests {
         assert_eq!(renewed.max_lifetime_ms, MANAGED_FORK_MAX_LIFETIME_MS);
 
         // Every carrier agrees and the moved expiry is real boot authority.
-        let target = managed_target(&root, &fork_id).unwrap();
+        let target = managed_target(&root, &fork_id, &managed_expected(&root)).unwrap();
         assert_eq!(target.entry.lineage.expires_at_ms, Some(300_000));
         assert_eq!(target.receipt.lineage.expires_at_ms, Some(300_000));
         assert!(inspect_boot_at(&database, 250_000).unwrap().is_some());
-        assert!(expired_managed(&root, 200_000).unwrap().is_empty());
-        assert_eq!(expired_managed(&root, 300_000).unwrap().len(), 1);
+        assert!(expired_managed(&root, &managed_expected(&root), 200_000).unwrap().is_empty());
+        assert_eq!(
+            expired_managed(&root, &managed_expected(&root), 300_000)
+                .unwrap()
+                .len(),
+            1
+        );
         let durable: ForkRenewReceiptV1 =
             serde_json::from_slice(&fs::read(destination.join(RENEW_RECEIPT_FILE)).unwrap())
                 .unwrap();
@@ -5240,7 +6308,7 @@ mod tests {
 
         // Shortening or holding the expiry is refused outright.
         assert_eq!(
-            renew_managed(&root, &fork_id, 200, 100_000)
+            renew_managed(&root, &fork_id, &managed_expected(&root), 200, 100_000)
                 .unwrap_err()
                 .diagnostic
                 .code,
@@ -5250,6 +6318,7 @@ mod tests {
         let over_limit = renew_managed(
             &root,
             &fork_id,
+            &managed_expected(&root),
             200,
             MANAGED_FORK_MAX_LIFETIME_MS,
         )
@@ -5262,14 +6331,20 @@ mod tests {
         );
         // Overflow and unknown identity stay in the named vocabulary.
         assert_eq!(
-            renew_managed(&root, &fork_id, 200, u64::MAX)
+            renew_managed(&root, &fork_id, &managed_expected(&root), 200, u64::MAX)
                 .unwrap_err()
                 .diagnostic
                 .code,
             "SNAPBACK_FORK_TTL_INVALID"
         );
         assert_eq!(
-            renew_managed(&root, &Uuid::now_v7().to_string(), 200, 1_000)
+            renew_managed(
+                &root,
+                &Uuid::now_v7().to_string(),
+                &managed_expected(&root),
+                200,
+                1_000,
+            )
                 .unwrap_err()
                 .diagnostic
                 .code,
@@ -5277,7 +6352,7 @@ mod tests {
         );
         // An already-expired fork is never resurrected.
         assert_eq!(
-            renew_managed(&root, &fork_id, 300_000, 1_000)
+            renew_managed(&root, &fork_id, &managed_expected(&root), 300_000, 1_000)
                 .unwrap_err()
                 .diagnostic
                 .code,
@@ -5285,7 +6360,7 @@ mod tests {
         );
         // After every refusal the carriers still hold the last good expiry.
         assert_eq!(
-            managed_target(&root, &fork_id)
+            managed_target(&root, &fork_id, &managed_expected(&root))
                 .unwrap()
                 .entry
                 .lineage
@@ -5317,8 +6392,15 @@ mod tests {
             let fork_id = receipt.lineage.fork_id.clone();
             let database = destination.join("app.sqlite3");
 
-            let error = renew_managed_with_cut(&root, &fork_id, 150, 299_850, Some(cut))
-                .unwrap_err();
+            let error = renew_managed_with_cut(
+                &root,
+                &fork_id,
+                &managed_expected(&root),
+                150,
+                299_850,
+                Some(cut),
+            )
+            .unwrap_err();
             assert_eq!(error.diagnostic.code, "SNAPBACK_FORK_TEST_CRASH_CUT", "{cut:?}");
             // The torn window fails closed for serving.
             assert_eq!(
@@ -5333,7 +6415,7 @@ mod tests {
                     && !destination.join(RENEW_INTENT_FILE).exists(),
                 "{cut:?}: recovery leaves no renewal residue"
             );
-            let target = managed_target(&root, &fork_id).unwrap();
+            let target = managed_target(&root, &fork_id, &managed_expected(&root)).unwrap();
             assert_eq!(
                 target.entry.lineage.expires_at_ms,
                 Some(expected_expiry),
@@ -5415,6 +6497,175 @@ mod tests {
     }
 
     #[test]
+    fn same_app_id_distinct_app_roots_cannot_select_or_mutate_each_others_forks() {
+        let directory = tempfile::tempdir().unwrap();
+        let source = source_database(directory.path());
+        let fork_root = directory.path().join("shared-forks");
+        let app_a_root = directory.path().join("worktree-a");
+        let app_b_root = directory.path().join("worktree-b");
+        fs::create_dir(&fork_root).unwrap();
+        fs::create_dir(&app_a_root).unwrap();
+        fs::create_dir(&app_b_root).unwrap();
+        let app_a = ensure_expected_app(&app_a_root, "same-app").unwrap();
+        let app_b = ensure_expected_app(&app_b_root, "same-app").unwrap();
+        let destination_a = fork_root.join("fork-a");
+        let destination_b = fork_root.join("fork-b");
+        let fork_a = publish_managed_bound_with_base(
+            &source,
+            &destination_a,
+            &app_a,
+            "parent-a",
+            100,
+            200_000,
+            false,
+            true,
+        )
+        .unwrap();
+        let fork_b = publish_managed_bound_with_base(
+            &source,
+            &destination_b,
+            &app_b,
+            "parent-b",
+            100,
+            200_000,
+            false,
+            true,
+        )
+        .unwrap();
+
+        for (fork_id, wrong) in [
+            (&fork_a.lineage.fork_id, &app_b),
+            (&fork_b.lineage.fork_id, &app_a),
+        ] {
+            assert_eq!(
+                managed_target(&fork_root, fork_id, wrong)
+                    .unwrap_err()
+                    .diagnostic
+                    .code,
+                APP_BINDING_MISMATCH_CODE
+            );
+            assert_eq!(
+                renew_managed(&fork_root, fork_id, wrong, 150, 1_000)
+                    .unwrap_err()
+                    .diagnostic
+                    .code,
+                APP_BINDING_MISMATCH_CODE
+            );
+            assert_eq!(
+                drop_managed(&fork_root, fork_id, wrong)
+                    .unwrap_err()
+                    .diagnostic
+                    .code,
+                APP_BINDING_MISMATCH_CODE
+            );
+        }
+        assert_eq!(
+            recover_bound(&fork_root, &destination_a, &app_b)
+                .unwrap_err()
+                .diagnostic
+                .code,
+            APP_BINDING_MISMATCH_CODE
+        );
+        assert!(destination_a.is_dir() && destination_b.is_dir());
+
+        let registry = registry_path(&fork_root, &fork_a.lineage.fork_id);
+        let mut legacy: ForkRegistryEntryV1 =
+            serde_json::from_slice(&fs::read(&registry).unwrap()).unwrap();
+        legacy.app_root = None;
+        write_json_sync(&registry, &legacy).unwrap();
+        assert_eq!(
+            managed_target(&fork_root, &fork_a.lineage.fork_id, &app_a)
+                .unwrap_err()
+                .diagnostic
+                .code,
+            APP_BINDING_REQUIRED_CODE,
+            "legacy registry entries never inherit selection authority"
+        );
+    }
+
+    fn race_two_creation_admissions(
+        root: &Path,
+        source: &Path,
+        expected: &ExpectedForkAppV1,
+        limits: ForkResourceLimits,
+    ) -> Vec<Result<(), SnapbackError>> {
+        let barrier = std::sync::Arc::new(std::sync::Barrier::new(2));
+        std::thread::scope(|scope| {
+            let handles = (0..2)
+                .map(|index| {
+                    let root = root.to_path_buf();
+                    let source = source.to_path_buf();
+                    let expected = expected.clone();
+                    let barrier = barrier.clone();
+                    scope.spawn(move || {
+                        barrier.wait();
+                        let admission = admit_creation(&root, &source, &limits, false)?;
+                        publish_managed_bound_with_base(
+                            &source,
+                            &root.join(format!("fork-{index}")),
+                            &expected,
+                            "parent",
+                            100,
+                            200_000,
+                            false,
+                            false,
+                        )?;
+                        drop(admission);
+                        Ok(())
+                    })
+                })
+                .collect::<Vec<_>>();
+            handles
+                .into_iter()
+                .map(|handle| handle.join().unwrap())
+                .collect()
+        })
+    }
+
+    #[test]
+    fn root_wide_admission_is_atomic_at_count_and_total_byte_boundaries() {
+        for boundary in ["fork-count", "total-bytes"] {
+            let directory = tempfile::tempdir().unwrap();
+            let source = source_database(directory.path());
+            let root = directory.path().join("forks");
+            let app_root = directory.path().join("app");
+            fs::create_dir(&root).unwrap();
+            fs::create_dir(&app_root).unwrap();
+            let expected = ensure_expected_app(&app_root, "app-a").unwrap();
+            let initial = enforce_creation_limits(
+                &root,
+                &source,
+                &ForkResourceLimits::default(),
+                false,
+            )
+            .unwrap();
+            let limits = if boundary == "fork-count" {
+                ForkResourceLimits {
+                    max_forks: 1,
+                    ..ForkResourceLimits::default()
+                }
+            } else {
+                ForkResourceLimits {
+                    max_forks: 2,
+                    max_total_bytes: initial
+                        .existing_bytes
+                        .saturating_add(initial.estimated_fork_bytes),
+                    ..ForkResourceLimits::default()
+                }
+            };
+            let outcomes = race_two_creation_admissions(&root, &source, &expected, limits);
+            assert_eq!(outcomes.iter().filter(|outcome| outcome.is_ok()).count(), 1);
+            let refusal = outcomes
+                .iter()
+                .find_map(|outcome| outcome.as_ref().err())
+                .expect("one racing create is refused");
+            assert_eq!(refusal.diagnostic.code, RESOURCE_LIMIT_REFUSED_CODE);
+            assert_eq!(refusal.diagnostic.details["resource"], boundary);
+            assert_eq!(managed_registry_ids(&root).unwrap().len(), 1);
+        }
+    }
+
+    #[test]
     fn create_shares_the_maximum_fork_lifetime_with_renewal() {
         let directory = tempfile::tempdir().unwrap();
         let source = source_database(directory.path());
@@ -5470,11 +6721,128 @@ mod tests {
         let error = diff_receipt_bounded(&database, 5).unwrap_err();
         assert_eq!(error.diagnostic.code, RESOURCE_LIMIT_REFUSED_CODE);
         assert_eq!(error.diagnostic.details["resource"], "diff-work");
-        assert_eq!(error.diagnostic.details["attributedRows"], 6);
+        assert_eq!(error.diagnostic.details["journalRows"], 6);
         assert_eq!(error.diagnostic.details["limitRows"], 5);
 
         let receipt = diff_receipt_bounded(&database, 6).unwrap();
         assert_eq!(receipt.rows.len(), 6, "at the bound the receipt is exact");
+        assert_eq!(receipt.schema_version, "snapback.fork-journal-diff.v3");
+        assert_eq!(receipt.attribution, "absent-v1");
+        assert_eq!(receipt.base.version_boundary, "exclusive");
+        assert_eq!(receipt.head.version_boundary, "inclusive");
+        assert_eq!(receipt.base.data_version_stream, receipt.head.data_version_stream);
+        assert_eq!(receipt.receipt_digest, journal_diff_receipt_digest(&receipt).unwrap());
+    }
+
+    #[test]
+    fn diff_receipt_v3_digests_are_domain_separated_canonical_and_bind_every_fact() {
+        let boundary = |version, version_boundary: &str| ForkDiffCommitBoundaryV1 {
+            data_version_stream: "data-stream-fixed".to_owned(),
+            commit_version: version,
+            version_boundary: version_boundary.to_owned(),
+        };
+        let mut journal = ForkDiffReceiptV3 {
+            schema_version: "snapback.fork-journal-diff.v3".to_owned(),
+            fork_id: "01900000-0000-7000-8000-000000000001".to_owned(),
+            app_id: "app-a".to_owned(),
+            parent_instance_id: "parent-a".to_owned(),
+            fork_point_version: 7,
+            observed_head_version: 9,
+            base: boundary(7, "exclusive"),
+            head: boundary(9, "inclusive"),
+            attribution: "absent-v1".to_owned(),
+            rows: vec![ForkDiffRowV1 {
+                version: 9,
+                table: "items".to_owned(),
+                row_id: "item-1".to_owned(),
+                operation: "insert".to_owned(),
+                post_image: Some(json!({"_id":"item-1","title":"fixed"})),
+            }],
+            table_counts: BTreeMap::from([("items".to_owned(), 1)]),
+            coverage: vec!["committed app-row journal entries in (base, head]".to_owned()],
+            omissions: vec!["auth and credential state".to_owned()],
+            receipt_digest: String::new(),
+        };
+        journal.receipt_digest = journal_diff_receipt_digest(&journal).unwrap();
+        assert_eq!(
+            journal.receipt_digest,
+            "sha256:788ecf814cff3327e1c667cef6fbd06534e4d4f75769fb5884a75071575936f0"
+        );
+
+        let mut net = ForkNetDiffReceiptV3 {
+            schema_version: "snapback.fork-net-diff.v3".to_owned(),
+            fork_id: journal.fork_id.clone(),
+            app_id: journal.app_id.clone(),
+            parent_instance_id: journal.parent_instance_id.clone(),
+            fork_point_version: 7,
+            observed_head_version: 9,
+            base: boundary(7, "exclusive"),
+            head: boundary(9, "inclusive"),
+            substrate: "retained-base-v1".to_owned(),
+            completeness: "journal-enumerated-v1".to_owned(),
+            journal_consistency: "journal-cross-check-verified".to_owned(),
+            writer_coverage: ForkNetDiffWriterCoverageV1 {
+                coverage_window: "unverified".to_owned(),
+                manifest_digest: None,
+                covered_lanes: Vec::new(),
+                uncovered_lanes: vec!["migration".to_owned()],
+            },
+            attribution: "absent-v1".to_owned(),
+            rows: vec![ForkNetDiffRowV1 {
+                table: "items".to_owned(),
+                row_id: "item-1".to_owned(),
+                operation: "insert".to_owned(),
+                pre_image: None,
+                post_image: Some(json!({"_id":"item-1","title":"fixed"})),
+            }],
+            table_counts: BTreeMap::from([("items".to_owned(), 1)]),
+            domains: BTreeMap::from([("appRows".to_owned(), "net-covered".to_owned())]),
+            receipt_digest: String::new(),
+        };
+        net.receipt_digest = net_diff_receipt_digest(&net).unwrap();
+        assert_eq!(
+            net.receipt_digest,
+            "sha256:25134fd6816f2c6d6cfb952d6f49cef1dad9aafa436ff1f63f4b85f8c399dba6"
+        );
+        assert_ne!(
+            journal.receipt_digest, net.receipt_digest,
+            "the two receipt domains cannot collide on similar facts"
+        );
+
+        for (receipt, domain) in [
+            (
+                serde_json::to_value(&journal).unwrap(),
+                b"snapback:fork-journal-diff-receipt:v3\n" as &'static [u8],
+            ),
+            (
+                serde_json::to_value(&net).unwrap(),
+                b"snapback:fork-net-diff-receipt:v3\n" as &'static [u8],
+            ),
+        ] {
+            let original = fork_diff_receipt_digest(&receipt, domain).unwrap();
+            for field in receipt.as_object().unwrap().keys() {
+                if field == "receiptDigest" {
+                    continue;
+                }
+                let mut tampered = receipt.clone();
+                let value = tampered.get_mut(field).unwrap();
+                match value {
+                    Value::String(value) => value.push_str("-tampered"),
+                    Value::Number(_) => *value = json!(9_999_999),
+                    Value::Array(value) => value.push(Value::Null),
+                    Value::Object(value) => {
+                        value.insert("tampered".to_owned(), Value::Bool(true));
+                    }
+                    Value::Bool(value) => *value = !*value,
+                    Value::Null => *value = Value::Bool(true),
+                }
+                assert_ne!(
+                    fork_diff_receipt_digest(&tampered, domain).unwrap(),
+                    original,
+                    "top-level receipt fact {field} is digest-bound"
+                );
+            }
+        }
     }
 
     fn journal_write(conn: &Connection, version: u64, table: &str, row_id: &str, op: &str) {
@@ -5550,7 +6918,7 @@ mod tests {
         drop(fork);
 
         let net = net_diff_receipt(&database, FORK_DIFF_MAX_ROWS).unwrap();
-        assert_eq!(net.schema_version, "snapback.fork-net-diff.v2");
+        assert_eq!(net.schema_version, "snapback.fork-net-diff.v3");
         assert_eq!(net.substrate, "retained-base-v1");
         assert_eq!(net.completeness, "journal-enumerated-v1");
         assert_eq!(net.journal_consistency, "journal-cross-check-verified");
@@ -5604,6 +6972,120 @@ mod tests {
             net_diff_receipt(&sibling.join("app.sqlite3"), FORK_DIFF_MAX_ROWS).unwrap();
         assert!(sibling_net.rows.is_empty(), "a no-op workload nets to zero rows");
         assert_eq!(sibling_net.journal_consistency, "journal-cross-check-verified");
+    }
+
+    #[test]
+    fn net_diff_streaming_limits_refuse_unchanged_revert_heavy_and_byte_heavy_work() {
+        let directory = tempfile::tempdir().unwrap();
+
+        // Six materialized rows across base+head exceed a five-row scan limit
+        // even though all three logical rows are unchanged and the net is empty.
+        let unchanged_source = app_row_source_database(directory.path());
+        let unchanged = directory.path().join("fork-unchanged-limit");
+        publish_managed_with_base(
+            &unchanged_source,
+            &unchanged,
+            "app-a",
+            "parent-a",
+            100,
+            200_000,
+            false,
+            true,
+        )
+        .unwrap();
+        let error = net_diff_receipt_with_limits(
+            &unchanged.join("app.sqlite3"),
+            NetDiffWorkLimitsV1 {
+                max_journal_rows: 100,
+                max_scanned_rows: 5,
+                max_bytes: u64::MAX,
+                max_output_rows: 100,
+            },
+        )
+        .unwrap_err();
+        assert_eq!(error.diagnostic.code, RESOURCE_LIMIT_REFUSED_CODE);
+        assert_eq!(error.diagnostic.details["limitKind"], "scanned-rows");
+        assert_eq!(error.diagnostic.details["scannedRows"], 6);
+        assert!(
+            !unchanged.join("fork-net-diff-receipt.json").exists(),
+            "a scan refusal leaves no receipt residue"
+        );
+
+        // A long journal that returns a plain table to its exact base value
+        // must be bounded while streaming, before folding can erase the work.
+        let revert_parent = directory.path().join("revert-source");
+        fs::create_dir(&revert_parent).unwrap();
+        let revert_source = source_database(&revert_parent);
+        let source_conn = Connection::open(&revert_source).unwrap();
+        source_conn
+            .execute_batch(
+                "CREATE TABLE notes(_id TEXT PRIMARY KEY, body TEXT NOT NULL);
+                 INSERT INTO notes VALUES('same','base');",
+            )
+            .unwrap();
+        drop(source_conn);
+        let revert = directory.path().join("fork-revert-heavy");
+        publish_managed_with_base(
+            &revert_source,
+            &revert,
+            "app-a",
+            "parent-a",
+            100,
+            200_000,
+            false,
+            true,
+        )
+        .unwrap();
+        let conn = Connection::open(revert.join("app.sqlite3")).unwrap();
+        let tx = conn.unchecked_transaction().unwrap();
+        for version in 1..=6u64 {
+            let body = if version == 6 {
+                "base".to_owned()
+            } else {
+                format!("temporary-{version}")
+            };
+            tx.execute("UPDATE notes SET body=?1 WHERE _id='same'", [&body])
+                .unwrap();
+            tx.execute(
+                "INSERT INTO _snapback_changes(
+                     version,table_name,row_id,op,row_json,changed_at_ms
+                 ) VALUES(?1,'notes','same','update',?2,100)",
+                params![version, json!({"_id":"same","body":body}).to_string()],
+            )
+            .unwrap();
+        }
+        tx.execute("UPDATE _snapback_version SET version=6 WHERE id=1", [])
+            .unwrap();
+        tx.commit().unwrap();
+        drop(conn);
+        let error = net_diff_receipt_with_limits(
+            &revert.join("app.sqlite3"),
+            NetDiffWorkLimitsV1 {
+                max_journal_rows: 5,
+                max_scanned_rows: 100,
+                max_bytes: u64::MAX,
+                max_output_rows: 100,
+            },
+        )
+        .unwrap_err();
+        assert_eq!(error.diagnostic.code, RESOURCE_LIMIT_REFUSED_CODE);
+        assert_eq!(error.diagnostic.details["limitKind"], "journal-rows");
+        assert_eq!(error.diagnostic.details["journalRows"], 6);
+
+        let error = net_diff_receipt_with_limits(
+            &revert.join("app.sqlite3"),
+            NetDiffWorkLimitsV1 {
+                max_journal_rows: 100,
+                max_scanned_rows: 100,
+                max_bytes: 32,
+                max_output_rows: 100,
+            },
+        )
+        .unwrap_err();
+        assert_eq!(error.diagnostic.code, RESOURCE_LIMIT_REFUSED_CODE);
+        assert_eq!(error.diagnostic.details["limitKind"], "bytes");
+        assert_eq!(error.diagnostic.details["phase"], "journal");
+        assert!(error.diagnostic.details["observedBytes"].as_u64().unwrap() > 32);
     }
 
     #[test]
@@ -5713,8 +7195,11 @@ mod tests {
         drop(fork);
 
         let net = net_diff_receipt(&database, FORK_DIFF_MAX_ROWS).unwrap();
-        assert_eq!(net.schema_version, "snapback.fork-net-diff.v2");
-        assert_eq!(net.completeness, "authorizer-backed-app-rows-v1");
+        assert_eq!(net.schema_version, "snapback.fork-net-diff.v3");
+        assert_eq!(
+            net.completeness,
+            "registered-connection-defensive-app-rows-v1"
+        );
         assert_eq!(net.journal_consistency, "journal-cross-check-verified");
         assert_eq!(net.attribution, "absent-v1");
         assert_eq!(
@@ -5807,8 +7292,12 @@ mod tests {
             [],
         )
         .unwrap();
-        drop(conn);
+        assert!(
+            PathBuf::from(format!("{}-wal", bypass_database.display())).is_file(),
+            "the raw second-connection mutation is resident in the WAL"
+        );
         let mismatch = net_diff_receipt(&bypass_database, FORK_DIFF_MAX_ROWS).unwrap_err();
+        drop(conn);
         assert_eq!(mismatch.diagnostic.code, DIFF_ORACLE_MISMATCH_CODE);
         assert_eq!(mismatch.diagnostic.details["rowId"], "borrowed-journal");
         assert_eq!(
@@ -5866,6 +7355,130 @@ mod tests {
                 .code,
             WRITER_COVERAGE_INVALID_CODE
         );
+    }
+
+    #[test]
+    fn net_diff_matching_journal_forgery_is_outside_the_registered_connection_class() {
+        let directory = tempfile::tempdir().unwrap();
+        let source = app_row_source_database(directory.path());
+        let destination = directory.path().join("fork-matching-forgery");
+        let (_, _, database) = publish_armed_app_row_fork(&source, &destination);
+
+        // This deliberately bypasses LocalDatabase and its registered,
+        // defensive connection factory. With no OS/file boundary, a same-user
+        // writer can forge both the app B-tree and the corroborating journal.
+        // The narrowed completeness spelling must describe that boundary; the
+        // oracle is tamper evidence, not a MAC over SQLite pages.
+        let conn = Connection::open(&database).unwrap();
+        let current: u64 = conn
+            .query_row("SELECT version FROM _snapback_version WHERE id=1", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        let forged = current + 1;
+        let post_image = json!({
+            "_createdAt": 500,
+            "_id": "matching-forgery",
+            "_updatedAt": 500,
+            "_version": forged,
+            "rank": null,
+            "title": "coordinated raw write"
+        });
+        let tx = conn.unchecked_transaction().unwrap();
+        tx.execute(
+            "INSERT INTO items(_id,_version,_createdAt,_updatedAt,title)
+             VALUES('matching-forgery',?1,500,500,'coordinated raw write')",
+            [forged],
+        )
+        .unwrap();
+        tx.execute("UPDATE _snapback_version SET version=?1 WHERE id=1", [forged])
+            .unwrap();
+        tx.execute(
+            "INSERT INTO _snapback_changes(
+                 version,table_name,row_id,op,row_json,changed_at_ms
+             ) VALUES(?1,'items','matching-forgery','insert',?2,500)",
+            params![forged, serde_json::to_string(&post_image).unwrap()],
+        )
+        .unwrap();
+        tx.commit().unwrap();
+        drop(conn);
+
+        let receipt = net_diff_receipt(&database, FORK_DIFF_MAX_ROWS).unwrap();
+        assert_eq!(
+            receipt.completeness,
+            "registered-connection-defensive-app-rows-v1",
+            "the class is intentionally scoped to registered process connections"
+        );
+        assert_eq!(receipt.journal_consistency, "journal-cross-check-verified");
+        assert!(receipt.rows.iter().any(|row| row.row_id == "matching-forgery"));
+    }
+
+    #[test]
+    fn net_diff_refuses_a_direct_head_database_page_mutation() {
+        use std::io::{Read as _, Seek as _, SeekFrom, Write as _};
+
+        let directory = tempfile::tempdir().unwrap();
+        let source = app_row_source_database(directory.path());
+        let destination = directory.path().join("fork-direct-file-mutation");
+        let (_, _, database) = publish_armed_app_row_fork(&source, &destination);
+        let mut file = fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(&database)
+            .unwrap();
+        file.seek(SeekFrom::Start(100)).unwrap();
+        let mut page_type = [0u8; 1];
+        file.read_exact(&mut page_type).unwrap();
+        page_type[0] ^= 0xff;
+        file.seek(SeekFrom::Start(100)).unwrap();
+        file.write_all(&page_type).unwrap();
+        file.sync_all().unwrap();
+        drop(file);
+
+        assert!(
+            net_diff_receipt(&database, FORK_DIFF_MAX_ROWS).is_err(),
+            "a directly corrupted head file must not produce a receipt"
+        );
+    }
+
+    #[test]
+    fn net_diff_refuses_a_direct_wal_header_mutation() {
+        use std::io::{Read as _, Seek as _, SeekFrom, Write as _};
+
+        let directory = tempfile::tempdir().unwrap();
+        let source = app_row_source_database(directory.path());
+        let destination = directory.path().join("fork-direct-wal-mutation");
+        let (_, _, database) = publish_armed_app_row_fork(&source, &destination);
+
+        let writer = Connection::open(&database).unwrap();
+        writer.execute_batch("PRAGMA wal_autocheckpoint=0;").unwrap();
+        writer
+            .execute(
+                "INSERT INTO _snapback_meta(key,value) VALUES('wal-byte-fixture','1')",
+                [],
+            )
+            .unwrap();
+        let wal_path = PathBuf::from(format!("{}-wal", database.display()));
+        assert!(wal_path.is_file(), "the committed fixture must remain in WAL");
+        let mut wal = fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(&wal_path)
+            .unwrap();
+        wal.seek(SeekFrom::Start(0)).unwrap();
+        let mut magic = [0u8; 1];
+        wal.read_exact(&mut magic).unwrap();
+        magic[0] ^= 0xff;
+        wal.seek(SeekFrom::Start(0)).unwrap();
+        wal.write_all(&magic).unwrap();
+        wal.sync_all().unwrap();
+        drop(wal);
+
+        assert!(
+            net_diff_receipt(&database, FORK_DIFF_MAX_ROWS).is_err(),
+            "a directly corrupted WAL must not produce a receipt"
+        );
+        drop(writer);
     }
 
     #[test]
@@ -5992,7 +7605,11 @@ mod tests {
         let root = directory.path().join("forks");
         fs::create_dir(&root).unwrap();
         assert_eq!(
-            expired_managed(&root, crate::manifest::PORTABLE_TIMESTAMP_MAX_MS + 1)
+            expired_managed(
+                &root,
+                &managed_expected(&root),
+                crate::manifest::PORTABLE_TIMESTAMP_MAX_MS + 1,
+            )
                 .unwrap_err()
                 .diagnostic
                 .code,

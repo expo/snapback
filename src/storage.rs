@@ -1876,7 +1876,7 @@ impl LocalDatabase {
         auth_mode::adopt_after_infra(&mut db, mode_inspection)?;
         db.writer_authority.set_schema(&db.schema)?;
         db.refresh_writer_authority_manifest()?;
-        db.writer_authority.install(&db.conn);
+        db.writer_authority.install(&db.conn)?;
         Ok(db)
     }
 
@@ -1959,7 +1959,7 @@ impl LocalDatabase {
         auth_mode::adopt_after_infra(&mut db, mode_inspection)?;
         db.writer_authority.set_schema(&db.schema)?;
         db.refresh_writer_authority_manifest()?;
-        db.writer_authority.install(&db.conn);
+        db.writer_authority.install(&db.conn)?;
         // The pool is created after configure/create_infra so readers open an
         // existing WAL database with the infra tables committed.
         db.reader_pool = Some(Arc::new(ReaderPool::new(path)));
@@ -2018,7 +2018,7 @@ impl LocalDatabase {
         )?;
         restored.writer_authority.set_schema(&restored.schema)?;
         restored.refresh_writer_authority_manifest()?;
-        restored.writer_authority.install(&restored.conn);
+        restored.writer_authority.install(&restored.conn)?;
         Ok(restored)
     }
 
@@ -10706,6 +10706,68 @@ impl DbRead<'_> {
 /// deadlock surface.
 const READER_POOL_RETAINED: usize = 4;
 
+/// Closed purposes for writable handles outside `LocalDatabase`'s primary
+/// connection. Construction reconstructs the durable armed manifest, verifies
+/// defensive mode, installs the same default-deny authorizer, and enters a
+/// system-only token that cannot authorize application or journal DML.
+pub(crate) enum RegisteredSystemWriterPurposeV1 {
+    DerivedForkLifecycle,
+    DerivedForkEgressMarker,
+    VectorIndex,
+}
+
+pub(crate) struct RegisteredSystemWriterV1 {
+    conn: Connection,
+    _authority: write_authority::WriterAuthorityV1,
+    _token: write_authority::GeneratedWriterTokenV1,
+}
+
+impl RegisteredSystemWriterV1 {
+    pub(crate) fn conn(&self) -> &Connection {
+        &self.conn
+    }
+}
+
+pub(crate) fn open_registered_system_writer_v1(
+    path: &Path,
+    purpose: RegisteredSystemWriterPurposeV1,
+) -> SnapbackResult<RegisteredSystemWriterV1> {
+    let conn = Connection::open_with_flags(
+        path,
+        OpenFlags::SQLITE_OPEN_READ_WRITE
+            | OpenFlags::SQLITE_OPEN_URI
+            | OpenFlags::SQLITE_OPEN_NO_MUTEX,
+    )?;
+    conn.busy_timeout(std::time::Duration::from_secs(5))?;
+    let authority = write_authority::WriterAuthorityV1::default();
+    if let Some(schema) = active_schema_manifest_from_connection(&conn)? {
+        authority.set_schema(&schema)?;
+    }
+    let manifest = match crate::seed_identity::strict_current_data_version_stream(&conn)? {
+        Some(stream_id) => crate::operation_ledger::active_coverage_manifest(&conn, &stream_id)?,
+        None => None,
+    };
+    authority.set_manifest(manifest)?;
+    authority.install(&conn)?;
+    let lane = match purpose {
+        RegisteredSystemWriterPurposeV1::DerivedForkLifecycle => {
+            write_authority::LocalWriterLaneV1::BranchRegistry
+        }
+        RegisteredSystemWriterPurposeV1::DerivedForkEgressMarker => {
+            write_authority::LocalWriterLaneV1::AdminControl
+        }
+        RegisteredSystemWriterPurposeV1::VectorIndex => {
+            write_authority::LocalWriterLaneV1::VectorIndex
+        }
+    };
+    let token = authority.enter(lane)?;
+    Ok(RegisteredSystemWriterV1 {
+        conn,
+        _authority: authority,
+        _token: token,
+    })
+}
+
 /// A pool of read-only WAL connections for the lock-free read lane.
 ///
 /// @ref LLP 0003#database-model — queries run read-only against a WAL reader
@@ -10763,15 +10825,15 @@ impl ReaderPool {
         &self,
         identity: &crate::vector::sqlite::VectorGenerationIdentity,
     ) -> SnapbackResult<bool> {
-        let conn = Connection::open_with_flags(
+        // This is the only production second writable connection for a
+        // LocalDatabase. It reconstructs a connection-local authority/token
+        // rather than borrowing the primary connection's active token state.
+        let writer = open_registered_system_writer_v1(
             &self.path,
-            OpenFlags::SQLITE_OPEN_READ_WRITE
-                | OpenFlags::SQLITE_OPEN_URI
-                | OpenFlags::SQLITE_OPEN_NO_MUTEX,
+            RegisteredSystemWriterPurposeV1::VectorIndex,
         )?;
-        conn.busy_timeout(std::time::Duration::from_secs(5))?;
         crate::vector::sqlite::quarantine_generation_on(
-            &conn,
+            writer.conn(),
             identity,
             "same-snapshot vector release recheck failed",
         )
@@ -27188,6 +27250,213 @@ mod guarded_commit_tests {
             assert!(entry.target_supported && !entry.app_effective);
             assert!(entry.exclusion_reason.is_some());
         }
+    }
+
+    #[test]
+    fn llp0165_armed_connection_is_defensive_default_deny_and_schema_alias_safe() {
+        fn assert_authorization_denied(result: rusqlite::Result<usize>, operation: &str) {
+            let error = match result {
+                Ok(_) => panic!("{operation} unexpectedly succeeded"),
+                Err(error) => error,
+            };
+            assert!(
+                matches!(
+                    error,
+                    rusqlite::Error::SqliteFailure(failure, _)
+                        if failure.code == rusqlite::ErrorCode::AuthorizationForStatementDenied
+                ),
+                "{operation} returned {error:?}"
+            );
+        }
+
+        let mut db = LocalDatabase::memory().expect("armed adversarial database");
+        db.apply_schema(schema()).expect("apply adversarial schema");
+        db.conn
+            .execute_batch("CREATE TABLE prearmed_escape(value TEXT)")
+            .expect("create unknown pre-arm table fixture");
+        db.activate_local_target_operation_coverage(1)
+            .expect("arm local writer authority");
+        assert!(
+            db.conn
+                .db_config(rusqlite::config::DbConfig::SQLITE_DBCONFIG_DEFENSIVE)
+                .expect("read defensive mode"),
+            "the armed connection verifies SQLITE_DBCONFIG_DEFENSIVE"
+        );
+
+        assert_authorization_denied(
+            db.conn.execute("PRAGMA writable_schema = ON", []),
+            "writable_schema pragma",
+        );
+        for alias in ["sqlite_schema", "sqlite_master"] {
+            assert!(
+                db.conn
+                    .execute(
+                        &format!("UPDATE {alias} SET name='items_alias' WHERE name='items'"),
+                        [],
+                    )
+                    .is_err(),
+                "defensive mode must refuse schema alias mutation through {alias}",
+            );
+        }
+        assert_eq!(
+            db.conn
+                .query_row(
+                    "SELECT name FROM sqlite_schema WHERE type='table' AND name='items'",
+                    [],
+                    |row| row.get::<_, String>(0),
+                )
+                .expect("protected schema name remains intact"),
+            "items"
+        );
+        assert_authorization_denied(
+            db.conn.execute("ATTACH DATABASE ':memory:' AS attached", []),
+            "ATTACH",
+        );
+        assert_authorization_denied(db.conn.execute("DETACH DATABASE main", []), "DETACH");
+        for (sql, operation) in [
+            ("CREATE TEMP TABLE temp_items(value TEXT)", "temporary table"),
+            (
+                "CREATE TEMP VIEW temp_items_view AS SELECT * FROM items",
+                "temporary view",
+            ),
+            (
+                "CREATE TEMP TRIGGER temp_items_trigger AFTER INSERT ON items BEGIN SELECT 1; END",
+                "temporary trigger",
+            ),
+            ("CREATE TABLE escaped_items(value TEXT)", "ordinary DDL"),
+            ("ALTER TABLE items RENAME TO items_alias", "covered-table rename"),
+        ] {
+            assert_authorization_denied(db.conn.execute(sql, []), operation);
+        }
+        assert_authorization_denied(
+            db.conn
+                .execute("INSERT INTO prearmed_escape VALUES('raw')", []),
+            "unknown pre-arm table DML",
+        );
+
+        db.conn
+            .execute_batch("SAVEPOINT adversarial")
+            .expect("savepoints themselves remain usable");
+        assert_authorization_denied(
+            db.conn.execute(
+                "INSERT INTO items(_id,_version,_createdAt,_updatedAt,title)
+                 VALUES('savepoint-bypass',1,1,1,'denied')",
+                [],
+            ),
+            "raw DML inside a savepoint",
+        );
+        db.conn
+            .execute_batch("ROLLBACK TO adversarial; RELEASE adversarial")
+            .expect("close adversarial savepoint");
+
+        for (sql, operation) in [
+            (
+                "INSERT INTO _snapback_changes DEFAULT VALUES",
+                "matching-journal forgery",
+            ),
+            (
+                "UPDATE _snapback_version SET version = version + 1",
+                "storage-version forgery",
+            ),
+        ] {
+            assert_authorization_denied(db.conn.execute(sql, []), operation);
+        }
+        assert_eq!(
+            db.conn
+                .query_row("SELECT COUNT(*) FROM items", [], |row| row.get::<_, u64>(0))
+                .expect("adversarial row count"),
+            0
+        );
+    }
+
+    #[test]
+    fn llp0165_registered_second_writer_uses_connection_local_defensive_authority() {
+        fn denied(result: rusqlite::Result<usize>) -> bool {
+            matches!(
+                result,
+                Err(rusqlite::Error::SqliteFailure(failure, _))
+                    if failure.code == rusqlite::ErrorCode::AuthorizationForStatementDenied
+            )
+        }
+
+        let directory = tempfile::tempdir().expect("registered writer fixture");
+        let path = directory.path().join("armed.sqlite3");
+        let mut db = LocalDatabase::open(&path).expect("file database");
+        db.apply_schema(schema()).expect("apply registered writer schema");
+        db.activate_local_target_operation_coverage(1)
+            .expect("arm registered writer database");
+
+        let second = open_registered_system_writer_v1(
+            &path,
+            RegisteredSystemWriterPurposeV1::VectorIndex,
+        )
+        .expect("open registered vector writer");
+        assert!(
+            second
+                .conn()
+                .db_config(rusqlite::config::DbConfig::SQLITE_DBCONFIG_DEFENSIVE)
+                .expect("second writer defensive mode")
+        );
+        second
+            .conn()
+            .execute(
+                "INSERT INTO _snapback_meta(key,value) VALUES('vector-system-write','1')",
+                [],
+            )
+            .expect("the registered vector token admits its system-table lane");
+        assert!(denied(second.conn().execute(
+            "INSERT INTO items(_id,_version,_createdAt,_updatedAt,title)
+             VALUES('second-bypass',1,1,1,'denied')",
+            [],
+        )));
+        assert!(denied(second.conn().execute(
+            "INSERT INTO _snapback_changes DEFAULT VALUES",
+            [],
+        )));
+        {
+            let _primary_writer = db
+                .writer_authority
+                .enter(write_authority::LocalWriterLaneV1::OrdinaryHostPlan)
+                .expect("enter primary ordinary writer");
+            assert!(
+                denied(second.conn().execute(
+                    "INSERT INTO items(_id,_version,_createdAt,_updatedAt,title)
+                     VALUES('vector-bypass',1,1,1,'denied')",
+                    [],
+                )),
+                "a primary token cannot leak authority to a second connection"
+            );
+            assert!(
+                denied(
+                    second
+                        .conn()
+                        .execute("INSERT INTO _snapback_changes DEFAULT VALUES", [])
+                ),
+                "a primary token cannot leak journal authority to a second connection"
+            );
+        }
+
+        let lifecycle = open_registered_system_writer_v1(
+            &path,
+            RegisteredSystemWriterPurposeV1::DerivedForkLifecycle,
+        )
+        .expect("open registry-reconstructed lifecycle writer");
+        assert!(
+            lifecycle
+                .conn()
+                .db_config(rusqlite::config::DbConfig::SQLITE_DBCONFIG_DEFENSIVE)
+                .expect("lifecycle writer defensive mode")
+        );
+        assert!(denied(lifecycle.conn().execute(
+            "INSERT INTO items(_id,_version,_createdAt,_updatedAt,title)
+             VALUES('lifecycle-bypass',1,1,1,'denied')",
+            [],
+        )));
+        assert!(denied(
+            lifecycle
+                .conn()
+                .execute("INSERT INTO _snapback_changes DEFAULT VALUES", [])
+        ));
     }
 
     #[test]

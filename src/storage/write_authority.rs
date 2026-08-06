@@ -14,6 +14,7 @@
 use super::{LocalDatabase, SchemaManifest};
 use crate::commit_envelope::OperationCoverageManifestV1;
 use crate::diagnostic::{SnapbackError, SnapbackResult};
+use rusqlite::config::DbConfig;
 use rusqlite::Connection;
 use rusqlite::hooks::{AuthAction, AuthContext, Authorization};
 use serde::Serialize;
@@ -172,6 +173,21 @@ impl LocalWriterLaneV1 {
         )
     }
 
+    const fn permits_covered_app_write(self) -> bool {
+        matches!(
+            self,
+            Self::OrdinaryHostPlan
+                | Self::OrdinaryIbexBuffered
+                | Self::HostChildHostPlan
+                | Self::HostChildIbexBuffered
+                // Planning executes the same generated DML against a
+                // transaction that is structurally rolled back. It still
+                // needs the registered connection/token seam to prepare the
+                // write, but cannot contribute a durable uncovered row.
+                | Self::DryRun
+        )
+    }
+
     /// A stable, executable explanation for every inventory row that is not
     /// itself an envelope-mapped physical application writer. Returning
     /// `None` is reserved to the four closed adapters above; tests reject any
@@ -288,7 +304,10 @@ impl WriterAuthorityState {
     }
 
     fn permits_app_write(&self) -> bool {
-        !self.armed() || self.active_writer.is_some()
+        !self.armed()
+            || self
+                .active_writer
+                .is_some_and(LocalWriterLaneV1::permits_covered_app_write)
     }
 
     fn permits_schema_change(&self, internal_target: bool) -> bool {
@@ -297,6 +316,14 @@ impl WriterAuthorityState {
                 .active_writer
                 .is_some_and(LocalWriterLaneV1::schema_authority)
             || (self.internal_schema_maintenance && internal_target)
+    }
+
+    fn permits_schema_catalog_write(&self) -> bool {
+        !self.armed()
+            || self
+                .active_writer
+                .is_some_and(LocalWriterLaneV1::schema_authority)
+            || self.internal_schema_maintenance
     }
 }
 
@@ -308,7 +335,7 @@ pub(super) struct WriterAuthorityV1 {
 impl WriterAuthorityV1 {
     /// @ref LLP 0162#measurement-gate — dormant profile-bearing reads retain
     ///   the baseline path; SQLite authorization begins at the active cut.
-    pub(super) fn install(&self, conn: &Connection) {
+    pub(super) fn install(&self, conn: &Connection) -> SnapbackResult<()> {
         // A dormant database has no coverage boundary to enforce. Installing
         // SQLite's authorizer anyway makes every ordinary statement prepare
         // enter this mutex-backed callback, which is observable read-path
@@ -316,10 +343,12 @@ impl WriterAuthorityV1 {
         // callback below; reopen reaches this branch only when the durable
         // manifest was reconstructed successfully.
         match self.state.lock() {
-            Ok(state) if !state.armed() => return,
+            Ok(state) if !state.armed() => return Ok(()),
             Ok(_) | Err(_) => {}
         }
+        enable_and_verify_defensive(conn)?;
         self.install_authorizer(conn);
+        Ok(())
     }
 
     fn install_authorizer(&self, conn: &Connection) {
@@ -364,6 +393,10 @@ impl WriterAuthorityV1 {
         conn: &Connection,
         manifest: OperationCoverageManifestV1,
     ) -> SnapbackResult<()> {
+        // Defensive mode is connection-local. Establish and verify it before
+        // making the manifest visible so no armed prepare can observe a
+        // permissive writable-schema surface, even if activation later fails.
+        enable_and_verify_defensive(conn)?;
         // Disable reuse before making the manifest visible to the authorizer;
         // an unarmed connection keeps its normal cache and pays no dormant
         // coverage cost.
@@ -628,6 +661,25 @@ fn authorize(state: &Arc<Mutex<WriterAuthorityState>>, context: AuthContext<'_>)
         return Authorization::Deny;
     };
     let protected = |table: &str| state.covered_tables.contains(table);
+    let integrity_table = |table: &str| {
+        table.eq_ignore_ascii_case("_snapback_changes")
+            || table.eq_ignore_ascii_case("_snapback_version")
+    };
+    let system_table = |table: &str| {
+        table.starts_with("_snapback_")
+            || table.starts_with("_auth_")
+            || table.eq_ignore_ascii_case("sqlite_sequence")
+    };
+    let schema_alias = |table: &str| {
+        [
+            "sqlite_schema",
+            "sqlite_master",
+            "sqlite_temp_schema",
+            "sqlite_temp_master",
+        ]
+        .iter()
+        .any(|alias| table.eq_ignore_ascii_case(alias))
+    };
     let internal_schema_target = internal_schema_maintenance_target(&context.action);
     match context.action {
         AuthAction::Insert { table_name }
@@ -640,6 +692,39 @@ fn authorize(state: &Arc<Mutex<WriterAuthorityState>>, context: AuthContext<'_>)
             // a token until a future generated trigger adapter journals their
             // exact effects.
             if !state.armed() || (context.accessor.is_none() && state.permits_app_write()) {
+                Authorization::Allow
+            } else {
+                Authorization::Deny
+            }
+        }
+        AuthAction::Insert { table_name }
+        | AuthAction::Delete { table_name }
+        | AuthAction::Update { table_name, .. }
+            if schema_alias(table_name) =>
+        {
+            if context.accessor.is_none() && state.permits_schema_catalog_write() {
+                Authorization::Allow
+            } else {
+                Authorization::Deny
+            }
+        }
+        AuthAction::Insert { table_name }
+        | AuthAction::Delete { table_name }
+        | AuthAction::Update { table_name, .. }
+            if integrity_table(table_name) =>
+        {
+            if context.accessor.is_none() && state.permits_app_write() {
+                Authorization::Allow
+            } else {
+                Authorization::Deny
+            }
+        }
+        AuthAction::Insert { table_name }
+        | AuthAction::Delete { table_name }
+        | AuthAction::Update { table_name, .. } => {
+            if !state.armed()
+                || (context.accessor.is_none() && system_table(table_name))
+            {
                 Authorization::Allow
             } else {
                 Authorization::Deny
@@ -660,8 +745,79 @@ fn authorize(state: &Arc<Mutex<WriterAuthorityState>>, context: AuthContext<'_>)
                 Authorization::Deny
             }
         }
-        _ => Authorization::Allow,
+        AuthAction::CreateTempIndex { .. }
+        | AuthAction::CreateTempTable { .. }
+        | AuthAction::CreateTempTrigger { .. }
+        | AuthAction::CreateTempView { .. }
+        | AuthAction::DropTempIndex { .. }
+        | AuthAction::DropTempTable { .. }
+        | AuthAction::DropTempTrigger { .. }
+        | AuthAction::DropTempView { .. }
+        | AuthAction::CreateVtable { .. }
+        | AuthAction::DropVtable { .. }
+        | AuthAction::Reindex { .. }
+        | AuthAction::Analyze { .. }
+        | AuthAction::Attach { .. }
+        | AuthAction::Detach { .. }
+        | AuthAction::Unknown { .. } => Authorization::Deny,
+        AuthAction::Pragma {
+            pragma_name,
+            pragma_value,
+        } => {
+            let argument_read_only = [
+                "foreign_key_list",
+                "index_info",
+                "index_list",
+                "index_xinfo",
+                "table_info",
+                "table_xinfo",
+            ]
+            .iter()
+            .any(|allowed| pragma_name.eq_ignore_ascii_case(allowed));
+            let scalar_read_only = pragma_value.is_none()
+                && [
+                    "application_id",
+                    "collation_list",
+                    "compile_options",
+                    "data_version",
+                    "database_list",
+                    "foreign_keys",
+                    "freelist_count",
+                    "journal_mode",
+                    "page_count",
+                    "page_size",
+                    "query_only",
+                    "schema_version",
+                    "table_list",
+                    "user_version",
+                ]
+                .iter()
+                .any(|allowed| pragma_name.eq_ignore_ascii_case(allowed));
+            let read_only = argument_read_only || scalar_read_only;
+            if !pragma_name.eq_ignore_ascii_case("writable_schema") && read_only {
+                Authorization::Allow
+            } else {
+                Authorization::Deny
+            }
+        }
+        AuthAction::Read { .. }
+        | AuthAction::Select
+        | AuthAction::Function { .. }
+        | AuthAction::Transaction { .. }
+        | AuthAction::Savepoint { .. }
+        | AuthAction::Recursive => Authorization::Allow,
+        _ => Authorization::Deny,
     }
+}
+
+fn enable_and_verify_defensive(conn: &Connection) -> SnapbackResult<()> {
+    let enabled = conn.set_db_config(DbConfig::SQLITE_DBCONFIG_DEFENSIVE, true)?;
+    if !enabled || !conn.db_config(DbConfig::SQLITE_DBCONFIG_DEFENSIVE)? {
+        return Err(authority_invalid(
+            "SQLite defensive mode did not remain enabled on an armed writable connection",
+        ));
+    }
+    Ok(())
 }
 
 fn internal_schema_maintenance_target(action: &AuthAction<'_>) -> bool {

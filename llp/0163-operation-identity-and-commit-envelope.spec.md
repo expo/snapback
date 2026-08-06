@@ -998,7 +998,9 @@ Two scope corrections for earlier records in this Spec:
   sentence stands.
 - This Spec's acceptance scope (rows 1–4, 13, 14) does not include the
   derived-deployment fork net diff as an attribution consumer. The
-  `snapback.fork-net-diff.v2` receipt does not carry LLP 0163 operation
-  identities today and says so machine-readably (`attribution: "absent-v1"`,
-  2026-08-06); that deferral is owned by LLP 0185 Phase 4 item 8 ("absence
-  of attribution stays explicit") and is not a gap in this Spec's rows.
+  derived-deployment diff receipts do not carry LLP 0163 operation identities
+  today: both the journal-sequence `snapback.fork-journal-diff.v3` receipt and
+  the independent `snapback.fork-net-diff.v3` receipt say so machine-readably
+  (`attribution: "absent-v1"`, 2026-08-06). That deferral is owned by LLP 0185
+  Phase 4 item 8 ("absence of attribution stays explicit") and is not a gap in
+  this Spec's rows.
