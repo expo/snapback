@@ -51,9 +51,15 @@ const grantFor = async (userId, entitlementId) => {
   const { rows } = await db.query(api.getEntitlements, { userId });
   return rows.find((row) => row.entitlementId === entitlementId) ?? null;
 };
+// Per-job cron facts live on the AdminRead projection, not the public
+// /inspect one — /inspect carries aggregate posture only (guide/backend/cron).
 const cronJob = async (name) => {
-  const state = await (await fetch(`${server.baseUrl}/inspect`)).json();
-  return (state.cron?.jobs ?? []).find((job) => job.name === name) ?? null;
+  const res = await fetch(`${server.baseUrl}/_snapback/api/cron`, {
+    headers: { 'x-snapback-admin-token': server.adminToken },
+  });
+  if (!res.ok) throw new Error(`cron list failed: HTTP ${res.status}`);
+  const state = await res.json();
+  return (state.jobs ?? []).find((job) => job.name === name) ?? null;
 };
 
 await runAcceptance(suite, async () => {
@@ -238,9 +244,11 @@ await runAcceptance(suite, async () => {
 
   await suite.check('the expireGrants cron job is declared against the sweep action', async () => {
     const job = await cronJob('expireGrants');
-    assert(job, 'expireGrants present in cron inspect state');
-    assertEqual(job.action ?? job.actionName ?? 'expireGrantsSweep', 'expireGrantsSweep', 'targets the sweep action');
-    return { name: job.name };
+    assert(job, 'expireGrants present in the cron list projection');
+    assertEqual(job.action, 'expireGrantsSweep', 'targets the sweep action');
+    assertEqual(job.enabled, true, 'job enabled');
+    assertEqual(job.schedule.everyMs, 60_000, 'declared cadence');
+    return { name: job.name, activationState: job.activationState };
   });
 
   await suite.check('a grant past activeUntil flips off on a scheduler tick', async () => {
@@ -263,8 +271,12 @@ await runAcceptance(suite, async () => {
 
     assertEqual(await activeEntitlementIds(DANA), [], 'the expired grant is gone from the read model');
     assertEqual(await activeEntitlementIds(ADA), ['pro'], 'an unexpired grant survives the same sweep');
+    // The run ledger must record a real run, so a tick that silently did
+    // nothing cannot pass this check on the strength of the reads above.
     const job = await cronJob('expireGrants');
-    return { lastOutcome: job?.lastRunOutcome ?? null };
+    assertEqual(job.lastOutcome, 'Succeeded', 'the scheduler recorded a successful run');
+    assert(job.lastRunAtMs > 0, 'the run ledger stamped the run');
+    return { lastOutcome: job.lastOutcome, lastRunAtMs: job.lastRunAtMs };
   });
 
   await suite.check('an ordinary query is honestly reported as NOT live', async () => {
