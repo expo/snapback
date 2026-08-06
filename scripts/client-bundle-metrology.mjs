@@ -819,7 +819,7 @@ const optionalRuntimeBoundaries = {
   name: 'snapback-client-metrology-optional-runtime-boundaries',
   setup(buildContext) {
     buildContext.onResolve({
-      filter: /^\.\/(?:store-runtime|react-runtime|finite-completeness-carrier|materialization-store-runtime)\.mjs$/,
+      filter: /^\.\/(?:store-runtime|react-runtime|react-binding-hmr-runtime|finite-completeness-carrier|materialization-store-runtime)\.mjs$/,
     }, (args) => (
       args.kind === 'dynamic-import' ? { path: args.path, external: true } : null
     ));

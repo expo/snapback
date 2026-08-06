@@ -53,6 +53,7 @@
     "push-installation-expo.mjs",
     "push-registry.d.mts",
     "push-registry.mjs",
+    "react-binding-hmr-runtime.mjs",
     "react-binding.mjs",
     "registration-ledger.d.mts",
     "registration-ledger.mjs",

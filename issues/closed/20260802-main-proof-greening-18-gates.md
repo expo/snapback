@@ -928,3 +928,26 @@ has SHA-256
 The full benchmark passed; the 120-second idle interval observed zero storage
 mutations, zero read bytes, zero write bytes, 3/10 allowed CPU ticks (30/100
 ms), and zero RSS-page growth.
+
+### React HMR landing drift — 2026-08-05
+
+Main then advanced through the ticket/program batch ending at
+`f3c7d9fbb394a413370a9264f22e72b6f151a25e`. Two new proof roots are
+attributed to its React HMR landing
+`8ce5ca33eaba058ac3370cc647da57277b034729`: the landing added
+`hmr-generation-handoff.test.mjs` without registering it in the canonical
+package inventory, and its complete re-admission engine entered every
+successful production React bundle. The two frozen React profiles rose from
+50,114 to 67,458 minified bytes and from 49,943 to 67,283 minified bytes,
+with corresponding gzip/Brotli regressions. No ceiling was loosened.
+
+The inventory now selects 206 package/admin tests. The HMR repair keeps the
+synchronous positive-development/same-app classifier and atomic binding
+overlay in the always-loaded seam, while moving the polling, manifest rebuild,
+result-contract compilation, and controlled-reload helpers behind literal
+development/failure-only runtimes. The HMR regression still proves atomic
+handoff, mutation deferral, controlled reload, and strict production/foreign
+admission. The unchanged LLP 0145 production workload now passes every frozen
+minified, gzip, and Brotli ceiling. This is fix-forward package-proof and
+production-closure debt in the React landing, not correctness work in the
+actively owned PUSH-01 seam or F0a fork code.

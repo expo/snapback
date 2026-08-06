@@ -172,6 +172,7 @@ const inventories = [
       'authorization-denial.test.mjs',
       'binding-development-sync.test.mjs',
       'cold-boot-binding.test.mjs',
+      'hmr-generation-handoff.test.mjs',
       'lifecycle.test.mjs',
       'offline.test.mjs',
       'optimistic.test.mjs',
@@ -562,7 +563,10 @@ const total = results.reduce((sum, result) => sum + result.count, 0);
 // agent-setup.test.mjs (landed 753191e46 with its test-script entry) is
 // registered here — that landing added the file without updating this
 // canonical inventory; caught while landing the G0 lane.
-assert.equal(total, 205, 'reviewed package/admin test count changed');
+// 205 -> 206 (2026-08-05, React HMR repair): @expo/snapback-react gains the
+// atomic generation-handoff regression. Landing 8ce5ca33e added the file and
+// package test-script entry but omitted this canonical inventory.
+assert.equal(total, 206, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }

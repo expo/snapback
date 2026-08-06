@@ -16,7 +16,6 @@ import {
   canonicalizeClientValueV1,
   canonicalReactStoreKeyV1,
   classifyRegeneratedReactReference,
-  handoffPreparedReactBindingGeneration,
   preparedReactResultContract,
   preparedReactBindingClient,
   isPreparedReactQueryGroup,
@@ -77,21 +76,11 @@ function preparedGroupForProvider(provider) {
 // @ref LLP 0114#mounted-provider-hmr-generation-handoff-dated-amendment-2026-08-05
 /* global __DEV__ */
 const positiveDevelopmentEnvironment = () => {
-  if (typeof __DEV__ === 'boolean') return __DEV__ === true;
+  if (typeof __DEV__ === 'boolean') return __DEV__;
   if (import.meta.hot != null) return true;
-  if (typeof module !== 'undefined' && module?.hot != null) return true;
+  if (typeof module !== 'undefined' && module.hot != null) return true;
   return typeof process !== 'undefined' && process.env?.NODE_ENV === 'development';
 };
-
-const HANDOFF_DEFERRED_REFERENCE = Symbol('snapback.react.hmr-deferred-reference.v1');
-const HANDOFF_PENDING = Object.freeze({
-  status: 'pending',
-  data: undefined,
-  error: null,
-  connection: 'connecting',
-  freshness: 'unknown',
-  retention: null,
-});
 
 const CONNECTION_ORDER = Object.freeze({
   error: 0,
@@ -149,6 +138,16 @@ const SKIPPED = Object.freeze({
   retention: null,
 });
 const SERVER_PENDING = pending();
+function errorSnapshot(error, connection = 'error', retention = null) {
+  return Object.freeze({
+    status: 'error',
+    data: undefined,
+    error,
+    connection,
+    freshness: 'unknown',
+    retention,
+  });
+}
 const PRESENCE_SERVER_PENDING = Object.freeze({
   status: 'pending',
   entries: Object.freeze([]),
@@ -224,24 +223,18 @@ function captureRetention(store) {
 function queryStateForConnection(store, connection, detail = {}) {
   const snapshot = store.snapshot;
   if (connection === 'error') {
-    return Object.freeze({
-      status: 'error',
-      data: undefined,
-      error: serializeError(detail.error ?? new Error('live query connection failed')),
+    return errorSnapshot(
+      serializeError(detail.error ?? new Error('live query connection failed')),
       connection,
-      freshness: 'unknown',
-      retention: store.retention,
-    });
+      store.retention,
+    );
   }
   if (connection === 'closed') {
-    return Object.freeze({
-      status: 'error',
-      data: undefined,
-      error: diagnostic('SNAPBACK_REACT_PROVIDER_CLOSED', 'React provider is closed'),
+    return errorSnapshot(
+      diagnostic('SNAPBACK_REACT_PROVIDER_CLOSED', 'React provider is closed'),
       connection,
-      freshness: 'unknown',
-      retention: store.retention,
-    });
+      store.retention,
+    );
   }
   if (snapshot.status === 'ready' || snapshot.status === 'refreshing') {
     return Object.freeze({
@@ -359,14 +352,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
   // in-flight or settled handoff; handoff descriptors resolve to real
   // admitted descriptors once the binding's generation overlay swaps.
   const developmentHmr = options.developmentHmr ?? null;
-  if (
-    developmentHmr !== null
-    && (typeof developmentHmr !== 'object' || Array.isArray(developmentHmr))
-  ) {
-    throw new TypeError('developmentHmr must be an options object');
-  }
   let generationHandoff = null;
-  const handoffResolutions = new WeakMap();
 
   const notifyConnection = () => {
     for (const listener of [...connectionListeners]) {
@@ -725,14 +711,11 @@ function createRegistry(binding, providerInstanceId, options = {}) {
           // project the denial on the error axis. Fresh authoritative rows
           // (a later authorized subscribe) clear it below.
           captureRetention(store);
-          publish(store, Object.freeze({
-            status: 'error',
-            data: undefined,
-            error: serializeError(detail.error ?? detail.authorization),
-            connection: normalizeConnection(store.handle?.current?.connection ?? 'disconnected'),
-            freshness: 'unknown',
-            retention: store.retention,
-          }), generation);
+          publish(store, errorSnapshot(
+            serializeError(detail.error ?? detail.authorization),
+            normalizeConnection(store.handle?.current?.connection ?? 'disconnected'),
+            store.retention,
+          ), generation);
           return;
         }
         if (detail?.freshness === 'retained') {
@@ -807,14 +790,11 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         clearUnadoptedSubscription(store);
         store.handle = null;
         allHandles.delete(handle);
-        publish(store, Object.freeze({
-          status: 'error',
-          data: undefined,
-          error: serializeError(error),
-          connection: 'error',
-          freshness: 'unknown',
-          retention: store.retention,
-        }), generation);
+        publish(store, errorSnapshot(
+          serializeError(error),
+          'error',
+          store.retention,
+        ), generation);
         let retryHandle = setTimeout(() => {
           retryHandle = null;
           if (store.retry !== cancelRetry) return;
@@ -958,8 +938,8 @@ function createRegistry(binding, providerInstanceId, options = {}) {
 
   const runMutation = async (mutationReference, mutationArgs, optimistic = null) => {
     if (terminal) throw diagnosticError('SNAPBACK_REACT_PROVIDER_CLOSED', 'React provider is closed');
-    if (mutationReference?.[HANDOFF_DEFERRED_REFERENCE] === true) {
-      mutationReference = mutationReference.reference;
+    if (mutationReference?.handoff?.mutation !== undefined) {
+      mutationReference = mutationReference.handoff.mutation;
     }
     // Admission stays synchronous on the settled path (the optimistic layer
     // must install in the same frame as the user action). Only a recoverable
@@ -1329,7 +1309,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         return real.skipped ? SKIPPED : (stores.get(real.key)?.snapshot ?? SERVER_PENDING);
       }
       if (generationHandoff?.status === 'failed') return generationHandoff.failureSnapshot;
-      return HANDOFF_PENDING;
+      return SERVER_PENDING;
     }
     return stores.get(descriptor.key)?.snapshot ?? SERVER_PENDING;
   };
@@ -2051,33 +2031,13 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     return classifyRegeneratedReactReference(binding, reference);
   };
 
-  const triggerControlledDevelopmentReload = (failure) => {
-    console.error(
-      `${failure.code}: ${failure.message} (reason: ${failure.details?.reason ?? 'unknown'}). `
-      + 'Snapback is triggering a full dev reload so the mounted provider realigns with the '
-      + 'regenerated api module. If no reload mechanism is available on this host, reload '
-      + 'manually (press "r" in the Metro terminal or refresh the page).',
-    );
-    try {
-      if (typeof developmentHmr?.onReloadRequired === 'function') {
-        developmentHmr.onReloadRequired(failure);
-        return;
-      }
-    } catch { /* observational */ }
-    try { globalThis.DevSettings?.reload?.('SNAPBACK_REACT_HMR_REBIND_FAILED'); } catch { /* best effort */ }
-    try { globalThis.location?.reload?.(); } catch { /* best effort */ }
-  };
-
   const beginGenerationHandoff = (target) => {
     const key = canonicalizeClientValueV1(target);
     if (generationHandoff !== null && generationHandoff.key === key) return generationHandoff;
     const state = {
       key,
       status: 'active',
-      failure: null,
-      failureSnapshot: null,
       waiters: new Set(),
-      promise: null,
     };
     // A newer generation supersedes an in-flight handoff (rapid successive
     // HMR edits): its parked waiters move to the successor so their hooks
@@ -2092,23 +2052,11 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         state.status = 'ok';
       } else {
         state.status = 'failed';
-        state.failure = diagnostic(
+        const failure = outcome?.failure ?? diagnostic(
           'SNAPBACK_REACT_HMR_REBIND_FAILED',
-          'HMR delivered regenerated Snapback references, but the mounted provider could not atomically rebind to the new generation',
-          {
-            reason: outcome?.reason ?? 'handoff-error',
-            ...(outcome?.cause === undefined ? {} : { cause: outcome.cause }),
-          },
+          'HMR rebind runtime failed',
         );
-        state.failureSnapshot = Object.freeze({
-          status: 'error',
-          data: undefined,
-          error: state.failure,
-          connection: 'error',
-          freshness: 'unknown',
-          retention: null,
-        });
-        triggerControlledDevelopmentReload(state.failure);
+        state.failureSnapshot = errorSnapshot(failure);
       }
       const waiters = [...state.waiters];
       state.waiters.clear();
@@ -2118,34 +2066,25 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       notifyConnection();
       return outcome;
     };
-    state.promise = handoffPreparedReactBindingGeneration(binding, target, {
-      ...(Number.isSafeInteger(developmentHmr?.timeoutMs)
-        ? { timeoutMs: developmentHmr.timeoutMs }
-        : {}),
-      ...(Number.isSafeInteger(developmentHmr?.pollIntervalMs)
-        ? { pollIntervalMs: developmentHmr.pollIntervalMs }
-        : {}),
-    }).then(settle, (error) => settle({
-      ok: false,
-      reason: 'handoff-error',
-      cause: error?.code ?? String(error),
-    }));
+    state.promise = loadReactRuntime()
+      .then((runtime) => runtime.runDevelopmentHmrHandoff(
+        binding,
+        target,
+        developmentHmr,
+      ))
+      .then(settle, () => settle({ ok: false }));
     generationHandoff = state;
     return state;
   };
 
   const resolveHandoffDescriptor = (descriptor) => {
-    const resolved = handoffResolutions.get(descriptor);
-    if (resolved) return resolved;
     try {
-      const real = admittedDescriptor(
+      return admittedDescriptor(
         descriptor.handoff.reference,
         descriptor.handoff.args,
         descriptor.handoff.groupBoot,
         descriptor.handoff.preparedEntryName,
       );
-      handoffResolutions.set(descriptor, real);
-      return real;
     } catch {
       return null;
     }
@@ -2155,15 +2094,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     beginGenerationHandoff(target);
     return Object.freeze({
       skipped: args === skip,
-      handoff: Object.freeze({ reference, args, groupBoot, preparedEntryName }),
-      reference,
-      args,
-      key: null,
-      resultContract: null,
-      groupBoot,
-      preparedEntryName,
-      readOnlySnapshot: null,
-      bootDelivery: null,
+      handoff: { reference, args, groupBoot, preparedEntryName },
     });
   };
 
@@ -2174,21 +2105,10 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       const real = resolveHandoffDescriptor(descriptor);
       if (real !== null && !real.skipped) {
         try {
-          if (consumers + 1 > CONSUMER_CAP) {
-            throw diagnosticError(
-              'SNAPBACK_REACT_STORE_CAPACITY',
-              `React provider has reached its ${CONSUMER_CAP}-consumer cap`,
-              { cap: CONSUMER_CAP },
-            );
-          }
-          const store = stores.get(real.key) ?? createStore(real);
-          const edgeId = `${lease.id}:handoff${lease.edges.length}`;
-          store.idleEpoch += 1;
-          store.consumers += 1;
-          store.listeners.set(edgeId, listener);
-          lease.edges.push({ key: store.key, edgeId });
-          consumers += 1;
-          startStore(store);
+          // Reuse the ordinary transactional replacement path, then make the
+          // parked lease's cleanup delegate to the admitted successor.
+          const successor = subscribeMany([real], listener, lease);
+          lease.release = successor.release;
         } catch (error) {
           recordDiagnostic(error);
         }
@@ -2220,9 +2140,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         const target = recoverableGeneration(error, reference);
         if (target === null) throw error;
         beginGenerationHandoff(target);
-        const deferred = { reference };
-        Object.defineProperty(deferred, HANDOFF_DEFERRED_REFERENCE, { value: true });
-        return Object.freeze(deferred);
+        return Object.freeze({ handoff: { mutation: reference } });
       }
     },
     subscribe(descriptor, listener, previousLease = null) {
