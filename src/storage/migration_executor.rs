@@ -43,11 +43,11 @@ use std::cell::OnceCell;
 use std::collections::{BTreeMap, BTreeSet};
 
 #[cfg(test)]
-type MigrationExecutionValueHook = Option<Box<dyn FnMut(&str, Value) -> Value>>;
+type MigrationExecutionValueHook = Box<dyn FnMut(&str, Value) -> Value>;
 
 #[cfg(test)]
 thread_local! {
-    static MIGRATION_EXECUTION_VALUE_HOOK: std::cell::RefCell<MigrationExecutionValueHook> =
+    static MIGRATION_EXECUTION_VALUE_HOOK: std::cell::RefCell<Option<MigrationExecutionValueHook>> =
         const { std::cell::RefCell::new(None) };
 }
 

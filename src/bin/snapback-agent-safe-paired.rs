@@ -816,7 +816,7 @@ fn validate_worker_lock_derivation(root: &[u8], worker: &[u8]) -> anyhow::Result
 }
 
 fn parse_lock_packages(bytes: &[u8]) -> anyhow::Result<BTreeSet<LockPackage>> {
-    type ParsedLockPackage = (
+    type LockPackageFields = (
         Option<String>,
         Option<String>,
         Option<String>,
@@ -825,8 +825,8 @@ fn parse_lock_packages(bytes: &[u8]) -> anyhow::Result<BTreeSet<LockPackage>> {
 
     let text = std::str::from_utf8(bytes).context("Cargo.lock is not UTF-8")?;
     let mut packages = BTreeSet::new();
-    let mut current: Option<ParsedLockPackage> = None;
-    let flush = |current: &mut Option<ParsedLockPackage>,
+    let mut current: Option<LockPackageFields> = None;
+    let flush = |current: &mut Option<LockPackageFields>,
                  packages: &mut BTreeSet<LockPackage>|
      -> anyhow::Result<()> {
         let Some((name, version, source, checksum)) = current.take() else {

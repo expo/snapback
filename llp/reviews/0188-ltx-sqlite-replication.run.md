@@ -304,3 +304,18 @@ per LLP 0010 §2 this residue is disclosed as self-attested.
 - Standing honest-record note: the accepted text's formal verdicts bind
   to r6, both NOT READY, with the terminal analysis above; acceptance
   is the author's prerogative under LLP 0005 and is recorded as such.
+
+## Author disposition — 2026-08-06: four dated amendments RATIFIED
+
+- The four dated amendments LLP 0188 requires were drafted at the
+  author's direction (commit `e8bbfa2b2`, Proposed) and ratified by the
+  author ("ratify", in-session, 2026-08-06): LLP 0057 (LTX-boundary
+  capture discipline), LLP 0072 (continuous-replication authority —
+  first-class replication epoch decided), LLP 0099 (LTX checkpoint
+  proof as second qualifying pre-apply form), LLP 0111 (continuous-lane
+  custody role split). With ratification, LLP 0188's hosted continuous
+  lane is admissible pending its own gates (G1–G3); the operative
+  hosted shape remains 0111's supervisor-mediated periodic backup until
+  they pass. Implementation entry points:
+  `issues/20260806-llp-0188-ltx-implementation-g1.md` and
+  `issues/20260806-celld-cloudflare-bundle-spike.md`.

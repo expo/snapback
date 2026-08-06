@@ -17,6 +17,7 @@ import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
+  diagnoseChromeRuntimeError,
   launchChromeCdp,
   NO_PRIMARY_FAILURE,
   throwRunAndCleanupFailures,
@@ -104,6 +105,7 @@ async function runLifecycleProof() {
     await provesSynchronousSpawnErrorCleanup(scratch);
     await provesSpawnErrorCleanup(scratch);
     await provesFailedAttestationPreservesProfile(scratch);
+    provesIndexedDbRuntimeDiagnostic(scratch);
     provesRunAndCleanupFailureComposition();
     provesRepositoryInventory();
     assert.deepEqual(
@@ -229,11 +231,55 @@ async function provesInjectedStopBeforeRemoval(scratch) {
     prefix: 'injected-success-profile-',
   });
   const chrome = await fixture.launched;
+  const unrelated = new Error('unrelated application failure');
+  assert.equal(
+    chrome.diagnoseRuntimeError(unrelated),
+    unrelated,
+    'the handle must not replace unrelated runtime failures',
+  );
   await chrome.stop();
   assert.deepEqual(
     fixture.events,
     ['stop:start', 'stop:complete', 'rm'],
     'normal cleanup must await stopChild completion before profile removal',
+  );
+}
+
+function provesIndexedDbRuntimeDiagnostic(scratch) {
+  const profilePath = join(scratch, 'indexeddb-diagnostic-profile');
+  const original = new DOMException(
+    'Internal error opening backing store for indexedDB.open.',
+    'UnknownError',
+  );
+  const nested = new AggregateError(
+    [new Error('outer browser check', { cause: original })],
+    'browser acceptance failed',
+  );
+  const diagnosed = diagnoseChromeRuntimeError(nested, {
+    profilePath,
+    platform: 'darwin',
+  });
+  assert.equal(diagnosed.code, 'SNAPBACK_BROWSER_INDEXEDDB_PROFILE_OPEN_FAILED');
+  assert.equal(diagnosed.cause, nested, 'the original failure chain must remain inspectable');
+  assert.equal(diagnosed.profilePath, profilePath);
+  assert.match(diagnosed.message, /Internal error opening backing store/i);
+  assert.match(diagnosed.message, /tempRoot: '\/tmp'/);
+  assert.match(diagnosed.message, /userDataDir/);
+  assert.deepEqual(diagnosed.diagnostic, {
+    schemaVersion: 'snapback.browser-runtime-diagnostic.v1',
+    code: 'SNAPBACK_BROWSER_INDEXEDDB_PROFILE_OPEN_FAILED',
+    subsystem: 'browser-profile',
+    platform: 'darwin',
+    profilePath,
+    recovery: {
+      launcherOwned: "tempRoot: '/tmp'",
+      callerOwned: 'userDataDir: <explicit writable profile>',
+    },
+  });
+  assert.equal(
+    diagnoseChromeRuntimeError(diagnosed, { profilePath, platform: 'darwin' }),
+    diagnosed,
+    'diagnosis must be idempotent',
   );
 }
 

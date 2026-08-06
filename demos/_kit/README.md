@@ -78,6 +78,46 @@ backend can never masquerade as a live one:
   up, but **rejects** with `SNAPBACK_SERVER_CHILD_DIED` rather than
   attesting a clean shutdown.
 
+## Chrome profiles and IndexedDB diagnostics
+
+`launchChromeCdp` creates an isolated profile below `os.tmpdir()` unless the
+caller supplies `tempRoot` or `userDataDir`. A `tempRoot` override keeps the
+profile launcher-owned: the whole Chrome process tree is stopped and its exit
+is attested before the profile is deleted. A `userDataDir` override makes the
+profile caller-owned so restart tests can retain the exact profile; the launcher
+still owns and attests every Chrome process tree.
+
+Chrome can report the opaque runtime exception `UnknownError: Internal error
+opening backing store` when `indexedDB.open()` cannot initialize its files. Wrap
+browser-evaluation failures through the returned handle to attach the exact
+profile and a typed recovery without changing unrelated errors:
+
+```js
+const chrome = await launchChromeCdp({ chromeBin });
+try {
+  await runBrowserChecks(chrome.ws);
+} catch (error) {
+  throw chrome.diagnoseRuntimeError(error);
+} finally {
+  await chrome.stop();
+}
+```
+
+The matching diagnostic code is
+`SNAPBACK_BROWSER_INDEXEDDB_PROFILE_OPEN_FAILED`. On macOS it recommends
+`tempRoot: '/tmp'` for launcher-owned profiles, or an explicit writable
+`userDataDir` when the caller needs to retain the profile. The default remains
+`os.tmpdir()`: the 2026-08-06 real-Chrome matrix recorded in the closed ticket
+could not reproduce the earlier host failure and refuted path length and symlink
+spelling as general causes.
+
+Run the manual matrix on the current host with:
+
+```bash
+CHROME_BIN='/path/to/Google Chrome' \
+  node demos/_kit/tests/chrome-indexeddb-profile-probe.mjs
+```
+
 ## Server launch: the LLP 0030 command-resolver ladder
 
 `startServer` (`server-process.mjs`) resolves the server command by the

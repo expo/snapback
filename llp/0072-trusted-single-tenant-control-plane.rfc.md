@@ -5,12 +5,12 @@
 **Systems:** Deployment, Control plane, TLS, Auth, Migrations, Backup, Restore, Logs, Inspection, Secrets, Runtime, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-20
-**Revised:** 2026-08-06 (proposed dated amendment drafted at the author's
-direction: §"Continuous-replication authority" — first-class replication
-epoch, whole-authority revoke-then-grant handover with drain-inclusive
-barrier, window reconciliation, delete-visible mechanism for LLP 0188
-pinned objects, asymmetric encryption custody for both object classes;
-Proposed — pending author ratification). 2026-07-26 (author-side review application: the first Fly profile
+**Revised:** 2026-08-06 (dated amendment drafted at the author's
+direction and ratified by the author the same day: §"Continuous-replication
+authority" — first-class replication epoch, whole-authority
+revoke-then-grant handover with drain-inclusive barrier, window
+reconciliation, delete-visible mechanism for LLP 0188 pinned objects,
+asymmetric encryption custody for both object classes). 2026-07-26 (author-side review application: the first Fly profile
 now proposes one provider-enforced external control head over immutable Tigris
 records and Fly Machine lease/version-guarded metadata, pins activation
 linearization and crash recovery, derives normalized claims from retained raw
@@ -285,7 +285,7 @@ OS credential store and are not available to application code or ordinary
 agents; the receipt records the scoped provider-token fingerprint and effective
 grant, never secret bytes.
 
-### Continuous-replication authority — dated amendment 2026-08-06 (Proposed, pending author ratification)
+### Continuous-replication authority — dated amendment 2026-08-06 (ratified by the author 2026-08-06)
 
 Required by LLP 0188 (Accepted 2026-08-06) as a hard prerequisite of its
 hosted continuous-replication lane; drafted at the author's direction.
@@ -349,9 +349,11 @@ here.
    must survive loss of the deployment (it is the disaster-recovery
    path).
 
-Until ratified, LLP 0188's hosted continuous lane remains inadmissible
-and the interim shape stays LLP 0111's supervisor-mediated periodic
-backup, exactly as LLP 0188 §5 records.
+With this amendment ratified (2026-08-06, jointly with LLP 0111's
+companion custody amendment), the hosted continuous lane is admissible
+once LLP 0188's gates pass; until they do, the operative shape remains
+LLP 0111's supervisor-mediated periodic backup, exactly as LLP 0188 §5
+records.
 
 ## Release artifact
 

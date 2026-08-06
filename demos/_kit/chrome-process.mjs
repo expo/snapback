@@ -18,6 +18,7 @@ const LIFECYCLE_OWNED_FLAGS = [
   '--remote-debugging-port',
   '--user-data-dir',
 ];
+const INDEXEDDB_BACKING_STORE_FAILURE = /internal error opening backing store/i;
 
 // JavaScript permits `throw null` and `throw undefined`; neither may be
 // confused with the absence of a primary run failure.
@@ -29,6 +30,57 @@ function sleep(ms) {
 
 function cleanupMessage(error) {
   return error instanceof Error ? error.message : String(error);
+}
+
+function errorChainMatches(error, predicate, seen = new Set()) {
+  if (error === null || error === undefined || seen.has(error)) return false;
+  if ((typeof error === 'object' || typeof error === 'function')) seen.add(error);
+  if (predicate(cleanupMessage(error))) return true;
+  if (error?.cause && errorChainMatches(error.cause, predicate, seen)) return true;
+  if (Array.isArray(error?.errors)) {
+    return error.errors.some((entry) => errorChainMatches(entry, predicate, seen));
+  }
+  return false;
+}
+
+/**
+ * Add profile identity and a concrete recovery to Chrome's otherwise opaque
+ * IndexedDB backing-store error. Non-matching errors retain exact identity.
+ */
+export function diagnoseChromeRuntimeError(error, {
+  profilePath,
+  platform = process.platform,
+} = {}) {
+  if (!errorChainMatches(error, (message) => INDEXEDDB_BACKING_STORE_FAILURE.test(message))) {
+    return error;
+  }
+  if (error?.code === 'SNAPBACK_BROWSER_INDEXEDDB_PROFILE_OPEN_FAILED') return error;
+  if (typeof profilePath !== 'string' || profilePath.length === 0) {
+    throw new TypeError('diagnoseChromeRuntimeError requires a Chrome profilePath for backing-store failures');
+  }
+  const tempRootRecovery = platform === 'darwin'
+    ? "tempRoot: '/tmp'"
+    : 'tempRoot: <short writable temporary directory>';
+  const message = [
+    cleanupMessage(error),
+    `Chrome reported "UnknownError: Internal error opening backing store" and could not initialize IndexedDB in profile ${profilePath}.`,
+    `This failure can depend on the profile path or host policy; retry launchChromeCdp with ${tempRootRecovery} for launcher-owned cleanup, or userDataDir: <explicit writable profile> when the caller must retain the profile.`,
+  ].join(' ');
+  const wrapped = new Error(message, { cause: error });
+  wrapped.code = 'SNAPBACK_BROWSER_INDEXEDDB_PROFILE_OPEN_FAILED';
+  wrapped.profilePath = profilePath;
+  wrapped.diagnostic = {
+    schemaVersion: 'snapback.browser-runtime-diagnostic.v1',
+    code: wrapped.code,
+    subsystem: 'browser-profile',
+    platform,
+    profilePath,
+    recovery: {
+      launcherOwned: tempRootRecovery,
+      callerOwned: 'userDataDir: <explicit writable profile>',
+    },
+  };
+  return wrapped;
 }
 
 function removeProfile(profilePath, rmImpl) {
@@ -242,6 +294,10 @@ export async function launchChromeCdp({
           debugPort: Number(debugPort),
           pid: child.pid,
           profilePath,
+          diagnoseRuntimeError: (error) => diagnoseChromeRuntimeError(error, {
+            profilePath,
+            platform,
+          }),
           stop,
         };
       } catch {

@@ -122,9 +122,13 @@ pub struct SchemaArtifact {
 ///
 /// @ref LLP 0184#phase-1--catalog-and-parity-gate — ControlCatalogV1 and its
 /// instance projection are owned by the checked cross-registry JS compiler.
+/// @ref LLP 0146#d7-implementation-record--2026-08-06-oq6-independent-substrate
+///   — the remediation registry schema is an intentionally data-only draft,
+///   not a Rust-owned wire artifact.
 pub const EXTERNALLY_MANAGED_SCHEMA_ARTIFACTS: &[&str] = &[
     "control-catalog-instance.v1.schema.json",
     "control-catalog.v1.schema.json",
+    "remediation-kinds.v0.schema.json",
 ];
 
 /// The single generator for every Snapback-owned committed schema.

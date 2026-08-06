@@ -461,7 +461,7 @@ fn database_path(conn: &Connection) -> Option<PathBuf> {
     #[cfg(unix)]
     {
         // SAFETY: `conn.handle()` is used only for this immediate SQLite
-        // metadata lookup, `main\0` is a valid C string, and the returned
+        // metadata lookup, `c"main"` is a valid C string, and the returned
         // connection-owned bytes are copied before this function returns.
         let bytes = unsafe {
             let filename = rusqlite::ffi::sqlite3_db_filename(conn.handle(), c"main".as_ptr());

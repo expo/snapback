@@ -5,11 +5,11 @@
 **Systems:** Deployment, Control plane, Ephemeral state, Realtime, TLS, Auth, Migrations, Backup, Restore, Logs, Inspection, Runtime, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-27
-**Revised:** 2026-08-06 (proposed dated amendment drafted at the author's
-direction: continuous-replication custody role split per LLP 0188 §5,
-admissible only with store-enforced immutability and jointly with LLP
-0072's continuous-replication authority amendment; Proposed — pending
-author ratification). 2026-08-03 (Accepted 2026-08-03 by the author — decision
+**Revised:** 2026-08-06 (dated amendment drafted at the author's
+direction and ratified by the author the same day: continuous-replication
+custody role split per LLP 0188 §5, admissible only with store-enforced
+immutability and jointly with LLP 0072's continuous-replication authority
+amendment). 2026-08-03 (Accepted 2026-08-03 by the author — decision
 sitting #2, "accept all that verify",
 `issues/20260803-author-decision-sitting-2.md`; gate verified: the round-3
 Fable-READY/Codex-NOT-READY residue is closed by the §Final author
@@ -91,15 +91,15 @@ pre-qualification path for bytes intended to support those hosted claims; a
 locally promoted `latest` release is not evidence of hosted support. Source:
 `issues/20260802-author-decision-packet.md`.
 
-## Continuous-replication custody amendment — 2026-08-06 (Proposed, pending author ratification)
+## Continuous-replication custody amendment — 2026-08-06 (ratified by the author 2026-08-06)
 
 Required by LLP 0188 (Accepted 2026-08-06) as a hard prerequisite of its
 hosted continuous-replication lane; drafted at the author's direction.
 This Plan's custody rule routes backup bytes through the supervisor and
 gives the application Machine no provider credential. A continuous LTX
 replicator inside the server process cannot ship through that path, so —
-when ratified, and jointly with LLP 0072's continuous-replication
-authority amendment — this amendment admits LLP 0188 §5's **role split**
+jointly with LLP 0072's continuous-replication authority amendment (both
+ratified 2026-08-06) — this amendment admits LLP 0188 §5's **role split**
 as a second admissible custody shape, for the continuous lane only:
 
 - the application Machine holds an **append-only, prefix-scoped
@@ -124,8 +124,8 @@ flow and §3.4's `restoreInactive` (which remains the identity-translating
 restore path an LTX-materialized instance must also traverse per LLP 0188
 §6 and the LLP 0057 amendment); the prohibition on application access to
 provider credentials for every other purpose; and this Plan's gates.
-Until ratified, the hosted continuous lane does not exist and the interim
-shape is exactly this Plan's supervisor-mediated periodic backup.
+Until LLP 0188's hosted gates pass, the operative shape remains exactly
+this Plan's supervisor-mediated periodic backup.
 
 ## Governing amendments
 

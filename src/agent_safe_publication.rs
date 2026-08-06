@@ -211,7 +211,7 @@ fn owner_explanation_fact(
     }
 }
 
-#[allow(dead_code)]
+#[cfg(test)]
 pub(crate) fn storage_publication_verified() -> bool {
     storage_publication_verified_for_distribution(crate::identity::build_distribution())
 }
@@ -229,7 +229,7 @@ pub(crate) fn storage_publication_verified_for_distribution(build_distribution: 
     )
 }
 
-#[allow(dead_code)]
+#[cfg(test)]
 pub(crate) fn derived_fork_publication_verified() -> bool {
     derived_fork_publication_verified_for_distribution(crate::identity::build_distribution())
 }
