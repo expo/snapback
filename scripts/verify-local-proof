@@ -135,6 +135,15 @@ run generated-artifacts -- scripts/check-generated-artifacts
 # LLP 0061: guide corpus — snippet transclusion-match, capability-index joins,
 # manifest staleness. Docs-only fast path: node scripts/check-guide.mjs.
 run guide --requires generated-artifacts -- node scripts/check-guide.mjs
+# LLP 0184 Phase 1: the ControlCatalogV1 compiler is the checked join of the
+# LLP 0031/0024 registries, CLI/MCP/AdminClient declarations, and the
+# hosted-adapter manifest (§Design/2, §3, §3a). --check fails on any stale
+# committed catalog or an incomplete domain/parity join (rules 1-11); it does
+# not require a fresh cargo build (packages/snapback-cli/control-plane-
+# registry.json is itself drift-gated separately by
+# `cargo test --test control_catalog_registry_export`, run alongside other
+# Rust suites, not by this docs/JS-only step).
+run control-catalog -- node scripts/generate-control-catalog.mjs --check
 # ENG-25268: hand-authored Contract helper sidecars are checked against their
 # exported TypeScript parameter lists; structural result regression catches
 # the All Aboard `headsgn` typo at compile time.

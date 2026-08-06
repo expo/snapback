@@ -747,6 +747,10 @@ function gitText(args) {
   return execFileSync('git', args, { cwd: ROOT, encoding: 'utf8' }).trim();
 }
 
+function gitBytes(args) {
+  return execFileSync('git', args, { cwd: ROOT });
+}
+
 function baselineSourceProvenance() {
   const revision = gitText(['rev-parse', 'HEAD']);
   return {
@@ -769,6 +773,33 @@ function validateBaselineSource(source) {
       `baseline package tree provenance for ${path}`,
     );
   }
+}
+
+function ledgerCarrierRevision(ledgerFilename) {
+  const revisions = gitText([
+    'log',
+    '--diff-filter=A',
+    '--format=%H',
+    '--',
+    `tests/fixtures/client-bundle-metrology/${ledgerFilename}`,
+  ]).split('\n').filter(Boolean);
+  assert.equal(revisions.length, 1, `${ledgerFilename}: one reachable carrier introduction`);
+  return revisions[0];
+}
+
+function validateFrozenInputs(inputs, profileFilename, ledgerFilename, label) {
+  const carrierRevision = ledgerCarrierRevision(ledgerFilename);
+  assert.deepEqual(
+    inputs,
+    {
+      profilesSha256: sha256(gitBytes([
+        'show',
+        `${carrierRevision}:tests/fixtures/client-bundle-metrology/${profileFilename}`,
+      ])),
+      lockfileSha256: sha256(gitBytes(['show', `${carrierRevision}:bun.lock`])),
+    },
+    `${label} frozen input digests`,
+  );
 }
 
 function normalizePath(path) {
@@ -1519,9 +1550,14 @@ function compactBaseline(report, profiles) {
 function validateMainBaseline(report, baseline) {
   assert.equal(baseline.schemaVersion, 'snapback.client-bundle-metrology-baseline.v1');
   validateBaselineSource(baseline.source);
+  validateFrozenInputs(
+    baseline.inputs,
+    'profiles.v1.json',
+    'baseline.v1.json',
+    'primary baseline',
+  );
   assert.deepEqual(report.authorities, baseline.authorities, 'baseline authorities');
   assert.deepEqual(report.method, baseline.method, 'baseline measurement method');
-  assert.deepEqual(report.inputs, baseline.inputs, 'baseline input digests');
   assert.deepEqual(report.behaviorCommands, baseline.behaviorCommands, 'baseline behavior commands');
 }
 
@@ -1531,11 +1567,16 @@ function validateSupplementalBaseline(report, spec, supplemental) {
     'snapback.client-bundle-metrology-supplemental-baseline.v1',
   );
   validateBaselineSource(supplemental.source);
+  validateFrozenInputs(
+    supplemental.inputs,
+    spec.profileFilename,
+    spec.filename,
+    spec.filename,
+  );
   const evidence = report.additiveLedgers.find((entry) => entry.filename === spec.filename);
   assert.ok(evidence, `${spec.filename}: additive evidence`);
   assert.deepEqual(spec.authorities, supplemental.authorities, 'supplemental authorities');
   assert.deepEqual(report.method, supplemental.method, 'supplemental measurement method');
-  assert.deepEqual(evidence.inputs, supplemental.inputs, 'supplemental inputs');
   assert.deepEqual(
     evidence.behaviorCommands,
     supplemental.behaviorCommands,
@@ -1578,6 +1619,12 @@ function validateRolloverBaseline(report, spec, rollover) {
     'snapback.client-bundle-metrology-rollover-baseline.v1',
   );
   validateBaselineSource(rollover.source);
+  validateFrozenInputs(
+    rollover.inputs,
+    spec.profileFilename,
+    spec.filename,
+    spec.filename,
+  );
   const evidence = report.rolloverLedgers.find((entry) => entry.filename === spec.filename);
   assert.ok(evidence, `${spec.filename}: rollover evidence`);
   assert.deepEqual(spec.authorities, rollover.authorities, `${spec.filename}: authorities`);
@@ -1598,7 +1645,6 @@ function validateRolloverBaseline(report, spec, rollover) {
     `${spec.filename}: immutable predecessor receipts`,
   );
   assert.deepEqual(report.method, rollover.method, `${spec.filename}: measurement method`);
-  assert.deepEqual(evidence.inputs, rollover.inputs, `${spec.filename}: inputs`);
   assert.deepEqual(
     evidence.behaviorCommands,
     rollover.behaviorCommands,

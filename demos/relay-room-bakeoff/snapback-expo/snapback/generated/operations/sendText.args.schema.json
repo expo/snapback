@@ -1,0 +1,23 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/snapback-expo/sendText.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "conversationId": {
+      "type": "string"
+    },
+    "senderId": {
+      "type": "string"
+    },
+    "text": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "conversationId",
+    "senderId",
+    "text"
+  ],
+  "title": "snapback-expo:sendText arguments",
+  "type": "object"
+}

@@ -1,0 +1,147 @@
+{
+  "$schemaNote": "LLP 0184 Phase 1 item 6 backfill: hand-authored operability/surfaceAccess/behavior overrides keyed by the post-join operation identity (host_ops.* stripped to its LLP 0024 spelling, e.g. 'host_ops.app.inspect' -> 'app.inspect'). scripts/generate-control-catalog.mjs applies these on top of its structurally-derived surfaceAccess (native/cliOnly/mcpOnly/apiOnly from projection presence) — operability itself is NEVER derived automatically (the RFC requires per-operation authored classification, never compiler inference, since it is a security disagreement axis the compiler must not resolve toward permissive). Every row not listed here defaults to operability 'unavailable' with a generic 'not yet classified' reason so an un-triaged row can never silently read as agent-invokable — see the compiler's DEFAULT_UNCLASSIFIED constant. This file covers: (a) the RFC's 'already good' research-snapshot list (network profiles, lifecycle, telemetry, errors, assets), (b) every RFC worked example (host.restart, admin link, acceptance.run, config.set/unset, the dev-mailbox pin), and (c) the direct_runner/app.ensure.provision family already well-understood from LLP 0024/0031.",
+  "overrides": {
+    "host.start": {
+      "operability": "direct",
+      "surfaceAccessOverride": "cliOnly",
+      "mcpDeferralReason": "snapback_start exists but is a distinct MCP-only projection today (this row's own HTTP/CLI path is the source of truth for surfaceAccess derivation; see host.restart below for the composed case)."
+    },
+    "host.stop": {
+      "operability": "direct",
+      "surfaceAccessOverride": "cliOnly",
+      "mcpDeferralReason": "Analogous to host.start."
+    },
+    "host.restart": {
+      "operability": "direct",
+      "surfaceAccessOverride": "mcpOnly",
+      "cliDeferralReason": "Nothing prevents a `snapback restart` CLI command composing Start/Stop the same way `snapback_restart` does; not implemented yet. Phase 2 lands it (LLP 0184 §Product contract).",
+      "composedFrom": ["host.stop", "host.start"],
+      "projectionCredentials": {
+        "http": "AdminCredential (refuses this operation entirely: SNAPBACK_HOST_OP_CLI_ONLY)",
+        "mcp": "local process/filesystem access plus the startup nonce — no admin credential gate (LLP 0184 §Design/2's disclosed, temporary, named exception; closed in Phase 2's host.restart vertical slice)"
+      }
+    },
+    "app.inspect": { "operability": "direct" },
+    "app.reset": { "operability": "direct" },
+    "app.seed.ensure.v1": { "operability": "direct" },
+    "app.seed.preview.v1": { "operability": "direct" },
+    "app.seed.reset-install.v1": { "operability": "direct" },
+    "app.seed.clear.v1": { "operability": "direct" },
+    "schema.load": { "operability": "direct" },
+    "functions.load": { "operability": "direct" },
+    "function.run": { "operability": "direct" },
+    "function.explain": { "operability": "direct" },
+    "auth.mintSession": { "operability": "direct" },
+    "auth.rescueCollidingTable": { "operability": "direct" },
+    "telemetry.stats": { "operability": "direct" },
+    "telemetry.events": { "operability": "direct" },
+    "telemetry.export": { "operability": "direct" },
+    "errors.issues": { "operability": "direct" },
+    "errors.issue": { "operability": "direct" },
+    "errors.transition": { "operability": "direct" },
+    "debug.networkProfileGet": { "operability": "direct" },
+    "debug.networkProfileSet": { "operability": "direct" },
+    "asset.put": { "operability": "direct", "mcpDeferralReason": "Assets: full typed CLI, zero MCP tools today — the RFC's (cliOnly, direct) worked example (§Product contract). MCP projection is a Phase 2 P1 item." },
+    "asset.ensureSeedFixture": { "operability": "direct", "mcpDeferralReason": "Assets family; see asset.put." },
+    "asset.inspect": { "operability": "direct", "mcpDeferralReason": "Assets family; see asset.put." },
+    "asset.list": { "operability": "direct", "mcpDeferralReason": "Assets family; see asset.put." },
+    "asset.exportCut": { "operability": "direct", "mcpDeferralReason": "Assets family; see asset.put." },
+    "asset.importCut": { "operability": "direct", "mcpDeferralReason": "Assets family; see asset.put." },
+    "asset.retry": { "operability": "direct", "mcpDeferralReason": "Assets family; see asset.put." },
+    "asset.gcSweep": { "operability": "direct", "mcpDeferralReason": "Assets family; see asset.put." },
+    "asset.delete": { "operability": "direct", "mcpDeferralReason": "Assets family; see asset.put." },
+    "asset.rotateSigningKey": { "operability": "direct", "mcpDeferralReason": "Assets family; see asset.put." },
+    "schema.reload": {
+      "operability": "unavailable",
+      "unavailableReason": { "owner": "llp/0024-agent-operating-surface", "ticketOrDesignPointer": "llp/0024-agent-operating-surface.spec.md", "note": "Pinned by LLP 0024, not yet built anywhere. Returns SNAPBACK_HOST_OP_UNIMPLEMENTED." }
+    },
+    "functions.reload": {
+      "operability": "unavailable",
+      "unavailableReason": { "owner": "llp/0024-agent-operating-surface", "ticketOrDesignPointer": "llp/0024-agent-operating-surface.spec.md", "note": "Pinned by LLP 0024, not yet built anywhere. Returns SNAPBACK_HOST_OP_UNIMPLEMENTED." }
+    },
+    "acceptance.run": {
+      "operability": "unavailable",
+      "unavailableReason": { "owner": "llp/0024-agent-operating-surface", "ticketOrDesignPointer": "llp/0024-agent-operating-surface.spec.md", "note": "The shipped, exposed-but-unbuilt MCP tool (snapback_acceptance_run) returns SNAPBACK_HOST_OP_UNIMPLEMENTED. Supported, LLP 0024-pinned future operation — not internal." }
+    },
+    "direct_runner.query": { "operability": "direct" },
+    "direct_runner.mutation": { "operability": "direct" },
+    "direct_runner.action": { "operability": "direct" },
+    "direct_runner.unknown": {
+      "operability": "unavailable",
+      "unavailableReason": { "owner": "src/server.rs", "ticketOrDesignPointer": null, "note": "The unrecognized-function-kind branch; carries EffectPolicy::Unavailable on its own registration." }
+    },
+    "app.ensure.provision": {
+      "operability": "direct",
+      "surfaceAccessOverride": "apiOnly",
+      "note": "Provisioning is invoked through the /app/ensure HTTP path only today; no direct CLI/MCP tool wraps this specific dispatched intent yet."
+    },
+    "admin.link.mint": {
+      "operability": "mediated",
+      "surfaceAccessOverride": "cliOnly",
+      "mcpDeferralReason": "No MCP tool yet; a one-time operator claim link is a human-redemption artifact (LLP 0184 §Product contract's cliOnly/mediated worked example).",
+      "note": "snapback admin link (src/cli.rs AdminCommand::Link) — mints, observes, reattaches to, or revokes a one-time operator claim link via POST /_snapback/api/console/claim(/exchange|/status|/revoke). Human redemption is the operation's whole point, so every leg is mediated regardless of surfaceAccess (rule 6)."
+    },
+    "admin.link.exchange": { "operability": "mediated", "surfaceAccessOverride": "cliOnly", "mcpDeferralReason": "See admin.link.mint." },
+    "admin.link.status": { "operability": "mediated", "surfaceAccessOverride": "cliOnly", "mcpDeferralReason": "See admin.link.mint." },
+    "admin.link.revoke": { "operability": "mediated", "surfaceAccessOverride": "cliOnly", "mcpDeferralReason": "See admin.link.mint." },
+    "config.status": { "operability": "direct", "surfaceAccessOverride": "apiOnly", "mcpDeferralReason": "No `snapback config` CLI subcommand exists today; gated HTTP twin only until Phase 1's projection lands (§Product contract/P3)." },
+    "config.plan": { "operability": "direct", "surfaceAccessOverride": "apiOnly", "mcpDeferralReason": "See config.status." },
+    "config.verify": { "operability": "direct", "surfaceAccessOverride": "apiOnly", "mcpDeferralReason": "See config.status." },
+    "config.set": {
+      "operability": "direct",
+      "surfaceAccessOverride": "cliOnly",
+      "mcpDeferralReason": "No MCP secret carrier is defined (§Product contract): stdin/fd is a CLI-process carrier with no MCP equivalent. Promoting to native requires a defined, security-owner-approved MCP secret carrier first.",
+      "note": "Carries a secret value via stdin/fd (the only v1 carrier). Human entry through the existing browser/operator setup page needs no agent-facing handoff row — the agent is never in that call chain."
+    },
+    "cron.tick": { "operability": "direct", "note": "AdminClient.tickCron() (packages/snapback-admin-client/index.mjs:577); RFC research snapshot: shipped but lacks a direct control CLI/MCP projection." },
+    "cron.runOne": { "operability": "direct", "note": "AdminClient.runCronJob() (index.mjs:581)." },
+    "jobs.drain": { "operability": "direct", "note": "AdminClient.drainJobs() (index.mjs:588)." },
+    "jobs.list": { "operability": "direct", "note": "AdminClient.listJobs() (index.mjs:595)." },
+    "jobs.show": { "operability": "direct", "note": "AdminClient.showJob() (index.mjs:599)." },
+    "ephemeral.cleanup": { "operability": "direct", "note": "AdminClient.cleanupEphemeral() (index.mjs:603); RFC: 'Effectively hidden from agents and classified only as notAuthorFacing' today — this Phase 1 row records the operation as genuinely direct so a future CLI/MCP projection (Phase 2 P2) is a pure surfaceAccess widening, not an operability change." },
+    "connection.disconnect": { "operability": "direct", "note": "RFC: 'Most hidden shipped control: has only a notAuthorFacing surface-map row, no CLI/MCP/AdminClient projection' — the route itself works and is admin-gated; an agent with an admin credential can call it directly today even without a wrapper." },
+    "data.scan": { "operability": "direct", "note": "AdminClient.scanTable() (index.mjs:555)." },
+    "secretRead.mint": { "operability": "direct", "surfaceAccessOverride": "cliOnly", "mcpDeferralReason": "Ready-file-only local operator authority (src/cli.rs HostCommand::SecretReadMint doc comment: 'can never be discovered from a URL'); no MCP projection." },
+    "health": { "operability": "direct" },
+    "inspect": { "operability": "direct", "note": "Public admin-projected read alias of app.inspect's HTTP surface; distinct route from POST /_snapback/api/host-ops's app.inspect operation." },
+    "receipts": { "operability": "direct" },
+    "console.credential": {
+      "operability": "internal",
+      "internalReason": "Browser-console session-credential bootstrap machinery consumed by AdminClient's own private #restoreReachabilityCredential/#renewConsoleCredential methods, not an author/operator action a client invokes directly."
+    },
+    "console.reachability.register": { "operability": "internal", "internalReason": "Console session-bootstrap plumbing; see console.credential." },
+    "console.reachability.bind": { "operability": "internal", "internalReason": "Console session-bootstrap plumbing; see console.credential." },
+    "console.reachability.renew": { "operability": "internal", "internalReason": "Console session-bootstrap plumbing; see console.credential." },
+    "console.reachability.drop": { "operability": "internal", "internalReason": "Console session-bootstrap plumbing; see console.credential." },
+    "console.approval.request": {
+      "operability": "mediated",
+      "surfaceAccessOverride": "cliOnly",
+      "mcpDeferralReason": "No MCP tool yet; approving a short-lived console-displayed code is a human action by design (src/cli.rs AdminCommand::Approve).",
+      "note": "Backs `snapback admin approve`."
+    },
+    "console.approval.poll": { "operability": "mediated", "surfaceAccessOverride": "cliOnly", "mcpDeferralReason": "See console.approval.request." },
+    "console.approval.approve": { "operability": "mediated", "surfaceAccessOverride": "cliOnly", "mcpDeferralReason": "See console.approval.request." },
+    "push.maintenance": {
+      "operability": "internal",
+      "internalReason": "Push-notification maintenance sweep; internal scheduled/system maintenance, not an author/operator-invoked action today."
+    },
+    "client-mutations.purge": {
+      "operability": "internal",
+      "internalReason": "Internal client-mutation-log retention maintenance; not an author/operator-invoked action today."
+    },
+    "config.unset": {
+      "operability": "direct",
+      "surfaceAccessOverride": "native",
+      "note": "Carries no secret value — LLP 0036 specifies a 1:1 snapback_config_* MCP mapping alongside the CLI verb, so both projections land together (§Product contract/P3). A P2-style controlled mutation."
+    }
+  },
+  "pinned": {
+    "auth.mailbox.read": {
+      "route": "GET /_snapback/api/auth/mailbox",
+      "surfaceAccess": "apiOnly",
+      "operability": "direct",
+      "pinReason": "CredentialSecret responseSensitivity + ImpersonationCapability-adjacent effect: usage-evidence promotion to native/cliOnly/mcpOnly is refused outright per §Product contract's promotion-refusal rule, regardless of call volume. An authored override, not a threshold, is the only way past this pin, and only after passing the same secret-carrier review config.set requires.",
+      "note": "src/server.rs's route_registry() exports this row directly: GET /_snapback/api/auth/mailbox, AdminWrite policy, CredentialSecret responseSensitivity. The compiler's promotion-refusal check keys off this exact policy fact from the live export, not this override file, so this entry documents intent rather than driving enforcement."
+    }
+  }
+}

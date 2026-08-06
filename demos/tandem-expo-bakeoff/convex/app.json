@@ -1,0 +1,49 @@
+{
+  "expo": {
+    "name": "Tandem · Convex",
+    "slug": "tandem-convex",
+    "scheme": "tandem-convex",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "plugins": [
+      "expo-router",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Tandem uses your photos when you attach an image to a message.",
+          "microphonePermission": false
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "dev.snapback.tandem.convex",
+      "infoPlist": {
+        "NSAppTransportSecurity": {
+          "NSAllowsLocalNetworking": true
+        },
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "dev.snapback.tandem.convex",
+      "usesCleartextTraffic": true
+    },
+    "web": {
+      "bundler": "metro"
+    },
+    "extra": {
+      "router": {},
+      "backend": "convex",
+      "eas": {
+        "projectId": "ae598603-7b54-4a7d-aa07-ce7993b43799"
+      }
+    },
+    "owner": "ccheever"
+  }
+}

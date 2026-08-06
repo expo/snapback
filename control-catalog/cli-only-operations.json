@@ -1,0 +1,183 @@
+{
+  "$schemaNote": "LLP 0184 §3's fourth domain family: CLI-only local operations that never bind a server port or register in the LLP 0031 route registry or the LLP 0024 host-op registry (`snapback fork`, `snapback auth`, `snapback build-identity`, the local-only telemetry SQL hatch, and `snapback migrate`). Hand-authored per command, keyed by CLI command path, not derived from `clap` (which carries only a name and a doc-comment string per §3). Every field here is this manifest's own declaration, never compiler guesswork. Command shapes verified against src/cli.rs's HostCommand/ForkCommand/AuthCommand/TelemetryCommand/MigrateCommand enums.",
+  "entries": [
+    {
+      "operation": "cli.fork.create",
+      "title": "Create a finite-TTL derived deployment",
+      "intents": ["fork the database", "derived instance", "ephemeral copy of the app", "scratch database for testing"],
+      "cli": "snapback fork create",
+      "guide": null,
+      "policy": { "authority": "operator", "effect": "provisioning", "responseSensitivity": "OperatorMetadata" },
+      "behavior": { "readOnly": false, "destructive": false, "idempotent": false, "openWorld": false, "persistsAcrossRestart": true },
+      "mcpDeferralReason": "No MCP tool yet; fork lifecycle is a local filesystem/process operation with no control-MCP projection designed (LLP 0184 Phase 2 candidate).",
+      "sources": ["src/cli.rs:807 HostCommand::Fork", "src/cli.rs:1234 ForkCommand::Create"]
+    },
+    {
+      "operation": "cli.fork.list",
+      "title": "List derived-deployment lifecycle records",
+      "intents": ["list forks", "show derived deployments"],
+      "cli": "snapback fork list",
+      "guide": null,
+      "policy": { "authority": "operator", "effect": "none", "responseSensitivity": "OperatorMetadata" },
+      "behavior": { "readOnly": true, "destructive": false, "idempotent": true, "openWorld": false, "persistsAcrossRestart": false },
+      "mcpDeferralReason": "No MCP tool yet (LLP 0184 Phase 2 candidate).",
+      "sources": ["src/cli.rs:1258 ForkCommand::List"]
+    },
+    {
+      "operation": "cli.fork.diff",
+      "title": "Render a fork's app-row-only post-fork journal receipt",
+      "intents": ["diff a fork", "what changed in this fork"],
+      "cli": "snapback fork diff",
+      "guide": null,
+      "policy": { "authority": "operator", "effect": "none", "responseSensitivity": "OperatorMetadata" },
+      "behavior": { "readOnly": true, "destructive": false, "idempotent": true, "openWorld": false, "persistsAcrossRestart": false },
+      "mcpDeferralReason": "No MCP tool yet (LLP 0184 Phase 2 candidate).",
+      "sources": ["src/cli.rs:1265 ForkCommand::Diff"]
+    },
+    {
+      "operation": "cli.fork.drop",
+      "title": "Stop and delete one registry-bound fork",
+      "intents": ["delete a fork", "tear down a derived deployment"],
+      "cli": "snapback fork drop",
+      "guide": null,
+      "policy": { "authority": "operator", "effect": "none", "responseSensitivity": "OperatorMetadata" },
+      "behavior": { "readOnly": false, "destructive": true, "approvalPosture": "confirmFirst", "idempotent": true, "openWorld": false, "persistsAcrossRestart": true },
+      "mcpDeferralReason": "No MCP tool yet (LLP 0184 Phase 2 candidate).",
+      "sources": ["src/cli.rs:1275 ForkCommand::Drop"]
+    },
+    {
+      "operation": "cli.fork.reap",
+      "title": "Stop and delete every fork expired at a supplied clock",
+      "intents": ["clean up expired forks", "reap forks"],
+      "cli": "snapback fork reap",
+      "guide": null,
+      "policy": { "authority": "operator", "effect": "none", "responseSensitivity": "OperatorMetadata" },
+      "behavior": { "readOnly": false, "destructive": true, "approvalPosture": "confirmFirst", "idempotent": true, "openWorld": false, "persistsAcrossRestart": true },
+      "mcpDeferralReason": "No MCP tool yet (LLP 0184 Phase 2 candidate).",
+      "sources": ["src/cli.rs:1283 ForkCommand::Reap"]
+    },
+    {
+      "operation": "cli.auth.backup",
+      "title": "Create an offline physical auth backup",
+      "intents": ["back up auth keys", "offline auth backup"],
+      "cli": "snapback auth backup",
+      "guide": null,
+      "policy": { "authority": "operator", "effect": "none", "responseSensitivity": "OperatorMetadata" },
+      "behavior": { "readOnly": true, "destructive": false, "idempotent": true, "openWorld": false, "persistsAcrossRestart": true },
+      "mcpDeferralReason": "Filesystem-custody operation with no safe non-local carrier defined; not MCP-projected (LLP 0184 v1 posture, analogous to config.set's stdin/fd-only carrier).",
+      "sources": ["src/cli.rs:802 HostCommand::Auth", "src/cli.rs:1216 AuthCommand::Backup"]
+    },
+    {
+      "operation": "cli.auth.restore",
+      "title": "Restore an offline physical auth backup",
+      "intents": ["restore auth keys", "restore from backup"],
+      "cli": "snapback auth restore",
+      "guide": null,
+      "policy": { "authority": "operator", "effect": "none", "responseSensitivity": "OperatorMetadata" },
+      "behavior": { "readOnly": false, "destructive": true, "approvalPosture": "confirmFirst", "idempotent": false, "openWorld": false, "persistsAcrossRestart": true },
+      "mcpDeferralReason": "Filesystem-custody operation with no safe non-local carrier defined; not MCP-projected.",
+      "sources": ["src/cli.rs:1223 AuthCommand::Restore"]
+    },
+    {
+      "operation": "cli.buildIdentity",
+      "title": "Print this executable's independently stamped build identity",
+      "intents": ["what build is this", "build identity", "version and commit"],
+      "cli": "snapback build-identity",
+      "guide": null,
+      "policy": { "authority": "none", "effect": "none", "responseSensitivity": "PublicProjection" },
+      "behavior": { "readOnly": true, "destructive": false, "idempotent": true, "openWorld": false, "persistsAcrossRestart": false },
+      "mcpDeferralReason": "No MCP tool yet; app.inspect's data already carries build identity for the running process, so a dedicated MCP tool has not been justified by usage evidence.",
+      "sources": ["src/cli.rs:819 HostCommand::BuildIdentity"]
+    },
+    {
+      "operation": "cli.telemetry.query",
+      "title": "Local-only read-only SQL over telemetry visibility views",
+      "intents": ["run SQL against telemetry", "query telemetry with SQL", "custom telemetry query"],
+      "cli": "snapback telemetry query",
+      "guide": null,
+      "policy": { "authority": "operator", "effect": "none", "responseSensitivity": "SensitiveApplicationData" },
+      "behavior": { "readOnly": true, "destructive": false, "idempotent": true, "openWorld": false, "persistsAcrossRestart": false },
+      "mcpDeferralReason": "Local-only, never networked (src/cli.rs's TelemetryCommand::Query doc comment); bounded max_rows/max_steps/max_time_ms/max_bytes budgets are a CLI-process safety property this row does not yet have an MCP-safe equivalent for.",
+      "sources": ["src/cli.rs:1001 TelemetryCommand::Query", "src/telemetry_query.rs"]
+    },
+    {
+      "operation": "cli.migrate.preview",
+      "title": "Compute a deterministic migration plan and observation",
+      "intents": ["preview a schema migration", "plan a migration"],
+      "cli": "snapback migrate preview",
+      "guide": null,
+      "policy": { "authority": "operator", "effect": "none", "responseSensitivity": "OperatorMetadata" },
+      "behavior": { "readOnly": true, "destructive": false, "idempotent": true, "openWorld": false, "persistsAcrossRestart": false },
+      "mcpDeferralReason": "No MCP tool yet; migration authoring is a local file-based workflow (LLP 0081) with no control-MCP projection designed.",
+      "sources": ["src/cli.rs:1092 MigrateCommand", "src/cli.rs:1095 MigrateCommand::Preview"]
+    },
+    {
+      "operation": "cli.migrate.approve",
+      "title": "Record a local authenticated operator approval of a migration plan",
+      "intents": ["approve a migration"],
+      "cli": "snapback migrate approve",
+      "guide": null,
+      "policy": { "authority": "operator", "effect": "none", "responseSensitivity": "OperatorMetadata" },
+      "behavior": { "readOnly": false, "destructive": false, "idempotent": false, "openWorld": false, "persistsAcrossRestart": true },
+      "mcpDeferralReason": "No MCP tool yet (LLP 0081-owned local workflow).",
+      "sources": ["src/cli.rs:1131 MigrateCommand::Approve"]
+    },
+    {
+      "operation": "cli.migrate.apply",
+      "title": "Execute an approved migration plan",
+      "intents": ["apply a migration", "run a migration"],
+      "cli": "snapback migrate apply",
+      "guide": null,
+      "policy": { "authority": "operator", "effect": "none", "responseSensitivity": "OperatorMetadata" },
+      "behavior": { "readOnly": false, "destructive": true, "approvalPosture": "humanApprovalRequired", "idempotent": false, "openWorld": false, "persistsAcrossRestart": true },
+      "mcpDeferralReason": "No MCP tool yet (LLP 0081-owned local workflow); schema migration apply is not a v1 agent-direct operation by design.",
+      "sources": ["src/cli.rs:1150 MigrateCommand::Apply"]
+    },
+    {
+      "operation": "cli.migrate.rehearse",
+      "title": "Execute an approved migration plan as a rehearsal",
+      "intents": ["rehearse a migration", "dry-run a migration on a restore"],
+      "cli": "snapback migrate rehearse",
+      "guide": null,
+      "policy": { "authority": "operator", "effect": "none", "responseSensitivity": "OperatorMetadata" },
+      "behavior": { "readOnly": false, "destructive": false, "idempotent": false, "openWorld": false, "persistsAcrossRestart": true },
+      "mcpDeferralReason": "No MCP tool yet (LLP 0081-owned local workflow).",
+      "sources": ["src/cli.rs:1172 MigrateCommand::Rehearse"]
+    },
+    {
+      "operation": "cli.migrate.cancel",
+      "title": "Request migration cancellation at the next admitted boundary",
+      "intents": ["cancel a migration"],
+      "cli": "snapback migrate cancel",
+      "guide": null,
+      "policy": { "authority": "operator", "effect": "none", "responseSensitivity": "OperatorMetadata" },
+      "behavior": { "readOnly": false, "destructive": false, "idempotent": true, "openWorld": false, "persistsAcrossRestart": true },
+      "mcpDeferralReason": "No MCP tool yet (LLP 0081-owned local workflow).",
+      "sources": ["src/cli.rs:1190 MigrateCommand::Cancel"]
+    },
+    {
+      "operation": "cli.migrate.verify",
+      "title": "Check a migration receipt against the journal",
+      "intents": ["verify a migration"],
+      "cli": "snapback migrate verify",
+      "guide": null,
+      "policy": { "authority": "operator", "effect": "none", "responseSensitivity": "OperatorMetadata" },
+      "behavior": { "readOnly": true, "destructive": false, "idempotent": true, "openWorld": false, "persistsAcrossRestart": false },
+      "mcpDeferralReason": "No MCP tool yet (LLP 0081-owned local workflow).",
+      "sources": ["src/cli.rs:1198 MigrateCommand::Verify"]
+    },
+    {
+      "operation": "cli.migrate.rollback",
+      "title": "Roll back a migration (not yet available on this profile)",
+      "intents": ["roll back a migration"],
+      "cli": "snapback migrate rollback",
+      "guide": null,
+      "policy": { "authority": "operator", "effect": "unavailable", "responseSensitivity": "OperatorMetadata" },
+      "behavior": { "readOnly": false, "destructive": true, "approvalPosture": "humanApprovalRequired", "idempotent": false, "openWorld": false, "persistsAcrossRestart": true },
+      "operabilityOverride": "unavailable",
+      "unavailableReason": { "owner": "llp/0081-declarative-schema-evolution", "ticketOrDesignPointer": "llp/0081-declarative-schema-evolution.spec.md", "note": "Refuses with SNAPBACK_MIGRATION_ROLLBACK_UNAVAILABLE per src/cli.rs's own doc comment; not yet available on this profile." },
+      "mcpDeferralReason": "Unavailable operation; no MCP tool.",
+      "sources": ["src/cli.rs:1206 MigrateCommand::Rollback"]
+    }
+  ]
+}

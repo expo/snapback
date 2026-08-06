@@ -1,0 +1,12 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    "paths": {
+      "@/*": ["./src/*"],
+      "@tandem/shared/*": ["../shared/*"]
+    },
+    "resolveJsonModule": true
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx", "convex/**/*.ts", "../shared/**/*.ts", "../shared/**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts"]
+}

@@ -48,6 +48,7 @@ const inventories = [
     suffix: '.test.mjs',
     expectedFiles: [
       'adapters/fly-machines-vm-driver.test.mjs',
+      'agent-setup.test.mjs',
       'cli-help.test.mjs',
       'comparator-profile.test.mjs',
       'dev-cli-diagnostics.test.mjs',
@@ -557,7 +558,11 @@ const total = results.reduce((sum, result) => sum + result.count, 0);
 // gains composed and non-executing CLI help acceptance coverage.
 // 203 -> 204 (2026-08-05, LLP 0129 Phase 2b): the desktop-sidecar package
 // gains its descriptor/capability/publication contract suite.
-assert.equal(total, 204, 'reviewed package/admin test count changed');
+// 204 -> 205 (2026-08-05, LLP 0176 G0 reconciliation): @expo/snapback-cli's
+// agent-setup.test.mjs (landed 753191e46 with its test-script entry) is
+// registered here — that landing added the file without updating this
+// canonical inventory; caught while landing the G0 lane.
+assert.equal(total, 205, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }

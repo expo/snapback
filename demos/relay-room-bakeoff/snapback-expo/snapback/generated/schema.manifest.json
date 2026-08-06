@@ -1,0 +1,311 @@
+{
+  "appId": "snapback-expo",
+  "artifactDiagnostics": [],
+  "artifactKind": "schemaManifest",
+  "ephemeralCollections": [
+    {
+      "burst": 8,
+      "defaultTtlMs": 4000,
+      "dispatchMs": 80,
+      "hardMaxValueBytes": 4096,
+      "keyMode": "Connection",
+      "maxPendingEphemeralKeys": 1024,
+      "maxTtlMs": 8000,
+      "maxValueBytes": 512,
+      "name": "typing",
+      "publish": "AllowAll",
+      "routingFields": [
+        "conversationId"
+      ],
+      "scopeContract": {
+        "allowExtra": false,
+        "fields": [
+          {
+            "name": "conversationId",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          }
+        ],
+        "kind": "object"
+      },
+      "scopeFields": [
+        "conversationId"
+      ],
+      "subscribe": "AllowAll",
+      "sustainedHz": 4,
+      "valueContract": {
+        "allowExtra": false,
+        "fields": [
+          {
+            "name": "userId",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          },
+          {
+            "name": "name",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          }
+        ],
+        "kind": "object"
+      }
+    }
+  ],
+  "generatedAt": 0,
+  "inputsHash": "09842ae38a3ed5541d38007af3d1a125036c96d947e6d862ff824484cc815732",
+  "portabilityFlags": [],
+  "schemaHash": "sha256:5f012949f1f82b31",
+  "schemaVersion": "snapback.v0",
+  "tables": [
+    {
+      "fields": [
+        {
+          "field_type": "String",
+          "name": "handle",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "name",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "color",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "handle"
+          ],
+          "name": "by_handle",
+          "unique": true
+        }
+      ],
+      "name": "users",
+      "syncable": true
+    },
+    {
+      "fields": [
+        {
+          "field_type": "String",
+          "name": "kind",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "title",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "updatedAt",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "lastPreview",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "updatedAt"
+          ],
+          "name": "by_updated"
+        }
+      ],
+      "name": "conversations",
+      "syncable": true
+    },
+    {
+      "fields": [
+        {
+          "field_type": {
+            "Id": {
+              "table": "conversations"
+            }
+          },
+          "name": "conversationId",
+          "optional": false
+        },
+        {
+          "field_type": {
+            "Id": {
+              "table": "users"
+            }
+          },
+          "name": "userId",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "userId"
+          ],
+          "name": "by_user"
+        },
+        {
+          "fields": [
+            "conversationId"
+          ],
+          "name": "by_conversation"
+        },
+        {
+          "fields": [
+            "conversationId",
+            "userId"
+          ],
+          "name": "by_conversation_user",
+          "unique": true
+        }
+      ],
+      "name": "memberships",
+      "syncable": true
+    },
+    {
+      "assetSharing": {
+        "kind": "public-read"
+      },
+      "fields": [
+        {
+          "field_type": {
+            "Id": {
+              "table": "conversations"
+            }
+          },
+          "name": "conversationId",
+          "optional": false
+        },
+        {
+          "field_type": {
+            "Id": {
+              "table": "users"
+            }
+          },
+          "name": "senderId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "kind",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "text",
+          "optional": true
+        },
+        {
+          "field_type": {
+            "AssetRef": {
+              "upload": "messageImageUpload"
+            }
+          },
+          "name": "image",
+          "optional": true
+        },
+        {
+          "field_type": {
+            "Id": {
+              "table": "messages"
+            }
+          },
+          "name": "replyToId",
+          "optional": true
+        },
+        {
+          "field_type": "Integer",
+          "name": "sentAt",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "conversationId",
+            "sentAt"
+          ],
+          "name": "by_conversation_sent"
+        }
+      ],
+      "name": "messages",
+      "syncable": true
+    },
+    {
+      "fields": [
+        {
+          "field_type": {
+            "Id": {
+              "table": "conversations"
+            }
+          },
+          "name": "conversationId",
+          "optional": false
+        },
+        {
+          "field_type": {
+            "Id": {
+              "table": "messages"
+            }
+          },
+          "name": "messageId",
+          "optional": false
+        },
+        {
+          "field_type": {
+            "Id": {
+              "table": "users"
+            }
+          },
+          "name": "userId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "emoji",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "conversationId"
+          ],
+          "name": "by_conversation"
+        },
+        {
+          "fields": [
+            "messageId"
+          ],
+          "name": "by_message"
+        },
+        {
+          "fields": [
+            "messageId",
+            "userId",
+            "emoji"
+          ],
+          "name": "by_message_user_emoji",
+          "unique": true
+        }
+      ],
+      "name": "reactions",
+      "syncable": true
+    }
+  ],
+  "targetProfile": "local-dev-sqlite-ibex"
+}

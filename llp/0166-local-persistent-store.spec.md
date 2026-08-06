@@ -6,7 +6,10 @@
 Live queries, Relational queries, Optimistic updates, Auth, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-08-03
-**Revised:** 2026-08-05 (D1/DK-9 diagnostic-spelling reconciliation: the
+**Revised:** 2026-08-05 (Fleet blocker reconciliation: LLP 0135 OQ5's product
+direction is ruled in favor of narrow `snapshot-batch.v2`; the carrier row
+remains GAP pending reviewed profile registration, implementation, and a fresh
+Fleet witness.) 2026-08-05 (D1/DK-9 diagnostic-spelling reconciliation: the
 successor RQS store's authoritative emitted code remains
 `SNAPBACK_RQS_STORE_LOCK_UNAVAILABLE`; LLP 0008's generic CLIENT spelling is
 the owner-level semantic alias and remains emitted only by the predecessor
@@ -1899,9 +1902,11 @@ No other ceiling changes owner or value.
 The dated 2026-08-04 carrier exit is 16 PASS / 1 Fleet GAP / 0 skipped, and
 the dated Triage Move-1 exit is 8/8. Those retained receipts satisfy the local
 publication predicate and are bound by
-`src/local-persistent-store-publication.v1.json`. Fleet's LLP 0135 OQ5 remains
-the sole carrier-exit GAP; it does not retract the explicitly qualified local
-publication.
+`src/local-persistent-store-publication.v1.json`. Fleet remains the sole
+carrier-exit GAP. The 2026-08-05 LLP 0135 OQ5 direction is ruled, but the
+reviewed `snapshot-batch.v2` registration, implementation, and fresh Fleet
+witness have not landed; the GAP does not retract the explicitly qualified
+local publication.
 
 ## Guardrails
 
@@ -2180,8 +2185,9 @@ Micro-profile packaging; no change to outbox/settlement custody semantics
    reaped-context memory / 1,024 consumed-request outcomes / 1,024
    released-registration tombstones / 64-byte identifiers / 256 KiB
    broker messages) await the corrected, reason-based Triage custody freeze and
-   Fleet's LLP 0135 OQ5-unblocked footprint before their first measured
-   revision. The immutable 2026-08-03 Triage predecessor captured pre-
+   Fleet's footprint after reviewed `snapshot-batch.v2` registration and
+   implementation before their first measured revision. The immutable
+   2026-08-03 Triage predecessor captured pre-
    maintenance payloads and is superseded for this purpose; the fresh dated
    fixture must retain one registered payload and compact the 20 released
    `none` records to inspected stubs. The constants surface in the policy
@@ -2280,8 +2286,9 @@ contributor-source `LocalCapabilityPublicationV1` carrier for
 `single_table_v1`. That carrier binds this Spec's carrier-exit evidence, the
 qualified Triage successor receipts, and the exact implementation sources;
 it does not generalize to Fleet, public packages, remote services, or hosted
-targets. The Fleet footprint/hydration leg remains the explicit LLP 0135 OQ5
-boundary.
+targets. The Fleet footprint/hydration leg remains an explicit GAP after the
+2026-08-05 LLP 0135 OQ5 direction ruling, pending the reviewed
+`snapshot-batch.v2` registration, implementation, and fresh witness.
 
 The source-owned `local-persistent-store-publication.anchor.v1.json` is the
 only carrier selector: its closed `published` record names `single_table_v1`

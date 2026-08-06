@@ -1,0 +1,50 @@
+{
+  "seedVersion": "2026-08-05.1",
+  "tables": {
+    "users": [
+      { "_id": "user_ada", "displayName": "Ada", "handle": "ada", "color": "#7C5CFC" },
+      { "_id": "user_mina", "displayName": "Mina", "handle": "mina", "color": "#EC6B82" },
+      { "_id": "user_ravi", "displayName": "Ravi", "handle": "ravi", "color": "#2D9C89" },
+      { "_id": "user_noor", "displayName": "Noor", "handle": "noor", "color": "#E79B3B" }
+    ],
+    "conversations": [
+      { "_id": "conv_mina", "isGroup": false, "accent": "#EC6B82" },
+      { "_id": "conv_crew", "title": "Design Crew", "isGroup": true, "accent": "#6C56E7" },
+      { "_id": "conv_ravi", "isGroup": false, "accent": "#2D9C89" }
+    ],
+    "conversationMembers": [
+      { "_id": "member_mina_ada", "conversationId": "conv_mina", "userId": "user_ada", "lastReadAt": 1785942120000 },
+      { "_id": "member_mina_mina", "conversationId": "conv_mina", "userId": "user_mina", "lastReadAt": 1785942120000 },
+      { "_id": "member_crew_ada", "conversationId": "conv_crew", "userId": "user_ada", "lastReadAt": 1785937200000 },
+      { "_id": "member_crew_mina", "conversationId": "conv_crew", "userId": "user_mina", "lastReadAt": 1785942120000 },
+      { "_id": "member_crew_ravi", "conversationId": "conv_crew", "userId": "user_ravi", "lastReadAt": 1785942120000 },
+      { "_id": "member_crew_noor", "conversationId": "conv_crew", "userId": "user_noor", "lastReadAt": 1785942120000 },
+      { "_id": "member_ravi_ada", "conversationId": "conv_ravi", "userId": "user_ada", "lastReadAt": 1785855600000 },
+      { "_id": "member_ravi_ravi", "conversationId": "conv_ravi", "userId": "user_ravi", "lastReadAt": 1785942120000 }
+    ],
+    "messages": [
+      { "_id": "msg_mina_1", "conversationId": "conv_mina", "senderId": "user_mina", "text": "Morning! I mocked the launch card.", "createdAt": 1785939600000 },
+      { "_id": "msg_mina_2", "conversationId": "conv_mina", "senderId": "user_mina", "text": "The warmer crop feels much more human.", "seedImageUrl": "https://images.unsplash.com/photo-1516979187457-637abb4f9353?auto=format&fit=crop&w=1200&q=80", "createdAt": 1785939780000 },
+      { "_id": "msg_mina_3", "conversationId": "conv_mina", "senderId": "user_ada", "text": "The type rhythm is perfect. Let’s ship that one.", "replyToId": "msg_mina_2", "createdAt": 1785940200000 },
+      { "_id": "msg_mina_4", "conversationId": "conv_mina", "senderId": "user_mina", "text": "Done. I’ll export the remaining sizes after lunch ✨", "createdAt": 1785942120000 },
+
+      { "_id": "msg_crew_1", "conversationId": "conv_crew", "senderId": "user_ravi", "text": "Picnic check: blanket, peaches, tiny speaker?", "createdAt": 1785934200000 },
+      { "_id": "msg_crew_2", "conversationId": "conv_crew", "senderId": "user_noor", "text": "And the absurdly good lemonade.", "createdAt": 1785934800000 },
+      { "_id": "msg_crew_3", "conversationId": "conv_crew", "senderId": "user_mina", "text": "This is the spot I was thinking of.", "seedImageUrl": "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=80", "createdAt": 1785936000000 },
+      { "_id": "msg_crew_4", "conversationId": "conv_crew", "senderId": "user_ada", "text": "Perfect. I can be there around five.", "replyToId": "msg_crew_3", "createdAt": 1785936600000 },
+      { "_id": "msg_crew_5", "conversationId": "conv_crew", "senderId": "user_ravi", "text": "I’ll bring cups and a backup layer for sunset.", "createdAt": 1785939000000 },
+      { "_id": "msg_crew_6", "conversationId": "conv_crew", "senderId": "user_noor", "text": "Calendar invite is out. No decks allowed.", "createdAt": 1785940800000 },
+
+      { "_id": "msg_ravi_1", "conversationId": "conv_ravi", "senderId": "user_ada", "text": "Did the build finish cleanly?", "createdAt": 1785852000000 },
+      { "_id": "msg_ravi_2", "conversationId": "conv_ravi", "senderId": "user_ravi", "text": "Yep — both platforms green. I left notes in the diary.", "createdAt": 1785855600000 }
+    ],
+    "reactions": [
+      { "_id": "reaction_1", "conversationId": "conv_mina", "messageId": "msg_mina_2", "userId": "user_ada", "emoji": "❤️" },
+      { "_id": "reaction_2", "conversationId": "conv_mina", "messageId": "msg_mina_3", "userId": "user_mina", "emoji": "👍" },
+      { "_id": "reaction_3", "conversationId": "conv_crew", "messageId": "msg_crew_3", "userId": "user_ada", "emoji": "❤️" },
+      { "_id": "reaction_4", "conversationId": "conv_crew", "messageId": "msg_crew_3", "userId": "user_ravi", "emoji": "❤️" },
+      { "_id": "reaction_5", "conversationId": "conv_crew", "messageId": "msg_crew_6", "userId": "user_mina", "emoji": "😂" },
+      { "_id": "reaction_6", "conversationId": "conv_crew", "messageId": "msg_crew_6", "userId": "user_ravi", "emoji": "😂" }
+    ]
+  }
+}
