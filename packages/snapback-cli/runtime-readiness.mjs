@@ -138,7 +138,11 @@ export function packagedRuntimeArtifactCandidates(root, { platform = process.pla
   return platform === 'darwin'
     ? [
         join(root, 'include/hermes/hermes.h.artifact'),
-        join(root, 'Frameworks/hermesvm.framework/hermesvm'),
+        // The Mach-O install name is
+        // `@rpath/hermesvm.framework/Versions/1/hermesvm`. npm omits the
+        // framework's convenience symlinks, so bind the real file dyld opens
+        // rather than a pre-pack alias that does not survive installation.
+        join(root, 'Frameworks/hermesvm.framework/Versions/1/hermesvm'),
       ]
     : [
         join(root, 'include/hermes/hermes.h.artifact'),

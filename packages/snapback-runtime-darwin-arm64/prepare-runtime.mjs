@@ -25,6 +25,7 @@ const sourceHermesHeader = resolve(
   process.env.SNAPBACK_RUNTIME_HERMES_HEADER
     ?? join(repositoryRoot, 'vendor', 'ibex', 'ios', 'Frameworks', 'hermes-headers', 'hermes', 'hermes.h'),
 );
+const sourceHermesRuntime = join(sourceFramework, 'Versions', '1', 'hermesvm');
 
 function fail(code, message) {
   console.error(`${code}: ${message}`);
@@ -43,7 +44,7 @@ if (!existsSync(sourceBinary)) {
     `release binary is missing at ${sourceBinary}; run scripts/bootstrap-ibex-runtime and cargo build --release`,
   );
 }
-if (!existsSync(join(sourceFramework, 'Versions'))) {
+if (!existsSync(sourceHermesRuntime)) {
   fail(
     'SNAPBACK_CAPABILITY_IBEX_HERMES_MISSING',
     `Hermes framework is missing at ${sourceFramework}; run scripts/bootstrap-ibex-runtime`,
@@ -104,7 +105,17 @@ mkdirSync(frameworksDirectory, { recursive: true });
 mkdirSync(join(includeDirectory, 'hermes'), { recursive: true });
 cpSync(sourceBinary, join(binDirectory, 'snapback'));
 chmodSync(join(binDirectory, 'snapback'), 0o755);
-cpSync(sourceFramework, join(frameworksDirectory, 'hermesvm.framework'), {
+// @ref LLP 0123#package-seal-landing-2026-08-06 — seal the real versioned
+// file that dyld opens and npm preserves, not the framework's pack-time alias.
+// The binary loads the versioned framework file directly. Stage that real
+// npm-delivered tree, without the conventional framework symlinks that npm
+// omits from packed and installed packages.
+cpSync(join(sourceFramework, 'Versions', '1'), join(
+  frameworksDirectory,
+  'hermesvm.framework',
+  'Versions',
+  '1',
+), {
   recursive: true,
   preserveTimestamps: true,
 });

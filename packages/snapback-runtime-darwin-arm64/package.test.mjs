@@ -7,6 +7,7 @@ import {
   mkdtempSync,
   readFileSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -54,7 +55,9 @@ function writeFixture(path, contents) {
 const sealRoot = mkdtempSync(join(tmpdir(), 'snapback-darwin-package-seal-'));
 try {
   const binary = join(sealRoot, 'bin', 'snapback');
-  const framework = join(sealRoot, 'Frameworks', 'hermesvm.framework', 'hermesvm');
+  const frameworkRoot = join(sealRoot, 'Frameworks', 'hermesvm.framework');
+  const framework = join(frameworkRoot, 'Versions', '1', 'hermesvm');
+  const frameworkAlias = join(frameworkRoot, 'hermesvm');
   const header = join(sealRoot, 'include', 'hermes', 'hermes.h.artifact');
   const binarySource = `#!/usr/bin/env node
 if (process.argv[2] !== 'runtime-qualify') process.exit(2);
@@ -74,6 +77,7 @@ process.exit(ok ? 0 : 1);
   writeFixture(binary, binarySource);
   chmodSync(binary, 0o755);
   writeFixture(framework, 'darwin Hermes runtime bytes');
+  symlinkSync('Versions/1/hermesvm', frameworkAlias);
   writeFixture(header, 'darwin Hermes compile header bytes');
 
   const sealed = produceRuntimePackageSeal({
@@ -90,6 +94,17 @@ process.exit(ok ? 0 : 1);
   assert.equal(sealed.receipt.sourceRevision, sourceRevision);
   assert.equal(sealed.receipt.buildIdentity.buildDistribution, 'public-package');
   assert.equal(sealed.receipt.artifacts.length, 2);
+  assert.deepEqual(
+    sealed.receipt.artifacts.map((artifact) => artifact.path),
+    [
+      'include/hermes/hermes.h.artifact',
+      'Frameworks/hermesvm.framework/Versions/1/hermesvm',
+    ],
+  );
+
+  // npm omits framework symlinks. Removing the pre-pack convenience alias
+  // must leave an installed-package-shaped closure whose seal still opens.
+  rmSync(frameworkAlias);
   assert.equal(verifyRuntimePackageSeal({
     root: sealRoot,
     binaryPath: binary,
@@ -155,4 +170,4 @@ if (existsSync(binary)) {
   assertPublicPackageBuildIdentity(JSON.parse(identity.stdout));
   assert.equal(resolveRuntimeBinary().binary, binary);
 }
-console.log('package.test.mjs: Darwin arm64 seal verdict + framework-drift + binary-drift + qualification refusal pass');
+console.log('package.test.mjs: Darwin arm64 npm-shaped seal + framework-drift + binary-drift + qualification refusal pass');
