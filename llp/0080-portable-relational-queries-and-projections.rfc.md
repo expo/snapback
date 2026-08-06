@@ -5,7 +5,11 @@
 **Systems:** Application data API, Query planning, Storage portability, Live Queries, Authorization, Code generation, Maintained projections, Diagnostics, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-20
-**Revised:** 2026-08-03, later (`single_table_v1@1` owner amendment:
+**Revised:** 2026-08-05 (LLP 0135 OQ5 owner ruling: narrow multi-node
+relational composition is accepted in direction through reserved
+`snapshot-batch.v2`; this RFC's node grammar and standalone semantics remain
+unchanged, and profile activation still requires LLP 0157's reviewed exact
+registration); 2026-08-03, later (`single_table_v1@1` owner amendment:
 the closed retention set gains the single-table-only,
 authority-independent `rqs-authority-independent-snapshot-v1` exception;
 neither authenticated class widens, anonymous retention otherwise remains
@@ -815,12 +819,13 @@ Accepted LLP 0157 registers this RFC's `relational_query_v1` node class,
 `RelationalQueryPlanV1` owner record, `relational-query.v1` cursor profile,
 and exact ordered boundary/`_id` variant. This RFC continues to own the
 relational grammar, visibility, index, result encoding, standalone cursor,
-and live semantics. `single-node.v1` is admitted now; multi-node relational
-composition still requires LLP 0135 OQ5's versioned successor registration
-in LLP 0157. LLP 0157's fragment seam does not authorize local relational
-re-evaluation: this RFC's opaque-snapshot-only retention rule remains until a
-separately accepted amendment changes it. No implementation or capability
-fact follows from the boundary.
+and live semantics. `single-node.v1` is admitted now. Charlie's 2026-08-05
+LLP 0135 OQ5 ruling directs narrow multi-node admission through reserved
+`snapshot-batch.v2` / `sbsb2`; activation still requires LLP 0157's reviewed
+exact profile registration. LLP 0157's fragment seam does not authorize local
+relational re-evaluation: this RFC's opaque-snapshot-only retention rule
+remains until a separately accepted amendment changes it. No implementation
+or capability fact follows from the boundary.
 
 ## LLP 0109 acceptance reconciliation — 2026-08-03
 

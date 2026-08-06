@@ -6,7 +6,11 @@
 Client SDK, Live queries, Wire Protocol, Codegen, Admin console, Testing
 **Author:** Charlie Cheever / Claude (Fable 5) / Codex
 **Date:** 2026-08-02
-**Revised:** 2026-08-02 (v0.1, initial draft — the Move-1 owning Spec
+**Revised:** 2026-08-05 (Charlie owner ruling: narrow relational-composite
+direction accepted; `snapshot-batch.v2` / `sbsb2` is reserved as the fourth
+profile, reusing `relational_query_v1@1` and §D2–§D7, with activation still
+gated on the exact reviewed registry/cursor amendment and executable evidence);
+2026-08-02 (v0.1, initial draft — the Move-1 owning Spec
 commissioned by LLP 0155's acceptance (fc19d8ed) and assigned to a Fable
 authoring session by the 2026-08-02 decision sitting, ruling 11
 (`issues/20260802-author-decision-packet.md`).) 2026-08-02 (v0.2,
@@ -190,9 +194,10 @@ to its section, owner, or blocking dependency. It does **not** own:
   the sealed `absent` envelope, ceilings, v1 classification, and the
   maturity/acknowledgment route remain LLP 0135 Part 2's. This Spec owns
   only the cross-family cursor grammar and the identity/witness/store layers
-  around that execution (§D8). Admitting `relational_query_v1` nodes
-  *inside* a multi-node composite is still LLP 0135 OQ5's successor
-  decision, not an inference made here.
+  around that execution (§D8). LLP 0135's 2026-08-05 OQ5 ruling now directs
+  narrow `relational_query_v1@1` admission in reserved `snapshot-batch.v2`;
+  this Spec owns the still-required exact reviewed registry/cursor amendment,
+  not the product decision itself.
 - **Wire encodings.** The status, proof, and inspection facts get wire
   shapes as dated amendments with LLP 0093/0094.
 - **Store carriers and the authorization fence machinery.** LLP 0008
@@ -252,7 +257,7 @@ The active node-class registry is exact:
 
 | `classId` | `classVersion` | Owner-normalized record | Single node | Multi-node profile | Parent group |
 | --- | ---: | --- | --- | --- | --- |
-| `relational_query_v1` | 1 | LLP 0080 `RelationalQueryPlanV1` | admitted | not admitted until LLP 0135 OQ5's versioned successor | none |
+| `relational_query_v1` | 1 | LLP 0080 `RelationalQueryPlanV1` | admitted | owner-directed for reserved `snapshot-batch.v2`; activation awaits the reviewed profile amendment | none |
 | `bounded_children_v1` | 1 | LLP 0110 `BoundedChildrenQueryPlanV1` | admitted | `snapshot-batch.v1` | required |
 | `exported_query_v1` | 1 | `ExportedQueryPlanV1` below, reconstructed from the served function manifest | not admitted as an algebra single-node API | `mixed-route.v2` | none |
 | `single_table_v1` | 1 | LLP 0004/0007 `SingleTablePlanV1` | admitted through `single-node.v1` | not admitted | none |
@@ -309,7 +314,9 @@ proof/wire/store gates before any target publishes support or a capability.
 
 **Growth stop rule.** The active registry has exactly four node classes and
 three plan profiles (`single-node.v1`, `snapshot-batch.v1`,
-`mixed-route.v2`). A successor may grow to at most six
+`mixed-route.v2`). The 2026-08-05 owner ruling reserves
+`snapshot-batch.v2` as the fourth profile; it does not become active until its
+reviewed amendment lands. A successor may grow to at most six
 active classes and four plan profiles, one class or profile per reviewed
 amendment. A proposal that exceeds either ceiling, introduces a new
 algebra-wide identity/completeness/authorization axis instead of reusing
@@ -350,11 +357,12 @@ Closure rules, normative:
 3. **Substrate admission is the substrate's.** Which classes may appear
    in a *multi-node* composite is LLP 0135's admission question (v1:
    `bounded_children_v1` only, 2–8 nodes, summed `take` ≤ 1,024). The
-   algebra is defined over all registered classes. LLP 0135 OQ5's successor
-   may admit `relational_query_v1` only under a new versioned plan/cursor
-   profile registered here. It reuses the record shapes in §D2–D7; it extends
-   the profile registry and admission list, not the node vocabulary or
-   liveness inference rules.
+   algebra is defined over all registered classes. LLP 0135's 2026-08-05 OQ5
+   ruling directs the narrow `snapshot-batch.v2` / `sbsb2` successor to admit
+   `relational_query_v1@1` alongside `bounded_children_v1@1`. Activation still
+   requires the exact reviewed plan/cursor profile registration here. It
+   reuses the record shapes in §D2–D7; it extends the profile registry and
+   admission list, not the node vocabulary or liveness inference rules.
 4. **Refusal is closed.** Every rejection names a stable reason: the
    unadmitted class, the dynamic reference, the exceeded ceiling, or
    the sugar construct that failed to compile (§D5). Silent narrowing
@@ -600,8 +608,9 @@ Groups are ordered by their smallest member; every node whose §D1 registry row
 says `required` appears in exactly one group, every `none` node appears in no
 group, and each member list is ascending. Current `snapshot-batch.v1` contains
 only required `bounded_children_v1` nodes. Encoding bytes rather than a JSON
-reparse preserves the grouping identity exactly; the LLP 0135 OQ5 successor
-can therefore add relational nodes without inventing fake parents.
+reparse preserves the grouping identity exactly; the owner-directed
+`snapshot-batch.v2` successor can therefore add relational nodes without
+inventing fake parents.
 
 For `mixed-route.v2`, nodes are the route-manifest order of
 `exported_query_v1` children and `parentAuthorizationGroups` is exactly empty.
@@ -1899,7 +1908,7 @@ or explicitly blocked. “Implementing slice” alone is not a disposition.
 | Cross-query normalization | not admitted; §D7/OQ2 evidence gate | adversarial projection only if proposed |
 | Aggregates including `count` | out; LLP 0130 SD-2 | none here |
 | Interim fail-closed cap milestone | §D3 rule; current tree proves only imperative `collect()` refusal, not the public witness or an LLP 0080 composition milestone | A1 |
-| Move-1 Triage/Fleet exit | normative transcription below; Fleet additionally blocked on LLP 0135 OQ5's relational-node successor | workload receipts |
+| Move-1 Triage/Fleet exit | normative transcription below; OQ5 direction is ruled, while Fleet still awaits the reviewed `snapshot-batch.v2` registration, implementation, and workload receipt | workload receipts |
 
 The current tree's `SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED` is specifically the
 inline-handler `collect()` 1,024-row seam in
@@ -2031,8 +2040,9 @@ required output, and forbidden output.
 ### Move-1 workload exit (LLP 0155 normative transcription)
 
 Fresh provider-native Triage Graph and Fleet Observatory implementations must
-prove all of the following; Fleet remains blocked until the LLP 0135 OQ5
-successor admits its required relational node in a composite:
+prove all of the following. The LLP 0135 OQ5 direction is now ruled; Fleet
+remains blocked on the reviewed `snapshot-batch.v2` registration,
+implementation, and fresh witness:
 
 - required screens use generated composites, not JS collection joins;
 - the client retains only the desired bounded query results;
@@ -2127,11 +2137,13 @@ fence beside LLP 0053's. §D8 deliberately does own the cursor wire grammar.
 
 ## Open questions
 
-1. Admission of `relational_query_v1` nodes into multi-node composites —
-   LLP 0135 OQ5's successor list governs; **Move 1's Fleet exit
-   depends on it** (§Commission crosswalk); it requires a new versioned
-   plan/cursor profile registration here, while reusing the existing class and
-   §D2–D7 record shapes.
+1. **Direction resolved 2026-08-05; exact amendment open.** Charlie ruled to
+   admit `relational_query_v1@1` narrowly through reserved
+   `snapshot-batch.v2` / `sbsb2`. LLP 0135's successor ruling governs the
+   closed semantics; this Spec must still land the reviewed plan/cursor
+   profile registration reusing the existing class and §D2–D7 record shapes.
+   **Move 1's Fleet exit then additionally requires implementation and its
+   fresh workload receipt** (§Commission crosswalk).
 2. The normalization evidence bar (§D7): the adversarial-projection
    fixture corpus and who owns its review — with LLP 0155 OQ2.
 3. A free-standing typed to-one node class: needed, or does LLP 0080's
@@ -2186,6 +2198,14 @@ The v0.9 dated amendment records Charlie's semantic acceptance of
 advertises the class, proof path, retention authority, or staged adoption;
 those remain gated by the separately commissioned implementation program and
 the existing proof/wire/store conformance requirements.
+
+The 2026-08-05 LLP 0135 OQ5 owner ruling accepts the narrow relational-
+composite direction and reserves `snapshot-batch.v2` / `sbsb2` as this
+registry's fourth profile. It consumes no class slot:
+`relational_query_v1@1` remains LLP 0080's existing class. The ruling is not
+profile activation. The exact cursor record, registry row, vectors, and
+acceptance corpus must land as a reviewed amendment before codegen or any
+target may admit, require, implement, or advertise `snapshot_batch_v2`.
 
 ## `single_table_v1` activation and local publication — 2026-08-04
 

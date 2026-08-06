@@ -6,7 +6,11 @@
 generation, Authorization, Live Queries, Diagnostics, Testing, Demo apps
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-31
-**Revised:** 2026-08-04 (sequence-allocation qualification and local-source
+**Revised:** 2026-08-05 (author ruling: admit `relational_query_v1@1`
+narrowly through the reserved, versioned `snapshot-batch.v2` / `sbsb2`
+successor; v1 remains byte-compatible and bounded-children-only, and no
+implementation or capability claim follows before the reviewed profile
+amendment and executable evidence land); 2026-08-04 (sequence-allocation qualification and local-source
 publication: the complete §5.1 corpus is green, the exact compiled carrier
 publishes `sequence_allocation_v1` only for contributor-source builds of
 `local-dev-sqlite-ibex`, public-package and hosted targets retain structured
@@ -614,9 +618,9 @@ question 5 to its smaller branch, per the design's own acceptance
 shapes: every §5.2 shape is bounded-children nodes, the cursor, seal,
 restart, and ceiling semantics below are exact for that kind, and the
 qualification corpus stays smallest. Admitting `relational_query_v1`
-nodes is a dated successor question, not a first-publication one; open
-question 5 now enumerates what the successor must specify before
-admission.
+nodes is a dated successor, not a reinterpretation of first publication;
+the 2026-08-05 owner ruling below fixes its narrow direction and the
+remaining reviewed-amendment gate.
 
 No reduction, aggregation, grouping, or new admission vocabulary exists in
 the composite: every read inside it is a generated, already-proved plan,
@@ -1215,6 +1219,63 @@ plus cursor-bearing subscribe refusal. The local capability manifest now
 publishes support; remote/hosted targets remain support-false. This claim does
 not change the separate support-false sequence-allocation posture.
 
+## Relational-composite successor owner ruling — 2026-08-05
+
+Charlie Cheever rules **yes: admit `relational_query_v1@1` narrowly** in a
+new versioned successor. The reserved profile is `snapshot-batch.v2`, its
+cursor family is `sbsb2`, and its capability id is `snapshot_batch_v2`.
+`snapshot-batch.v1`, `sbsb1`, and `snapshot_batch_v1` remain byte-compatible,
+bounded-children-only, and independently supportable.
+
+The successor is deliberately one profile amendment, not a new node class or
+query language:
+
+- it admits a static tuple of two through eight `bounded_children_v1@1` or
+  `relational_query_v1@1` nodes, with at least one relational node and summed
+  `take` at most 1,024;
+- every node remains a complete owner-admitted plan, no node argument may
+  reference another node's output, and no predicate, aggregate, traversal,
+  maintained projection, or data-dependent invocation enters through the
+  composite;
+- LLP 0157 §D2–§D7 continues to own the common identity, completeness proof,
+  materialization, inspection, and store records. The successor adds one plan
+  profile and no algebra-wide identity, authorization, or liveness axis; and
+- the profile is `live_replace` for a cursor-free first page and
+  `retention: "none"` only. It makes no `live_delta`, local relational
+  re-evaluation, or retained-relational claim.
+
+The reviewed profile amendment must pin the following owner choices exactly:
+
+1. **Cursor binding.** `sbsb2` binds the complete merged normalized arguments
+   once and carries a closed per-node state union. A bounded-child state keeps
+   the v1 boundary/terminal mapping. A relational state is either terminal or
+   carries LLP 0080's complete `relational-query.v1` root-window boundary,
+   including the ordered root fields and `_id` tie-break. Bounded-child parent
+   groups remain structural; a relational node has no invented parent group.
+2. **Resume and restart.** A relational node has no substitute parent
+   `_version`. Plan, argument, authority-partition, stream/restore-epoch, and
+   boundary validation remain fail-closed; ordinary row churn retains LLP
+   0080's guarantee of no skipped or duplicated untouched root and its stated
+   tolerance for concurrently moved roots. A bounded-child parent
+   incarnation/version change keeps the existing whole-composite restart.
+3. **Sealing.** An authorized relational node with zero emitted rows is a
+   visible empty page, never `absent`. Missing or invisible joined rows retain
+   LLP 0080's inner/left semantics and do not seal. A bounded-child parent's
+   absence or invisibility still seals the entire mixed tuple byte-identically.
+   Invocation-level authorization refusal of a relational plan refuses the
+   composite; it is not recoded as parent absence.
+4. **Work accounting.** The composite ceiling sums every owner's declared
+   root/child examined-entry ceiling, every bounded-child parent point-read,
+   and exactly one joined-side unique-index lookup for every relational root
+   consumed, including a root later omitted by an inner join. No target may
+   replace those indexed operations with an unbounded scan.
+
+This ruling resolves the product/design branch of open question 5 and
+commissions the exact reviewed amendment and implementation. It does not by
+itself activate the fourth profile, publish support, close Move 1, or fill the
+Fleet carrier row. Those claims require the LLP 0157 registry/cursor amendment,
+cross-language vectors, implementation, and fresh Fleet receipts.
+
 ## Nonclaims
 
 - **No aggregates, in either part.** No readable counter value, no counts,
@@ -1265,17 +1326,11 @@ not change the separate support-false sequence-allocation posture.
 4. Should parent-auth dedup ever extend beyond structural identity (two
    argument spellings provably bound to one value), or is structural
    identity the permanent rule?
-5. (Resolved for v1 in v0.2: bounded-children-only, §2.1.) The dated
-   successor question — what must be specified before
-   `relational_query_v1` nodes are admissible: binding the composite's
-   merged normalized argument values in the `sbsb1` cursor (a
-   relational node's argument-referencing filters are bound in its
-   standalone cursor and must not come unbound in composition); the
-   node's boundary, terminal, and restart mapping under root-window
-   semantics (what replaces parent `_version`); its seal semantics
-   (it has no protected parent to seal on); and counting its
-   per-consumed-root joined-side unique-index lookups in the composite
-   ceiling.
+5. **Resolved by the 2026-08-05 owner ruling above.** V1 stays
+   bounded-children-only. The narrow `snapshot-batch.v2` direction and its
+   argument binding, relational boundary/terminal/restart mapping, no-parent
+   seal semantics, and joined-lookup accounting are fixed; exact `sbsb2` bytes
+   and executable admission remain gated on the reviewed amendment.
 6. The successor shape for locally executed allocating operations: a
    speculative placeholder re-derived at settlement would need a
    sequence-map analog, and a small-integer leaf rewrite is unsound
