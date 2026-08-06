@@ -79,3 +79,20 @@ and `guide/clients/react-expo.md` cross-index the recipe.
 This ticket remains open for the separate product-side acceptance item: when
 the public/owned contradiction is knowable earlier, codegen or reservation
 should reject it before a generic transfer 403.
+
+## Resolution note — product half (2026-08-06)
+
+The server now refuses unsatisfiable owner custody at reservation time in
+`asset_attempt_create`, before it runs the generated authorizer or creates
+attempt/asset state. The stable refusal code is
+`SNAPBACK_ASSET_OWNER_CUSTODY_UNSATISFIABLE`; it explains that every attempt
+records the authorizer-declared owner and that transfer, resume, finalize, and
+attach must present that owner's resolved authority, then points to ordinary
+session custody or operator impersonation as the paved fixes.
+
+Codegen cannot prove this contradiction. The authorizer output contract is
+closed to exactly `{ owner: <non-empty principal> }`, so every intent declares
+an owner; whether the caller can match it depends on runtime custody rather
+than the intent declaration. In particular, an `auth: 'public'` intent called
+with session custody is legitimate. The ticket remains open pending supervisor
+verification and close-out.

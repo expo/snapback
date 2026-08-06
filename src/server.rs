@@ -25072,7 +25072,9 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         // each producer chose these deliberately with this landing.
         "SNAPBACK_ASSET_MEDIA_TYPE_UNSUPPORTED"
         | "SNAPBACK_ASSET_DEFERRED_LENGTH_UNSUPPORTED" => StatusCode::BAD_REQUEST,
-        "SNAPBACK_ASSET_FORBIDDEN" => StatusCode::FORBIDDEN,
+        "SNAPBACK_ASSET_FORBIDDEN" | "SNAPBACK_ASSET_OWNER_CUSTODY_UNSATISFIABLE" => {
+            StatusCode::FORBIDDEN
+        }
         "SNAPBACK_ASSET_INTENT_UNKNOWN"
         | "SNAPBACK_ASSET_ATTEMPT_UNKNOWN"
         | "SNAPBACK_ASSET_UNKNOWN" => StatusCode::NOT_FOUND,
@@ -40387,6 +40389,7 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_PROFILE_FORBIDS",
         "SNAPBACK_ACTIVITY_AUTHORITY_UNPROVENANCED",
         "SNAPBACK_ASSET_FORBIDDEN",
+        "SNAPBACK_ASSET_OWNER_CUSTODY_UNSATISFIABLE",
         "SNAPBACK_ASSET_ADMISSION_REVOKED",
         "SNAPBACK_ASSET_SIGNATURE_INVALID",
     ];
