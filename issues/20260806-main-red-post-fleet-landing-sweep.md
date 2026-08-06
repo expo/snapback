@@ -35,6 +35,18 @@ against the intended landed commit and its exact readiness-qualified server,
 then issue the receipt and associated evidence together. Do not relax the
 binary binding or rotate this receipt from the general main-red sweep.
 
+**2026-08-06 release-attempt-6 recurrence.** The complete 0.1.11 release
+proof at clean `origin/main` `1250b7a6a8e918bb3ca3fe3b2f50da45aec5e9f8`
+stopped at this gate after 26 PASS. The retained receipt now fails before the
+runtime check: it binds `packages/snapback-client/index.mjs` to SHA-256
+`40f0d7a4ac9b7e2010c7f309f8ba95fa84e42f20445bc1b7b83cd4d0d7662e39`,
+while the candidate's tracked file is
+`688ec4d231dd23e02ea0311d91ec0da89c6659074d0274e282b82e194187c0ae`.
+The final carrier-refresh commit repaired the three publication carriers but
+did not and should not rewrite this independent Fleet controlled-run receipt.
+The owner action above remains exact: issue the Fleet receipt and its evidence
+against one final tracked source tree and its readiness-qualified binary.
+
 ### App CLI served journey dev-principal contract
 
 `node tests/acceptance/app-cli-served-journey.mjs` reaches the real server but
