@@ -103,9 +103,17 @@ export const avatarUpload = defineAssetUpload({
     AssetRef: { upload: '_assets.default.profiles.attachment' },
   });
 
+  const descriptor = JSON.parse(
+    readFileSync(join(dir, 'generated', 'app.descriptor.json'), 'utf8'),
+  );
+  assert.equal(descriptor.api.assets.avatarUpload.artifactKind, 'assetUploadReference');
+  assert.match(descriptor.api.assets.avatarUpload.intentPolicyHash, /^sha256:[0-9a-f]{64}$/u);
+  // @ref LLP 0179#existing-exports — the compatibility API projects the
+  // portable descriptor's asset node instead of emitting a second reference.
+  const appModule = await import(pathToFileURL(join(dir, 'generated', 'app.mjs')).href);
+  const apiModule = await import(pathToFileURL(join(dir, 'generated', 'api.mjs')).href);
+  assert.strictEqual(apiModule.api.avatarUpload, appModule.app.api.assets.avatarUpload);
   const api = readFileSync(join(dir, 'generated', 'api.mjs'), 'utf8');
-  assert.ok(api.includes('"artifactKind": "assetUploadReference"'), 'api.mjs carries the upload reference');
-  assert.ok(api.includes('"intentPolicyHash"'));
   assert.ok(
     api.includes('export const defaults ='),
     'api.mjs exposes the defaults subtree',
@@ -344,8 +352,10 @@ export const photoUpload = defineAssetUpload({
     'sha256:73595d19bd41bf5a3a72b53c4cedd302285064b644b0c2bfaab65a97cfb7db61',
   );
   assert.equal(Object.hasOwn(intent, 'video'), false);
-  const api = readFileSync(join(dir, 'generated', 'api.mjs'), 'utf8');
-  assert.ok(api.includes('"artifactKind": "assetUploadReference"'));
+  const descriptor = JSON.parse(
+    readFileSync(join(dir, 'generated', 'app.descriptor.json'), 'utf8'),
+  );
+  assert.equal(descriptor.api.assets.photoUpload.artifactKind, 'assetUploadReference');
 }
 
 // A target without the fact still refuses strip — the remote-service profile
