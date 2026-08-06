@@ -5,7 +5,10 @@
 **Systems:** Competitive evaluation, Developer experience, Runtime, Bootstrap, Packaging, Documentation, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-30
-**Revised:** 2026-08-06 (Option 3 package sealing landed: both runtime
+**Revised:** 2026-08-06 (Darwin npm-shape correction: the package seal and
+production layout now bind the real versioned Hermes framework file named by
+the Mach-O load command, not a convenience symlink npm omits; publication
+reopens the seal from the actual packed bytes.) 2026-08-06 (Option 3 package sealing landed: both runtime
 packages carry one package-owned `snapback.runtime-readiness.v1` seal binding
 the binary, shipped Hermes header/runtime digests, full build identity, source
 revision, and the separate-process CV-2 verdict; production qualifies after
@@ -553,6 +556,16 @@ missing Hermes artifact classifies `framework-drift`. The app-owned
 `.snapback/runtime-readiness.json` flow remains a separate, later live
 qualification record; it no longer substitutes for the package-production
 seal.
+
+**Darwin npm-shape correction (2026-08-06).** The release binary's Mach-O
+load command names
+`@rpath/hermesvm.framework/Versions/1/hermesvm`; dyld does not open the
+top-level `hermesvm.framework/hermesvm` convenience symlink. npm omits that
+symlink when packing/installing the framework. Darwin production therefore
+stages the versioned real-file tree, qualifies that symlink-less final layout,
+and records `Frameworks/hermesvm.framework/Versions/1/hermesvm` in the seal.
+The publisher extracts every runtime tarball and reopens its seal from those
+npm-serialized bytes, so a pre-pack-only artifact spelling cannot pass again.
 
 This landing deliberately does **not** add the in-serving-process boot witness
 analyzed in Option 2. That witness still needs LLP 0009/Ibex host-handoff work
