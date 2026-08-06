@@ -6,7 +6,20 @@
 Client SDK, Live queries, Wire Protocol, Codegen, Admin console, Testing
 **Author:** Charlie Cheever / Claude (Fable 5) / Codex
 **Date:** 2026-08-02
-**Revised:** 2026-08-06 (v0.11, `snapshot-batch.v2` / `sbsb2` reviewed
+**Revised:** 2026-08-06, later (v0.11.1, residual-review disposition: the
+§D8 `sbsb2` restart biconditional is conditioned on decode validity —
+well-formed, unexpired, non-future-issued, current
+`formatVersion`/`keyGeneration` — with decode-validity failures collapsing
+to `SNAPBACK_SNAPSHOT_BATCH_CURSOR_INVALID` before any epoch or parent
+comparison per the implemented v1 decode-first rule, and the
+expired-plus-changed-epoch overlap near-miss added to the §D8(d) and A14
+vector obligations; applies the recorded supplementary round-2
+Claude-family review's R2-1 (MATERIAL) left undispositioned by the v0.11
+close-out, plus its R2-4 (LLP 0080 gate phrasing de-circularized) and
+R2-6's LLP 0135 §2.4 residue (stream/restore-epoch folded into the v1
+restart side, `expired` into the collapse list); one dated amendment,
+labeled unreviewed per the close-out's re-entry rule); 2026-08-06 (v0.11,
+`snapshot-batch.v2` / `sbsb2` reviewed
 profile registration: the fourth and final plan profile is registered — a
 static tuple of 2–8 `bounded_children_v1@1` / `relational_query_v1@1` nodes
 with at least one relational node and summed `take` ≤ 1,024 — with the exact
@@ -2097,8 +2110,12 @@ validation, even when the presented credential also carries that parent's
 changed incarnation or `_version`. After every parent is present and
 visible, `SNAPBACK_SNAPSHOT_BATCH_RESTART_REQUIRED` is returned exactly when
 a credential that authenticated under the current app/database/target AAD
-carries a changed stream/restore epoch or a changed incarnation or
-`_version` for a still-visible bounded-child parent. The epoch axis is
+**and decoded validly — well-formed, unexpired, non-future-issued, current
+`formatVersion` and `keyGeneration`; decode-validity failures collapse to
+`SNAPBACK_SNAPSHOT_BATCH_CURSOR_INVALID` before any epoch or parent
+comparison, following the implemented v1 decode-first rule —** carries a
+changed stream/restore epoch or a changed incarnation or `_version` for a
+still-visible bounded-child parent. The epoch axis is
 exact: `streamEpoch` is the same authorization-stream/restore incarnation
 the bound partition carries as
 `AuthorityPartitionV1.principalDataScope.authorizationStreamIncarnation`,
@@ -2215,6 +2232,10 @@ the cross-app/database/target/function/plan/args/parent/authority/expiry/
 boundary-invalid collapse cases, the two authenticated restart cases
 (tampered `streamEpoch` with the bound authority partition intact; changed
 parent incarnation/`_version` on a still-visible parent), the
+decode-validity overlap near-miss (an authenticated credential that is
+expired and also carries a changed epoch or changed parent facts →
+`SNAPBACK_SNAPSHOT_BATCH_CURSOR_INVALID`, proving decode-validity collapse
+precedes the restart comparison), the
 genuine-rotation case (both members changed) collapsing to cursor-invalid,
 and cross-family presentations both ways — a foreign credential at a
 visible-parent surface refusing under that surface's owner code, and the
@@ -2406,7 +2427,9 @@ required output, and forbidden output.
     cross-app/database/target/function/plan/args/parent/authority/expiry/
     boundary-invalid collapses to `SNAPBACK_SNAPSHOT_BATCH_CURSOR_INVALID`,
     the tamper-only epoch restart, the still-visible parent
-    incarnation/`_version` restart, the genuine stream-rotation collapse,
+    incarnation/`_version` restart, the expired-plus-changed-epoch overlap
+    collapsing to `SNAPBACK_SNAPSHOT_BATCH_CURSOR_INVALID` before the
+    restart comparison, the genuine stream-rotation collapse,
     and the cross-family visible-parent (owner code) versus
     absent/invisible-parent (seals first) presentations. A mixed tuple whose
     bounded-child parent disappears or becomes invisible seals

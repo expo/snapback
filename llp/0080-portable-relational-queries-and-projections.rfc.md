@@ -9,7 +9,9 @@
 `snapshot-batch.v2` registration landed, binding this RFC's unchanged
 `relational-query.v1` root-window boundary into the `sbsb2` state union;
 grammar, standalone cursor, and admission unchanged; implementation and
-vectors remain gated in LLP 0157). 2026-08-05 (LLP 0135 OQ5 owner ruling: narrow multi-node
+cross-language vectors remain outstanding under LLP 0157's gate —
+implementation work may land; runtime admission and claims are gated).
+2026-08-05 (LLP 0135 OQ5 owner ruling: narrow multi-node
 relational composition is accepted in direction through reserved
 `snapshot-batch.v2`; this RFC's node grammar and standalone semantics remain
 unchanged, and profile activation still requires LLP 0157's reviewed exact
@@ -833,7 +835,9 @@ credential's closed per-node state union, with this RFC's no-skip/
 no-duplicate untouched-root guarantee, inner/left semantics, and one
 joined-side unique lookup per consumed root carried through the composite.
 This RFC's grammar, standalone cursor, and admission are unchanged;
-implementation and cross-language vectors remain gated there.
+implementation and cross-language vectors remain outstanding under
+LLP 0157's gate (implementation work may land; runtime admission and
+claims are gated).
 LLP 0157's fragment seam does not authorize local
 relational re-evaluation: this RFC's opaque-snapshot-only retention rule
 remains until a separately accepted amendment changes it. No implementation

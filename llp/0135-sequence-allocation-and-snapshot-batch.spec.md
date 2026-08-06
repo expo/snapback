@@ -6,7 +6,12 @@
 generation, Authorization, Live Queries, Diagnostics, Testing, Demo apps
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-31
-**Revised:** 2026-08-06 (dated note: the commissioned reviewed
+**Revised:** 2026-08-06, later (LLP 0157 v0.11.1 residual disposition: §2.4's
+v1 restart sentence gains the stream/restore-epoch case the implementation
+already had and `expired` in its collapse list, with decode-validity
+failures collapsing before any epoch or parent comparison — the implemented
+decode-first order LLP 0157 §D8 pins; no byte, code, or admission change);
+2026-08-06 (dated note: the commissioned reviewed
 registry/cursor amendment landed as LLP 0157 v0.11, pinning the
 `snapshot-batch.v2` row, exact `sbsb2` bytes, and this Spec's four ruling
 choices there; v1 bytes/semantics unchanged, implementation and vectors
@@ -740,11 +745,14 @@ zero-examined claim counts child-range entries, not parent
 point-reads — and return their empty terminal page. The continuation
 is present exactly while some node is non-terminal. Standalone
 `sbbc1` cursors refuse in the composite and composite cursors refuse
-in standalone plans. A bound parent's incarnation or `_version` change
+in standalone plans. An authenticated, validly decoded credential's
+stream/restore-epoch or bound-parent incarnation or `_version` change
 returns the single `SNAPBACK_SNAPSHOT_BATCH_RESTART_REQUIRED`
-diagnostic; malformed, cross-app, cross-plan, cross-parent,
+diagnostic; malformed, expired, cross-app, cross-plan, cross-parent,
 cross-authority, and boundary-invalid credentials collapse to
-`SNAPBACK_SNAPSHOT_BATCH_CURSOR_INVALID`. The snapshot claim is
+`SNAPBACK_SNAPSHOT_BATCH_CURSOR_INVALID`, decode-validity failures
+before any epoch or parent comparison (the implemented decode-first
+order LLP 0157 §D8 pins for the `sbsb1`/`sbsb2` families). The snapshot claim is
 per invocation only: successive pages are separate snapshots, and the
 composite makes each node's no-skip/no-duplicate claim (LLP 0110 §1.4 /
 LLP 0080 §2), jointly resumed, never a frozen cross-page snapshot.

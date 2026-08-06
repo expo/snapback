@@ -1120,3 +1120,35 @@ transition was in this loop's authority). Recommendation to the author:
 treat the four-round record plus the labeled closing revision as the
 review basis for this dated amendment; any residual concern re-enters
 through an ordinary dated amendment. No prior verdict is reclassified.
+
+## Close-out addendum — supplementary-review disposition (2026-08-06, later)
+
+The v0.11 close-out above enumerated dispositions for the four numbered
+rounds but not for the supplementary round-2 Claude-family review recorded
+earlier in this artifact (bound to the round-2 hashes). The supervising
+session dispositioned it in a follow-up dated amendment (LLP 0157 v0.11.1),
+per the close-out's re-entry rule ("any residual concern re-enters through
+an ordinary dated amendment"):
+
+- **R2-1 (MATERIAL, IN-DELTA)** — APPLIED: the §D8 `sbsb2` restart
+  biconditional is now conditioned on decode validity, with decode-validity
+  failures collapsing before any epoch/parent comparison (the implemented v1
+  decode-first rule), and the expired-plus-changed-epoch overlap near-miss
+  is added to §D8(d) and A14. No round-1–4 verdict reclassified; the fix is
+  the review's own concrete fix.
+- **R2-2, R2-3** — already fixed by the round-2/round-3 revisions
+  (independently found as Codex R2-01 and applied dating parentheticals);
+  no action.
+- **R2-4 (NIT)** — APPLIED: LLP 0080's Revised-header and boundary-note
+  "remain gated" phrasing de-circularized to the outstanding-under-gate
+  spelling LLP 0110/0135 use.
+- **R2-5 (NIT)** — no change required (the governing experimental-ids rule
+  is stated first and controls), as the review itself proposed.
+- **R2-6 (MATERIAL, PRE-EXISTING)** — 0157 half already applied by the
+  round-4 revision (the v1 `sbsb1` prose carries the epoch-restart case);
+  LLP 0135 §2.4 half APPLIED in v0.11.1 (epoch on the restart side,
+  `expired` in the collapse list, decode-first ordering).
+
+Like the v0.11 closing revision, v0.11.1 is a dated amendment labeled
+**unreviewed by either family**; it binds to the landed v0.11 text and
+changes no pinned digit, wire byte, owner ruling, or capability gate.
