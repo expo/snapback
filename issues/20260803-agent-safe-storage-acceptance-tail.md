@@ -70,6 +70,19 @@ and none of this closes a row on its own.
   authority proven absent post-mint; bidirectional live-HTTP bearer replay
   (parent↔fork) proven refused with data-level no-commit checks. Production
   wired-auth legs remain open.
+- **Row 9 (exact fork diff), derived class (2026-08-05):** the local
+  target adopted LLP 0164's delegated substrate choice as an opt-in
+  immutable retained base (`--retain-base`, digest-bound), and
+  `fork diff --net` now emits `snapback.fork-net-diff.v1`: the row set comes
+  from the base/head oracle independent of the journal, the journal is
+  cross-checked within retention (a net change without a journal trace
+  refuses — the lying-journal negative is tested), and substrate plus
+  completeness (`journal-enumerated-v1`, honestly not authorizer-proven per
+  LLP 0165) are named on every receipt. Corpus: creates/updates/deletes,
+  multi-commit, multi-table, revert and insert+delete netting to nothing,
+  schema divergence, sibling no-op fork, tampered base. Open Phase 4 tail:
+  filters, pagination/streaming, human projection, LLP 0163 attribution,
+  and LLP 0165's authorizer-backed completeness upgrade.
 - **Row 8 (resource containment):** create admission (fork-count, per-fork
   bytes, total bytes), diff-work bound, and renewal max-lifetime cap all
   refuse deterministically with observed usage

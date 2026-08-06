@@ -6,7 +6,17 @@
 experience, Developer experience, CLI, Documentation, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-03
-**Revised:** 2026-08-05 (LLP 0185 Phase 3 isolation/lifecycle evidence:
+**Revised:** 2026-08-05 (LLP 0185 Phase 4 first slice: opt-in
+`--retain-base` retained post-mint base snapshot (digest-bound
+`snapback.fork-base.v1` evidence, byte-accounted at admission) and the exact
+net base-to-head receipt `snapback.fork-net-diff.v1` via `fork diff --net` —
+computed from the base/head oracle independently of the journal, journal
+cross-checked within retention (a net change the journal cannot explain
+refuses with `SNAPBACK_FORK_DIFF_ORACLE_MISMATCH`), substrate and
+completeness named on every receipt per LLP 0164's target-choice delegation
+and LLP 0165's enumerated — not authorizer-proven — completeness class.
+Filters, pagination, human projection, and LLP 0163 attribution remain the
+open Phase 4 tail.); 2026-08-05 (LLP 0185 Phase 3 isolation/lifecycle evidence:
 bounded intent-journaled `fork renew` with a max-lifetime cap and
 `SNAPBACK_FORK_RENEW_EXPIRED`; create-admission and diff-work resource limits
 wiring `SNAPBACK_FORK_RESOURCE_LIMIT_REFUSED`; per-fork cleanup locking,
@@ -1120,6 +1130,26 @@ forkPointVersion`; the current omissions are asset blob operations, auth and
 credential state, captured or refused egress payloads, privileged/raw-SQL
 writes outside the app journal, and sidecars/telemetry. This is an attributed
 post-image sequence, not LLP 0164's exact net diff.
+
+**Base evidence — `ForkBaseReceiptV1`,
+`schemaVersion: "snapback.fork-base.v1"`** (additive, 2026-08-05). Written
+only for `--retain-base` forks beside `fork-base.sqlite3`: fields are
+`schemaVersion`, `forkId`, `databaseFile`, `sha256`, and `retainedAtMs`. The
+digest binds the immutable base to the exact fork; a mismatch refuses net
+diffing rather than serving a rewritten history.
+
+**Net diff receipt — `ForkNetDiffReceiptV1`,
+`schemaVersion: "snapback.fork-net-diff.v1"`** (additive, 2026-08-05; the
+distinct schema version the freeze required instead of upgrading
+`snapback.fork-diff.v1`). Fields are `schemaVersion`, `forkId`, `appId`,
+`parentInstanceId`, `forkPointVersion`, `observedHeadVersion`, `substrate`
+(`retained-base-v1`), `completeness` (`journal-enumerated-v1`),
+`journalConsistency` (`journal-cross-check-verified` or
+`journal-cross-check-unavailable-retention-gap`), ordered `rows`
+(`table`, `rowId`, `operation`, optional `preImage`/`postImage`),
+`tableCounts`, and machine-readable `domains` naming app rows covered and
+schema/auth/operational/configuration/assets/egress/telemetry/sidecars
+omitted.
 
 **Reap receipt — `ForkReapReceiptV1`,
 `schemaVersion: "snapback.fork-reap.v1"`.** Fields are `schemaVersion`,

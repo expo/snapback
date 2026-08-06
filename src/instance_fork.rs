@@ -19,6 +19,8 @@ pub const STAGING_SENTINEL: &str = ".snapback-fork-staging.v1";
 pub const MINT_RECEIPT_FILE: &str = "fork-mint-receipt.json";
 pub const RENEW_INTENT_FILE: &str = "fork-renew-intent.json";
 pub const RENEW_RECEIPT_FILE: &str = "fork-renew-receipt.json";
+pub const BASE_SNAPSHOT_FILE: &str = "fork-base.sqlite3";
+pub const BASE_RECEIPT_FILE: &str = "fork-base-receipt.json";
 pub const REGISTRY_DIRECTORY: &str = ".snapback-fork-registry";
 const LINEAGE_META_KEY: &str = "instance_fork_lineage_v1";
 const QUARANTINE_META_KEY: &str = "instance_fork_quarantine_v1";
@@ -27,6 +29,8 @@ const EGRESS_TABLE: &str = "_snapback_fork_egress_attempts_v1";
 pub const SERVER_EXPIRED_CODE: &str = "SNAPBACK_FORK_SERVER_EXPIRED";
 pub const RESOURCE_LIMIT_REFUSED_CODE: &str = "SNAPBACK_FORK_RESOURCE_LIMIT_REFUSED";
 pub const RENEW_EXPIRED_CODE: &str = "SNAPBACK_FORK_RENEW_EXPIRED";
+pub const NET_DIFF_UNAVAILABLE_CODE: &str = "SNAPBACK_FORK_NET_DIFF_UNAVAILABLE";
+pub const DIFF_ORACLE_MISMATCH_CODE: &str = "SNAPBACK_FORK_DIFF_ORACLE_MISMATCH";
 
 /// Maximum total lifetime for a managed fork, binding creation through every
 /// renewal (LLP 0185 Phase 3 item 6's "configured maximum"; author-ratified
@@ -691,6 +695,53 @@ pub struct ForkDiffReceiptV1 {
     pub table_counts: BTreeMap<String, u64>,
     pub coverage: Vec<String>,
     pub omissions: Vec<String>,
+}
+
+/// Evidence binding one retained post-mint base snapshot to its fork
+/// (LLP 0185 Phase 4 / LLP 0164's "immutable retained base" substrate,
+/// which 0164 delegates as the target's choice, named on the receipt).
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ForkBaseReceiptV1 {
+    pub schema_version: String,
+    pub fork_id: String,
+    pub database_file: String,
+    pub sha256: String,
+    pub retained_at_ms: u64,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ForkNetDiffRowV1 {
+    pub table: String,
+    pub row_id: String,
+    pub operation: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pre_image: Option<Value>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub post_image: Option<Value>,
+}
+
+/// The exact net base-to-head diff — a distinct receipt from the attributed
+/// `snapback.fork-diff.v1` sequence per the frozen compatibility rules. The
+/// row set is computed from the retained base and current head directly (an
+/// independent oracle, not the journal), then cross-checked against the
+/// folded journal where retention still covers the fork point.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ForkNetDiffReceiptV1 {
+    pub schema_version: String,
+    pub fork_id: String,
+    pub app_id: String,
+    pub parent_instance_id: String,
+    pub fork_point_version: u64,
+    pub observed_head_version: u64,
+    pub substrate: String,
+    pub completeness: String,
+    pub journal_consistency: String,
+    pub rows: Vec<ForkNetDiffRowV1>,
+    pub table_counts: BTreeMap<String, u64>,
+    pub domains: BTreeMap<String, String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -1372,6 +1423,7 @@ pub fn publish(
         cut_at,
         false,
         None,
+        false,
     )
 }
 
@@ -1419,6 +1471,51 @@ pub fn publish_managed(
         None,
         with_secrets,
         Some(expires_at_ms),
+        false,
+    )
+}
+
+/// [`publish_managed`] with an opt-in retained post-mint base snapshot, the
+/// local target's chosen substrate for the exact net diff. Retention doubles
+/// the fork's byte footprint; creation admission accounts for it.
+#[allow(clippy::too_many_arguments)]
+pub fn publish_managed_with_base(
+    source_database: &Path,
+    destination: &Path,
+    app_id: &str,
+    parent_instance_id: &str,
+    now_ms: u64,
+    expires_at_ms: u64,
+    with_secrets: bool,
+    retain_base: bool,
+) -> SnapbackResult<ForkMintReceiptV1> {
+    if expires_at_ms <= now_ms || expires_at_ms > crate::manifest::PORTABLE_TIMESTAMP_MAX_MS {
+        return Err(fork_error(
+            "SNAPBACK_FORK_TTL_INVALID",
+            "fork expiry must be later than creation and within the portable timestamp range",
+        ));
+    }
+    if expires_at_ms.saturating_sub(now_ms) > MANAGED_FORK_MAX_LIFETIME_MS {
+        return Err(fork_error(
+            RESOURCE_LIMIT_REFUSED_CODE,
+            "fork create refused: the requested TTL exceeds the maximum fork lifetime",
+        )
+        .with_details(json!({
+            "resource": "fork-lifetime",
+            "requestedExpiresAtMs": expires_at_ms,
+            "maxLifetimeMs": MANAGED_FORK_MAX_LIFETIME_MS,
+        })));
+    }
+    publish_with_options(
+        source_database,
+        destination,
+        app_id,
+        parent_instance_id,
+        now_ms,
+        None,
+        with_secrets,
+        Some(expires_at_ms),
+        retain_base,
     )
 }
 
@@ -2136,6 +2233,7 @@ pub fn enforce_creation_limits(
     fork_root: &Path,
     source_database: &Path,
     limits: &ForkResourceLimits,
+    retain_base: bool,
 ) -> SnapbackResult<ForkResourceUsageV1> {
     let fork_count = managed_registry_ids(fork_root)?.len();
     if fork_count >= limits.max_forks {
@@ -2149,7 +2247,8 @@ pub fn enforce_creation_limits(
             "currentForkCount": fork_count,
         })));
     }
-    let estimated_fork_bytes = database_set_size(source_database)?;
+    let copies = if retain_base { 2 } else { 1 };
+    let estimated_fork_bytes = database_set_size(source_database)?.saturating_mul(copies);
     if estimated_fork_bytes > limits.max_fork_bytes {
         return Err(fork_error(
             RESOURCE_LIMIT_REFUSED_CODE,
@@ -2336,6 +2435,243 @@ pub fn diff_receipt_bounded(
     })
 }
 
+/// The exact net base-to-head diff (LLP 0185 Phase 4). The row set is
+/// computed by comparing the digest-verified retained base against the
+/// current head directly — an oracle independent of the journal — and the
+/// journal is then cross-checked against it (every net-changed row must be
+/// explained by a journal entry) wherever retention still covers the fork
+/// point. A fork created without a retained base refuses deterministically.
+pub fn net_diff_receipt(
+    database_path: &Path,
+    max_rows: u64,
+) -> SnapbackResult<ForkNetDiffReceiptV1> {
+    let runtime = inspect_published_evidence(database_path)?.ok_or_else(|| {
+        fork_error(
+            "SNAPBACK_FORK_EVIDENCE_INCOMPLETE",
+            "net diff requires a minted derived deployment",
+        )
+    })?;
+    let directory = database_path.parent().unwrap_or_else(|| Path::new("."));
+    let base_receipt_path = directory.join(BASE_RECEIPT_FILE);
+    if !base_receipt_path.exists() {
+        return Err(fork_error(
+            NET_DIFF_UNAVAILABLE_CODE,
+            "this fork has no retained base snapshot; create it with --retain-base to enable the exact net diff",
+        ));
+    }
+    let base_receipt: ForkBaseReceiptV1 = serde_json::from_slice(
+        &fs::read(&base_receipt_path).map_err(|error| io_error("read fork base receipt", error))?,
+    )
+    .map_err(|_| {
+        fork_error(
+            "SNAPBACK_FORK_RECEIPT_INVALID",
+            "fork base receipt is malformed",
+        )
+    })?;
+    validate_direct_child_name(&base_receipt.database_file, "baseDatabaseFile")?;
+    let base_path = directory.join(&base_receipt.database_file);
+    if base_receipt.schema_version != "snapback.fork-base.v1"
+        || base_receipt.fork_id != runtime.lineage.fork_id
+        || file_sha256(&base_path)? != base_receipt.sha256
+    {
+        return Err(fork_error(
+            "SNAPBACK_FORK_EVIDENCE_MISMATCH",
+            "retained base snapshot does not match its digest-bound receipt for this fork",
+        ));
+    }
+
+    let base = Connection::open_with_flags(
+        &base_path,
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
+    )?;
+    let mut head = Connection::open(database_path)?;
+    let tx = head.transaction()?;
+    let observed_head_version = tx.query_row(
+        "SELECT version FROM _snapback_version WHERE id=1",
+        [],
+        |row| row.get::<_, u64>(0),
+    )?;
+
+    let mut tables = BTreeSet::new();
+    for conn in [&base, &*tx] {
+        let mut statement = conn.prepare(
+            "SELECT name FROM sqlite_schema
+             WHERE type='table'
+               AND name NOT GLOB '_snapback_*'
+               AND name NOT GLOB '_auth_*'
+               AND name NOT GLOB 'sqlite_*'
+             ORDER BY name",
+        )?;
+        for name in statement.query_map([], |row| row.get::<_, String>(0))? {
+            tables.insert(name?);
+        }
+    }
+
+    let mut rows = Vec::new();
+    let mut table_counts = BTreeMap::new();
+    for table in &tables {
+        let base_rows = read_app_table_rows(&base, table)?;
+        let head_rows = read_app_table_rows(&tx, table)?;
+        let mut row_ids = BTreeSet::new();
+        row_ids.extend(base_rows.keys().cloned());
+        row_ids.extend(head_rows.keys().cloned());
+        for row_id in row_ids {
+            let entry = match (base_rows.get(&row_id), head_rows.get(&row_id)) {
+                (None, Some(post)) => Some(("insert", None, Some(post.clone()))),
+                (Some(pre), None) => Some(("delete", Some(pre.clone()), None)),
+                (Some(pre), Some(post)) if pre != post => {
+                    Some(("update", Some(pre.clone()), Some(post.clone())))
+                }
+                _ => None,
+            };
+            if let Some((operation, pre_image, post_image)) = entry {
+                *table_counts.entry(table.clone()).or_insert(0) += 1;
+                rows.push(ForkNetDiffRowV1 {
+                    table: table.clone(),
+                    row_id,
+                    operation: operation.to_owned(),
+                    pre_image,
+                    post_image,
+                });
+            }
+        }
+    }
+    if rows.len() as u64 > max_rows {
+        return Err(fork_error(
+            RESOURCE_LIMIT_REFUSED_CODE,
+            "fork net diff refused: the net row set exceeds the diff-work limit",
+        )
+        .with_details(json!({
+            "resource": "diff-work",
+            "limitRows": max_rows,
+            "netRows": rows.len(),
+        })));
+    }
+
+    // Journal cross-check: within retention, every net-changed row must be
+    // explained by at least one attributed journal entry. Folded entries
+    // that net to no change (reverts, insert+delete) are legitimate; a
+    // net-changed row with no journal trace means the journal is lying by
+    // omission, which is exactly what this receipt must never paper over.
+    let retention_floor = crate::storage::change_journal_floor_on(&tx)?;
+    let journal_consistency = if retention_floor > runtime.lineage.fork_point_version {
+        "journal-cross-check-unavailable-retention-gap".to_owned()
+    } else {
+        let mut journaled = BTreeSet::new();
+        let mut statement = tx.prepare(
+            "SELECT DISTINCT table_name, row_id FROM _snapback_changes
+              WHERE version > ?1
+                AND table_name NOT GLOB '_snapback_*'
+                AND table_name NOT GLOB '_auth_*'",
+        )?;
+        for row in statement.query_map([runtime.lineage.fork_point_version], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        })? {
+            let (table, row_id) = row?;
+            journaled.insert((table, row_id));
+        }
+        if let Some(unexplained) = rows.iter().find(|row| {
+            !journaled.contains(&(row.table.clone(), row.row_id.clone()))
+        }) {
+            return Err(fork_error(
+                DIFF_ORACLE_MISMATCH_CODE,
+                "the journal does not explain a net base-to-head change; the attributed receipt cannot be trusted for this span",
+            )
+            .with_details(json!({
+                "table": unexplained.table,
+                "rowId": unexplained.row_id,
+                "operation": unexplained.operation,
+            })));
+        }
+        "journal-cross-check-verified".to_owned()
+    };
+
+    Ok(ForkNetDiffReceiptV1 {
+        schema_version: "snapback.fork-net-diff.v1".to_owned(),
+        fork_id: runtime.lineage.fork_id,
+        app_id: runtime.lineage.app_id,
+        parent_instance_id: runtime.lineage.parent_instance_id,
+        fork_point_version: runtime.lineage.fork_point_version,
+        observed_head_version,
+        substrate: "retained-base-v1".to_owned(),
+        completeness: "journal-enumerated-v1".to_owned(),
+        journal_consistency,
+        rows,
+        table_counts,
+        domains: BTreeMap::from([
+            ("appRows".to_owned(), "net-covered".to_owned()),
+            ("schema".to_owned(), "omitted".to_owned()),
+            ("auth".to_owned(), "omitted".to_owned()),
+            ("operational".to_owned(), "omitted".to_owned()),
+            ("configuration".to_owned(), "omitted".to_owned()),
+            ("assets".to_owned(), "omitted".to_owned()),
+            ("egressAttempts".to_owned(), "omitted".to_owned()),
+            ("telemetry".to_owned(), "omitted".to_owned()),
+            ("sidecars".to_owned(), "omitted".to_owned()),
+        ]),
+    })
+}
+
+/// Every row of one app table as a canonical JSON object keyed by `_id`.
+/// Values come from the live column bytes — SQLite storage classes map to
+/// JSON directly, blobs render as lowercase hex — so two identical rows
+/// compare equal regardless of which database file they were read from.
+fn read_app_table_rows(
+    conn: &Connection,
+    table: &str,
+) -> SnapbackResult<BTreeMap<String, Value>> {
+    let quoted = format!("\"{}\"", table.replace('"', "\"\""));
+    let mut statement = match conn.prepare(&format!("SELECT * FROM {quoted}")) {
+        Ok(statement) => statement,
+        // A table existing on only one side (schema divergence) reads as
+        // empty on the other; the row-level diff then reports its rows.
+        Err(rusqlite::Error::SqliteFailure(_, Some(message)))
+            if message.contains("no such table") =>
+        {
+            return Ok(BTreeMap::new());
+        }
+        Err(error) => return Err(error.into()),
+    };
+    let columns = statement
+        .column_names()
+        .into_iter()
+        .map(str::to_owned)
+        .collect::<Vec<_>>();
+    let mut rows = BTreeMap::new();
+    let mut raw = statement.query([])?;
+    while let Some(row) = raw.next()? {
+        let mut object = serde_json::Map::new();
+        let mut row_id = None;
+        for (index, column) in columns.iter().enumerate() {
+            let value = match row.get_ref(index)? {
+                rusqlite::types::ValueRef::Null => Value::Null,
+                rusqlite::types::ValueRef::Integer(value) => Value::from(value),
+                rusqlite::types::ValueRef::Real(value) => Value::from(value),
+                rusqlite::types::ValueRef::Text(bytes) => {
+                    Value::from(String::from_utf8_lossy(bytes).into_owned())
+                }
+                rusqlite::types::ValueRef::Blob(bytes) => Value::from(
+                    bytes.iter().map(|byte| format!("{byte:02x}")).collect::<String>(),
+                ),
+            };
+            if column == "_id"
+                && let Value::String(id) = &value
+            {
+                row_id = Some(id.clone());
+            }
+            object.insert(column.clone(), value);
+        }
+        let Some(row_id) = row_id else {
+            return Err(fork_error(
+                "SNAPBACK_FORK_DIFF_INVALID",
+                format!("app table {table} has a row without a string _id"),
+            ));
+        };
+        rows.insert(row_id, Value::Object(object));
+    }
+    Ok(rows)
+}
+
 #[allow(clippy::too_many_arguments)]
 fn publish_with_options(
     source_database: &Path,
@@ -2346,6 +2682,7 @@ fn publish_with_options(
     cut_at: Option<PublicationCut>,
     with_secrets: bool,
     expires_at_ms: Option<u64>,
+    retain_base: bool,
 ) -> SnapbackResult<ForkMintReceiptV1> {
     if destination.exists() {
         return Err(fork_error(
@@ -2421,6 +2758,9 @@ fn publish_with_options(
         with_secrets,
         expires_at_ms,
     )?;
+    if retain_base {
+        retain_base_snapshot(&staging, &staging_database, &receipt, now_ms)?;
+    }
     sync_directory(&staging)?;
     maybe_cut(cut_at, PublicationCut::AfterStagingDirectorySync)?;
 
@@ -2451,6 +2791,45 @@ fn publish_with_options(
     sync_directory(destination)?;
     maybe_cut(cut_at, PublicationCut::AfterPublishedDirectorySync)?;
     Ok(receipt)
+}
+
+/// Copy the freshly minted database as the fork's immutable base snapshot,
+/// digest-bound so later net diffs can prove the base is untampered. The
+/// copy happens inside private staging, so publication atomicity (rename)
+/// covers it exactly like every other fork artifact.
+fn retain_base_snapshot(
+    staging: &Path,
+    staging_database: &Path,
+    receipt: &ForkMintReceiptV1,
+    now_ms: u64,
+) -> SnapbackResult<()> {
+    let base_path = staging.join(BASE_SNAPSHOT_FILE);
+    let source = Connection::open(staging_database)?;
+    let mut target = Connection::open(&base_path)?;
+    {
+        let backup = rusqlite::backup::Backup::new(&source, &mut target)?;
+        backup.run_to_completion(128, std::time::Duration::from_millis(1), None)?;
+    }
+    drop(target);
+    drop(source);
+    sync_file(&base_path, "sync retained fork base")?;
+    let base_receipt = ForkBaseReceiptV1 {
+        schema_version: "snapback.fork-base.v1".to_owned(),
+        fork_id: receipt.lineage.fork_id.clone(),
+        database_file: BASE_SNAPSHOT_FILE.to_owned(),
+        sha256: file_sha256(&base_path)?,
+        retained_at_ms: now_ms,
+    };
+    write_json_sync(&staging.join(BASE_RECEIPT_FILE), &base_receipt)
+}
+
+fn file_sha256(path: &Path) -> SnapbackResult<String> {
+    use sha2::Digest as _;
+    let mut hasher = sha2::Sha256::new();
+    let mut file = File::open(path).map_err(|error| io_error("open file for digest", error))?;
+    std::io::copy(&mut file, &mut hasher)
+        .map_err(|error| io_error("digest fork base snapshot", error))?;
+    Ok(format!("sha256:{:x}", hasher.finalize()))
 }
 
 /// Recover solely from local staging/published evidence. A missing or corrupt
@@ -3869,7 +4248,7 @@ mod tests {
             .unwrap();
 
         let generous = ForkResourceLimits::default();
-        let usage = enforce_creation_limits(&root, &source, &generous).unwrap();
+        let usage = enforce_creation_limits(&root, &source, &generous, false).unwrap();
         assert_eq!(usage.fork_count, 1);
         assert!(usage.existing_bytes > 0);
         assert!(usage.estimated_fork_bytes > 0);
@@ -3882,6 +4261,7 @@ mod tests {
                 max_forks: 1,
                 ..generous
             },
+            false,
         )
         .unwrap_err();
         assert_eq!(error.diagnostic.code, RESOURCE_LIMIT_REFUSED_CODE);
@@ -3896,6 +4276,7 @@ mod tests {
                 max_fork_bytes: 1,
                 ..generous
             },
+            false,
         )
         .unwrap_err();
         assert_eq!(error.diagnostic.code, RESOURCE_LIMIT_REFUSED_CODE);
@@ -3910,6 +4291,7 @@ mod tests {
                 max_total_bytes: usage.existing_bytes,
                 ..generous
             },
+            false,
         )
         .unwrap_err();
         assert_eq!(error.diagnostic.code, RESOURCE_LIMIT_REFUSED_CODE);
@@ -3981,6 +4363,188 @@ mod tests {
 
         let receipt = diff_receipt_bounded(&database, 6).unwrap();
         assert_eq!(receipt.rows.len(), 6, "at the bound the receipt is exact");
+    }
+
+    fn journal_write(conn: &Connection, version: u64, table: &str, row_id: &str, op: &str) {
+        conn.execute(
+            "INSERT INTO _snapback_changes(version,table_name,row_id,op,row_json,changed_at_ms)
+             VALUES(?1,?2,?3,?4,'{}',100)",
+            params![version, table, row_id, op],
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn net_diff_oracle_covers_the_mutation_corpus_and_verifies_the_journal() {
+        let directory = tempfile::tempdir().unwrap();
+        let source = source_database(directory.path());
+        let parent = Connection::open(&source).unwrap();
+        parent
+            .execute_batch(
+                "CREATE TABLE notes(_id TEXT PRIMARY KEY, body TEXT NOT NULL);
+                 CREATE TABLE tags(_id TEXT PRIMARY KEY, label TEXT NOT NULL);
+                 INSERT INTO notes VALUES('n-upd','before'),('n-del','doomed'),('n-revert','original'),('n-kept','stable');
+                 INSERT INTO tags VALUES('t-kept','stable');",
+            )
+            .unwrap();
+        drop(parent);
+        let root = directory.path().join("forks");
+        fs::create_dir(&root).unwrap();
+        let destination = root.join("fork-a");
+        let receipt = publish_managed_with_base(
+            &source,
+            &destination,
+            "app-a",
+            "parent-a",
+            100,
+            200_000,
+            false,
+            true,
+        )
+        .unwrap();
+        assert!(destination.join(BASE_SNAPSHOT_FILE).is_file());
+        let database = destination.join("app.sqlite3");
+
+        // Multi-commit, multi-table fork workload including a revert and an
+        // insert+delete that both net to nothing, plus a schema divergence.
+        let fork = Connection::open(&database).unwrap();
+        fork.execute_batch(
+            "INSERT INTO notes VALUES('n-new','fork row');
+             INSERT INTO notes VALUES('n-ephemeral','gone by head');
+             UPDATE notes SET body='after' WHERE _id='n-upd';
+             UPDATE notes SET body='changed' WHERE _id='n-revert';
+             DELETE FROM notes WHERE _id='n-del';
+             DELETE FROM notes WHERE _id='n-ephemeral';
+             UPDATE notes SET body='original' WHERE _id='n-revert';
+             INSERT INTO tags VALUES('t-new','fork tag');
+             CREATE TABLE fork_only(_id TEXT PRIMARY KEY, note TEXT);
+             INSERT INTO fork_only VALUES('f-1','schema divergence');
+             UPDATE _snapback_version SET version=3 WHERE id=1;",
+        )
+        .unwrap();
+        for (version, table, row_id, op) in [
+            (1, "notes", "n-new", "insert"),
+            (1, "notes", "n-ephemeral", "insert"),
+            (2, "notes", "n-upd", "update"),
+            (2, "notes", "n-revert", "update"),
+            (2, "notes", "n-del", "delete"),
+            (3, "notes", "n-ephemeral", "delete"),
+            (3, "notes", "n-revert", "update"),
+            (3, "tags", "t-new", "insert"),
+            (3, "fork_only", "f-1", "insert"),
+        ] {
+            journal_write(&fork, version, table, row_id, op);
+        }
+        drop(fork);
+
+        let net = net_diff_receipt(&database, FORK_DIFF_MAX_ROWS).unwrap();
+        assert_eq!(net.schema_version, "snapback.fork-net-diff.v1");
+        assert_eq!(net.substrate, "retained-base-v1");
+        assert_eq!(net.completeness, "journal-enumerated-v1");
+        assert_eq!(net.journal_consistency, "journal-cross-check-verified");
+        assert_eq!(net.fork_point_version, receipt.lineage.fork_point_version);
+        assert_eq!(net.observed_head_version, 3);
+        let summary = net
+            .rows
+            .iter()
+            .map(|row| (row.table.as_str(), row.row_id.as_str(), row.operation.as_str()))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            summary,
+            vec![
+                ("fork_only", "f-1", "insert"),
+                ("notes", "n-del", "delete"),
+                ("notes", "n-new", "insert"),
+                ("notes", "n-upd", "update"),
+                ("tags", "t-new", "insert"),
+            ],
+            "reverts and insert+delete pairs net to nothing; everything else nets exactly"
+        );
+        let update = net
+            .rows
+            .iter()
+            .find(|row| row.row_id == "n-upd")
+            .unwrap();
+        assert_eq!(update.pre_image.as_ref().unwrap()["body"], "before");
+        assert_eq!(update.post_image.as_ref().unwrap()["body"], "after");
+        let delete = net.rows.iter().find(|row| row.row_id == "n-del").unwrap();
+        assert_eq!(delete.pre_image.as_ref().unwrap()["body"], "doomed");
+        assert!(delete.post_image.is_none());
+        assert_eq!(net.table_counts["notes"], 3);
+        assert_eq!(net.domains["appRows"], "net-covered");
+        assert_eq!(net.domains["auth"], "omitted");
+
+        // A sibling no-op fork of the same parent nets to nothing.
+        let sibling = root.join("fork-b");
+        publish_managed_with_base(
+            &source, &sibling, "app-a", "parent-a", 100, 200_000, false, true,
+        )
+        .unwrap();
+        let sibling_net =
+            net_diff_receipt(&sibling.join("app.sqlite3"), FORK_DIFF_MAX_ROWS).unwrap();
+        assert!(sibling_net.rows.is_empty(), "a no-op workload nets to zero rows");
+        assert_eq!(sibling_net.journal_consistency, "journal-cross-check-verified");
+    }
+
+    #[test]
+    fn net_diff_refuses_without_base_catches_a_lying_journal_and_a_tampered_base() {
+        let directory = tempfile::tempdir().unwrap();
+        let source = source_database(directory.path());
+        let parent = Connection::open(&source).unwrap();
+        parent
+            .execute_batch("CREATE TABLE notes(_id TEXT PRIMARY KEY, body TEXT NOT NULL)")
+            .unwrap();
+        drop(parent);
+        let root = directory.path().join("forks");
+        fs::create_dir(&root).unwrap();
+
+        // Without a retained base the exact diff refuses by name.
+        let bare = root.join("fork-bare");
+        publish_managed(&source, &bare, "app-a", "parent-a", 100, 200_000, false).unwrap();
+        assert_eq!(
+            net_diff_receipt(&bare.join("app.sqlite3"), FORK_DIFF_MAX_ROWS)
+                .unwrap_err()
+                .diagnostic
+                .code,
+            NET_DIFF_UNAVAILABLE_CODE
+        );
+
+        // A privileged write outside the journal is exactly what the oracle
+        // must expose: the base/head net shows a change the journal never
+        // recorded, so the receipt refuses rather than lending it cover.
+        let lying = root.join("fork-lying");
+        publish_managed_with_base(
+            &source, &lying, "app-a", "parent-a", 100, 200_000, false, true,
+        )
+        .unwrap();
+        let database = lying.join("app.sqlite3");
+        let conn = Connection::open(&database).unwrap();
+        conn.execute("INSERT INTO notes VALUES('smuggled','no journal entry')", [])
+            .unwrap();
+        drop(conn);
+        let mismatch = net_diff_receipt(&database, FORK_DIFF_MAX_ROWS).unwrap_err();
+        assert_eq!(mismatch.diagnostic.code, DIFF_ORACLE_MISMATCH_CODE);
+        assert_eq!(mismatch.diagnostic.details["table"], "notes");
+        assert_eq!(mismatch.diagnostic.details["rowId"], "smuggled");
+
+        // A tampered base snapshot fails its digest binding.
+        let tampered = root.join("fork-tampered");
+        publish_managed_with_base(
+            &source, &tampered, "app-a", "parent-a", 100, 200_000, false, true,
+        )
+        .unwrap();
+        let base_conn = Connection::open(tampered.join(BASE_SNAPSHOT_FILE)).unwrap();
+        base_conn
+            .execute("INSERT INTO notes VALUES('tamper','rewrite history')", [])
+            .unwrap();
+        drop(base_conn);
+        assert_eq!(
+            net_diff_receipt(&tampered.join("app.sqlite3"), FORK_DIFF_MAX_ROWS)
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_FORK_EVIDENCE_MISMATCH"
+        );
     }
 
     #[test]
