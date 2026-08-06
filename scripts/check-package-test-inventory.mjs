@@ -84,6 +84,7 @@ const inventories = [
       'assets-watch-authorization.test.mjs',
       'assets.test.mjs',
       'attribution.test.mjs',
+      'auth-exchange-concurrency.test.mjs',
       'bearer-rotation.test.mjs',
       'browser-closure.test.mjs',
       'bundle.test.mjs',
@@ -616,7 +617,11 @@ const total = results.reduce((sum, result) => sum + result.count, 0);
 // mixed/all-relational snapshot-batch.v2 authoring and identity-mirror suite.
 // 221 -> 222 (2026-08-06, LLP 0179 S2): @expo/snapback-codegen gains the
 // non-React descriptor inspection consumer suite.
-assert.equal(total, 222, 'reviewed package/admin test count changed');
+// 222 -> 223 (2026-08-06): @expo/snapback-client's auth-exchange concurrency
+// suite from `f782431bd fix(auth): custody lock must not span the transition
+// participant barrier` — registered in that package's test script but not
+// here, which left this gate red on main. Registered on sight, not owned.
+assert.equal(total, 223, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }
