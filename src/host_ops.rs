@@ -2979,9 +2979,11 @@ mod tests {
         let directory = tempfile::tempdir().expect("branch host-op tempdir");
         let path = directory.path().join("app.sqlite3");
         let mut snapback = LocalSnapback::open(&path).expect("file-backed branch host-op");
-        let mut schema = SchemaManifest::default();
-        schema.app_id = "branch-host-app".to_owned();
-        schema.schema_hash = Some(format!("sha256:{}", "a".repeat(64)));
+        let schema = SchemaManifest {
+            app_id: "branch-host-app".to_owned(),
+            schema_hash: Some(format!("sha256:{}", "a".repeat(64))),
+            ..SchemaManifest::default()
+        };
         assert!(
             snapback
                 .apply_schema(schema)
@@ -3000,10 +3002,12 @@ mod tests {
                 },
             )),
         );
-        let mut functions = FunctionManifest::default();
-        functions.app_id = "branch-host-app".to_owned();
-        functions.bundle_hash = Some(format!("sha256:{}", "b".repeat(64)));
-        functions.functions = vec![action];
+        let functions = FunctionManifest {
+            app_id: "branch-host-app".to_owned(),
+            bundle_hash: Some(format!("sha256:{}", "b".repeat(64))),
+            functions: vec![action],
+            ..FunctionManifest::default()
+        };
         assert!(
             snapback
                 .load_functions(functions)

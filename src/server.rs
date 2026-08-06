@@ -19334,14 +19334,14 @@ async fn execute_data_patch_host_operation(
     )
     .await
     .and_then(|outcome| outcome);
-    let outcome = committed.and_then(|commit| {
-        Ok(serde_json::to_value(crate::data_patch::receipt(
+    let outcome = committed.map(|commit| {
+        serde_json::to_value(crate::data_patch::receipt(
             token_id,
             binding,
             commit.output.version,
             commit.output.changed_count,
         ))
-        .expect("closed data-patch receipt serializes"))
+        .expect("closed data-patch receipt serializes")
     });
     Ok(project_data_patch_result(
         &state,
@@ -26316,6 +26316,7 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_BRANCH_STREAM_MISMATCH"
         | "SNAPBACK_CHECKPOINT_DESTINATION_INVALID"
         | "SNAPBACK_CHECKPOINT_REQUEST_INVALID"
+        | "SNAPBACK_FORK_APP_BINDING_REQUIRED"
         | "SNAPBACK_FORK_APP_ID_REQUIRED"
         | "SNAPBACK_FORK_ASSET_CUT_UNSUPPORTED"
         | "SNAPBACK_FORK_APP_ROOT_INVALID"
@@ -26336,6 +26337,7 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_PROMOTION_TICKET_TTL_INSUFFICIENT" => StatusCode::BAD_REQUEST,
         "SNAPBACK_BRANCH_AUTHORITY_DENIED"
         | "SNAPBACK_BRANCH_EGRESS_DENIED"
+        | "SNAPBACK_FORK_APP_BINDING_MISMATCH"
         | "SNAPBACK_HISTORY_AUTHORIZATION_DENIED"
         | "SNAPBACK_OPERATION_ISSUANCE_AUTH_INVALID"
         | "SNAPBACK_OPERATION_RANGE_AUTH_INVALID"
@@ -40991,6 +40993,7 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_CHECKPOINT_DESTINATION_INVALID",
         "SNAPBACK_CHECKPOINT_ERASURE_REQUEST_INVALID",
         "SNAPBACK_CHECKPOINT_REQUEST_INVALID",
+        "SNAPBACK_FORK_APP_BINDING_REQUIRED",
         "SNAPBACK_FORK_APP_ID_REQUIRED",
         "SNAPBACK_FORK_ASSET_CUT_UNSUPPORTED",
         "SNAPBACK_FORK_APP_ROOT_INVALID",
@@ -41425,6 +41428,7 @@ globalThis.__snapbackHandlers = {
         // LLP 0158/0163/0164 authorization and sealed-authority refusals.
         "SNAPBACK_BRANCH_AUTHORITY_DENIED",
         "SNAPBACK_BRANCH_EGRESS_DENIED",
+        "SNAPBACK_FORK_APP_BINDING_MISMATCH",
         "SNAPBACK_HISTORY_AUTHORIZATION_DENIED",
         "SNAPBACK_OPERATION_ISSUANCE_AUTH_INVALID",
         "SNAPBACK_OPERATION_COVERAGE_ACTIVATION_AUTHORITY_INVALID",

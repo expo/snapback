@@ -2395,7 +2395,6 @@ pub async fn run_from_env() -> anyhow::Result<()> {
         Some(HostCommand::Ephemeral { command }) => ephemeral_command(command),
         Some(HostCommand::Jobs { command }) => jobs_command(command),
         Some(HostCommand::Connections { command }) => connections_command(command),
-        Some(HostCommand::Ephemeral { command }) => ephemeral_command(command),
         Some(HostCommand::NetworkProfile { command }) => match command {
             NetworkProfileCommand::Get { target } => {
                 host_op_via_http(&target, json!({ "operation": "debug.networkProfileGet" }))
@@ -5199,7 +5198,7 @@ fn read_config_value_carrier(
         // SAFETY: duplicate is a fresh owned descriptor returned by dup and
         // is converted into exactly one File.
         let file = unsafe { std::fs::File::from_raw_fd(duplicate) };
-        return read_config_value(file);
+        read_config_value(file)
     }
     #[cfg(not(unix))]
     {

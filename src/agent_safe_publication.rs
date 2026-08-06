@@ -211,6 +211,7 @@ fn owner_explanation_fact(
     }
 }
 
+#[cfg(test)]
 pub(crate) fn storage_publication_verified() -> bool {
     storage_publication_verified_for_distribution(crate::identity::build_distribution())
 }
@@ -228,6 +229,7 @@ pub(crate) fn storage_publication_verified_for_distribution(build_distribution: 
     )
 }
 
+#[cfg(test)]
 pub(crate) fn derived_fork_publication_verified() -> bool {
     derived_fork_publication_verified_for_distribution(crate::identity::build_distribution())
 }
@@ -242,6 +244,7 @@ pub(crate) fn derived_fork_publication_verified_for_distribution(build_distribut
     false
 }
 
+#[allow(clippy::too_many_arguments)]
 fn embedded_publication_verified(
     capability_id: &str,
     components: &[&str],

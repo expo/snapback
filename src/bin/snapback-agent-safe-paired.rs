@@ -816,20 +816,17 @@ fn validate_worker_lock_derivation(root: &[u8], worker: &[u8]) -> anyhow::Result
 }
 
 fn parse_lock_packages(bytes: &[u8]) -> anyhow::Result<BTreeSet<LockPackage>> {
+    type LockPackageFields = (
+        Option<String>,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+    );
+
     let text = std::str::from_utf8(bytes).context("Cargo.lock is not UTF-8")?;
     let mut packages = BTreeSet::new();
-    let mut current: Option<(
-        Option<String>,
-        Option<String>,
-        Option<String>,
-        Option<String>,
-    )> = None;
-    let flush = |current: &mut Option<(
-        Option<String>,
-        Option<String>,
-        Option<String>,
-        Option<String>,
-    )>,
+    let mut current: Option<LockPackageFields> = None;
+    let flush = |current: &mut Option<LockPackageFields>,
                  packages: &mut BTreeSet<LockPackage>|
      -> anyhow::Result<()> {
         let Some((name, version, source, checksum)) = current.take() else {
@@ -1331,7 +1328,7 @@ fn ensure_three_subpairs(pair: &RawPair) -> anyhow::Result<()> {
 }
 
 fn outer_pair_order(pair: usize) -> (&'static str, [bool; RECORDED_SUBPAIRS_PER_PAIR]) {
-    if pair % 2 == 0 {
+    if pair.is_multiple_of(2) {
         ("AB/BA/AB", [true, false, true])
     } else {
         ("BA/AB/BA", [false, true, false])

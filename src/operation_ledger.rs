@@ -2500,7 +2500,7 @@ pub fn lookup_operation(
         originator(proposed.key.originator_class),
         proposed.key.operation_id,
     ];
-    let row: Option<(
+    type OperationSuppressionRow = (
         String,
         String,
         i64,
@@ -2509,7 +2509,8 @@ pub fn lookup_operation(
         Option<i64>,
         String,
         String,
-    )> = conn
+    );
+    let row: Option<OperationSuppressionRow> = conn
         .query_row(
             "SELECT audience, epoch_id, epoch_sequence, counter,
                     terminal_at_ms, acknowledged_at_ms,

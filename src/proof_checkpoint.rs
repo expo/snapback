@@ -2098,6 +2098,7 @@ fn placeholder_receipt(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn checkpoint_recovery_intent(
     checkpoint_id: &str,
     request: &NamedCheckpointRequestV1,

@@ -92,12 +92,11 @@ fn marker_rows(database: &Path) -> Vec<(String, u64)> {
     let mut statement = conn
         .prepare("SELECT family, attempts FROM _snapback_fork_egress_attempts_v1 ORDER BY family")
         .expect("prepare marker query");
-    let rows = statement
+    statement
         .query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, u64>(1)?)))
         .expect("query markers")
         .collect::<Result<Vec<_>, _>>()
-        .expect("collect markers");
-    rows
+        .expect("collect markers")
 }
 
 #[test]

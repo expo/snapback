@@ -423,16 +423,22 @@ impl WriterAuthorityV1 {
         // an unarmed connection keeps its normal cache and pays no dormant
         // coverage cost.
         conn.set_prepared_statement_cache_capacity(0);
+        let was_armed = self.lock()?.armed();
         let armed = self.set_manifest(Some(manifest));
-        // Activation is a rare control-plane cut. Ask SQLite to release unused
-        // connection memory after publishing and validating the manifest. This
-        // is the shared product seam used by both local publication and the
-        // evidence fixture; the live manifest, connection-local authorizer,
-        // and issued identities remain intact.
+        // The initial activation is a rare control-plane cut. Ask SQLite to
+        // release unused connection memory after publishing and validating the
+        // manifest. Re-arming skips the PRAGMA because the installed
+        // authorizer deliberately refuses maintenance PRAGMAs; the live
+        // manifest, connection-local authorizer, and issued identities remain
+        // intact either way.
         //
         // @ref LLP 0162#measurement-gate — idle RSS measures the active
         //   steady connection, not one-time activation cache residency.
-        let cache_release = conn.execute_batch("PRAGMA shrink_memory;");
+        let cache_release = if was_armed {
+            Ok(())
+        } else {
+            conn.execute_batch("PRAGMA shrink_memory;")
+        };
         // Install even when the state mutex is poisoned: the callback then
         // denies every prepare instead of leaving a durable active manifest
         // on a permissive connection after activation reports its error.

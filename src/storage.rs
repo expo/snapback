@@ -2161,6 +2161,7 @@ impl LocalDatabase {
         crate::fork_promotion::branch_operation_log(&self.conn, branch_id)
     }
 
+    #[cfg(test)]
     pub(crate) fn captured_effect_intents(
         &self,
         branch_id: &crate::branches::BranchId,
@@ -2202,40 +2203,6 @@ impl LocalDatabase {
             context,
             result,
             diagnostic_code,
-        )
-    }
-
-    pub(crate) fn foreclose_branch_operation_admission(
-        &mut self,
-        branch_id: &crate::branches::BranchId,
-        draft: &crate::fork_promotion::BranchOperationDraftV1,
-        now_ms: i64,
-    ) -> SnapbackResult<()> {
-        crate::fork_promotion::foreclose_branch_operation_admission(
-            &mut self.conn,
-            branch_id,
-            draft,
-            now_ms,
-        )
-    }
-
-    pub(crate) fn retain_committed_branch_mutation(
-        &mut self,
-        branch_id: &crate::branches::BranchId,
-        draft: &crate::fork_promotion::BranchOperationDraftV1,
-        committed_version: u64,
-        result: Value,
-        ctx_answers: Value,
-        now_ms: i64,
-    ) -> SnapbackResult<crate::fork_promotion::BranchOperationV1> {
-        crate::fork_promotion::retain_committed_branch_mutation(
-            &mut self.conn,
-            branch_id,
-            draft,
-            committed_version,
-            result,
-            ctx_answers,
-            now_ms,
         )
     }
 
@@ -5473,15 +5440,14 @@ impl LocalDatabase {
         //   is re-read inside every commit transaction, so a crash between
         //   reopen and resume cannot readmit application writes.
         migration_executor::ensure_migration_fence_open(&tx)?;
-        if enforce_canonical_promotion_reservation {
-            if let Some(stream_id) = crate::seed_identity::strict_current_data_version_stream(&tx)?
-            {
-                crate::fork_promotion::enforce_canonical_mutation_admission_in(
-                    &tx,
-                    &stream_id,
-                    now_ms as i64,
-                )?;
-            }
+        if enforce_canonical_promotion_reservation
+            && let Some(stream_id) = crate::seed_identity::strict_current_data_version_stream(&tx)?
+        {
+            crate::fork_promotion::enforce_canonical_mutation_admission_in(
+                &tx,
+                &stream_id,
+                now_ms as i64,
+            )?;
         }
         let current_version = current_version_on(&tx)?;
         #[cfg(test)]
@@ -6512,6 +6478,7 @@ impl LocalDatabase {
         )
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn commit_buffered_writes_for_lane<G, Check, BeforeCommit>(
         &mut self,
         input: &HandlerInput,
@@ -6710,6 +6677,7 @@ impl LocalDatabase {
         )
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn apply_buffered_writes_with_lifecycle_gated<G, Check, BeforeCommit>(
         &mut self,
         writer_lane: write_authority::LocalWriterLaneV1,
@@ -6805,15 +6773,14 @@ impl LocalDatabase {
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
         migration_executor::ensure_migration_fence_open(&tx)?;
-        if enforce_canonical_promotion_reservation {
-            if let Some(stream_id) = crate::seed_identity::strict_current_data_version_stream(&tx)?
-            {
-                crate::fork_promotion::enforce_canonical_mutation_admission_in(
-                    &tx,
-                    &stream_id,
-                    now_ms as i64,
-                )?;
-            }
+        if enforce_canonical_promotion_reservation
+            && let Some(stream_id) = crate::seed_identity::strict_current_data_version_stream(&tx)?
+        {
+            crate::fork_promotion::enforce_canonical_mutation_admission_in(
+                &tx,
+                &stream_id,
+                now_ms as i64,
+            )?;
         }
         let current_version = current_version_on(&tx)?;
         let next_version = next_storage_version(current_version)?;

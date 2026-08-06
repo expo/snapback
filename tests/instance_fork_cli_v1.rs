@@ -1289,12 +1289,11 @@ fn todo_titles(database: &Path) -> Vec<String> {
     let mut statement = conn
         .prepare("SELECT title FROM todos ORDER BY title")
         .expect("prepare todo title query");
-    let titles = statement
+    statement
         .query_map([], |row| row.get::<_, String>(0))
         .expect("query todo titles")
         .collect::<Result<Vec<_>, _>>()
-        .expect("collect todo titles");
-    titles
+        .expect("collect todo titles")
 }
 
 /// LLP 0185 Phase 3 item 1: writes committed to a live parent after the fork

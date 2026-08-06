@@ -43,10 +43,12 @@ use std::cell::OnceCell;
 use std::collections::{BTreeMap, BTreeSet};
 
 #[cfg(test)]
+type MigrationExecutionValueHook = Box<dyn FnMut(&str, Value) -> Value>;
+
+#[cfg(test)]
 thread_local! {
-    static MIGRATION_EXECUTION_VALUE_HOOK: std::cell::RefCell<
-        Option<Box<dyn FnMut(&str, Value) -> Value>>
-    > = const { std::cell::RefCell::new(None) };
+    static MIGRATION_EXECUTION_VALUE_HOOK: std::cell::RefCell<Option<MigrationExecutionValueHook>> =
+        const { std::cell::RefCell::new(None) };
 }
 
 #[cfg(test)]
@@ -951,6 +953,7 @@ fn migration_fact_set(domain: &[u8], detail: Value, count: u64) -> EnvelopeFactS
 
 /// P-side aggregate record. The caller has already published the live schema,
 /// application version, and exact schema-transition row in this transaction.
+#[allow(clippy::too_many_arguments)]
 fn record_migration_pending_aggregate_in(
     tx: &Transaction<'_>,
     artifact: &MigrationPlanArtifactV1,
