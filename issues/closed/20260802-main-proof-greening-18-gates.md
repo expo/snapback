@@ -1486,3 +1486,54 @@ the relation/activity and sequence carriers reproduce unchanged at
 `9a6d06dd6ecfc6403314542c0574328326e5c606ce8cde2c10f28e3e04a60b8b`
 and
 `79498ab71bfec20bb983ca006a7ab48cfcea3529b7f7b2890364c7d4240f16b9`.
+
+### Final main reconciliation and Linux receipt — 2026-08-05
+
+The closing batch merged main through `7c2a27e0e`. Strict Clippy first exposed
+the config landing `88c1344d6`'s mechanical `needless_return`, two pre-existing
+`host_ops_v0` constructors missing the new inert
+`derived_fork_arm_writer_coverage: false` fixture field, and the drift lane's
+own earlier `2048ba89f` removal of `ParentServer.server_url` before the later
+F0a asset-lifecycle fixture began consuming it. The config expression and test
+fixtures were reconciled without changing the fork implementation, push seam,
+or any effect ceiling. Strict Clippy, the focused config and host-op tests, the
+218-file package inventory, and the complete affected-selector fixture pass.
+
+That main batch changed `src/storage.rs`, so one final batched carrier refresh
+advanced relation/activity to
+`a81a229227ea83109ca5c676ca0cd8c12793c46f7d3fd825e75e32a02c192182`,
+sequence allocation to
+`c5b430e5004814fa606a7040e3db3f01bd93706c19799a5afa8b8803966ac1d0`,
+and persistent store to
+`542eb105f7db899ceac889c98a11ef49ea901d7d41156c8296764581423de076`.
+All three conformance checks, agent-safe publication honesty, generated
+artifacts, deployment identity, 92 declaration surfaces, both required
+production surface builds, capability maturity, the 54-profile bundle
+metrology train, Guide checks, and the LLP reference audit pass.
+
+The exact Linux telemetry source is clean commit
+`73aa2a0778de86798ea248c74e7c98cd7df03c2b`. Before dispatch, the approved
+`expose-builder-pixel` EPYC host reported 0.00 load and 243 GiB available with
+no Cargo, rustc, Snapback, or telemetry verifier process; immediately before
+the producer it still had 240 GiB available and no competing Cargo/rustc
+process. The normal-user job root is
+`/var/cache/expose-build/snapback-telemetry-final.rUU5VC`; the exact bundle was
+verified before transfer, the vendored Ibex commit was
+`4c34c831aa087d6783b0d68f281cdb374ed7fc89`, and the coded doctor/bootstrap
+qualified the restricted no-eval handler VM under Cargo/Rustc 1.97.0, Node
+24.18.0, and Bun 1.3.12. No admin access, host repair, bootstrap bypass, or
+manual runtime substitution was used.
+
+`scripts/verify-telemetry-phase1-proof --full` passed its exact smoke test
+(1/1), built both release binaries in 15m04s, issued release readiness, ran the
+benchmark, observed the required 120-second Linux idle window, and composed
+the retained receipt. Receipt SHA-256 is
+`d4b8137d803164df3cd84dd1dda6a7895abb18944bbfb452231680465973c175`;
+the served release binary is
+`6e367c55fede72c56c376dee46d773b2e67b481e0e84a6c22ebdfbb85cfbda78`,
+the benchmark binary is
+`6c6783428deb8f3693d87b87f08bbce6bb2729e07fd6642e7c79ac220ad495c6`,
+and the complete producer log is
+`dba16ae2b7efdd12db8febfeeb0a07f1340cc59aa7dc6a90f3012f6a15f38255`.
+The retained receipt is committed after its measured source by design; its
+coded historical/currentness checks run against that committed carrier.
