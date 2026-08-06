@@ -76,3 +76,47 @@ proof run that surfaced it was itself nearly lost to a reporting bug: piping
 `scripts/verify-local-proof` into `tail` swallows its exit code, so the run
 printed a success-shaped tail while a suite had failed. Capture the exit code
 from the command itself, not from the pipeline.
+
+## Resolution (2026-08-06) — reconciled in `6783f7ab8`
+
+The six added paths were reviewed and are all legitimate: two
+content-addressed `app.binding.<sha256>.mjs` / `app.descriptor.<sha256>.json`
+leaves each under the Contention Calendar `FULLY_COMMITTED_ROOTS` entry, the
+comparator fixture root, and the push-seam fixture root. All three roots are
+registered in `scripts/generated-artifact-policy.mjs`, and fully-committed
+roots admit their frozen regular-blob leaves
+(`scripts/check-agent-safe-publication.mjs`). No paths were removed.
+
+The count assertion is replaced by an explicit reviewed set that asserts the
+symmetric difference and reports sorted `unexpected` / `missing` paths.
+Verified it still bites: dropping one reviewed entry makes the suite fail and
+name that path, rather than passing.
+
+**Correction to the table above.** `8caf77857` was the last commit where the
+suite *passed*, but it did not assert 224 — it computed and asserted 177. The
+expected constant was itself revised over time; the reviewed 224-leaf baseline
+is `34ddc125d`. The "red since `8f217183f`" finding is unaffected: that is
+where the tree's actual count diverged from whatever constant the tree carried
+at that commit.
+
+## Follow-up — the reviewed set is structurally fragile
+
+This resolution restores the gate but does not make it durable. The reviewed
+set now enumerates **content-addressed filenames**. Those hashes change
+whenever the underlying app content changes, so the next regeneration of the
+Contention Calendar, comparator, or push-seam apps will red this gate again —
+reporting one `unexpected` (new hash) and one `missing` (old hash) — even
+though nothing about the *policy* changed. That is expected churn, not drift
+worth reviewing, and it will read as a false alarm.
+
+Under AGENTS.md's "main moves fast" guidance this is a bad shape: an
+exact-enumeration gate that any regeneration invalidates needs either a
+per-landing owner or a derivation that does not require one.
+
+Proposed durable fix: match content-addressed leaves under registered roots by
+pattern (`app.binding.<64hex>.mjs`, `app.descriptor.<64hex>.json`) and
+enumerate only the non-content-addressed leaves. The gate then still catches a
+genuinely new *kind* of path — which is what it exists for — without churning
+on every regeneration. Left unimplemented here deliberately: it widens what
+the gate accepts, so it wants its own review rather than riding along with an
+unblocking fix.
