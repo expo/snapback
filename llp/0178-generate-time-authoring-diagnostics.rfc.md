@@ -381,6 +381,16 @@ converting them into Expo-specific strings or automatic edits.
 4. Do advisory acknowledgements need to exist at all after the first rule
    corpus is measured?
 
+## Implementation record
+
+**2026-08-06.** V1 landed earlier as the unsuppressible
+`SNAPBACK_AUTHORING_OPTIONAL_ARG_CONTRADICTION` validation. The commit intent
+`feat(codegen): guidePointer remediation kind + first policy-diagnostic wiring
+(LLP 0178 §2, LLP 0187 T2)` adds the `guidePointer` remediation kind to the
+existing codegen-local `details.remediations[]` carrier, first wires it beside
+the policy options for V1 and `SNAPBACK_AUTH_REQUIREMENT_IMPLICIT`, and guards
+its manifest page ids, paths, and section anchors in the codegen test suite.
+
 ## Status
 
 Review. V1 and the B2 message improvement are the strongest first slice. V3
