@@ -178,6 +178,40 @@ try {
   assert.equal(createdUninstall.status, 0, createdUninstall.stderr);
   assert.equal(existsSync(join(createdRoot, '.mcp.json')), false, 'receipt-backed uninstall should remove a file created only for this entry');
 
+  const jsonRoot = join(root, 'json-project');
+  mkdirSync(jsonRoot);
+  const jsonInstall = run([
+    '--install', 'claude', '--server', 'mcp-control', '--json',
+  ], jsonRoot);
+  assert.equal(jsonInstall.status, 0, jsonInstall.stderr);
+  assert.equal(JSON.parse(jsonInstall.stdout).schemaVersion, 'snapback.agent-setup-receipt.v1');
+  const jsonPreview = jsonInstall.stderr.trimEnd().split('\n');
+  assert.equal(jsonPreview[0], `Target file: ${join(jsonRoot, '.mcp.json')}`);
+  assert.equal(jsonPreview[1], 'Server: mcp-control');
+  assert.match(jsonPreview[2], /standing admin authority.*auto-minted local admin token/);
+
+  const retainedRoot = join(root, 'retained-project');
+  mkdirSync(retainedRoot);
+  const retainedConfig = join(retainedRoot, '.mcp.json');
+  const retainedReceipt = join(retainedRoot, 'unchanged-install-receipt.json');
+  const preexistingControl = { command: cli, args: ['mcp-control'] };
+  writeFileSync(retainedConfig, `${JSON.stringify({
+    mcpServers: { 'snapback-control': preexistingControl },
+  }, null, 2)}\n`);
+  const unchangedInstall = run([
+    '--install', 'claude', '--server', 'mcp-control', '--receipt', retainedReceipt,
+  ], retainedRoot);
+  assert.equal(unchangedInstall.status, 0, unchangedInstall.stderr);
+  assert.equal(parseTextReceipt(unchangedInstall.stdout).changed, false);
+  const unchangedUninstall = run([
+    '--uninstall', 'claude', '--server', 'mcp-control', '--receipt', retainedReceipt,
+  ], retainedRoot);
+  assert.equal(unchangedUninstall.status, 0, unchangedUninstall.stderr);
+  assert.equal(JSON.parse(unchangedUninstall.stdout).changed, false);
+  assert.deepEqual(JSON.parse(readFileSync(retainedConfig, 'utf8')), {
+    mcpServers: { 'snapback-control': preexistingControl },
+  }, 'receipt-backed uninstall must retain an entry that install did not add');
+
   console.log('agent-setup.test.mjs: four-client print, authority preview, bounded install, receipts, and exact uninstall pass');
 } finally {
   rmSync(root, { recursive: true, force: true });

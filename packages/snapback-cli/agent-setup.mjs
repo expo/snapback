@@ -390,6 +390,14 @@ export function uninstallAgentSetup({
   const retainedReceipt = receiptPath === null ? null : loadReceipt(resolve(receiptPath), diagnosticError);
   if (retainedReceipt !== null) {
     assertReceiptMatches(retainedReceipt, { client, server, targetFile }, diagnosticError);
+    if (retainedReceipt.changed === false) {
+      return receiptBase({
+        operation: 'uninstall', client, server, targetFile,
+        entry: retainedReceipt.entry,
+        representation: JSON.stringify(retainedReceipt.entry),
+        changed: false, configFileCreated: false, now,
+      });
+    }
   }
   if (!existsSync(targetFile)) {
     return receiptBase({

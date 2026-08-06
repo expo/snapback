@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "736e4913d27a57cc857c3017758fbea51f2cce5b"
+    "commit": "70188ac8c5f098824ef33cb8014866af17da9da3"
   },
   "nav": {
     ".": [
@@ -222,11 +222,6 @@
         "id": "operating.host-ops",
         "order": 2,
         "title": "Host operations"
-      },
-      {
-        "id": "operating.network-profiles",
-        "order": 2,
-        "title": "Network condition profiles"
       },
       {
         "id": "operating.diagnostics",
@@ -1450,7 +1445,7 @@
       "examples": [],
       "reviewed": "2026-08-04",
       "reviewedCommit": "HEAD",
-      "sha256": "9fc8d4652b0ea7a23617ac08b0febea1aed3863403029e00af82269767b95b00",
+      "sha256": "c405948f7d8774ef6e1b834189d31414629b00b705e839cfa3b451a3b3c69e2b",
       "snippets": []
     },
     "clients.app-cli": {
@@ -2105,7 +2100,13 @@
       "authorities": [
         "llp/0061-agent-first-snapback-guide.rfc.md",
         "llp/0000-snapback.explainer.md",
-        "llp/0064-native-client-surfaces.rfc.md"
+        "llp/0042-agent-mcp-surface.rfc.md",
+        "llp/0064-native-client-surfaces.rfc.md",
+        "llp/0184-agent-accessible-control-plane.rfc.md",
+        "src/cli.rs",
+        "src/guide_mcp.rs",
+        "packages/snapback-cli/index.mjs",
+        "packages/snapback-cli/mcp-control.mjs"
       ],
       "examples": [
         "demos/todo",
@@ -2116,8 +2117,13 @@
       ],
       "reviewed": "2026-08-04",
       "reviewedCommit": "dab2410b6793ffa5685069a0a4054f0e2b21608a",
-      "sha256": "ddbc56ce07b4a6e6440ba1113ffdb18750c34e566398f17c4f6e1d55595fc754",
-      "snippets": []
+      "sha256": "62e6d2a17510a241c90d968d23a3f955b12cba2487331c7654156d6e01e4bf93",
+      "snippets": [
+        {
+          "lang": "json",
+          "class": "fragment"
+        }
+      ]
     },
     "operating.admin-console": {
       "path": "guide/operating/admin-console.md",
@@ -2258,35 +2264,6 @@
           "lang": "json",
           "class": "transcluded",
           "source": "tests/host_ops_v0.rs"
-        }
-      ]
-    },
-    "operating.network-profiles": {
-      "path": "guide/operating/network-profiles.md",
-      "title": "Network condition profiles",
-      "order": 2,
-      "status": "current",
-      "targets": [
-        "local"
-      ],
-      "maturity": "shipped",
-      "capabilities": [
-        "operating.network-profiles"
-      ],
-      "authorities": [
-        "llp/0167-network-condition-profiles.rfc.md"
-      ],
-      "examples": [
-        "demos/zero-bakeoff"
-      ],
-      "reviewed": "2026-08-05",
-      "reviewedCommit": "HEAD",
-      "sha256": "eecc308a4fb6e2768a11bb90611c05c39dca314cbee87a93ec07222185b0b9cc",
-      "snippets": [
-        {
-          "lang": "json",
-          "class": "transcluded",
-          "source": "demos/zero-bakeoff/protocol/environment.v2.json"
         }
       ]
     },
@@ -3013,7 +2990,6 @@
       "operating.guide-mcp",
       "operating.host-ops",
       "operating.inspect",
-      "operating.network-profiles",
       "operating.packaged-dev-loop",
       "operating.secrets-config",
       "operating.served-guide",
@@ -3035,6 +3011,7 @@
       "clients.poll-hosted",
       "operating.declaration-conformance",
       "operating.instance-forks",
+      "operating.network-profiles",
       "sync.local-persistent-store",
       "sync.offline-js-arm",
       "sync.offline-js-arm-protected",
@@ -3045,5 +3022,5 @@
     "routes": 111,
     "hostOps": 37
   },
-  "contentHash": "423d01dd7f0d5fcc8eab9d1045efcd5f067e938295156c9ab22b5179a0ecb0d6"
+  "contentHash": "c02825285af369d51fc55ddf65ffc4c8b0d663166219eb1e89f43ad1923c4807"
 }
