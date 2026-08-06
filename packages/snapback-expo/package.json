@@ -7,6 +7,8 @@
     "app-binding.d.mts",
     "app-binding.mjs",
     "app-binding.schema.json",
+    "asset-source.d.mts",
+    "asset-source.mjs",
     "app.plugin.js",
     "config-plugin.cjs",
     "config-plugin.d.mts",
@@ -26,6 +28,10 @@
       "import": "./app-binding.mjs"
     },
     "./app-binding.schema.json": "./app-binding.schema.json",
+    "./asset-source": {
+      "types": "./asset-source.d.mts",
+      "import": "./asset-source.mjs"
+    },
     "./app.plugin": {
       "types": "./config-plugin.d.mts",
       "require": "./app.plugin.js",
@@ -48,6 +54,7 @@
   },
   "peerDependencies": {
     "expo": ">=57.0.0 <58.0.0",
+    "expo-file-system": ">=57.0.0 <58.0.0",
     "react": ">=19.0.0 <20.0.0",
     "react-native": ">=0.86.0 <0.87.0"
   },
@@ -66,6 +73,6 @@
     "access": "public"
   },
   "scripts": {
-    "test": "node ../../scripts/ensure-workspace-hoist.mjs && node app-binding.test.mjs && node config-plugin.test.mjs && node provider.test.mjs && node supervised-environment.test.mjs && node package.test.mjs && node package-closure.test.mjs && ../../node_modules/.bin/tsc --noEmit --strict --target es2022 --module esnext --moduleResolution bundler types.fixture.ts"
+    "test": "node ../../scripts/ensure-workspace-hoist.mjs && node app-binding.test.mjs && node asset-source.test.mjs && node config-plugin.test.mjs && node provider.test.mjs && node supervised-environment.test.mjs && node package.test.mjs && node package-closure.test.mjs && ../../node_modules/.bin/tsc --noEmit --strict --target es2022 --module esnext --moduleResolution bundler types.fixture.ts"
   }
 }

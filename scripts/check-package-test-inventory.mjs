@@ -198,6 +198,7 @@ const inventories = [
     suffix: '.test.mjs',
     expectedFiles: [
       'app-binding.test.mjs',
+      'asset-source.test.mjs',
       'config-plugin.test.mjs',
       'package-closure.test.mjs',
       'package.test.mjs',
@@ -621,7 +622,9 @@ const total = results.reduce((sum, result) => sum + result.count, 0);
 // suite from `f782431bd fix(auth): custody lock must not span the transition
 // participant barrier` — registered in that package's test script but not
 // here, which left this gate red on main. Registered on sight, not owned.
-assert.equal(total, 223, 'reviewed package/admin test count changed');
+// 223 -> 224 (2026-08-06, LLP 0181 E2): @expo/snapback-expo gains the
+// picker/content-URI asset-source adapter suite.
+assert.equal(total, 224, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }

@@ -7,7 +7,15 @@ Ephemeral state, Code generation, Developer experience, Packaging, Local
 server lifecycle, Testing, Competitive evaluation
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-05
-**Revised:** 2026-08-06 (q) — Appended the G3 exit receipt: LLP 0179 S2 and
+**Revised:** 2026-08-06 (r) — Closed (q)'s per-OS nonclaim: text-only and one
+picked-image send now share the same typed `chat.commands.send` call under
+one ordinary session on a real iOS simulator and Android emulator (system
+photo pickers, delivery URLs rendered, the visible negative truthfully
+`cancelled`, residue staying `inferred | unknown`); E2's picker adapter
+registered through the provider. Supervised simulator/emulator evidence
+only; Status remains Review and G4/G5, release, physical-device, offline,
+background, restart, and attempt-grant claims remain open.
+2026-08-06 (q) — Appended the G3 exit receipt: LLP 0179 S2 and
 LLP 0180 C0/C1 landed at `17e7ca8ca`, text-only and one-image send share one
 `chat.commands.send` call in the Expo fixture, and the acceptance evidence and
 its explicit nonclaims (C2, per-OS command evidence, published packages) are
@@ -789,6 +797,36 @@ simulator/emulator receipts are landed and cited above and are not restated
 as command evidence. The residue `authoritative` value, multiple assets,
 offline/restart custody, attempt grants, and distributed atomicity all remain
 unbuilt and unclaimed.
+
+**2026-08-06 per-OS command receipts — the (q) nonclaim closed; G3 complete.** The generated
+`conversation.commands.send` now accepts both `{ body }` and `{ body, image:
+picked }`. `@expo/snapback-expo` registers the picker URI conversion and
+WinterCG asset transport once on the provider-owned client; ordinary Sessions
+authority, the LLP 0044 asset task, checksum/finalization, and the ordinary
+mutation remain their existing owners. Recorded headless fixtures cover
+`content://`, `ph://`, and `file://`, including non-HTTP status 0 and the Expo
+57 Android picker-cache 404 fallback. The exact-runtime command acceptance is
+4/4 for text, one image, negative authority/retry/cancel behavior, and
+no-false-atomicity/residue.
+
+On iOS, a task-added library image was installed with `simctl addmedia` and
+selected through the system Photos picker; on Android, 30,670 bytes were
+installed with `adb push` plus MediaStore scan and selected through Android's
+Photo Picker. In each fresh supervised run one ordinary provider/session
+cohort committed the text command, committed the picked-image command, saw the
+row through the live surface, rendered the public delivery URL in native
+`Image`, and showed a pre-mutation command cancellation as `cancelled` with
+null residue. The receipts are
+[`20260806-g3-ios-simulator.md`](../demos/expo-golden-path-fixture/receipts/20260806-g3-ios-simulator.md)
+and
+[`20260806-g3-android-emulator.md`](../demos/expo-golden-path-fixture/receipts/20260806-g3-android-emulator.md).
+
+Successful/cancelled device arms have no residue. The headless finalized-byte
+failure arms preserve the only truth LLP 0044 currently supplies:
+same-authority proved refusal is `inferred`, while unsettled or replaced
+authority is `unknown`; neither is presented as certain or safe to delete.
+Both supervisors recorded full reclamation. No background, restart, offline,
+attempt-grant, release, physical-device, LAN-carrier, or LLP 0064 claim follows.
 
 ### G4 — external distribution proof
 

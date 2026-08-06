@@ -20,6 +20,8 @@ export type {
   AssetBearingCommandReferenceV1,
   CommandArgs,
   CommandAssetSource,
+  CommandAssetSourceAdapter,
+  AdaptedCommandAssetSource,
   CommandOutcome,
   CommandResidue,
   CommandResult,
@@ -28,6 +30,7 @@ export type {
   MutationAttemptSnapshot,
   SnapbackCommandDiagnostic,
   TypedRemediation,
+  PlatformCommandAssetSource,
 } from './commands.mjs';
 export {
   CANONICAL_CLIENT_VALUE_V1_LIMITS,

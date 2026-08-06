@@ -21,10 +21,10 @@ function diagnostic(code, message, details = {}) {
 
 function diagnosticFrom(error, fallbackCode, fallbackMessage, details = {}) {
   const carried = error?.diagnostic?.diagnostic ?? error?.diagnostic;
-  if (carried && typeof carried === 'object' && typeof carried.code === 'string') {
+  if (carried && typeof carried === 'object') {
     return Object.freeze({
       schemaVersion: carried.schemaVersion ?? 'snapback.client-diagnostic.v1',
-      code: carried.code,
+      code: typeof carried.code === 'string' ? carried.code : fallbackCode,
       severity: carried.severity ?? 'error',
       message: carried.message ?? error?.message ?? fallbackMessage,
       details: Object.freeze({ ...(carried.details ?? {}), ...details }),
@@ -72,6 +72,26 @@ function assertAssetSource(source) {
   }
 }
 
+function normalizeAdaptedAssetSource(adapted) {
+  const envelope = adapted && typeof adapted === 'object' && !Array.isArray(adapted)
+    && Object.hasOwn(adapted, 'file')
+    ? adapted
+    : { file: adapted };
+  assertAssetSource(envelope.file);
+  for (const field of ['declaredFilename', 'declaredContentType', 'previewUrl']) {
+    if (envelope[field] !== undefined && envelope[field] !== null
+      && typeof envelope[field] !== 'string') {
+      throw new TypeError(`command asset source adapter returned a non-string ${field}`);
+    }
+  }
+  return Object.freeze({
+    file: envelope.file,
+    declaredFilename: envelope.declaredFilename ?? null,
+    declaredContentType: envelope.declaredContentType ?? null,
+    previewUrl: envelope.previewUrl ?? null,
+  });
+}
+
 function commandCall(command, input) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) {
     throw new TypeError('command input must be an object');
@@ -92,7 +112,6 @@ function commandCall(command, input) {
   if (command.asset && Object.hasOwn(input, command.asset.input)
     && input[command.asset.input] !== undefined && input[command.asset.input] !== null) {
     source = input[command.asset.input];
-    assertAssetSource(source);
   } else if (command.asset && command.asset.optional !== true) {
     throw new TypeError(`command input requires asset source ${command.asset.input}`);
   }
@@ -281,7 +300,10 @@ class CommandTaskImpl {
       this.#adoptAssetTask(this.#owner.assets.start({
         upload: this.#command.asset.intent,
         args: {},
-        file: call.source,
+        file: call.source.file,
+        declaredFilename: call.source.declaredFilename,
+        declaredContentType: call.source.declaredContentType,
+        previewUrl: call.source.previewUrl,
         authorityCapture: this.#capture,
         externalTransportGeneration: this.#externalTransportGeneration,
       }));
@@ -294,6 +316,9 @@ class CommandTaskImpl {
     try {
       assertCommandDescriptor(this.#command);
       call = commandCall(this.#command, this.#input);
+      if (call.source !== null) {
+        call.source = await this.#owner.adaptAssetSource(call.source);
+      }
     } catch (error) {
       this.#rejectLocal(error);
       return;
@@ -469,10 +494,11 @@ class CommandTaskImpl {
 }
 
 export class SnapbackCommandClient {
-  constructor(client, { assets = null, invokeMutation = null } = {}) {
+  constructor(client, { assets = null, invokeMutation = null, assetSourceAdapter = null } = {}) {
     if (!client || typeof client !== 'object') throw new TypeError('SnapbackCommandClient requires a SnapbackClient-like owner');
     this.client = client;
     this.assets = assets ?? createAssetClient(client);
+    this.assetSourceAdapter = assetSourceAdapter;
     this.invokeMutation = invokeMutation ?? (async (reference, args, options) => {
       const output = await client.mutate(reference, {
         args,
@@ -482,6 +508,23 @@ export class SnapbackCommandClient {
       });
       return output.result;
     });
+  }
+
+
+  // @ref LLP 0180#input-and-platform-adapters — a host adapter may normalize
+  // a picker URI while the command is still preparing; only its structural
+  // File/Blob result enters the existing LLP 0044 asset task.
+  async adaptAssetSource(source) {
+    if (source && typeof source === 'object' && !Array.isArray(source)
+      && typeof source.size === 'number' && typeof source.slice === 'function') {
+      return normalizeAdaptedAssetSource(source);
+    }
+    if (typeof this.assetSourceAdapter !== 'function') {
+      assertAssetSource(source);
+      throw new TypeError('unreachable asset source validation state');
+    }
+    const adapted = await this.assetSourceAdapter(source);
+    return normalizeAdaptedAssetSource(adapted);
   }
 
   isAuthorityCurrent(capture, externalTransportGeneration = undefined) {

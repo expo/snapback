@@ -5,10 +5,11 @@
     "": {
       "name": "snapback-expo-golden-path-fixture",
       "dependencies": {
-        "@expo/snapback-client": "file:.snapback/local-source-packages/client.0f489654aa82ef0d152980d821caa249c8969b59fa826f7a76a8a59283b50e6e.tgz",
-        "@expo/snapback-expo": "file:.snapback/local-source-packages/expo.ca78c1b2ad38da6d9e437ef93f49fd9a5ea870ee262bb6b947474d6257f56dba.tgz",
-        "@expo/snapback-react": "file:.snapback/local-source-packages/react.5fd5bdc3091271ac3f6a4773a21d9a8edeb88be6f210abffb288d71564a3d239.tgz",
+        "@expo/snapback-client": "file:.snapback/local-source-packages/client.f45e697a40e69c41fd1f61dea140ef5b0c99515ad82b07af4f7e047b52d97f2a.tgz",
+        "@expo/snapback-expo": "file:.snapback/local-source-packages/expo.c7194172f023f5c07de9ecc4cebe382b88a8e526285ee828165532d7275ea6e2.tgz",
+        "@expo/snapback-react": "file:.snapback/local-source-packages/react.e8361bb5ee9e0e004a3d05bd0cc99ffde8590bcef70ce3311b288f1e328846c6.tgz",
         "expo": "~57.0.7",
+        "expo-file-system": "~57.0.1",
         "expo-image-picker": "~57.0.7",
         "react": "19.2.3",
         "react-native": "0.86.2",
@@ -20,10 +21,10 @@
     },
   },
   "overrides": {
-    "@expo/snapback-client": "file:.snapback/local-source-packages/client.0f489654aa82ef0d152980d821caa249c8969b59fa826f7a76a8a59283b50e6e.tgz",
-    "@expo/snapback-contract": "file:.snapback/local-source-packages/contract.f09973691df7dc65d5ac08ac6a538c69f46654cac71b0670506374f34a18d1c0.tgz",
-    "@expo/snapback-expo": "file:.snapback/local-source-packages/expo.ca78c1b2ad38da6d9e437ef93f49fd9a5ea870ee262bb6b947474d6257f56dba.tgz",
-    "@expo/snapback-react": "file:.snapback/local-source-packages/react.5fd5bdc3091271ac3f6a4773a21d9a8edeb88be6f210abffb288d71564a3d239.tgz",
+    "@expo/snapback-client": "file:.snapback/local-source-packages/client.f45e697a40e69c41fd1f61dea140ef5b0c99515ad82b07af4f7e047b52d97f2a.tgz",
+    "@expo/snapback-contract": "file:.snapback/local-source-packages/contract.417b9d292a88a3cb6daf0814a8b82135e988830ade2f1435c4ea4e946c66e53e.tgz",
+    "@expo/snapback-expo": "file:.snapback/local-source-packages/expo.c7194172f023f5c07de9ecc4cebe382b88a8e526285ee828165532d7275ea6e2.tgz",
+    "@expo/snapback-react": "file:.snapback/local-source-packages/react.e8361bb5ee9e0e004a3d05bd0cc99ffde8590bcef70ce3311b288f1e328846c6.tgz",
   },
   "packages": {
     "@babel/code-frame": ["@babel/code-frame@7.29.7", "", { "dependencies": { "@babel/helper-validator-identifier": "^7.29.7", "js-tokens": "^4.0.0", "picocolors": "^1.1.1" } }, "sha512-Aup7aUOfpbAUg2ROOJN6Iw5f9DMBlzu0mIkm/malLQFN/YQgO48wCj0Kxa3sEHJvPVFg7siR+qRInwXd2qhQKw=="],
@@ -212,13 +213,13 @@
 
     "@expo/sdk-runtime-versions": ["@expo/sdk-runtime-versions@1.0.0", "", {}, "sha512-Doz2bfiPndXYFPMRwPyGa1k5QaKDVpY806UJj570epIiMzWaYyCtobasyfC++qfIXVb5Ocy7r3tP9d62hAQ7IQ=="],
 
-    "@expo/snapback-client": ["@expo/snapback-client@.snapback/local-source-packages/client.0f489654aa82ef0d152980d821caa249c8969b59fa826f7a76a8a59283b50e6e.tgz", { "dependencies": { "@expo/snapback-contract": "0.1.0" } }, "sha512-HIQxPLOojvnFeAx5MqYmlP8vOmHwpYMCEL1BTrU8n9kJmszK5071iMM4iGr90yAsJaQ4DD8SZsySqTEGJfjbwg=="],
+    "@expo/snapback-client": ["@expo/snapback-client@.snapback/local-source-packages/client.f45e697a40e69c41fd1f61dea140ef5b0c99515ad82b07af4f7e047b52d97f2a.tgz", { "dependencies": { "@expo/snapback-contract": "0.1.0" } }, "sha512-Es2Mm7rrFU77NVuNgjJFeBDZEuUZO/Z5WqI+ecFNynal5DSw/9EJFSBQVyiF4Z0+AXlHIfWTMOGgSbkYPvFV4w=="],
 
-    "@expo/snapback-contract": ["@expo/snapback-contract@.snapback/local-source-packages/contract.f09973691df7dc65d5ac08ac6a538c69f46654cac71b0670506374f34a18d1c0.tgz", {}, "sha512-bwhAnmXVKhrfAGuKbxxWiyL4n7egGx8woRB7vomaoJkFKdlbjFxupe/fzsnwTpsseShgrmlHrYNO+raoJ1nC5w=="],
+    "@expo/snapback-contract": ["@expo/snapback-contract@.snapback/local-source-packages/contract.417b9d292a88a3cb6daf0814a8b82135e988830ade2f1435c4ea4e946c66e53e.tgz", {}, "sha512-9dpIYe2d5XieMx6DFVQvpIroC5Agwv6h+P6FSkDwfJc4EISOn0qyhJMkR94n+Xmd84M196Sz96/jC/67CTU8lg=="],
 
-    "@expo/snapback-expo": ["@expo/snapback-expo@.snapback/local-source-packages/expo.ca78c1b2ad38da6d9e437ef93f49fd9a5ea870ee262bb6b947474d6257f56dba.tgz", { "dependencies": { "@expo/snapback-client": "0.1.0", "@expo/snapback-react": "0.1.0" }, "peerDependencies": { "expo": ">=57.0.0 <58.0.0", "react": ">=19.0.0 <20.0.0", "react-native": ">=0.86.0 <0.87.0" }, "optionalPeers": ["expo", "react-native"] }, "sha512-2l70uKjXZVY92wKq2DwrtXEvhMxlgW5mJ5DbYUUisqouD4rY2VdJ8s+BTetAepVDSYx3jsoDeNZD5V7dD9adVg=="],
+    "@expo/snapback-expo": ["@expo/snapback-expo@.snapback/local-source-packages/expo.c7194172f023f5c07de9ecc4cebe382b88a8e526285ee828165532d7275ea6e2.tgz", { "dependencies": { "@expo/snapback-client": "0.1.0", "@expo/snapback-react": "0.1.0" }, "peerDependencies": { "expo": ">=57.0.0 <58.0.0", "expo-file-system": ">=57.0.0 <58.0.0", "react": ">=19.0.0 <20.0.0", "react-native": ">=0.86.0 <0.87.0" }, "optionalPeers": ["expo", "react-native"] }, "sha512-wTzd8586ukJ3B6AoISDtkKbYXp/odeajoUOx00VGymwP6DKb77/MN1HoQE/8h1iSblOOdG4prBJo8ENjUgDxSQ=="],
 
-    "@expo/snapback-react": ["@expo/snapback-react@.snapback/local-source-packages/react.5fd5bdc3091271ac3f6a4773a21d9a8edeb88be6f210abffb288d71564a3d239.tgz", { "peerDependencies": { "@expo/snapback-client": "0.1.0", "react": ">=18.0.0 <20.0.0" } }, "sha512-QbD3EJhojhYTn2fR2VolM6mrMGBaeFG2wJDf9cSdW/UBmCZjRmAP/A4Wd+YHDj2ZbeoQ8XzyQxW8vP7zVktQXw=="],
+    "@expo/snapback-react": ["@expo/snapback-react@.snapback/local-source-packages/react.e8361bb5ee9e0e004a3d05bd0cc99ffde8590bcef70ce3311b288f1e328846c6.tgz", { "peerDependencies": { "@expo/snapback-client": "0.1.0", "react": ">=18.0.0 <20.0.0" } }, "sha512-mIOuJs7ul5orupUqM6QFujLhDVJj6UmS6tMDrAMpv+6ovTI4pMEZUsBf7eXhHeiuH0z6ZWkryAhZ9D8AaHDxMw=="],
 
     "@expo/spawn-async": ["@expo/spawn-async@1.8.0", "", { "dependencies": { "cross-spawn": "^7.0.6" } }, "sha512-eb9xxd/LbuEGSdua4NumCu/McVB9EM+F/JxB9pWgnERw4HQ9XyTNH1KapG6oqLWR8TuRK2LQfzJlmNi94CVobw=="],
 

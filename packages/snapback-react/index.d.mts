@@ -108,6 +108,7 @@ export interface SnapbackReactProvider {
   readonly providerInstanceId: string;
   readonly binding: PreparedReactBinding;
   readonly assets: unknown | null;
+  readonly assetSourceAdapter: import('@expo/snapback-client').CommandAssetSourceAdapter | null;
   surface<Surface extends SnapbackSurfaceDescriptor>(
     descriptor: Surface,
     params: SurfaceParams<Surface>,
@@ -162,6 +163,8 @@ export function createSnapbackReactProvider(
     readonly preparedGroup?: PreparedReactQueryGroup;
     /** Test/DI seam: a pre-built SnapbackAssetClient-compatible surface. */
     readonly assets?: unknown;
+    /** Platform URI/picker conversion installed once by an owning host package. */
+    readonly assetSourceAdapter?: import('@expo/snapback-client').CommandAssetSourceAdapter;
     /**
      * Mounted-provider HMR generation handoff tuning (development only —
      * the handoff arms itself only on a positive development signal such as

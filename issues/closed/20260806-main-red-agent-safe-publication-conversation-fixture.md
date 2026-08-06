@@ -1,6 +1,6 @@
 # main red: agent-safe publication checker vs the conversation fixture's regenerated closure
 
-**Status:** Resolved
+**Status:** Resolved 2026-08-06
 **Systems:** Packaging, Testing, React
 
 `scripts/verify-local-proof` failed at the `agent-safe-publication-fixtures`
@@ -45,3 +45,8 @@ schema, with a static `messages`-insert effect ceiling and no embedded secrets,
 admin operation, outbound action, endpoint, or credential class. The full
 agent-safe publication checker and the sibling generated-artifact regeneration
 gate pass.
+
+A concurrent G3 lane landed the same reconciliation shape and additionally
+rotated the content-addressed binding/descriptor paths to its regenerated
+closure; the exact-set test passes on the merged inventory without weakening
+the executable-drift rejection.

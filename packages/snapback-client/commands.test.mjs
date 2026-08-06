@@ -110,7 +110,7 @@ function controlledAssetTask(initial = assetSnapshot('uploading')) {
   return task;
 }
 
-function fixture({ task = null, invokeMutation, current = () => true } = {}) {
+function fixture({ task = null, invokeMutation, current = () => true, assetSourceAdapter = null } = {}) {
   const calls = [];
   const client = {
     captureAuthority: () => Object.freeze({ generation: 1 }),
@@ -125,6 +125,7 @@ function fixture({ task = null, invokeMutation, current = () => true } = {}) {
   };
   const commands = createCommandClient(client, {
     assets,
+    assetSourceAdapter,
     invokeMutation: async (reference, args, options) => {
       calls.push({ kind: 'mutation', reference, args: { ...args }, options });
       return invokeMutation?.(reference, args, options) ?? 'message-1';
@@ -212,6 +213,36 @@ const noAttachmentFactResidues = [];
 }
 
 {
+  const asset = controlledAssetTask();
+  const pickerSource = Object.freeze({
+    uri: 'content://media/external/images/media/42',
+    fileName: 'picked.png',
+    mimeType: 'image/png',
+  });
+  const { commands, calls } = fixture({
+    task: asset,
+    assetSourceAdapter: async (source) => {
+      assert.strictEqual(source, pickerSource);
+      return {
+        file,
+        declaredFilename: source.fileName,
+        declaredContentType: source.mimeType,
+        previewUrl: source.uri,
+      };
+    },
+  });
+  const task = commands.start(command, { roomId: 'room-1', image: pickerSource });
+  while (calls.length === 0) await Promise.resolve();
+  assert.equal(task.snapshot().status, 'transferring');
+  assert.strictEqual(calls[0].options.file, file);
+  assert.equal(calls[0].options.declaredFilename, 'picked.png');
+  assert.equal(calls[0].options.declaredContentType, 'image/png');
+  assert.equal(calls[0].options.previewUrl, pickerSource.uri);
+  asset.publish(assetSnapshot('ready'));
+  assert.equal((await task.done).kind, 'committed');
+}
+
+{
   const { commands, calls } = fixture();
   const task = commands.start(command, { roomId: 'room-1', body: 'hello' });
   const outcome = await task.done;
@@ -233,7 +264,7 @@ const noAttachmentFactResidues = [];
   const asset = controlledAssetTask();
   const { commands, calls } = fixture({ task: asset });
   const task = commands.start(command, { roomId: 'room-1', image: file });
-  await Promise.resolve();
+  while (task.snapshot().status === 'preparing') await Promise.resolve();
   assert.equal(task.snapshot().status, 'transferring');
   asset.publish(assetSnapshot('ready'));
   const outcome = await task.done;
@@ -362,7 +393,7 @@ const noAttachmentFactResidues = [];
   const asset = controlledAssetTask();
   const { commands, calls } = fixture({ task: asset });
   const task = commands.start(command, { roomId: 'room-1', image: file });
-  await Promise.resolve();
+  while (task.snapshot().status === 'preparing') await Promise.resolve();
   await task.cancel();
   assert.equal((await task.done).kind, 'cancelled');
   await task.cancel();
@@ -479,6 +510,16 @@ const noAttachmentFactResidues = [];
     ['unproved-settlement', 'unknown'],
   ]);
   assert.ok(noAttachmentFactResidues.every(([, unattached]) => unattached !== 'authoritative'));
+  const asset = controlledAssetTask();
+  const { commands } = fixture({ task: asset });
+  const task = commands.start(command, { roomId: 'room-1', image: file });
+  asset.publish(assetSnapshot('failed', {
+    diagnostic: { message: 'native binary transport rejected the body' },
+  }));
+  const outcome = await task.done;
+  assert.equal(outcome.kind, 'failed');
+  assert.equal(outcome.diagnostic.code, 'SNAPBACK_COMMAND_ASSET_FAILED');
+  assert.equal(outcome.diagnostic.message, 'native binary transport rejected the body');
 }
 
 {

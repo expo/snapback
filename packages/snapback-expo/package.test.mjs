@@ -14,6 +14,7 @@ for (const target of targets) {
 }
 
 assert.equal(manifest.name, '@expo/snapback-expo');
+assert.equal(manifest.peerDependencies['expo-file-system'], '>=57.0.0 <58.0.0');
 assert.deepEqual(Object.keys(manifest.dependencies).sort(), [
   '@expo/snapback-client',
   '@expo/snapback-react',
@@ -22,6 +23,8 @@ assert.equal(manifest.publishConfig.access, 'public');
 assert.equal(typeof packageEntry.SnapbackExpoProvider, 'function');
 assert.equal(typeof packageEntry.createSnapbackExpoBoot, 'function');
 assert.equal(typeof packageEntry.createSupervisedExpoEnvironment, 'function');
+assert.equal(typeof packageEntry.createExpoAssetSourceAdapter, 'function');
+assert.equal(typeof packageEntry.adaptExpoAssetSource, 'function');
 assert.equal(typeof packageEntry.useSnapbackQuery, 'function');
 assert.equal(typeof packageEntry.useSnapbackMutation, 'function');
 assert.equal(packageEntry.APP_BINDING_FORMAT, 'snapback.app-binding.v1');
@@ -31,6 +34,7 @@ const productionSources = [
   'provider.mjs',
   'app-binding.mjs',
   'supervised-environment.mjs',
+  'asset-source.mjs',
 ]
   .map((file) => readFileSync(new URL(file, import.meta.url), 'utf8'))
   .join('\n');

@@ -24,6 +24,11 @@ const file = Object.freeze({
   size: 4,
   slice() { return { async arrayBuffer() { return new ArrayBuffer(4); } }; },
 });
+const pickerSource = Object.freeze({
+  uri: 'content://media/external/images/media/42',
+  fileName: 'picked.png',
+  mimeType: 'image/png',
+});
 
 function readyAssetTask() {
   const snapshot = Object.freeze({
@@ -97,7 +102,18 @@ function matchesDiagnosticCode(expected) {
 const fixture = fakeClient();
 const binding = await prepareReactBindingForClient(fixture.client, { generatedManifest: app });
 assert.strictEqual(binding.commands.send.mutation, binding.references.sendMessage);
-const provider = createSnapbackReactProvider(binding, { assets: fixture.assetClient });
+const provider = createSnapbackReactProvider(binding, {
+  assets: fixture.assetClient,
+  assetSourceAdapter: async (source) => {
+    assert.strictEqual(source, pickerSource);
+    return {
+      file,
+      declaredFilename: source.fileName,
+      declaredContentType: source.mimeType,
+      previewUrl: source.uri,
+    };
+  },
+});
 
 const tamperedCommand = structuredClone(app.commands.send);
 tamperedCommand.passthroughArgs = [...tamperedCommand.passthroughArgs, 'tampered'];
@@ -163,10 +179,13 @@ assert.throws(
 );
 assert.equal(fixture.mutations.length, mutationCountBeforeInvalidInput);
 assert.equal(fixture.assets.length, assetCountBeforeInvalidInput);
-const image = surface.commands.send({ body: 'with image', image: file });
+const image = surface.commands.send({ body: 'with image', image: pickerSource });
 assert.equal((await image.done).kind, 'committed');
 assert.equal(fixture.assets.length, 1);
 assert.strictEqual(fixture.assets[0].authorityCapture, fixture.mutations[1].options.authorityCapture);
+assert.equal(fixture.assets[0].declaredFilename, pickerSource.fileName);
+assert.equal(fixture.assets[0].declaredContentType, pickerSource.mimeType);
+assert.equal(fixture.assets[0].previewUrl, pickerSource.uri);
 assert.deepEqual(fixture.mutations[1].options.args, {
   conversationId: 'conversation-one',
   senderId: 'user-ada',

@@ -1,5 +1,6 @@
 import {
   createSnapbackExpoBoot,
+  createExpoAssetSourceAdapter,
   type AppBindingV1,
   type AppDescriptorV1Like,
   type ExpoBootState,
@@ -32,6 +33,14 @@ const binding = {
 } as const satisfies AppBindingV1;
 
 const boot = createSnapbackExpoBoot({ app, binding, environment });
+const pickerAdapter = createExpoAssetSourceAdapter({
+  fetch: async () => ({ blob: async () => new Blob(['fixture'], { type: 'image/png' }) }),
+});
+void pickerAdapter({
+  uri: 'content://media/external/images/media/42',
+  fileName: 'picked.png',
+  mimeType: 'image/png',
+});
 createSnapbackExpoBoot({ app: generatedApp, binding, environment });
 const state: ExpoBootState = boot.getSnapshot();
 if (state.status === 'starting') {

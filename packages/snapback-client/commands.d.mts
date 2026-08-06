@@ -1,7 +1,22 @@
 import type { AssetFileLike, AssetTaskSnapshot, AssetUploadTask, SnapbackAssetClient } from './assets.mjs';
 import type { FunctionArgs, FunctionResult, SnapbackClient, SnapbackFunctionReference } from './index.mjs';
 
-export type CommandAssetSource = AssetFileLike;
+export type PlatformCommandAssetSource = Readonly<{
+  uri: string;
+  fileName?: string | null;
+  mimeType?: string | null;
+  fileSize?: number | null;
+}>;
+export type CommandAssetSource = AssetFileLike | PlatformCommandAssetSource;
+export type AdaptedCommandAssetSource = Readonly<{
+  file: AssetFileLike;
+  declaredFilename?: string | null;
+  declaredContentType?: string | null;
+  previewUrl?: string | null;
+}>;
+export type CommandAssetSourceAdapter = (
+  source: PlatformCommandAssetSource,
+) => AssetFileLike | AdaptedCommandAssetSource | Promise<AssetFileLike | AdaptedCommandAssetSource>;
 type CommandAssetInput<Input extends string | never, Optional extends boolean> =
   [Input] extends [never]
     ? unknown
@@ -95,6 +110,7 @@ export interface CommandTask<Result> {
 export declare class SnapbackCommandClient {
   constructor(client: SnapbackClient, options?: Readonly<{
     assets?: SnapbackAssetClient | null;
+    assetSourceAdapter?: CommandAssetSourceAdapter | null;
     invokeMutation?: ((reference: unknown, args: Record<string, unknown>, options: Readonly<{ clientMutationId: string; authorityCapture: unknown }>) => Promise<unknown>) | null;
   }>);
   readonly client: SnapbackClient;

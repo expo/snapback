@@ -2420,6 +2420,7 @@ export function createSnapbackReactProvider(binding, options = {}) {
     binding: prepared,
     registry,
     assets: options.assets ?? null,
+    assetSourceAdapter: options.assetSourceAdapter ?? null,
     registerEphemeralRepublisher(reference, callback) {
       return preparedReactBindingClient(prepared).registerEphemeralRepublisher(reference, callback);
     },
@@ -3410,6 +3411,7 @@ function commandClientFor(provider) {
   const client = preparedReactBindingClient(provider.binding);
   commands = createCommandClient(client, {
     assets: assetRegistryFor(provider).assets,
+    assetSourceAdapter: provider.assetSourceAdapter,
     invokeMutation: (reference, args, options) => (
       provider.registry.runCommandMutation(reference, args, options)
     ),
@@ -3551,6 +3553,22 @@ const ASSET_IMAGE_IDLE = Object.freeze({
   record: null,
 });
 
+function bestReadyRenditionVariant(record, maxWidth) {
+  const sized = Array.isArray(record?.renditions)
+    ? record.renditions
+      .filter((rendition) => (
+        rendition?.ready === true
+        && typeof rendition.variant === 'string'
+        && Number.isFinite(rendition.width)
+      ))
+      .map((rendition) => ({ variant: rendition.variant, width: rendition.width }))
+      .sort((left, right) => left.width - right.width)
+    : [];
+  return sized.slice().reverse().find((rendition) => rendition.width <= maxWidth)?.variant
+    ?? sized[0]?.variant
+    ?? null;
+}
+
 /**
  * The renderer ladder as a headless hook (Expo-ready — no DOM API in this
  * path): local preview → ThumbHash placeholder → best delivered rendition.
@@ -3619,9 +3637,14 @@ export function useSnapbackAssetImage({
       const underlay = effectivePlaceholder !== null
         ? placeholderState(record.record)
         : null;
+      const publicVariant = record.record?.deliveryProfile === 'public-immutable'
+        ? bestReadyRenditionVariant(record.record, maxWidth)
+        : null;
       return Object.freeze({
         phase: 'rendition',
-        src: registry.assets.deliveryUrl(assetId, { maxWidth }),
+        src: publicVariant === null
+          ? registry.assets.deliveryUrl(assetId, { maxWidth })
+          : registry.assets.publicDeliveryUrl(assetId, { variant: publicVariant }),
         aspectRatio: underlay?.aspectRatio ?? null,
         placeholderSrc: underlay?.src ?? null,
         record: record.record,

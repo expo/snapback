@@ -4,7 +4,7 @@ id: clients.surfaces
 order: 2
 audience: agent-first
 capabilities: [clients.surfaces]
-authorities: [llp/0179-generated-app-descriptor-and-surfaces.rfc.md, llp/0180-asset-bearing-client-commands.rfc.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0176-expo-messaging-golden-path.plan.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/commands.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts]
+authorities: [llp/0179-generated-app-descriptor-and-surfaces.rfc.md, llp/0180-asset-bearing-client-commands.rfc.md, llp/0181-zero-configuration-expo.rfc.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0176-expo-messaging-golden-path.plan.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/commands.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-expo/asset-source.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts]
 examples: [packages/snapback-react/surface.test.mjs, packages/snapback-react/commands.test.mjs, packages/snapback-client/commands.test.mjs, packages/snapback-react/fixtures/conversation/app/snapback/generated/app.descriptor.json, packages/snapback-react/fixtures/conversation/app/snapback/generated/app.d.ts, demos/expo-golden-path-fixture/snapback/functions.mjs, demos/expo-golden-path-fixture/snapback/surface-model.mjs, demos/expo-golden-path-fixture/src/screens/chat-screen.tsx, demos/expo-golden-path-fixture/tests/g2-falsification.mjs, demos/expo-golden-path-fixture/tests/g3-command.mjs]
 status: current
 targets: [local]
@@ -231,6 +231,24 @@ Cancellation after mutation invocation is `ambiguous`, never a fabricated
 rollback. Authority replacement does not adopt a task into the successor
 principal; each retry revalidates its captured cohort.
 
+### Expo ImagePicker input
+
+Inside `SnapbackExpoProvider`, pass an `expo-image-picker` asset directly to
+the bound command. Text-only and image send are branches of one typed call:
+
+```tsx source=demos/expo-golden-path-fixture/src/screens/chat-screen.tsx
+      const outcome = await observeCommand(
+        conversation.commands.send({ ...(body ? { body } : {}), image: picked }),
+        'picked-image',
+      );
+```
+
+The Expo provider owns picker-URI conversion, binary transport, integrity, and
+ordinary-session custody registration; the screen owns only picker UX and
+task rendering. The adapter supports `content://`, `ph://`, and `file://` in
+the live process. It does not add background, restart, offline, or
+attempt-grant semantics.
+
 ## Consume the surface from React
 
 Pass the generated surface reference, its exact parameter object, and optional
@@ -245,7 +263,6 @@ render data and the rich child state:
   );
   const connection = useSnapbackConnection();
   const outbox = useSnapbackOutbox();
-  const upload = useSnapbackAssetUpload({ upload: conversation.assets.image.reference });
   const { details, memberships, messages, reactions, users } = conversation.state;
   const activeUser = conversation.data.users?.find((user) => user._id === activeUserId);
   const userById = useMemo(() => new Map((conversation.data.users ?? []).map((user) => [user._id, user])), [conversation.data.users]);

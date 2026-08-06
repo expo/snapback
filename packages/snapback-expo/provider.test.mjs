@@ -2,11 +2,13 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 import { SnapbackClient } from '@expo/snapback-client';
+import { SnapbackAssetClient } from '@expo/snapback-client/assets';
 
 import {
   createSnapbackExpoBoot,
   defaultSnapbackExpoEnvironment,
 } from './provider.mjs';
+import { adaptExpoAssetSource } from './asset-source.mjs';
 
 const generatedRoot = new URL(
   '../../demos/zero-bakeoff/apps/field-notebook/snapback/generated/',
@@ -152,8 +154,10 @@ const boot = createSnapbackExpoBoot({
   app,
   environment,
   now: () => Date.parse('2026-08-05T20:30:00.000Z'),
-  createProvider(prepared) {
+  createProvider(prepared, options) {
     assert.deepEqual(prepared, { prepared: true });
+    assert.strictEqual(options.assetSourceAdapter, adaptExpoAssetSource);
+    assert.ok(options.assets instanceof SnapbackAssetClient);
     return fakeProvider;
   },
 });
