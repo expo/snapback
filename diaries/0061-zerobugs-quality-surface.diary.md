@@ -114,3 +114,38 @@ Experience notes:
 
 Next jobs (per PLAN.md sequencing): fixtures + support schema, local
 auth/identity composition, then the 19-query corpus.
+
+## 2026-08-05 — Lane 1: fixtures, support schema, and two runtime bugs
+
+Lane 1 (fixtures + support schema) is complete: deterministic compiler for
+normal-seed-v1 + policy-extension-v1 (3,758 rows, byte-identical reruns),
+six support tables, read-model builders with rebuild digests, a ≤900-row
+batched `fixtureIngestBatch` loader (the versioned-seed path refuses at
+1,024 effects, correctly), and a full live load whose observed digest equals
+the frozen contract digest byte-for-byte.
+
+The control keeps catching real bugs before any provider arm exists:
+
+1. **Sessions-app verify admission** (fixed earlier today): codegen's
+   artifact index hardcoded `snapback.v0` against `snapback.v1` sessions
+   manifests — every sessions app failed `snapback verify`.
+2. **Silent 16 KiB string truncation on JS results**: a pinned 44,084-char
+   comment body stored intact but read back clipped to exactly 16,384 chars
+   with no diagnostic — successful results were serialized through the
+   bounded *failure-metadata* replacer. Storage was innocent; the bridge
+   read was innocent; the result serializer lied. Fixed to keep LLP 0108's
+   declared ceilings as the only bounds, with bridge-level and
+   handler-roundtrip regressions.
+
+Friction worth keeping:
+
+- `session mint` is admin-gated and the token carrier lives behind the
+  readiness descriptor's `adminTokenFile`; nothing connects these dots in
+  the guide (filed `issues/20260805-guide-gap-large-acceptance-fixture-
+  loading.md`, which also covers the batch-ingest pattern existing only as
+  zero-bakeoff folklore).
+- The query surface returns unset optionals as explicit `null`; every
+  digest/comparison layer must canonicalize null-vs-absent once, early.
+- Codex's sandbox cannot bind loopback, so every live-server validation ran
+  twice: once to honest BLOCKED inside the sandbox, once for real outside.
+  The supervising session doing the live reruns is the working pattern.

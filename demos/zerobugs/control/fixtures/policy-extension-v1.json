@@ -1,0 +1,162 @@
+{
+  "schemaVersion": "zerobugs-policy-extension.v1",
+  "id": "policy-extension-v1",
+  "generationInstant": "2026-08-05T00:00:00.000Z",
+  "actorBindings": {
+    "ordinary-user": {
+      "role": "user",
+      "sourceUserID": "9Fw3n6EQS8mzE126AFJxb",
+      "userID": "user_f57940f9cf974984ee36c7b2"
+    },
+    "creator": {
+      "role": "user",
+      "sourceUserID": "FPEhfZQwiEMgpk3WnEY72",
+      "userID": "user_b8222266f94aa6b36a6b5999"
+    },
+    "assignee": {
+      "role": "user",
+      "sourceUserID": "_4MJeHV4T-qZb52fyNwQ9",
+      "userID": "user_47a7fdef09689e6736359a9c"
+    },
+    "crew-admin": {
+      "role": "crew",
+      "sourceUserID": "2wKdbVVF7qtnn5bx92sr9",
+      "userID": "user_804808a3aa5ef7440e34bd42"
+    },
+    "removed-member": {
+      "role": "crew",
+      "sourceUserID": "Gg4MskWt3M-ttzzlrJ9jn",
+      "userID": "user_37617f38bd751da58ed19276"
+    }
+  },
+  "rows": {
+    "issue": [
+      {
+        "id": "zbav1_internal_issue",
+        "shortID": 9183001,
+        "title": "policy-extension-v1 internal issue",
+        "open": true,
+        "modified": 1785888000001,
+        "created": 1785888000000,
+        "projectID": "iCNlS2qEpzYWEes1RTf-D",
+        "creatorID": "FPEhfZQwiEMgpk3WnEY72",
+        "assigneeID": "_4MJeHV4T-qZb52fyNwQ9",
+        "description": "policy-extension-v1 protected issue fixture",
+        "visibility": "internal"
+      }
+    ],
+    "comment": [
+      {
+        "id": "zbav1_internal_comment",
+        "issueID": "zbav1_internal_issue",
+        "created": 1785888000000,
+        "body": "policy-extension-v1 protected child comment",
+        "creatorID": "FPEhfZQwiEMgpk3WnEY72"
+      }
+    ],
+    "emoji": [
+      {
+        "id": "zbav1_internal_comment_emoji",
+        "value": "👍",
+        "annotation": "thumbs up",
+        "subjectID": "zbav1_internal_comment",
+        "creatorID": "FPEhfZQwiEMgpk3WnEY72",
+        "created": 1785888000000
+      },
+      {
+        "id": "zbav1_internal_issue_emoji",
+        "value": "👍",
+        "annotation": "thumbs up",
+        "subjectID": "zbav1_internal_issue",
+        "creatorID": "FPEhfZQwiEMgpk3WnEY72",
+        "created": 1785887999999
+      }
+    ],
+    "viewState": [
+      {
+        "issueID": "zbav1_internal_issue",
+        "userID": "2wKdbVVF7qtnn5bx92sr9",
+        "viewed": 1785888000000
+      },
+      {
+        "issueID": "zbav1_internal_issue",
+        "userID": "9Fw3n6EQS8mzE126AFJxb",
+        "viewed": 1785887999999
+      },
+      {
+        "issueID": "zbav1_internal_issue",
+        "userID": "FPEhfZQwiEMgpk3WnEY72",
+        "viewed": 1785887999998
+      },
+      {
+        "issueID": "zbav1_internal_issue",
+        "userID": "Gg4MskWt3M-ttzzlrJ9jn",
+        "viewed": 1785887999997
+      },
+      {
+        "issueID": "zbav1_internal_issue",
+        "userID": "_4MJeHV4T-qZb52fyNwQ9",
+        "viewed": 1785887999996
+      }
+    ],
+    "userPref": [
+      {
+        "key": "zerobugs-acceptance.v1",
+        "userID": "2wKdbVVF7qtnn5bx92sr9",
+        "value": "524c317d10e123efa3544aab061e5186"
+      },
+      {
+        "key": "zerobugs-acceptance.v1",
+        "userID": "9Fw3n6EQS8mzE126AFJxb",
+        "value": "ba85b3abf4bb7d8db6713ad84c710c99"
+      },
+      {
+        "key": "zerobugs-acceptance.v1",
+        "userID": "FPEhfZQwiEMgpk3WnEY72",
+        "value": "af6b9ecc4cc26ac893f18d1be312a033"
+      },
+      {
+        "key": "zerobugs-acceptance.v1",
+        "userID": "Gg4MskWt3M-ttzzlrJ9jn",
+        "value": "b4f13975cc2b20232851658e85ca4fab"
+      },
+      {
+        "key": "zerobugs-acceptance.v1",
+        "userID": "_4MJeHV4T-qZb52fyNwQ9",
+        "value": "ca08110cc17d4d6b87085665e50498ae"
+      }
+    ],
+    "issueNotifications": [
+      {
+        "userID": "2wKdbVVF7qtnn5bx92sr9",
+        "issueID": "zbav1_internal_issue",
+        "subscribed": false,
+        "created": 1785888000000
+      },
+      {
+        "userID": "9Fw3n6EQS8mzE126AFJxb",
+        "issueID": "zbav1_internal_issue",
+        "subscribed": true,
+        "created": 1785887999999
+      },
+      {
+        "userID": "FPEhfZQwiEMgpk3WnEY72",
+        "issueID": "zbav1_internal_issue",
+        "subscribed": false,
+        "created": 1785887999998
+      },
+      {
+        "userID": "Gg4MskWt3M-ttzzlrJ9jn",
+        "issueID": "zbav1_internal_issue",
+        "subscribed": true,
+        "created": 1785887999997
+      },
+      {
+        "userID": "_4MJeHV4T-qZb52fyNwQ9",
+        "issueID": "zbav1_internal_issue",
+        "subscribed": true,
+        "created": 1785887999996
+      }
+    ]
+  }
+}

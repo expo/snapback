@@ -1,0 +1,20 @@
+[
+  {
+    "_id": "emoji_b4f8ca6de8df36abf34e7807",
+    "id": "zbav1_internal_comment_emoji",
+    "value": "👍",
+    "annotation": "thumbs up",
+    "subjectID": "comment_c8b71c0274cecd9f9b625f5f",
+    "creatorID": "user_b8222266f94aa6b36a6b5999",
+    "created": 1785888000000
+  },
+  {
+    "_id": "emoji_06c29d972be8b897865d3802",
+    "id": "zbav1_internal_issue_emoji",
+    "value": "👍",
+    "annotation": "thumbs up",
+    "subjectID": "issue_ded0c2976675c34f4756035d",
+    "creatorID": "user_b8222266f94aa6b36a6b5999",
+    "created": 1785887999999
+  }
+]
