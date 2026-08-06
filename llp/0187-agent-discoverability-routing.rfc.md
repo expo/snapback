@@ -6,7 +6,14 @@
 Diagnostics
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-05
-**Revised:** 2026-08-06 (e — Accepted by author ruling at revision (d); the super-refine run record in llp/reviews/0186-agent-authoring-efficiency-program.run.md holds the verdict history, incl. that revision (d) was unreviewed)
+**Revised:** 2026-08-06 (f — implementation record: T2's first slice and
+T4's in-repo remainder LANDED at `f9b38422e` — guidePointer remediations on
+both policy diagnostics with a manifest-anchor integrity test, and
+orientation READMEs for the five remaining bare published packages with the
+funnel test in the local proof; the plain-join advisory was ticketed rather
+than shipped after a 112-source falsification pass met OQ3's fear —
+`issues/20260806-plain-join-advisory-detector.md`. The T4 funnel trio for
+the CLI itself had landed earlier at `11fe8342c`.) 2026-08-06 (e — Accepted by author ruling at revision (d); the super-refine run record in llp/reviews/0186-agent-authoring-efficiency-program.run.md holds the verdict history, incl. that revision (d) was unreviewed)
 **Related:** LLP 0016, LLP 0061, LLP 0146, LLP 0176, LLP 0177, LLP 0178, LLP
 0179, LLP 0184, LLP 0186
 
@@ -248,7 +255,10 @@ yet in the capability index's alias row.
 
 ### T2 — Diagnostics as the router (delegated to LLP 0178)
 
-*Owner: LLP 0178. This RFC adds evidence and priority, not design.*
+*Owner: LLP 0178 (Accepted 2026-08-06, `0f61dfb0f`). First slice landed:
+V1 plus the guidePointer wiring on both policy diagnostics (`f9b38422e`);
+the plain-join advisory is ticketed, not shipped — see OQ3's disposition
+in the Revised header.*
 
 The bakeoffs contain a natural experiment: concept-naming diagnostics taught
 three fixes for free; symptom-naming diagnostics caused three source-reading
@@ -288,8 +298,10 @@ Proposed into LLP 0061's distribution section:
 
 - READMEs on every published `@expo/snapback-*` package — orientation, not
   export inventories — whose documentation links resolve outside a checkout
-  (served-guide URL shape + `snapback mcp`), starting with
-  `@expo/snapback-cli`, which today has none.
+  (served-guide URL shape + `snapback mcp`). (Landed: the CLI README at
+  `11fe8342c`; the remaining five bare packages at `f9b38422e`, with
+  `scripts/package-readme-funnel.test.mjs` keeping README presence and
+  checkout-independent links a local-proof invariant.)
 - The `snapback guide` subcommand 0061 already names as the carrier,
   extended with query support against the embedded guide (the bytes
   already ship in the runtime binary via `build.rs`), and CLI `help`
