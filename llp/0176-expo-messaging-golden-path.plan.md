@@ -7,7 +7,13 @@ Ephemeral state, Code generation, Developer experience, Packaging, Local
 server lifecycle, Testing, Competitive evaluation
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-05
-**Revised:** 2026-08-06 (i) — Appended the G1 iOS-simulator half receipt:
+**Revised:** 2026-08-06 (j) — Appended the G1 Android-emulator half receipt.
+The same no-URL Expo fixture reached ordinary Sessions authority, a seeded
+live query, and an ordinary mutation observed through that live query via
+three verified `adb reverse` rules over host IPv4-loopback listeners. Together
+with the iOS receipt, G1's no-URL boot exit evidence is complete for
+simulator/emulator; this is still no physical-device or LLP 0064 capability
+claim, and document Status remains Review. Earlier same day (i) — Appended the G1 iOS-simulator half receipt:
 the no-URL Expo provider reached ordinary Sessions authority, a seeded live
 query, and an ordinary mutation observed through that live query over three
 verified IPv4-loopback listeners. Android/emulator evidence remains pending
@@ -535,8 +541,25 @@ observed the seeded row through the live query, dispatched the ordinary
 mutation, and observed its row through that same live query. The raw
 supervisor stream, binary provenance, cleanup evidence, and screenshot are in
 [`20260806-g1-ios-simulator.md`](../demos/expo-golden-path-fixture/receipts/20260806-g1-ios-simulator.md).
-This is only the iOS-simulator half of the gate: it makes no Android, physical
-device, LLP 0064 capability, full-G1-exit, or later-gate claim.
+This is the iOS-simulator half of the no-URL boot evidence.
+
+**2026-08-06 Android-half receipt.** The same fixture ran in Expo Go 57.0.3
+on the fleet Mac mini's Android 16 / API 36 AVD. `snapback dev --expo` selected
+`adb-reverse`, supplied a `port-forward` binding whose app-side origins all
+remained `127.0.0.1`, and owned exactly three verified reverse rules for
+backend, Metro, and bootstrap. All host listeners independently enumerated as
+`127.0.0.1`; the `10.0.2.2` fallback was not selected and no LAN listener
+existed. The provider adopted ordinary Sessions authority, observed the seed,
+dispatched the ordinary mutation, and observed `G1_ANDROID_PASS` through the
+same live query. The raw supervisor stream, binary provenance, reverse-rule
+and cleanup evidence, defects/fixes, and screenshot are in
+[`20260806-g1-android-emulator.md`](../demos/expo-golden-path-fixture/receipts/20260806-g1-android-emulator.md).
+
+The iOS and Android halves are now both proven: **G1's no-URL boot exit
+evidence is complete for simulator/emulator.** This completion makes no
+physical-device, release, or LLP 0064 capability claim and does not change
+this Plan's Status. Other G1 exit conditions remain governed by the gate text
+above.
 
 ### G2 — conversation surface
 

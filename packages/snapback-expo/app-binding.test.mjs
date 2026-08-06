@@ -146,10 +146,19 @@ assert.equal(
 
 await assert.rejects(
   admitAppBindingV1(devBinding, app, {
-    now: Date.parse('2026-08-05T19:59:59.999Z'),
+    now: Date.parse('2026-08-05T19:58:59.999Z'),
     delivery: { channel: 'local-supervised-ipc' },
   }),
-  (error) => error.code === 'SNAPBACK_APP_BINDING_NOT_YET_VALID',
+  (error) => error.code === 'SNAPBACK_APP_BINDING_NOT_YET_VALID'
+    && error.diagnostic.details.allowedClockSkewMs === 60_000,
+);
+assert.equal(
+  (await admitAppBindingV1(devBinding, app, {
+    now: Date.parse('2026-08-05T19:59:00.000Z'),
+    delivery: { channel: 'local-supervised-ipc' },
+  })).source,
+  'supervised-dev',
+  'local supervised IPC admits exactly one minute of host/emulator clock skew',
 );
 await assert.rejects(
   admitAppBindingV1(devBinding, app, {

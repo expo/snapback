@@ -6,7 +6,12 @@
 Auth, Assets, Offline, Testing, Hosted environments, Code generation
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-05
-**Revised:** 2026-08-05 (f) — E1 selected the supervised development
+**Revised:** 2026-08-06 (g) — The real Android-emulator G1 receipt exposed
+ordinary host/device clock lag at immediate cold launch. Supervised
+`local-supervised-ipc` admission now tolerates at most 60 seconds on the
+`issuedAt` lower bound only; expiry stays strict, release admission is
+unchanged, and the coded refusal/test remain beyond the exact boundary.
+Earlier 2026-08-05 (f) — E1 selected the supervised development
 carriers: Metro receives only a credential-free rendezvous origin through
 `EXPO_PUBLIC_SNAPBACK_SUPERVISOR_ORIGIN`; the provider fetches the expiring
 binding and ordinary session at runtime from a supervisor-owned, loopback-only,
@@ -221,6 +226,11 @@ load-bearing properties are:
   supervised-dev binding cannot claim the release-only routing mode, closing
   the ambiguity a struct shape left open;
 - development bindings expire and are tied to one supervisor generation;
+- supervised-development admission tolerates at most 60 seconds of the
+  binding issuer's clock running ahead of the simulator/emulator clock. This
+  bounded allowance applies only to the `issuedAt` lower bound over
+  `local-supervised-ipc`; expiry remains strict and the window grants no
+  release-binding or network authority;
 - release bindings are tied to an admitted build/deployment receipt;
 - `descriptorIdentity` must match the imported `app`;
 - an offered capability does not upgrade the descriptor's requirement or LLP

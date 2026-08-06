@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   Pressable,
+  Platform,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -21,6 +22,9 @@ import api from './snapback/generated/api.mjs';
 
 const mutationText = 'Mutation round-trip reached the live query';
 const emptyQueryArgs = Object.freeze({});
+const receiptPlatform = Platform.OS === 'android' ? 'Android emulator' : 'iOS simulator';
+const receiptSource = Platform.OS === 'android' ? 'android-emulator' : 'ios-simulator';
+const passMarker = Platform.OS === 'android' ? 'G1_ANDROID_PASS' : 'G1_IOS_PASS';
 
 function emit(event: string, details: Record<string, unknown> = {}) {
   console.log(`SNAPBACK_G1_EVENT ${JSON.stringify({ event, ...details })}`);
@@ -31,7 +35,7 @@ function BootFallback({ state }: { state: ExpoBootState }) {
   return (
     <SafeAreaView style={styles.shell}>
       <View style={styles.hero}>
-        <Text style={styles.eyebrow}>LLP 0176 · G1 · iOS</Text>
+        <Text style={styles.eyebrow}>LLP 0176 · G1 · {receiptPlatform}</Text>
         <Text style={styles.title}>Snapback supervised boot</Text>
         <Text testID="provider-status" style={styles.statusLine}>
           Provider: {state.status}
@@ -64,7 +68,7 @@ function ReceiptScreen() {
     : [];
   const seeded = notes.some((note) => note.source === 'seed');
   const mutationObserved = notes.some((note) => (
-    note.source === 'ios-simulator' && note.text === mutationText
+    note.source === receiptSource && note.text === mutationText
   ));
 
   useEffect(() => {
@@ -91,9 +95,13 @@ function ReceiptScreen() {
     mutationStarted.current = true;
     setMutationState('mutation dispatched');
     emit('mutation-dispatched');
-    void addReceiptNote({ text: mutationText, source: 'ios-simulator' })
+    void addReceiptNote({ text: mutationText, source: receiptSource })
       .then(() => {
-        setMutationState('mutation settled; awaiting live echo');
+        setMutationState((current) => (
+          current === 'mutation observed through live query'
+            ? current
+            : 'mutation settled; awaiting live echo'
+        ));
         emit('mutation-settled');
       })
       .catch((error: unknown) => {
@@ -108,7 +116,7 @@ function ReceiptScreen() {
       passLogged.current = true;
       setMutationState('mutation observed through live query');
       emit('mutation-live-query-observed', {
-        marker: 'G1_IOS_PASS',
+        marker: passMarker,
         rowCount: notes.length,
       });
     }
@@ -118,7 +126,7 @@ function ReceiptScreen() {
     const text = `${mutationText} #${notes.length + 1}`;
     setMutationState('manual mutation dispatched');
     emit('manual-mutation-dispatched', { text });
-    void addReceiptNote({ text, source: 'ios-simulator-manual' })
+    void addReceiptNote({ text, source: `${receiptSource}-manual` })
       .then(() => setMutationState('manual mutation settled'))
       .catch((error: unknown) => {
         setMutationState(`manual mutation failed: ${
@@ -131,7 +139,7 @@ function ReceiptScreen() {
     <SafeAreaView style={styles.shell}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.hero}>
-          <Text style={styles.eyebrow}>LLP 0176 · G1 · iOS simulator</Text>
+          <Text style={styles.eyebrow}>LLP 0176 · G1 · {receiptPlatform}</Text>
           <Text style={styles.title}>No-URL Expo boot</Text>
           <Text style={styles.subtitle}>
             Binding and ordinary Sessions authority arrived through the
@@ -176,7 +184,7 @@ function ReceiptScreen() {
 
         <View style={[styles.verdict, mutationObserved ? styles.pass : styles.pending]}>
           <Text testID="g1-verdict" style={styles.verdictText}>
-            {mutationObserved ? 'G1_IOS_PASS' : 'G1_IOS_PENDING'}
+            {mutationObserved ? passMarker : passMarker.replace('_PASS', '_PENDING')}
           </Text>
           <Text style={styles.verdictDetail}>
             {mutationObserved
