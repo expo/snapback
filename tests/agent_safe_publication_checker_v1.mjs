@@ -926,7 +926,7 @@ const REVIEWED_GENERATED_PUBLICATION_PATHS = new Set([
   'demos/zero-bakeoff/apps/contention-calendar/snapback/generated/api-envelope.members.json',
   'demos/zero-bakeoff/apps/contention-calendar/snapback/generated/api.d.ts',
   'demos/zero-bakeoff/apps/contention-calendar/snapback/generated/api.mjs',
-  'demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.binding.6989200bd3583afd54513f8e57240af8973f53046cc50af4578edf8388d63f07.mjs',
+  'demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.binding.ec6d3d947775a9e92ceaf95689a9ef91946177275a74c2d722eee3090b93b561.mjs',
   'demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.binding.mjs',
   'demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.d.ts',
   'demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.descriptor.a690d18c8dbfb7290ba6341c2db6c802590ca4163a6d739bb1b149e301a653e4.json',

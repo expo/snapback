@@ -120,3 +120,14 @@ genuinely new *kind* of path — which is what it exists for — without churnin
 on every regeneration. Left unimplemented here deliberately: it widens what
 the gate accepts, so it wants its own review rather than riding along with an
 unblocking fix.
+
+## Wave-drift reconciliation — 2026-08-06
+
+The predicted content-hash churn occurred when the already-qualified S1
+Contention carrier from `16ef2533a` was reconciled with the explicit leaf set
+added later by fork-publication landing `c5f363cd5`: the generated binding
+legitimately moved from `app.binding.6989200b….mjs` to
+`app.binding.ec6d3d94….mjs`, with no new path kind or generated root. The wave
+drift pass reviewed that one-for-one replacement, kept the exact-set fixture,
+and advanced only its named leaf. The durable pattern-based follow-up remains
+open and deliberately separate because it widens the accepted filename class.

@@ -244,6 +244,7 @@ pub(crate) fn derived_fork_publication_verified_for_distribution(build_distribut
     false
 }
 
+#[allow(clippy::too_many_arguments)]
 fn embedded_publication_verified(
     capability_id: &str,
     components: &[&str],

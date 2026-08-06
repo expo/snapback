@@ -1537,3 +1537,37 @@ and the complete producer log is
 `dba16ae2b7efdd12db8febfeeb0a07f1340cc59aa7dc6a90f3012f6a15f38255`.
 The retained receipt is committed after its measured source by design; its
 coded historical/currentness checks run against that committed carrier.
+
+### Closing-main merge reconciliation — 2026-08-06
+
+The closing branch then merged `origin/main` through `be21c0aa4`. Fork
+publication landing `c5f363cd5` added an eight-argument embedded verification
+helper that is intentionally parallel to the already-reviewed
+`publication_verified_for` helper; strict Clippy therefore carries the same
+local `too_many_arguments` allowance rather than reshaping its evidence tuple.
+That landing also supplied the inert
+`derived_fork_arm_writer_coverage: false` field to two `host_ops_v0` fixtures
+already repaired earlier in this drift branch, so the merge-only duplicate
+initializers were removed. Focused agent-safe publication tests and strict
+workspace/all-target/all-feature Clippy pass; no fork behavior or admission
+predicate changed.
+
+The same merge combined the qualified S1 Contention carrier retained by
+`16ef2533a` with `c5f363cd5`'s explicit qualification-C generated-leaf set.
+The checker correctly reported the one-for-one content-addressed replacement:
+the predecessor `app.binding.6989200b….mjs` was missing and the qualified
+`app.binding.ec6d3d94….mjs` was unexpected. The latter remains under the same
+registered fully-committed root and introduces no new path kind, so the
+reviewed exact-set fixture now names the current leaf. The structural
+content-hash-churn follow-up remains recorded in
+`issues/20260806-main-red-agent-safe-leaf-set-drift.md`; this pass does not
+widen its accepted filename class.
+
+The full Linux telemetry receipt above remains `HISTORICAL_VALID` after this
+main merge. Its coded state is honestly `LAGGING`: five later source files
+changed, ordinary merge acceptance remains true, release/capability-promotion
+acceptance is false, and the rolling full proof is requested. Per this
+ticket's batched-drift rescope, that is not a reason to remint the expensive
+receipt for each landing. This branch is an ordinary proof-greening merge, not
+an npm or capability promotion; no bootstrap bypass, host mutation, or
+release claim is made.
