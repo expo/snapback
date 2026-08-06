@@ -3425,7 +3425,7 @@ where
                 destination.unwrap_or_else(|| PathBuf::from(format!("fork-{}", Uuid::now_v7()))),
             )?;
             let receipt = startup_blocking(|| {
-                crate::instance_fork::publish_managed_bound_with_base(
+                crate::instance_fork::publish_managed_with_base(
                     &source_database,
                     &destination,
                     &expected_app,
@@ -3769,7 +3769,7 @@ where
                 }
             }
             entries.sort_by(|left, right| left.lineage.fork_id.cmp(&right.lineage.fork_id));
-            let app_id = expected_app.app_id.clone();
+            let app_id = expected_app.app_id().to_owned();
             let resource_usage = json!({
                 "forkCount": entries.len() + unbound.len(),
                 "totalBytes": crate::instance_fork::directory_tree_bytes(&root)?,
@@ -3993,7 +3993,7 @@ where
             };
             let envelope = fork_envelope(
                 "fork.reap",
-                expected_app.app_id,
+                expected_app.app_id().to_owned(),
                 Some(&app_root),
                 None,
                 json!({
@@ -9823,10 +9823,11 @@ mod tests {
         let root = directory.path().join("forks");
         std::fs::create_dir(&root).unwrap();
         let destination = root.join("fork-a");
+        let expected = crate::instance_fork::ensure_expected_app(&root, "app-a").unwrap();
         let receipt = crate::instance_fork::publish_managed(
             &source,
             &destination,
-            "app-a",
+            &expected,
             "parent-a",
             100,
             200,

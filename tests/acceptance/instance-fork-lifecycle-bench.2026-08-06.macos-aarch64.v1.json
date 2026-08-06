@@ -6,63 +6,63 @@
     "arch": "aarch64",
     "cpus": 18,
     "profile": "release",
-    "commit": "4444767ccc09eb93fe074c9d00ecc9ca29d38d0b"
+    "commit": "c9f28fbebf63abecd669a6d98af3a1e3cdacd221"
   },
   "measurements": {
     "createColdSmallParent": {
       "samples": 5,
-      "minMs": 153.197333,
-      "medianMs": 163.07666700000001,
-      "maxMs": 1407.692333
+      "minMs": 285.515917,
+      "medianMs": 413.83454200000006,
+      "maxMs": 3138.871625
     },
     "createColdLargeParent32MiB": {
       "samples": 3,
-      "minMs": 297.360709,
-      "medianMs": 301.865541,
-      "maxMs": 353.94487499999997
+      "minMs": 986.587041,
+      "medianMs": 1282.515625,
+      "maxMs": 1516.840584
     },
     "createLiveParent": {
       "samples": 3,
-      "minMs": 152.71575,
-      "medianMs": 153.671209,
-      "maxMs": 157.161667
+      "minMs": 489.862958,
+      "medianMs": 496.52154199999995,
+      "maxMs": 537.780583
     },
     "dropSmall": {
       "samples": 5,
-      "minMs": 63.625375,
-      "medianMs": 65.67725,
-      "maxMs": 65.790875
+      "minMs": 92.99875,
+      "medianMs": 134.54833299999999,
+      "maxMs": 268.536875
     },
     "dropLarge": {
       "samples": 3,
-      "minMs": 60.886875,
-      "medianMs": 65.854042,
-      "maxMs": 66.770625
+      "minMs": 144.81708400000002,
+      "medianMs": 147.348333,
+      "maxMs": 151.22608300000002
     },
     "dropLive": {
       "samples": 3,
-      "minMs": 59.931416,
-      "medianMs": 64.964333,
-      "maxMs": 67.90575
+      "minMs": 151.47158299999998,
+      "medianMs": 176.29845799999998,
+      "maxMs": 179.20887499999998
     },
     "attributedDiff10kRows": {
       "samples": 3,
-      "minMs": 35.69925,
-      "medianMs": 36.574916,
-      "maxMs": 39.422208
+      "minMs": 92.02208300000001,
+      "medianMs": 138.391917,
+      "maxMs": 294.7685
     },
     "netDiff10kRows": {
       "samples": 3,
-      "minMs": 49.285542,
-      "medianMs": 49.643834,
-      "maxMs": 50.455541
+      "minMs": 141.929125,
+      "medianMs": 151.071542,
+      "maxMs": 252.133708
     },
     "reapThreeExpiredForks": {
       "samples": 1,
-      "medianMs": 64.08125000000001
+      "medianMs": 171.394792
     },
-    "concurrentCreate3WallMs": 434.847792,
-    "sequentialCreateMedianMs": 163.07666700000001
+    "concurrentCreate3WallMs": 1387.287917,
+    "sequentialCreateMedianMs": 413.83454200000006
   },
   "ratifiedBounds": {
     "ratifiedBy": "LLP 0162 author (Charlie), 2026-08-06",

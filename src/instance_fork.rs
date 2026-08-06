@@ -90,8 +90,18 @@ pub struct ForkResourceUsageV1 {
 /// sharing authority merely because they point at one explicit fork root.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ExpectedForkAppV1 {
-    pub canonical_app_root: PathBuf,
-    pub app_id: String,
+    canonical_app_root: PathBuf,
+    app_id: String,
+}
+
+impl ExpectedForkAppV1 {
+    pub fn canonical_app_root(&self) -> &Path {
+        &self.canonical_app_root
+    }
+
+    pub fn app_id(&self) -> &str {
+        &self.app_id
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -238,6 +248,20 @@ pub fn load_expected_app(app_root: &Path) -> SnapbackResult<ExpectedForkAppV1> {
         canonical_app_root,
         app_id: recorded.app_id,
     })
+}
+
+/// Revalidate an opaque invoking-app identity against the canonical app-root
+/// receipt that created it. External callers cannot construct this value from
+/// free-form path/app-id strings, and a stale or replaced receipt fails closed.
+fn validate_expected_app(expected: &ExpectedForkAppV1) -> SnapbackResult<()> {
+    let recorded = load_expected_app(&expected.canonical_app_root)?;
+    if recorded != *expected {
+        return Err(fork_error(
+            APP_BINDING_MISMATCH_CODE,
+            "invoking app identity no longer matches its canonical app-root receipt",
+        ));
+    }
+    Ok(())
 }
 
 fn io_error(context: &'static str, error: std::io::Error) -> SnapbackError {
@@ -2159,109 +2183,13 @@ pub fn publish(
 pub fn publish_managed(
     source_database: &Path,
     destination: &Path,
-    app_id: &str,
-    parent_instance_id: &str,
-    now_ms: u64,
-    expires_at_ms: u64,
-    with_secrets: bool,
-) -> SnapbackResult<ForkMintReceiptV1> {
-    if expires_at_ms <= now_ms || expires_at_ms > crate::manifest::PORTABLE_TIMESTAMP_MAX_MS {
-        return Err(fork_error(
-            "SNAPBACK_FORK_TTL_INVALID",
-            "fork expiry must be later than creation and within the portable timestamp range",
-        ));
-    }
-    // Creation shares the same maximum total lifetime renewal is bound by
-    // (author ruling 2026-08-05) — otherwise the renewal cap would be
-    // decorative for a fork simply created long-lived in the first place.
-    if expires_at_ms.saturating_sub(now_ms) > MANAGED_FORK_MAX_LIFETIME_MS {
-        return Err(fork_error(
-            RESOURCE_LIMIT_REFUSED_CODE,
-            "fork create refused: the requested TTL exceeds the maximum fork lifetime",
-        )
-        .with_details(json!({
-            "resource": "fork-lifetime",
-            "requestedExpiresAtMs": expires_at_ms,
-            "maxLifetimeMs": MANAGED_FORK_MAX_LIFETIME_MS,
-        })));
-    }
-    let app_root = destination.parent().unwrap_or_else(|| Path::new("."));
-    fs::create_dir_all(app_root).map_err(|error| io_error("create managed fork root", error))?;
-    let expected = ensure_expected_app(app_root, app_id)?;
-    publish_with_options(
-        source_database,
-        destination,
-        app_id,
-        parent_instance_id,
-        now_ms,
-        None,
-        with_secrets,
-        Some(expires_at_ms),
-        false,
-        Some(&expected),
-    )
-}
-
-/// [`publish_managed`] with an opt-in retained post-mint base snapshot, the
-/// local target's chosen substrate for the exact net diff. Retention doubles
-/// the fork's byte footprint; creation admission accounts for it.
-#[allow(clippy::too_many_arguments)]
-pub fn publish_managed_with_base(
-    source_database: &Path,
-    destination: &Path,
-    app_id: &str,
-    parent_instance_id: &str,
-    now_ms: u64,
-    expires_at_ms: u64,
-    with_secrets: bool,
-    retain_base: bool,
-) -> SnapbackResult<ForkMintReceiptV1> {
-    if expires_at_ms <= now_ms || expires_at_ms > crate::manifest::PORTABLE_TIMESTAMP_MAX_MS {
-        return Err(fork_error(
-            "SNAPBACK_FORK_TTL_INVALID",
-            "fork expiry must be later than creation and within the portable timestamp range",
-        ));
-    }
-    if expires_at_ms.saturating_sub(now_ms) > MANAGED_FORK_MAX_LIFETIME_MS {
-        return Err(fork_error(
-            RESOURCE_LIMIT_REFUSED_CODE,
-            "fork create refused: the requested TTL exceeds the maximum fork lifetime",
-        )
-        .with_details(json!({
-            "resource": "fork-lifetime",
-            "requestedExpiresAtMs": expires_at_ms,
-            "maxLifetimeMs": MANAGED_FORK_MAX_LIFETIME_MS,
-        })));
-    }
-    let app_root = destination.parent().unwrap_or_else(|| Path::new("."));
-    fs::create_dir_all(app_root).map_err(|error| io_error("create managed fork root", error))?;
-    let expected = ensure_expected_app(app_root, app_id)?;
-    publish_with_options(
-        source_database,
-        destination,
-        app_id,
-        parent_instance_id,
-        now_ms,
-        None,
-        with_secrets,
-        Some(expires_at_ms),
-        retain_base,
-        Some(&expected),
-    )
-}
-
-/// [`publish_managed_bound_with_base`] without retained-base materialization.
-#[allow(clippy::too_many_arguments)]
-pub fn publish_managed_bound(
-    source_database: &Path,
-    destination: &Path,
     expected: &ExpectedForkAppV1,
     parent_instance_id: &str,
     now_ms: u64,
     expires_at_ms: u64,
     with_secrets: bool,
 ) -> SnapbackResult<ForkMintReceiptV1> {
-    publish_managed_bound_with_base(
+    publish_managed_with_base(
         source_database,
         destination,
         expected,
@@ -2273,11 +2201,11 @@ pub fn publish_managed_bound(
     )
 }
 
-/// Product publication with the invoking app-root identity bound before the
-/// registry intent and authoritative directory rename. This is the only
-/// managed create entry point lifecycle commands may later select.
+/// [`publish_managed`] with an opt-in retained post-mint base snapshot, the
+/// local target's chosen substrate for the exact net diff. Retention doubles
+/// the fork's byte footprint; creation admission accounts for it.
 #[allow(clippy::too_many_arguments)]
-pub fn publish_managed_bound_with_base(
+pub fn publish_managed_with_base(
     source_database: &Path,
     destination: &Path,
     expected: &ExpectedForkAppV1,
@@ -2287,6 +2215,10 @@ pub fn publish_managed_bound_with_base(
     with_secrets: bool,
     retain_base: bool,
 ) -> SnapbackResult<ForkMintReceiptV1> {
+    // @ref LLP 0158#design-sketch — managed S0 starts with canonical invoking
+    // app identity, so a never-launched fork carries the same lifecycle
+    // authority evidence as one that later publishes runtime readiness.
+    validate_expected_app(expected)?;
     if expires_at_ms <= now_ms || expires_at_ms > crate::manifest::PORTABLE_TIMESTAMP_MAX_MS {
         return Err(fork_error(
             "SNAPBACK_FORK_TTL_INVALID",
@@ -2723,6 +2655,7 @@ pub fn managed_target(
     fork_id: &str,
     expected: &ExpectedForkAppV1,
 ) -> SnapbackResult<ManagedForkTargetV1> {
+    validate_expected_app(expected)?;
     let root = fs::canonicalize(fork_root)
         .map_err(|error| io_error("resolve managed fork root", error))?;
     let registry_entry = load_registry_entry(&root, fork_id)?;
@@ -4737,6 +4670,10 @@ mod tests {
         ensure_expected_app(root, "app-a").unwrap()
     }
 
+    fn managed_expected_for(destination: &Path) -> ExpectedForkAppV1 {
+        managed_expected(destination.parent().expect("managed destination parent"))
+    }
+
     fn app_row_schema() -> crate::manifest::SchemaManifest {
         crate::manifest::SchemaManifest {
             tables: vec![crate::manifest::TableManifest {
@@ -4816,7 +4753,7 @@ mod tests {
         let mint = publish_managed_with_base(
             source,
             destination,
-            "app-a",
+            &managed_expected_for(destination),
             "parent-a",
             now_ms,
             now_ms + 60_000,
@@ -5257,9 +5194,16 @@ mod tests {
             .unwrap();
 
         let destination = directory.path().join("fork");
-        let receipt =
-            publish_managed(&source, &destination, "app-a", "parent-a", 100, 200_000, false)
-                .unwrap();
+        let receipt = publish_managed(
+            &source,
+            &destination,
+            &managed_expected_for(&destination),
+            "parent-a",
+            100,
+            200_000,
+            false,
+        )
+        .unwrap();
         assert_eq!(receipt.lineage.fork_point_version, 0);
 
         // Every kind of committed parent progress after the fork point:
@@ -5817,9 +5761,16 @@ mod tests {
         let root = directory.path().join("forks");
         fs::create_dir(&root).unwrap();
         let destination = root.join("fork-a");
-        let receipt =
-            publish_managed(&source, &destination, "app-a", "parent-a", 100, 200, false)
-                .unwrap();
+        let receipt = publish_managed(
+            &source,
+            &destination,
+            &managed_expected(&root),
+            "parent-a",
+            100,
+            200,
+            false,
+        )
+        .unwrap();
 
         assert!(inspect_boot_at(&destination.join("app.sqlite3"), 199)
             .unwrap()
@@ -5871,7 +5822,7 @@ mod tests {
             publish_managed(
                 &source,
                 &root.join("fork-invalid"),
-                "app-a",
+                &managed_expected(&root),
                 "parent-a",
                 90,
                 90,
@@ -5886,7 +5837,7 @@ mod tests {
         let scrubbed = publish_managed(
             &source,
             &scrubbed_destination,
-            "app-a",
+            &managed_expected(&root),
             "parent-a",
             90,
             190,
@@ -5906,8 +5857,16 @@ mod tests {
         drop_managed(&root, &scrubbed.lineage.fork_id, &managed_expected(&root)).unwrap();
 
         let destination = root.join("fork-a");
-        let receipt =
-            publish_managed(&source, &destination, "app-a", "parent-a", 100, 200, true).unwrap();
+        let receipt = publish_managed(
+            &source,
+            &destination,
+            &managed_expected(&root),
+            "parent-a",
+            100,
+            200,
+            true,
+        )
+        .unwrap();
         assert_eq!(receipt.lineage.fork_point_version, 0);
         assert_eq!(receipt.lineage.expires_at_ms, Some(200));
         assert_eq!(
@@ -5985,8 +5944,16 @@ mod tests {
         let root = directory.path().join("forks");
         fs::create_dir(&root).unwrap();
         let destination = root.join("fork-a");
-        let receipt =
-            publish_managed(&source, &destination, "app-a", "parent-a", 100, 200, false).unwrap();
+        let receipt = publish_managed(
+            &source,
+            &destination,
+            &managed_expected(&root),
+            "parent-a",
+            100,
+            200,
+            false,
+        )
+        .unwrap();
         let registry = registry_path(&root, &receipt.lineage.fork_id);
         let original: ForkRegistryEntryV1 =
             serde_json::from_slice(&fs::read(&registry).unwrap()).unwrap();
@@ -6038,8 +6005,16 @@ mod tests {
         let root = directory.path().join("forks");
         fs::create_dir(&root).unwrap();
         let destination = root.join("fork-a");
-        let receipt =
-            publish_managed(&source, &destination, "app-a", "parent-a", 100, 200, false).unwrap();
+        let receipt = publish_managed(
+            &source,
+            &destination,
+            &managed_expected(&root),
+            "parent-a",
+            100,
+            200,
+            false,
+        )
+        .unwrap();
         let registry = registry_path(&root, &receipt.lineage.fork_id);
         let mut entry: ForkRegistryEntryV1 =
             serde_json::from_slice(&fs::read(&registry).unwrap()).unwrap();
@@ -6067,9 +6042,16 @@ mod tests {
         let root = directory.path().join("forks");
         fs::create_dir(&root).unwrap();
         let destination = root.join("fork-a");
-        let receipt =
-            publish_managed(&source, &destination, "app-a", "parent-a", 100, 200, false)
-                .unwrap();
+        let receipt = publish_managed(
+            &source,
+            &destination,
+            &managed_expected(&root),
+            "parent-a",
+            100,
+            200,
+            false,
+        )
+        .unwrap();
         fs::remove_dir_all(&destination).unwrap();
         assert_eq!(
             managed_target(&root, &receipt.lineage.fork_id, &managed_expected(&root))
@@ -6174,9 +6156,16 @@ mod tests {
         // cleanup actors on the same fork.
         for round in 0..4 {
             let destination = root.join(format!("fork-{round}"));
-            let receipt =
-                publish_managed(&source, &destination, "app-a", "parent-a", 100, 200_000, false)
-                    .unwrap();
+            let receipt = publish_managed(
+                &source,
+                &destination,
+                &managed_expected(&root),
+                "parent-a",
+                100,
+                200_000,
+                false,
+            )
+            .unwrap();
             let outcomes = std::thread::scope(|scope| {
                 let expected = managed_expected(&root);
                 let handles = (0..4)
@@ -6218,9 +6207,16 @@ mod tests {
         let root = directory.path().join("forks");
         fs::create_dir(&root).unwrap();
         let destination = root.join("fork-a");
-        let receipt =
-            publish_managed(&source, &destination, "app-a", "parent-a", 100, 200_000, false)
-                .unwrap();
+        let receipt = publish_managed(
+            &source,
+            &destination,
+            &managed_expected(&root),
+            "parent-a",
+            100,
+            200_000,
+            false,
+        )
+        .unwrap();
 
         // While the fork directory exists the entry is not stale; clearing
         // must refuse rather than orphan a live fork's bookkeeping.
@@ -6269,9 +6265,16 @@ mod tests {
         let root = directory.path().join("forks");
         fs::create_dir(&root).unwrap();
         let destination = root.join("fork-a");
-        let receipt =
-            publish_managed(&source, &destination, "app-a", "parent-a", 100, 200_000, false)
-                .unwrap();
+        let receipt = publish_managed(
+            &source,
+            &destination,
+            &managed_expected(&root),
+            "parent-a",
+            100,
+            200_000,
+            false,
+        )
+        .unwrap();
         let fork_id = receipt.lineage.fork_id.clone();
         let database = destination.join("app.sqlite3");
 
@@ -6386,9 +6389,16 @@ mod tests {
             let root = directory.path().join("forks");
             fs::create_dir(&root).unwrap();
             let destination = root.join("fork-a");
-            let receipt =
-                publish_managed(&source, &destination, "app-a", "parent-a", 100, 200_000, false)
-                    .unwrap();
+            let receipt = publish_managed(
+                &source,
+                &destination,
+                &managed_expected(&root),
+                "parent-a",
+                100,
+                200_000,
+                false,
+            )
+            .unwrap();
             let fork_id = receipt.lineage.fork_id.clone();
             let database = destination.join("app.sqlite3");
 
@@ -6438,8 +6448,16 @@ mod tests {
         let source = source_database(directory.path());
         let root = directory.path().join("forks");
         fs::create_dir(&root).unwrap();
-        publish_managed(&source, &root.join("fork-a"), "app-a", "parent-a", 100, 200_000, false)
-            .unwrap();
+        publish_managed(
+            &source,
+            &root.join("fork-a"),
+            &managed_expected(&root),
+            "parent-a",
+            100,
+            200_000,
+            false,
+        )
+        .unwrap();
 
         let generous = ForkResourceLimits::default();
         let usage = enforce_creation_limits(&root, &source, &generous, false).unwrap();
@@ -6510,7 +6528,7 @@ mod tests {
         let app_b = ensure_expected_app(&app_b_root, "same-app").unwrap();
         let destination_a = fork_root.join("fork-a");
         let destination_b = fork_root.join("fork-b");
-        let fork_a = publish_managed_bound_with_base(
+        let fork_a = publish_managed_with_base(
             &source,
             &destination_a,
             &app_a,
@@ -6521,7 +6539,7 @@ mod tests {
             true,
         )
         .unwrap();
-        let fork_b = publish_managed_bound_with_base(
+        let fork_b = publish_managed_with_base(
             &source,
             &destination_b,
             &app_b,
@@ -6600,7 +6618,7 @@ mod tests {
                     scope.spawn(move || {
                         barrier.wait();
                         let admission = admit_creation(&root, &source, &limits, false)?;
-                        publish_managed_bound_with_base(
+                        publish_managed_with_base(
                             &source,
                             &root.join(format!("fork-{index}")),
                             &expected,
@@ -6672,7 +6690,7 @@ mod tests {
         let over = publish_managed(
             &source,
             &directory.path().join("fork-over"),
-            "app-a",
+            &managed_expected(directory.path()),
             "parent-a",
             100,
             100 + MANAGED_FORK_MAX_LIFETIME_MS + 1,
@@ -6689,7 +6707,7 @@ mod tests {
         publish_managed(
             &source,
             &directory.path().join("fork-at-bound"),
-            "app-a",
+            &managed_expected(directory.path()),
             "parent-a",
             100,
             100 + MANAGED_FORK_MAX_LIFETIME_MS,
@@ -6874,7 +6892,7 @@ mod tests {
         let receipt = publish_managed_with_base(
             &source,
             &destination,
-            "app-a",
+            &managed_expected(&root),
             "parent-a",
             100,
             200_000,
@@ -6965,7 +6983,14 @@ mod tests {
         // A sibling no-op fork of the same parent nets to nothing.
         let sibling = root.join("fork-b");
         publish_managed_with_base(
-            &source, &sibling, "app-a", "parent-a", 100, 200_000, false, true,
+            &source,
+            &sibling,
+            &managed_expected(&root),
+            "parent-a",
+            100,
+            200_000,
+            false,
+            true,
         )
         .unwrap();
         let sibling_net =
@@ -6985,7 +7010,7 @@ mod tests {
         publish_managed_with_base(
             &unchanged_source,
             &unchanged,
-            "app-a",
+            &managed_expected_for(&unchanged),
             "parent-a",
             100,
             200_000,
@@ -7028,7 +7053,7 @@ mod tests {
         publish_managed_with_base(
             &revert_source,
             &revert,
-            "app-a",
+            &managed_expected_for(&revert),
             "parent-a",
             100,
             200_000,
@@ -7490,7 +7515,7 @@ mod tests {
         let mint = publish_managed_with_base(
             &source,
             &destination,
-            "app-a",
+            &managed_expected_for(&destination),
             "parent-a",
             now_ms,
             now_ms + 60_000,
@@ -7552,7 +7577,16 @@ mod tests {
 
         // Without a retained base the exact diff refuses by name.
         let bare = root.join("fork-bare");
-        publish_managed(&source, &bare, "app-a", "parent-a", 100, 200_000, false).unwrap();
+        publish_managed(
+            &source,
+            &bare,
+            &managed_expected(&root),
+            "parent-a",
+            100,
+            200_000,
+            false,
+        )
+        .unwrap();
         assert_eq!(
             net_diff_receipt(&bare.join("app.sqlite3"), FORK_DIFF_MAX_ROWS)
                 .unwrap_err()
@@ -7566,7 +7600,14 @@ mod tests {
         // recorded, so the receipt refuses rather than lending it cover.
         let lying = root.join("fork-lying");
         publish_managed_with_base(
-            &source, &lying, "app-a", "parent-a", 100, 200_000, false, true,
+            &source,
+            &lying,
+            &managed_expected(&root),
+            "parent-a",
+            100,
+            200_000,
+            false,
+            true,
         )
         .unwrap();
         let database = lying.join("app.sqlite3");
@@ -7582,7 +7623,14 @@ mod tests {
         // A tampered base snapshot fails its digest binding.
         let tampered = root.join("fork-tampered");
         publish_managed_with_base(
-            &source, &tampered, "app-a", "parent-a", 100, 200_000, false, true,
+            &source,
+            &tampered,
+            &managed_expected(&root),
+            "parent-a",
+            100,
+            200_000,
+            false,
+            true,
         )
         .unwrap();
         let base_conn = Connection::open(tampered.join(BASE_SNAPSHOT_FILE)).unwrap();

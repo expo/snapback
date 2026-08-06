@@ -77,6 +77,9 @@ The fork operation does all of these before it returns:
   TTL/reap cleanup, so use a filesystem/container quota when runtime growth
   itself must be contained;
 - takes a consistent local snapshot and records the exact fork point;
+- records the canonical invoking app root plus logical app id in registry and
+  fork-local digest-bound evidence before publication, independently of
+  whether a server is ever launched;
 - scrubs copied sessions, agent credentials, and operational claims;
 - rotates authorization and data-stream identities and mints fresh sidecars;
 - when both generated manifests exist, admits the complete schema/function
@@ -102,6 +105,17 @@ and recover selection rechecks that identity before projecting paths or
 credentials or mutating state. Consequently, even two worktrees with the same
 `appId` cannot select one another through a shared `--fork-root`; a legacy row
 without this binding fails closed rather than acting as a wildcard.
+
+Library callers have the same contract without a launch step. Establish or
+load the app root with `ensure_expected_app(app_root, app_id)` or
+`load_expected_app(app_root)`, then pass the returned opaque
+`ExpectedForkAppV1` to `publish_managed` or
+`publish_managed_with_base`. Those APIs revalidate the canonical app-root
+identity and persist it during mint; they never infer authority from the
+destination's parent fork root. A fork minted this way can be inspected or
+diffed immediately with the owning CLI `--app-root`. The low-level `publish`
+crash-corpus primitive is deliberately unmanaged and cannot be selected by
+managed lifecycle commands.
 
 ## Fork instead of seeding an acceptance suite
 
@@ -270,8 +284,8 @@ details object in automation; the message is for people.
 
 | Diagnostic | Action |
 | --- | --- |
-| `SNAPBACK_FORK_APP_BINDING_MISMATCH` | The selected fork belongs to another canonical app root or logical app identity. Invoke the command from the owning `--app-root`; never use the shared fork root as authority. |
-| `SNAPBACK_FORK_APP_BINDING_REQUIRED` | The entry predates required app binding or lost that evidence. It is deliberately unselectable; inspect and migrate/recreate it out of band rather than weakening the check. |
+| `SNAPBACK_FORK_APP_BINDING_MISMATCH` | The selected fork belongs to another canonical app root or logical app identity, or the invoking app-root identity was replaced after it was loaded. Invoke from the owning `--app-root`; library callers should reload the opaque identity; never use the shared fork root as authority. |
+| `SNAPBACK_FORK_APP_BINDING_REQUIRED` | The entry predates mint-time app binding, came from the unmanaged low-level primitive, or lost that evidence. It is deliberately unselectable; a managed fork does not enter this class merely because it was never launched. Inspect and migrate/recreate it out of band rather than weakening the check. |
 | `SNAPBACK_FORK_PUBLICATION_PARTIAL` | Run `fork recover` on the exact sentinel-bearing destination before boot. |
 | `SNAPBACK_FORK_QUARANTINED` | Treat the database as non-bootable; recover its managed publication rather than clearing stamps by hand. |
 | `SNAPBACK_FORK_LINEAGE_INVALID` | Stop. Do not trust or delete the target until its local lineage provenance is understood. |

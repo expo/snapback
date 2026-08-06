@@ -744,6 +744,124 @@ fn same_app_id_app_roots_cannot_cross_select_a_shared_fork_root() {
     cleanup_a.fork_ids.clear();
 }
 
+/// Regression for the mint-vs-launch binding gap: lifecycle authority is
+/// durable fork evidence, so diff must work before any ready descriptor or
+/// server process exists while a sibling app root remains unable to select it.
+#[test]
+fn library_minted_never_launched_fork_diffs_only_for_its_owning_app_root() {
+    let directory = tempfile::tempdir().expect("never-launched fork fixture");
+    let source = parent_with_schema(directory.path());
+    let owning_app = directory.path().join("owning-app");
+    let sibling_app = directory.path().join("sibling-app");
+    std::fs::create_dir(&owning_app).unwrap();
+    std::fs::create_dir(&sibling_app).unwrap();
+    let expected = snapback::instance_fork::ensure_expected_app(&owning_app, "todo")
+        .expect("establish owning app identity");
+    snapback::instance_fork::ensure_expected_app(&sibling_app, "todo")
+        .expect("establish same-app-id sibling identity");
+    let fork_root = directory.path().join("shared-forks");
+    std::fs::create_dir(&fork_root).unwrap();
+    let destination = fork_root.join("never-launched");
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .expect("wall clock")
+        .as_millis() as u64;
+    let mint = snapback::instance_fork::publish_managed_with_base(
+        &source,
+        &destination,
+        &expected,
+        "never-launched-parent",
+        now_ms,
+        now_ms + 3_600_000,
+        false,
+        true,
+    )
+    .expect("mint bound fork without launch");
+    assert!(
+        destination
+            .join(snapback::instance_fork::APP_BINDING_RECEIPT_FILE)
+            .is_file(),
+        "mint publishes fork-local app binding before any launch"
+    );
+    assert!(
+        std::fs::read_dir(&destination)
+            .unwrap()
+            .all(|entry| !entry.unwrap().file_name().to_string_lossy().ends_with(".ready.json")),
+        "the fixture never publishes runtime readiness"
+    );
+
+    let database = destination.join("parent.sqlite3");
+    let conn = rusqlite::Connection::open(&database).expect("open never-launched fork");
+    conn.execute_batch(
+        "BEGIN IMMEDIATE;
+         INSERT INTO todos(_id,_version,_createdAt,_updatedAt,title,completed,userId)
+         VALUES('never-launched-row',1,100,100,'mint-time binding',0,'user_bound');
+         UPDATE _snapback_version SET version=1 WHERE id=1;
+         INSERT INTO _snapback_changes(version,table_name,row_id,op,row_json,changed_at_ms)
+         VALUES(1,'todos','never-launched-row','insert','{}',100);
+         COMMIT;",
+    )
+    .expect("write never-launched fork workload");
+    drop(conn);
+
+    for (extra, schema, operation) in [
+        (Vec::<&str>::new(), "snapback.fork-journal-diff.v3", "attributed diff"),
+        (vec!["--net"], "snapback.fork-net-diff.v3", "net diff"),
+    ] {
+        let mut command = snapback();
+        command.args(["fork", "diff", &mint.lineage.fork_id]);
+        command.args(extra);
+        command.args([
+            "--app-root",
+            owning_app.to_str().unwrap(),
+            "--fork-root",
+            fork_root.to_str().unwrap(),
+        ]);
+        let envelope = successful(command, &format!("owning app {operation}"));
+        assert_eq!(envelope["data"]["receipt"]["schemaVersion"], schema);
+        assert_eq!(
+            envelope["data"]["receipt"]["rows"]
+                .as_array()
+                .expect("diff rows")
+                .len(),
+            1
+        );
+    }
+
+    for (extra, operation) in [
+        (Vec::<&str>::new(), "attributed diff"),
+        (vec!["--net"], "net diff"),
+    ] {
+        let mut command = snapback();
+        command.args(["fork", "diff", &mint.lineage.fork_id]);
+        command.args(extra);
+        command.args([
+            "--app-root",
+            sibling_app.to_str().unwrap(),
+            "--fork-root",
+            fork_root.to_str().unwrap(),
+        ]);
+        assert_refused(
+            command,
+            &format!("sibling app {operation}"),
+            snapback::instance_fork::APP_BINDING_MISMATCH_CODE,
+        );
+    }
+
+    let mut drop_command = snapback();
+    drop_command.args([
+        "fork",
+        "drop",
+        &mint.lineage.fork_id,
+        "--app-root",
+        owning_app.to_str().unwrap(),
+        "--fork-root",
+        fork_root.to_str().unwrap(),
+    ]);
+    successful(drop_command, "drop never-launched fork");
+    assert!(!destination.exists());
+}
+
 /// A parent database carrying the Todo demo schema, the minimum a
 /// `fork create` source needs (`SNAPBACK_FORK_APP_ID_REQUIRED`).
 fn parent_with_schema(directory: &Path) -> PathBuf {
@@ -1645,7 +1763,7 @@ fn stale_registry_partial_cleanup_never_wedges_list_reap_or_create() {
     let expected = snapback::instance_fork::ensure_expected_app(&app_root, "todo")
         .expect("bind stale fixture to invoking app root");
 
-    let intact = snapback::instance_fork::publish_managed_bound(
+    let intact = snapback::instance_fork::publish_managed(
         &source,
         &fork_root.join("fork-intact"),
         &expected,
@@ -1655,7 +1773,7 @@ fn stale_registry_partial_cleanup_never_wedges_list_reap_or_create() {
         false,
     )
     .expect("publish intact fixture");
-    let stale = snapback::instance_fork::publish_managed_bound(
+    let stale = snapback::instance_fork::publish_managed(
         &source,
         &fork_root.join("fork-stale"),
         &expected,
@@ -1721,7 +1839,7 @@ fn stale_registry_partial_cleanup_never_wedges_list_reap_or_create() {
 
     // The end-to-end wedge check: a fresh stale entry must not refuse the
     // next create; automatic reap completes it and says so.
-    let wedge = snapback::instance_fork::publish_managed_bound(
+    let wedge = snapback::instance_fork::publish_managed(
         &source,
         &fork_root.join("fork-wedge"),
         &expected,
@@ -2114,7 +2232,7 @@ fn resource_limits_refuse_create_and_diff_without_residue() {
         .as_millis() as u64;
     let expected = snapback::instance_fork::ensure_expected_app(&app_root, "todo")
         .expect("bind limits fixture to invoking app root");
-    let existing = snapback::instance_fork::publish_managed_bound(
+    let existing = snapback::instance_fork::publish_managed(
         &source,
         &fork_root.join("fork-existing"),
         &expected,
@@ -2319,7 +2437,7 @@ fn executable_net_diff_names_its_substrate_and_requires_a_retained_base() {
     let expected = snapback::instance_fork::ensure_expected_app(&app_root, "todo")
         .expect("bind net-diff fixture to invoking app root");
 
-    let based = snapback::instance_fork::publish_managed_bound_with_base(
+    let based = snapback::instance_fork::publish_managed_with_base(
         &source,
         &fork_root.join("fork-based"),
         &expected,
@@ -2387,7 +2505,7 @@ fn executable_net_diff_names_its_substrate_and_requires_a_retained_base() {
     assert!(rows[0].get("preImage").is_none(), "an insert has no pre-image");
     assert_eq!(receipt["domains"]["appRows"], "net-covered");
 
-    let bare = snapback::instance_fork::publish_managed_bound(
+    let bare = snapback::instance_fork::publish_managed(
         &source,
         &fork_root.join("fork-bare"),
         &expected,
@@ -2431,7 +2549,7 @@ fn executable_fork_recover_repairs_one_finite_partial_publication() {
     let destination = fork_root.join("fork-recover");
     let expected = snapback::instance_fork::ensure_expected_app(&app_root, "recovery-app")
         .expect("bind recovery fixture to invoking app root");
-    let receipt = snapback::instance_fork::publish_managed_bound(
+    let receipt = snapback::instance_fork::publish_managed(
         &source,
         &destination,
         &expected,

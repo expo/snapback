@@ -6,7 +6,15 @@
 experience, Developer experience, CLI, Documentation, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-03
-**Revised:** 2026-08-06 (fork-specific publication witness authorization:
+**Revised:** 2026-08-06 (never-launched managed-fork app binding: the public
+`publish_managed` / `publish_managed_with_base` library APIs now require the
+opaque `ExpectedForkAppV1` established from the invoking canonical app root
+and logical app id, revalidate its durable app-root identity at mint, and
+publish the registry plus fork-local digest-bound binding before the S4
+rename. Runtime readiness only validates and attaches that same binding; it
+does not create authority. Library-minted forks can therefore be diffed before
+launch from their owning root, while same-`appId` sibling roots and genuinely
+legacy/unmanaged evidence still refuse fail-closed.); 2026-08-06 (fork-specific publication witness authorization:
 the withheld derived-fork receipt now reserves a closed nine-artifact evidence
 chain and the publication checker has the corresponding semantic validator;
 the LLP 0061 capability-index row remains the ruled claim carrier, the receipt
@@ -1268,6 +1276,17 @@ the authoritative rename. The receipt binds `forkId`, `appId`, and
 selecting command (`list`, `inspect`, `diff`, `renew`, `drop`, `reap`, and
 `recover`) compares its canonical expected identity against both registry and
 receipt evidence before it can project a path or credential or mutate state.
+The managed library APIs accept that identity only as an opaque
+`ExpectedForkAppV1` returned by `ensure_expected_app` or `load_expected_app`;
+callers cannot construct free-form root/app-id fields, and mint re-loads the
+canonical app-root receipt before S0 so a stale or replaced identity refuses.
+The destination's parent is only the fork storage root and is never inferred
+as lifecycle authority. `record_managed_runtime` re-binds the already-minted
+registry and fork-local receipt before recording readiness, so a launch-time
+disagreement refuses instead of rebinding the fork. The lower-level crash-
+corpus `publish` entry point remains unmanaged: it emits no app binding and
+cannot later pass a managed lifecycle selector. Consequently, lack of launch
+is not legacy evidence; lack of a mint-time binding is.
 
 **Journal diff receipt — `ForkDiffReceiptV3`,
 `schemaVersion: "snapback.fork-journal-diff.v3"`** (incompatible replacement
@@ -1378,8 +1397,8 @@ the freeze:
 | Code | Meaning |
 | --- | --- |
 | `SNAPBACK_FORK_APP_ID_REQUIRED` | The source database has no stored schema from which to obtain its logical app id. |
-| `SNAPBACK_FORK_APP_BINDING_MISMATCH` | The selected registry, staging intent, or fork-local receipt is bound to a different canonical app root and/or logical app id. |
-| `SNAPBACK_FORK_APP_BINDING_REQUIRED` | A legacy or malformed managed entry lacks the app-root identity required for fail-closed lifecycle selection. |
+| `SNAPBACK_FORK_APP_BINDING_MISMATCH` | The invoking opaque identity no longer matches its canonical app-root receipt, or the selected registry, staging intent, fork-local receipt, or runtime attachment is bound to a different canonical app root and/or logical app id. |
+| `SNAPBACK_FORK_APP_BINDING_REQUIRED` | A legacy, lower-level unmanaged, or malformed entry lacks the mint-time app-root identity required for fail-closed lifecycle selection. Never-launched managed forks are not in this class because mint publishes their binding. |
 | `SNAPBACK_FORK_APP_ROOT_INVALID` | The requested app-root path cannot be canonicalized. |
 | `SNAPBACK_FORK_BOOT_FAILED` | The child server could not spawn or exited before readiness. |
 | `SNAPBACK_FORK_BOOT_TIMEOUT` | The child did not publish its ready descriptor within the creation deadline. |
