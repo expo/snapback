@@ -1416,3 +1416,9 @@ The batch also surfaced the same bookkeeping omission on branch landing
 proof but not its affected-selection policy. It now travels beside
 `control-catalog` in the publication group, with a selector fixture pinning
 the pair.
+
+The same completed-main batch added
+`packages/snapback-codegen/guide-pointer.test.mjs` in landing `6da170bf1`
+without advancing the canonical package-test inventory. The reviewed list now
+names that suite and advances from 217 to 218 declared tests; the suite itself
+and the inventory checker both pass.
