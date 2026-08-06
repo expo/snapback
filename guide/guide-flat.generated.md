@@ -7330,8 +7330,8 @@ examples: [packages/snapback-cli/templates/react, demos/chirp, demos/signal-desk
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-05
-reviewed-commit: f3c7d9fbb394a413370a9264f22e72b6f151a25e
+reviewed: 2026-08-06
+reviewed-commit: 4ac8387f080a2659484fc09916ff22a076dc4ca8
 ---
 
 # The React client
@@ -7385,6 +7385,20 @@ generated manifest. The binding names its provenance as
 boot reaches a provider that renders retained rows (see
 [offline retention](../sync/offline-and-retention.md)). A drifted generated
 manifest never adopts the receipt.
+
+Whether that receipt is actually on disk for the next boot depends on the
+persisted store carrier:
+
+| Carrier | Receipt persisted by online preparation | Offline cold boot reaches `source: 'persisted-receipt'` | Witness |
+| --- | --- | --- | --- |
+| Browser IndexedDB + Web Locks (browser default) | Yes — the commit defers until this tab's writer election settles (before 2026-08-06 a boot-time election race silently dropped it) | Yes | `packages/snapback-react/cold-boot-binding-indexeddb.test.mjs` (Node simulation: fake IndexedDB plus a Web Locks double); the real-Chrome repro in `demos/warble` remains a manual witness |
+| Expo / registered file store | Yes — the file arm settles writer election before its writer check | Yes, proven for a fresh client in the same process; a physical-device process-kill witness is still open (`issues/20260806-expo-file-carrier-process-kill-witness.md`) | `demos/relay-room-bakeoff/snapback-expo/tests/offline-acceptance.mjs` |
+| Memory fallback | In-memory only — nothing survives the process | No — a process-cold boot has neither receipt nor rows | `packages/snapback-react/cold-boot-binding.test.mjs` (two sessions over one memory store in one process) |
+
+A tab that is not the elected writer defers its receipt commit until it is
+elected (the freshest `savedAt` wins at flush time); a terminally refused
+commit warns `SNAPBACK_REACT_BINDING_RECEIPT_NOT_PERSISTED` instead of
+dropping the receipt silently.
 
 During an ordinary local edit/restart cycle, Metro or Vite may load generated
 artifacts one backend generation ahead. After a live inspection proves both
@@ -7838,7 +7852,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-06
-reviewed-commit: 850427c31b9a668d55b46995e08389cd13a2c9b6
+reviewed-commit: 4ac8387f080a2659484fc09916ff22a076dc4ca8
 ---
 
 # React Expo Online clients
@@ -8064,9 +8078,13 @@ const provider = createSnapbackReactProvider(binding);
 // <SnapbackProvider provider={provider}> ... </SnapbackProvider>
 ```
 
-Preparation needs the server reachable (deployment verification); a cold boot
-with the backend unreachable cannot prepare — see the store consequence
-below for why nothing renders from disk either.
+The first preparation needs the server reachable (deployment verification).
+After one successful online preparation over a registered durable store, an
+offline relaunch re-admits against the persisted binding receipt
+(`binding.source: 'persisted-receipt'`) — see the per-carrier matrix on
+[the React client page](./react.md). Over the default in-memory fallback
+nothing survives the process, so a cold offline boot cannot prepare — see
+the store consequence below.
 
 Components then use the ordinary generated-reference hook — reference plus
 exact arguments (or `skip`), never a string name, a `userId`, or an
@@ -8170,9 +8188,14 @@ release Hermes build — `demos/rn-durable-store-witness/`):
 - **A restart-durable offline queue:** queued mutations survive relaunch,
   not just the process.
 
-The React-provider boot caveat above still applies: `prepareReactBinding`
-needs the server reachable, so hook-path rendering cannot start offline —
-the retained render is the headless `client.liveQuery` path.
+Offline cold boot of the hook path follows the binding-receipt fallback on
+this carrier: a prior successful online preparation over the registered file
+store persists the digest-bound receipt, and an offline relaunch prepares
+from it (`binding.source: 'persisted-receipt'`) and renders the retained
+rows through the hooks. The fresh-client witness is
+`demos/relay-room-bakeoff/snapback-expo/tests/offline-acceptance.mjs`; a
+physical-device process-kill witness is still open
+(`issues/20260806-expo-file-carrier-process-kill-witness.md`).
 
 Flush on background (the LLP 0091 step-5 lifecycle wiring): persistence is
 debounced, so have the shell flush pending resume state when the app leaves

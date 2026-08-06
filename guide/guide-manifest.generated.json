@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "850427c31b9a668d55b46995e08389cd13a2c9b6"
+    "commit": "4ac8387f080a2659484fc09916ff22a076dc4ca8"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -1745,8 +1745,8 @@
         "demos/_kit/tests/repo-layout-unit.mjs"
       ],
       "reviewed": "2026-08-06",
-      "reviewedCommit": "850427c31b9a668d55b46995e08389cd13a2c9b6",
-      "sha256": "7b66b87fb0a947c27f12498626aa74b507167d64a78e61fe0ab5a62c2c045b74",
+      "reviewedCommit": "4ac8387f080a2659484fc09916ff22a076dc4ca8",
+      "sha256": "af868911da303f13e9acbcdb2a7e290f757c7a58f6819a9a55bcf7003e5fe674",
       "snippets": [
         {
           "lang": "json",
@@ -1823,9 +1823,9 @@
         "packages/snapback-react/offline.test.mjs",
         "packages/snapback-react/exact-result-types.fixture.ts"
       ],
-      "reviewed": "2026-08-05",
-      "reviewedCommit": "f3c7d9fbb394a413370a9264f22e72b6f151a25e",
-      "sha256": "75ad6c86424692ca4163d3da2a705a3f54f5155e9b303fd63f50aeeb735d0920",
+      "reviewed": "2026-08-06",
+      "reviewedCommit": "4ac8387f080a2659484fc09916ff22a076dc4ca8",
+      "sha256": "73ef92d51d85a3d171ac17e227efe8be597d4e792ae66640970265b80cae6555",
       "snippets": [
         {
           "lang": "ts",
@@ -3178,5 +3178,5 @@
     "routes": 116,
     "hostOps": 37
   },
-  "contentHash": "978eadbd3f78163fccbfc3219266030b1fadfb51b719ab0dad6c6b83a0c94ea6"
+  "contentHash": "f327337af2318b21f2823c373a8e023f2af22441b19bbbe1e739a46b65c205e1"
 }

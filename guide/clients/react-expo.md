@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-06
-reviewed-commit: 850427c31b9a668d55b46995e08389cd13a2c9b6
+reviewed-commit: 4ac8387f080a2659484fc09916ff22a076dc4ca8
 ---
 
 # React Expo Online clients
@@ -236,9 +236,13 @@ const provider = createSnapbackReactProvider(binding);
 // <SnapbackProvider provider={provider}> ... </SnapbackProvider>
 ```
 
-Preparation needs the server reachable (deployment verification); a cold boot
-with the backend unreachable cannot prepare — see the store consequence
-below for why nothing renders from disk either.
+The first preparation needs the server reachable (deployment verification).
+After one successful online preparation over a registered durable store, an
+offline relaunch re-admits against the persisted binding receipt
+(`binding.source: 'persisted-receipt'`) — see the per-carrier matrix on
+[the React client page](./react.md). Over the default in-memory fallback
+nothing survives the process, so a cold offline boot cannot prepare — see
+the store consequence below.
 
 Components then use the ordinary generated-reference hook — reference plus
 exact arguments (or `skip`), never a string name, a `userId`, or an
@@ -342,9 +346,14 @@ release Hermes build — `demos/rn-durable-store-witness/`):
 - **A restart-durable offline queue:** queued mutations survive relaunch,
   not just the process.
 
-The React-provider boot caveat above still applies: `prepareReactBinding`
-needs the server reachable, so hook-path rendering cannot start offline —
-the retained render is the headless `client.liveQuery` path.
+Offline cold boot of the hook path follows the binding-receipt fallback on
+this carrier: a prior successful online preparation over the registered file
+store persists the digest-bound receipt, and an offline relaunch prepares
+from it (`binding.source: 'persisted-receipt'`) and renders the retained
+rows through the hooks. The fresh-client witness is
+`demos/relay-room-bakeoff/snapback-expo/tests/offline-acceptance.mjs`; a
+physical-device process-kill witness is still open
+(`issues/20260806-expo-file-carrier-process-kill-witness.md`).
 
 Flush on background (the LLP 0091 step-5 lifecycle wiring): persistence is
 debounced, so have the shell flush pending resume state when the app leaves
