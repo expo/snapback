@@ -9642,6 +9642,11 @@ pub enum TargetCapabilityId {
     SequenceAllocationV1,
     #[serde(rename = "snapshot_batch_v1")]
     SnapshotBatchV1,
+    /// LLP 0157's mixed bounded-child/relational composite. Registration is
+    /// experimental and local-only; hosted, remote, and Cloudflare targets
+    /// retain explicit gaps until their own executors and evidence land.
+    #[serde(rename = "snapshot_batch_v2")]
+    SnapshotBatchV2,
     #[serde(rename = "single_table_v1")]
     SingleTableV1,
     #[serde(rename = "migration_keyset_scan_v1")]
@@ -9693,7 +9698,7 @@ pub enum TargetCapabilityId {
 }
 
 impl TargetCapabilityId {
-    pub const ALL: [Self; 36] = [
+    pub const ALL: [Self; 37] = [
         Self::AuthSessionsV1,
         Self::BoundedResponseStreamV1,
         Self::BoundedChildrenV1,
@@ -9712,6 +9717,7 @@ impl TargetCapabilityId {
         Self::RelationalQueryV1,
         Self::SequenceAllocationV1,
         Self::SnapshotBatchV1,
+        Self::SnapshotBatchV2,
         Self::SingleTableV1,
         Self::MigrationKeysetScanV1,
         Self::FullTextSearchV1,
@@ -9752,6 +9758,7 @@ impl TargetCapabilityId {
             Self::RelationalQueryV1 => "relational_query_v1",
             Self::SequenceAllocationV1 => "sequence_allocation_v1",
             Self::SnapshotBatchV1 => "snapshot_batch_v1",
+            Self::SnapshotBatchV2 => "snapshot_batch_v2",
             Self::SingleTableV1 => "single_table_v1",
             Self::MigrationKeysetScanV1 => "migration_keyset_scan_v1",
             Self::FullTextSearchV1 => "full_text_search_v1",
@@ -9808,6 +9815,7 @@ impl TargetCapabilityId {
             | Self::RegisteredBundleBootV1
             | Self::SequenceAllocationV1
             | Self::SnapshotBatchV1
+            | Self::SnapshotBatchV2
             | Self::SingleTableV1
             | Self::LiveFullTextSearchV1
             | Self::VectorSearchV1
@@ -9997,6 +10005,16 @@ impl TargetCapabilityId {
             Self::SnapshotBatchV1 => {
                 facts.snapshot_batch_v1_registered
                     && Self::BoundedChildrenV1.is_supported_by(manifest, facts)
+                    && Self::LiveSubscriptions.is_supported_by(manifest, facts)
+                    && manifest.target_profile_id == TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX
+            }
+            // @ref LLP 0157#d1--the-node-algebra — v2 support is a distinct,
+            // experimental local executor fact conjoined with the stable
+            // relational and live dependencies. Bounded-child tuples carry
+            // their own additional required capability at artifact admission.
+            Self::SnapshotBatchV2 => {
+                facts.snapshot_batch_v2_registered
+                    && Self::RelationalQueryV1.is_supported_by(manifest, facts)
                     && Self::LiveSubscriptions.is_supported_by(manifest, facts)
                     && manifest.target_profile_id == TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX
             }
@@ -10628,6 +10646,7 @@ fn local_persistent_store_publication_verified() -> bool {
 pub struct TargetCapabilityFacts {
     bounded_children_v1_registered: bool,
     snapshot_batch_v1_registered: bool,
+    snapshot_batch_v2_registered: bool,
     single_table_v1_registered: bool,
     bounded_response_stream_v1_registered: bool,
     relational_query_v1_registered: bool,
@@ -10716,6 +10735,10 @@ impl TargetCapabilityFacts {
             //   — exact tuple execution, `sbsb1` custody, and first-page live
             //   replacement are registered together on the local target.
             snapshot_batch_v1_registered: true,
+            // @ref LLP 0157#sbsb2-plaintext-and-budget — the mixed executor,
+            // coordinated cursor family, and fixed first-page live posture
+            // are one local registration; maturity remains experimental.
+            snapshot_batch_v2_registered: true,
             // @ref LLP 0157#d1--the-node-algebra — registration enables
             // only the host-derived, single-node class; the publication
             // carrier below remains the independent support gate.
@@ -10778,6 +10801,7 @@ impl TargetCapabilityFacts {
         Self {
             bounded_children_v1_registered: false,
             snapshot_batch_v1_registered: false,
+            snapshot_batch_v2_registered: false,
             single_table_v1_registered: false,
             mixed_bundle_boot_v2_registered: false,
             sequence_allocation_v1_registered: false,
@@ -11943,6 +11967,7 @@ pub fn local_v0_default_capability_gaps() -> Vec<String> {
         "bounded_response_stream_v1".to_owned(),
         "bounded_children_v1".to_owned(),
         "snapshot_batch_v1".to_owned(),
+        "snapshot_batch_v2".to_owned(),
         "single_table_v1".to_owned(),
         "mixed_bundle_boot_v2".to_owned(),
         "notifications".to_owned(),
@@ -11971,6 +11996,12 @@ fn ensure_relation_activity_capability_gaps(gaps: &mut Vec<String>) {
 fn ensure_snapshot_batch_capability_gap(gaps: &mut Vec<String>) {
     if !gaps.iter().any(|gap| gap == "snapshot_batch_v1") {
         gaps.push("snapshot_batch_v1".to_owned());
+    }
+}
+
+fn ensure_snapshot_batch_v2_capability_gap(gaps: &mut Vec<String>) {
+    if !gaps.iter().any(|gap| gap == "snapshot_batch_v2") {
+        gaps.push("snapshot_batch_v2".to_owned());
     }
 }
 
@@ -12458,6 +12489,7 @@ impl CapabilityManifest {
             "bounded_response_stream_v1".to_owned(),
             "bounded_children_v1".to_owned(),
             "snapshot_batch_v1".to_owned(),
+            "snapshot_batch_v2".to_owned(),
             "notifications".to_owned(),
             "notifications.expoPushSeam".to_owned(),
             "cron".to_owned(),
@@ -12533,6 +12565,17 @@ impl CapabilityManifest {
                 .retain(|gap| gap != "snapshot_batch_v1");
         } else {
             ensure_snapshot_batch_capability_gap(&mut self.capability_gaps);
+        }
+        // @ref LLP 0157#d1--the-node-algebra — registration and maturity do
+        // not let remote/hosted targets inherit the local mixed executor.
+        if self
+            .supported_capabilities
+            .contains(&TargetCapabilityId::SnapshotBatchV2)
+        {
+            self.capability_gaps
+                .retain(|gap| gap != "snapshot_batch_v2");
+        } else {
+            ensure_snapshot_batch_v2_capability_gap(&mut self.capability_gaps);
         }
         if self
             .supported_capabilities
@@ -14219,6 +14262,10 @@ mod membership_manifest_grammar_tests {
                 CapabilityMaturity::Experimental,
             ),
             (
+                TargetCapabilityId::SnapshotBatchV2,
+                CapabilityMaturity::Experimental,
+            ),
+            (
                 TargetCapabilityId::SingleTableV1,
                 CapabilityMaturity::Experimental,
             ),
@@ -14720,6 +14767,66 @@ mod membership_manifest_grammar_tests {
                     .iter()
                     .any(|gap| gap == "snapshot_batch_v1"),
                 "{} must report the structured snapshot_batch_v1 GAP",
+                manifest.target_profile_id,
+            );
+        }
+    }
+
+    #[test]
+    fn snapshot_batch_v2_registry_is_experimental_and_local_only() {
+        assert_eq!(
+            TargetCapabilityId::SnapshotBatchV2.maturity(),
+            CapabilityMaturity::Experimental,
+        );
+        for manifest in [
+            CapabilityManifest::local_v0_declared(),
+            CapabilityManifest::local_v0_instance(Vec::new(), true),
+        ] {
+            assert!(
+                manifest
+                    .supported_capabilities
+                    .contains(&TargetCapabilityId::SnapshotBatchV2),
+                "{} must advertise the registered local v2 executor",
+                manifest.target_profile_id,
+            );
+            assert_eq!(
+                manifest
+                    .capability_maturity
+                    .get(&TargetCapabilityId::SnapshotBatchV2),
+                Some(&CapabilityMaturity::Experimental),
+            );
+            assert!(
+                !manifest
+                    .capability_gaps
+                    .iter()
+                    .any(|gap| gap == "snapshot_batch_v2")
+            );
+        }
+        for manifest in [
+            CapabilityManifest::remote_service_sqlite_ibex_declared(),
+            CapabilityManifest::conformance_workerd_v8(json!({})),
+            CapabilityManifest::cloudflare_do_sqlite_v8(json!({})),
+        ] {
+            assert!(
+                !manifest
+                    .supported_capabilities
+                    .contains(&TargetCapabilityId::SnapshotBatchV2),
+                "{} must not inherit local snapshot-batch v2 support",
+                manifest.target_profile_id,
+            );
+            assert!(
+                !manifest
+                    .capability_maturity
+                    .contains_key(&TargetCapabilityId::SnapshotBatchV2),
+                "{} must not annotate maturity for an unsupported id",
+                manifest.target_profile_id,
+            );
+            assert!(
+                manifest
+                    .capability_gaps
+                    .iter()
+                    .any(|gap| gap == "snapshot_batch_v2"),
+                "{} must report the structured snapshot_batch_v2 GAP",
                 manifest.target_profile_id,
             );
         }

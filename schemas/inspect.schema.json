@@ -4230,6 +4230,19 @@
         },
         {
           "additionalProperties": false,
+          "description": "Class-tagged bounded-child/relational tuple using one `sbsb2`\ncontinuation and LLP 0157's unchanged two-arm outer envelope.",
+          "properties": {
+            "SnapshotBatchV2": {
+              "$ref": "#/$defs/SnapshotBatchPlanV2"
+            }
+          },
+          "required": [
+            "SnapshotBatchV2"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
           "description": "Closed source/scope/activity transaction.",
           "properties": {
             "WriteWithActivity": {
@@ -7258,6 +7271,45 @@
       ],
       "type": "string"
     },
+    "SnapshotBatchNodeV2": {
+      "description": "One class-explicit node in `snapshot-batch.v2`. The adjacent tag keeps\nclass membership host-visible while leaving `plan` as the owner's exact\nnormalized record for LLP 0157 node identity.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "classId": {
+              "const": "bounded_children_v1",
+              "type": "string"
+            },
+            "plan": {
+              "$ref": "#/$defs/BoundedChildrenQueryPlan"
+            }
+          },
+          "required": [
+            "classId",
+            "plan"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "classId": {
+              "const": "relational_query_v1",
+              "type": "string"
+            },
+            "plan": {
+              "$ref": "#/$defs/RelationalQueryPlan"
+            }
+          },
+          "required": [
+            "classId",
+            "plan"
+          ],
+          "type": "object"
+        }
+      ]
+    },
     "SnapshotBatchPlanV1": {
       "additionalProperties": false,
       "description": "The released LLP 0157 normalized carrier for LLP 0135 Part 2. Codegen emits\nthe complete normalized record and its domain-separated hash; the host\nreconstructs and compares both before treating either as identity.\n\n@ref LLP 0135#21-composite-plan-shape — v1 composes a static tuple of\n  complete bounded-children plans and no other node kind.",
@@ -7265,6 +7317,32 @@
         "nodes": {
           "items": {
             "$ref": "#/$defs/BoundedChildrenQueryPlan"
+          },
+          "type": "array"
+        },
+        "normalizedCompositePlan": true,
+        "planHash": {
+          "type": "string"
+        },
+        "profile": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "profile",
+        "nodes",
+        "normalizedCompositePlan",
+        "planHash"
+      ],
+      "type": "object"
+    },
+    "SnapshotBatchPlanV2": {
+      "additionalProperties": false,
+      "description": "The class-tagged mixed-node carrier for LLP 0157 `snapshot-batch.v2`.",
+      "properties": {
+        "nodes": {
+          "items": {
+            "$ref": "#/$defs/SnapshotBatchNodeV2"
           },
           "type": "array"
         },
@@ -7573,6 +7651,11 @@
         {
           "const": "jobs_one_off_v1",
           "description": "Transactional one-off durable work, first slice (LLP 0070, Draft):\n`ctx.jobs.enqueue` from JS mutations, the paved default queue,\njob/attempt receipts, the declared job-status query, and the\ninjected-clock forced drain. Experimental for as long as LLP 0070 is\nDraft — its claim boundary bars any durable-background-work\ncapability-class claim, and this id asserts current-contract\ncompatibility only.",
+          "type": "string"
+        },
+        {
+          "const": "snapshot_batch_v2",
+          "description": "LLP 0157's mixed bounded-child/relational composite. Registration is\nexperimental and local-only; hosted, remote, and Cloudflare targets\nretain explicit gaps until their own executors and evidence land.",
           "type": "string"
         },
         {

@@ -273,6 +273,7 @@ const inventories = [
       'seed-artifact.test.mjs',
       'seed-asset-fixtures.test.mjs',
       'settlement-bounded-skew.test.mjs',
+      'snapshot-batch-v2-authoring.test.mjs',
       'standard-patterns.test.mjs',
       'vector-authoring.test.mjs',
       'vector-distance-profile.test.mjs',
@@ -610,7 +611,9 @@ const total = results.reduce((sum, result) => sum + result.count, 0);
 // without a canonical inventory entry; registered here.
 // 218 -> 220 (2026-08-06, LLP 0180 / LLP 0179 S2): the client and React
 // packages gain the command phase/outcome and named-projection suites.
-assert.equal(total, 220, 'reviewed package/admin test count changed');
+// 220 -> 221 (2026-08-06, LLP 0157 §D8): @expo/snapback-codegen gains the
+// mixed/all-relational snapshot-batch.v2 authoring and identity-mirror suite.
+assert.equal(total, 221, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }

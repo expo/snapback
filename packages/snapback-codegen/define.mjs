@@ -28,6 +28,11 @@ const COMMAND = Symbol('snapback.command');
 const SURFACE = Symbol('snapback.surface');
 const SURFACE_BINDING = Symbol('snapback.surfaceBinding');
 const PUSH_SEAM = Symbol('snapback.pushSeam');
+// The result validator is needed only while composing an authored relational
+// definition into snapshot-batch.v2. Keep it out of the definition object:
+// the isolated evaluator deliberately admits exactly one symbol marker per
+// definition and rejects any additional hidden carrier.
+const RELATIONAL_PAGES = new WeakMap();
 const OBJECT_GET_PROTOTYPE_OF = Object.getPrototypeOf;
 const REFLECT_APPLY = Reflect.apply;
 const ARRAY_SLICE = Array.prototype.slice;
@@ -127,6 +132,7 @@ const TARGET_CAPABILITIES = new Set([
   'live_full_text_search_v1',
   'bounded_children_v1',
   'snapshot_batch_v1',
+  'snapshot_batch_v2',
   'write_activity_v1',
   'vector_search_v1',
 ]);
@@ -2184,34 +2190,50 @@ export function defineSnapshotBatchQuery(spec) {
   assertKnownSpecFields(spec, 'SnapshotBatchQuery', new Set(['nodes']));
   assert(
     Array.isArray(spec.nodes) && spec.nodes.length >= 2 && spec.nodes.length <= 8,
-    'defineSnapshotBatchQuery nodes must contain 2–8 bounded children definitions',
+    'defineSnapshotBatchQuery nodes must contain 2–8 bounded-children or relational definitions',
   );
   let totalTake = 0;
   const args = {};
   const pages = [];
-  const plans = [];
+  const nodes = [];
   let authenticated = false;
+  let relational = false;
   for (const [position, node] of spec.nodes.entries()) {
+    const bounded = node?.[FN] === true
+      && node.boundedChildrenPlan
+      && node.__kind === 'LiveQuery';
+    const relationalNode = node?.[FN] === true
+      && node.relationalPlan
+      && RELATIONAL_PAGES.has(node)
+      && node.__kind === 'LiveQuery';
     assert(
-      node?.[FN] === true && node.boundedChildrenPlan && node.__kind === 'LiveQuery',
-      `snapshot batch node ${position} must be a defineBoundedChildrenQuery(...) result`,
+      bounded || relationalNode,
+      `snapshot batch node ${position} must be a defineBoundedChildrenQuery(...) or defineRelationalQuery(...) result`,
     );
-    totalTake += node.boundedChildrenPlan.take;
+    const plan = bounded ? node.boundedChildrenPlan : node.relationalPlan;
+    totalTake += plan.take;
     assert(totalTake <= 1_024, 'snapshot batch summed take must not exceed 1024');
-    const parentArg = node.boundedChildrenPlan.parentIdArg;
-    const parentValidator = node.args[parentArg];
-    if (args[parentArg] !== undefined) {
-      assert(
-        JSON.stringify(args[parentArg].fieldType) === JSON.stringify(parentValidator.fieldType),
-        `snapshot batch argument ${parentArg} has incompatible node types`,
-      );
-    } else {
-      args[parentArg] = parentValidator;
+    for (const [name, argument] of Object.entries(node.args ?? {})) {
+      if (name === 'cursor') continue;
+      if (args[name] !== undefined) {
+        assert(
+          JSON.stringify(args[name].fieldType) === JSON.stringify(argument.fieldType),
+          `snapshot batch argument ${name} has incompatible node types`,
+        );
+      } else {
+        args[name] = argument;
+      }
     }
-    const visible = node.resultContract?.validator?.variants?.[1];
-    assert(visible?.primitive === 'object', `snapshot batch node ${position} lacks the bounded visible contract`);
-    pages.push(v.object({ parent: visible.fields.parent, children: visible.fields.children }));
-    plans.push(node.boundedChildrenPlan);
+    if (bounded) {
+      const visible = node.resultContract?.validator?.variants?.[1];
+      assert(visible?.primitive === 'object', `snapshot batch node ${position} lacks the bounded visible contract`);
+      pages.push(v.object({ parent: visible.fields.parent, children: visible.fields.children }));
+      nodes.push({ classId: 'bounded_children_v1', plan });
+    } else {
+      relational = true;
+      pages.push(RELATIONAL_PAGES.get(node));
+      nodes.push({ classId: 'relational_query_v1', plan });
+    }
     authenticated ||= node.auth === 'authenticated';
   }
   args.cursor = v.optional(v.string({ maxBytes: 8_192 }));
@@ -2228,7 +2250,9 @@ export function defineSnapshotBatchQuery(spec) {
         continuation: v.union([v.null(), v.string({ maxBytes: 8_192 })]),
       }),
     ]), { minItems: 1, maxItems: 1 }),
-    snapshotBatchPlan: { profile: 'snapshot-batch.v1', nodes: plans },
+    snapshotBatchPlan: relational
+      ? { profile: 'snapshot-batch.v2', nodes }
+      : { profile: 'snapshot-batch.v1', nodes: nodes.map((node) => node.plan) },
   };
 }
 
@@ -2445,6 +2469,7 @@ export function defineRelationalQuery(spec) {
       && Object.keys(spec.projection).length > 0,
     'relational projection must be a non-empty object',
   );
+  const projectionFields = {};
   const projection = Object.entries(spec.projection).map(([leafName, source]) => {
     assert(RELATIONAL_IDENT.test(leafName), `projection field ${leafName} must be an identifier`);
     assert(
@@ -2455,21 +2480,38 @@ export function defineRelationalQuery(spec) {
       const field = rootFacts.fields[source.root];
       assert(field, `projection.${leafName} names unknown field ${rootFacts.name}.${source.root}`);
       relationalProjectionScalar(field, `projection.${leafName} source ${rootFacts.name}.${source.root}`);
+      projectionFields[leafName] = boundedProjectionValidator(
+        rootFacts,
+        { field: source.root },
+        `projection.${leafName}`,
+      );
       return { name: leafName, source: { RootField: source.root } };
     }
     if (typeof source.joined === 'string') {
       const field = joinedFacts.fields[source.joined];
       assert(field, `projection.${leafName} names unknown field ${joinedFacts.name}.${source.joined}`);
       relationalProjectionScalar(field, `projection.${leafName} source ${joinedFacts.name}.${source.joined}`);
+      const stored = boundedProjectionValidator(
+        joinedFacts,
+        { field: source.joined },
+        `projection.${leafName}`,
+      );
+      projectionFields[leafName] = kind === 'left'
+        && !(stored.resultKind === 'union'
+          && stored.variants.some((variant) => variant.resultKind === 'null'))
+        ? v.union([v.null(), stored])
+        : stored;
       return { name: leafName, source: { JoinedField: source.joined } };
     }
     assert(
       Object.hasOwn(source, 'literal'),
       `projection.${leafName} must be exactly one of { root }, { joined }, { literal }`,
     );
+    const literal = relationalProjectionLiteral(source.literal, `projection.${leafName}`);
+    projectionFields[leafName] = v.literal(literal);
     return {
       name: leafName,
-      source: { Literal: relationalProjectionLiteral(source.literal, `projection.${leafName}`) },
+      source: { Literal: literal },
     };
   });
 
@@ -2491,7 +2533,7 @@ export function defineRelationalQuery(spec) {
     "retention: 'opaque-authorized-snapshot-v1' requires an owner-visible output; "
       + 'anonymous results have no admissible v1 retention (SNAPBACK_AUTH_UNDECLARABLE_RETENTION)',
   );
-  return {
+  const definition = {
     [FN]: true,
     __kind: 'LiveQuery',
     auth: computedOutput === 'owner' ? 'authenticated' : 'public',
@@ -2526,6 +2568,11 @@ export function defineRelationalQuery(spec) {
       leftJoin: kind === 'left',
     },
   };
+  RELATIONAL_PAGES.set(
+    definition,
+    v.array(v.object(projectionFields), { maxItems: spec.take }),
+  );
+  return definition;
 }
 
 // ---------------------------------------------------------------------------

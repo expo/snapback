@@ -1415,6 +1415,11 @@
           "type": "string"
         },
         {
+          "const": "snapshot_batch_v2",
+          "description": "LLP 0157's mixed bounded-child/relational composite. Registration is\nexperimental and local-only; hosted, remote, and Cloudflare targets\nretain explicit gaps until their own executors and evidence land.",
+          "type": "string"
+        },
+        {
           "const": "live_full_text_search_v1",
           "description": "First-page-only live search by bounded coarse re-execution. The id is\nregistered at experimental maturity but remains unsupported until the\ncomplete LLP 0136 evidence/publication train lands.",
           "type": "string"

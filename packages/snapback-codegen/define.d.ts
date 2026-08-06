@@ -278,6 +278,7 @@ export type TargetCapabilityId =
   | 'mutation_read_set_validation'
   | 'sequence_allocation_v1'
   | 'snapshot_batch_v1'
+  | 'snapshot_batch_v2'
   | 'settlement.bounded_skew'
   | 'permission_epoch_resync'
   | 'full_text_search_v1'
@@ -698,6 +699,10 @@ export declare function throughScope(spec: {
   scopeIncarnationField: string;
 }): { kind: 'through-scope.v1'; scopeField: string; scopeIncarnationField: string };
 export declare function defineBoundedChildrenQuery(spec: unknown): unknown;
+/** Defines a static 2–8 node snapshot batch. All-bounded tuples retain the
+ * frozen `snapshot-batch.v1` profile; any tuple containing a relational node
+ * emits `snapshot-batch.v2`, which admits only bounded-children and
+ * relational-query definitions and requires at least one relational node. */
 export declare function defineSnapshotBatchQuery(spec: { nodes: readonly unknown[] }): unknown;
 
 export interface MaintainedProjectionSpec {

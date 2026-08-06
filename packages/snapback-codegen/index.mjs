@@ -329,6 +329,175 @@ function snapshotBatchIdentityV1(plan, argsContract) {
   };
 }
 
+function collectSnapshotBatchV2ArgumentUses(value, names, state) {
+  if (value === 'Args') {
+    state.usesAll = true;
+    return;
+  }
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return;
+  if (typeof value.Arg === 'string') {
+    const [name] = value.Arg.split('.');
+    if (!name) throw new TypeError('snapshot batch v2 relational argument path is empty');
+    names.add(name);
+    return;
+  }
+  if (value.Field) collectSnapshotBatchV2ArgumentUses(value.Field.base, names, state);
+  if (value.Binary) {
+    collectSnapshotBatchV2ArgumentUses(value.Binary.left, names, state);
+    collectSnapshotBatchV2ArgumentUses(value.Binary.right, names, state);
+  }
+  if (value.Unary) collectSnapshotBatchV2ArgumentUses(value.Unary.expr, names, state);
+  if (value.If) {
+    collectSnapshotBatchV2ArgumentUses(value.If.cond, names, state);
+    collectSnapshotBatchV2ArgumentUses(value.If.then, names, state);
+    collectSnapshotBatchV2ArgumentUses(value.If.else, names, state);
+  }
+  if (value.Concat) {
+    for (const item of value.Concat) collectSnapshotBatchV2ArgumentUses(item, names, state);
+  }
+  if (value.Call) {
+    for (const item of value.Call.args ?? []) {
+      collectSnapshotBatchV2ArgumentUses(item, names, state);
+    }
+  }
+  if (value.Record) {
+    for (const item of Object.values(value.Record.fields ?? {})) {
+      collectSnapshotBatchV2ArgumentUses(item, names, state);
+    }
+  }
+}
+
+// @ref LLP 0157#d2--plan-identity — v2 reuses the one identity stack while
+// preserving each owner's normalized plan, class-selected argument closure,
+// and bounded-child-only parent groups byte-for-byte with the Rust host.
+function snapshotBatchIdentityV2(plan, argsContract) {
+  const nodes = [];
+  const merged = [];
+  const mergedByName = new Map();
+  const contractByName = new Map(argsContract.fields.map((field) => [field.name, field]));
+  for (const [position, node] of plan.nodes.entries()) {
+    const names = new Set();
+    if (node.classId === 'bounded_children_v1') {
+      names.add(node.plan.parentIdArg);
+    } else if (node.classId === 'relational_query_v1') {
+      const state = { usesAll: false };
+      for (const filter of [
+        ...(node.plan.rootFilters ?? []),
+        ...(node.plan.rootVisibility ?? []),
+        ...(node.plan.joinedVisibility ?? []),
+      ]) collectSnapshotBatchV2ArgumentUses(filter.value, names, state);
+      if (state.usesAll) {
+        for (const field of argsContract.fields) if (field.name !== 'cursor') names.add(field.name);
+      }
+    } else {
+      throw new TypeError(`snapshot batch v2 node ${position} has unknown class ${String(node.classId)}`);
+    }
+    const bindings = [];
+    for (const field of argsContract.fields) {
+      if (!names.has(field.name)) continue;
+      if (field.name === 'cursor') {
+        throw new TypeError(`snapshot batch v2 node ${position} cannot bind the composite cursor`);
+      }
+      const contract = {
+        format: 'snapback.argument-binding-contract.v1',
+        required: field.required,
+        value: field.value,
+      };
+      const contractHash = compositionDomainHash(
+        'snapback:argument-binding-contract:v1:',
+        contract,
+      );
+      const binding = { name: field.name, contract, contractHash };
+      bindings.push(binding);
+      const prior = mergedByName.get(field.name);
+      if (prior) {
+        if (canonicalResultJson(prior.contract) !== canonicalResultJson(contract)
+          || prior.contractHash !== contractHash) {
+          throw new TypeError(`snapshot batch argument ${field.name} has incompatible node contracts`);
+        }
+        prior.sourcePositions.push(position);
+      } else {
+        const entry = { name: field.name, contract, contractHash, sourcePositions: [position] };
+        mergedByName.set(field.name, entry);
+        merged.push(entry);
+      }
+    }
+    for (const name of names) {
+      if (!contractByName.has(name)) {
+        throw new TypeError(`snapshot batch v2 node ${position} references undeclared argument ${name}`);
+      }
+    }
+    const nodePlan = {
+      format: 'snapback.node-plan.v1',
+      classId: node.classId,
+      classVersion: 1,
+      normalizedPlan: node.plan,
+      argumentBindings: bindings,
+      capability: {
+        exportKind: 'internal',
+        live: { kind: 'none' },
+        retention: 'none',
+        requiredCapabilityIds: [node.classId],
+      },
+    };
+    nodes.push({
+      position,
+      nodePlan,
+      nodePlanHash: compositionDomainHash('snapback:node-plan:v1:', nodePlan),
+    });
+  }
+  const mergedArgs = { format: 'snapback.merged-args-contract.v1', bindings: merged };
+  const groups = [];
+  const groupsByKey = new Map();
+  for (const [position, node] of plan.nodes.entries()) {
+    if (node.classId !== 'bounded_children_v1') continue;
+    const key = {
+      format: 'snapback.parent-authorization-key.v1',
+      parentTable: node.plan.parentTable,
+      parentIdArgument: node.plan.parentIdArg,
+      parentIdType: { kind: 'id', table: node.plan.parentTable },
+      visibility: node.plan.parentVisibility === 'publicRead'
+        ? { kind: 'public-read' }
+        : { kind: 'owner.v1', field: node.plan.parentVisibility.owner.field },
+    };
+    const keyJcs = canonicalResultJson(key);
+    let group = groupsByKey.get(keyJcs);
+    if (!group) {
+      group = {
+        members: [],
+        keyJcsBase64url: Buffer.from(keyJcs, 'utf8').toString('base64url'),
+      };
+      groupsByKey.set(keyJcs, group);
+      groups.push(group);
+    }
+    group.members.push(position);
+  }
+  const normalizedCompositePlan = {
+    format: 'snapback.normalized-composite-plan.v1',
+    profileId: 'snapshot-batch.v2',
+    nodes,
+    mergedArgsContractHash: compositionDomainHash(
+      'snapback:merged-args-contract:v1:',
+      mergedArgs,
+    ),
+    classification: {
+      callable: true,
+      live: {
+        kind: 'admitted',
+        delivery: 'live_replace',
+        pageDomain: 'cursor-free-first-page',
+      },
+      invalidation: 'table-granular-resnapshot',
+      retention: 'none',
+    },
+    parentAuthorizationGroups: groups,
+  };
+  return {
+    normalizedCompositePlan,
+    planHash: compositionDomainHash('snapback:plan-hash:v1:', normalizedCompositePlan),
+  };
+}
+
 function serializedValueUsesAuthorityOrAmbientInput(value) {
   if (typeof value === 'string') {
     return value === 'AuthUserId'
@@ -711,6 +880,7 @@ const TARGET_CAPABILITY_IDS = new Set([
   'migration_keyset_scan_v1',
   'sequence_allocation_v1',
   'snapshot_batch_v1',
+  'snapshot_batch_v2',
   'single_table_v1',
   'result_contract_v1',
   'args_contract_v1',
@@ -747,6 +917,7 @@ const EXPERIMENTAL_TARGET_CAPABILITY_IDS = new Set([
   'mixed_bundle_boot_v2',
   'sequence_allocation_v1',
   'snapshot_batch_v1',
+  'snapshot_batch_v2',
   'single_table_v1',
   'registered_bundle_boot_v1',
   'result_contract_v1',
@@ -2524,17 +2695,37 @@ export async function generateInProcess(backendDir, options = {}) {
       };
     } else if ((def.__kind === 'Query' || def.__kind === 'LiveQuery') && def.snapshotBatchPlan) {
       const plan = def.snapshotBatchPlan;
-      const reads = [...new Set(plan.nodes.flatMap((node) => [node.parentTable, node.childTable]))].sort();
+      const v2 = plan.profile === 'snapshot-batch.v2';
+      const serializedPlan = v2
+        ? {
+            profile: plan.profile,
+            nodes: plan.nodes.map((node) => ({
+              classId: node.classId,
+              plan: node.classId === 'relational_query_v1'
+                ? serializeRelationalPlan(node.plan)
+                : node.plan,
+            })),
+          }
+        : plan;
+      const reads = [...new Set((v2 ? serializedPlan.nodes : plan.nodes).flatMap((node) => {
+        const classId = v2 ? node.classId : 'bounded_children_v1';
+        const nodePlan = v2 ? node.plan : node;
+        return classId === 'relational_query_v1'
+          ? [nodePlan.root, nodePlan.joined]
+          : [nodePlan.parentTable, nodePlan.childTable];
+      }))].sort();
+      const runtime = v2
+        ? { HostPlan: { SnapshotBatchV2: serializedPlan } }
+        : { HostPlan: { SnapshotBatch: serializedPlan } };
       functions.push({
         name,
         kind: def.__kind,
         ...authoredFunctionManifestFields(def),
-        runtime: { HostPlan: { SnapshotBatch: plan } },
+        runtime,
         declaredReads: reads,
         declaredWrites: [],
         authScopeField: null,
-        authorizationDependence: plan.nodes.some((node) => node.parentVisibility !== 'publicRead')
-          ? ['userId'] : [],
+        authorizationDependence: def.auth === 'authenticated' ? ['userId'] : [],
         syncabilityClass: 'syncable-live',
       });
       contractQueries[name] = {
@@ -2545,7 +2736,7 @@ export async function generateInProcess(backendDir, options = {}) {
         result: providerResultDescriptor(effectiveResultContract({
           def,
           functionKind: def.__kind,
-          runtime: { HostPlan: { SnapshotBatch: plan } },
+          runtime,
           tables,
         })),
         serverRunnable: true,
@@ -2673,33 +2864,13 @@ export async function generateInProcess(backendDir, options = {}) {
       //   branch serializes the normalized plan and nothing else. Activation
       //   on the server re-proves schema binding and the cardinality claim.
       const plan = def.relationalPlan;
-      const serializeFilters = (filters) => filters.map((f) => ({
-        field: f.field,
-        op: f.op,
-        value: serializeExpr(f.value),
-      }));
       functions.push({
         name,
         kind: def.__kind,
         ...authoredFunctionManifestFields(def),
         runtime: {
           HostPlan: {
-            RelationalQuery: {
-              root: plan.root,
-              rootAlias: plan.rootAlias,
-              joined: plan.joined,
-              joinedAlias: plan.joinedAlias,
-              joinKind: plan.joinKind,
-              joinOn: plan.joinOn,
-              rootFilters: [],
-              rootVisibility: serializeFilters(plan.rootVisibility),
-              joinedVisibility: serializeFilters(plan.joinedVisibility),
-              projection: plan.projection,
-              order: plan.order.map(serializeOrderExpr),
-              take: plan.take,
-              rootIndex: plan.rootIndex,
-              joinedIndex: plan.joinedIndex,
-            },
+            RelationalQuery: serializeRelationalPlan(plan),
           },
         },
         declaredReads: [plan.root, plan.joined],
@@ -3281,6 +3452,12 @@ export async function generateInProcess(backendDir, options = {}) {
         Object.assign(
           fn.runtime.HostPlan.SnapshotBatch,
           snapshotBatchIdentityV1(fn.runtime.HostPlan.SnapshotBatch, fn.argsContract),
+        );
+      }
+      if (fn.runtime?.HostPlan?.SnapshotBatchV2) {
+        Object.assign(
+          fn.runtime.HostPlan.SnapshotBatchV2,
+          snapshotBatchIdentityV2(fn.runtime.HostPlan.SnapshotBatchV2, fn.argsContract),
         );
       }
       fn.resultContract = effectiveResultContract({
@@ -4952,6 +5129,30 @@ function serializeOrderExpr(order) {
     ...(order.maxEncodedBytes !== undefined
       ? { maxEncodedBytes: order.maxEncodedBytes }
       : {}),
+  };
+}
+
+function serializeRelationalPlan(plan) {
+  const serializeFilters = (filters) => filters.map((filter) => ({
+    field: filter.field,
+    op: filter.op,
+    value: serializeExpr(filter.value),
+  }));
+  return {
+    root: plan.root,
+    rootAlias: plan.rootAlias,
+    joined: plan.joined,
+    joinedAlias: plan.joinedAlias,
+    joinKind: plan.joinKind,
+    joinOn: plan.joinOn,
+    rootFilters: serializeFilters(plan.rootFilters ?? []),
+    rootVisibility: serializeFilters(plan.rootVisibility),
+    joinedVisibility: serializeFilters(plan.joinedVisibility),
+    projection: plan.projection,
+    order: plan.order.map(serializeOrderExpr),
+    take: plan.take,
+    rootIndex: plan.rootIndex,
+    joinedIndex: plan.joinedIndex,
   };
 }
 
@@ -6969,6 +7170,18 @@ function requiredCapabilities(fn) {
       runtimeCapability,
       'snapshot_batch_v1',
       'bounded_children_v1',
+      ...contractCapabilities,
+    ];
+  }
+  if (fn.runtime?.HostPlan?.SnapshotBatchV2) {
+    const bounded = fn.runtime.HostPlan.SnapshotBatchV2.nodes
+      .some((node) => node.classId === 'bounded_children_v1');
+    return [
+      'live_subscriptions',
+      runtimeCapability,
+      'snapshot_batch_v2',
+      'relational_query_v1',
+      ...(bounded ? ['bounded_children_v1'] : []),
       ...contractCapabilities,
     ];
   }
