@@ -3,10 +3,10 @@
   "targetProfileId": "local-dev-sqlite-ibex",
   "capabilityIds": ["single_table_v1"],
   "maturity": "experimental",
-  "qualificationReceiptSha256": "sha256:bbeb226db3ba46081a25bccb6447c60dd5ddea5ef7548d7b15c95ec1598cca0c",
+  "qualificationReceiptSha256": "sha256:0ba93d0ebec196816b1523a0fb2c398a79140c7463ab5f54eb2ec9a91d2046f6",
   "supportingReceiptSha256": {
-    "triageBudgetFreeze": "sha256:a8b1194f06408c366e06690ac7258211907cd77cbc487568abb60168b7b0abe1",
-    "triageMove1Exit": "sha256:0203e1e49d1bececea30a3b61c34b60c6730f0303783d239548354801a66c06a"
+    "triageBudgetFreeze": "sha256:cfd9e65206f6c8db9ffb0ebba742373ee9f5a385b7d069e87a7c50c3d198ed2b",
+    "triageMove1Exit": "sha256:417655401e10603de3d638322d22c86f700f395076e166320ba8a80748df1527"
   },
   "executorSourceSha256": {
     "src/local.rs": "sha256:96bed6314ca2744e4aebdb9f7673b28592e0c24769d9fc095c054bf63bc7c0d5",

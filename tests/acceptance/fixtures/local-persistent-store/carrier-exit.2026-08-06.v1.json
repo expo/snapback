@@ -6,8 +6,8 @@
     "LLP 0166#executable-acceptance",
     "LLP 0166#d9--carriers-storage-profiles-arms-and-the-bundle"
   ],
-  "startedAt": "2026-08-06T20:39:35.490Z",
-  "completedAt": "2026-08-06T20:43:29.655Z",
+  "startedAt": "2026-08-06T21:30:44.712Z",
+  "completedAt": "2026-08-06T21:37:49.400Z",
   "runtime": {
     "node": "v24.18.0",
     "platform": "darwin",
@@ -15,14 +15,20 @@
     "hostnameClass": "local-evidence-machine"
   },
   "source": {
-    "revision": "a32f763bd8be79900d028f1eb25386b688c7eafe",
+    "revision": "877e01fac68ac133cfc23c3b91b4002a65817606",
     "dirty": true,
     "dirtyPaths": [
-      "guide/guide-manifest.generated.json",
-      "codex-closure-prompt.md",
-      "codex-fleet-prompt.md",
-      "codex-lane0-prompt.md",
-      "codex-main-prompt.md"
+      "demos/fleet-observatory-move1/snapback/generated/artifacts.json",
+      "demos/fleet-observatory-move1/snapback/trusted-composition-activation.json",
+      "demos/triage-graph/snapback/generated/artifacts.json",
+      "demos/triage-graph/snapback/trusted-composition-activation.json",
+      "tests/acceptance/fixtures/fleet-observatory/budget-freeze.2026-08-06.v1.json",
+      "tests/acceptance/fixtures/fleet-observatory/move1-exit.2026-08-06.v1.json",
+      "tests/acceptance/fixtures/fleet-observatory/runtime-readiness.2026-08-06.v1.json",
+      "tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-06.v1.json",
+      "tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-06.v1.json",
+      "tests/acceptance/fleet-observatory-move1-v1-evidence.md",
+      "tests/acceptance/triage-graph-move1-v1-evidence.md"
     ],
     "files": [
       {
@@ -79,7 +85,7 @@
       },
       {
         "path": "packages/snapback-client/index.mjs",
-        "sha256": "40f0d7a4ac9b7e2010c7f309f8ba95fa84e42f20445bc1b7b83cd4d0d7662e39"
+        "sha256": "688ec4d231dd23e02ea0311d91ec0da89c6659074d0274e282b82e194187c0ae"
       },
       {
         "path": "packages/snapback-client/rqs-store.mjs",
@@ -115,19 +121,19 @@
       },
       {
         "path": "tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-06.v1.json",
-        "sha256": "a8b1194f06408c366e06690ac7258211907cd77cbc487568abb60168b7b0abe1"
+        "sha256": "cfd9e65206f6c8db9ffb0ebba742373ee9f5a385b7d069e87a7c50c3d198ed2b"
       },
       {
         "path": "tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-06.v1.json",
-        "sha256": "0203e1e49d1bececea30a3b61c34b60c6730f0303783d239548354801a66c06a"
+        "sha256": "417655401e10603de3d638322d22c86f700f395076e166320ba8a80748df1527"
       },
       {
         "path": "tests/acceptance/fixtures/fleet-observatory/budget-freeze.2026-08-06.v1.json",
-        "sha256": "54b094444e08960ddc1c51af16fd678c0daa47b1f6e30f7d45e4e9da19fd9983"
+        "sha256": "26fac1504bfeef4f31a51a88936d980c139c41d9a40ba28265cb031b4781670f"
       },
       {
         "path": "tests/acceptance/fixtures/fleet-observatory/move1-exit.2026-08-06.v1.json",
-        "sha256": "2c33b5743db9c432a736028f89570d86c36d63b7f576f7d5b1859cdefca1cd7f"
+        "sha256": "b81e8a6a371d4748c785885649f240770b8b380da589c9de1c56dc33f20a673d"
       }
     ]
   },
@@ -277,7 +283,7 @@
           2,
           3
         ],
-        "relaunchToReadableMs": 1777.296,
+        "relaunchToReadableMs": 2441.94,
         "browser": {
           "executable": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
           "version": "Google Chrome 150.0.7871.187",
@@ -290,12 +296,12 @@
         },
         "cleanup": {
           "firstBrowser": {
-            "pid": 48101,
+            "pid": 42753,
             "requestedSignal": "SIGKILL",
             "processTreeExitAttested": true
           },
           "finalBrowser": {
-            "pid": 48470,
+            "pid": 44544,
             "requestedSignal": "SIGTERM",
             "processTreeExitAttested": true
           },
@@ -393,7 +399,7 @@
           {
             "type": "boundary",
             "boundary": "before-rename",
-            "pid": 11608,
+            "pid": 58889,
             "exit": {
               "code": null,
               "signal": "SIGKILL"
@@ -404,7 +410,7 @@
           {
             "type": "boundary",
             "boundary": "after-rename-before-directory-sync",
-            "pid": 11616,
+            "pid": 58896,
             "exit": {
               "code": null,
               "signal": "SIGKILL"
@@ -437,12 +443,12 @@
       "status": "PASS",
       "evidence": {
         "serverBinary": "target/debug/snapback",
-        "serverBinarySha256": "24e4d7ccab87f5bf62b49e919a8f87afb31a4cdd3ee9baa0c989da63806eb65f",
+        "serverBinarySha256": "c5e95e19f6e6316a205ced00a7144765867abf1f9e39057869b55a1fb543cbe6",
         "launchRung": "configured",
         "backendStoppedBeforeRelaunch": true,
         "activationPreparation": {
           "format": "snapback.composition-activation-preparation.v1",
-          "activationHash": "sha256:4f1f0288b67c090e7b7a359733c81f8240dac1993c02e0268b48da6a082cfd4a",
+          "activationHash": "sha256:f529ec1a309f52b9bffd7c336193343609e15e94d2537baaf3402084ab88296e",
           "sourceClass": "temporary-backend-source",
           "next": "rerun Snapback codegen for this backend"
         },
@@ -484,7 +490,7 @@
         },
         "materialization": {
           "records": 1,
-          "qmk1": "qmk1.c8lcz6tq8oav-2Lovp_HEzCdOpQ5az0pMl9vn6Kdddg",
+          "qmk1": "qmk1.3loxNE-IMjOEwJW-c0s1UPNewRufQOi6UnoENja4s-4",
           "freshness": "retained",
           "fragments": 1,
           "leaseCustody": 1
@@ -653,7 +659,7 @@
           "version": 7,
           "token": "sbrt1.carrier-exit.7"
         },
-        "maintenanceMs": 174177.636
+        "maintenanceMs": 355975.185
       }
     },
     {
@@ -728,14 +734,14 @@
           "hydrationAttempts": 1,
           "hydrationRows": 100,
           "hydrationPayloadBytes": 14981,
-          "hydrationElapsedMs": 332.066,
+          "hydrationElapsedMs": 387.905,
           "hydrationCeilingMs": 1000
         },
         "receipts": {
           "budgetFreeze": "tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-06.v1.json",
-          "budgetFreezeSha256": "a8b1194f06408c366e06690ac7258211907cd77cbc487568abb60168b7b0abe1",
+          "budgetFreezeSha256": "cfd9e65206f6c8db9ffb0ebba742373ee9f5a385b7d069e87a7c50c3d198ed2b",
           "move1Exit": "tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-06.v1.json",
-          "move1ExitSha256": "0203e1e49d1bececea30a3b61c34b60c6730f0303783d239548354801a66c06a"
+          "move1ExitSha256": "417655401e10603de3d638322d22c86f700f395076e166320ba8a80748df1527"
         }
       }
     },
@@ -755,14 +761,14 @@
           "hydrationAttempts": 1,
           "hydrationRows": 200,
           "hydrationPayloadBytes": 49652,
-          "hydrationElapsedMs": 366.613,
+          "hydrationElapsedMs": 347.455,
           "hydrationCeilingMs": 1000
         },
         "receipts": {
           "budgetFreeze": "tests/acceptance/fixtures/fleet-observatory/budget-freeze.2026-08-06.v1.json",
-          "budgetFreezeSha256": "54b094444e08960ddc1c51af16fd678c0daa47b1f6e30f7d45e4e9da19fd9983",
+          "budgetFreezeSha256": "26fac1504bfeef4f31a51a88936d980c139c41d9a40ba28265cb031b4781670f",
           "move1Exit": "tests/acceptance/fixtures/fleet-observatory/move1-exit.2026-08-06.v1.json",
-          "move1ExitSha256": "2c33b5743db9c432a736028f89570d86c36d63b7f576f7d5b1859cdefca1cd7f"
+          "move1ExitSha256": "b81e8a6a371d4748c785885649f240770b8b380da589c9de1c56dc33f20a673d"
         }
       }
     },
@@ -772,7 +778,7 @@
       "status": "PASS",
       "evidence": {
         "artifact": "tests/acceptance/fixtures/local-persistent-store/bundle-attribution.2026-08-06.v1.json",
-        "minifiedBytes": 693410,
+        "minifiedBytes": 693618,
         "measuredModuleOwnBytes": 112243,
         "modules": 9,
         "browserClosureQualification": {
