@@ -5,7 +5,16 @@
 **Systems:** Sync, Storage, Runtime, Client integration, Auth, Wire Protocol, Realtime, Packaging, Testing, Documentation, Competitive evaluation
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-30
-**Revised:** 2026-08-06 (OQ9 RESOLVED by the author — Phase 2a browser
+**Revised:** 2026-08-06 (Phase-2b hot-swap design-spike correction: a durable
+outbox record is store-owned, not client-instance-owned. A fresh client over
+the same explicit store sees and replays it; the reproduced empty view comes
+from the default file store's full-origin identity selecting a different blob
+on the candidate's new ephemeral port, while a separate same-identity store
+instance sees the record but needs writer takeover. The scoped recommendation
+is BUILD: preserve global per-origin isolation, inject one stable sidecar store,
+add a fail-closed adoption receipt, and rely on the existing same-database
+settlement identity. See the dated design-spike note and retained PoCs below.)
+2026-08-06 (OQ9 RESOLVED by the author — Phase 2a browser
 story is IR-only; full-runtime WASM deferred; Phase 2a's falsifiable exit
 is the browser-IR-coverage gate (≥90% semantic + 100% common-path,
 real-browser, exact D5); a narrow engine-free WASM slice is a
@@ -2019,25 +2028,27 @@ resolve after a connectivity-stopped replay (`replayed: 0`, `remaining: 1`),
 allowing `swapped` to commit while intent remained stranded. The `rebind()`
 then receipted `resume()` cut makes that state unrepresentable as success.
 
-The harder underlying behavior is client-outbox re-adoption. The shipped replay
-pattern queues on a transport failure and drains through that **same**
-`SnapbackClient` instance. After a runtime swap kills that client's connection,
-a freshly attached client instance does not see the predecessor instance's
-durably pending record through its own `outboxPending()` replay view, even
-though the application-owned store still reports the record pending. The
-bounded Phase-2b rung therefore does **not** ask the fresh client to drain it
-and does not claim hot swap with pending intent. A pending-intent attempt must
-return `SIDECAR_OUTBOX_RESUME_INCOMPLETE`, stop the candidate, reattach the old
-runtime, and leave the client-minted record safely pending. A successful swap
-requires an already empty outbox—for example, no pending work, or work drained
-by its minting client before the swap begins.
+The harder underlying behavior was initially recorded as client-outbox
+re-adoption. The shipped proof queues on a transport failure and drains through
+that **same** `SnapbackClient` instance, and the bounded Phase-2b rung therefore
+does **not** ask its fresh client to drain the intent. The 2026-08-06 spike below
+corrects the causal claim, however: the record carries no client-instance or
+origin identity, and a fresh client over the same explicit store does see and
+replay it. The reproduced empty view comes from default file-store resolution:
+the candidate's new ephemeral port selects a different full-origin-keyed blob.
+A second store instance over the same stable identity sees the pending record
+but remains replay-fenced until it acquires the writer role. The first rung's
+behavior remains correctly fail-closed: a pending-intent attempt returns
+`SIDECAR_OUTBOX_RESUME_INCOMPLETE`, stops the candidate, reattaches the old
+runtime, and leaves the client-minted record safely pending. A successful
+landed-rung swap still requires an already empty outbox.
 
-The named **hot-swap-with-pending-intent follow-on** must add explicit
-cross-client/post-swap adoption of the application-owned durable queue, bind
-that adopted replay to the new origin, and prove durable exactly-once
-settlement of the original mutation identity on the candidate. Neither
-`/health`, capability-file readiness, nor constructing a fresh client is that
-proof.
+The named **hot-swap-with-pending-intent follow-on** must add an explicit stable
+sidecar store/writer handoff, bind replay through the fresh client's attested
+candidate transport, and prove durable exactly-once settlement of the original
+mutation identity on the candidate. It does not need to move or retag outbox
+records. Neither `/health`, capability-file readiness, nor constructing a fresh
+client alone is that proof.
 
 The executable evidence owner is
 `tests/acceptance/desktop-sidecar-v1.mjs`. Its real-child journey proves the
@@ -2089,3 +2100,36 @@ No diary was added: this landing introduces a package/control surface, not a
 new or substantially changed demo application under the repository diary
 rule. The stable native ABI required for in-process embedding still does not
 exist; §Phases' separate spike remains the prerequisite to any such claim.
+
+## Phase-2b hot-swap-with-pending design spike — 2026-08-06
+
+The retained design artifact is
+[`tests/acceptance/fixtures/desktop-sidecar/hot-swap-design.2026-08-06.v1.md`](../tests/acceptance/fixtures/desktop-sidecar/hot-swap-design.2026-08-06.v1.md).
+It traces the client/store/writer relationship, designs the stable-store
+handoff, candidate-origin binding, and same-database settlement proof, and
+recommends **BUILD** as a narrow sidecar-only follow-on. The global default
+store remains isolated by origin; no application queue is silently merged
+across arbitrary servers.
+
+The listener-free characterization PoC passes: a fresh client over one
+explicit caller-owned store sees the predecessor's pending record, dispatches
+it to its own new `baseUrl`, preserves the original `clientMutationId`, and
+drains it; the negative control with two default ephemeral origins produces an
+empty candidate store; a second same-identity store sees the record but cannot
+replay before exact writer takeover. The exact command and real output are in
+the artifact.
+
+The bounded two-runtime/same-database settlement PoC did not run in this
+managed sandbox: the first runtime listener failed with `EPERM` before
+readiness, so no settlement assertion executed and no PASS is claimed. The
+retained script names the exact outside-sandbox rerun. At design level, the
+candidate preserves `clientMutationId` and the complete compared settlement
+identity against the shared `_snapback_client_mutations` row; the process URL,
+port, pid, and startup nonce are not duplicate-suppression inputs. LLP 0133's
+`(mint site, occurrence)` identity remains the speculative-id reconciliation
+mechanism, not the server idempotency key.
+
+This design makes pending-work-preserving stop/start swap buildable. It does
+not promote the current rung, change any capability claim, or turn the
+stop-then-start sidecar into literal zero-request-downtime; a stable front door
+or overlapping-runtime design would be a separate author-facing decision.
