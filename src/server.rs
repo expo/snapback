@@ -17225,15 +17225,55 @@ fn with_cors_headers(mut response: Response, allowed_origin: Option<HeaderValue>
     );
     headers.insert(
         header::ACCESS_CONTROL_ALLOW_HEADERS,
-        HeaderValue::from_static(
-            "content-type, authorization, dpop, x-snapback-admin-token, x-snapback-console-credential, x-snapback-connection-token, x-snapback-ephemeral-authority-instance, x-snapback-secret-read-lease, x-snapback-auth-client-protocol, x-snapback-auth-invalidation-protocol, x-snapback-authority-descriptor-protocol, x-snapback-authorized-lease-protocol, x-snapback-network-profile-source",
-        ),
+        cors_allow_headers().clone(),
     );
     headers.insert(
         header::ACCESS_CONTROL_EXPOSE_HEADERS,
-        HeaderValue::from_static("dpop-nonce, snapback-network-profile"),
+        cors_expose_headers().clone(),
     );
     response
+}
+
+fn cors_allow_headers() -> &'static HeaderValue {
+    static HEADERS: OnceLock<HeaderValue> = OnceLock::new();
+    HEADERS.get_or_init(|| {
+        const BASE_HEADERS: &str = "content-type, authorization, dpop, x-snapback-admin-token, x-snapback-console-credential, x-snapback-connection-token, x-snapback-ephemeral-authority-instance, x-snapback-secret-read-lease, x-snapback-auth-client-protocol, x-snapback-auth-invalidation-protocol, x-snapback-authority-descriptor-protocol, x-snapback-authorized-lease-protocol, x-snapback-network-profile-source";
+        // @ref LLP 0044#byte-stores-and-resumable-transfer — TUS request
+        // headers ride the dev CORS lane so a browser can drive PATCH
+        // `/assets/tus/{id}` without a relay. `upload-metadata` is deliberately
+        // absent because attempt creation is Snapback JSON, not TUS creation,
+        // and no route reads it. `upload-length` remains allowed for foreign
+        // TUS clients that offer it on PATCH, though Snapback only emits it.
+        let tus_headers = [
+            TUS_RESUMABLE_HEADER,
+            TUS_UPLOAD_OFFSET_HEADER,
+            TUS_UPLOAD_LENGTH_HEADER,
+            TUS_UPLOAD_CHECKSUM_HEADER,
+        ];
+        HeaderValue::from_str(&format!("{BASE_HEADERS}, {}", tus_headers.join(", ")))
+            .expect("registered request header names are valid CORS header values")
+    })
+}
+
+fn cors_expose_headers() -> &'static HeaderValue {
+    static HEADERS: OnceLock<HeaderValue> = OnceLock::new();
+    HEADERS.get_or_init(|| {
+        const BASE_HEADERS: &str = "dpop-nonce, snapback-network-profile";
+        // `location` is deliberately absent: Snapback has no TUS creation
+        // route, and no handler emits Location.
+        let tus_headers = [
+            TUS_RESUMABLE_HEADER,
+            TUS_VERSION_HEADER,
+            TUS_EXTENSION_HEADER,
+            TUS_CHECKSUM_ALGORITHM_HEADER,
+            TUS_UPLOAD_OFFSET_HEADER,
+            TUS_UPLOAD_LENGTH_HEADER,
+            TUS_UPLOAD_EXPIRES_MS_HEADER,
+            SNAPBACK_MAX_CHUNK_BYTES_HEADER,
+        ];
+        HeaderValue::from_str(&format!("{BASE_HEADERS}, {}", tus_headers.join(", ")))
+            .expect("registered response header names are valid CORS header values")
+    })
 }
 
 fn cors_allow_methods() -> &'static HeaderValue {
@@ -27009,6 +27049,110 @@ mod tests {
         assert!(
             second.is_err(),
             "a second independent connection/lifecycle graph must be rejected"
+        );
+    }
+
+    #[tokio::test]
+    async fn tus_upload_cors_headers_cover_the_protocol() {
+        let state = AppState::from_snapback(
+            LocalSnapback::memory().expect("TUS CORS fixture"),
+            bound_loopback_context(),
+        );
+        let router = app(state);
+        let preflight = |origin: &'static str| {
+            Request::builder()
+                .method("OPTIONS")
+                .uri("/assets/tus/some-attempt-id")
+                .header(header::ORIGIN, origin)
+                .header(header::ACCESS_CONTROL_REQUEST_METHOD, "PATCH")
+                .header(
+                    header::ACCESS_CONTROL_REQUEST_HEADERS,
+                    "tus-resumable,upload-offset,upload-checksum,content-type",
+                )
+                .body(Body::empty())
+                .unwrap()
+        };
+
+        let allowed = router
+            .clone()
+            .oneshot(preflight("http://localhost:5173"))
+            .await
+            .unwrap();
+        assert!(allowed.status().is_success());
+        assert_eq!(
+            allowed
+                .headers()
+                .get(header::ACCESS_CONTROL_ALLOW_ORIGIN)
+                .and_then(|value| value.to_str().ok()),
+            Some("http://localhost:5173")
+        );
+        let allow_headers = allowed
+            .headers()
+            .get(header::ACCESS_CONTROL_ALLOW_HEADERS)
+            .and_then(|value| value.to_str().ok())
+            .expect("preflight exposes the allowed request headers")
+            .to_ascii_lowercase();
+        for expected in [
+            "tus-resumable",
+            "upload-offset",
+            "upload-length",
+            "upload-checksum",
+        ] {
+            assert!(
+                allow_headers
+                    .split(',')
+                    .any(|header_name| header_name.trim() == expected),
+                "allow-headers omits {expected}: {allow_headers}"
+            );
+        }
+
+        let head = router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("HEAD")
+                    .uri("/assets/tus/some-attempt-id")
+                    .header(header::ORIGIN, "http://localhost:5173")
+                    .header("tus-resumable", crate::assets::ASSET_TUS_VERSION)
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        let expose_headers = head
+            .headers()
+            .get(header::ACCESS_CONTROL_EXPOSE_HEADERS)
+            .and_then(|value| value.to_str().ok())
+            .expect("TUS errors still expose the protocol response headers")
+            .to_ascii_lowercase();
+        for expected in [
+            "upload-offset",
+            "upload-length",
+            "tus-resumable",
+            "tus-version",
+            "tus-extension",
+            "tus-checksum-algorithm",
+            "upload-expires-ms",
+            "snapback-max-chunk-bytes",
+        ] {
+            assert!(
+                expose_headers
+                    .split(',')
+                    .any(|header_name| header_name.trim() == expected),
+                "expose-headers omits {expected}: {expose_headers}"
+            );
+        }
+
+        let hostile = router
+            .oneshot(preflight("http://attacker.invalid"))
+            .await
+            .unwrap();
+        assert!(
+            hostile
+                .headers()
+                .get(header::ACCESS_CONTROL_ALLOW_ORIGIN)
+                .is_none(),
+            "an unadmitted origin must not receive CORS admission"
         );
     }
 
