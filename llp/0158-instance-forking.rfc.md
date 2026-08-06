@@ -6,7 +6,16 @@
 experience, Developer experience, CLI, Documentation, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-03
-**Revised:** 2026-08-06 (LLP 0185 Phase 5 live asset-lifecycle evidence:
+**Revised:** 2026-08-06 (derived-fork writer-completeness integration: when
+the generated schema/function pair is complete, `fork create` supplies it
+through the owner-only fork-local cold-start carrier, then arms the LLP 0165
+generated-writer/SQLite-authorizer manifest on the serving connection after
+schema activation and before listener bind. The digest-bound fork-point
+receipt upgrades `snapback.fork-net-diff.v2` to
+`authorizer-backed-app-rows-v1` only with a verified journal cross-check;
+the historical partial dev-manifest post-bind loader remains deliberately
+unarmed and therefore `journal-enumerated-v1`. Attribution remains
+`absent-v1`; no capability is published.); 2026-08-06 (LLP 0185 Phase 5 live asset-lifecycle evidence:
 `live_fork_asset_lifecycle_is_private_gc_safe_and_exactly_reaped` starts a
 Sessions parent and derived server, uploads through the production attempt /
 TUS PATCH / finalize path, serves copied and fork-uploaded assets through
@@ -61,7 +70,9 @@ admission byte-accounts the blob tree; `assetCustody` reports
 2026-08-06; shared/content-addressed stores remain F2/hosted scope.); 2026-08-05 (LLP 0185 Phase 4 first slice: opt-in
 `--retain-base` retained post-mint base snapshot (digest-bound
 `snapback.fork-base.v1` evidence, byte-accounted at admission) and the exact
-net base-to-head receipt `snapback.fork-net-diff.v1` via `fork diff --net` —
+net base-to-head receipt `snapback.fork-net-diff.v1` via `fork diff --net`
+(superseded by v2's explicit writer-coverage and attribution facts on
+2026-08-06) —
 computed from the base/head oracle independently of the journal, journal
 cross-checked within retention (a net change the journal cannot explain
 refuses with `SNAPBACK_FORK_DIFF_ORACLE_MISMATCH`), substrate and
@@ -963,9 +974,11 @@ checked in.
    runs fail with "not in the loaded function manifest" until an
    explicit `snapback load --functions` replays the generated manifest.
    A product fork operation must therefore either replay the load or
-   start the fork with startup artifacts. Current F0b implements the former:
-   `fork create --app-root` loads generated schema and function manifests
-   after the child publishes readiness.
+   start the fork with startup artifacts. Current F0b supplies a complete
+   generated pair through the owner-only cold-start carrier, then arms LLP 0165
+   writer coverage on the serving connection after schema activation and
+   before listener bind. A historical partial dev-manifest layout still loads
+   after readiness and remains explicitly unarmed.
 3. **Post-fork commits flow through the real path on both sides.**
    `applyFeedTick` ×2 on the fork and `claimFeedPoll` on the parent all
    committed (admin-token-gated `function.run`; each server minted its
@@ -1023,7 +1036,7 @@ historical spike and the remaining follow-ons:
 | Consistent copy (cold or live parent) | **Built** — every managed creation uses SQLite's backup API into private staging; full copy | `src/instance_fork.rs::publish_with_options` |
 | O(1) cold-parent copy optimization | **Spike only, not product-wired** — APFS `clonefile` was measured; reflink/`VACUUM INTO` are design candidates, not F0b fallbacks | §Spike evidence; no `src/instance_fork.rs` path |
 | Boot a clone as a working backend | **Built** — `fork create` launches a detached child, waits for and validates its ready descriptor, then records the runtime in the registry | `src/cli.rs::fork_command` |
-| Schema/function manifests into the fork | **Built when generated files exist** — `fork create --app-root` admits a complete generated schema/function pair through an owner-only fork-local cold-start carrier before listener bind (required by settled Sessions); the historical post-bind load remains only for a partial dev-manifest layout; failed post-bind load stops the child and returns `SNAPBACK_FORK_LOAD_FAILED` | `src/cli.rs::fork_command` |
+| Schema/function manifests into the fork | **Built when generated files exist** — with a complete generated pair, `fork create --app-root` admits schema/functions through an owner-only fork-local cold-start carrier, arms writer coverage after schema activation and before listener bind, and returns the verified receipt. Malformed pair input refuses before spawn; a child-side pair refusal never binds and returns `SNAPBACK_FORK_LOAD_FAILED`. The historical partial dev-manifest layout loads whichever halves exist after bind, stops the child on either load failure with the same code, returns `writerCoverageReceipt: null`, and remains `journal-enumerated-v1`. | `src/cli.rs::fork_command` |
 | Scheduled-work pause: cron | **Built** — boot switch idles autonomy and the derived-runtime gate denies manual tick | `src/cli.rs`, `src/local.rs` |
 | Scheduled-work pause: durable jobs | **Built** — boot switch idles autonomy and the derived-runtime gate denies enqueue/forced drain | `src/cli.rs`, `src/storage.rs`, `src/local.rs` |
 | Asset-runner pause | **Built** — derived boot disables the third autonomous worker | `src/cli.rs`, `src/server.rs` |
@@ -1164,10 +1177,10 @@ outer fields. The fork-owned `data` shapes are:
 
 | Operation | Fork-owned `data` fields |
 | --- | --- |
-| `fork.create` | `receipt` (`ForkMintReceiptV1`), `registry` (`ForkRegistryEntryV1`), `database`, `readyFile`, `runtimeLog` (paths); `workerPolicy` with `cron`, `jobs`, and `assets`, each currently `"disabled"`; `egressPolicy: "deny-all-v1"`; `assetCustody`: `"fork-private-same-cut"` or `"no-assets"` (2026-08-05; formerly the constant `"refuse-asset-bearing-source"`); `secrets` = `"scrubbed"`, `"copied-explicitly"`, or `"copy-requested-source-absent"`; additive `automaticReap.{observedAtMs,reapedForkIds,clearedStaleRegistryIds}` and `resourceAdmission.{usage,limits}` (2026-08-05) |
+| `fork.create` | `receipt` (`ForkMintReceiptV1`), `registry` (`ForkRegistryEntryV1`), `writerCoverageReceipt` (`ForkAppRowCoverageReceiptV1` on the complete-pair cold-start path, otherwise `null`), `database`, `readyFile`, `runtimeLog` (paths); `workerPolicy` with `cron`, `jobs`, and `assets`, each currently `"disabled"`; `egressPolicy: "deny-all-v1"`; `assetCustody`: `"fork-private-same-cut"` or `"no-assets"` (2026-08-05; formerly the constant `"refuse-asset-bearing-source"`); `secrets` = `"scrubbed"`, `"copied-explicitly"`, or `"copy-requested-source-absent"`; additive `automaticReap.{observedAtMs,reapedForkIds,clearedStaleRegistryIds}` and `resourceAdmission.{usage,limits}` (2026-08-05) |
 | `fork.list` | `forkRoot` path; `forks` array of registry entries, sorted by `lineage.forkId`; additive `unboundRegistry` (entries that failed evidence re-binding, with their codes) and `resourceUsage.{forkCount,totalBytes,defaultLimits}` (2026-08-05) |
 | `fork.inspect` | `status` with `schemaVersion: "snapback.fork-status.v1"`, lineage identity/fork point/expiry, `processHealth`, database/ready/admin-token paths, `secretDisposition`, inert `workerPosture`, `egressPosture: "deny-all-v1"`, and bounded `diffSummary` (`snapback.fork-diff-summary.v1`; counts/coverage/omissions, never full rows) |
-| `fork.diff` | `receipt` (`ForkDiffReceiptV1`, or `ForkNetDiffReceiptV1` under `--net`); `writtenTo` path or `null` |
+| `fork.diff` | `receipt` (`ForkDiffReceiptV1`, or `ForkNetDiffReceiptV2` under `--net`); `writtenTo` path or `null` |
 | `fork.renew` | `receipt` (`ForkRenewReceiptV1`, `snapback.fork-renew.v1`: `forkId`, `renewedAtMs`, `previousExpiresAtMs`, `expiresAtMs`, `createdAtMs`, `maxLifetimeMs`); `registry` (the re-bound entry carrying the moved expiry). Durable siblings: `fork-renew-receipt.json` (latest receipt) and the transient `fork-renew-intent.json` behind the staging sentinel, consumed by `fork recover` (2026-08-05) |
 | `fork.drop` | `forkId`; `stoppedPid` (`u32` or `null`); `dropped: true` |
 | `fork.reap` | `receipt` (`ForkReapReceiptV1`); additive `clearedStaleRegistryIds` (stale bookkeeping completed, reported separately from real reaps; 2026-08-05) |
@@ -1246,18 +1259,49 @@ only for `--retain-base` forks beside `fork-base.sqlite3`: fields are
 digest binds the immutable base to the exact fork; a mismatch refuses net
 diffing rather than serving a rewritten history.
 
-**Net diff receipt — `ForkNetDiffReceiptV1`,
-`schemaVersion: "snapback.fork-net-diff.v1"`** (additive, 2026-08-05; the
-distinct schema version the freeze required instead of upgrading
-`snapback.fork-diff.v1`). Fields are `schemaVersion`, `forkId`, `appId`,
-`parentInstanceId`, `forkPointVersion`, `observedHeadVersion`, `substrate`
-(`retained-base-v1`), `completeness` (`journal-enumerated-v1`),
-`journalConsistency` (`journal-cross-check-verified` or
-`journal-cross-check-unavailable-retention-gap`), ordered `rows`
-(`table`, `rowId`, `operation`, optional `preImage`/`postImage`),
-`tableCounts`, and machine-readable `domains` naming app rows covered and
-schema/auth/operational/configuration/assets/egress/telemetry/sidecars
-omitted.
+**Fork-point writer coverage — `ForkAppRowCoverageReceiptV1`,
+`schemaVersion: "snapback.fork-app-row-coverage.v1"`** (additive,
+2026-08-06). On the complete-pair path, cold-start composition applies the
+worktree schema/function pair, verifies the fork head still equals the fork
+point, arms the exact LLP 0165 fork-local journal-authority manifest on the
+serving connection, and persists the identical self-digesting object in
+`_snapback_meta.instance_fork_app_row_coverage_v1` and
+`fork-app-row-coverage-receipt.json` before listener bind. A partial generated
+layout takes the historical post-bind loader and writes no coverage receipt.
+Fields are
+`schemaVersion`, `profile` (`derived-fork-app-rows-v1`), `forkId`,
+`dataVersionStream`, `forkPointVersion`, `activationHeadVersion`,
+`activatedAtMs`, `manifestVersion`, `manifestDigest`, `coveredLanes`,
+`uncoveredLanes`, `writerChokePoints`, and `receiptDigest`. `uncoveredLanes`
+is the closed set of app-effective writer families that the armed profile
+refuses rather than silently admitting outside the journal seam. The two exact
+covered lane names are `derivedForkOrdinaryAppRowJournal` and
+`derivedForkHostChildAppRowJournal`; they map to the four generated physical
+app-row writer adapters and are deliberately distinct from LLP 0163's
+operation-envelope lanes. Thus this receipt does not imply operation
+attribution.
+
+**Net diff receipt — `ForkNetDiffReceiptV2`,
+`schemaVersion: "snapback.fork-net-diff.v2"`** (incompatible replacement,
+2026-08-06, for the closed v1 receipt). Existing identity, base/head,
+`substrate`, ordered row/pre/post-image, `tableCounts`, and `domains` facts
+retain their v1 meanings. The independent base/head scan decodes physical
+SQLite values through each side's stored schema before comparison and receipt
+emission, so Boolean, JSON, and vector fields retain their logical JSON
+representations. `completeness` is
+`authorizer-backed-app-rows-v1` only when the matching fork-point coverage
+receipt and active manifest verify for the whole post-fork window and
+`journalConsistency` is `journal-cross-check-verified`; otherwise it is
+`journal-enumerated-v1`. `writerCoverage` separately carries
+`coverageWindow` (`fork-point-to-observed-head-verified` or `unverified`),
+`manifestDigest` (string or `null`), `coveredLanes`, and `uncoveredLanes`.
+`attribution` is the machine-readable constant `absent-v1`; LLP 0163 operation
+attribution remains deferred. A retention gap cannot upgrade completeness; an
+unexplained net row, a final covered-journal post-image that disagrees with the
+head oracle, or contradictory coverage evidence refuses rather than emitting
+an upgraded or silently partial receipt. `domains` still names only
+app rows `net-covered` and schema/auth/operational/configuration/assets/egress/
+telemetry/sidecars `omitted`.
 
 **Reap receipt — `ForkReapReceiptV1`,
 `schemaVersion: "snapback.fork-reap.v1"`.** Fields are `schemaVersion`,
@@ -1281,6 +1325,7 @@ the freeze:
 | `SNAPBACK_FORK_ASSET_CUT_UNSUPPORTED` | An asset blob names a non-`local-fs` store or an unclassified digest algorithm; the future-family rule fails the cut closed. |
 | `SNAPBACK_FORK_NET_DIFF_UNAVAILABLE` | `fork diff --net` was invoked on a fork created without `--retain-base`. |
 | `SNAPBACK_FORK_DIFF_ORACLE_MISMATCH` | The base/head net oracle found a change the journal cannot explain; the attributed receipt cannot be trusted for that span. |
+| `SNAPBACK_FORK_WRITER_COVERAGE_INVALID` | Derived-fork writer-coverage evidence is partial, malformed, late, fork-point-mismatched, or disagrees with the active stream/manifest; the completeness claim refuses. |
 | `SNAPBACK_FORK_CUSTODY_UNCLASSIFIED` | A Snapback-owned source table has no closed custody-manifest rule. |
 | `SNAPBACK_FORK_DESTINATION_EXISTS` | Publication would overwrite an existing destination. |
 | `SNAPBACK_FORK_DIFF_INVALID` | A selected journal row cannot be decoded into the diff receipt (currently a malformed post-image). |
@@ -1350,8 +1395,9 @@ the freeze:
   ordering, identity, or type changes bump the relevant receipt version. New
   omission entries may be appended to disclose less coverage, but an omission
   is removed only when a versioned receipt replaces it with an explicit
-  coverage fact; a future LLP 0164 exact-net-diff receipt must use a distinct
-  schema version rather than upgrading `snapback.fork-diff.v1` in place.
+  coverage fact. `snapback.fork-net-diff.v2` follows this rule: it replaces the
+  closed v1 shape rather than adding required writer/attribution fields under
+  the old discriminator, and remains distinct from `snapback.fork-diff.v1`.
 - **Diagnostics.** Existing codes are never renamed, removed, or reused for a
   different class within `fork-diagnostics-v1`; new codes are additive and
   unknown codes remain preservable per LLP 0024's diagnostic conventions.
@@ -1584,8 +1630,10 @@ substrate, CLI consumer, dated fleet dogfood, guide, fork-aware harness, and
 the LLP 0185 lifecycle/resource-bound increments, concurrent agent/worktree
 ergonomics, first exact net-diff slice, fork-private asset custody, and the
 post-acceptance durability/recovery corrections. Remaining Phase-4 filters,
-pagination, human projection, authorizer-backed completeness, and F2 hosted
-work stay open under LLP 0185. Acceptance records the approved design, the
+pagination, human projection, operation attribution, broader-domain/storage-
+wide completeness, and F2 hosted work stay open under LLP 0185. The local
+app-row net diff's authorizer-backed completeness slice is recorded above.
+Acceptance records the approved design, the
 same-`appId` derived-deployment amendment, and the landed local substrate. It
 does not advertise a capability: `operating.instance-forks` remains at target
 `none`, and `agent_safe_derived_deployment_fork_v1` remains wholly `Missing`,

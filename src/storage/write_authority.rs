@@ -144,6 +144,20 @@ impl LocalWriterLaneV1 {
         }
     }
 
+    const fn declared_lane_aliases(self) -> [&'static str; 2] {
+        match self {
+            Self::OrdinaryHostPlan | Self::OrdinaryIbexBuffered => [
+                crate::operation_ledger::ORDINARY_MUTATION_LANE_V1,
+                crate::operation_ledger::DERIVED_FORK_ORDINARY_APP_ROW_JOURNAL_LANE_V1,
+            ],
+            Self::HostChildHostPlan | Self::HostChildIbexBuffered => [
+                crate::operation_ledger::HOST_CHILD_MUTATION_LANE_V1,
+                crate::operation_ledger::DERIVED_FORK_HOST_CHILD_APP_ROW_JOURNAL_LANE_V1,
+            ],
+            _ => [self.logical_lane(), self.logical_lane()],
+        }
+    }
+
     const fn schema_authority(self) -> bool {
         matches!(self, Self::SchemaActivation | Self::MigrationExecutor)
     }
@@ -219,6 +233,16 @@ impl LocalWriterLaneV1 {
                 | Self::StrictPromotionReexecution
         )
     }
+}
+
+pub(super) fn local_target_app_effective_uncovered_lanes_v1() -> Vec<String> {
+    LocalWriterLaneV1::ALL
+        .into_iter()
+        .filter(|writer| writer.blocked_when_coverage_armed())
+        .map(|writer| writer.logical_lane().to_owned())
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect()
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
@@ -480,7 +504,7 @@ impl WriterAuthorityV1 {
                     manifest
                         .covered_lanes
                         .iter()
-                        .any(|lane| lane == writer.logical_lane())
+                        .any(|lane| writer.declared_lane_aliases().contains(&lane.as_str()))
                         && manifest
                             .writer_choke_points
                             .iter()

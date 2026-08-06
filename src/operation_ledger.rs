@@ -44,6 +44,14 @@ pub const HOST_RECEIPT_WINDOW_MS_V1: u64 = 24 * 60 * 60 * 1_000;
 pub const OPERATION_EXPLANATION_MAX_RESULTS_V1: usize = 100;
 pub const ORDINARY_MUTATION_LANE_V1: &str = "ordinaryMutation";
 pub const HOST_CHILD_MUTATION_LANE_V1: &str = "hostChildMutation";
+/// Fork-local journal-authority lanes are deliberately distinct from the
+/// operation-envelope lanes above. A derived fork can prove that every app-row
+/// write crossed a generated writer and its journal without claiming LLP
+/// 0163's deferred operation attribution.
+pub(crate) const DERIVED_FORK_ORDINARY_APP_ROW_JOURNAL_LANE_V1: &str =
+    "derivedForkOrdinaryAppRowJournal";
+pub(crate) const DERIVED_FORK_HOST_CHILD_APP_ROW_JOURNAL_LANE_V1: &str =
+    "derivedForkHostChildAppRowJournal";
 /// Pending host operations use an effectively non-expiring lease. The lease
 /// completes only with the digest-linked terminal supplement; wall-clock
 /// expiry must never make a pending publication reclaimable.
@@ -1238,6 +1246,35 @@ pub(crate) fn activate_local_target_mutation_coverage_in(
         tx,
         stream_id,
         &[ORDINARY_MUTATION_LANE_V1, HOST_CHILD_MUTATION_LANE_V1],
+        &writers,
+        activated_at_ms,
+    )
+}
+
+/// Fork-only publication cut for app-row journal completeness. It names the
+/// same generated physical writer adapters as local operation coverage, but
+/// uses separate logical lanes so ordinary fork calls do not acquire or imply
+/// an LLP 0163 operation envelope.
+///
+/// @ref LLP 0165#derived-fork-authorizer-backed-net-diff--2026-08-06 — the
+///   fork cut proves journal writer completeness while attribution remains an
+///   explicit absent fact.
+pub(crate) fn activate_derived_fork_app_row_journal_coverage_in(
+    tx: &Transaction<'_>,
+    stream_id: &str,
+    activated_at_ms: u64,
+) -> SnapbackResult<OperationCoverageManifestV1> {
+    let writers = ORDINARY_MUTATION_WRITERS_V1
+        .into_iter()
+        .chain(HOST_CHILD_MUTATION_WRITERS_V1)
+        .collect::<Vec<_>>();
+    activate_mutation_coverage_in(
+        tx,
+        stream_id,
+        &[
+            DERIVED_FORK_ORDINARY_APP_ROW_JOURNAL_LANE_V1,
+            DERIVED_FORK_HOST_CHILD_APP_ROW_JOURNAL_LANE_V1,
+        ],
         &writers,
         activated_at_ms,
     )

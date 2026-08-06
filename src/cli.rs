@@ -641,6 +641,11 @@ pub struct Args {
     #[arg(long)]
     pub startup_artifacts: Option<PathBuf>,
 
+    /// Fork-create-only pre-bind cut: after the complete startup pair is
+    /// active, arm the derived fork's app-row writer coverage before bind.
+    #[arg(long, hide = true, requires = "startup_artifacts")]
+    pub derived_fork_arm_writer_coverage: bool,
+
     /// Read-only LLP 0157 trust root emitted beside the generated manifests.
     /// The server re-derives every activation binding and exact-compares the
     /// public key manifest to its database-side signing custody before bind.
@@ -706,6 +711,7 @@ impl Default for Args {
             hosted_edge: None,
             hosted_admission: None,
             startup_artifacts: None,
+            derived_fork_arm_writer_coverage: false,
             trusted_composition_activation: None,
             clear_desired_auth_mode: false,
             allow_auth_downgrade: false,
@@ -1717,7 +1723,7 @@ pub enum ForkCommand {
         /// Refuse an attributed journal span larger than this many rows.
         #[arg(long, default_value_t = crate::instance_fork::FORK_DIFF_MAX_ROWS)]
         max_rows: u64,
-        /// Produce the exact net base-to-head receipt (snapback.fork-net-diff.v1)
+        /// Produce the exact net base-to-head receipt (snapback.fork-net-diff.v2)
         /// instead of the attributed sequence; requires --retain-base at create.
         #[arg(long)]
         net: bool,
@@ -3405,18 +3411,6 @@ where
                 "SNAPBACK_FORK_PATH_INVALID: published destination could not be resolved",
             )?;
             let database = destination.join(&receipt.database_file);
-            let ready_file = match ready_file {
-                Some(path) if path.is_absolute() => path,
-                Some(path) => destination.join(path),
-                None => destination.join("fork.ready.json"),
-            };
-            let ready_parent = ready_file
-                .parent()
-                .context("SNAPBACK_FORK_READY_INVALID: ready file has no parent")?;
-            anyhow::ensure!(
-                std::fs::canonicalize(ready_parent)? == destination,
-                "SNAPBACK_FORK_READY_INVALID: ready file must be a direct child of the fork directory"
-            );
             let generated = app_root.join("snapback/generated");
             let generated_schema = generated.join("schema.manifest.json");
             let generated_functions = generated.join("functions.manifest.json");
@@ -3426,10 +3420,38 @@ where
                 // pair before listener bind. Keep the carrier inside the
                 // fork-private tree so exact drop/reap owns it with the rest
                 // of the derived deployment.
+                let schema = serde_json::from_value(read_json_file(&generated_schema).with_context(
+                    || {
+                        format!(
+                            "SNAPBACK_FORK_LOAD_FAILED: could not read {}",
+                            generated_schema.display()
+                        )
+                    },
+                )?)
+                .with_context(|| {
+                    format!(
+                        "SNAPBACK_FORK_LOAD_FAILED: {} is not a schema manifest",
+                        generated_schema.display()
+                    )
+                })?;
+                let functions = serde_json::from_value(
+                    read_json_file(&generated_functions).with_context(|| {
+                        format!(
+                            "SNAPBACK_FORK_LOAD_FAILED: could not read {}",
+                            generated_functions.display()
+                        )
+                    })?,
+                )
+                .with_context(|| {
+                    format!(
+                        "SNAPBACK_FORK_LOAD_FAILED: {} is not a functions manifest",
+                        generated_functions.display()
+                    )
+                })?;
                 let carrier = crate::auth::mode::StartupArtifacts {
                     format_version: crate::auth::mode::STARTUP_ARTIFACT_FORMAT_VERSION,
-                    schema: serde_json::from_value(read_json_file(&generated_schema)?)?,
-                    functions: serde_json::from_value(read_json_file(&generated_functions)?)?,
+                    schema,
+                    functions,
                     seed: None,
                 };
                 let path = destination.join("fork-startup-artifacts.json");
@@ -3450,6 +3472,18 @@ where
             } else {
                 None
             };
+            let ready_file = match ready_file {
+                Some(path) if path.is_absolute() => path,
+                Some(path) => destination.join(path),
+                None => destination.join("fork.ready.json"),
+            };
+            let ready_parent = ready_file
+                .parent()
+                .context("SNAPBACK_FORK_READY_INVALID: ready file has no parent")?;
+            anyhow::ensure!(
+                std::fs::canonicalize(ready_parent)? == destination,
+                "SNAPBACK_FORK_READY_INVALID: ready file must be a direct child of the fork directory"
+            );
             let log_path = destination.join("fork-runtime.log");
             let log = std::fs::OpenOptions::new()
                 .create(true)
@@ -3473,7 +3507,10 @@ where
                 .stdout(std::process::Stdio::from(log))
                 .stderr(std::process::Stdio::from(error_log));
             if let Some(path) = startup_artifacts.as_deref() {
-                launch.arg("--startup-artifacts").arg(path);
+                launch
+                    .arg("--startup-artifacts")
+                    .arg(path)
+                    .arg("--derived-fork-arm-writer-coverage");
             }
             #[cfg(unix)]
             {
@@ -3496,6 +3533,15 @@ where
             let deadline = std::time::Instant::now() + std::time::Duration::from_secs(20);
             while !ready_file.exists() {
                 if let Some(status) = child.try_wait()? {
+                    if startup_artifacts.is_some()
+                        && std::fs::read_to_string(&log_path)
+                            .is_ok_and(|log| log.contains("SNAPBACK_FORK_LOAD_FAILED:"))
+                    {
+                        anyhow::bail!(
+                            "SNAPBACK_FORK_LOAD_FAILED: generated startup artifacts were refused; see {}",
+                            log_path.display()
+                        );
+                    }
                     anyhow::bail!(
                         "SNAPBACK_FORK_BOOT_FAILED: server exited with {status}; see {}",
                         log_path.display()
@@ -3525,6 +3571,25 @@ where
                 "fork.create",
             )
             .map_err(|diagnostic| anyhow::anyhow!("{}: {}", diagnostic.code, diagnostic.message))?;
+            let writer_coverage_receipt = if startup_artifacts.is_some() {
+                match startup_blocking(|| {
+                    crate::instance_fork::verified_derived_fork_app_row_coverage(&database)
+                }) {
+                    Ok(Some(receipt)) => Some(receipt),
+                    Ok(None) => {
+                        let _ = quiet_stop_fork(&ready_file, &database);
+                        anyhow::bail!(
+                            "SNAPBACK_FORK_WRITER_COVERAGE_INVALID: complete startup returned without fork-point coverage evidence"
+                        );
+                    }
+                    Err(error) => {
+                        let _ = quiet_stop_fork(&ready_file, &database);
+                        return Err(error.into());
+                    }
+                }
+            } else {
+                None
+            };
             let declared_admin = descriptor
                 .admin_token_file
                 .as_deref()
@@ -3546,7 +3611,9 @@ where
             };
             // A complete pair was already admitted atomically at cold start.
             // Preserve the historical partial-manifest dev path only when no
-            // complete startup carrier was available.
+            // complete startup carrier was available. This post-bind path is
+            // deliberately unarmed and therefore cannot claim whole-window
+            // authorizer-backed coverage.
             if startup_artifacts.is_none() {
                 for (operation, key, path) in [
                     ("schema.load", "schema", generated_schema),
@@ -3554,8 +3621,20 @@ where
                 ] {
                     if path.is_file() {
                         let mut request = json!({ "operation": operation });
-                        request[key] = read_json_file(&path)?;
-                        let response = post_host_op(&target, request)?;
+                        request[key] = match read_json_file(&path) {
+                            Ok(manifest) => manifest,
+                            Err(error) => {
+                                let _ = quiet_stop_fork(&ready_file, &database);
+                                anyhow::bail!("SNAPBACK_FORK_LOAD_FAILED: {error:#}");
+                            }
+                        };
+                        let response = match post_host_op(&target, request) {
+                            Ok(response) => response,
+                            Err(error) => {
+                                let _ = quiet_stop_fork(&ready_file, &database);
+                                anyhow::bail!("SNAPBACK_FORK_LOAD_FAILED: {error:#}");
+                            }
+                        };
                         if !response.get("ok").and_then(Value::as_bool).unwrap_or(false) {
                             let _ = quiet_stop_fork(&ready_file, &database);
                             anyhow::bail!("SNAPBACK_FORK_LOAD_FAILED: {response}");
@@ -3576,6 +3655,7 @@ where
                 Some(descriptor.server_url.clone()),
                 json!({
                     "receipt": receipt,
+                    "writerCoverageReceipt": writer_coverage_receipt,
                     "registry": entry,
                     "database": database,
                     "readyFile": ready_file,
@@ -7390,9 +7470,25 @@ async fn run_composed(
         Ok(state) => state,
         Err(error) => {
             emit_startup_artifact_refusal(&error);
+            if args.derived_fork_arm_writer_coverage {
+                return Err(anyhow::anyhow!("SNAPBACK_FORK_LOAD_FAILED: {error}"));
+            }
             return Err(error.into());
         }
     };
+    if args.derived_fork_arm_writer_coverage {
+        // @ref LLP 0058#cold-startup-artifact-carrier — the complete pair is
+        // active before the fork-specific coverage cut.
+        // @ref LLP 0165#derived-fork-authorizer-backed-net-diff--2026-08-06 —
+        // arm the process-owned connection at the fork point before bind.
+        startup_blocking(|| {
+            crate::instance_fork::arm_open_derived_fork_app_row_coverage(
+                snapback.auth_database_mut(),
+                now_ms(),
+            )
+        })
+        .map_err(anyhow::Error::new)?;
+    }
     auth_runtime.seed_durable_clock_floor(&mut snapback)?;
     validate_auth_transport(
         bind_ip,
@@ -11176,6 +11272,7 @@ mod tests {
             ready_file: Some(ready.clone()),
             restored_from_backup: None,
             startup_artifacts: None,
+            derived_fork_arm_writer_coverage: false,
             trusted_composition_activation: None,
             clear_desired_auth_mode: false,
             allow_auth_downgrade: false,
@@ -11200,6 +11297,7 @@ mod tests {
             hosted_edge: None,
             hosted_admission: None,
             startup_artifacts: None,
+            derived_fork_arm_writer_coverage: false,
             trusted_composition_activation: None,
             clear_desired_auth_mode: false,
             allow_auth_downgrade: false,

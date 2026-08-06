@@ -209,6 +209,10 @@ const META_CRON_STATE: &str = "cron_state";
 const META_API_ENVELOPE_STATE: &str = "api_envelope.state";
 const META_API_ENVELOPE_BYTES_PREFIX: &str = "api_envelope.bytes.";
 
+pub(crate) fn local_target_app_effective_uncovered_lanes_v1() -> Vec<String> {
+    write_authority::local_target_app_effective_uncovered_lanes_v1()
+}
+
 /// The persisted api-envelope disposition (LLP 0062 §5, server-composed).
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
@@ -2549,6 +2553,99 @@ impl LocalDatabase {
                 .iter()
                 .filter(|entry| entry.declared_covered)
                 .all(|entry| entry.envelope_mapped && entry.write_authority_enforced))
+    }
+
+    /// Verify the exact derived-fork journal-authority cut without projecting
+    /// it as LLP 0163 operation-envelope coverage. The logical manifest lanes
+    /// are fork-specific; the physical adapter set is the same closed set of
+    /// four generated app-row writers enforced by SQLite.
+    pub(crate) fn derived_fork_exact_app_row_journal_coverage_active(
+        &self,
+    ) -> SnapbackResult<bool> {
+        let Some(stream_id) = crate::seed_identity::strict_current_data_version_stream(&self.conn)?
+        else {
+            return Ok(false);
+        };
+        let Some(manifest) =
+            crate::operation_ledger::active_coverage_manifest(&self.conn, &stream_id)?
+        else {
+            return Ok(false);
+        };
+        let expected_lanes = [
+            crate::operation_ledger::DERIVED_FORK_ORDINARY_APP_ROW_JOURNAL_LANE_V1,
+            crate::operation_ledger::DERIVED_FORK_HOST_CHILD_APP_ROW_JOURNAL_LANE_V1,
+        ]
+        .into_iter()
+        .collect::<std::collections::BTreeSet<_>>();
+        let declared_lanes = manifest
+            .covered_lanes
+            .iter()
+            .map(String::as_str)
+            .collect::<std::collections::BTreeSet<_>>();
+        let expected_writers = crate::operation_ledger::ORDINARY_MUTATION_WRITERS_V1
+            .into_iter()
+            .chain(crate::operation_ledger::HOST_CHILD_MUTATION_WRITERS_V1)
+            .collect::<std::collections::BTreeSet<_>>();
+        let declared_writers = manifest
+            .writer_choke_points
+            .iter()
+            .map(String::as_str)
+            .collect::<std::collections::BTreeSet<_>>();
+        if manifest.covered_lanes.len() != expected_lanes.len()
+            || declared_lanes != expected_lanes
+            || manifest.writer_choke_points.len() != expected_writers.len()
+            || declared_writers != expected_writers
+        {
+            return Ok(false);
+        }
+
+        let inventory = self.local_writer_coverage_inventory()?;
+        if inventory.manifest_version.is_none()
+            || !inventory.all_physical_writers_enumerated
+            || !inventory.all_app_effective_writers_accounted
+        {
+            return Ok(false);
+        }
+        let active = inventory
+            .entries
+            .iter()
+            .filter(|entry| entry.declared_covered)
+            .map(|entry| (entry.lane, entry.choke_point))
+            .collect::<std::collections::BTreeSet<_>>();
+        let expected = [
+            (
+                crate::operation_ledger::ORDINARY_MUTATION_LANE_V1,
+                crate::operation_ledger::ORDINARY_MUTATION_WRITERS_V1[0],
+            ),
+            (
+                crate::operation_ledger::ORDINARY_MUTATION_LANE_V1,
+                crate::operation_ledger::ORDINARY_MUTATION_WRITERS_V1[1],
+            ),
+            (
+                crate::operation_ledger::HOST_CHILD_MUTATION_LANE_V1,
+                crate::operation_ledger::HOST_CHILD_MUTATION_WRITERS_V1[0],
+            ),
+            (
+                crate::operation_ledger::HOST_CHILD_MUTATION_LANE_V1,
+                crate::operation_ledger::HOST_CHILD_MUTATION_WRITERS_V1[1],
+            ),
+        ]
+        .into_iter()
+        .collect::<std::collections::BTreeSet<_>>();
+        Ok(active == expected
+            && inventory
+                .entries
+                .iter()
+                .filter(|entry| entry.declared_covered)
+                .all(|entry| entry.envelope_mapped && entry.write_authority_enforced))
+    }
+
+    #[cfg(test)]
+    pub(crate) fn execute_out_of_seam_app_sql_for_test(
+        &self,
+        sql: &str,
+    ) -> rusqlite::Result<usize> {
+        self.conn.execute(sql, [])
     }
 
     #[cfg(test)]
@@ -7663,6 +7760,15 @@ fn load_schema_manifest_from_connection(
             })
         })
         .transpose()
+}
+
+/// Read the exact active schema across both legacy and capability-aware auth
+/// modes without opening a writer. Derived proof oracles use this to decode
+/// physical rows through the same portable type contract as ordinary reads.
+pub(crate) fn active_schema_manifest_from_connection(
+    conn: &Connection,
+) -> SnapbackResult<Option<SchemaManifest>> {
+    Ok(auth_mode::inspect_for_open(conn)?.active_manifest().cloned())
 }
 
 /// Resolve one schema-checked room membership projection on any SQLite

@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "dcc06ddcb6e6173bc9892edb70edd68ea5391e8c"
+    "commit": "084a3d76962ecb101f515798352c299ef5c61d6c"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -2519,9 +2519,9 @@
         "tests/instance_fork_cli_v1.rs",
         "tests/acceptance/instance-fork-fleet-dogfood.2026-08-03.v1.json"
       ],
-      "reviewed": "2026-08-05",
+      "reviewed": "2026-08-06",
       "reviewedCommit": "HEAD",
-      "sha256": "63910d0a894950d5772e9264fbb09c1dbdead28afb897100baf824b34f8f5ff8",
+      "sha256": "2e55bc3703de1ad5f88bc639da384f10291256a25ed29915e3b70eaee2b36522",
       "snippets": [
         {
           "lang": "js",
@@ -3352,5 +3352,5 @@
     "routes": 122,
     "hostOps": 43
   },
-  "contentHash": "2e38c96942c90047f7ad53dfe6bdd4d93ff65d4d4987b8b265f4621e36ef2629"
+  "contentHash": "8d28197612135d29b28a1596aa62cd30a0557d21bc090e4dfb16b692948c3916"
 }

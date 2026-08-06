@@ -12378,7 +12378,7 @@ examples: [demos/todo/tests/acceptance/forked-parent.mjs, tests/instance_fork_cl
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-05
+reviewed: 2026-08-06
 reviewed-commit: HEAD
 ---
 
@@ -12442,7 +12442,14 @@ The fork operation does all of these before it returns:
 - takes a consistent local snapshot and records the exact fork point;
 - scrubs copied sessions, agent credentials, and operational claims;
 - rotates authorization and data-stream identities and mints fresh sidecars;
-- loads the schema and functions generated in `--app-root`;
+- when both generated manifests exist, admits the complete schema/function
+  pair through an owner-only fork-local cold-start carrier, then arms the
+  derived fork's generated-writer/SQLite-authorizer app-row coverage before
+  listener bind; `data.writerCoverageReceipt` names the fork-point-bound
+  manifest;
+- preserves the historical post-bind schema/function loader only for a
+  partial dev-manifest layout; that path returns
+  `data.writerCoverageReceipt: null` and makes no whole-window coverage claim;
 - boots cron, durable jobs, and asset maintenance inert;
 - applies fail-closed `deny-all-v1` host egress; and
 - records a finite expiry in the fork-root lifecycle registry; and
@@ -12632,6 +12639,7 @@ details object in automation; the message is for people.
 | `SNAPBACK_FORK_SERVER_EXPIRED` | Expected finite-TTL enforcement: use `create` or explicit `reap` to prove the stopped process and remove the fork, or `renew` **before** expiry to extend it. |
 | `SNAPBACK_FORK_RENEW_EXPIRED` | Renewal never resurrects: the fork is already past expiry — reap it and create a fresh fork. |
 | `SNAPBACK_FORK_RESOURCE_LIMIT_REFUSED` | A configured bound refused deterministically; the details name the resource (`fork-count`, `fork-bytes`, `total-bytes`, `diff-work`, `renewal-lifetime`) and the observed usage. Drop forks, raise the explicit flag, or bound the request. |
+| `SNAPBACK_FORK_WRITER_COVERAGE_INVALID` | Do not treat the fork as whole-window covered. Its durable fork-point receipt is partial, tampered, late, or no longer matches the active stream/manifest; recreate it through `fork create`. |
 
 ## Read the diff at its real boundary
 
@@ -12647,14 +12655,31 @@ fork point**, in commit order. It explicitly omits:
 For an exact net base-to-head receipt, create the fork with
 `--retain-base` (a digest-bound immutable snapshot; doubles the fork's byte
 footprint, and admission accounts for it) and run `fork diff FORK_ID --net`.
-The `snapback.fork-net-diff.v1` receipt is computed by comparing the
+The `snapback.fork-net-diff.v2` receipt is computed by comparing the
 retained base against the head directly — independent of the journal — with
 pre- and post-images, a named substrate (`retained-base-v1`) and
-completeness class (`journal-enumerated-v1`), and machine-readable covered/
-omitted domains. Within journal retention every net change is cross-checked
-against the journal; a change the journal cannot explain refuses with
-`SNAPBACK_FORK_DIFF_ORACLE_MISMATCH` instead of lending it cover. Without a
-retained base, `--net` refuses with `SNAPBACK_FORK_NET_DIFF_UNAVAILABLE`.
+machine-readable covered/omitted domains. A fork created through the complete
+cold-start carrier path can advertise `authorizer-backed-app-rows-v1` only
+when its digest-bound coverage receipt proves the two app-row writer lanes
+were armed at the fork point and the journal cross-check verifies through the
+observed head. A partial generated layout remains
+`journal-enumerated-v1` because its historical schema load occurs after bind.
+Read
+`writerCoverage.coverageWindow`, `manifestDigest`, `coveredLanes`, and
+`uncoveredLanes` as separate facts. Uncovered app-effective writer families
+are refused while the profile is armed; all non-app-row domains remain omitted.
+The covered lane names are `derivedForkOrdinaryAppRowJournal` and
+`derivedForkHostChildAppRowJournal`. They name the fork's generated-writer plus
+journal boundary, not LLP 0163 operation-envelope coverage.
+The receipt also says `attribution: "absent-v1"`: operation attribution is not
+implemented by this net view. Any other unarmed or late-armed fork and a
+retention gap remain `journal-enumerated-v1`. A change the journal cannot explain refuses
+with `SNAPBACK_FORK_DIFF_ORACLE_MISMATCH`; on the armed path, the same refusal
+applies when a row's latest journal post-image disagrees with the independently
+scanned head. Contradictory coverage evidence refuses with
+`SNAPBACK_FORK_WRITER_COVERAGE_INVALID`, instead of lending either condition
+cover. Without a retained base, `--net` refuses with
+`SNAPBACK_FORK_NET_DIFF_UNAVAILABLE`.
 
 The attributed receipt is a review aid, not a complete audit and not
 production migration admission. A long-lived fork can also outlive its journal floor; then diff
