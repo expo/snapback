@@ -1355,3 +1355,10 @@ against binary SHA-256
 `84bfe5833e64a5f30967fb53abfa19ef1d870c56fbce5e745e3cbad94d3af039`;
 the retained source list binds the generated activation and artifact bytes
 created by that controlled run.
+
+The required-surface matrix then production-built both registry-declared
+Contract surfaces. All Aboard reproduced its committed output; Cursors
+deterministically rolled five tracked client chunks and its HTML entry hash to
+the writer-election/quarantine-era closure already measured by the August
+bundle carrier. The refreshed dist is retained as the delivery artifact for
+that source-attributed rollover.
