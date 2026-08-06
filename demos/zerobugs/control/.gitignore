@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.snapback/
+.snapback.snapback.restore.lock
+
+# This nested demo is one level deeper than the root maintained-demo rule.
+# Commit only codegen's deterministic review manifest; materialized artifacts
+# are restored from the digest-bound cache by the normal Snapback toolchain.
+snapback/generated/*
+!snapback/generated/artifacts.json

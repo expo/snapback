@@ -4,13 +4,13 @@ id: realtime.ephemeral-state
 order: 2
 audience: agent-first
 capabilities: [realtime.ephemeral]
-authorities: [llp/0013-ephemeral-realtime-state.rfc.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/index.mjs, packages/snapback-contract/index.mjs]
-examples: [demos/cursors-web, demos/todo-v2/snapback/schema.mjs]
+authorities: [llp/0013-ephemeral-realtime-state.rfc.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0114-first-class-react-and-query-groups.spec.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/index.mjs, packages/snapback-contract/index.mjs, packages/snapback-react/index.d.mts]
+examples: [demos/cursors-web, demos/todo-v2/snapback/schema.mjs, demos/improvement-sweep/arms/a2-snapback-web/evidence/app/App.tsx]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-03
-reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
+reviewed: 2026-08-05
+reviewed-commit: f3c7d9fbb394a413370a9264f22e72b6f151a25e
 ---
 
 # Ephemeral realtime state
@@ -27,6 +27,52 @@ reads, or enter history/audit, put it in a durable table instead.
 Start with the [presence-cursors recipe](../recipes/presence-cursors.md) when
 building a feature. Use this page when choosing collection options or handling
 recovery.
+
+## Find the React hook from ephemeral vocabulary
+
+In the schema and headless client this feature is named **ephemeral**. In the
+React client the scoped hook is named **`useSnapbackPresence`**. The names are
+two views of the same generated ephemeral collection: use the hook for online
+presence, conversation-scoped typing indicators, cursors, and other managed
+React values. There is no separate `useSnapbackEphemeral` hook.
+
+`scope` is the room boundary, so a conversation id gives one typing room per
+conversation. `value: skip` observes without publishing; a value publishes and
+refreshes it for the declared TTL. The first-party React provider owns the
+subscription, heartbeat, cleanup, reconnect, and authority transition:
+
+```tsx source=demos/improvement-sweep/arms/a2-snapback-web/evidence/app/App.tsx
+  // presence: managed value while the view is mounted on this channel
+  const presence = useSnapbackPresence(api.ephemeral.chatPresence, {
+    scope: { channelId: channelId ?? 'lobby' },
+    value: { name: displayName },
+    ttlMs: 8_000,
+  });
+  const online = new Map<string, true>();
+  if (presence.status === 'ready' || presence.status === 'stale') {
+    for (const entry of presence.entries) online.set(entry.value.name, true);
+  }
+
+  // typing: managed value only while recent keystrokes exist
+  const [draft, setDraft] = useState('');
+  const [typing, setTyping] = useState(false);
+  const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const typingState = useSnapbackPresence(api.ephemeral.chatTyping, {
+    scope: { channelId: channelId ?? 'lobby' },
+    value: typing ? { name: displayName } : skip,
+    ttlMs: 2_000,
+  });
+  const typers = (typingState.status === 'ready' || typingState.status === 'stale')
+    ? typingState.entries
+        .filter((entry) => entry.key !== typingState.selfKey)
+        .map((entry) => entry.value.name)
+    : [];
+```
+
+See [the React client](../clients/react.md#publish-and-observe-ephemeral-presence)
+for the hook's state and lifecycle contract. Reach for the lower-level
+`subscribeEphemeral` overlay below only in headless code or when you
+deliberately need imperative publish/delete control.
 
 ## Declare the complete collection contract
 

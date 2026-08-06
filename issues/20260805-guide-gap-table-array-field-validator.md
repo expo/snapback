@@ -48,3 +48,15 @@ guide.
   grep source to find it.
 - The schema-authoring refusal for an array field either links to that
   guidance or names `v.json()` directly.
+
+## Resolution note — guide half (2026-08-05)
+
+`guide/getting-started/your-first-backend.md` now states the immediate pairing:
+store array-shaped data as opaque `v.json()` and narrow every exposed function
+result with `v.array(...)`. It also states what that workaround does *not*
+provide — write-time element validation, indexing, portable structured-field
+semantics, or sync-aware array behavior — and links the new honest
+`backend.structured-stored-fields` GAP row to LLP 0115 CV-4b.
+
+This ticket remains open for the separate codegen-diagnostic half: the
+table-field refusal should itself suggest `v.json()` or link to the guidance.

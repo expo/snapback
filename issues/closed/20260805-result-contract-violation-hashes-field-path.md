@@ -1,6 +1,6 @@
 # Result contract violation errors hash the field path, not just the value, making them undebuggable
 
-**Status:** Open
+**Status:** Resolved
 **Impact:** 2
 **Urgency:** 2
 **Ease:** 4
@@ -60,3 +60,13 @@ field name), that reasoning should be written down here or in a comment
 next to `violation()` — as written, the hashing looks like it was applied
 uniformly to "path xor value" without distinguishing that only one of the
 two carries user data.
+
+## Resolution
+
+2026-08-05: Result-contract violations now report the legible bounded path in
+`details.path` and no longer replace the whole path with `pathHash`. Declared
+and closed-record field structure (including stored system fields such as
+`_version`) remains visible so the refusal is actionable, while arbitrary keys
+traversed inside dynamic JSON are represented only by a stable
+`<unknown>#<12-hex-sha256>` segment. Tests pin the offending row/field path,
+continued non-echo of values, and dynamic-key/value redaction.

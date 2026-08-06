@@ -9,8 +9,8 @@ examples: [demos/todo, demos/todo-v2, demos/cursors-web, demos/card-game, demos/
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-04
-reviewed-commit: dab2410b6793ffa5685069a0a4054f0e2b21608a
+reviewed: 2026-08-05
+reviewed-commit: f3c7d9fbb394a413370a9264f22e72b6f151a25e
 ---
 
 <img src="../brand/snapback-mark.svg" alt="Snapback" width="96" />
@@ -123,8 +123,10 @@ you never build around a feature because you didn't know it existed.
   arguments, diagnostics, and transition guidance.
 - [Safe standard patterns](./backend/standard-patterns.md) — owner-scoped CRUD,
   unique lookup, keyset pages, and declarative trusted defaults.
-- [Relational queries](./backend/relational-queries.md) — bounded two-source
-  equi-joins with explicit visibility and closed projections (experimental).
+- [Relational queries](./backend/relational-queries.md) — shipped
+  `defineRelationalQuery` / `defineMaintainedProjection` support for bounded
+  two-source joins, including conversation-membership and message-sender
+  shapes; aggregation and self-joins remain explicit gaps.
 - [Snapshot batches](./backend/snapshot-batches.md) — 2–8 bounded child
   pages evaluated at one snapshot with one coordinated `sbsb1` cursor
   (experimental local target).
@@ -136,10 +138,11 @@ you never build around a feature because you didn't know it existed.
   fixed-width embeddings, pinned `dot`/`l2sq` arithmetic, bounded exact k-NN,
   authorization partitions, and explicit ANN/live/hosted nonclaims
   (experimental).
-- [Assets](./backend/assets.md) — generated upload intents, TUS resumable
-  transfer, trusted SHA-256 finalization, typed `v.assetRef` attachment,
-  private-strict delivery, consistent-cut logical export, and signing-key
-  rotation (local target; byte-level backup remains a nonclaim).
+- [Assets](./backend/assets.md) — generated upload intents, an authenticated
+  Expo ImagePicker-to-Blob recipe, TUS resumable transfer, trusted SHA-256
+  finalization, typed `v.assetRef` attachment, private-strict delivery,
+  consistent-cut logical export, and signing-key rotation (local target;
+  byte-level backup remains a nonclaim).
 - [Versioned seeds](./backend/versioned-seeds.md) — content-addressed fixture
   identity, non-destructive matching, explicit reset-install/clear, and
   migration boundaries (experimental).
@@ -162,8 +165,9 @@ you never build around a feature because you didn't know it existed.
   replace/delta, durable push, the connection axis.
 - [Route snapshot bundles](./realtime/snapshot-bundles.md) — one-commit page
   boot, route manifests, resume tokens, and register-mode handoff.
-- [Ephemeral state](./realtime/ephemeral-state.md) — typed rooms, all
-  collection options and key modes, overlays, recovery, and Contract links.
+- [Ephemeral state](./realtime/ephemeral-state.md) — presence, typing
+  indicators, cursors, typed rooms, and the scoped React
+  `useSnapbackPresence` hook, plus all collection options and recovery.
 
 ### Sync and offline
 - [Offline retention and mutation replay](./sync/offline-and-retention.md) —
@@ -200,7 +204,8 @@ you never build around a feature because you didn't know it existed.
 - [The React client](./clients/react.md) — first-class external-store hook,
   keyed sibling sharing, Strict Mode lifecycle, and settlement state.
 - [React Expo Online clients](./clients/react-expo.md) — the shared React
-  projection on native carriers, per-OS evidence, and Online/Parity honesty.
+  projection on native carriers, per-OS evidence, the admin-console debugging
+  path, authenticated asset uploads, and Online/Parity honesty.
 - [Framework bindings](./clients/framework-bindings.md) — build on the
   external store and own identity, reconnect, error, lifecycle, and teardown.
 
@@ -222,8 +227,9 @@ you never build around a feature because you didn't know it existed.
 - [Diagnostics](./operating/diagnostics.md) — stable codes, assertion
   discipline, exact runtime link/launch doctoring, binary recovery records,
   and bootstrap failure vocabulary.
-- [Admin console](./operating/admin-console.md) — build, launch, develop, and
-  debug through the privileged Contract system app.
+- [Admin console](./operating/admin-console.md) — the shipped browser debugger
+  for seeing backend Data, Functions, Realtime, Errors, Logs, and capability
+  state before reaching for `curl` or raw host operations.
 - [Backend observability](./operating/observability.md) — inspect Health and
   Logs, query typed telemetry from CLI/MCP, and interpret coverage, freshness,
   retention, and shedding honestly.

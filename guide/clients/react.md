@@ -9,8 +9,8 @@ examples: [packages/snapback-cli/templates/react, demos/chirp, demos/signal-desk
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-04
-reviewed-commit: 8154744c87ed58816703093bd526bd7a40d95a56
+reviewed: 2026-08-05
+reviewed-commit: f3c7d9fbb394a413370a9264f22e72b6f151a25e
 ---
 
 # The React client
@@ -272,11 +272,16 @@ whose result diverges when replayed over its own output logs one
 `SNAPBACK_REACT_OPTIMISTIC_REPLAY_DIVERGENT` warning per (mutation, query)
 site; production builds skip the check.
 
-## Publish and observe presence
+## Publish and observe ephemeral presence
 
-Pass a generated connection-keyed ephemeral reference. A non-skipped value is
+`useSnapbackPresence` is the React hook for generated **ephemeral**
+collections — including presence, typing indicators, and cursors. Pass a
+generated connection-keyed ephemeral reference. A non-skipped value is
 declarative managed intent: the provider publishes it after the authoritative
-room snapshot and refreshes it within the generated TTL and rate limits.
+room snapshot and refreshes it within the generated TTL and rate limits. The
+[ephemeral-state reference](../realtime/ephemeral-state.md#find-the-react-hook-from-ephemeral-vocabulary)
+shows a conversation-scoped typing example; there is no separate
+`useSnapbackEphemeral` hook.
 
 ```ts fragment reason="presence fields come from the generated ephemeral declaration"
 const presence = useSnapbackPresence(ephemeral.incidentPresence, {

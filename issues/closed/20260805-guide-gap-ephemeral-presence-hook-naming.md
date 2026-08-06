@@ -1,6 +1,6 @@
 # guide-gap: no vocabulary bridge between schema "ephemeral" and the `useSnapbackPresence` React hook
 
-**Status:** Open
+**Status:** Resolved
 **Impact:** 2
 **Urgency:** 2
 **Ease:** 4
@@ -48,3 +48,16 @@ capability gap.
   instead of a doc gap, since the demo's hand-wired `subscribeEphemeral`
   approach (borrowed from `demos/cursors-web`) is then the only working
   path, and should be the one the guide points to.
+
+## Resolution — 2026-08-05
+
+Confirmed that the shipped hook covers conversation-scoped typing: its
+generated `scope` selects the ephemeral room, and the retained messaging and
+improvement-sweep sources use `useSnapbackPresence` with a conversation/channel
+id plus a TTL-managed value.
+
+The guide now bridges both vocabularies in `guide/index.md`, the capability
+aliases/witnesses, `guide/realtime/ephemeral-state.md`, and
+`guide/clients/react.md`. The ephemeral page includes a source-transcluded
+presence + typing example and states explicitly that there is no separate
+`useSnapbackEphemeral` hook.

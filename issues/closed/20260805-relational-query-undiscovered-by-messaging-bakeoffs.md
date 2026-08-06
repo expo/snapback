@@ -1,6 +1,6 @@
 # `defineRelationalQuery`/`defineMaintainedProjection` were never discovered by three independent messaging bakeoffs
 
-**Status:** Open
+**Status:** Resolved
 **Impact:** 3
 **Urgency:** 2
 **Ease:** 3
@@ -31,7 +31,7 @@ guide-endorsed choice for logic the declarative vocabulary can't express, but
 in this case the declarative relational-query vocabulary already could
 express (at least) the pure-join half of what they needed. This is the same
 discoverability pattern as
-`issues/20260805-admin-console-undiscovered-by-expo-bakeoffs.md`: a real,
+`issues/closed/20260805-admin-console-undiscovered-by-expo-bakeoffs.md`: a real,
 shipped capability that a workload it fits well never found.
 
 This is distinct from the aggregation gap tracked separately in LLP 0177 —
@@ -63,3 +63,16 @@ that the existing capability already covers but that no builder found.
 - An author who reaches for a JS handler to express a plain bounded two-source
   join is pointed at `defineRelationalQuery`/`defineMaintainedProjection`
   before writing one.
+
+## Resolution — 2026-08-05
+
+`guide/index.md` and the capability index now name both shipped declarations
+and messaging aliases. `guide/backend/queries.md` points an author away from a
+hand-written `defineJsLiveQuery` before a plain conversation-membership or
+message-sender join, and `guide/backend/relational-queries.md` maps those
+workloads onto the root/joined model.
+
+The same page now states the boundary found in source: v1 refuses the same
+table as both `root` and `joined`, and grouping/aggregation also remains
+outside the shipped profile. Those cases stay with bounded JS handlers or
+their owning follow-on design; the guide does not imply they already ship.

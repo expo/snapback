@@ -70,7 +70,7 @@ client HTTP surface always resolves anonymous, so no `authorize()` owner
 can ever satisfy the asset-upload ownership check; the first upload dies
 with a bare TUS 403 and the only in-app resolution was rebuilding the demo
 into sessions mode with a 138-line trusted-local token broker
-(`issues/20260805-guide-gap-dev-mode-asset-upload-anonymous-caller.md`).
+(`issues/closed/20260805-guide-gap-dev-mode-asset-upload-anonymous-caller.md`).
 Both diaries hit this wall independently — it is the single
 highest-signal defect in the set.
 
