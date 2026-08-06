@@ -11,6 +11,17 @@ import type {
   SnapbackEphemeralReference,
   SnapbackFunctionReference,
 } from '@expo/snapback-client';
+import type {
+  AssetFileLike,
+  AssetTaskSnapshot,
+  AssetUploadTask,
+} from '@expo/snapback-client/assets';
+
+export type {
+  AssetFileLike,
+  AssetTaskSnapshot,
+  AssetUploadTask,
+} from '@expo/snapback-client/assets';
 
 export type SnapbackDiagnostic = Readonly<{
   schemaVersion: 'snapback.client-diagnostic.v1';
@@ -403,23 +414,17 @@ export type AssetUploadHookStatus =
   | 'cancelled'
   | 'failed';
 
-export interface AssetUploadHookState {
-  readonly assetId: string | null;
-  readonly assetRef: string | null;
-  readonly attemptId: string | null;
-  readonly attemptExpiresAtMs: number | null;
-  readonly status: AssetUploadHookStatus;
-  readonly diagnostic: { code?: string; message?: string } | null;
-  readonly bytesTransferred: number;
-  readonly totalBytes: number;
-  readonly previewUrl: string | null;
-  readonly integrityBasis: string | null;
-}
+export type AssetUploadHookState = Readonly<
+  Omit<AssetTaskSnapshot, 'status' | 'integrityBasis'> & {
+    readonly status: AssetUploadHookStatus;
+    readonly integrityBasis: AssetTaskSnapshot['integrityBasis'] | null;
+  }
+>;
 
 export interface AssetUploadHook {
   readonly state: AssetUploadHookState;
   start(
-    file: { size: number; slice(start: number, end?: number): unknown },
+    file: AssetFileLike,
     options?: Readonly<{
       args?: Record<string, unknown>;
       userId?: string | null;
@@ -427,16 +432,16 @@ export interface AssetUploadHook {
       declaredContentType?: string | null;
       previewUrl?: string | null;
     }>,
-  ): unknown;
+  ): AssetUploadTask;
   resumePersisted(options: {
     assetId: string;
-    file: { size: number; slice(start: number, end?: number): unknown };
+    file: AssetFileLike;
     userId?: string | null;
-  }): unknown;
+  }): AssetUploadTask | null;
   pause(): void;
   resume(): void;
-  cancel(options?: { discardAsset?: boolean }): Promise<unknown>;
-  retry(): Promise<unknown>;
+  cancel(options?: { discardAsset?: boolean }): Promise<AssetTaskSnapshot>;
+  retry(): Promise<AssetUploadTask>;
 }
 
 export function useSnapbackAssetUpload(options: Readonly<{
