@@ -1,11 +1,19 @@
 # LLP 0182: Zerobugs as a Snapback quality benchmark
 
 **Type:** Research
-**Status:** Draft
+**Status:** Active
 **Systems:** Competitive evaluation, Demo applications, Developer experience, Application data API, Relational queries, React, Local sync, Offline sync, Optimistic updates, Auth, Search, Assets, Notifications, Deployment, Performance, Testing
 **Author:** Codex (gpt-5.6-sol) / Charlie Cheever
 **Date:** 2026-08-05
-**Revised:** 2026-08-05 (authorial review, Codex gpt-5.6-sol: corrects the
+**Revised:** 2026-08-05 (LLP 0183 Stage 0 step 1 pin verification, Codex
+gpt-5.6-sol xhigh / Claude Fable 5: every [source] claim re-verified against
+the pinned checkout — see
+`demos/zerobugs/stage0/0182-claim-verification.v1.md`; corrects project-table
+visibility attribution, the synthetic generator's determinism and replayed
+default counts (2,527,886 comments, 2,000,370 issue-label rows, ~5.53M total),
+and the scope of server `Date.now()` timestamp replacement; marks two
+comparative statements [interpretation]; status Draft → Active)
+2026-08-05 (authorial review, Codex gpt-5.6-sol: corrects the
 client-value comparison so Zero prediction is not mislabeled as authority;
 separates public base facts from per-principal overlays in the staged-custody
 finding; tightens source citations and removes one duplicate citation)
@@ -167,7 +175,7 @@ The pinned schema has ten tables:
 | Table | Role in the product |
 | --- | --- |
 | `user` | GitHub identity and user presentation |
-| `project` | issue namespace, visibility, and search capability |
+| `project` | issue namespace and search capability |
 | `issue` | title, description, status, creator, assignee, visibility, ordering |
 | `viewState` | per-user viewed timestamp |
 | `comment` | issue discussion |
@@ -178,8 +186,9 @@ The pinned schema has ten tables:
 | `issueNotifications` | per-user issue subscription state |
 
 The relationship graph includes to-one, to-many, many-to-many, optional, and
-per-user relations. The table count is not difficult for Snapback. The graph
-operations performed on those tables are the meaningful workload.
+per-user relations. [interpretation] The table count is not difficult for
+Snapback. The graph operations performed on those tables are the meaningful
+workload.
 [source — pinned
 `shared/schema.ts`](https://github.com/rocicorp/mono/blob/25c2c7308d3eb674d2d895022c9da11ef0c742fb/apps/zbugs/shared/schema.ts)]
 
@@ -206,8 +215,8 @@ their creators and emoji. The issue-detail query includes project, creator,
 assignee, labels, notifications, view state, emoji, and fifty comments. A
 separate comments page query drives a bidirectional window for long threads.
 
-This is not an exotic analytics workload. It is the ordinary shape of one
-polished collaborative application screen.
+[interpretation] This is not an exotic analytics workload. It is the ordinary
+shape of one polished collaborative application screen.
 [source — pinned
 `shared/queries.ts`](https://github.com/rocicorp/mono/blob/25c2c7308d3eb674d2d895022c9da11ef0c742fb/apps/zbugs/shared/queries.ts)]
 
@@ -283,17 +292,20 @@ them measures a data widget rather than Zerobugs.
 
 ### Scale posture
 
-The source includes a deterministic synthetic-data generator whose default
-profile is one million issues, roughly three million comments, and roughly
-1.5 million issue-label rows. The UI describes Zero as syncing millions of rows
+The source includes a seeded synthetic-data generator whose default count
+logic at seed 42 produces 1,000,000 issues, 2,527,886 comments, and 2,000,370
+issue-label rows (replayed counts; see
+`demos/zerobugs/stage0/0182-claim-verification.v1.md`). It is not fully
+deterministic across run dates because generated timestamp ranges are anchored
+to the generation date. The UI describes Zero as syncing millions of rows
 to IndexedDB. These facts establish a deliberate large-data demonstration and
 fixture, not a verified claim that every production browser holds every source
 row or that every profile meets one latency target. [source —
 [`SYNTHETIC_DATA.md`](https://github.com/rocicorp/mono/blob/25c2c7308d3eb674d2d895022c9da11ef0c742fb/apps/zbugs/SYNTHETIC_DATA.md) and
 [`src/root.tsx`](https://github.com/rocicorp/mono/blob/25c2c7308d3eb674d2d895022c9da11ef0c742fb/apps/zbugs/src/root.tsx)]
 
-The relevant Snapback comparison is therefore not "can SQLite store 4.5 million
-rows?" It is whether a supported target can serve the workload, whether the
+The relevant Snapback comparison is therefore not "can SQLite store roughly
+5.53 million generated rows?" It is whether a supported target can serve the workload, whether the
 client can keep the useful working set local, and whether the product remains
 responsive and honest about completeness under that fixture.
 
@@ -583,8 +595,9 @@ prediction.
 ### S4. Client-chosen application values on the shared-mutation path
 
 Zerobugs commonly chooses row ids in the client mutator and preserves those ids
-in the server form, while the pinned server mutators replace client timestamps
-with `Date.now()`. Zero still treats the local result as speculative; this is a
+in the server form. Server overrides replace client timestamps with
+`Date.now()` for issue create/update, emoji add, and comment add, while
+view-state and notification timestamps remain client-supplied. Zero still treats the local result as speculative; this is a
 value-continuity difference, not evidence that Zero confuses prediction with
 authority.
 
@@ -671,5 +684,10 @@ and local microbenchmarks cannot answer them.
 
 ## Status
 
-Draft Research. It records no capability promotion and authorizes no
-implementation or structural decision. Its proposed follow-on is LLP 0183.
+Active Research. Accepted as the LLP 0183 program's research record after the
+Stage 0 pin re-verification recorded in
+`demos/zerobugs/stage0/0182-claim-verification.v1.md` (four factual
+corrections applied; external Zero-documentation, live-site, and issue-3385
+claims remain outside that artifact's verification scope). It records no
+capability promotion and authorizes no implementation or structural decision.
+Its follow-on is LLP 0183.
