@@ -5,7 +5,13 @@
 **Systems:** Local server lifecycle, HTTP surface, Security/authorization, Admin API, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-01
-**Revised:** 2026-08-05 (LLP 0184 Phase 0 item 5 audit: corrected the
+**Revised:** 2026-08-05 (§Server-binary identity: the build-identity dirty
+probe is scoped to the runtime binary's input set — shared pathspec definition
+in `scripts/runtime-build-inputs.txt` — instead of the whole tree, and all
+expected-identity consumers read the same definition; demo/LLP/issue edits no
+longer disqualify a prepared binary — see
+issues/closed/20260805-whole-tree-dirty-flag-forces-runtime-rebuild.md.)
+Earlier same day (LLP 0184 Phase 0 item 5 audit: corrected the
 2026-07-25 hosted route table, which was missing the
 `/_snapback/api/debug/network-profile` row — see the dated correction;
 the full first-pass audited inventory of `gateway.js`'s hand-routed
@@ -726,11 +732,22 @@ index, so an incremental rebuild after a source edit — or a ref-only move like
 build's cached commit/dirty pair; without that, a binary containing
 uncommitted code could self-report the prior clean commit and falsely earn
 reuse (ENG-23365). The dirty probe distinguishes `git status --porcelain`
-succeeding with empty output (a proven-clean tree → `gitDirty: false`) from the
-command failing (unknown → env var left unset, runtime defaults to dirty);
-conflating the two had made a clean checkout unable to ever stamp
+succeeding with empty output (a proven-clean input set → `gitDirty: false`)
+from the command failing (unknown → env var left unset, runtime defaults to
+dirty); conflating the two had made a clean checkout unable to ever stamp
 `gitDirty: false`, silently disabling binary-provenance reuse in exactly the
-clean-CI case it exists for (ENG-23419).
+clean-CI case it exists for (ENG-23419). Since 2026-08-05 the probe is scoped
+to the runtime binary's input set — the shared pathspec definition in
+`scripts/runtime-build-inputs.txt` (Rust sources/manifests, `vendor/ibex`, and
+the build-embedded corpora such as `guide/` and the harness scripts) — rather
+than the whole tree: `gitDirty: true` means "this binary's *inputs* were
+uncommitted", so demo/LLP/issue/diary edits neither flip the compile-time
+`rerun-if-env-changed` input nor disqualify a prepared binary. Every consumer
+that recomputes an expected dirtiness fact (`scripts/verify-local-proof`,
+`scripts/bootstrap-ibex-runtime` receipt reuse, `demos/_kit/provenance.mjs`,
+`packages/snapback-cli/runtime-recovery.mjs`) reads the same definition file,
+falling back to whole-tree status when it is absent
+(issues/closed/20260805-whole-tree-dirty-flag-forces-runtime-rebuild.md).
 `demos/_kit/provenance.mjs` grows a `verifyBinaryProvenance` verdict beside
 `verifyApiProvenance`, and `startServer` falls back to it only when bundle
 identity is unavailable (the `code: 'no-bundle'` verdict); a present-but-wrong

@@ -1,0 +1,53 @@
+# Runtime binary input set — one git pathspec per line ('#' starts a comment).
+#
+# This is the single shared definition of the paths whose uncommitted changes
+# can change the bytes of the built `snapback` binary (and its sibling bins).
+# The build-identity dirty fact (`SNAPBACK_BUILD_GIT_DIRTY`, `gitDirty` in the
+# readiness receipt and `/health` identity) is derived from
+# `git status --porcelain --ignore-submodules=untracked -- <these pathspecs>`,
+# NOT from the whole tree, so demo/guide-consumer/LLP/issue/diary edits no
+# longer disqualify a prepared, receipt-qualified binary
+# (issues/closed/20260805-whole-tree-dirty-flag-forces-runtime-rebuild.md).
+#
+# Consumers (keep in sync when adding one):
+#   build.rs                            (compile-time fallback probe)
+#   scripts/verify-local-proof          (stamp_snapback_build_identity)
+#   scripts/bootstrap-ibex-runtime      (reuse_authoritative_runtime_receipt)
+#   demos/_kit/provenance.mjs           (readCheckoutBinaryIdentity)
+#   packages/snapback-cli/runtime-recovery.mjs (readCheckoutRuntimeIdentity)
+# A consumer that cannot read this file falls back to whole-tree status
+# (conservative: over-reports dirty, never under-reports).
+#
+# Membership rule: a path belongs here iff it is compiled or embedded into a
+# Rust build target — crate sources, the build script and manifests, the
+# vendored runtime crate, and every non-src `include_str!`/`include_bytes!`
+# target plus the build-embedded guide corpus. It deliberately excludes
+# demos/ (except nothing today), llp/, issues/, diaries/, and the rest of the
+# authoring surface: those cannot change the binary's bytes.
+
+# Cargo build inputs
+build.rs
+Cargo.toml
+Cargo.lock
+rust-toolchain.toml
+
+# Crate sources (includes src/**/*.html and other include_str! assets)
+src
+
+# Vendored runtime crate that links into the binary (submodule pathspec:
+# reports new commits / modified tracked content; prepared Hermes artifacts
+# are gitignored inside the submodule and untracked content is ignored).
+vendor/ibex
+
+# Build-embedded corpora and assets (build.rs rerun-if-changed=guide;
+# include_str!/include_bytes! targets outside src/)
+guide
+brand
+packages/snapback-harness
+packages/snapback-admin-client
+tests/conformance
+tests/acceptance/fixtures
+tests/acceptance/telemetry-phase1-benchmark-baseline.v1.json
+
+# The definition itself participates: editing it changes what the stamp means.
+scripts/runtime-build-inputs.txt

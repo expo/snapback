@@ -229,9 +229,12 @@ fn emit_macos_rpath(dir: &Path) {
 /// Emit the git commit + dirty state the running binary reports as its
 /// server-binary identity on `/health` (ENG-22798). Both are best-effort: a
 /// build outside a git checkout (or without git) leaves the commit unset, which
-/// the runtime reports as `"unknown"`, and an unknown/dirty tree is treated as
+/// the runtime reports as `"unknown"`, and an unknown/dirty state is treated as
 /// dirty by provenance consumers so a not-soundly-identifiable build never
-/// enables reuse. `SNAPBACK_BUILD_GIT_COMMIT` / `SNAPBACK_BUILD_GIT_DIRTY` can
+/// enables reuse. The dirty fact is scoped to the runtime input set
+/// (`scripts/runtime-build-inputs.txt`): `dirty=true` means "this binary's
+/// *inputs* were uncommitted", not "some file somewhere in the checkout was".
+/// `SNAPBACK_BUILD_GIT_COMMIT` / `SNAPBACK_BUILD_GIT_DIRTY` can
 /// be set explicitly (e.g. a deterministic CI stamp) and win over the git probe.
 ///
 /// @ref LLP 0031#server-binary-identity-on-health — the build/provenance facts
@@ -254,6 +257,9 @@ fn emit_build_identity() {
     println!("cargo:rerun-if-changed=Cargo.toml");
     println!("cargo:rerun-if-changed=Cargo.lock");
     println!("cargo:rerun-if-changed=src");
+    // The dirty probe below is scoped by this shared definition; a changed
+    // definition must re-run the probe.
+    println!("cargo:rerun-if-changed=scripts/runtime-build-inputs.txt");
 
     // Re-stamp when the git side moves: HEAD and the index live in the
     // (possibly per-worktree) git dir; the branch-tip ref store lives in the
@@ -294,7 +300,25 @@ fn emit_build_identity() {
             // the success-with-empty-output case, which `git` conflates with
             // failure — under `git` the probe could never yield Some(false)
             // and every clean build was stamped dirty-by-default (ENG-23419).
-            git_output(&manifest_dir, &["status", "--porcelain"]).map(|s| !s.is_empty())
+            //
+            // The probe is scoped to the runtime binary's input set (shared
+            // definition: scripts/runtime-build-inputs.txt), not the whole
+            // tree: a demo/LLP/issue edit cannot change this binary's bytes,
+            // so it must not flip the dirty fact and force identity-consuming
+            // crates to recompile. A missing/empty definition falls back to
+            // whole-tree status — conservative, never under-reporting
+            // (issues/closed/20260805-whole-tree-dirty-flag-forces-runtime-rebuild.md).
+            let mut args = vec![
+                "status".to_owned(),
+                "--porcelain".to_owned(),
+                "--ignore-submodules=untracked".to_owned(),
+            ];
+            if let Some(pathspecs) = runtime_input_pathspecs(&manifest_dir) {
+                args.push("--".to_owned());
+                args.extend(pathspecs);
+            }
+            let arg_refs: Vec<&str> = args.iter().map(String::as_str).collect();
+            git_output(&manifest_dir, &arg_refs).map(|s| !s.is_empty())
         });
     // Only a proven-clean tree emits "false"; an unknown result stays unset and
     // the runtime defaults it to dirty (conservative: no reuse on doubt).
@@ -321,6 +345,26 @@ fn emit_build_identity() {
 
 fn env_nonempty(name: &str) -> Option<String> {
     std::env::var(name).ok().filter(|v| !v.is_empty())
+}
+
+/// The git pathspecs bounding the runtime binary's input set, from the shared
+/// definition file `scripts/runtime-build-inputs.txt` (one pathspec per line,
+/// `#` comments). `None` — file missing, unreadable, or empty — means "no
+/// scoped definition"; callers fall back to whole-tree status, which can only
+/// over-report dirtiness.
+fn runtime_input_pathspecs(manifest_dir: &Path) -> Option<Vec<String>> {
+    let content = fs::read_to_string(manifest_dir.join("scripts/runtime-build-inputs.txt")).ok()?;
+    let pathspecs: Vec<String> = content
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty() && !line.starts_with('#'))
+        .map(str::to_owned)
+        .collect();
+    if pathspecs.is_empty() {
+        None
+    } else {
+        Some(pathspecs)
+    }
 }
 
 /// Run `git <args>` in `dir`, returning trimmed stdout on success — including
