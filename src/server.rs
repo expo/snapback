@@ -15253,6 +15253,22 @@ pub fn operation_registry() -> Vec<OperationSpec> {
             EffectPolicy::None,
             SessionModeOverlay::secret_read(),
         ),
+        // @ref LLP 0184#p1-read-and-diagnose — cron.list is a narrow
+        // OperatorMetadata projection of the scheduler facts already held by
+        // app.inspect; it adds no scheduler state or mutation authority.
+        operation(
+            "host_ops.cron.list",
+            "/_snapback/api/host-ops",
+            HostOps,
+            RouteClass::SystemApi,
+            RoutePolicy::AdminRead,
+            CredentialResolution::AdminCredential,
+            InvocationAuthority::Operator,
+            LegacyBodyPolicy::NotApplicable,
+            EffectPolicy::None,
+            ResponseSensitivity::OperatorMetadata,
+            SessionModeOverlay::NONE,
+        ),
         // Proposed LLP 0167 OQ2 ruling (2026-08-04; author may veto): runtime
         // perturbations form a debug.* family. The carrier authenticates the
         // declared AdminRead/AdminWrite class; set still terminates at the one
@@ -15939,6 +15955,7 @@ pub(crate) fn host_ops_operation_spec(
 ) -> Option<OperationSpec> {
     let name = match operation {
         "app.inspect" => "host_ops.app.inspect",
+        "cron.list" => "host_ops.cron.list",
         "debug.networkProfileGet" => "host_ops.debug.networkProfileGet",
         "debug.networkProfileSet" => "host_ops.debug.networkProfileSet",
         "debug.live.forceResync" => "host_ops.debug.live.forceResync",

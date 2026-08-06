@@ -492,6 +492,16 @@
       "responseSensitivity": "SensitiveApplicationData"
     },
     {
+      "method": "GET",
+      "path": "/_snapback/api/cron",
+      "class": "SystemApi",
+      "pathPolicy": "AdminRead",
+      "credentialResolution": "AdminCredential",
+      "invocationAuthority": "Operator",
+      "effectPolicy": "None",
+      "responseSensitivity": "OperatorMetadata"
+    },
+    {
       "method": "POST",
       "path": "/_snapback/api/cron/tick",
       "class": "SystemApi",
@@ -628,6 +638,17 @@
       "invocationAuthority": "None",
       "effectPolicy": "None",
       "responseSensitivity": "SensitiveApplicationData"
+    },
+    {
+      "operation": "host_ops.cron.list",
+      "parentPath": "/_snapback/api/host-ops",
+      "transport": "HostOps",
+      "class": "SystemApi",
+      "pathPolicy": "AdminRead",
+      "credentialResolution": "AdminCredential",
+      "invocationAuthority": "Operator",
+      "effectPolicy": "None",
+      "responseSensitivity": "OperatorMetadata"
     },
     {
       "operation": "host_ops.debug.networkProfileGet",
@@ -1194,6 +1215,7 @@
   "hostOpsIdentities": {
     "served": [
       "app.inspect",
+      "cron.list",
       "app.reset",
       "app.seed.ensure.v1",
       "app.seed.preview.v1",

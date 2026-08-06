@@ -205,7 +205,7 @@ try {
     'snapback_errors_issues', 'snapback_errors_issue', 'snapback_errors_transition',
     // LLP 0184 Phase 2 P1 read/diagnose projections.
     'snapback_data_scan', 'snapback_config_status', 'snapback_config_plan',
-    'snapback_config_verify', 'snapback_jobs_list', 'snapback_jobs_show',
+    'snapback_config_verify', 'snapback_cron_list', 'snapback_jobs_list', 'snapback_jobs_show',
     'snapback_asset_list', 'snapback_asset_inspect', 'snapback_asset_retry',
     // LLP 0184 §P2's controlled-mutation and asset-family direct tools.
     'snapback_config_unset', 'snapback_cron_tick', 'snapback_cron_run', 'snapback_jobs_drain',
@@ -498,6 +498,12 @@ try {
   const configVerify = await client.call('snapback_config_verify', { entry: 'no.such.entry' });
   assert.equal(configVerify.structuredContent.operation, 'config.verify');
   assert.equal(configVerify.structuredContent.ok, false, JSON.stringify(configVerify.structuredContent));
+
+  const cronList = await client.call('snapback_cron_list');
+  assert.equal(cronList.structuredContent.operation, 'cron.list');
+  assert.equal(cronList.structuredContent.ok, true, JSON.stringify(cronList.structuredContent));
+  assert.equal(cronList.structuredContent.data.cron.artifactKind, 'snapback.cron-list/v1');
+  assert.ok(Array.isArray(cronList.structuredContent.data.cron.jobs));
 
   const jobsList = await client.call('snapback_jobs_list');
   assert.equal(jobsList.structuredContent.operation, 'jobs.list');

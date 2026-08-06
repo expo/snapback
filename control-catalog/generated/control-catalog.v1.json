@@ -1,11 +1,11 @@
 {
   "schemaVersion": "snapback.control-catalog.v1",
-  "catalogDigest": "sha256:a5b86935c2b52c7e7ec1107c59b4a4b26a14658a3feaab5dca41ea19c1995686",
+  "catalogDigest": "sha256:b52f5fe470745410b01d2b358488d55e32da18819ac2179ba9638eac83d3f349",
   "buildIdentity": {
-    "sourceCommit": "4be094ae1aeec25ad7dadc0492a0f1d787679d9b",
-    "dirty": false
+    "sourceCommit": "924f368615726dfeaf0733c0815cd9e323c29a4c",
+    "dirty": true
   },
-  "generatedAtCommit": "4be094ae1aeec25ad7dadc0492a0f1d787679d9b",
+  "generatedAtCommit": "924f368615726dfeaf0733c0815cd9e323c29a4c",
   "entries": [
     {
       "operation": "acceptance.run",
@@ -3153,6 +3153,55 @@
       ]
     },
     {
+      "operation": "cron.list",
+      "title": "List cron jobs",
+      "intents": [],
+      "status": "shipped",
+      "domain": "hostOps",
+      "hostOpsDisposition": "served",
+      "registeredOperations": [
+        "host_ops.cron.list"
+      ],
+      "surfaceAccess": "native",
+      "operability": "direct",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "routePolicy": "AdminRead",
+        "effect": "None",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": true,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": "snapback cron list",
+        "mcp": "snapback_cron_list",
+        "hostOps": "cron.list",
+        "http": "POST /_snapback/api/host-ops",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": "backend/cron.md#inspect-declared-jobs-and-runtime-posture",
+      "authorities": [
+        "llp/0024-agent-operating-surface"
+      ],
+      "sources": [
+        "src/host_ops.rs",
+        "packages/snapback-cli/mcp-control.mjs"
+      ]
+    },
+    {
       "operation": "cron.runOne",
       "title": "Force-run one named cron job",
       "intents": [],
@@ -3296,110 +3345,6 @@
       ]
     },
     {
-      "operation": "data.patch.apply",
-      "title": "Apply one previewed bounded direct row patch",
-      "intents": [],
-      "status": "shipped",
-      "domain": "hostOps",
-      "hostOpsDisposition": "served",
-      "registeredOperations": [
-        "host_ops.data.patch.apply",
-        "host_ops.data.patch.apply.impersonated"
-      ],
-      "surfaceAccess": "native",
-      "operability": "direct",
-      "availability": {
-        "targets": [
-          "local"
-        ]
-      },
-      "policy": {
-        "authority": "AnonymousAdminBypass",
-        "routePolicy": "AdminWrite",
-        "effect": "None",
-        "responseSensitivity": "SensitiveApplicationData"
-      },
-      "behavior": {
-        "readOnly": false,
-        "destructive": true,
-        "approvalPosture": "confirmFirst",
-        "idempotent": false,
-        "openWorld": false,
-        "persistsAcrossRestart": true
-      },
-      "projections": {
-        "cli": "snapback data patch --apply --input <file|->",
-        "mcp": "snapback_data_patch_apply",
-        "hostOps": "data.patch.apply",
-        "http": "POST /_snapback/api/host-ops",
-        "adminClient": null,
-        "console": null
-      },
-      "guide": "operating/data-patch.md#apply",
-      "authorities": [
-        "llp/0024-agent-operating-surface",
-        "llp/0184-agent-accessible-control-plane"
-      ],
-      "sources": [
-        "src/data_patch.rs",
-        "src/local.rs",
-        "src/server.rs",
-        "packages/snapback-cli/mcp-control.mjs"
-      ]
-    },
-    {
-      "operation": "data.patch.preview",
-      "title": "Preview one bounded direct row patch",
-      "intents": [],
-      "status": "shipped",
-      "domain": "hostOps",
-      "hostOpsDisposition": "served",
-      "registeredOperations": [
-        "host_ops.data.patch.preview",
-        "host_ops.data.patch.preview.impersonated"
-      ],
-      "surfaceAccess": "native",
-      "operability": "direct",
-      "availability": {
-        "targets": [
-          "local"
-        ]
-      },
-      "policy": {
-        "authority": "AnonymousAdminBypass",
-        "routePolicy": "AdminWrite",
-        "effect": "None",
-        "responseSensitivity": "SensitiveApplicationData"
-      },
-      "behavior": {
-        "readOnly": false,
-        "destructive": false,
-        "approvalPosture": null,
-        "idempotent": false,
-        "openWorld": false,
-        "persistsAcrossRestart": false
-      },
-      "projections": {
-        "cli": "snapback data patch --preview --input <file|->",
-        "mcp": "snapback_data_patch_preview",
-        "hostOps": "data.patch.preview",
-        "http": "POST /_snapback/api/host-ops",
-        "adminClient": null,
-        "console": null
-      },
-      "guide": "operating/data-patch.md#preview",
-      "authorities": [
-        "llp/0024-agent-operating-surface",
-        "llp/0184-agent-accessible-control-plane"
-      ],
-      "sources": [
-        "src/data_patch.rs",
-        "src/local.rs",
-        "src/server.rs",
-        "packages/snapback-cli/mcp-control.mjs"
-      ]
-    },
-    {
       "operation": "data.scan",
       "title": "Bounded read-only table scan",
       "intents": [],
@@ -3441,54 +3386,6 @@
       ],
       "sources": [
         "src/server.rs route_registry()"
-      ]
-    },
-    {
-      "operation": "debug.live.forceResync",
-      "title": "Force one live subscription to resync (debug perturbation)",
-      "intents": [],
-      "status": "shipped",
-      "domain": "hostOps",
-      "hostOpsDisposition": "served",
-      "registeredOperations": [
-        "host_ops.debug.live.forceResync"
-      ],
-      "surfaceAccess": "native",
-      "operability": "direct",
-      "availability": {
-        "targets": [
-          "local"
-        ]
-      },
-      "policy": {
-        "authority": "operator",
-        "routePolicy": "AdminWrite",
-        "effect": "None",
-        "responseSensitivity": "OperatorMetadata"
-      },
-      "behavior": {
-        "readOnly": false,
-        "destructive": true,
-        "approvalPosture": "confirmFirst",
-        "idempotent": true,
-        "openWorld": false,
-        "persistsAcrossRestart": false
-      },
-      "projections": {
-        "cli": "snapback debug force-resync",
-        "mcp": "snapback_live_force_resync",
-        "hostOps": "debug.live.forceResync",
-        "http": "POST /_snapback/api/host-ops",
-        "adminClient": "forceLiveResync",
-        "console": null
-      },
-      "guide": "operating/host-ops.md",
-      "authorities": [
-        "llp/0024-agent-operating-surface"
-      ],
-      "sources": [
-        "src/host_ops.rs",
-        "packages/snapback-cli/mcp-control.mjs"
       ]
     },
     {
@@ -3821,49 +3718,6 @@
         "console": null
       },
       "guide": null,
-      "authorities": [
-        "llp/0031-server-route-taxonomy"
-      ],
-      "sources": [
-        "src/server.rs route_registry()"
-      ]
-    },
-    {
-      "operation": "ephemeral.operatorDelete",
-      "title": "Operator-bypass delete of one ephemeral entry (debug/repair)",
-      "intents": [],
-      "status": "shipped",
-      "domain": "systemApi",
-      "surfaceAccess": "native",
-      "operability": "direct",
-      "availability": {
-        "targets": [
-          "local"
-        ]
-      },
-      "policy": {
-        "authority": "operator",
-        "routePolicy": "AdminWrite",
-        "effect": "None",
-        "responseSensitivity": "SensitiveApplicationData"
-      },
-      "behavior": {
-        "readOnly": false,
-        "destructive": true,
-        "approvalPosture": "confirmFirst",
-        "idempotent": true,
-        "openWorld": false,
-        "persistsAcrossRestart": true
-      },
-      "projections": {
-        "cli": "snapback ephemeral operator-delete",
-        "mcp": "snapback_ephemeral_operator_delete",
-        "hostOps": null,
-        "http": "POST /_snapback/api/ephemeral/operator/delete",
-        "adminClient": null,
-        "console": null
-      },
-      "guide": "realtime/ephemeral-state.md#delete-one-entry-as-an-operator",
       "authorities": [
         "llp/0031-server-route-taxonomy"
       ],

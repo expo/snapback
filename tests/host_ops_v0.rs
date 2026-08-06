@@ -42,6 +42,61 @@ fn envelope(snapback: &mut LocalSnapback, body: Value) -> Value {
     serde_json::to_value(&result).expect("envelope serializes")
 }
 
+#[test]
+fn cron_list_host_operation_is_a_narrow_read_only_projection() {
+    let mut snapback = LocalSnapback::memory().expect("cron-list fixture");
+    let listed = envelope(&mut snapback, json!({ "operation": "cron.list" }));
+    assert_eq!(listed["ok"], true, "{listed}");
+    assert_eq!(listed["operation"], "cron.list");
+    assert_eq!(listed["data"]["cron"]["artifactKind"], "snapback.cron-list/v1");
+    assert!(listed["data"]["cron"]["jobs"].is_array());
+    assert!(listed["data"]["cron"].get("recentRuns").is_none());
+    assert!(listed["data"]["cron"].get("diagnostics").is_none());
+}
+
+#[tokio::test]
+async fn cron_list_get_alias_enforces_admin_read_and_returns_the_same_dto() {
+    let operation = snapback::server::operation_registry()
+        .into_iter()
+        .find(|operation| operation.operation == "host_ops.cron.list")
+        .expect("cron.list host operation registration");
+    assert_eq!(operation.path_policy, snapback::server::RoutePolicy::AdminRead);
+    assert_eq!(
+        operation.response_sensitivity,
+        snapback::server::ResponseSensitivity::OperatorMetadata
+    );
+
+    let listener = std::net::TcpListener::bind("0.0.0.0:0").unwrap();
+    let mut context = ServerContext::from_bound_listener(&listener).unwrap();
+    context.profile = ServerProfile::Test;
+    context.admin_token = Some("cron-admin".to_owned());
+    let test_app = snapback::server::app(AppState::from_snapback(
+        LocalSnapback::memory().expect("cron-list HTTP fixture"),
+        context,
+    ));
+
+    let refused = test_app
+        .clone()
+        .oneshot(admin_get("/_snapback/api/cron", None))
+        .await
+        .unwrap();
+    assert!(matches!(
+        refused.status(),
+        StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN
+    ));
+
+    let accepted = test_app
+        .oneshot(admin_get("/_snapback/api/cron", Some("cron-admin")))
+        .await
+        .unwrap();
+    assert_eq!(accepted.status(), StatusCode::OK);
+    let listed = response_json(accepted).await;
+    assert_eq!(listed["artifactKind"], "snapback.cron-list/v1");
+    assert!(listed["jobs"].is_array());
+    assert!(listed.get("recentRuns").is_none());
+    assert!(listed.get("diagnostics").is_none());
+}
+
 fn assert_reset_projection_unavailable(result: &Value) {
     assert_eq!(result["ok"], json!(false), "app.reset: {result}");
     assert_eq!(result["data"], json!({}), "app.reset: {result}");

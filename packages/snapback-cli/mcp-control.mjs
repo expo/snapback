@@ -664,6 +664,14 @@ export const CONTROL_TOOLS = [
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
   },
   {
+    name: 'snapback_cron_list',
+    operation: 'cron.list',
+    title: 'List cron jobs',
+    description: 'Read declared cron identities and current activation/next/last scheduler posture. Omits run ids, handler diagnostics/results, and jitter seeds.',
+    inputSchema: { type: 'object', additionalProperties: false, properties: {} },
+    annotations: { readOnlyHint: true, openWorldHint: false },
+  },
+  {
     name: 'snapback_jobs_list',
     operation: 'jobs.list',
     title: 'List one-off jobs',
@@ -1806,6 +1814,8 @@ export class McpControlServer {
         return this.adminResult('config.verify', 'POST', '/_snapback/api/config/verify', {
           body: { entry: args.entry },
         });
+      case 'snapback_cron_list':
+        return this.servedResult({ operation: 'cron.list' });
       case 'snapback_jobs_list':
         return this.adminResult('jobs.list', 'GET', '/_snapback/api/jobs');
       case 'snapback_jobs_show':

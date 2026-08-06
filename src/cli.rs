@@ -813,9 +813,7 @@ pub enum HostCommand {
         #[command(subcommand)]
         command: ConfigCommand,
     },
-    /// cron.tick / cron.runOne — the admin-gated forced dispatch surface
-    /// (LLP 0184 §P2: typed CLI/MCP projection of the existing
-    /// admin-write route; bounded work, ordinary receipts).
+    /// cron.list plus the admin-gated cron dispatch surface.
     Cron {
         #[command(subcommand)]
         command: CronCommand,
@@ -1184,6 +1182,11 @@ pub enum ErrorsCommand {
 /// `tick` so acceptance never depends on wall-clock due-ness.
 #[derive(clap::Subcommand)]
 pub enum CronCommand {
+    /// cron.list — list declared jobs and their current scheduler posture.
+    List {
+        #[command(flatten)]
+        target: TargetArgs,
+    },
     /// cron.tick — force-claim and run every currently-due cron job.
     Tick {
         #[command(flatten)]
@@ -4958,6 +4961,9 @@ fn config_command(command: ConfigCommand) -> anyhow::Result<()> {
 /// CLI projections of the existing admin-gated forced-dispatch routes.
 fn cron_command(command: CronCommand) -> anyhow::Result<()> {
     match command {
+        CronCommand::List { target } => {
+            host_op_via_http(&target, json!({ "operation": "cron.list" }))
+        }
         CronCommand::Tick { target } => {
             let response = admin_json_post(&target, "/_snapback/api/cron/tick", json!({}))?;
             println!("{}", serde_json::to_string_pretty(&response)?);
@@ -10846,7 +10852,15 @@ mod tests {
     }
 
     #[test]
-    fn cron_cli_parses_tick_and_run() {
+    fn cron_cli_parses_list_tick_and_run() {
+        let list = Cli::parse_from(["snapback", "cron", "list", "--url", "http://127.0.0.1:4287"]);
+        assert!(matches!(
+            list.command,
+            Some(HostCommand::Cron {
+                command: CronCommand::List { .. }
+            })
+        ));
+
         let tick = Cli::parse_from(["snapback", "cron", "tick", "--url", "http://127.0.0.1:4287"]);
         assert!(matches!(
             tick.command,

@@ -64,6 +64,7 @@ here (or listed here but gone from the code).
 | /_snapback/api/console/approval/approve | operating.admin-console |
 | /_snapback/api/cron/tick | backend.cron |
 | /_snapback/api/cron/{name}/run | backend.cron |
+| /_snapback/api/cron | backend.cron |
 | /_snapback/api/data/{table} | operating.admin-console |
 | /_snapback/api/ephemeral/cleanup | notAuthorFacing (operator maintenance) |
 | /_snapback/api/ephemeral/operator/delete | notAuthorFacing (local operator repair, LLP 0184 §C) |
@@ -155,6 +156,7 @@ here (or listed here but gone from the code).
 | --- | --- |
 | host_ops.app.inspect | operating.host-ops |
 | host_ops.app.reset | operating.host-ops |
+| host_ops.cron.list | backend.cron |
 | host_ops.asset.put | backend.assets |
 | host_ops.asset.ensureSeedFixture | backend.assets |
 | host_ops.asset.inspect | backend.assets |

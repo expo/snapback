@@ -59,6 +59,25 @@ The complete authoring inventory for each job:
 Codegen validates job names, schedules, action existence/kind, and the
 auth-requirement boundary before the server loads the manifest.
 
+## Inspect declared jobs and runtime posture
+
+Use the read-only operator projection before forcing any scheduler work:
+
+```sh
+snapback cron list --ready-file .snapback/ready.json
+```
+
+The equivalent control-MCP tool is `snapback_cron_list`; the direct HTTP
+alias is AdminRead-gated `GET /_snapback/api/cron`. The response lists each
+declared job's name, action, schedule, enabled/activation state, next nominal
+and due time, whether work is in flight, last-run time/outcome, and consecutive
+failure count. These are the same facts already held for runtime inspection,
+so listing does not tick, run, or persist scheduler work.
+
+This narrow view intentionally omits exact run IDs, handler error details and
+results, jitter seeds, and recent-run payloads. Use the secret-read-gated full
+`app.inspect`/admin inspect view when those details are actually required.
+
 ## Gate polling on real demand
 
 `whileLive` keeps a polling job inactive when nobody subscribes to the

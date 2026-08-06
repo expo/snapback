@@ -43,8 +43,9 @@ pub const TELEMETRY_EXPORT_HOST_ENVELOPE_ALLOWANCE: usize = 64 * 1024;
 /// `require_operation_profile`. These groups are fully served today; they
 /// belong here so `host_op_diagnostic` recognizes their spelling instead of
 /// rewriting it to `"unrecognized"` in diagnostics.
-pub const SERVED_HOST_OPS: [&str; 39] = [
+pub const SERVED_HOST_OPS: [&str; 40] = [
     "app.inspect",
+    "cron.list",
     "app.reset",
     "app.seed.ensure.v1",
     "app.seed.preview.v1",
@@ -1345,6 +1346,22 @@ pub(crate) fn execute_host_op_with_profile_and_authority(
     }
 
     match operation.as_str() {
+        "cron.list" => match snapback.inspect_core() {
+            Ok(state) => envelope(
+                snapback,
+                true,
+                authority_none(),
+                json!({ "cron": crate::cron::CronListState::from(state.cron) }),
+                Vec::new(),
+            ),
+            Err(error) => envelope(
+                snapback,
+                false,
+                authority_none(),
+                Value::Object(Default::default()),
+                vec![error.diagnostic],
+            ),
+        },
         "app.inspect" => match snapback.inspect() {
             Ok(state) => {
                 let runtime_state = serde_json::to_value(&state)

@@ -136,6 +136,7 @@ const CLI_PROJECTIONS = {
   'config.status': 'snapback config status',
   'config.plan': 'snapback config plan',
   'config.verify': 'snapback config verify <entry>',
+  'cron.list': 'snapback cron list',
   'jobs.list': 'snapback jobs list',
   'jobs.show': 'snapback jobs show <id>',
   // LLP 0184 §P2 landed CLI verbs, each paired with a mcp-control.mjs
@@ -167,6 +168,7 @@ const GUIDE_ANCHORS = {
   'config.status': 'operating/secrets-and-config.md#cli-and-mcp-projections-for-statusplanverify',
   'config.plan': 'operating/secrets-and-config.md#cli-and-mcp-projections-for-statusplanverify',
   'config.verify': 'operating/secrets-and-config.md#cli-and-mcp-projections-for-statusplanverify',
+  'cron.list': 'backend/cron.md#inspect-declared-jobs-and-runtime-posture',
   'control.catalog.read': 'operating/agent-controls.md#search-the-build-catalog',
   'control.catalog.describe': 'operating/agent-controls.md#describe-one-operation',
   'control.catalog.instance.read': 'operating/agent-controls.md#build-versus-instance-identity',
@@ -468,6 +470,7 @@ const ROUTE_OPERATION_NAMES = {
   'POST /_snapback/api/console/claim/status': 'admin.link.status',
   'POST /_snapback/api/console/claim/revoke': 'admin.link.revoke',
   'POST /_snapback/api/cron/tick': 'cron.tick',
+  'GET /_snapback/api/cron': 'cron.list',
   'POST /_snapback/api/cron/{name}/run': 'cron.runOne',
   'POST /_snapback/api/jobs/drain': 'jobs.drain',
   'GET /_snapback/api/jobs': 'jobs.list',
@@ -512,6 +515,7 @@ const ROUTE_ALREADY_COVERED_BY = {
   'GET /_snapback/api/errors/issue': 'errors.issue',
   'POST /_snapback/api/errors/transition': 'errors.transition',
   'GET /_snapback/api/debug/network-profile': 'debug.networkProfileGet',
+  'GET /_snapback/api/cron': 'cron.list',
   'PUT /_snapback/api/debug/network-profile': 'debug.networkProfileSet',
 };
 

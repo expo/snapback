@@ -23,6 +23,73 @@ pub struct CronInspectState {
     pub diagnostics: Vec<Diagnostic>,
 }
 
+/// Operator-safe cron inventory projected from the already-computed runtime
+/// inspection state. This intentionally excludes run identities, handler
+/// diagnostics/results, jitter seeds, and recent-run payloads.
+///
+/// @ref LLP 0184#p1-read-and-diagnose — cron inspection is a read-only direct
+/// projection of existing manifest/runtime facts, not a mutating-route proxy.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+pub struct CronListState {
+    #[serde(rename = "artifactKind")]
+    pub artifact_kind: String,
+    #[serde(rename = "schemaVersion")]
+    pub schema_version: String,
+    pub jobs: Vec<CronListJob>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+pub struct CronListJob {
+    pub name: String,
+    pub action: String,
+    pub enabled: bool,
+    pub schedule: CronSchedule,
+    #[serde(rename = "activationPolicy")]
+    pub activation_policy: String,
+    #[serde(rename = "activationState")]
+    pub activation_state: CronActivationState,
+    #[serde(rename = "nextNominalAtMs")]
+    pub next_nominal_at_ms: Option<u64>,
+    #[serde(rename = "nextDueAtMs")]
+    pub next_due_at_ms: Option<u64>,
+    #[serde(rename = "inFlight")]
+    pub in_flight: bool,
+    #[serde(rename = "lastRunAtMs")]
+    pub last_run_at_ms: Option<u64>,
+    #[serde(rename = "lastOutcome")]
+    pub last_outcome: Option<CronRunOutcome>,
+    #[serde(rename = "consecutiveFailures")]
+    #[schemars(range(max = PORTABLE_STORAGE_VERSION_MAX))]
+    pub consecutive_failures: u64,
+}
+
+impl From<CronInspectState> for CronListState {
+    fn from(inspect: CronInspectState) -> Self {
+        Self {
+            artifact_kind: "snapback.cron-list/v1".to_owned(),
+            schema_version: inspect.schema_version,
+            jobs: inspect
+                .jobs
+                .into_iter()
+                .map(|job| CronListJob {
+                    name: job.name,
+                    action: job.action,
+                    enabled: job.enabled,
+                    schedule: job.schedule,
+                    activation_policy: job.activation_policy,
+                    activation_state: job.activation_state,
+                    next_nominal_at_ms: job.next_nominal_at_ms,
+                    next_due_at_ms: job.next_due_at_ms,
+                    in_flight: job.in_flight_run_id.is_some(),
+                    last_run_at_ms: job.last_run_at_ms,
+                    last_outcome: job.last_outcome,
+                    consecutive_failures: job.consecutive_failures,
+                })
+                .collect(),
+        }
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct CronJobInspect {
     pub name: String,
@@ -1771,6 +1838,30 @@ mod tests {
             cron_jobs: jobs,
             ..FunctionManifest::default()
         }
+    }
+
+    #[test]
+    fn list_projection_keeps_operator_posture_and_drops_sensitive_runtime_detail() {
+        let mut job = interval_job("poll", 60_000);
+        job.jitter_policy.enabled = false;
+        let manifest = manifest_with_jobs(vec![job]);
+        let mut runtime = LocalCronRuntime::default();
+        runtime.reconcile(&manifest);
+        let inspect = runtime.inspect(&manifest, &BTreeSet::new(), 120_000);
+        let listed = CronListState::from(inspect);
+
+        assert_eq!(listed.artifact_kind, "snapback.cron-list/v1");
+        assert_eq!(listed.jobs.len(), 1);
+        assert_eq!(listed.jobs[0].name, "poll");
+        assert_eq!(listed.jobs[0].action, "refreshAction");
+        assert_eq!(listed.jobs[0].next_nominal_at_ms, Some(120_000));
+        assert_eq!(listed.jobs[0].next_due_at_ms, Some(120_000));
+
+        let wire = serde_json::to_value(listed).unwrap();
+        assert!(wire["jobs"][0].get("inFlightRunId").is_none());
+        assert!(wire["jobs"][0].get("lastError").is_none());
+        assert!(wire["jobs"][0].get("jitterSeed").is_none());
+        assert!(wire["jobs"][0].get("recentRuns").is_none());
     }
 
     /// ENG-24369 — keep the local scheduler's strict-next arithmetic pinned to

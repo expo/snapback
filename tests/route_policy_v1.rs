@@ -278,6 +278,9 @@ async fn registry_and_router_have_black_box_path_method_parity() {
         // The llms.txt convention pins this guide projection to the root.
         ("GET", "/llms.txt"),
         ("GET", "/_snapback/api/health"),
+        ("GET", "/_snapback/api/control-catalog"),
+        ("GET", "/_snapback/api/control-catalog/instance"),
+        ("GET", "/_snapback/api/control-catalog/operations/{operation}"),
         ("GET", "/_snapback/api/telemetry/stats"),
         ("GET", "/_snapback/api/telemetry/events"),
         ("GET", "/_snapback/api/telemetry/export"),
@@ -301,6 +304,7 @@ async fn registry_and_router_have_black_box_path_method_parity() {
         ("GET", "/_snapback/api/receipts"),
         ("GET", "/_snapback/api/data/{table}"),
         ("POST", "/_snapback/api/functions/{name}/run"),
+        ("GET", "/_snapback/api/cron"),
         ("POST", "/_snapback/api/cron/tick"),
         ("POST", "/_snapback/api/cron/{name}/run"),
         // LLP 0070 first slice: the injected-clock jobs drain plus the
@@ -1057,6 +1061,7 @@ fn operation_registry_is_exhaustive_and_bound_to_registered_carriers() {
             "host_ops.branch.inspect.v1",
             "host_ops.branch.list.v1",
             "host_ops.branch.reap.v1",
+            "host_ops.cron.list",
             "host_ops.debug.networkProfileGet",
             "host_ops.debug.networkProfileSet",
             "host_ops.errors.issue",
@@ -1431,6 +1436,15 @@ fn session_overlay_closes_every_host_ops_branch() {
     assert_eq!(telemetry_stats.path_policy, RoutePolicy::AdminRead);
     assert_eq!(
         telemetry_stats.response_sensitivity,
+        ResponseSensitivity::OperatorMetadata
+    );
+
+    let cron_list = host_ops
+        .get("host_ops.cron.list")
+        .expect("ordinary cron inventory operation");
+    assert_eq!(cron_list.path_policy, RoutePolicy::AdminRead);
+    assert_eq!(
+        cron_list.response_sensitivity,
         ResponseSensitivity::OperatorMetadata
     );
 

@@ -168,6 +168,7 @@ The embedded build catalog contains **113 operations** at digest `sha256:a5b8693
 | `control.catalog.describe` | `native` | `direct` | `shipped` | snapback controls describe <operation> | snapback-controls://operation/{operation} | operating/agent-controls.md#describe-one-operation |
 | `control.catalog.instance.read` | `mcpOnly` | `direct` | `shipped` | — | snapback-controls://instance | operating/agent-controls.md#build-versus-instance-identity |
 | `control.catalog.read` | `native` | `direct` | `shipped` | snapback controls list | snapback-controls://catalog | operating/agent-controls.md#search-the-build-catalog |
+| `cron.list` | `native` | `direct` | `shipped` | snapback cron list | snapback_cron_list | backend/cron.md#inspect-declared-jobs-and-runtime-posture |
 | `cron.runOne` | `native` | `direct` | `shipped` | snapback cron run | snapback_cron_run | — |
 | `cron.status.read` | `apiOnly` | `direct` | `shipped` | — | — | — |
 | `cron.tick` | `native` | `direct` | `shipped` | snapback cron tick | snapback_cron_tick | — |

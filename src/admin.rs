@@ -4099,6 +4099,13 @@ pub(crate) fn admin_route_registrations() -> Vec<RegisteredRoute> {
             post(admin_run_function),
         ),
         RegisteredRoute::new(
+            read(
+                "/_snapback/api/cron",
+                ResponseSensitivity::OperatorMetadata,
+            ),
+            get(admin_cron_list),
+        ),
+        RegisteredRoute::new(
             write(
                 "POST",
                 "/_snapback/api/cron/tick",
@@ -5453,6 +5460,21 @@ async fn admin_cron_tick(
     // action runs themselves execute off it.
     let runs = crate::server::cron_tick_detached(&snapback, now).await?;
     Ok(Json(runs))
+}
+
+async fn admin_cron_list(
+    State(snapback): State<SharedSnapback>,
+    State(ctx): State<Arc<ServerContext>>,
+    headers: HeaderMap,
+) -> Result<Json<crate::cron::CronListState>, ApiError> {
+    authorize(&ctx, &headers, false)?;
+    let cron = crate::server::with_snapback(&snapback, |snapback| {
+        snapback
+            .inspect_core()
+            .map(|state| crate::cron::CronListState::from(state.cron))
+    })
+    .await?;
+    Ok(Json(cron))
 }
 
 #[derive(Debug, Default, serde::Deserialize)]
