@@ -1374,3 +1374,10 @@ The publication finalizer then refreshed the relation/activity carrier and the
 persistent-store receipt chain; sequence allocation reproduced unchanged.
 These are again batched carrier updates, not per-landing regeneration or an
 actively owned correctness edit.
+
+With those embedded carriers committed, the coded bootstrap qualified exact
+source `f8341b7dbc0baf9b5b9b937a4e6190bf36a8da80`; the final Latency
+producer passed 5/5 on configured binary SHA-256
+`c3385f3b6fa00066568c17540693c8ba8f849129ed6112efdd43a19985a7907d`
+and replaced the stale-main activation that had failed the `dac1ea722` fast
+proof. No capability-admission bypass was used.
