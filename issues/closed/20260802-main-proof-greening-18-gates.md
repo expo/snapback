@@ -1151,7 +1151,7 @@ and all regenerated AppDescriptor/package surfaces reproduce. No correctness
 failure was found or repaired in the actively owned PUSH-01 seam or F0a fork
 implementation.
 
-### Exact final-candidate Linux telemetry carrier — 2026-08-06
+### Exact pre-reconciliation Linux telemetry carrier — 2026-08-06
 
 The replacement EPYC producer measured a clean detached checkout at exact
 source `f51c4b1a9456264b340e0af7b8d66e396b57be38`. Before dispatch the host
@@ -1179,5 +1179,34 @@ has SHA-256
 `0d45b1b91f1a255f440e18a1f995758ce60615460e01ac77fae30dc690100d81`.
 The idle interval observed zero telemetry storage mutations, zero process read
 bytes, zero process write bytes, 3/10 allowed CPU ticks, and zero RSS-page
-growth. This carrier closes the final batched drift prerequisite; it is a new
-measurement, not a rebound historical receipt.
+growth. This carrier closed the batched drift prerequisite for the `f51c4b1a9`
+candidate; it was a new measurement, not a rebound historical receipt.
+
+Main advanced during that measurement through the IndexedDB writer-election
+and array-field validator landings. Both changed the telemetry proof-source
+closure, so the `f51c4b1a9` receipt above remains evidence for its exact source
+but was superseded rather than rebound. The later deployment-identity and
+required-surface carrier-only commits do not intersect that closure.
+
+### Exact combined-head Linux telemetry carrier — 2026-08-06
+
+The final producer repeated the same clean-host procedure at exact combined
+source `26698baf7d99af3973094aea8ea77d03275cce17`, after merging the completed
+source landings. The read-only doctor, coded bootstrap, locked Rust smoke,
+clean release build, runtime-readiness issuance, full benchmark, and
+120-second idle witness all passed without administrator changes, manual
+machine repair, loader bypasses, or source substitution.
+
+The retained receipt has SHA-256
+`2adadb63184b072d3399258355aa61c65a9b0841c0bfbe475ba657267119ea42`
+and covers 474 proof-source files with digest
+`a6e59f388feabce2a5a7bf4efcb089c036050d9b53c5f399a2d4f409f1adf955`.
+The 1,209-line transcript at
+`/var/cache/expose-build/snapback-telemetry-266.3DYfol/telemetry-full.log`
+has SHA-256
+`3cc1e1dc079d979b16f0a5d05c76e319bcf77c866e47ce52955208d338e29f60`.
+The idle interval again observed zero storage mutations, zero process read
+bytes, zero process write bytes, 3/10 allowed CPU ticks, and zero RSS-page
+growth. Package export typing remains green across 92 subpaths and 12
+packages; the reconciled inventory now selects 215 tests. This fresh carrier,
+not either superseded predecessor, is the evidence for the combined landing.
