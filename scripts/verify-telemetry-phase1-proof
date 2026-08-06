@@ -48,8 +48,9 @@ case "$PROOF_MODE" in
         exec node "$PROOF_ROOT/scripts/telemetry-phase1-evidence.mjs" validate-history "$PROOF_RECEIPT"
         ;;
     --require-current)
-        # Release and capability-promotion callers retain the old exact-source
-        # boundary even though ordinary merge cadence accepts explicit lag.
+        # This is the exact-source boundary release and capability-promotion
+        # callers must use. No repository caller is wired yet; the blocking
+        # follow-up is issues/20260806-telemetry-currentness-not-wired-to-release-promotion.md.
         exec node "$PROOF_ROOT/scripts/telemetry-phase1-evidence.mjs" require-current "$PROOF_RECEIPT"
         ;;
     --smoke)

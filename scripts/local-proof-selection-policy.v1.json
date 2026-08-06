@@ -407,7 +407,8 @@
         "required-surface-build-fixtures",
         "artifact-path-hygiene-fixtures",
         "codegen-regressions",
-        "snapback-codegen-package"
+        "snapback-codegen-package",
+        "snapback-contract-package"
       ]
     },
     "native": {
@@ -500,6 +501,9 @@
         "server-process-lifecycle-fixtures",
         "chrome-process-lifecycle-fixtures",
         "harness-cleanup-fixtures",
+        "allowlist-install-fixtures",
+        "action-fetch-fence-fixtures",
+        "harness-envelope-fixtures",
         "browser-availability",
         "binary-provenance-drift",
         "current-binary-build",
@@ -565,6 +569,7 @@
         "deployment-identity",
         "all-aboard-egress",
         "all-aboard-startup-timing",
+        "harness-envelope-fixtures",
         "cloudflare-local-suite"
       ]
     },

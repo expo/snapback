@@ -24,7 +24,11 @@ implementation and direct delivery; the affected-selector tranche follows.)
 exact diff and inventory, closes prerequisites, fails broad for unknown/shared
 paths, preserves mandatory Contract/Exact and admin behavior, and replays four
 historical defect diffs. Push/PR runs use affected selection; six-hour/manual
-runs retain the complete inventory.)
+runs retain the complete inventory.) 2026-08-06 (ship-review corrections:
+required Exact mode reaches frozen surface installs from a clean checkout;
+Contract and harness owners select their direct fixtures; telemetry
+exact-current release/promotion wiring is recorded honestly as an open
+blocker; obsolete cadence prose removed.)
 **Related:** LLP 0010, LLP 0032, LLP 0109, LLP 0115, LLP 0145, LLP 0154,
 issues/closed/20260802-local-proof-is-cancelled-before-it-can-finish-on-main.md,
 issues/closed/20260802-verify-local-proof-stops-at-the-first-failure.md,
@@ -345,15 +349,13 @@ selection before installing Bun, Chrome, Rust, Cargo audit, or the large Ibex
 submodule and skips those setup costs when the selected closure does not need
 them. Both the selection receipt and gate JSONL are retained on green or red.
 
-The first implemented slice is the telemetry Phase-1 full producer. A
-six-hour schedule plus manual dispatch runs one clean Linux source snapshot;
-`cancel-in-progress: false` lets that measurement finish while the concurrency
-group retains only the newest pending trigger. Its candidate is useful
-historical evidence even when `main` advances during the run. Ordinary receipt
-assessment reports `CURRENT | LAGGING | OVERDUE | DIVERGED`; it does not turn a
-valid older measurement into corrupt evidence merely because the branch is
-busy. This slice does not claim the complete canonical inventory has moved to
-latest-main cadence yet.
+Telemetry Phase 1 was the first slice to establish this latest-main pattern.
+Its separate six-hour/manual workflow still produces one clean Linux evidence
+snapshot, while the canonical workflow described above now supplies the
+complete inventory cadence. Telemetry candidates remain historical evidence
+when `main` advances; ordinary receipt assessment reports
+`CURRENT | LAGGING | OVERDUE | DIVERGED` without misclassifying valid older
+measurements as corrupt.
 
 #### D2.4 Nightly, release, and platform proof
 
@@ -367,9 +369,11 @@ For retained telemetry evidence, three executable claims are distinct:
 historical validation, rolling-head assessment, and exact-current release /
 capability-promotion authority. The scheduled full producer owns rolling
 health; ordinary merges may proceed with an explicit ancestral
-`LAGGING`/`OVERDUE` receipt, while a frozen release candidate must pass the
-exact-current mode. LLP 0154's 2026-08-06 amendment is the normative trust
-contract.
+`LAGGING`/`OVERDUE` receipt. A frozen release candidate is required to pass the
+exact-current mode, but no repository release/promotion caller invokes that
+mode yet. Telemetry therefore cannot authorize either operation until
+`issues/20260806-telemetry-currentness-not-wired-to-release-promotion.md` is
+resolved. LLP 0154's 2026-08-06 amendment is the normative trust contract.
 
 No test is moved to nightly merely because it is slow. Its cadence follows the
 risk it covers: a seed change still runs seed compatibility before landing; an
@@ -638,7 +642,8 @@ executable code:
   receipt mismatch rebuild normally;
 - the telemetry slice of Phase 2 has a scheduled/on-demand latest-main Linux
   producer, while ordinary receipt checks separate historical validity from
-  rolling lag and preserve exact-current release authority; and
+  rolling lag; its exact-current validator exists, but release/promotion
+  wiring remains an explicit blocker; and
 - CI decides whether target cleanup is required before deleting test artifacts;
   measured-safe headroom preserves them for the final build and versioned-seed
   witnesses, while low or unmeasurable headroom still cleans fail-safe;
@@ -655,7 +660,8 @@ No test, assertion, platform obligation, capability gate, or receipt claim was
 removed. The measured 7.5-minute doctor saving and bootstrap savings remain
 projections until a green integrated CI run produces the new timing artifact.
 D3.4–D3.6, D4 experiments, the complete D5 ownership/risk metadata, ten-run
-latency evidence, and the final release/promotion green-history condition
-remain open. The next recommended move is to observe affected-selection and
-complete-latest-main artifacts long enough to validate the latency targets
-before pursuing D3.4 predecessor caching or D3.5 behavior deduplication.
+latency evidence, exact-current telemetry release/promotion wiring, and the
+final release/promotion green-history condition remain open. The next
+recommended move is to observe affected-selection and complete-latest-main
+artifacts long enough to validate the latency targets before pursuing D3.4
+predecessor caching or D3.5 behavior deduplication.

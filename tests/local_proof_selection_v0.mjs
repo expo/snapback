@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import {
@@ -55,6 +56,7 @@ test('affected groups retain mandatory Contract/Exact and admin behavior', () =>
   includesAll(client, [
     'snapback-client-package',
     'snapback-react-package',
+    'exact-todo-install',
     'exact-todo-contract',
     'admin-acceptance',
     'current-binary-readiness',
@@ -62,6 +64,42 @@ test('affected groups retain mandatory Contract/Exact and admin behavior', () =>
   assert.equal(client.requirements.native, true);
   assert.equal(client.requirements.browser, true);
   assert.equal(client.selectedGates.includes('cloudflare-local-suite'), false);
+});
+
+test('required Exact mode reaches clean surface installs before availability sentinels', () => {
+  const proof = readFileSync(new URL('../scripts/verify-local-proof', import.meta.url), 'utf8');
+  const start = proof.indexOf('exact_available() {');
+  const end = proof.indexOf('\n}', start);
+  assert(start >= 0 && end > start, 'exact availability function must be bounded');
+  const availability = proof.slice(start, end + 2);
+  assert.match(availability, /command -v bun[^]*VERIFY_EXACT[^]*return 0[^]*node_modules/u);
+  assert(
+    availability.indexOf('VERIFY_EXACT') < availability.lastIndexOf('node_modules'),
+    'required mode must not depend on ignored pre-install surface state',
+  );
+  const cleanProbe = `${availability}\nROOT=/definitely-missing; bun() { :; }`;
+  assert.doesNotThrow(() => execFileSync(
+    'bash', ['-c', `VERIFY_EXACT=1; ${cleanProbe}; exact_available`],
+  ));
+  assert.throws(() => execFileSync(
+    'bash', ['-c', `VERIFY_EXACT=auto; ${cleanProbe}; exact_available`],
+    { stdio: 'ignore' },
+  ));
+});
+
+test('package owners select their direct package and harness fixtures', () => {
+  const contract = select(['packages/snapback-contract/index.mjs']);
+  includesAll(contract, ['snapback-contract-package']);
+
+  const harness = select(['packages/snapback-harness/ctx-bootstrap.js']);
+  includesAll(harness, [
+    'allowlist-install-fixtures',
+    'action-fetch-fence-fixtures',
+    'harness-envelope-fixtures',
+  ]);
+
+  const cloudflare = select(['cloudflare/src/platform-errors.js']);
+  includesAll(cloudflare, ['harness-envelope-fixtures']);
 });
 
 test('native, Cloudflare, seed, and carrier changes select their unique claims', () => {

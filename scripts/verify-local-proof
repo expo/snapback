@@ -105,6 +105,12 @@ finish() {
 
 exact_available() {
     command -v bun >/dev/null 2>&1 || return 1
+    # Required CI mode owns the frozen surface installs below. Do not require
+    # their ignored node_modules outputs to exist before those producer gates
+    # get a chance to run on a clean checkout.
+    if [ "$VERIFY_EXACT" = "1" ]; then
+        return 0
+    fi
     [ -f "$ROOT/demos/all-aboard/surfaces/contract/node_modules/@exact/contract/package.json" ] ||
         [ -f "$ROOT/demos/cursors-web/surfaces/contract/node_modules/@exact/contract/package.json" ]
 }

@@ -832,6 +832,9 @@ requirements in `local-proof-selection.json`, reopens that receipt before
 execution, and uploads it beside the JSONL results. Pull requests and `main`
 pushes use this affected selection. A six-hour/manual, non-cancelling
 latest-main run retains the complete inventory and coalesces pending heads.
+When Exact/admin behavior is required, the clean runner enters the selected
+frozen surface-install gates before consulting ignored local `node_modules`;
+preexisting surface dependencies are only an optional-local optimization.
 Affected evidence is per-change attribution only: release, capability
 promotion, and any subsystem's complete-corpus rule continue to require their
 declared complete/release authority. This is the landed D1/D2 boundary of
