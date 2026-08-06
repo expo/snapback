@@ -50,6 +50,13 @@ checks found newer main. The two later cuts were merged normally; C33 is the
 prospective exact clean successor. The Spec remains `Draft` and the capability
 remains `Missing`.
 
+**Qualification update — 2026-08-06:** Exact C33 received fresh mutually
+blind Codex-family and Fable-family `READY` verdicts, but the mandatory
+post-review fetch found newer main before performance. Normal merge commit
+`d56721ca5a` preserves the carrier/custody work and incorporates the upstream
+fork-recovery and anonymous-client wire fixes. C34 is prospective; the Spec
+remains `Draft` and the capability remains `Missing`.
+
 The remaining closure gates are:
 
 - invoke the closed production activation command only after independent review,
@@ -143,6 +150,20 @@ prospective exact candidate.
 The Spec remains `Draft` and the capability remains `Missing`. Fresh exact
 review, fixed-Air performance, named-author acceptance, and publication
 binding remain open.
+
+## C33 post-review abandonment and C34 merge — 2026-08-06
+
+Exact clean C33 commit `60637db377a681ff1f22cbe19f7b49b96b20ab9f`
+and implementation digest
+`sha256:40789d24edf34b3a9cb9544e94e47337d5beb35ef065d290e19bcc67e610010d`
+received independent fresh Codex-family and Fable-family `READY` verdicts.
+The mandatory post-review fetch then found newer `origin/main` at
+`d4ac75595d85e532d9938ea56b8cee03f929eaf4`, so C33 was abandoned before
+performance and no final C33 review artifact was accepted. Normal merge commit
+`d56721ca5a` retains the carrier, custody, writer, and fail-closed projection
+repairs while adding the fork asset-recovery and anonymous-public sessions
+wire changes. C34 must receive fresh exact dual review before performance.
+The Spec remains `Draft` and the capability remains `Missing`.
 
 ## Progress — 2026-08-04
 

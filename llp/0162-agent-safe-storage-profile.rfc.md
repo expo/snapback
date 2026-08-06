@@ -29,6 +29,18 @@ from 208 to the actual 224 leaves, and C33 is the next prospective exact clean
 candidate. No C32 review artifact or performance result qualifies publication,
 and every capability remains `Missing`.
 
+**Qualification amendment (2026-08-06, v0.38):** Exact clean C33 commit
+`60637db377a681ff1f22cbe19f7b49b96b20ab9f`, implementation digest
+`sha256:40789d24edf34b3a9cb9544e94e47337d5beb35ef065d290e19bcc67e610010d`,
+and Ibex gitlink `4c34c831aa087d6783b0d68f281cdb374ed7fc89` received two fresh,
+mutually blind `READY` verdicts. The mandatory post-review fetch then found
+newer `origin/main` at `d4ac75595d85e532d9938ea56b8cee03f929eaf4`, so C33 was
+abandoned before performance and its reviews do not qualify a successor.
+Merge commit `d56721ca5a` incorporates those fork-recovery, client-custody,
+and demo changes normally. C34 is the prospective exact clean candidate and
+must rerun fresh dual review plus both unchanged one-shot performance gates;
+every capability remains `Missing`.
+
 **Qualification amendment (2026-08-05, v0.23):** C14's valid failed paired
 result and the prospective pre-C15 production correction are recorded below.
 Ordinary storage keeps history infrastructure eager but pays for the separate

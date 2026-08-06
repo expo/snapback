@@ -82,6 +82,15 @@ custody, and fail-closed projection repairs while incorporating the current
 fork/AppBinding work. C33 is the next prospective exact clean candidate; the
 Spec remains `Draft` and every related capability remains `Missing`.
 
+**Qualification amendment (2026-08-06, C34):** Exact C33 received fresh
+Codex-family and Fable-family `READY` verdicts, but the mandatory post-review
+fetch found newer `origin/main`; no performance process started and no C33
+review artifact qualifies publication. Normal merge commit `d56721ca5a`
+preserves this Spec's carrier and custody repairs while incorporating the new
+fork-recovery and anonymous-client transport work. C34 is the prospective
+exact clean candidate. The Spec remains `Draft` and every related capability
+remains `Missing` pending fresh exact review, performance, and publication.
+
 **Related:** LLP 0012, LLP 0037, LLP 0043, LLP 0055, LLP 0095, LLP 0133,
 LLP 0148, LLP 0162
 
@@ -946,3 +955,18 @@ mainline cuts were merged normally as `cc5d6bce64550210d7b55b929841a8f9af8f2f68`
 and `211f85714cdac7abdf4022b77cb08bce4419a35c`, with combined guide/generated
 closures regenerated. C33 must receive fresh exact dual review before any
 performance process starts.
+
+## Implementation record — 2026-08-06, C33 post-review abandonment and C34 merge
+
+Exact clean C33 commit `60637db377a681ff1f22cbe19f7b49b96b20ab9f`
+and implementation digest
+`sha256:40789d24edf34b3a9cb9544e94e47337d5beb35ef065d290e19bcc67e610010d`
+received independent fresh `READY` verdicts from the Codex and Fable model
+families. The required post-review fetch then found newer main at
+`d4ac75595d85e532d9938ea56b8cee03f929eaf4`; C33 was therefore abandoned
+before performance and no final review artifacts were published for it.
+Normal merge commit `d56721ca5a` compositionally retains the Track B carrier,
+custody, and fail-closed projection repairs while adding the newer fork asset
+recovery and anonymous-public client wire fixes. C34 must pass fresh exact
+dual review before performance. The Spec remains `Draft` and every related
+capability remains `Missing`.
