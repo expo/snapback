@@ -48,15 +48,36 @@ exact_available() {
         [ -f "$ROOT/demos/cursors-web/surfaces/contract/node_modules/@exact/contract/package.json" ]
 }
 
+# The dirty fact is scoped to the runtime binary's input set (shared
+# definition: scripts/runtime-build-inputs.txt), not the whole tree, so
+# demo/guide-authoring/LLP/issue edits do not disqualify a prepared binary or
+# force identity-consuming crates to recompile
+# (issues/closed/20260805-whole-tree-dirty-flag-forces-runtime-rebuild.md).
+# A missing definition file falls back to whole-tree status (conservative).
 stamp_snapback_build_identity() {
-    local commit status
+    local commit status inputs_file line
+    local -a input_pathspecs=()
     commit="$(git rev-parse HEAD 2>/dev/null || true)"
     unset SNAPBACK_BUILD_GIT_COMMIT
     export SNAPBACK_BUILD_GIT_DIRTY=true
     if [ -n "$commit" ]; then
         export SNAPBACK_BUILD_GIT_COMMIT="$commit"
-        if status="$(git status --porcelain 2>/dev/null)" && [ -z "$status" ]; then
+        inputs_file="$ROOT/scripts/runtime-build-inputs.txt"
+        if [ -f "$inputs_file" ]; then
+            while IFS= read -r line; do
+                case "$line" in ''|\#*) continue ;; esac
+                input_pathspecs+=("$line")
+            done <"$inputs_file"
+        fi
+        if [ "${#input_pathspecs[@]}" -gt 0 ]; then
+            status="$(git status --porcelain --ignore-submodules=untracked -- "${input_pathspecs[@]}" 2>/dev/null)" || status="(git status failed)"
+        else
+            status="$(git status --porcelain 2>/dev/null)" || status="(git status failed)"
+        fi
+        if [ -z "$status" ]; then
             export SNAPBACK_BUILD_GIT_DIRTY=false
+        else
+            printf '[local-proof] runtime input set is dirty; builds are stamped SNAPBACK_BUILD_GIT_DIRTY=true by:\n%s\n' "$status" >&2
         fi
     fi
 }

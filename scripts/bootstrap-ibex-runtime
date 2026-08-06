@@ -249,17 +249,48 @@ link_peer_cli() {
     fi
 }
 
+# Uncommitted state within the runtime binary's input set (shared definition:
+# scripts/runtime-build-inputs.txt — sources, manifests, vendored runtime,
+# embedded corpora). Empty output means the input set is clean; edits outside
+# it (demos, LLPs, issues, diaries) do not count, so they no longer force a
+# rebuild of a prepared binary
+# (issues/closed/20260805-whole-tree-dirty-flag-forces-runtime-rebuild.md).
+# A missing definition file falls back to whole-tree status (conservative).
+runtime_input_set_status() {
+    local inputs_file="$ROOT/scripts/runtime-build-inputs.txt" line
+    local -a input_pathspecs=()
+    if [ -f "$inputs_file" ]; then
+        while IFS= read -r line; do
+            case "$line" in ''|\#*) continue ;; esac
+            input_pathspecs+=("$line")
+        done <"$inputs_file"
+    fi
+    if [ "${#input_pathspecs[@]}" -gt 0 ]; then
+        git -C "$ROOT" status --porcelain --ignore-submodules=untracked -- "${input_pathspecs[@]}"
+    else
+        git -C "$ROOT" status --porcelain --ignore-submodules=untracked
+    fi
+}
+
 reuse_authoritative_runtime_receipt() {
     # @ref LLP 0175#d32-reuse-one-bootstrapreadiness-result — on a clean exact
     # checkout, a digest-coherent receipt for this revision and the current
     # restricted-handler-VM probe is the result the expensive link/qualify
-    # producer would recreate. Dirty trees rebuild because a commit identity
-    # alone cannot prove which uncommitted source bytes produced the binary.
+    # producer would recreate. A dirty runtime input set rebuilds because a
+    # commit identity alone cannot prove which uncommitted input bytes
+    # produced the binary; edits outside the input set cannot change the
+    # binary's bytes and do not forfeit reuse.
     local binary="$ROOT/target/debug/snapback"
     [ -x "$binary" ] || return 1
-    git -C "$ROOT" diff --quiet --ignore-submodules=untracked || return 1
-    git -C "$ROOT" diff --cached --quiet --ignore-submodules=untracked || return 1
-    [ -z "$(git -C "$ROOT" ls-files --others --exclude-standard)" ] || return 1
+    local input_status line
+    input_status="$(runtime_input_set_status 2>/dev/null)" || return 1
+    if [ -n "$input_status" ]; then
+        log "runtime input set is dirty; receipt reuse forfeited, revalidating with a real build. Dirty input paths:"
+        while IFS= read -r line; do
+            log "  $line"
+        done <<<"$input_status"
+        return 1
+    fi
 
     local current_commit readiness_json readiness_commit readiness_dirty readiness_profile
     current_commit="$(git -C "$ROOT" rev-parse HEAD 2>/dev/null)" || return 1

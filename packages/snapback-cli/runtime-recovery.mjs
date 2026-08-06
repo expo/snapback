@@ -57,13 +57,37 @@ export function createRuntimeRecoveryRecord({
   };
 }
 
+// Git pathspecs bounding the runtime binary's input set, read from the shared
+// definition `<root>/scripts/runtime-build-inputs.txt` (one pathspec per line,
+// `#` comments) — the same set build.rs and verify-local-proof stamp
+// `gitDirty` from, so the expected stamp and the baked stamp agree
+// (issues/closed/20260805-whole-tree-dirty-flag-forces-runtime-rebuild.md).
+// `null` — file missing/unreadable/empty, e.g. a non-checkout root — means
+// "no scoped definition"; the caller falls back to whole-tree status, which
+// only over-reports dirtiness.
+function runtimeInputPathspecs(root) {
+  try {
+    const pathspecs = readFileSync(join(root, 'scripts', 'runtime-build-inputs.txt'), 'utf8')
+      .split('\n')
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0 && !line.startsWith('#'));
+    return pathspecs.length > 0 ? pathspecs : null;
+  } catch {
+    return null;
+  }
+}
+
 export function readCheckoutRuntimeIdentity(root) {
   const git = (...args) => spawnSync('git', ['-C', root, ...args], {
     encoding: 'utf8',
     timeout: 5_000,
   });
   const commitResult = git('rev-parse', 'HEAD');
-  const statusResult = git('status', '--porcelain', '--untracked-files=normal');
+  const inputPathspecs = runtimeInputPathspecs(root);
+  const statusResult = git(
+    'status', '--porcelain', '--untracked-files=normal', '--ignore-submodules=untracked',
+    ...(inputPathspecs ? ['--', ...inputPathspecs] : []),
+  );
   let crateVersion = null;
   try {
     const cargoManifest = readFileSync(join(root, 'Cargo.toml'), 'utf8');
