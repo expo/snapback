@@ -1,0 +1,20 @@
+{
+  "id": "fleet-observatory-move1",
+  "title": "Fleet Observatory — Move-1 successor",
+  "description": "Fresh provider-native Fleet backend whose required route is one mixed snapshot-batch.v2 composite over 250,000 protected events.",
+  "artifactSchemaVersion": "snapback.v0",
+  "targetProfile": "local-dev-sqlite-ibex",
+  "backend": {
+    "source": "snapback/schema.mjs + snapback/functions.mjs",
+    "generated": ["snapback/generated/artifacts.json"],
+    "stalenessPolicy": "manifest-only generated custody; regenerate from the complete source inputs"
+  },
+  "manifestDecision": "workload-manifest.2026-08-06.v1.json",
+  "notClaiming": [
+    "a snapshot_batch_v2 capability-row change",
+    "the local-store carrier-exit Fleet GAP closure",
+    "retained or offline execution of snapshot-batch.v2",
+    "a revision of the frozen LLP 0138 bakeoff evidence",
+    "hosted or public-package support"
+  ]
+}
