@@ -80,3 +80,74 @@ VERDICT: NOT READY
 R3 improves the proposal substantially by making keyring participation, restore identity, hosted custody, and the LLP 0057 dependency explicit. The remaining defects are concentrated in the new frontier and fencing protocols and are acceptance-critical rather than implementation detail. Because review was confined to this capsule, the external celld/LTX claims were not independently verified; this assessment relies on the target and the included LLP 0083 description, with G1 appropriately retaining external provenance verification.
 
 VERDICT: NOT READY
+
+## Round 4 — 2026-08-06 (delta round, extension round 1)
+
+- Reviewer: gpt-5.6-sol via `codex exec`, reasoning effort xhigh, sandbox read-only (fresh run)
+- Target revision r4 sha256/16 `e66652eb41751f80`; capsule `bc002288ee2d16f2`; instructions `6001fa51b3fc33e4`
+- tokens used
+- Body below is verbatim from the runner's final message.
+
+---
+
+1. **MATERIAL — IN-DELTA — correctness/safety — §§2, 4–5.** Coverage is mutable by addition: the append credential can later add a backdated or tied coverage record, while “greatest covered-from” changes or leaves undefined the governing snapshot because the head commits neither a coverage tip nor an exact LTX chain tip. The fix must make each head CAS select authenticated LTX and coverage roots/tips, link records to their predecessor and generation, and ignore or refuse unreachable, duplicate, or conflicting records.
+
+2. **MATERIAL — IN-DELTA — feasibility/safety — §4 and OQ4.** Calling epoch validation and object-store head CAS “one operation” at the supervisor does not make them atomic when LLP 0072 authority and the bucket head have separate linearization points; OQ4 leaves the essential representation unresolved. The required amendment must choose one authoritative CAS domain and specify supersession, in-flight stale writes, crashes, and lost-response reconciliation.
+
+3. **MATERIAL — IN-DELTA — decision quality/safety — §3.** The WAL cap is named but its behavior is not decided, leaving open materially different outcomes such as write refusal, shutdown, disk exhaustion, or loss of the unshipped replication tail. The fix must select a safe default that preserves unshipped frames and reserved disk headroom, with explicit write-admission and restart behavior at the cap.
+
+4. **MATERIAL — IN-DELTA — safety/qualification — §7.** G2/G3 can pass without rotating or pruning the keyring, crashing around snapshot/coverage publication, testing conflicting coverage records, or exercising retention and pin transitions. The acceptance corpus must cover positions around keyring changes, every relevant crash window, encrypted-snapshot recovery, missing/wrong keys, and pin-preserving compaction/retention.
+
+5. **[detail] — IN-DELTA — feasibility — §5 and OQ5.** Unconditional self-hosted keyring encryption needs an operator recovery-key carrier, but the described operator surface mentions only bucket configuration and credentials. The implementation contract should name external key provisioning, rotation, and clean-machine recovery.
+
+R4 makes substantial improvements to resume semantics, succession evidence, identity separation, custody, and fencing qualification. However, authoritative history selection and hosted fencing still lack closed linearization protocols, while stall behavior and qualification leave core safety properties undecided. No separate PRE-EXISTING material concern was identified. The capsule contains no celld/LTX source, so upstream behavior and `differential_xtool` claims could not be independently verified within the required scope and were assessed using the RFC’s description.
+
+VERDICT: NOT READY
+
+## Round 5 — 2026-08-06 (delta round, extension round 2)
+
+- Reviewer: gpt-5.6-sol via `codex exec`, reasoning effort xhigh, sandbox read-only (fresh run)
+- Target revision r5 sha256/16 `bf3aa8b8ff2c819e`; capsule `653271b8a357d52d`; instructions `9dd3bfa8d1764ee4`
+- tokens used
+- Body below is verbatim from the runner's final message.
+
+---
+
+1. **MATERIAL — IN-DELTA — safety/feasibility — §4 and §7 (G3).** The claimed “one authoritative CAS domain” still depends on a second authority—the credential service—whose revoke/grant operations may overlap through propagation delay, non-revocable sessions, or already authorized requests; therefore revoke-then-grant alone does not justify the claim that a superseded supervisor can never advance the head. The fix must define a store-qualified revocation barrier or move epoch validation into the head’s actual linearization operation, specify reconciliation for every named in-flight/crash/lost-response window, and exercise those windows in G3 rather than only probing one superseded write.
+
+2. **MATERIAL — PRE-EXISTING — coherence — §5 and Open question 4.** §5 still says head advancement is “where §4’s atomic LLP 0072 epoch check runs,” and Open question 4 still says the epoch is “validated atomically with the conditional write,” directly contradicting r5 §4’s explicit rejection of that model. The fix must replace both passages with the credential-handover decision and accurately delimit what remains open.
+
+3. **MATERIAL — IN-DELTA — safety/coherence — §4, §5, and G2f.** Head separation is simultaneously absolute (“a compromised server can neither advance nor rewrite the head” and G2f always denies the append credential) and optional on self-hosted stores (“a separate lifecycle-scoped credential … where the store supports it”); moreover, without immutability, a compromised or cloned loser retains its object-write credential after losing CAS and need not halt, contradicting §4’s every-lane claim that stale-writer output is harmless. The fix must define where and how the self-hosted lifecycle credential executes and make the required separation/enforcement mandatory for the fencing claim, or explicitly downgrade the self-hosted threat model, gates, and stale-writer guarantees.
+
+4. **[detail] — IN-DELTA — correctness — §2 and G2f.** The intended rule that reachable backdated records refuse appears only indirectly in G2f, while §2 explicitly names refusal only for reachable conflicts. The implementation contract should state the reachable-chain validation invariants—including coverage-position monotonicity, duplicate handling, and genesis anchoring—next to governing-snapshot selection.
+
+5. **[detail] — IN-DELTA — feasibility — §3.** Refusing new writes once the WAL reaches its cap does not yet say how already admitted or concurrent writes are prevented from consuming the reserved headroom. The implementation should reserve or bound space per admitted write, or define a safe transaction-abort mechanism before disk exhaustion.
+
+R5 makes strong progress: authenticated coverage reachability, the no-truncation WAL policy, explicit hosted dependencies, and per-store capability receipts are materially better decisions. It is not ready because the hosted fence still lacks a feasible single-authority handover contract and the self-hosted credential posture is internally inconsistent. Under the capsule-only constraint, the external celld/LTX claims were not independently verified; this assessment relies on the target’s descriptions and its G1 provenance contingency.
+
+VERDICT: NOT READY
+
+## Round 6 — 2026-08-06 (delta round, extension round 3 — final)
+
+- Reviewer: gpt-5.6-sol via `codex exec`, reasoning effort xhigh, sandbox read-only (fresh run)
+- Target revision r6 sha256/16 `cfaab18a75bb3801`; capsule `35cdac2fda64acb1`; instructions `f1a0e39e4c1e141f`
+- tokens used
+- Body below is verbatim from the runner's final message.
+
+---
+
+1. **MATERIAL — IN-DELTA — Correctness/coherence — §2.** A rewind succession from predecessor coverage tip `Q` to divergence `P < Q` makes the successor’s initial record chain `Q → P`, violating the newly unconditional covered-from monotonicity rule; succession at an existing boundary can likewise violate “duplicates refuse.” The fix must define an explicit generation-boundary reset and its validation/selection rules so rewinds and equal-boundary successions work without weakening ordinary-chain checks.
+
+2. **MATERIAL — IN-DELTA — Correctness/safety — §2.** Masked post-divergence records can become indispensable authentication bridges because the successor chains from the predecessor’s final tip, yet the existing retention rule permits deleting a record once no restorable position uses its snapshot. The fix must retain the transitive authentication closure of every live head/genesis—or separate permanent chain metadata from collectible snapshots and LTX payloads—so valid retention or compaction cannot break lineage verification.
+
+3. **MATERIAL — IN-DELTA — Safety — §4.** Expiry of a bounded credential TTL is listed as a sufficient revocation barrier even though the preceding text correctly observes that already-authorized requests may remain in flight; TTL expiry alone does not prove such a write cannot commit afterward. The fix must require a store-qualified drain or bound covering completion of previously authorized requests, treat stores lacking that guarantee as unsupported, and exercise a delayed pre-revocation write across the barrier.
+
+4. **MATERIAL — IN-DELTA — Safety/coherence — §5.** Self-hosted head safety is conditioned only on store credential-separation support, but wrong-role denial does not protect the head from a compromised host if the lifecycle/head credential is also resident or usable there; the document places both roles in one operator custody domain without establishing process or off-host isolation. The fix must require custody that keeps the lifecycle credential outside the application host/process, or apply the full head-seizure downgrade even when the store supports separate credentials.
+
+5. **[detail] — IN-DELTA — Feasibility — §3.** The implementation contract should state how reservations obtain an enforceable worst-case WAL bound—or grow before additional frames—and cover migrations, auth/background writes, triggers, and rollback overhead, not merely ordinary request admission.
+
+6. **[detail] — IN-DELTA — Safety — §5.** The asymmetric/encrypt-only requirement is scoped explicitly to segments, while client-side keyring snapshots need the same outside-deployment decrypt custody; the 0072 amendment should pin that mechanism explicitly for both object classes.
+
+Revision r6 improves the design substantially through explicit tip validation, honest self-hosted downgrades, stronger qualification gates, and a serious handover model. However, the new cross-generation chain is internally inconsistent under rewind and retention, while the barrier and self-hosted custody claims remain stronger than their mechanisms. The capsule contains no celld/LTX source, so upstream behavior and provenance claims could not be independently verified; this review relies on the RFC’s description, with G1 appropriately remaining a contingent verification gate. All reported concerns are in the r6 delta.
+
+VERDICT: NOT READY

@@ -1,11 +1,55 @@
 # LLP 0188 — Continuous SQLite replication via a vendored LTX replicator
 
 **Type:** RFC
-**Status:** Review
+**Status:** Accepted
 **Systems:** Storage, Backup and restore, Deployment, Control plane, CLI, Testing
 **Author:** Claude (Fable 5), directed by Charlie Cheever
 **Date:** 2026-08-06
-**Revised:** 2026-08-06 (r4, post-loop rewrite applying the round-3
+**Revised:** 2026-08-06 (Review → **Accepted** by the author, Charlie
+Cheever, at r7 — after the six-round dual-family super-refine loop
+(formal verdicts bind to r6; r7 applied the final ledger, unreviewed;
+full record in `llp/reviews/0188-*`). The acceptance ratifies §5's
+unconditional keyring-snapshot encryption rule (former OQ2) and OQ4's
+delegation of epoch representation to the LLP 0072 amendment. The four
+dated amendments (LLP 0057, 0072, 0099, 0111) are hard prerequisites of
+the lanes, claims, and gates that name them — the hosted continuous
+lane, the 0057-contract restore claim, the 0099 checkpoint substitution
+and G3 — not of this document's status; wording swept accordingly at
+acceptance. No capability manifest claims replication until the §7
+corpus passes, unchanged.) 2026-08-06 (r7, post-extension close-out applying the
+round-6 ledger — **unreviewed by the formal loop**: chain-validation
+invariants generation-scoped with masked-effective selection and
+at-or-beyond masking (succession never self-refuses); chain metadata
+retained for the transitive authentication closure, payloads-only
+collection; supersession revokes the entire mutating authority with a
+drain-inclusive barrier (TTL alone insufficient) and a delete-visible
+reconciliation mechanism owned by the 0072 amendment; self-hosted
+separation additionally requires off-host/isolated credential custody;
+stale-writer-harmless claim conditioned; clone-race residual named;
+frontier defined over head-committed tips; asymmetric custody pinned
+for both object classes; stale-deletion probe added to G3).
+2026-08-06 (r6, extension round 5 findings: stale "atomic
+epoch" references swept from §5/OQ4 to the credential-possession
+formulation; monotone tip extension made a stated refusal condition of
+head advancement; genesis binds the predecessor's final committed tips
+and the successor's chain anchors to them (masking ≠ conflict-refusal);
+store-qualified revocation barrier added to the handover (revocation
+alone is not a barrier) with G3 exercising every named window;
+self-hosted head-separation claim scoped to store support with the
+full downgrade recorded; reachable-chain validation invariants,
+WAL-headroom admission reservation, asymmetric-capable encryption
+shape, advancement-cadence lag accounting, pinned-commit G1 receipt).
+2026-08-06 (r5, extension round 4 findings: head commits
+authenticated coverage/LTX chain tips (hash-linked records; backdated
+insertion inert); hosted epoch enforced by credential possession with
+revoke-then-grant handover in one CAS domain (the bucket head); head
+key outside the application credential's writable scope; WAL-cap
+default decided (never truncate unshipped frames; refuse admission);
+dated LLP 0099 amendment joins 0057/0072/0111 as acceptance
+dependency; interim hosted shape stated plainly (no continuous lane
+until amendments land); G2f/G3 matrix extended; per-store
+qualification receipts; self-hosted weaker-posture consequence and
+key-lifecycle carrier named). 2026-08-06 (r4, post-loop rewrite applying the round-3
 ledger — **unreviewed by the formal loop**: resume admits verified
 ahead-of-head restart (prefix rule); durable keyring coverage records;
 immutable genesis/succession chain; hosted epoch validation serialized
@@ -41,8 +85,10 @@ LLP 0057 quiesced backup/restore image and as control-plane backup
 manifests that LLP 0072 and LLP 0111 specify for the hosted lane. LLP 0099
 (Accepted) already *requires* a "streaming backup" to a separately
 permissioned object store as the qualifying pre-apply checkpoint for the
-container-VM migration executor — but no LLP owns the design of that
-stream. This RFC proposes to fill the gap by adopting the LTX replication
+container-VM migration executor — its resolved wording names "the
+existing streaming SQLite backup" to that prefix, but no LLP specifies
+the stream's design, and this RFC proposes (via the §3/§7 dated LLP
+0099 amendment) that a §3 proof become that qualifying artifact. This RFC proposes to fill the gap by adopting the LTX replication
 lane that celld (Deno's self-hosted Durable Objects runtime,
 <https://github.com/denoland/celld>, Apache-2.0) has already built in
 Rust: a WAL-tailing replicator that ships LTX segments (Litestream's v0.5
@@ -132,14 +178,52 @@ when the local keyring changes (LLP 0057 publishes the keyring before
 any digest computed with a new key exists), the new snapshot must be
 durable in the prefix **before** any WAL frame committed after that
 publication is counted as replicated. Coverage is a durable mapping,
-never an inference from upload order: each snapshot upload appends an
-immutable, digest-named **coverage record** in the generation prefix
-binding the snapshot digest to the first position it governs; the
-governing snapshot for a position is the record with the greatest
-covered-from at or below it, and a snapshot (with its record) is
-retained for as long as any position it covers remains restorable. The
+never an inference from upload order — and never an inference from
+prefix listing either: each snapshot upload appends an immutable,
+digest-named **coverage record** in the generation prefix, each record
+binding the snapshot digest, the first position it governs, its
+generation, and its predecessor record's digest, forming a hash-linked
+chain; the head (§4) commits the authenticated **coverage tip** (and
+the LTX chain tip) at every advancement, and **advancement refuses any
+tip that is not a chain descendant of the tips the head previously
+committed** — monotone extension verified by the advancing authority,
+with succession's genesis masking (below) as the only sanctioned
+discontinuity. Records not reachable from the head-committed tip are
+therefore inert, and a backdated, duplicate, or conflicting record
+inserted by the append credential can never change governing-snapshot
+selection. Reachable-chain validation is part of selection, with its
+invariants **generation-scoped**: within one generation's sub-chain,
+covered-from positions must be monotone, duplicates refuse, and the
+sub-chain must anchor in that generation's genesis; **across
+generations the checked property is chain descent alone** — the
+successor's sub-chain anchors through the genesis-bound predecessor
+tip — and two properties are deliberately distinct: chain descent is
+never broken (succession chains from the recorded tip), while
+position/coverage continuity is broken only at genesis masking, the
+one sanctioned discontinuity. Selection runs over the
+**masked-effective chain**: the governing snapshot for a position is
+the unmasked reachable record with the greatest covered-from at or
+below it. Retention distinguishes payloads from chain metadata:
+snapshots and segments are collectible under §3's pinning and OQ3's
+window, but coverage and genesis **records** are retained for the full
+transitive authentication closure of every live head and genesis —
+valid retention or compaction can never break lineage verification. On
+succession, the genesis record (§4) binds the predecessor's **final
+committed tips**, and the new generation's initial coverage record —
+written at the divergence position, with an initial keyring snapshot —
+**chains from that recorded predecessor tip**, so pre-divergence
+coverage stays reachable and authenticated across generations;
+predecessor records with covered-from **at or beyond** the divergence
+position remain reachable but are **masked by the genesis's divergence
+position** (masking, not the reachable-conflict refusal — the
+successor's initial record therefore never collides with a predecessor
+record at the same position), and the successor's frontier is defined
+from its first frame. The
 lane's governing position is therefore the **restorable frontier** —
-min(replicated database position, keyring coverage) — and every RPO/lag
+min(replicated database position, keyring coverage), both taken at the
+**head-committed** tips, since restore and selection resolve only
+through the head (shipped-but-not-yet-advanced tail is not yet
+restorable) — and every RPO/lag
 claim, the §3 `async` metric, and G2's bounded-loss exit are measured
 against the frontier, not the raw database position. This gives every
 restorable position a governing keyring snapshot by construction (§6).
@@ -158,7 +242,13 @@ qualified per store. Whether the vendored crate's own storage backend
 sits behind that protocol or is replaced by an adapter over the existing
 SigV4 core (`src/assets_s3.rs`, MinIO-qualified per LLP 0044) is decided
 at vendoring time by inspecting the crate's storage seam; either outcome
-is recorded in the vendoring receipt. The target is a **separately
+is recorded in the vendoring receipt. Per-store qualification records
+*which* store mechanism satisfied each requirement — conditional write
+and per-credential overwrite/delete denial are distinct capabilities
+(the existing SigV4 core implements only `If-None-Match` create-if-
+absent today, and object-lock immutability is per-object rather than
+per-credential on some stores), and the qualification receipt names the
+mechanism per store. The target is a **separately
 permissioned bucket or prefix** per LLP 0111's backup posture, under the
 custody rules of §5.
 
@@ -201,8 +291,21 @@ bucket. The proposed modes:
   precondition here, not a cost knob (§OQ3 covers only the unpinned
   tail). The same contract defines the local WAL-growth policy while
   replication is stalled (checkpointing is replicator-mediated, so a
-  stalled bucket grows the local WAL): a configured cap and the
-  behavior at the cap, surfaced with the degraded state.
+  stalled bucket grows the local WAL). The decided default: **unshipped
+  frames are never truncated** — at the configured cap, with reserved
+  disk headroom, the instance refuses new write admission and surfaces
+  the degraded state (a stall is an availability event, never a silent
+  durability event), and restart ships the retained tail before
+  resuming write admission; admission control reserves bounded space
+  per admitted write so in-flight transactions cannot consume the
+  headroom past the cap (the implementation contract owns the
+  enforceable bound — including write amplification, background/auth
+  writes, and the abort action when a transaction exceeds its
+  reservation). A configuration may relax availability, not
+  durability: no setting silently discards unshipped frames. The same
+  implementation contract states the head-advancement cadence and how
+  the lag clock accounts for shipped-but-not-yet-advanced tail (hosted
+  advancement rides supervisor round-trips).
 
 ### 4. Single-writer safety: replication-incarnation fencing with explicit succession
 
@@ -247,7 +350,10 @@ succession:
   current generation and never mints identities.
 - **Refusal / succession** — a genuinely rewound or divergent database
   (continuity from the head fails), or a missing or foreign sidecar
-  (every fresh restore, fork, or copied disk lands here) — MUST NOT
+  (every fresh restore or fork lands here; a byte-identical **live
+  clone** carries the source's sidecar and instead enters the resume
+  race, where the head CAS and divergent-tip refusal halt the loser —
+  the named clone-race residual of §5) — MUST NOT
   resume. Default behavior is refusal; on explicit operator
   (self-hosted) or supervisor (hosted) instruction, the process mints a
   fresh replication incarnation and opens a **new generation** with its
@@ -256,15 +362,39 @@ succession:
   minted only here; resume never mints one.
 
 On hosted targets, binding the current LLP 0072 epoch/fence into head
-acquisition and every head advancement is **mandatory**, not optional —
-and epoch validation is **serialized atomically with the conditional
-write**: both run as one operation at the single advancing authority
-(§5 places head advancement in supervisor custody, where 0072's fence
-is enforced and the epoch is recorded in the head), so no process whose
-authority was superseded between a check and a write can commit an
-advancement. Which artifact carries that authority — a first-class
-signed replication epoch or the existing deployment fence — is decided
-by the LLP 0072 amendment this RFC requires (§5, OQ4). A writer that
+acquisition and every head advancement is **mandatory**, not optional.
+LLP 0072 authority and the bucket head have separate linearization
+points, so no wording can make "check epoch, then CAS" atomic across
+them; the design therefore chooses **one authoritative CAS domain — the
+bucket head** — and enforces the epoch through credential possession
+rather than a racing check: only the current epoch's supervisor role
+holds the head-write credential (§5), the epoch is recorded in every
+head it writes, and 0072 supersession is a **revoke-then-grant
+handover** of the predecessor's **entire mutating authority — the
+head-write credential and the lifecycle/delete credential together**,
+behind one barrier. Revocation alone is not a barrier — credential
+revocation has propagation delay, sessions may outlive it, and
+in-flight requests may already be authorized — so the handover
+includes a **store-qualified revocation barrier**: the successor's
+grant is issued only after the store confirms the predecessor
+credentials can no longer mutate, **including completion or refusal of
+already-authorized in-flight requests** (a drain bound the store must
+actually guarantee; TTL expiry alone does not, and a store that cannot
+provide the drain guarantee is unsupported for the hosted continuous
+lane), qualified per store like the CAS primitive. Detection is
+authority-specific: the epoch recorded in every head write makes a
+slipped head write detectable and reconcilable after the fact, but a
+slipped **delete** leaves no record of its own — so the LLP 0072
+amendment must also specify a delete-visible mechanism (store
+versioning/delete markers, object-lock qualification, or a supervisor
+deletion journal committed through the head) for §3-pinned objects.
+The amendment (§5, OQ4) specifies the barrier mechanism and the
+reconciliation for each named window — supersession ordering,
+in-flight stale writes (including a delayed pre-revocation write
+landing after handover), stale deletion, crash during handover, and
+lost-response reconciliation against the head's recorded epoch and
+predecessor binding — and G3 exercises each window, not just a single
+superseded write. A writer that
 loses a conditional advance halts replication and raises. A stale or
 partitioned writer can therefore append only under its own generation
 prefix — it can never overwrite another lineage or advance the head —
@@ -276,7 +406,9 @@ succession record conflicts with observed prefixes) rather than
 silently selecting one. This is deliberately fencing, not placement:
 ownership authority stays with the operator (self-hosted) or the
 control plane (hosted); the bucket protocol only makes stale writers
-harmless.
+harmless — a guarantee that holds on lanes with the credential
+separation §5 requires, and is expressly downgraded where §5 records
+its absence.
 
 ### 5. Confidentiality and custody
 
@@ -291,14 +423,19 @@ decrypt and restore — applies to it. Two rules, one unconditional:
   segments, so a single bucket-credential compromise would enable
   offline recovery of live low-entropy codes — defeating LLP 0057's
   boundary 2 outright. No "recorded weaker posture" is available for
-  key material. (This resolves former OQ2; as a security-posture rule
-  it is subject to author ratification at acceptance.)
+  key material. (This resolves former OQ2; the author ratified the
+  rule at acceptance, 2026-08-06.)
 - **Segments** are client-side encrypted before upload with keys
-  custodied per LLP 0072 on hosted targets; the self-hosted lane may
-  accept provider-side bucket encryption for segments only, recorded as
-  the weaker posture in the instance's replication config. Shipping
-  plaintext segments (the celld default) is a recorded divergence,
-  never a silent one.
+  custodied per LLP 0072 on hosted targets; because encryption executes
+  inside the application process, the scheme must be asymmetric-capable
+  — encrypt-only material resident in the deployment, decrypt
+  capability custodied outside it, the exact shape pinned by the 0072
+  amendment **for both object classes, segments and keyring
+  snapshots** — to honor "keys live outside the protected deployment."
+  The self-hosted lane may accept provider-side bucket encryption for
+  segments only, recorded as the weaker posture in the instance's
+  replication config. Shipping plaintext segments (the celld default)
+  is a recorded divergence, never a silent one.
 
 Credential custody, hosted lane: LLP 0111 routes backup bytes through
 the supervisor and gives the application machine no provider credential
@@ -318,26 +455,58 @@ proposed here is a **role split with enforced immutability**:
   enforce this, the lane falls back to 0111's supervisor-mediated byte
   path.
 - The **supervisor owns the head, the proofs, and the lifecycle**: head
-  advancement (where §4's atomic LLP 0072 epoch check runs), read-back
+  advancement (as sole holder of the head-write credential under §4's
+  revoke-then-grant handover and revocation barrier), read-back
   verification, checkpoint-proof assembly, and **compaction/retention
   deletion** — the only operations needing the overwrite/delete rights
   the immutability policy denies the application credential — execute
-  in supervisor custody, not on the application machine. The head
-  object itself is the one deliberate exemption from prefix
-  immutability: it stays CAS-overwritable while generation prefixes,
-  genesis records, and coverage records are immutable.
+  in supervisor custody, not on the application machine — the
+  supervisor is the sole holder of the head-write credential under §4's
+  revoke-then-grant handover and barrier. The head object itself is the
+  one deliberate exemption from prefix immutability — CAS-overwritable
+  while generation prefixes, genesis records, and coverage records are
+  immutable — and the exemption is scoped to the advancing authority
+  only. On hosted targets this is unconditional: **the head key lies
+  outside the application credential's writable scope**, so a
+  compromised server can neither advance nor rewrite the head, and
+  G2f/G3 probe it negatively (application-credential head write
+  denied). On self-hosted targets the separation holds **only where the
+  store supports credential separation AND the lifecycle/head
+  credential is neither resident nor usable on the application host**
+  (off-host or isolated-process custody — store-side wrong-role denial
+  protects nothing if a compromised host also holds the privileged
+  credential); where either condition fails, the recorded
+  weaker posture must state the full downgrade — a compromised host can
+  then seize or rewrite the head, not merely re-PUT pre-CAS history,
+  and §4's stale-writer-harmless claim does not hold on that
+  configuration — and the G2f head-write-denied probe applies only
+  where separation is claimed.
 
 **Acceptance dependency:** this role split diverges from LLP 0111's
 supervisor-mediated byte path, so dated LLP 0072 and LLP 0111
-amendments admitting it (and choosing §4/OQ4's epoch representation)
-are prerequisites of accepting this RFC, exactly as the LLP 0057
-amendment is in §6. Until they land, the hosted lane's only admissible
-shape is 0111's existing supervisor-mediated path. Self-hosted: the
+amendments admitting it (and specifying §4's epoch-handover protocol
+and representation) are hard prerequisites of the hosted continuous
+lane this section defines, exactly as
+the LLP 0057 amendment is in §6, and as the dated LLP 0099 amendment of
+§7 is for the checkpoint substitution. Until the 0072/0111 amendments
+land, the hosted lane has **no continuous replication** — the interim
+shape is 0111's existing supervisor-mediated periodic backup, stated
+plainly: the amendments are a hard prerequisite of the hosted
+continuous lane, not a formality; the self-hosted lane (§OQ5) and G1/G2
+proceed independently of them. Self-hosted: the
 operator configures the bucket and credential directly and both roles
 run in the operator's single custody domain (a separate
-lifecycle-scoped credential for deletion where the store supports it),
-with store-enforced immutability still required or its absence recorded
-as a weaker posture (OQ5).
+lifecycle-scoped credential for deletion and head writes where the
+store supports it), with store-enforced immutability still required or
+its absence recorded as a weaker posture whose concrete consequence is
+stated in the record: without it, a compromised host — or a
+same-generation cloned disk racing a resume — can retroactively re-PUT
+already-shipped history with internally consistent checksums before
+losing the head CAS. The self-hosted operator surface must also carry
+the client-side encryption keys' lifecycle: external provisioning,
+rotation, and clean-machine recovery of the keyring-snapshot key are
+part of the instance configuration contract, or the encrypted snapshots
+are unrecoverable exactly when needed (OQ5).
 
 ### 6. Restore composes with LLP 0057's declared restore
 
@@ -366,7 +535,7 @@ not exemption: an LTX restore materializes a transactionally exact
 commit boundary (unlike a fuzzy file copy), and §2's ordering invariant
 guarantees the governing keyring is at least as fresh as any key a
 restorable position's rows can reference, with the `key_id` check
-failing closed on any gap. Accepting this RFC therefore **requires a
+failing closed on any gap. This composition therefore **requires a
 dated LLP 0057 amendment** recognizing "retained LTX boundary within
 the restorable frontier + governing keyring snapshot" as a second
 admissible physical-capture discipline; until that amendment lands,
@@ -385,14 +554,21 @@ capabilities (the LLP 0074/0109/0113-family posture, as LLP 0099 applies
 it to itself), no capability manifest claims replication until an
 acceptance corpus passes; a real replication capability id additionally
 enters LLP 0134's registry experimental-first with a
-`MaturityIntroductionRecordV1`. Sketch of the gates:
+`MaturityIntroductionRecordV1`. One further dated amendment joins the
+§5/§6 set: LLP 0099's resolved pre-apply decision names "the existing
+streaming SQLite backup" as the qualifying checkpoint artifact, so a
+**dated LLP 0099 amendment** admitting a §3 proof as that artifact is
+a hard prerequisite of the substitution and of G3. Sketch of the gates:
 
 - **G1 (provenance + format conformance):** §1's license/notice and
   test-vector provenance verification at the pinned commit; upstream
   vectors + differential test green in our CI on macOS and Linux, with
   the reference Litestream binary **required present** — upstream's
   `differential_xtool` self-skips without it, and a skipped leg is a
-  G1 failure, not a pass.
+  G1 failure, not a pass. The G1 receipt captures the provenance facts
+  (rustyriver seed, Litestream and LTX version pins, differential-test
+  scope) as verified at the pinned commit, not by reference to a
+  README upstream may rewrite.
 - **G2 (local drill):** replicate a live instance under sustained write
   load to MinIO; kill the server mid-write; restore on a clean machine
   through the §6 composition; verify integrity, lineage binding, and
@@ -400,19 +576,35 @@ enters LLP 0134's registry experimental-first with a
 - **G2f (fencing matrix, local):** demonstrate each §4 case: verified
   ahead-of-head resume after unclean restart (no succession minted);
   crash in each window between segment ship, sidecar update, and head
-  advance; competing writers with CAS loss → halt; rewound copy and
-  foreign-sidecar copy → refusal; explicit succession → traversable
-  genesis chain; multi-succession restore with correct lineage
-  selection and refusal on manufactured ambiguity; store-enforced
-  immutability probes (overwrite/delete denied to the append
-  credential).
+  advance — and around keyring snapshot/coverage-record publication,
+  including a rotation-then-prune sequence mid-drill; competing writers
+  with CAS loss → halt; rewound copy and foreign-sidecar copy →
+  refusal; explicit succession → traversable genesis chain with the
+  successor's initial coverage record at the divergence position;
+  multi-succession restore with correct lineage selection and refusal
+  on manufactured ambiguity; orphan generation prefixes (crash after
+  genesis, before head CAS; repeated refused successions) provably
+  excluded without spurious refusals, then lifecycle-collected;
+  injected backdated/duplicate/conflicting coverage records ignored
+  (unreachable) or refused (reachable); a divergent (non-descendant)
+  tip offered at head advancement refused; encrypted-snapshot restore
+  including missing-key and wrong-key failure paths; pin-preserving
+  compaction/retention transitions; store-enforced immutability probes
+  (overwrite/delete denied to the append credential; **head write
+  denied to the append credential**).
 - **G3 (hosted binding):** the LLP 0099 executor consumes a §3
   checkpoint proof as its pre-apply streaming backup in a real drill —
   isolated restore, exact-boundary equality, pinning per §3's
   referencing-artifact lifetime — against the LLP 0111 separately
-  permissioned bucket under §5 custody, plus the hosted fencing cases:
-  stale-epoch advancement refused atomically, supervisor-custody head
-  advancement and lifecycle deletion exercised.
+  permissioned bucket under §5 custody — gated on the §7 dated LLP 0099
+  amendment — plus the hosted fencing cases: stale-epoch advancement
+  excluded via the §4 credential-handover rule with **each named
+  handover window exercised** (supersession ordering, in-flight stale
+  write, crash during handover, lost response — not a single superseded
+  write), a **stale-supervisor deletion** against a §3-pinned object
+  detected via the amendment's delete-visible mechanism,
+  application-credential head write denied, supervisor-custody
+  head advancement and lifecycle deletion exercised.
 
 ## What this RFC deliberately does not take from celld
 
@@ -440,12 +632,16 @@ durability lane behind an architecture debate.
    drill capability. (Pinned checkpoint boundaries are governed by §3,
    not this question.)
 4. **Epoch representation.** §4 decides that hosted head advancement
-   mandatorily carries LLP 0072's epoch/fence, validated atomically
-   with the conditional write; what remains open is representation —
-   whether 0072 mints a first-class signed replication epoch (mirroring
-   LLP 0099's barrier-lease epochs) or the existing deployment fence is
-   bound as-is. Owned by the dated LLP 0072 amendment §5 names as an
-   acceptance dependency.
+   mandatorily carries LLP 0072's epoch/fence, enforced by sole
+   possession of the head-write credential under the revoke-then-grant
+   handover with its store-qualified revocation barrier; what remains
+   open is representation — whether 0072 mints a first-class signed
+   replication epoch (mirroring LLP 0099's barrier-lease epochs) or the
+   existing deployment fence is bound as-is — plus the amendment-owned
+   barrier and window-reconciliation protocol. Owned by the dated LLP
+   0072 amendment §5 names as a hard prerequisite of the hosted
+   continuous lane (delegation ratified by the author at acceptance,
+   2026-08-06).
 5. **Local operator surface.** What does the self-hosted operator
    configure — bucket URL + credentials in instance config — and does
    `snapback doctor`-style diagnosis gain replication-lag and

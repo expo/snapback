@@ -244,6 +244,33 @@ export const searchEpoch = defineTable({
   .index('by_visibility_project', ['visibility', 'projectID'], { unique: true })
   .sync();
 
+// W-FIXTURE: the acceptance-only large-fixture branch commits one ledger row
+// in the same transaction as each bounded batch. `committedIds` is a closed
+// JSON string of server-owned ids; it lets a verified replay recover the exact
+// inverse-remapping rows without exposing this table through the composition.
+// @ref LLP 0109#155-quantitative-and-acceptance-closure — this is resumability
+// for ordinary bounded commits, not a partially established seed identity.
+export const fixtureIngestLedger = defineTable({
+  fixtureId: v.string(),
+  overlayDigest: v.string(),
+  table: v.string(),
+  batchIndex: v.integer(),
+  rowCount: v.integer(),
+  batchDigest: v.string(),
+  committedIds: v.string(),
+})
+  .index('by_fixture_overlay_table_batch', [
+    'fixtureId',
+    'overlayDigest',
+    'table',
+    'batchIndex',
+  ], { unique: true })
+  .index('by_fixture_overlay_batch', [
+    'fixtureId',
+    'overlayDigest',
+    'batchIndex',
+  ], { unique: true });
+
 // C-NOTIFY: one durable, transaction-coupled row per triggering mutation.
 // Payload and recipient-selection snapshots are canonical JSON strings because
 // stored table fields do not admit arrays/objects; Lane 5 owns their delivery
@@ -343,6 +370,7 @@ export default defineSchema(
     issueLabelRead,
     issueSearchDocument,
     searchEpoch,
+    fixtureIngestLedger,
     notificationIntent,
     notificationAttempt,
     unsubscribeTokenUse,

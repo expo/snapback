@@ -152,3 +152,155 @@ per LLP 0010 §2 this residue is disclosed as self-attested.
 - **r4 is unreviewed by the formal loop** (round budget exhausted before
   it). Final family verdicts remain bound to r3 `4734113fe106dd45`;
   r4 is the later unreviewed revision the close-out notes disclose.
+
+## Extension — 2026-08-06: author-authorized continuation
+
+- The author directed "do a few rounds of /llp-super-refine and see how
+  it goes" after r4 landed: a fresh authorization to continue the loop
+  on the same target, budget up to 3 further rounds (rounds 4–6),
+  same families, runners, blindness discipline, and outbound-inventory
+  posture as rounds 1–3. Growth accounting continues cumulatively and
+  stays disclosed.
+
+## Round 4 — 2026-08-06 (delta round, extension round 1 of ≤3)
+
+- Target revision r4 sha256/16 `e66652eb41751f80`
+- Capsule `capsule-r4` sha256/16 `bc002288ee2d16f2`; instructions
+  sha256/16 `6001fa51b3fc33e4`; delta enumerated as full r3→r4 unified
+  diff (`DELTA.diff`, 291 lines) plus an instruction summary
+- Capsule outbound inventory: as prior rounds with r4 target and r3→r4
+  diff; no secrets, no review artifacts
+- Launches: fresh reviewers, same family runners
+- Runtimes/outcomes: GPT family — completed first launch, verdict
+  **NOT READY**: 4 MATERIAL all IN-DELTA, explicit "No separate
+  PRE-EXISTING material concern." Claude family — completed 460 s / 24
+  tool uses (verified upstream `differential_xtool` self-skip wording),
+  verdict **NOT READY**: 1 MATERIAL IN-DELTA + 1 MATERIAL PRE-EXISTING
+  (LLP 0099 amendment asymmetry), 6 detail. Artifacts written verbatim
+  on receipt.
+- Orchestrator note (post-seal): GPT is pre-existing-clean; Claude's one
+  pre-existing MATERIAL is the missing dated LLP 0099 amendment (0099's
+  resolved OQ4 names "the existing streaming SQLite backup" as the
+  qualifying artifact — substituting a §3 proof needs the same
+  amendment discipline as 0057/0072/0111). All fixes well-defined;
+  revision r5 next, round 5 is extension round 2.
+
+## Revision r5 — 2026-08-06 (orchestrator)
+
+- `llp/0188-ltx-sqlite-replication.rfc.md` sha256/16 `bf3aa8b8ff2c819e`,
+  32,104 bytes. Applies all 6 round-4 MATERIALs and all detail items:
+  authenticated coverage/LTX tips committed by the head; one-CAS-domain
+  epoch enforcement via credential possession with revoke-then-grant
+  handover; head key outside the app credential's scope; WAL-cap
+  never-truncate default; dated LLP 0099 amendment as acceptance/G3
+  dependency; interim hosted shape stated; G2f/G3 matrix extensions;
+  per-store qualification receipts; self-hosted consequence + key
+  lifecycle. Cumulative growth vs the loop's entering revision remains
+  disclosed (now ~3× r1; the safety machinery is the document).
+
+## Round 5 — 2026-08-06 (delta round, extension round 2 of ≤3)
+
+- Target revision r5 sha256/16 `bf3aa8b8ff2c819e`
+- Capsule `capsule-r5` sha256/16 `653271b8a357d52d`; instructions
+  sha256/16 `9dd3bfa8d1764ee4`; delta = full r4→r5 unified diff
+  (`DELTA.diff`, 228 lines) plus instruction summary
+- Capsule outbound inventory: as prior rounds with r5 target and r4→r5
+  diff; no secrets, no review artifacts
+- Launches: fresh reviewers, same family runners
+- Runtimes/outcomes: GPT family — completed first launch, verdict
+  **NOT READY**: 2 MATERIAL IN-DELTA + 1 MATERIAL PRE-EXISTING + 2
+  detail. Claude family — completed 403 s / 24 tool uses, verdict
+  **NOT READY**: 4 MATERIAL all IN-DELTA + 3 detail, pre-existing
+  otherwise clean. Artifacts written verbatim on receipt.
+- Orchestrator note (post-seal): the same two defects dominate both
+  reviews — the §5/OQ4 stale "atomic epoch" references my r5 sweep
+  missed (Claude #1 ≡ GPT #2; classification differs only because the
+  lines themselves were unchanged from r4), and the self-hosted
+  head-separation inconsistency (Claude #4 ≡ GPT #3). GPT-only:
+  revoke-then-grant needs a store-qualified revocation barrier
+  (propagation delay defeats "never"). Claude-only: monotone tip
+  extension must be a stated refusal condition; cross-generation chain
+  anchoring must be pinned (genesis binds predecessor final tips).
+  Revision r6 next; round 6 is the last extension round.
+
+## Revision r6 — 2026-08-06 (orchestrator)
+
+- `llp/0188-ltx-sqlite-replication.rfc.md` sha256/16 `cfaab18a75bb3801`,
+  36,040 bytes. Applies all 6 round-5 MATERIALs (dedup'd) and the 5
+  detail items; ref-check clean. Growth remains disclosed.
+
+## Round 6 — 2026-08-06 (delta round, extension round 3 of 3 — final)
+
+- Target revision r6 sha256/16 `cfaab18a75bb3801`
+- Capsule `capsule-r6` sha256/16 `35cdac2fda64acb1`; instructions
+  sha256/16 `f1a0e39e4c1e141f`; delta = full r5→r6 unified diff
+  (`DELTA.diff`, 226 lines) plus instruction summary
+- Capsule outbound inventory: as prior rounds with r6 target and r5→r6
+  diff; no secrets, no review artifacts
+- Launches: fresh reviewers, same family runners
+- Runtimes/outcomes: GPT family — completed first launch, verdict
+  **NOT READY**: 4 MATERIAL all IN-DELTA + 2 detail, pre-existing clean
+  ("All reported concerns are in the r6 delta"). Claude family —
+  completed 602 s / 26 tool uses, verdict **NOT READY**: 2 MATERIAL
+  both IN-DELTA + 6 detail (pre-existing concerns detail-only).
+  Artifacts written verbatim on receipt.
+
+## Terminal — 2026-08-06: extension budget exhausted (treadmill terminal)
+
+- Rounds 4–6 (the authorized extension) all NOT READY in both families;
+  extension budget exhausted → second terminal escalation to the author.
+- Final formal verdicts bind to revision r6 sha256/16 `cfaab18a75bb3801`.
+- Pattern across rounds 4–6: both families' MATERIAL findings are
+  (with one cheap governance exception, the round-4 LLP 0099 amendment,
+  fixed in r5) exclusively IN-DELTA — defects in each revision's newest
+  protocol machinery — while every settled decision is endorsed, often
+  explicitly ("repairable without revisiting any decision," "improves
+  the design substantially"). Each round's added precision spawns the
+  next round's defects one level finer: the loop is specifying a
+  distributed-systems protocol at sub-RFC altitude and reviewers keep
+  (correctly) finding edge cases in normative wording that belongs to
+  the amendment/implementation contracts the RFC already names.
+- Orchestrator recommendation to the author (delivered in-session):
+  apply a minimal r7 closing the six round-6 MATERIAL items exactly as
+  the reviewers' own fix language directs (labeled unreviewed), and
+  converge future precision in the named LLP 0057/0072/0099/0111
+  amendments rather than further RFC rounds — the reviewers' fix
+  directives themselves increasingly say "the amendment must specify."
+
+## Revision r7 — 2026-08-06 (post-extension close-out, UNREVIEWED)
+
+- `llp/0188-ltx-sqlite-replication.rfc.md` sha256/16 `42a3c1eb86b3fde7`,
+  39,406 bytes. Minimal application of the six round-6 MATERIAL fixes
+  in the reviewers' own fix language plus the detail sweeps
+  (generation-scoped invariants / masked-effective selection /
+  at-or-beyond masking; authentication-closure retention of chain
+  metadata; whole-authority revocation with drain-inclusive barrier and
+  delete-visible reconciliation; off-host lifecycle-credential custody
+  condition; conditioned stale-writer claim; clone-race residual named;
+  head-committed frontier; both-object-class asymmetric custody;
+  stale-deletion G3 probe). No new machinery introduced.
+- **r7 is unreviewed by the formal loop.** Final formal verdicts bind
+  to r6 `cfaab18a75bb3801`; r7 is the later unreviewed revision the
+  close-out notes disclose. Six rounds and seven revisions total; both
+  budgets (original + extension) exhausted; disposition and
+  recommendation with the author.
+
+## Author disposition — 2026-08-06: ACCEPTED
+
+- The author (Charlie Cheever) directed "flip to acceptance" in-session.
+  Status Review → **Accepted** applied by the orchestrator on the
+  author's explicit instruction (the author, not the loop, accepts).
+  Accepted revision sha256/16 `4baee93955f2820c` (r7 plus the
+  acceptance sweep). The acceptance ratifies §5's keyring-encryption
+  rule (former OQ2) and OQ4's delegation of epoch representation to the
+  LLP 0072 amendment.
+- Sweep applied with the flip: the four dated amendments (0057, 0072,
+  0099, 0111) were worded as "prerequisites of accepting this RFC,"
+  which the author's acceptance would self-contradict; per the ruling
+  they are recorded as hard prerequisites of the lanes/claims/gates
+  that name them (hosted continuous lane, 0057-contract restore claim,
+  0099 checkpoint substitution, G3). Capability claims remain gated on
+  the §7 corpus, unchanged.
+- Standing honest-record note: the accepted text's formal verdicts bind
+  to r6, both NOT READY, with the terminal analysis above; acceptance
+  is the author's prerogative under LLP 0005 and is recorded as such.

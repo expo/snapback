@@ -34,6 +34,52 @@ function fixtureTableNames() {
   ];
 }
 
+function largeFixtureContract() {
+  return {
+    fixtureId: 'large-seed42-v1',
+    overlayDigest: 'sha256:39d7758a5a5809abf9fa3b3c6b966ecdf43dd9f5c6cc8b3977a94c17dd4efd73',
+    totalRows: 5_549_113,
+    totalBatches: 6_176,
+  };
+}
+
+function largeFixturePlan() {
+  return [
+    {table: 'user', rows: 100, batches: 1},
+    {table: 'project', rows: 100, batches: 1},
+    {table: 'label', rows: 4_810, batches: 6},
+    {table: 'issue', rows: 1_000_001, batches: 1_112},
+    {table: 'issueLabel', rows: 2_000_370, batches: 2_223},
+    {table: 'comment', rows: 2_527_887, batches: 2_809},
+    {table: 'emoji', rows: 1_746, batches: 2},
+    {table: 'viewState', rows: 5_000, batches: 6},
+    {table: 'userPref', rows: 5, batches: 1},
+    {table: 'issueNotifications', rows: 5_000, batches: 6},
+    {table: 'projectUserRead', rows: 100, batches: 1},
+    {table: 'issueListRead', rows: 1_000, batches: 2},
+    {table: 'issueLabelRead', rows: 1_992, batches: 3},
+    {table: 'issueSearchDocument', rows: 1_000, batches: 2},
+    {table: 'searchEpoch', rows: 2, batches: 1},
+  ];
+}
+
+function largeFixtureExpectedBatch(batchIndex) {
+  if (!Number.isSafeInteger(batchIndex) || batchIndex < 0) return null;
+  let firstBatch = 0;
+  for (const entry of largeFixturePlan()) {
+    const afterTable = firstBatch + entry.batches;
+    if (batchIndex < afterTable) {
+      const tableBatch = batchIndex - firstBatch;
+      const rowCount = tableBatch === entry.batches - 1
+        ? entry.rows - (entry.batches - 1) * 900
+        : 900;
+      return {table: entry.table, rowCount};
+    }
+    firstBatch = afterTable;
+  }
+  return null;
+}
+
 function fixtureUserRoles() {
   return {
     crew: [
@@ -57,7 +103,7 @@ function fixtureUserRoles() {
   };
 }
 
-function fixtureActorBinding(actor) {
+function normalFixtureActorBinding(actor) {
   if (actor === 'ordinary-user') {
     return {
       role: 'user',
@@ -89,6 +135,33 @@ function fixtureActorBinding(actor) {
     };
   }
   return null;
+}
+
+function largeFixtureActorBinding(actor) {
+  if (actor === 'ordinary-user') {
+    return {role: 'user', sourceUserID: 'usr_0010'};
+  }
+  if (actor === 'creator') {
+    return {role: 'user', sourceUserID: 'usr_0011'};
+  }
+  if (actor === 'assignee') {
+    return {role: 'user', sourceUserID: 'usr_0012'};
+  }
+  if (actor === 'crew-admin') {
+    return {role: 'crew', sourceUserID: 'usr_0000'};
+  }
+  if (actor === 'removed-member') {
+    return {role: 'crew', sourceUserID: 'usr_0001'};
+  }
+  return null;
+}
+
+function largeFixtureUserRole(sourceUserID) {
+  const match = /^usr_([0-9]{4})$/u.exec(sourceUserID);
+  if (!match) return null;
+  const index = Number(match[1]);
+  if (!Number.isSafeInteger(index) || index < 0 || index >= 100) return null;
+  return index < 10 ? 'crew' : 'user';
 }
 
 function requireFixtureSession(ctx) {
@@ -185,9 +258,64 @@ function validateFixtureBatch(table, rows) {
   }
 }
 
+function fixtureLedgerMetadata(args) {
+  const values = [
+    args.fixtureId,
+    args.overlayDigest,
+    args.batchIndex,
+    args.rowCount,
+    args.batchDigest,
+  ];
+  const present = values.filter(value => value !== undefined);
+  if (present.length === 0) return null;
+  if (present.length !== values.length) {
+    throw new Error('fixture ingest ledger metadata must be supplied together');
+  }
+  return {
+    fixtureId: args.fixtureId,
+    overlayDigest: args.overlayDigest,
+    batchIndex: args.batchIndex,
+    rowCount: args.rowCount,
+    batchDigest: args.batchDigest,
+  };
+}
+
+function validateLargeFixtureBatch(args, metadata) {
+  const contract = largeFixtureContract();
+  if (
+    metadata.fixtureId !== contract.fixtureId
+    || metadata.overlayDigest !== contract.overlayDigest
+  ) {
+    throw new Error('fixture ingest metadata is outside the frozen large fixture');
+  }
+  const expected = largeFixtureExpectedBatch(metadata.batchIndex);
+  if (!expected || expected.table !== args.table || expected.rowCount !== args.rows.length) {
+    throw new Error('fixture ingest batch is outside the frozen large plan');
+  }
+  if (!Number.isSafeInteger(metadata.rowCount) || metadata.rowCount !== args.rows.length) {
+    throw new Error('fixture ingest row count does not match the batch');
+  }
+  if (!/^sha256:[0-9a-f]{64}$/u.test(metadata.batchDigest)) {
+    throw new Error('fixture ingest batch digest is invalid');
+  }
+  if (args.table === 'user') {
+    const ids = new Set();
+    for (const row of args.rows) {
+      const expectedRole = typeof row.id === 'string' ? largeFixtureUserRole(row.id) : null;
+      if (!expectedRole || row.role !== expectedRole || ids.has(row.id)) {
+        throw new Error('fixture ingest user batch is outside the receipt-bound 100-user contract');
+      }
+      ids.add(row.id);
+    }
+    if (ids.size !== 100) {
+      throw new Error('fixture ingest user batch is outside the receipt-bound 100-user contract');
+    }
+  }
+}
+
 async function requireFixtureBootstrapWindow(db) {
-  // @ref LLP 0109#155-quantitative-and-acceptance-closure — the large fixture
-  // is a sequence of ordinary bounded commits, not a partially installed seed.
+  // @ref LLP 0109#155-quantitative-and-acceptance-closure — this fixture is a
+  // sequence of ordinary bounded commits, not a partially installed seed.
   // `searchEpoch` is deliberately last in the frozen load order and therefore
   // acts as the completion sentinel: any later ingest attempt fails closed.
   const completed = await db.query('searchEpoch').take(1).collect();
@@ -213,6 +341,83 @@ async function requireFixtureBootstrapWindow(db) {
   }
 }
 
+async function requireReceiptBoundLargeUsers(db) {
+  const users = await db.query('user').take(101).collect();
+  const ids = new Set(users.map(user => user.id));
+  if (
+    users.length !== 100
+    || ids.size !== 100
+    || users.some(user => largeFixtureUserRole(user.id) !== user.role)
+  ) {
+    throw new Error('fixture ingestion requires the receipt-bound 100-user contract');
+  }
+}
+
+async function fixtureLedgerBatch(db, fixtureId, overlayDigest, batchIndex) {
+  return await db
+    .query('fixtureIngestLedger')
+    .withIndex('by_fixture_overlay_batch')
+    .eq('fixtureId', fixtureId)
+    .eq('overlayDigest', overlayDigest)
+    .eq('batchIndex', batchIndex)
+    .first();
+}
+
+function fixtureCommittedIds(ledger) {
+  let ids;
+  try {
+    ids = JSON.parse(ledger.committedIds);
+  } catch {
+    throw new Error('fixture ingest ledger contains invalid committed ids');
+  }
+  if (
+    !Array.isArray(ids)
+    || ids.length !== ledger.rowCount
+    || ids.some(id => typeof id !== 'string' || id.length === 0)
+  ) {
+    throw new Error('fixture ingest ledger contains invalid committed ids');
+  }
+  return ids;
+}
+
+async function fixtureCommittedRows(db, table, ids) {
+  const rows = [];
+  for (const id of ids) {
+    const row = await db.get(table, id);
+    if (!row) throw new Error('fixture ingest ledger references a missing committed row');
+    rows.push(row);
+  }
+  return rows;
+}
+
+async function requireLargeFixtureBootstrapWindow(db, metadata) {
+  const bindings = await db.query('identityBinding').take(1).collect();
+  if (bindings.length !== 0) {
+    throw new Error('fixture ingestion is closed after actor binding begins');
+  }
+  const completed = await db.query('searchEpoch').take(1).collect();
+  if (completed.length !== 0) {
+    throw new Error('fixture ingestion is closed after fixture completion');
+  }
+  if (metadata.batchIndex === 0) {
+    const users = await db.query('user').take(1).collect();
+    if (users.length !== 0) {
+      throw new Error('large fixture ingestion requires an empty source-user table');
+    }
+    return;
+  }
+  const previous = await fixtureLedgerBatch(
+    db,
+    metadata.fixtureId,
+    metadata.overlayDigest,
+    metadata.batchIndex - 1,
+  );
+  if (!previous) {
+    throw new Error('fixture ingest batches must commit in frozen order');
+  }
+  await requireReceiptBoundLargeUsers(db);
+}
+
 async function requireLoadedFrozenFixture(db) {
   const epochs = await db.query('searchEpoch').take(3).collect();
   if (
@@ -223,38 +428,233 @@ async function requireLoadedFrozenFixture(db) {
     throw new Error('actor binding requires the complete frozen fixture');
   }
 
-  const expected = fixtureUserRoles();
-  const users = await db.query('user').take(15).collect();
+  const users = await db.query('user').take(101).collect();
   const ids = new Set(users.map(user => user.id));
-  if (
+  const expected = fixtureUserRoles();
+  const isNormal = (
     users.length !== 14
-    || ids.size !== 14
-    || users.some(user => (
+      ? false
+      : ids.size === 14
+      && !users.some(user => (
       user.role === 'crew'
         ? !expected.crew.includes(user.id)
         : user.role !== 'user' || !expected.user.includes(user.id)
-    ))
-  ) {
-    throw new Error('actor binding requires exactly the frozen source users');
+      ))
+  );
+  if (isNormal) return 'normal';
+
+  const isLarge = (
+    users.length === 100
+    && ids.size === 100
+    && !users.some(user => largeFixtureUserRole(user.id) !== user.role)
+  );
+  if (isLarge) {
+    const contract = largeFixtureContract();
+    const finalLedger = await fixtureLedgerBatch(
+      db,
+      contract.fixtureId,
+      contract.overlayDigest,
+      contract.totalBatches - 1,
+    );
+    if (
+      finalLedger
+      && finalLedger.table === 'searchEpoch'
+      && finalLedger.rowCount === 2
+      && /^sha256:[0-9a-f]{64}$/u.test(finalLedger.batchDigest)
+    ) return 'large';
   }
+  throw new Error('actor binding requires exactly a frozen source-user contract');
 }
 
 export const fixtureIngestBatch = defineJsMutation({
   auth: 'authenticated',
-  args: {table: v.string(), rows: v.json()},
-  reads: ['user', 'searchEpoch'],
-  writes: fixtureTableNames(),
+  args: {
+    table: v.string(),
+    rows: v.json(),
+    fixtureId: v.optional(v.string()),
+    overlayDigest: v.optional(v.string()),
+    batchIndex: v.optional(v.integer()),
+    rowCount: v.optional(v.integer()),
+    batchDigest: v.optional(v.string()),
+  },
+  reads: ['identityBinding', 'user', 'searchEpoch', 'fixtureIngestLedger'],
+  writes: [...fixtureTableNames(), 'fixtureIngestLedger'],
   result: results.value(v.json()),
   outgrewIr: 'general-iteration',
   handler: async (ctx, args) => {
     requireFixtureSession(ctx);
     validateFixtureBatch(args.table, args.rows);
-    await requireFixtureBootstrapWindow(ctx.db);
+    const metadata = fixtureLedgerMetadata(args);
+    if (!metadata) {
+      // Compatibility is deliberate: the frozen normal fixture keeps the
+      // exact admission path and return object it had before Lane 8.
+      await requireFixtureBootstrapWindow(ctx.db);
+      const ids = [];
+      for (const row of args.rows) {
+        ids.push(await ctx.db.insert(args.table, row));
+      }
+      return {inserted: args.rows.length, ids};
+    }
+
+    validateLargeFixtureBatch(args, metadata);
+    const existing = await fixtureLedgerBatch(
+      ctx.db,
+      metadata.fixtureId,
+      metadata.overlayDigest,
+      metadata.batchIndex,
+    );
+    if (existing) {
+      if (
+        existing.table !== args.table
+        || existing.rowCount !== metadata.rowCount
+        || existing.batchDigest !== metadata.batchDigest
+      ) {
+        throw new Error('fixture ingest replay does not match the committed batch');
+      }
+      const ids = fixtureCommittedIds(existing);
+      const rows = await fixtureCommittedRows(ctx.db, args.table, ids);
+      return {...metadata, table: args.table, status: 'already-ingested', ids, rows};
+    }
+
+    await requireLargeFixtureBootstrapWindow(ctx.db, metadata);
     const ids = [];
     for (const row of args.rows) {
       ids.push(await ctx.db.insert(args.table, row));
     }
-    return {inserted: args.rows.length, ids};
+    const rows = await fixtureCommittedRows(ctx.db, args.table, ids);
+    await ctx.db.insert('fixtureIngestLedger', {
+      ...metadata,
+      table: args.table,
+      committedIds: JSON.stringify(ids),
+    });
+    return {...metadata, table: args.table, status: 'inserted', ids, rows};
+  },
+});
+
+function fixtureIngestSummaryResult() {
+  return v.object({
+    fixtureId: v.string(),
+    overlayDigest: v.string(),
+    batches: v.integer(),
+    rows: v.integer(),
+    rowsByTable: v.object({
+      user: v.integer(),
+      project: v.integer(),
+      label: v.integer(),
+      issue: v.integer(),
+      issueLabel: v.integer(),
+      comment: v.integer(),
+      emoji: v.integer(),
+      viewState: v.integer(),
+      userPref: v.integer(),
+      issueNotifications: v.integer(),
+      projectUserRead: v.integer(),
+      issueListRead: v.integer(),
+      issueLabelRead: v.integer(),
+      issueSearchDocument: v.integer(),
+      searchEpoch: v.integer(),
+    }),
+    completed: v.boolean(),
+    finalTable: v.union([v.null(), v.string()]),
+  });
+}
+
+export const fixtureIngestSummary = defineJsQuery({
+  auth: 'authenticated',
+  args: {fixtureId: v.string(), overlayDigest: v.string()},
+  reads: ['fixtureIngestLedger'],
+  result: results.records(fixtureIngestSummaryResult()),
+  handler: async (ctx, args) => {
+    requireFixtureSession(ctx);
+    const contract = largeFixtureContract();
+    if (
+      args.fixtureId !== contract.fixtureId
+      || args.overlayDigest !== contract.overlayDigest
+    ) {
+      throw new Error('fixture ingest summary is outside the frozen large fixture');
+    }
+
+    const rowsByTable = {
+      user: 0,
+      project: 0,
+      label: 0,
+      issue: 0,
+      issueLabel: 0,
+      comment: 0,
+      emoji: 0,
+      viewState: 0,
+      userPref: 0,
+      issueNotifications: 0,
+      projectUserRead: 0,
+      issueListRead: 0,
+      issueLabelRead: 0,
+      issueSearchDocument: 0,
+      searchEpoch: 0,
+    };
+    let batches = 0;
+    let rows = 0;
+    let finalTable = null;
+    let afterBatch = -1;
+    for (;;) {
+      const page = await ctx.db
+        .query('fixtureIngestLedger')
+        .withIndex('by_fixture_overlay_batch')
+        .eq('fixtureId', args.fixtureId)
+        .eq('overlayDigest', args.overlayDigest)
+        .gt('batchIndex', afterBatch)
+        .order('batchIndex', 'asc')
+        .take(64)
+        .collect();
+      for (const ledger of page) {
+        const expected = largeFixtureExpectedBatch(batches);
+        if (
+          !expected
+          || ledger.batchIndex !== batches
+          || ledger.table !== expected.table
+          || ledger.rowCount !== expected.rowCount
+          || !/^sha256:[0-9a-f]{64}$/u.test(ledger.batchDigest)
+          || typeof ledger.committedIds !== 'string'
+          || ledger.committedIds.length === 0
+        ) {
+          throw new Error('fixture ingest ledger does not match the frozen large plan');
+        }
+        if (ledger.table === 'user') rowsByTable.user += ledger.rowCount;
+        else if (ledger.table === 'project') rowsByTable.project += ledger.rowCount;
+        else if (ledger.table === 'label') rowsByTable.label += ledger.rowCount;
+        else if (ledger.table === 'issue') rowsByTable.issue += ledger.rowCount;
+        else if (ledger.table === 'issueLabel') rowsByTable.issueLabel += ledger.rowCount;
+        else if (ledger.table === 'comment') rowsByTable.comment += ledger.rowCount;
+        else if (ledger.table === 'emoji') rowsByTable.emoji += ledger.rowCount;
+        else if (ledger.table === 'viewState') rowsByTable.viewState += ledger.rowCount;
+        else if (ledger.table === 'userPref') rowsByTable.userPref += ledger.rowCount;
+        else if (ledger.table === 'issueNotifications') rowsByTable.issueNotifications += ledger.rowCount;
+        else if (ledger.table === 'projectUserRead') rowsByTable.projectUserRead += ledger.rowCount;
+        else if (ledger.table === 'issueListRead') rowsByTable.issueListRead += ledger.rowCount;
+        else if (ledger.table === 'issueLabelRead') rowsByTable.issueLabelRead += ledger.rowCount;
+        else if (ledger.table === 'issueSearchDocument') rowsByTable.issueSearchDocument += ledger.rowCount;
+        else if (ledger.table === 'searchEpoch') rowsByTable.searchEpoch += ledger.rowCount;
+        else throw new Error('fixture ingest ledger names an unknown table');
+        rows += ledger.rowCount;
+        batches += 1;
+        finalTable = ledger.table;
+        afterBatch = ledger.batchIndex;
+      }
+      if (page.length < 64) break;
+    }
+    const completed = (
+      batches === contract.totalBatches
+      && rows === contract.totalRows
+      && finalTable === 'searchEpoch'
+    );
+    return [{
+      fixtureId: args.fixtureId,
+      overlayDigest: args.overlayDigest,
+      batches,
+      rows,
+      rowsByTable,
+      completed,
+      finalTable,
+    }];
   },
 });
 
@@ -285,7 +685,7 @@ export const fixtureInspectTable = defineJsQuery({
 export const acceptanceBindActor = defineJsMutation({
   auth: 'authenticated',
   args: {actor: v.string()},
-  reads: ['identityBinding', 'searchEpoch', 'user'],
+  reads: ['fixtureIngestLedger', 'identityBinding', 'searchEpoch', 'user'],
   writes: ['identityBinding'],
   result: results.value(v.object({
     actor: v.string(),
@@ -297,20 +697,34 @@ export const acceptanceBindActor = defineJsMutation({
   outgrewIr: 'general-iteration',
   handler: async (ctx, args) => {
     requireFixtureSession(ctx);
-    const actor = fixtureActorBinding(args.actor);
-    if (!actor) {
+    const normalActor = normalFixtureActorBinding(args.actor);
+    const largeActor = largeFixtureActorBinding(args.actor);
+    if (!normalActor || !largeActor) {
       throw new Error('actor binding is closed to the frozen manifest actors');
     }
 
-    const sourceUser = await ctx.db
+    let actor = normalActor;
+    let sourceUser = await ctx.db
       .query('user')
       .withIndex('by_source_id')
       .eq('id', actor.sourceUserID)
       .first();
+    if (!sourceUser) {
+      actor = largeActor;
+      sourceUser = await ctx.db
+        .query('user')
+        .withIndex('by_source_id')
+        .eq('id', actor.sourceUserID)
+        .first();
+    }
     if (!sourceUser || sourceUser.role !== actor.role) {
       throw new Error('actor binding source user is unknown or has the wrong frozen role');
     }
-    await requireLoadedFrozenFixture(ctx.db);
+    const fixtureContract = await requireLoadedFrozenFixture(ctx.db);
+    const expectedActor = fixtureContract === 'large' ? largeActor : normalActor;
+    if (sourceUser.id !== expectedActor.sourceUserID || sourceUser.role !== expectedActor.role) {
+      throw new Error('actor binding source user is outside the loaded fixture contract');
+    }
 
     const principal = ctx.auth.userId;
     const existingPrincipal = await ctx.db

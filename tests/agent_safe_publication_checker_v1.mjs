@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto';
 import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
-import test from 'node:test';
+import nodeTest from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 import {
@@ -12,9 +12,11 @@ import {
   allowedPublicationPath,
   exactCandidate,
   generatedPublicationPathsAt,
+  generatedPublicationPathsOnDisk,
   IMPLEMENTATION_ROOTS,
   implementationDigestAt,
   expectedLocalStorePublicationTransform,
+  LOCAL_STORE_PUBLICATION_TRANSFORM,
   PUBLICATION_CYCLE_ALLOWLIST,
   runChecker,
   validateAbsolutePerformanceArtifact,
@@ -31,6 +33,9 @@ import {
 } from '../scripts/generated-artifact-policy.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+const leafSetOnly = invoked && process.argv.includes('--leaf-set-only');
+const test = invoked && !leafSetOnly ? nodeTest : () => {};
 const storage = {
   id: 'agent_safe_storage_v1',
   anchor: 'src/local-agent-safe-storage-publication.anchor.json',
@@ -415,13 +420,9 @@ function publishedDerivedFixture({ omitReview, mutateMacos } = {}) {
 }
 
 const localStoreTransformPaths = [
-  'tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-04.v1.json',
-  'tests/acceptance/fixtures/local-persistent-store/bundle-attribution.2026-08-04.v1.json',
-  'tests/acceptance/local-store-carrier-exit-v1-evidence.md',
-  'tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-04.v1.json',
-  'tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-04.v1.json',
-  'src/local-persistent-store-publication.anchor.v1.json',
-  'src/local-persistent-store-publication.v1.json',
+  LOCAL_STORE_PUBLICATION_TRANSFORM.anchor,
+  LOCAL_STORE_PUBLICATION_TRANSFORM.carrier,
+  ...LOCAL_STORE_PUBLICATION_TRANSFORM.receipts.map(({ path }) => path),
 ];
 
 function localStoreTransformFixture() {
@@ -439,11 +440,7 @@ function localStoreTransformFixture() {
     cwd: scratch,
     encoding: 'utf8',
   }).trim();
-  for (const path of [
-    'tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-04.v1.json',
-    'tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-04.v1.json',
-    'tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-04.v1.json',
-  ]) {
+  for (const { path } of LOCAL_STORE_PUBLICATION_TRANSFORM.receipts) {
     writeFileSync(join(scratch, path), Buffer.concat([
       readFileSync(join(scratch, path)),
       Buffer.from(' '),
@@ -1094,7 +1091,7 @@ const REVIEWED_GENERATED_PUBLICATION_PATHS = new Set([
   'packages/snapback-react/fixtures/conversation/app/snapback/generated/schema.manifest.json',
 ]);
 
-function assertReviewedGeneratedPublicationPaths(generated) {
+export function auditReviewedGeneratedPublicationPaths(generated) {
   const actual = new Set(
     [...generated.keys()].filter((path) => !isRegisteredContentAddressedGeneratedLeaf(path)),
   );
@@ -1104,11 +1101,23 @@ function assertReviewedGeneratedPublicationPaths(generated) {
   const missing = [...REVIEWED_GENERATED_PUBLICATION_PATHS]
     .filter((path) => !actual.has(path))
     .sort();
+  return { actual, unexpected, missing };
+}
+
+export function assertReviewedGeneratedPublicationPaths(generated) {
+  const { unexpected, missing } = auditReviewedGeneratedPublicationPaths(generated);
   assert.deepEqual(
     { unexpected, missing },
     { unexpected: [], missing: [] },
     'generated publication paths drifted from the reviewed qualification-C leaf set',
   );
+}
+
+export function auditAgentSafePublicationLeafSet({
+  rootPath = root,
+  generated = generatedPublicationPathsOnDisk(rootPath),
+} = {}) {
+  return auditReviewedGeneratedPublicationPaths(generated);
 }
 
 test('P-vs-C generated allowance is the exact qualification-C leaf set', () => {
@@ -1262,14 +1271,17 @@ test('P-vs-C publication path allowlist rejects executable drift', () => {
   );
   for (const path of [
     'demos/triage-graph/snapback/trusted-composition-activation.json',
-    'tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-04.v1.json',
-    'tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-04.v1.json',
+    'tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-06.v1.json',
+    'tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-06.v1.json',
     'tests/acceptance/triage-graph-move1-v1-evidence.md',
+    'tests/acceptance/fixtures/fleet-observatory/move1-exit.2026-08-06.v1.json',
+    'tests/acceptance/fixtures/fleet-observatory/budget-freeze.2026-08-06.v1.json',
+    'tests/acceptance/fleet-observatory-move1-v1-evidence.md',
     'demos/zero-bakeoff/apps/contention-calendar/snapback/trusted-composition-activation.json',
     'tests/acceptance/fixtures/contention-calendar/rung2-exit.2026-08-04.r1.v1.json',
     'tests/acceptance/contention-calendar-rung2-v1-evidence.md',
-    'tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-04.v1.json',
-    'tests/acceptance/fixtures/local-persistent-store/bundle-attribution.2026-08-04.v1.json',
+    'tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-06.v1.json',
+    'tests/acceptance/fixtures/local-persistent-store/bundle-attribution.2026-08-06.v1.json',
     'tests/acceptance/local-store-carrier-exit-v1-evidence.md',
     'src/local-persistent-store-publication.anchor.v1.json',
     'src/local-persistent-store-publication.v1.json',
@@ -1280,6 +1292,14 @@ test('P-vs-C publication path allowlist rejects executable drift', () => {
     allowedPublicationPath('tests/acceptance/fixtures/latency-kanban/move3-exit.2026-08-04.v1.json'),
     false,
   );
+  for (const path of [
+    'tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-04.v1.json',
+    'tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-04.v1.json',
+    'tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-04.v1.json',
+    'tests/acceptance/fixtures/local-persistent-store/bundle-attribution.2026-08-04.v1.json',
+  ]) {
+    assert.equal(allowedPublicationPath(path), false, `${path} is retired publication lineage`);
+  }
   assert.equal(allowedPublicationPath('guide/arbitrary-executable.mjs'), false);
 });
 
@@ -1305,3 +1325,17 @@ test('P-vs-C local-store transform rejects extra carrier or anchor edits', () =>
     );
   }
 });
+
+if (leafSetOnly) {
+  const rootArg = process.argv.indexOf('--root');
+  const rootPath = rootArg === -1 ? root : resolve(process.argv[rootArg + 1]);
+  const { actual, unexpected, missing } = auditAgentSafePublicationLeafSet({ rootPath });
+  assert.deepEqual(
+    { unexpected, missing },
+    { unexpected: [], missing: [] },
+    'generated publication paths drifted from the reviewed qualification-C leaf set',
+  );
+  process.stdout.write(
+    `[agent-safe-publication-leaf-set] PASS: ${actual.size} reviewed regular leaves\n`,
+  );
+}

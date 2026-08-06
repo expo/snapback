@@ -2,7 +2,7 @@
 
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, lstatSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -81,7 +81,7 @@ export const PUBLICATION_CYCLE_ALLOWLIST = new Set([
   'src/local-persistent-store-publication.v1.json',
 ]);
 
-const LOCAL_STORE_PUBLICATION_TRANSFORM = {
+export const LOCAL_STORE_PUBLICATION_TRANSFORM = {
   anchor: 'src/local-persistent-store-publication.anchor.v1.json',
   carrier: 'src/local-persistent-store-publication.v1.json',
   receipts: [
@@ -245,6 +245,90 @@ export function generatedPublicationPathsAt(root, commit) {
       if (path.startsWith(`${generatedRoot}/`)) {
         allowed.set(path, requireFrozenBlob(entries, path, 'fully committed generated projection'));
       }
+    }
+  }
+  return allowed;
+}
+
+function diskRegularBlob(root, path, label) {
+  let stat;
+  try {
+    stat = lstatSync(join(root, path));
+  } catch {
+    fail(`${label} is missing from disk: ${path}`);
+  }
+  if (!stat.isFile()) fail(`${label} is not a regular blob on disk: ${path}`);
+  return { mode: stat.mode & 0o111 ? '100755' : '100644', type: 'blob' };
+}
+
+function indexedGeneratedEntriesOnDisk(root) {
+  const generatedRoots = [
+    ...REVIEW_CACHE_ROOTS,
+    ...FULLY_COMMITTED_ROOTS,
+    ...ADMIN_GENERATED_ROOTS,
+  ];
+  const raw = execFileSync('git', ['ls-files', '--stage', '-z', '--', ...generatedRoots], {
+    cwd: root,
+  });
+  const entries = new Map();
+  for (const record of raw.toString().split('\0').filter(Boolean)) {
+    const match = record.match(/^([0-7]{6}) [0-9a-f]+ 0\t([\s\S]+)$/u);
+    if (!match) fail('could not decode indexed generated leaf');
+    const [, mode, path] = match;
+    entries.set(path, { mode, type: mode === '160000' ? 'commit' : 'blob' });
+  }
+  return entries;
+}
+
+function indexedRegularBlob(root, entries, path, label) {
+  const entry = entries.get(path);
+  if (!entry || entry.type !== 'blob' || !entry.mode.startsWith('100')) {
+    fail(`${label} is not a tracked regular blob on disk: ${path}`);
+  }
+  diskRegularBlob(root, path, label);
+  return entry;
+}
+
+// Inventory-only working-tree twin of generatedPublicationPathsAt(). It reads
+// reviewed manifests and regular generated leaves without running codegen or
+// any publication qualification behavior.
+export function generatedPublicationPathsOnDisk(root) {
+  const entries = indexedGeneratedEntriesOnDisk(root);
+  const allowed = new Map();
+  for (const generatedRoot of REVIEW_CACHE_ROOTS) {
+    const manifestPath = `${generatedRoot}/artifacts.json`;
+    allowed.set(
+      manifestPath,
+      indexedRegularBlob(root, entries, manifestPath, 'review manifest'),
+    );
+    let manifest;
+    try {
+      manifest = JSON.parse(readFileSync(join(root, manifestPath), 'utf8'));
+    } catch (error) {
+      fail(`could not decode review manifest on disk ${manifestPath}: ${error.message}`);
+    }
+    if (manifest?.manifestVersion !== 2 || !Array.isArray(manifest.files)) {
+      fail(`review manifest on disk is not v2: ${manifestPath}`);
+    }
+    for (const file of manifest.files) {
+      if (file?.custody !== 'consumer-committed') continue;
+      if (!portableGeneratedLeaf(file.path)) {
+        fail(`consumer projection path on disk is invalid: ${manifestPath}`);
+      }
+      const path = `${generatedRoot}/${file.path}`;
+      allowed.set(
+        path,
+        indexedRegularBlob(root, entries, path, 'consumer-committed projection'),
+      );
+    }
+  }
+  for (const generatedRoot of [...FULLY_COMMITTED_ROOTS, ...ADMIN_GENERATED_ROOTS]) {
+    for (const [path, entry] of entries) {
+      if (!path.startsWith(`${generatedRoot}/`)) continue;
+      allowed.set(
+        path,
+        indexedRegularBlob(root, entries, path, 'fully committed generated projection'),
+      );
     }
   }
   return allowed;

@@ -207,3 +207,45 @@ the published versions.
   a 0.1.11 ledger, publish or move any dist-tag, or run public-registry/G4
   smoke proofs. A landed inventory repair and fresh complete green candidate
   proof are required before retry.
+
+- **2026-08-06 — 0.1.11 successor attempt 3 BLOCKED before staging; nothing
+  published.** The attempt fetched and pinned clean `origin/main`
+  `f6b7906ba817a710ee932e2cbf23cd9b29563bef`, confirmed npm authentication as
+  `ccheever`, observed `latest: 0.1.10` and no `0.1.11` on all ten names, and
+  selected the complete 134-gate inventory with Exact required under the
+  repository-pinned Node 24.18.0. All four prior blockers were green:
+  capability maturity and agent-safe publication, governed client-bundle
+  metrology (56 profiles, no frozen-ceiling regressions), the hermetic Fleet
+  receipt, and demo materialization. The proof then stopped after 47 PASS at
+  `required-surface-builds`: its mandatory root `bun install
+  --frozen-lockfile` found that the tracked `bun.lock` would change under the
+  pinned Bun 1.3.12. Isolated lock regeneration traces the first semantic
+  delta to the `expo-file-system` peer added to `@expo/snapback-expo` in
+  `47b4a59ac` without a matching root-lock update; the full characterization
+  is in
+  `issues/20260806-local-proof-required-surface-builds-root-lock-drift.md`.
+  Per this log's central-gate rule and the task's fifth-distinct-gate stop
+  ruling, the attempt did not stage tarballs, create a 0.1.11 ledger, publish
+  or move any dist-tag, or run public-registry/G4 smoke proofs. A landed lock
+  reconciliation and fresh complete green candidate proof are required before
+  retry.
+
+- **2026-08-06 — 0.1.11 successor attempt 4 BLOCKED before staging; nothing
+  published.** The attempt fetched and pinned clean `origin/main`
+  `85e1e5a160e7080214e15bed02deb3c9c2432380`, confirmed npm authentication as
+  `ccheever`, and observed `latest: 0.1.10` with no `0.1.11` on all ten names.
+  The complete 134-gate proof selected Exact and ran fail-fast under the
+  repository-pinned Node 24.18.0. Fifteen gates passed, including capability
+  maturity, before `agent-safe-publication-fixtures` failed three of its 28
+  cases. Commit `29d4c3d465` moved the production local-store publication
+  transform and allowlist to the 2026-08-06 carrier/Triage receipt paths, but
+  the self-test scratch fixture and allowlist assertions still name the
+  2026-08-04 paths. The transform tests consequently try to read absent
+  2026-08-06 files from their synthetic qualification-C commit, and the
+  allowlist case expects an old Triage receipt the production set no longer
+  admits. Filed
+  `issues/20260806-local-proof-agent-safe-publication-fixture-lineage-drift.md`.
+  This is the task's sixth distinct central-gate failure, so the attempt did
+  not stage tarballs, create a 0.1.11 ledger, publish or move any dist-tag, or
+  run public-registry/G4 smoke proofs. A landed fixture/lineage reconciliation
+  and fresh complete green candidate proof are required before retry.
