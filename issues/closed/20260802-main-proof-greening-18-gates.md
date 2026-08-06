@@ -1392,7 +1392,12 @@ receipt; no widened effect ceiling or correctness edit occurred.
 
 The final G2 cold-retained-boot repair `ec49b1d27` also moved
 `react-external` one byte above its completed-main gzip ceiling (23,355 →
-23,356) while remaining below the frozen minified and Brotli ceilings. A
-second prospective rollover is declared for that one profile only, with the
-first August receipt retained byte-identically and all unrelated ceilings left
-active.
+23,356) while remaining below the frozen minified and Brotli ceilings. The
+second rollover advances that one profile only: minified is unchanged at
+72,784 bytes, gzip is +1 byte, and Brotli improves by 9 bytes. Its source-bound
+receipt was minted from declaration commit `5ebfeefd4`, has SHA-256
+`45d1d91146dae268300adf1e084554ff996f3a58daa28e2f9cc2732b45f0d889`,
+and produced current-report SHA-256
+`5fe511fa881932660c69831abd4b605aaffbf5d2d70c326e73c19ade3da5142b`.
+The first August receipt remains byte-identical and all unrelated ceilings
+remain active.
