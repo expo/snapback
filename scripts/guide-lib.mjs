@@ -739,3 +739,45 @@ export function loadCorpus(root) {
   }
   return { errors, warnings, infos, pagePaths, pageInfo, pageBodies };
 }
+
+// Rebuild the two committed guide projections in memory. This is the cheap,
+// read-only inventory seam: no generated files are written and no snippets are
+// executed (transclusions are compared as bytes only).
+export function auditGuideManifestInventory({
+  root = repoRoot(),
+  readGeneratedFile = (path) => readFileSync(join(root, path), 'utf8'),
+} = {}) {
+  const { errors, pagePaths, pageInfo, pageBodies } = loadCorpus(root);
+  const snippetRecords = checkSnippets(root, pageBodies, errors);
+  const index = parseCapabilityIndex(root, errors);
+  const surfaces = checkCapabilityIndex(root, index, pageInfo, errors);
+  checkPublishedClosure(root, pageInfo, pageBodies, errors);
+  if (errors.length > 0) {
+    return { errors, stale: [], pageCount: pagePaths.length, snippetCount: 0 };
+  }
+
+  const expected = buildManifest(root, pageInfo, snippetRecords, index, surfaces);
+  const expectedFlat = buildFlatGuide(root, expected, pageInfo);
+  const stale = [];
+  try {
+    const actual = JSON.parse(readGeneratedFile(MANIFEST_PATH));
+    const stripBuildIdentity = ({ buildIdentity, ...rest }) => rest;
+    if (JSON.stringify(stripBuildIdentity(actual))
+        !== JSON.stringify(stripBuildIdentity(expected))) {
+      stale.push(MANIFEST_PATH);
+    }
+  } catch {
+    stale.push(MANIFEST_PATH);
+  }
+  try {
+    if (readGeneratedFile(FLAT_PATH) !== expectedFlat) stale.push(FLAT_PATH);
+  } catch {
+    stale.push(FLAT_PATH);
+  }
+  return {
+    errors,
+    stale,
+    pageCount: pagePaths.length,
+    snippetCount: [...snippetRecords.values()].flat().length,
+  };
+}

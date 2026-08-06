@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto';
 import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
-import test from 'node:test';
+import nodeTest from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 import {
@@ -12,6 +12,7 @@ import {
   allowedPublicationPath,
   exactCandidate,
   generatedPublicationPathsAt,
+  generatedPublicationPathsOnDisk,
   IMPLEMENTATION_ROOTS,
   implementationDigestAt,
   expectedLocalStorePublicationTransform,
@@ -31,6 +32,9 @@ import {
 } from '../scripts/generated-artifact-policy.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+const leafSetOnly = invoked && process.argv.includes('--leaf-set-only');
+const test = invoked && !leafSetOnly ? nodeTest : () => {};
 const storage = {
   id: 'agent_safe_storage_v1',
   anchor: 'src/local-agent-safe-storage-publication.anchor.json',
@@ -1094,7 +1098,7 @@ const REVIEWED_GENERATED_PUBLICATION_PATHS = new Set([
   'packages/snapback-react/fixtures/conversation/app/snapback/generated/schema.manifest.json',
 ]);
 
-function assertReviewedGeneratedPublicationPaths(generated) {
+export function auditReviewedGeneratedPublicationPaths(generated) {
   const actual = new Set(
     [...generated.keys()].filter((path) => !isRegisteredContentAddressedGeneratedLeaf(path)),
   );
@@ -1104,11 +1108,23 @@ function assertReviewedGeneratedPublicationPaths(generated) {
   const missing = [...REVIEWED_GENERATED_PUBLICATION_PATHS]
     .filter((path) => !actual.has(path))
     .sort();
+  return { actual, unexpected, missing };
+}
+
+export function assertReviewedGeneratedPublicationPaths(generated) {
+  const { unexpected, missing } = auditReviewedGeneratedPublicationPaths(generated);
   assert.deepEqual(
     { unexpected, missing },
     { unexpected: [], missing: [] },
     'generated publication paths drifted from the reviewed qualification-C leaf set',
   );
+}
+
+export function auditAgentSafePublicationLeafSet({
+  rootPath = root,
+  generated = generatedPublicationPathsOnDisk(rootPath),
+} = {}) {
+  return auditReviewedGeneratedPublicationPaths(generated);
 }
 
 test('P-vs-C generated allowance is the exact qualification-C leaf set', () => {
@@ -1305,3 +1321,17 @@ test('P-vs-C local-store transform rejects extra carrier or anchor edits', () =>
     );
   }
 });
+
+if (leafSetOnly) {
+  const rootArg = process.argv.indexOf('--root');
+  const rootPath = rootArg === -1 ? root : resolve(process.argv[rootArg + 1]);
+  const { actual, unexpected, missing } = auditAgentSafePublicationLeafSet({ rootPath });
+  assert.deepEqual(
+    { unexpected, missing },
+    { unexpected: [], missing: [] },
+    'generated publication paths drifted from the reviewed qualification-C leaf set',
+  );
+  process.stdout.write(
+    `[agent-safe-publication-leaf-set] PASS: ${actual.size} reviewed regular leaves\n`,
+  );
+}

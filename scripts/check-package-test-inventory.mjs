@@ -11,14 +11,17 @@ import { fileURLToPath } from 'node:url';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const IGNORED_TEST_DIRS = new Set(['.git', 'coverage', 'dist', 'node_modules']);
 
-const inventories = [
+export const PACKAGE_TEST_INVENTORIES = [
   {
     id: 'snapback-maturity-records',
     packageDir: '.',
     testDir: 'tests',
     suffix: '.test.mjs',
     scriptNames: ['test:maturity'],
-    expectedFiles: ['tests/capability-maturity.test.mjs'],
+    expectedFiles: [
+      'tests/capability-maturity.test.mjs',
+      'tests/check-inventories.test.mjs',
+    ],
   },
   {
     id: '@expo/snapback-runtime-darwin-arm64',
@@ -353,7 +356,19 @@ const inventories = [
   },
 ];
 
-export function inspectInventory({ root = ROOT, inventory }) {
+function multisetDifference(left, right) {
+  const remaining = new Map();
+  for (const value of right) remaining.set(value, (remaining.get(value) ?? 0) + 1);
+  const difference = [];
+  for (const value of left) {
+    const count = remaining.get(value) ?? 0;
+    if (count === 0) difference.push(value);
+    else remaining.set(value, count - 1);
+  }
+  return difference.sort();
+}
+
+export function auditInventory({ root = ROOT, inventory }) {
   const packageRoot = join(root, inventory.packageDir);
   const packageJson = JSON.parse(readFileSync(join(packageRoot, 'package.json'), 'utf8'));
   const scriptNames = inventory.scriptNames ?? ['test'];
@@ -383,22 +398,67 @@ export function inspectInventory({ root = ROOT, inventory }) {
     .filter((path) => path.endsWith(inventory.suffix))
     .sort();
 
-  assert.deepEqual(
-    discovered,
-    [...inventory.expectedFiles].sort(),
-    `${inventory.id} maintained test IDs/count changed; review and update the canonical inventory`,
-  );
-
-  assert.deepEqual(
-    declared,
-    discovered,
-    `${inventory.id} configured test scripts must name every maintained ${inventory.suffix} exactly once`,
-  );
-  return { id: inventory.id, count: discovered.length, files: discovered };
+  const expected = [...inventory.expectedFiles].sort();
+  return {
+    id: inventory.id,
+    count: discovered.length,
+    files: discovered,
+    unexpectedOnDisk: multisetDifference(discovered, expected),
+    missingOnDisk: multisetDifference(expected, discovered),
+    undeclaredInScripts: multisetDifference(discovered, declared),
+    missingFromDiskButDeclared: multisetDifference(declared, discovered),
+  };
 }
 
-const results = inventories.map((inventory) => inspectInventory({ inventory }));
-const total = results.reduce((sum, result) => sum + result.count, 0);
+export function inspectInventory(options) {
+  const result = auditInventory(options);
+  assert.deepEqual(
+    { unexpected: result.unexpectedOnDisk, missing: result.missingOnDisk },
+    { unexpected: [], missing: [] },
+    `${result.id} maintained test IDs/count changed; review and update the canonical inventory`,
+  );
+  assert.deepEqual(
+    {
+      undeclared: result.undeclaredInScripts,
+      missing: result.missingFromDiskButDeclared,
+    },
+    { undeclared: [], missing: [] },
+    `${result.id} configured test scripts must name every maintained test exactly once`,
+  );
+  return result;
+}
+
+export function auditPackageTestInventories({
+  root = ROOT,
+  inventories = PACKAGE_TEST_INVENTORIES,
+  expectedTotal = 226,
+} = {}) {
+  const results = inventories.map((inventory) => auditInventory({ root, inventory }));
+  const total = results.reduce((sum, result) => sum + result.count, 0);
+  return { results, total, expectedTotal, totalDrift: total - expectedTotal };
+}
+
+export function checkPackageTestInventories(options = {}) {
+  const audit = auditPackageTestInventories(options);
+  for (const result of audit.results) {
+    assert.deepEqual(
+      { unexpected: result.unexpectedOnDisk, missing: result.missingOnDisk },
+      { unexpected: [], missing: [] },
+      `${result.id} maintained test IDs/count changed; review and update the canonical inventory`,
+    );
+    assert.deepEqual(
+      {
+        undeclared: result.undeclaredInScripts,
+        missing: result.missingFromDiskButDeclared,
+      },
+      { undeclared: [], missing: [] },
+      `${result.id} configured test scripts must name every maintained test exactly once`,
+    );
+  }
+  assert.equal(audit.total, audit.expectedTotal, 'reviewed package/admin test count changed');
+  return audit;
+}
+
 // 77 -> 79 (2026-07-24, ENG-25454): @expo/snapback-vite gains channel-a.test.mjs
 // and rqs-serializer.test.mjs (LLP 0092 §0E Channel A seam + serializer).
 // 79 -> 82 (2026-07-25, ENG-25456): @expo/snapback-client gains
@@ -628,8 +688,15 @@ const total = results.reduce((sum, result) => sum + result.count, 0);
 // 224 -> 225 (2026-08-06, LLP 0176 OQ4): @expo/snapback-cli gains the
 // headless physical-device inventory, network-refusal, exact adb-reverse
 // ownership/rollback, readiness-shape, and iOS tooling-direction suite.
-assert.equal(total, 225, 'reviewed package/admin test count changed');
-for (const result of results) {
-  process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
+// 225 -> 226 (2026-08-06): the root inventory gains the maintained synthetic
+// drift corpus for the fast pre-push inventory checker.
+const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (invoked) {
+  const rootArg = process.argv.indexOf('--root');
+  const root = rootArg === -1 ? ROOT : resolve(process.argv[rootArg + 1]);
+  const { results, total } = checkPackageTestInventories({ root });
+  for (const result of results) {
+    process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
+  }
+  process.stdout.write(`[package-test-inventory] PASS: ${total} declared test files\n`);
 }
-process.stdout.write(`[package-test-inventory] PASS: ${total} declared test files\n`);

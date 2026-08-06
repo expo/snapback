@@ -113,6 +113,8 @@ silent wedge trap (ENG-22659).
 
 - Read relevant LLP documents before implementing features or fixing bugs in
   the areas they cover.
+- Landings that add test files, metadata-declared demos, or generated
+  publication leaves run `node scripts/check-inventories.mjs` before pushing.
 - **`main` moves fast — often continuously for days.** Many concurrent agent
   sessions push to it around the clock. Do not design processes, gates, or
   qualification loops that depend on `main` being quiet for hours at a time
