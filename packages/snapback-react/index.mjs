@@ -266,7 +266,7 @@ function assertProvider(provider) {
   if (provider?.kind === 'snapback.react-provider.v1') return provider;
   throw diagnosticError(
     'SNAPBACK_REACT_PROVIDER_REQUIRED',
-    'a SnapbackProvider with a prepared binding is required',
+    'a prepared SnapbackProvider is required',
   );
 }
 
@@ -286,7 +286,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
   if (preparedGroup !== null && !isPreparedReactQueryGroup(preparedGroup)) {
     throw diagnosticError(
       'SNAPBACK_REACT_GROUP_PREPARATION_INVALID',
-      'preparedGroup must come from binding.prepareQueryGroup()',
+      'preparedGroup was not prepared by this binding',
     );
   }
   if (preparedGroup !== null) admittedReactQueryGroup(binding, preparedGroup.reference);
@@ -299,7 +299,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
   ) {
     throw diagnosticError(
       'SNAPBACK_REACT_GROUP_CONNECTION_MISMATCH',
-      'provider connectionId must match the register-mode query-group bundle',
+      'provider and prepared group connectionId differ',
       {
         expected: preparedGroup.connectionId,
         actual: options.connectionId,
@@ -337,7 +337,6 @@ function createRegistry(binding, providerInstanceId, options = {}) {
   let terminal = false;
   let custodyPaused = false;
   let hostPaused = false;
-  const runtimePaused = () => custodyPaused || hostPaused;
   let leaseSequence = 0;
   let registeredConnectionAttached = false;
   let registeredRecovery = null;
@@ -549,7 +548,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         releaseLayerPin(store, layer);
         recordDiagnostic(diagnosticError(
           'SNAPBACK_REACT_OPTIMISTIC_REBASE_FAILED',
-          'an optimistic reducer failed while rebasing over newer authority',
+          'optimistic rebase failed',
           { attemptId: layer.id, cause: error?.code ?? error?.message ?? String(error) },
         ));
       }
@@ -667,7 +666,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
   };
 
   const startStore = (store, supersedes = null) => {
-    if (terminal || runtimePaused() || store.handle || (store.consumers === 0 && store.pins === 0)) return;
+    if (terminal || custodyPaused || hostPaused || store.handle || (store.consumers === 0 && store.pins === 0)) return;
     if (store.readOnlySnapshot !== null) return null;
     // A one-for-one supersession must carry its exact predecessor witness to
     // the server now; it is an explicit invalidation, so it resets any held
@@ -776,7 +775,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         handleSubscribeFailure([
           store, error, generation, handle, clearUnadoptedSubscription,
           allHandles, recoverExpiredRegisteredConnection, publish, serializeError,
-          () => !terminal && !runtimePaused(),
+          () => !terminal && !custodyPaused && !hostPaused,
           () => startStore(store),
         ])
       )).catch((loadError) => {
@@ -802,7 +801,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
           retryHandle = null;
           if (store.retry !== cancelRetry) return;
           store.retry = null;
-          if (!terminal && !runtimePaused() && (store.consumers > 0 || store.pins > 0)) {
+          if (!terminal && !custodyPaused && !hostPaused && (store.consumers > 0 || store.pins > 0)) {
             startStore(store);
           }
         }, REACT_RUNTIME_FALLBACK_RETRY_MS);
@@ -911,32 +910,6 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         initialProjection,
         validateResultContract,
       })).catch(recordDiagnostic);
-    return;
-    const key = `${mutationReference.id} ${queryReference.id}`;
-    if (replayAdvisoryKeys.has(key)) return;
-    let detail = null;
-    try {
-      const replayed = validateResultContract(
-        store.resultContract,
-        layer.update(initialProjection, layer.mutationArgs),
-        { requireKnown: true },
-      );
-      if (!projectionEquals(replayed, initialProjection)) {
-        detail = 'returned a different projection when replayed over its own output';
-      }
-    } catch (error) {
-      detail = 'failed when replayed over its own output '
-        + `(${error?.code ?? error?.message ?? String(error)})`;
-    }
-    if (detail === null) return;
-    replayAdvisoryKeys.add(key);
-    console.warn(
-      `SNAPBACK_REACT_OPTIMISTIC_REPLAY_DIVERGENT: the optimistic update for ${mutationReference.name} `
-      + `over ${queryReference.name} ${detail}. Optimistic updates are replayable projections over an `
-      + 'evolving authoritative base: capture the intended outcome and set it (or use '
-      + 'projectRecordFields) instead of toggling or incrementing the incoming rows. See '
-      + 'guide/recipes/optimistic-toggle.md.',
-    );
   };
 
   const runMutation = async (mutationReference, mutationArgs, optimistic = null) => {
@@ -978,7 +951,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     if (
       typeof optimistic !== 'object'
       || typeof optimistic.update !== 'function'
-    ) throw new TypeError('optimistic mutation options require query, args, and update');
+    ) throw new TypeError('optimistic options require query, args, and update');
     let queryReference;
     try {
       queryReference = admittedReactReference(binding, optimistic.query, 'LiveQuery');
@@ -996,14 +969,15 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     );
     const store = stores.get(queryKey);
     if (
-      runtimePaused()
+      custodyPaused
+      || hostPaused
       || !store
       || store.authoritativeRevision === 0
       || !['ready', 'refreshing'].includes(store.snapshot.status)
     ) {
       throw diagnosticError(
         'SNAPBACK_REACT_OPTIMISTIC_STORE_MISSING',
-        'optimistic projection requires a current authoritative query store',
+        'optimistic projection requires authoritative rows',
         { queryId: queryReference.id },
       );
     }
@@ -1082,7 +1056,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       if (capture && !client.authorityFence?.isCurrent?.(capture)) {
         throw diagnosticError(
           'SNAPBACK_CLIENT_AUTHORITY_STALE',
-          'optimistic mutation authority was replaced before dispatch',
+          'mutation authority is stale',
         );
       }
       const output = await client.mutate(admittedMutation, {
@@ -1404,7 +1378,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     ) {
       throw diagnosticError(
         'SNAPBACK_REACT_PRESENCE_HEARTBEAT_UNSUPPORTED',
-        'managed presence TTL must be an integer from 500ms through the generated maximum',
+        'presence TTL must be an integer from 500ms through its generated maximum',
         { ttlMs: effectiveTtlMs, maxTtlMs: room.definition.reference.maxTtlMs },
       );
     }
@@ -1412,7 +1386,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     if (!validated.ok) {
       throw diagnosticError(
         'SNAPBACK_REACT_PRESENCE_VALUE_INVALID',
-        'managed presence value does not satisfy the generated value contract',
+        'presence value is invalid',
         { collection: room.definition.reference.name, path: validated.path },
       );
     }
@@ -1420,7 +1394,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     if (new TextEncoder().encode(encoded).byteLength > room.definition.reference.maxValueBytes) {
       throw diagnosticError(
         'SNAPBACK_EPHEMERAL_VALUE_TOO_LARGE',
-        'managed presence value exceeds the generated byte budget',
+        'presence value exceeds its generated byte budget',
         { maxValueBytes: room.definition.reference.maxValueBytes },
       );
     }
@@ -1432,7 +1406,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       ) {
         throw diagnosticError(
           'SNAPBACK_REACT_PRESENCE_VALUE_CONFLICT',
-          'same-room managed presence consumers must publish the same value and TTL',
+          'same-room presence consumers must publish one value and TTL',
           { collection: room.definition.reference.name },
         );
       }
@@ -1616,7 +1590,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     pauseRoom(room);
   };
   const startRoom = (room) => {
-    if (room.closed || room.handle || terminal || runtimePaused()) return;
+    if (room.closed || room.handle || terminal || custodyPaused || hostPaused) return;
     const generation = ++room.generation;
     room.raw = PRESENCE_SERVER_PENDING;
     const handle = client.startEphemeralRoom(
@@ -1938,17 +1912,17 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     return connectionSnapshot;
   };
 
-  const quiesceRegistry = async () => {
+  const quiesceRegistry = () => {
     for (const store of stores.values()) stopStore(store);
     for (const room of rooms.values()) pauseRoom(room);
-    await Promise.allSettled([
+    return Promise.allSettled([
       ...[...allHandles].map((handle) => handle.settled()),
       ...[...rooms.values()].map((room) => room.cleanup),
       ...(registeredRecovery === null ? [] : [registeredRecovery]),
     ]);
   };
-  const resumeRegistry = () => {
-    if (terminal || runtimePaused()) return;
+  const resumeRegistry = async () => {
+    if (terminal || custodyPaused || hostPaused) return;
     manager = typeof client.liveStreamManager === 'function'
       ? client.liveStreamManager(connectionId)
       : null;
@@ -1958,9 +1932,9 @@ function createRegistry(binding, providerInstanceId, options = {}) {
 
   const barrierParticipant = {
     name: `snapback-react:${providerInstanceId}`,
-    async quiesce() {
+    quiesce() {
       custodyPaused = true;
-      await quiesceRegistry();
+      return quiesceRegistry();
     },
     blank() {
       custodyPaused = true;
@@ -1987,10 +1961,9 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       invalidatePreparedRegistrations('authority-replaced');
     },
     async commitDurable() {},
-    async resume() {
-      if (terminal) return;
+    resume() {
       custodyPaused = false;
-      resumeRegistry();
+      return resumeRegistry();
     },
   };
   const unregisterBarrier = client.registerAuthBarrierParticipant(barrierParticipant);
@@ -2059,13 +2032,11 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     }
     const settle = (outcome) => {
       if (terminal || generationHandoff !== state) return outcome;
-      if (outcome?.ok === true) {
-        state.status = 'ok';
-      } else {
-        state.status = 'failed';
+      state.status = outcome?.ok === true ? 'ok' : 'failed';
+      if (state.status === 'failed') {
         const failure = outcome?.failure ?? diagnostic(
           'SNAPBACK_REACT_HMR_REBIND_FAILED',
-          'HMR rebind runtime failed',
+          'HMR rebind failed',
         );
         state.failureSnapshot = errorSnapshot(failure);
       }
@@ -2176,19 +2147,19 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     // cannot race an authority transition (or vice versa).
     // @ref LLP 0181#provider — the Expo lifecycle shell delegates to the
     // existing React/client machinery.
-    async pause() {
+    pause() {
       hostPaused = true;
-      await quiesceRegistry();
+      return quiesceRegistry();
     },
-    async resume() {
+    resume() {
       hostPaused = false;
-      resumeRegistry();
+      return resumeRegistry();
     },
     inspection() {
       return Object.freeze({
         providerInstanceId,
         terminal,
-        custodyPaused: runtimePaused(),
+        custodyPaused: custodyPaused || hostPaused,
         hostPaused,
         stores: stores.size,
         consumers,
@@ -2301,8 +2272,8 @@ export function createSnapbackReactProvider(binding, options = {}) {
     registerEphemeralRepublisher(reference, callback) {
       return preparedReactBindingClient(prepared).registerEphemeralRepublisher(reference, callback);
     },
-    pause: () => registry.pause(),
-    resume: () => registry.resume(),
+    pause: registry.pause,
+    resume: registry.resume,
     inspection: () => registry.inspection(),
     dispose: () => registry.dispose(),
   });
@@ -2559,7 +2530,7 @@ export function projectRecordFields(recordId, fields, { idField = '_id' } = {}) 
   });
 }
 
-export function useSnapbackMutation(reference, options = {}) {
+export function useSnapbackMutation(reference, options) {
   const provider = useProvider();
   // Registry-owned admission: in a positively identified development/HMR
   // environment a regenerated same-app reference defers to the generation
@@ -2570,9 +2541,10 @@ export function useSnapbackMutation(reference, options = {}) {
     [provider, reference],
   );
   const optimistic = options?.optimistic ?? null;
+  const runMutation = provider.registry.runMutation;
   return useCallback(
-    (args) => provider.registry.runMutation(admitted, args, optimistic),
-    [provider, admitted, optimistic],
+    (args) => runMutation(admitted, args, optimistic),
+    [runMutation, admitted, optimistic],
   );
 }
 
