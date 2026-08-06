@@ -1,6 +1,6 @@
 # package-export-types is red on main — expo-dev.d.mts uses NodeJS namespace without @types/node in the consumer fixture
 
-**Status:** Open
+**Status:** Resolved
 **Opened:** 2026-08-06
 **Related:** scripts/check-package-export-types.mjs;
 packages/snapback-cli/expo-dev.d.mts (introduced 567a8e0fd, LLP 0181 E1 /
@@ -24,3 +24,13 @@ packages that declare a node runtime requirement.
 
 Filed by the sbsb2 implementation session, which hit it as a false
 positive on an unrelated series.
+
+## Resolution — 2026-08-06 wave-drift pass
+
+The wave branch's `4f2d7ef8a` fix made the published supervised-dev-loop
+declarations self-contained instead of requiring an ambient `NodeJS`
+namespace. After merging the completed S2/SBSB2 main batch,
+`node scripts/check-package-export-types.mjs` passes the consumer fixture for
+all 93 published subpaths across 12 packages and passes runtime/declaration
+surface parity. The failure is attributable to declaration landing
+`567a8e0fd`; the fix changes types only.

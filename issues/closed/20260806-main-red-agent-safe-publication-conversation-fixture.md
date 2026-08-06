@@ -1,6 +1,6 @@
 # main red: agent-safe publication checker vs the conversation fixture's regenerated closure
 
-**Status:** Open
+**Status:** Resolved
 **Systems:** Packaging, Testing, React
 
 `scripts/verify-local-proof` fails at the `agent-safe-publication-fixtures`
@@ -29,3 +29,17 @@ Filed rather than fixed here because that lane is actively landing S2/G3
 work and this inventory is theirs to keep coherent (LLP 0184's close-out
 found it while running the full local proof; every other executed proof gate
 before this fail-fast point was green).
+
+## Resolution — 2026-08-06 wave-drift pass
+
+The completed S2 fan-out on `main` regenerated the entire registered
+conversation fixture, rotating the content-addressed binding and descriptor
+again and making the whole 53-leaf closure visible in qualification C. The
+wave-drift pass reviewed that exact closure: it is confined to the existing
+conversation generated root, and its only new path kind is the declared
+`sendMessage` command contract and argument schema from `17e7ca8ca`. The
+explicit reviewed set now names the current closure and still rejects
+additions, removals, and executable paths outside the registered roots.
+
+`node --test tests/agent_safe_publication_checker_v1.mjs` passes 24/24. No
+push-seam or F0a fork implementation behavior changed.

@@ -1,6 +1,6 @@
 # client-bundle-metrology ratchet is red on main — pre-existing, environment-implicated
 
-**Status:** Open
+**Status:** Resolved
 **Opened:** 2026-08-06
 **Related:** scripts/client-bundle-metrology.mjs;
 tests/fixtures/client-bundle-metrology/baseline.v1.json; LLP 0063
@@ -43,3 +43,29 @@ explicitly and say so.
 
 Filed by the sbsb2 implementation session, which hit it as a false
 positive on an unrelated series (2,312/2,312 cargo tests green).
+
+## Resolution — 2026-08-06 wave-drift pass
+
+The apparent environment-only diagnosis mixed two real, sequential capability
+steps. This branch already carried the reviewed August client-capability and
+final G2 rollovers that account for the earlier React/store growth without
+mutating their predecessors. Merging `17e7ca8ca` then exposed a second,
+independently attributable S2 step:
+
+- `external-react-application`: 72,960 -> 85,811 minified bytes;
+- `react-external`: 72,784 -> 85,635;
+- `public-subpath-assets`: 13,860 -> 15,092; and
+- `resolved-public-subpath-assets`: 13,864 -> 15,101.
+
+The successor attribution names the intended shipped modules:
+`commands.mjs` contributes 9,824 bytes to each React closure, while the
+authority-preserving `assets.mjs` seam contributes 14,536 bytes to each React
+closure and 14,831 bytes to each asset-only closure. This is accepted LLP 0180
+/ LLP 0179 S2 capability mass, not a server/dev import or duplicated runtime.
+
+The guarded writer therefore froze a prospective four-profile
+`baseline.s2-command-assets.v1.json` rollover, retaining every predecessor
+unchanged. The new `commands` export is separately frozen as two additive
+profiles (`public-subpath-commands` and
+`resolved-public-subpath-commands`) in `baseline.s2-commands.v1.json`. Both
+writers ran the complete declared behavior train before minting.

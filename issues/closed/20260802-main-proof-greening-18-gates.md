@@ -1581,3 +1581,37 @@ ticket's batched-drift rescope, that is not a reason to remint the expensive
 receipt for each landing. This branch is an ordinary proof-greening merge, not
 an npm or capability promotion; no bootstrap bypass, host mutation, or
 release claim is made.
+
+### SBSB2/S2 fan-out reconciliation — 2026-08-06
+
+The branch merged completed `main` through `8743cf3cc`. Its SBSB2 fan-out had
+already regenerated schemas, activations, and package fixtures, while the
+merged wave sources and `17e7ca8ca` S2 command landing left the expected
+batched tail: exact generated-leaf inventory, two new commands metrology
+profiles, four intentional command/asset bundle increases, two mechanical
+SBSB2 test borrows, and the three source-bound publication carriers.
+
+No active push-seam or F0a correctness implementation was changed. The
+conversation closure was reviewed as a suite fixture; strict Clippy's two
+`needless_borrow` findings were confined to the new SBSB2 test helper. The
+metrology writers preserved all historical ledgers, froze the two commands
+profiles (receipt SHA-256
+`f52861c8270a7a512608fa29515ac241862d30bc022cdff3abeea261cebc8c22`),
+and froze the four-profile S2 rollover (receipt SHA-256
+`8bf3e90d1f43c5085c55749a28b968503010a0e2cc4d8460594198bc70e4fb4e`).
+
+The real acceptance dependency chain was rerun without bypass. Triage passed
+8/8 over 250,000 events from source `e7275c544` (receipt SHA-256
+`74c22a2de7a6d4345d42ccba6f65e01712d3d46b8ea6d3fae7ffab61aeaf9704`;
+budget SHA-256
+`db3917debbf9ee080e198e76c3af76477711bb92aa1409c4278d36a33198d69d`).
+After a clean coded bootstrap at `cff30e35d`, the browser-backed store
+producer passed 16 PASS / 1 declared Fleet GAP / 0 SKIPPED with `dirty: false`;
+its final retained receipt SHA-256 is
+`e63751670956c4a32a476090b82bd95cacaf8a3bf1c9d56fa32fd3fe1d6c067b`.
+The finalizer then produced relation/activity carrier SHA-256
+`f4160b9a76056f887cefccbe6ab75ae4f57f6675234be21fc0c98294bfec8af5`,
+sequence carrier SHA-256
+`13b5142f8f1f25cb47a5528e81cb41977343612d7cedb5f6926e857c346b2dac`,
+and persistent-store carrier SHA-256
+`9e03ff3c2c2e47996b02dc7bca9e1b31e53678474db9b26ce023e4a225e080a8`.

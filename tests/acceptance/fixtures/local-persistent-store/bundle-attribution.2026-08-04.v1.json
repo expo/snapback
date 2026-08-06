@@ -2,7 +2,7 @@
   "schemaVersion": "snapback.local-persistent-store.bundle-attribution.v1",
   "date": "2026-08-04",
   "source": {
-    "revision": "b98cdf3b60d44d10b40892ecc6a8a449c718923a",
+    "revision": "cff30e35d2afcfddc79e41a8bac3847bf39cdeee",
     "dirty": false,
     "dirtyPaths": [],
     "files": [
@@ -12,7 +12,7 @@
       },
       {
         "path": "packages/snapback-client/materialization-store.mjs",
-        "sha256": "e490cd25fba95521c3e0fc2f79d83bbead1f3b33f4e6fa1ab155e4e058c0717e"
+        "sha256": "34ebc65b3632869e39fd9587bd79a36e0a85316c4c660d8f1b12497668652310"
       },
       {
         "path": "packages/snapback-client/materialization-bridge.mjs",
@@ -60,7 +60,7 @@
       },
       {
         "path": "packages/snapback-client/index.mjs",
-        "sha256": "eb7c6099ab493213deba4b847b88686734a8fc6d932ef8724479bafd927d5f2c"
+        "sha256": "080b79a82ba3caf6d108c2296a581c43de0f0ee82bdfa8f54763413aafcff0af"
       },
       {
         "path": "packages/snapback-client/rqs-store.mjs",
@@ -96,11 +96,11 @@
       },
       {
         "path": "tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-04.v1.json",
-        "sha256": "f41d5ac3b33cde091e62bb154344bd560a1d3e44bbdd83f585e571f1bc4111d7"
+        "sha256": "db3917debbf9ee080e198e76c3af76477711bb92aa1409c4278d36a33198d69d"
       },
       {
         "path": "tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-04.v1.json",
-        "sha256": "2da5e1ba2ff6e86233f555f0872a397ef3d90f87a23a8766d28ebb7daddd70ef"
+        "sha256": "74c22a2de7a6d4345d42ccba6f65e01712d3d46b8ea6d3fae7ffab61aeaf9704"
       }
     ]
   },
@@ -124,18 +124,18 @@
     "external": []
   },
   "output": {
-    "minifiedBytes": 662426,
-    "gzipBytes": 183008,
-    "brotliBytes": 147987,
-    "sha256": "eebed168c30d1fdd40ef3af17120489796c61672a40a620dc80e5ae77fefe90a"
+    "minifiedBytes": 688504,
+    "gzipBytes": 191344,
+    "brotliBytes": 153931,
+    "sha256": "28fdffd85404c669d69f8857029ffebd6e3d7a25caea181ddeb924f76b617629"
   },
   "modules": [
     {
       "module": "materialization-store",
       "path": "packages/snapback-client/materialization-store.mjs",
-      "sourceBytes": 85606,
-      "minifiedModuleOwnBytes": 45508,
-      "sourceSha256": "e490cd25fba95521c3e0fc2f79d83bbead1f3b33f4e6fa1ab155e4e058c0717e"
+      "sourceBytes": 85627,
+      "minifiedModuleOwnBytes": 45528,
+      "sourceSha256": "34ebc65b3632869e39fd9587bd79a36e0a85316c4c660d8f1b12497668652310"
     },
     {
       "module": "materialization-bridge",
@@ -194,12 +194,12 @@
       "sourceSha256": "a28a5013b99f7373f991c9decb4bfbc7c4ccc77bee47642bd2d0b831fd83e3f9"
     }
   ],
-  "totalMeasuredModuleOwnBytes": 112223,
+  "totalMeasuredModuleOwnBytes": 112243,
   "browserClosureQualification": {
     "status": "PASS",
     "materializationStoreResolved": true,
     "resolved": true,
-    "outputBytes": 73221,
+    "outputBytes": 73241,
     "externalImports": []
   }
 }
