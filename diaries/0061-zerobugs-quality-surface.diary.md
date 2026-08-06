@@ -149,3 +149,15 @@ Friction worth keeping:
 - Codex's sandbox cannot bind loopback, so every live-server validation ran
   twice: once to honest BLOCKED inside the sandbox, once for real outside.
   The supervising session doing the live reruns is the working pattern.
+
+## 2026-08-05 — Lane 2: auth and identity composition
+
+Lane 2 landed: identityBinding flow (five deterministic dev-session actors
+bound to the frozen source users), reusable principal/crew/visibility/
+ownership guards for Lanes 3–4, and a nine-check live harness — all PASS
+against a fresh server and full fixture load. Notable: the shipped sessions
+surface covered everything Lane 2 needed (mint, logout route, bearer
+replacement); the only new app code is the acceptance-gated binding mutation
+and guards, all counted under W-IDENTITY. The broad fixture inspector now
+closes permanently once actor binding begins, so Lane 1's loader convenience
+cannot become a ZB4 leak.

@@ -97,7 +97,7 @@ and `guide-gap`.
 | clients.react | Prepared React provider over one headless store/transport seam: exact generated single/grouped live queries, capability-gated all-live and mixed-route references with one-commit register-mode adoption, explicit per-child registered-live/read-only boot provenance, honest weakest aggregate connection state, explicit live fallback, attach-deadline recovery, sessions authorization adoption, result-validated optimistic mutation rebase/rollback, local managed connection-keyed presence, per-query `freshness`/`retention` offline facts with the `useSnapbackOutbox` queued-intent projection, Strict Mode/HMR sharing, complete cleanup, and retained Signal Desk receipts | react, hooks, useSyncExternalStore, result inference, typed mutation, optimistic rollback, replay advisory, projectRecordFields, optimistic toggle helper, presence, ephemeral hook, useSnapbackPresence, typing indicator, query groups, mixed route, read-only snapshot, bundle prime, registered bundle, hmr, offline freshness, outbox badge | local | shipped | `useSnapbackPresence` in packages/snapback-react/index.d.mts | llp/0012, llp/0064, llp/0074, llp/0090, llp/0101, llp/0114, llp/0106, llp/0107, llp/0129, llp/0157 | clients/react.md |
 | clients.react-expo | React Expo Online surface; independent Android and iOS implementation evidence, with the shipped asset and admin-console paths cross-indexed from the carrier guide | react native, expo, android, ios, mobile, Expo asset upload, Expo ImagePicker, Expo debugging, admin console | local | shipped | `profileId` in demos/partiful-matrix/tests/acceptance/native-react-expo.mjs | llp/0012, llp/0064 | clients/react-expo.md |
 | operating.server-lifecycle | Start/reuse/stop servers safely; ports; provenance; crash detection | run server, ports, bindPortExactly, lifecycle, watchdog, crash, prebuilt binary, seed reset | local | shipped | `startServer` in demos/_kit/server-process.mjs | llp/0010, llp/0030 | testing/acceptance.md |
-| operating.instance-forks | Experimental source-only finite-TTL fork CLI: expiry, renewal, resource admission, recovery, inspection, diff, cleanup, fork-per-worktree guidance, and an opt-in acceptance harness; LLP 0158 is Accepted, but the separate derived capability remains unsupported and this source evidence is not a claim | fork, derived instance, fork per worktree, inspect, recover, renew, diff, reap, resource limits | none | partial | `ForkCommand` in src/cli.rs + tests/instance_fork_cli_v1.rs + demos/todo/tests/acceptance/forked-parent.mjs (source witnesses only; public tuple Missing) | llp/0158, llp/0185 | GAP (derived-capability qualification/publication, remaining negatives, exact-diff review, and hosted targets; owner: Charlie, review: 2026-08-31; see operating/instance-forks.md) |
+| operating.instance-forks | Experimental source-only finite-TTL derived-instance CLI with automatic expiry enforcement, bounded renewal, resource-limit admission, recovery, bounded inspection, scalar projections, diff, concurrency-safe cleanup, fork-per-worktree and parallel-suite guidance, and exact drop; LLP 0158 is Accepted, but the separate derived capability remains unsupported and this source evidence is not a claim | fork, derived instance, fork per worktree, parallel suite, inspect, status, recover, renew, diff, automatic reap, resource limits | none | partial | `ForkCommand` in src/cli.rs + tests/instance_fork_cli_v1.rs + instance_fork unit matrices (parent-write invisibility, renewal crash cuts, concurrency, disk pressure, egress/credential) + tests/acceptance/instance-fork-fleet-dogfood.2026-08-03.v1.json + demos/todo/tests/acceptance/fork-parallel-dispositions.mjs (source proof only; public tuple Missing) | llp/0158, llp/0185 | GAP (derived-capability qualification/publication, exact-diff validation, and hosted-target work remain; owner: Charlie, review: 2026-08-31; see operating/instance-forks.md) |
 | operating.agent-safe-storage | Registered Experimental `agent_safe_storage_v1` identity for the `agentSafe.v1` extension/component-fact vocabulary; it is not the `AgentSafeV1` core aggregate and no target currently supports it | operation envelope, explanation, agent-safe storage, capability facts | none | partial | `AgentSafeCapabilityExtensionV1` in src/manifest.rs (Missing-only public projection) | llp/0162 | GAP (acceptance corpus, review, acceptance, and publication gates; all projections remain Missing; owner: Charlie, review: 2026-08-31) |
 | operating.packaged-dev-loop | Install a native runtime; scaffold, generate, doctor, and watch/load through one CLI. The current packed React/Vite starter and inferred sessions startup pass locally, but the expanded React closure is not yet the byte-verified public `0.1.0` closure. | install, new app, react starter, vite, dev, one command, watch, sessions startup, packaged runtime | local | partial | `runDev` in packages/snapback-cli/index.mjs | llp/0041, llp/0058, llp/0114, llp/0103 | getting-started/the-authoring-loop.md |
 | operating.inspect | Health and inspect projections | inspect, status, debug | local | shipped | route /inspect | llp/0017, llp/0031 | getting-started/the-authoring-loop.md |
@@ -11337,6 +11337,41 @@ egress, secret, expiry, and lineage posture. `app.fork.diff()` returns the
 journal-derived app-row receipt. The maintained Todo proof starts from a
 parent-only edge-case row, mutates the fork, checks the receipt, and verifies
 the live parent never sees the fork-only row.
+
+## Own forks per worktree, per agent run, and per suite lane
+
+The acceptance kit layers deterministic ownership over the CLI lifecycle
+(`demos/_kit/instance-fork.mjs`). `startWorktreeFork` binds a fork to the
+exact canonical git-worktree toplevel; `startAgentFork` binds one to an
+explicit `ownerId`/`runId` pair. Both write a non-secret
+`snapback.fork-owner.v1` record into the fork directory and return
+shell-friendly `envExports` (fork id, URL, ready path). Discovery and
+cleanup then bind to that exact recorded identity — never a guessed
+directory — and every deletion still goes through registry-bound
+`fork drop`:
+
+```js fragment reason="illustrative composition; the CI-verified consumer is demos/todo/tests/acceptance/fork-parallel-dispositions.mjs"
+import {
+  startAgentFork, discoverOwnedForks, dropOwnedForks,
+} from './demos/_kit/instance-fork.mjs';
+
+const fork = await startAgentFork({
+  ownerId: 'my-fleet-lane', runId: process.env.RUN_ID,
+  from: parentDb, appRoot, repoRoot, forkRoot, ttl: '30m',
+});
+// … if this run dies without fork.stop(), a later sweep cleans up exactly:
+await dropOwnedForks({ repoRoot, appRoot, forkRoot,
+  match: { ownerId: 'my-fleet-lane', runId: process.env.RUN_ID } });
+```
+
+Parallel suites share one expensive prepared parent while each lane gets an
+isolated derived instance on its own OS-assigned port. An interrupted run
+settles into one of three named dispositions, each CI-proven in
+`demos/todo/tests/acceptance/fork-parallel-dispositions.mjs`: a fully
+cleaned state; an unexpired orphan swept later by its exact owner/run
+record; or a quarantined incomplete publication repaired through
+`fork recover`. Automatic reap separately handles the fourth shape — an
+expired fork nobody swept.
 
 ## Inspect, review, and dispose forks
 

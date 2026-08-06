@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "cc5d6bce64550210d7b55b929841a8f9af8f2f68"
+    "commit": "34ddc125dd5671e997fffc98b45525732e606054"
   },
   "nav": {
     ".": [
@@ -1479,7 +1479,7 @@
       "examples": [],
       "reviewed": "2026-08-05",
       "reviewedCommit": "f3c7d9fbb394a413370a9264f22e72b6f151a25e",
-      "sha256": "cf0c37ac094754a74ab6f2b31ed1015888d721102b404bc164c81dc8b0b36daf",
+      "sha256": "657ace482863a23760d331b210645e0938c6a292f2b9cfb4df158d42a44dd944",
       "snippets": []
     },
     "clients.app-cli": {
@@ -2346,7 +2346,7 @@
       ],
       "reviewed": "2026-08-05",
       "reviewedCommit": "HEAD",
-      "sha256": "9fc3b3d26bd9a7911a628f51b9f275ab3c7e09d9bbafbabd7292b667bd4b2a03",
+      "sha256": "8a33a995df68274e3ff89313416e661d31cd1ebfc4e81262e0d231f5a58ea299",
       "snippets": [
         {
           "lang": "js",
@@ -2357,6 +2357,10 @@
           "lang": "js",
           "class": "transcluded",
           "source": "demos/todo/tests/acceptance/forked-parent.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "fragment"
         }
       ]
     },
@@ -3156,5 +3160,5 @@
     "routes": 116,
     "hostOps": 37
   },
-  "contentHash": "082b475d67edbc7081135ec089ae56f8b51aaec1d01c31bf19910adbf4af2ffc"
+  "contentHash": "cbc76d8574480db2bff0ec024342f287e4c608e76749aa9b7a4d036d23139462"
 }

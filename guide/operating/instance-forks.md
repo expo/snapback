@@ -123,6 +123,41 @@ journal-derived app-row receipt. The maintained Todo proof starts from a
 parent-only edge-case row, mutates the fork, checks the receipt, and verifies
 the live parent never sees the fork-only row.
 
+## Own forks per worktree, per agent run, and per suite lane
+
+The acceptance kit layers deterministic ownership over the CLI lifecycle
+(`demos/_kit/instance-fork.mjs`). `startWorktreeFork` binds a fork to the
+exact canonical git-worktree toplevel; `startAgentFork` binds one to an
+explicit `ownerId`/`runId` pair. Both write a non-secret
+`snapback.fork-owner.v1` record into the fork directory and return
+shell-friendly `envExports` (fork id, URL, ready path). Discovery and
+cleanup then bind to that exact recorded identity — never a guessed
+directory — and every deletion still goes through registry-bound
+`fork drop`:
+
+```js fragment reason="illustrative composition; the CI-verified consumer is demos/todo/tests/acceptance/fork-parallel-dispositions.mjs"
+import {
+  startAgentFork, discoverOwnedForks, dropOwnedForks,
+} from './demos/_kit/instance-fork.mjs';
+
+const fork = await startAgentFork({
+  ownerId: 'my-fleet-lane', runId: process.env.RUN_ID,
+  from: parentDb, appRoot, repoRoot, forkRoot, ttl: '30m',
+});
+// … if this run dies without fork.stop(), a later sweep cleans up exactly:
+await dropOwnedForks({ repoRoot, appRoot, forkRoot,
+  match: { ownerId: 'my-fleet-lane', runId: process.env.RUN_ID } });
+```
+
+Parallel suites share one expensive prepared parent while each lane gets an
+isolated derived instance on its own OS-assigned port. An interrupted run
+settles into one of three named dispositions, each CI-proven in
+`demos/todo/tests/acceptance/fork-parallel-dispositions.mjs`: a fully
+cleaned state; an unexpired orphan swept later by its exact owner/run
+record; or a quarantined incomplete publication repaired through
+`fork recover`. Automatic reap separately handles the fourth shape — an
+expired fork nobody swept.
+
 ## Inspect, review, and dispose forks
 
 `list` is the deliberately advisory registry projection. Safety-sensitive
