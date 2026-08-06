@@ -79,3 +79,38 @@ the published versions.
   despite this entry, the 7c16f6d0b shape ships as 0.1.10 under the same
   fast-path ruling and the closure sweep adjusts accordingly. Artifacts
   built at e32f35eb3 should be discarded, not published.
+
+- **2026-08-06 (BLOCKING) — precondition 1 is not met at either candidate;
+  do not publish claiming it.** `scripts/verify-local-proof` is red at
+  every commit since `8f217183f` (2026-08-04 17:26) on
+  `tests/agent_safe_publication_checker_v1.mjs` → "P-vs-C generated
+  allowance is the exact qualification-C leaf set", which compares an exact
+  leaf count against a hardcoded 224. Measured directly:
+
+  | candidateSourceSha | actual | expected | precondition 1 |
+  | --- | --- | --- | --- |
+  | `e32f35eb3` (original pin) | 226 | 224 | **fails** |
+  | `7c16f6d0b` (current pin) | 226 | 224 | **fails** |
+  | current `main` | 230 | 224 | **fails** |
+
+  Precondition 1 of this ticket requires "a green local-proof run on the
+  promotion's `candidateSourceSha`". No commit in the last two days can
+  satisfy it. Root cause and remediation:
+  `issues/20260806-main-red-agent-safe-leaf-set-drift.md`.
+
+  **This is deliberately not a fast-path candidate.** The two gaps
+  fast-pathed above are expensive and genuinely independent of this release
+  — the 0134 soak needs 14 days and the EAS provenance blocker is
+  infrastructure. Precondition 1 is neither: the reconciliation is hours of
+  work, and it is the central claim a promotion makes, that the shipped
+  thing passed its own proof. Fast-path what is expensive and independent;
+  do not fast-path what is cheap and central, or "expect and file honest
+  gaps" stops being exceptional.
+
+  Required before publish, in order: reconcile the leaf set (a review of
+  the drifted leaves, **not** a bump of 224 to the current count); pick and
+  prove a fresh candidate SHA; re-pin here with the green proof recorded.
+  If 0.1.9 ships before that happens anyway, precondition 1 must be
+  explicitly re-scoped in this ticket — stating that the local proof was
+  red on a known, filed gate and why that was acceptable — rather than
+  closing while the checklist reads as met.
