@@ -782,6 +782,11 @@ pub enum HostCommand {
         #[command(subcommand)]
         command: AssetsCommand,
     },
+    /// Session operations backed by the existing auth host-op surface.
+    Session {
+        #[command(subcommand)]
+        command: SessionCommand,
+    },
     /// Typed local observability reads and the local-only SQL hatch.
     Telemetry {
         #[command(subcommand)]
@@ -1456,6 +1461,18 @@ pub enum AssetsCommand {
     },
 }
 
+#[derive(clap::Subcommand)]
+pub enum SessionCommand {
+    /// Mint an ordinary session for an admitted email address. Requires the
+    /// existing operator credential and process-bound impersonation capability.
+    Mint {
+        #[command(flatten)]
+        target: TargetArgs,
+        #[arg(long)]
+        email: String,
+    },
+}
+
 #[derive(clap::Args)]
 pub struct TargetArgs {
     /// Server base URL (e.g. http://127.0.0.1:4287).
@@ -1683,6 +1700,11 @@ pub async fn run_from_env() -> anyhow::Result<()> {
                     "userId": user,
                 }),
             ),
+        },
+        Some(HostCommand::Session { command }) => match command {
+            SessionCommand::Mint { target, email } => {
+                host_op_via_http(&target, mint_session_request(email))
+            }
         },
         Some(HostCommand::SecretReadMint {
             ready_file,
@@ -2961,6 +2983,12 @@ fn request_requires_impersonation(request: &Value) -> bool {
                 == crate::server::EffectPolicy::ImpersonationCapability
         })
     })
+}
+
+// @ref LLP 0176#g0--baseline-truth-and-mechanical-repair — this CLI primitive
+// is only a closed-argument projection of the existing auth.mintSession host-op.
+fn mint_session_request(email: String) -> Value {
+    json!({ "operation": "auth.mintSession", "args": { "email": email } })
 }
 
 /// POST one host operation and project the envelope to stdout + exit code
@@ -4346,13 +4374,20 @@ fn validated_secret_read_root_path(
     Ok(declared_root)
 }
 
-/// Print the envelope; returns envelope `ok` (missing/false → false).
-fn print_envelope(envelope: &Value) -> bool {
-    println!(
+/// Write only the JSON envelope; returns envelope `ok` (missing/false → false).
+fn write_envelope_to(envelope: &Value, output: &mut dyn std::io::Write) -> std::io::Result<bool> {
+    writeln!(
+        output,
         "{}",
         serde_json::to_string_pretty(envelope).unwrap_or_else(|_| envelope.to_string())
-    );
-    envelope.get("ok").and_then(Value::as_bool).unwrap_or(false)
+    )?;
+    Ok(envelope.get("ok").and_then(Value::as_bool).unwrap_or(false))
+}
+
+/// Print the envelope; returns envelope `ok` (missing/false → false).
+fn print_envelope(envelope: &Value) -> bool {
+    write_envelope_to(envelope, &mut std::io::stdout().lock())
+        .expect("write host-operation envelope to stdout")
 }
 
 /// host.stop: validate the readiness descriptor, verify the descriptor still
@@ -7023,8 +7058,8 @@ mod tests {
         AdminArgs, AdminCommand, Args, AssetsCommand, AuthCommand, AuthConstructionFailure,
         AuthCoordinatorReadinessReceipt, AuthProgramConstructionReceipts,
         BEFORE_STARTUP_TARGET_RESERVATION, Cli, ErrorsCommand, ForkCommand, HostCommand,
-        ManagedPath, NetworkProfileCommand, ReadyFileTarget, ResolvedHttpTarget, TargetArgs,
-        TelemetryCommand,
+        ManagedPath, NetworkProfileCommand, ReadyFileTarget, ResolvedHttpTarget, SessionCommand,
+        TargetArgs, TelemetryCommand,
         bind_first_available, bind_listener, console_claim_fragment_url, console_fragment_url,
         fork_secret_disposition, managed_startup_paths, mint_secret_read_via_http,
         parse_fork_ttl, parse_network_profile_selection, parse_run_args,
@@ -8584,6 +8619,146 @@ mod tests {
             .is_err(),
             "gc-sweep must never fall back to the ambient wall clock"
         );
+    }
+
+    #[test]
+    fn session_mint_cli_calls_host_op_with_closed_email_args_and_capability() {
+        let dir = tempfile::tempdir().unwrap();
+        let ready = dir.path().join("ready.json");
+        let canonical_ready = std::fs::canonicalize(dir.path())
+            .unwrap()
+            .join("ready.json");
+        let sidecar =
+            crate::admin_impersonation::impersonation_capability_sibling(&canonical_ready).unwrap();
+        let (_registry, operator) =
+            crate::admin_impersonation::ImpersonationCapabilityRegistry::generate(
+                "nonce-session-mint".to_owned(),
+                &crate::auth::crypto::OsRandom,
+            )
+            .unwrap();
+        operator
+            .publish_with(&canonical_ready, |path, bytes| {
+                crate::secure_file::write_owner_only(path, bytes)
+            })
+            .unwrap();
+        let expected_capability = std::fs::read_to_string(&sidecar).unwrap();
+
+        let listener = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = std::thread::spawn(move || {
+            let mut requests = Vec::new();
+            for index in 0..2 {
+                let (mut stream, _) = listener.accept().unwrap();
+                let request = read_http_request(&mut stream);
+                let body = if index == 0 {
+                    health_with_nonce("nonce-session-mint")
+                } else {
+                    json!({
+                        "ok": true,
+                        "operation": "auth.mintSession",
+                        "data": { "tokenType": "Bearer", "token": "sbss_ordinary" },
+                    })
+                };
+                write_http_json(&mut stream, &body);
+                requests.push(request);
+            }
+            requests
+        });
+
+        let mut descriptor = stop_descriptor(Some("nonce-session-mint"));
+        descriptor.server_url = format!("http://{address}");
+        descriptor.target.server_url = Some(descriptor.server_url.clone());
+        descriptor.impersonation_capability_file = Some(sidecar.display().to_string());
+        crate::secure_file::write_owner_only(&ready, &serde_json::to_vec(&descriptor).unwrap())
+            .unwrap();
+
+        let parsed = Cli::parse_from([
+            "snapback",
+            "session",
+            "mint",
+            "--email",
+            "x@example.com",
+            "--ready-file",
+            ready.to_str().unwrap(),
+        ]);
+        let (target, email) = match parsed.command {
+            Some(HostCommand::Session {
+                command: SessionCommand::Mint { target, email },
+            }) => (target, email),
+            other => panic!("expected session mint command, got {other:?}"),
+        };
+        super::post_host_op(&target, super::mint_session_request(email)).unwrap();
+
+        let requests = server.join().unwrap();
+        assert!(requests[0].starts_with("GET /health "));
+        assert!(requests[1].starts_with("POST /_snapback/api/host-ops "));
+        assert!(requests[1].lines().any(|line| {
+            let Some((name, value)) = line.split_once(':') else {
+                return false;
+            };
+            name.eq_ignore_ascii_case(crate::admin_impersonation::IMPERSONATION_CAPABILITY_HEADER)
+                && value.trim() == expected_capability
+        }));
+        let (_, body) = requests[1].split_once("\r\n\r\n").unwrap();
+        assert_eq!(
+            serde_json::from_str::<serde_json::Value>(body).unwrap(),
+            json!({
+                "operation": "auth.mintSession",
+                "args": { "email": "x@example.com" },
+            })
+        );
+    }
+
+    #[test]
+    fn session_mint_cli_output_is_only_the_host_op_session_json() {
+        let impersonation_capability = "sbic_operator_capability_must_not_be_printed";
+        let session_result = json!({
+            "schemaVersion": "snapback.v0",
+            "resultKind": "hostOpsResult",
+            "operation": "auth.mintSession",
+            "ok": true,
+            "data": {
+                "tokenType": "Bearer",
+                "token": "sbss_ordinary_session",
+                "session": { "userId": "user_x" },
+            },
+            "diagnostics": [],
+        });
+        let mut output = Vec::new();
+
+        assert!(super::write_envelope_to(&session_result, &mut output).unwrap());
+
+        let output = String::from_utf8(output).unwrap();
+        assert_eq!(
+            output,
+            format!(
+                "{}\n",
+                serde_json::to_string_pretty(&session_result).unwrap()
+            )
+        );
+        assert!(!output.contains(impersonation_capability));
+        assert_eq!(
+            serde_json::from_str::<serde_json::Value>(&output).unwrap(),
+            session_result
+        );
+    }
+
+    #[test]
+    fn session_mint_cli_requires_email() {
+        let error = Cli::try_parse_from([
+            "snapback",
+            "session",
+            "mint",
+            "--url",
+            "http://127.0.0.1:4287",
+        ])
+        .expect_err("session mint without --email must be refused");
+
+        assert_eq!(
+            error.kind(),
+            clap::error::ErrorKind::MissingRequiredArgument
+        );
+        assert!(error.to_string().contains("--email"));
     }
 
     #[test]

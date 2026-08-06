@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "e214b037f7d248ea90c669f4f88733e3333e02e4"
+    "commit": "e1c2417c1aa6fd9deb755172d04fb5aef333712a"
   },
   "nav": {
     ".": [
@@ -2258,6 +2258,7 @@
       ],
       "authorities": [
         "llp/0024-agent-operating-surface.spec.md",
+        "src/cli.rs",
         "src/host_ops.rs",
         "src/server.rs",
         "tests/host_ops_v0.rs"
@@ -2267,7 +2268,7 @@
       ],
       "reviewed": "2026-08-03",
       "reviewedCommit": "6e5d69d1037c6042fb9338221dfb489e00f5f78a",
-      "sha256": "3863bc76b7774d6338607b02621b801327a676c27485a63e3a38ede4177666f7",
+      "sha256": "caa57c175845a135939c97cb6997bdd19672895145016eb026ff460134965607",
       "snippets": [
         {
           "lang": "json",
@@ -3061,5 +3062,5 @@
     "routes": 111,
     "hostOps": 37
   },
-  "contentHash": "6e78bcdc5ff414d599cd72c75620ab9065030d138cab70a0c334bc90b58cc5aa"
+  "contentHash": "c34969bf6150a082c25ce6be8cbc60d295b124b7d320f298c31be1b421f2d5fd"
 }

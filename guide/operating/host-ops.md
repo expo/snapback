@@ -4,7 +4,7 @@ id: operating.host-ops
 order: 2
 audience: agent-first
 capabilities: [operating.host-ops]
-authorities: [llp/0024-agent-operating-surface.spec.md, src/host_ops.rs, src/server.rs, tests/host_ops_v0.rs]
+authorities: [llp/0024-agent-operating-surface.spec.md, src/cli.rs, src/host_ops.rs, src/server.rs, tests/host_ops_v0.rs]
 examples: [demos/todo]
 status: current
 targets: [local]
@@ -84,6 +84,10 @@ The endpoint serves thirty request spellings:
 | `errors.transition` | Resolve/ignore state transition for one issue. |
 | `debug.networkProfileGet` | Return the active network condition profile and its activation provenance. |
 | `debug.networkProfileSet` | Activate a built-in named profile or an inline profile through the shared activation gate. |
+
+`snapback session mint --email <address> --ready-file <path>` projects
+`auth.mintSession` through the same target and authority handling and prints only
+the resulting `hostOpsResult` JSON.
 
 `host.start` and `host.stop` are CLI-only lifecycle verbs today—a running
 server cannot safely own starting/stopping itself; over HTTP they fail as
