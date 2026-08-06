@@ -1,6 +1,6 @@
 # client-bundle-metrology ratchet is red on main
 
-**Status:** Open
+**Status:** Resolved 2026-08-06 — disposition minted locally; awaiting its required Git carrier
 **Opened:** 2026-08-06
 **Related:** scripts/client-bundle-metrology.mjs;
 tests/fixtures/client-bundle-metrology/baseline.v1.json; LLP 0063
@@ -87,3 +87,53 @@ explicitly and say so.
 
 Filed by the sbsb2 implementation session, which hit it as a false
 positive on an unrelated series (2,312/2,312 cargo tests green).
+
+## 2026-08-06 — G3/E2 attribution review and governed disposition
+
+The owning lane reproduced the same 19-metric shape under the pinned Node
+24.18.0 / esbuild 0.28.1 method, then reviewed the module attribution before
+disposing any ceiling.
+
+The suspected assets-subpath import leak is **not present**. Both
+`public-subpath-assets` and `resolved-public-subpath-assets` contain exactly
+`packages/snapback-client/assets.mjs` plus their generated fixture. Neither
+`commands.mjs` nor an `@expo/snapback-expo` module crosses that runtime
+boundary. The `CommandAssetSource` / platform-source split is declaration-only
+(`.d.mts` and generated declarations), so it cannot add JavaScript bytes to
+the assets entry. The +588 minified bytes are two real asset-owner additions
+from `47b4a59ac`: the host-fetch seam used by Expo binary TUS transport and the
+public-immutable rendition URL used by the G3 image surface. Removing either
+would change the landed E2/G3 behavior rather than repair an import graph.
+
+The current tip also includes `02bf40745` after the earlier 19-regression table
+was measured. Its command-task disposal/authority fence and truthful
+settlement handling account for the command/React successor being larger than
+the table's `430c48669` figures. The complete governed successor is therefore:
+
+| profile | leak bytes recovered (min / gzip / Brotli) | ratified successor delta (min / gzip / Brotli) |
+| --- | ---: | ---: |
+| `external-react-application` | 0 / 0 / 0 | +3,419 / +854 / +740 |
+| `react-external` | 0 / 0 / 0 | +3,419 / +864 / +713 |
+| `public-subpath-assets` | 0 / 0 / 0 | +588 / +143 / +121 |
+| `resolved-public-subpath-assets` | 0 / 0 / 0 | +588 / +144 / +129 |
+| `public-subpath-commands` | 0 / 0 / 0 | +3,043 / +749 / +693 |
+| `resolved-public-subpath-commands` | 0 / 0 / 0 | +3,043 / +751 / +691 |
+| `public-subpath-ir-evaluator` | 0 / 0 / 0 | 0 / 0 / +1 |
+
+`baseline.client-bundle-disposition.v2.json` is the LLP 0145 / LLP 0063
+prospective rollover. It SHA-256-binds the complete v1 disposition, S2 command,
+and local-read-admission predecessors; records before/after rows for all seven
+profiles; and carries dated, per-profile justifications tied to
+`17e7ca8ca` (G3 engine), `47b4a59ac` (E2 adapter and platform receipts),
+`02bf40745` (command lifecycle correctness), and `f782431bd` (the reachable
+auth fix whose output changes only Brotli by one byte).
+
+`volta run node scripts/client-bundle-metrology.mjs
+--write-rollover-baseline` passed its complete behavior train and final
+comparison, minting the v2 ledger and updated `current.v1.json`. Ordinary
+`--check` now refuses only because the new immutable ledger has no reachable
+carrier introduction. That refusal is intentional: the task prohibited a
+commit, and the gate must not accept an uncommitted ceiling as durable
+evidence. Land the declaration, v2 ledger, current report, and this note
+together; then rerun `--check` and move this ticket (and
+`20260806-commands-profile-blocks-all-metrology-writers.md`) to `issues/closed/`.
