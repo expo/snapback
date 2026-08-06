@@ -42020,6 +42020,8 @@ globalThis.__snapbackHandlers = {
         // @ref LLP 0158#design-sketch — F0a is a local
         // operator workflow. Custody, mint, publication, recovery, and marker
         // failures are durable/control-plane invariants, never caller 4xxs.
+        "SNAPBACK_FORK_APP_BINDING_MISMATCH",
+        "SNAPBACK_FORK_APP_BINDING_REQUIRED",
         "SNAPBACK_FORK_CUSTODY_REFUSED",
         "SNAPBACK_FORK_CUSTODY_UNCLASSIFIED",
         "SNAPBACK_FORK_DESTINATION_EXISTS",
@@ -42029,6 +42031,7 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_FORK_DIFF_ORACLE_MISMATCH",
         "SNAPBACK_FORK_EVIDENCE_MISMATCH",
         "SNAPBACK_FORK_WRITER_COVERAGE_INVALID",
+        "SNAPBACK_FORK_WRITER_COVERAGE_GAP",
         "SNAPBACK_FORK_IO_FAILED",
         "SNAPBACK_FORK_KEYRING_MINT_FAILED",
         "SNAPBACK_FORK_LINEAGE_INVALID",
