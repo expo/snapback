@@ -76,18 +76,14 @@ prospective exact clean successor. The Spec remains `Draft` and the capability
 remains `Missing`.
 
 **Qualification update — 2026-08-06:** Exact C33 received fresh mutually
-blind Codex-family and Fable-family `READY` verdicts, but the mandatory
-post-review fetch found newer main before performance. Normal merge commit
-`d56721ca5a` preserves the carrier/custody work and incorporates the upstream
-fork-recovery and anonymous-client wire fixes. C34 is prospective; the Spec
-remains `Draft` and the capability remains `Missing`.
-
-**Qualification update — 2026-08-06, C35:** Prospective C34 passed
-proportional own-correctness, but the required pre-review fetch found newer
-main at `de43d0c2ee790ed4d5c9671df18e55c55440f6c1`. C34 was abandoned
-before review or performance. Normal merge commit `5bb55ecdd` preserves the
-carrier/custody work while reconciling LLP 0158's final Accepted record. C35
-is prospective; the Spec remains `Draft` and the capability remains `Missing`.
+blind Codex-family and Fable-family `READY` verdicts. Under the author ruling
+above, later mainline cuts merge normally into that reviewed work; they do not
+invalidate the reviews or create C34/C35 qualification cuts. Merge commit
+`d56721ca5a` and its successors preserve the carrier/custody work while adding
+the upstream fork and client/demo changes. The merged tree lands after
+proportional verification, then row 13 runs against the landed commit. The
+Spec remains `Draft` and the capability remains `Missing` until performance
+and all other named gates pass.
 
 The remaining closure gates are:
 
@@ -183,31 +179,22 @@ The Spec remains `Draft` and the capability remains `Missing`. Fresh exact
 review, fixed-Air performance, named-author acceptance, and publication
 binding remain open.
 
-## C33 post-review abandonment and C34 merge — 2026-08-06
+## C33 dual-READY landing chain — 2026-08-06
 
 Exact clean C33 commit `60637db377a681ff1f22cbe19f7b49b96b20ab9f`
 and implementation digest
 `sha256:40789d24edf34b3a9cb9544e94e47337d5beb35ef065d290e19bcc67e610010d`
 received independent fresh Codex-family and Fable-family `READY` verdicts.
 The mandatory post-review fetch then found newer `origin/main` at
-`d4ac75595d85e532d9938ea56b8cee03f929eaf4`, so C33 was abandoned before
-performance and no final C33 review artifact was accepted. Normal merge commit
-`d56721ca5a` retains the carrier, custody, writer, and fail-closed projection
-repairs while adding the fork asset-recovery and anonymous-public sessions
-wire changes. C34 must receive fresh exact dual review before performance.
-The Spec remains `Draft` and the capability remains `Missing`.
-
-## C34 pre-review abandonment and C35 merge — 2026-08-06
-
-Prospective C34 commit `50b441c380a1ff985f81537c0d9b9603bec5de18`
-passed proportional own-correctness, including the full Rust suite and client
-package. The required pre-review fetch then found newer main at
-`de43d0c2ee790ed4d5c9671df18e55c55440f6c1`, so no C34 review or
-performance process started. Normal merge commit `5bb55ecdd` retains the
-carrier, custody, writer, and fail-closed projection work while reconciling
-LLP 0158's final Accepted record. C35 must receive fresh exact dual review
-before performance. The Spec remains `Draft` and the capability remains
-`Missing`.
+`d4ac75595d85e532d9938ea56b8cee03f929eaf4`. Per the author ruling above,
+normal merge commit `d56721ca5a` and its successors retain C33's reviewed
+carrier, custody, writer, and fail-closed projection work while adding the
+fork asset-recovery, LLP 0158 acceptance/lifecycle evidence, and
+anonymous-public client/demo changes. The interim C34/C35 labels are rescinded
+and do not name qualification cuts. The merged tree lands after proportional
+verification; fixed-Air row 13 then runs against the landed commit. The Spec
+remains `Draft` and the capability remains `Missing` until that result and
+every other named gate pass.
 
 ## Progress — 2026-08-04
 

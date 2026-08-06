@@ -82,22 +82,15 @@ custody, and fail-closed projection repairs while incorporating the current
 fork/AppBinding work. C33 is the next prospective exact clean candidate; the
 Spec remains `Draft` and every related capability remains `Missing`.
 
-**Qualification amendment (2026-08-06, C34):** Exact C33 received fresh
-Codex-family and Fable-family `READY` verdicts, but the mandatory post-review
-fetch found newer `origin/main`; no performance process started and no C33
-review artifact qualifies publication. Normal merge commit `d56721ca5a`
-preserves this Spec's carrier and custody repairs while incorporating the new
-fork-recovery and anonymous-client transport work. C34 is the prospective
-exact clean candidate. The Spec remains `Draft` and every related capability
-remains `Missing` pending fresh exact review, performance, and publication.
-
-**Qualification amendment (2026-08-06, C35):** Prospective C34 passed
-proportional own-correctness, but the required pre-review fetch found newer
-main at `de43d0c2ee790ed4d5c9671df18e55c55440f6c1`. C34 was abandoned
-before review or performance. Normal merge commit `5bb55ecdd` preserves this
-Spec's carrier/custody implementation while reconciling LLP 0158's final
-Accepted record. C35 is prospective; the Spec remains `Draft` and every
-related capability remains `Missing`.
+**Qualification amendment (2026-08-06, landing ruling):** Exact C33 received
+fresh mutually blind Codex-family and Fable-family `READY` verdicts. Per the
+author ruling recorded in
+`issues/20260803-0163-public-operation-identity-carrier.md`, subsequent normal
+mainline merges preserve that reviewed work and do not create C34/C35 or
+require re-review. The conflict-resolved tree lands after proportional
+build/test verification; row 13 then runs against the landed commit. The Spec
+remains `Draft` and every related capability remains `Missing` until the
+post-landing performance result and every other named gate pass.
 
 **Related:** LLP 0012, LLP 0037, LLP 0043, LLP 0055, LLP 0095, LLP 0133,
 LLP 0148, LLP 0162
@@ -964,29 +957,20 @@ and `211f85714cdac7abdf4022b77cb08bce4419a35c`, with combined guide/generated
 closures regenerated. C33 must receive fresh exact dual review before any
 performance process starts.
 
-## Implementation record — 2026-08-06, C33 post-review abandonment and C34 merge
+## Implementation record — 2026-08-06, C33 dual-READY landing chain
 
 Exact clean C33 commit `60637db377a681ff1f22cbe19f7b49b96b20ab9f`
 and implementation digest
 `sha256:40789d24edf34b3a9cb9544e94e47337d5beb35ef065d290e19bcc67e610010d`
 received independent fresh `READY` verdicts from the Codex and Fable model
 families. The required post-review fetch then found newer main at
-`d4ac75595d85e532d9938ea56b8cee03f929eaf4`; C33 was therefore abandoned
-before performance and no final review artifacts were published for it.
-Normal merge commit `d56721ca5a` compositionally retains the Track B carrier,
-custody, and fail-closed projection repairs while adding the newer fork asset
-recovery and anonymous-public client wire fixes. C34 must pass fresh exact
-dual review before performance. The Spec remains `Draft` and every related
-capability remains `Missing`.
-
-## Implementation record — 2026-08-06, C34 pre-review abandonment and C35 merge
-
-Prospective C34 commit `50b441c380a1ff985f81537c0d9b9603bec5de18`
-passed its full Rust, client, guide, reference, publication-withheld,
-generated-artifact, and Zerobugs Lane 3 checks. Before exact review, the
-mandatory fetch found the final LLP 0158 acceptance cut at
-`de43d0c2ee790ed4d5c9671df18e55c55440f6c1`. C34 was abandoned before
-review or performance, and normal merge commit `5bb55ecdd` reconciled the
-fork contract without activating this Spec. C35 must rerun fresh exact review
-and performance. The Spec remains `Draft` and every related capability
-remains `Missing`.
+`d4ac75595d85e532d9938ea56b8cee03f929eaf4`. Under the author ruling now
+recorded in the carrier ticket, C33's reviewed work remains authoritative
+through the normal conflict-resolving merge chain beginning at `d56721ca5a`;
+the interim C34/C35 labels are rescinded and do not name qualification cuts.
+The merge chain retains the Track B carrier, custody, and fail-closed
+projection repairs while adding the fork asset-recovery, LLP 0158 acceptance,
+fork lifecycle evidence, and client/demo fixes from main. The merged tree must
+land after proportional verification, and row 13 then runs against the landed
+commit. The Spec remains `Draft` and every related capability remains
+`Missing` until post-landing performance and every other named gate pass.

@@ -33,22 +33,15 @@ and every capability remains `Missing`.
 `60637db377a681ff1f22cbe19f7b49b96b20ab9f`, implementation digest
 `sha256:40789d24edf34b3a9cb9544e94e47337d5beb35ef065d290e19bcc67e610010d`,
 and Ibex gitlink `4c34c831aa087d6783b0d68f281cdb374ed7fc89` received two fresh,
-mutually blind `READY` verdicts. The mandatory post-review fetch then found
-newer `origin/main` at `d4ac75595d85e532d9938ea56b8cee03f929eaf4`, so C33 was
-abandoned before performance and its reviews do not qualify a successor.
-Merge commit `d56721ca5a` incorporates those fork-recovery, client-custody,
-and demo changes normally. C34 is the prospective exact clean candidate and
-must rerun fresh dual review plus both unchanged one-shot performance gates;
-every capability remains `Missing`.
-
-**Qualification amendment (2026-08-06, v0.39):** Prospective C34 commit
-`50b441c380a1ff985f81537c0d9b9603bec5de18` passed proportional
-own-correctness, but the required pre-review fetch found the newer LLP 0158
-acceptance cut at `de43d0c2ee790ed4d5c9671df18e55c55440f6c1`. C34 was
-abandoned before review or performance. Normal merge commit `5bb55ecdd`
-reconciles the Accepted local fork contract while retaining the separate
-derived capability's `Missing` state. C35 is prospective and must rerun every
-exact-candidate gate.
+mutually blind `READY` verdicts. The 2026-08-06 author ruling in
+`issues/20260803-0163-public-operation-identity-carrier.md` supersedes the
+earlier HEAD-chasing interpretation: newer mainline cuts are normal
+conflict-resolving merges that preserve C33's review authority, not review
+invalidation and not new C-numbers. The merged tree lands first, receives
+proportional build/test verification, and then runs the unchanged paired and
+conditional absolute row-13 protocol against the landed commit. Every
+capability remains `Missing` until that post-landing result and all other
+named gates pass.
 
 **Qualification amendment (2026-08-05, v0.23):** C14's valid failed paired
 result and the prospective pre-C15 production correction are recorded below.
