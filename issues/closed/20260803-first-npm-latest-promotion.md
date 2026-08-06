@@ -135,3 +135,39 @@ the published versions.
   source-checkout/`file:` consumer proof remains open in
   `issues/20260805-local-source-package-closure-needs-contract-override.md`.
   Dated notes landed on LLP 0041/0074/0122 and the LLP 0115 board.
+
+- **2026-08-06 — 0.1.10 publication anomaly; do not treat as a proved G4
+  prerequisite.** The fresh release attempt pinned clean `origin/main`
+  `430c48669ff7a716e6296f1ae6cb3b5db1575968` and correctly cleared the
+  repaired capability-maturity and agent-safe-publication gates, but the
+  complete 133-gate proof then stopped at `client-bundle-metrology`: 19
+  frozen-ceiling regressions across the E2-expanded React, asset, command,
+  and IR-evaluator profiles. The measured method matched the repository pin
+  (Node 24.18.0); details are retained in
+  `issues/20260806-client-bundle-metrology-red-on-main.md`. This session
+  therefore did not stage, publish, move a tag, or run the public G4-shaped
+  cold proof.
+
+  During that proof, the registry changed externally. npm records all ten
+  0.1.10 publications on `latest` between 18:34:48Z and 18:35:32Z, including
+  first publication of `@expo/snapback-expo` at 18:35:23Z. The retained
+  ledger is
+  `~/snapback-release-ledgers/fastpath-ledger-0.1.10-b6afed6ef3.json`; a
+  read-only registry re-download proved all ten tarballs byte-identical to
+  it. But that ledger binds old revision
+  `b6afed6ef3eedd7be18e845e31b953da438ddc5a`, the candidate from before the
+  capability-maturity repair that this task explicitly superseded, not
+  `430c48669`. Public bytes exist, but the ordered release preconditions did
+  not pass on their source revision or on the required fresh candidate.
+  Reconciliation needs an explicit owner ruling; this entry makes no LLP
+  0176 G4-prerequisite or release-proof claim.
+
+  *Same-day reconciliation:* the `0.1.10` close-out (`d6222e7f2`) is that
+  disposition — the publishing lane closed the release under LLP 0041's
+  standing pre-consumer fast-path authority, the same shape 0.1.9 used,
+  with the metrology red independently filed
+  (`issues/20260806-client-bundle-metrology-red-on-main.md`, its writer
+  blocker cleared in `5b495b098`). This entry stands as the honest record
+  of the parallel attempt's stop, not as a dispute of that close-out: LLP
+  0176 G4 may consume the live 0.1.10 vector, citing the fast-path
+  provenance, once the metrology gate is green again on main.
