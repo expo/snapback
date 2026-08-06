@@ -8,6 +8,7 @@ import { resultContractHash } from '../snapback-codegen/result-contracts.mjs';
 import {
   createSnapbackReactProvider,
   observeSnapbackQueries,
+  observeSnapbackSurface,
 } from './index.mjs';
 
 // Regression: issues/20260801-0137-reverify-react-cold-boot-binding-requires-server.md
@@ -27,6 +28,7 @@ const INCARNATION = '018f0d90-7b11-7a22-8c33-445566778899';
 const BEARER = 'sbs_cold_boot_owner';
 const APP_ID = '018f0d90-7b14-7a22-8c33-445566778899';
 const PROFILE = 'local-dev-sqlite-ibex';
+const DESCRIPTOR_SCHEMA_HASH = 'sha256:cold-boot-schema';
 const ROWS = [{ _id: 'cell-1', title: 'first' }, { _id: 'cell-2', title: 'second' }];
 
 const queryContract = {
@@ -67,6 +69,55 @@ const capabilityManifest = Object.freeze({
   supportedCapabilities: ['live_subscriptions'],
 });
 const generatedManifest = Object.freeze({ functions, capabilityManifest });
+const descriptorCellsReference = Object.freeze({
+  ...cellsDefinition,
+  expectedGeneration: Object.freeze({
+    schemaVersion: 'snapback.v0',
+    appId: APP_ID,
+    schemaHash: DESCRIPTOR_SCHEMA_HASH,
+    bundleHash: functions.bundleHash,
+    inputsHash: 'sha256:cold-boot-inputs',
+  }),
+});
+const descriptorApp = Object.freeze({
+  format: 'snapback.app.v1',
+  identity: Object.freeze({
+    app: APP_ID,
+    schema: DESCRIPTOR_SCHEMA_HASH,
+    functions: functions.bundleHash,
+    descriptor: 'sha256:cold-boot-descriptor',
+  }),
+  api: Object.freeze({
+    queries: Object.freeze({ cells: descriptorCellsReference }),
+    mutations: Object.freeze({}),
+    assets: Object.freeze({}),
+    ephemeral: Object.freeze({}),
+    queryGroups: Object.freeze({}),
+  }),
+  commands: Object.freeze({}),
+  surfaces: Object.freeze({
+    cells: Object.freeze({
+      artifactKind: 'surfaceDescriptor',
+      appId: APP_ID,
+      id: `${APP_ID}:surface:cells`,
+      name: 'cells',
+      params: Object.freeze({}),
+      reads: Object.freeze({
+        cells: Object.freeze({
+          artifactKind: 'surfaceMemberBinding',
+          reference: descriptorCellsReference,
+          inputs: Object.freeze({}),
+          bindings: Object.freeze({}),
+        }),
+      }),
+      mutations: Object.freeze({}),
+      commands: Object.freeze({}),
+      assets: Object.freeze({}),
+      presence: Object.freeze({}),
+    }),
+  }),
+  capabilities: Object.freeze({ required: Object.freeze([]) }),
+});
 
 const handshake = {
   protocolVersion: 1,
@@ -148,7 +199,7 @@ const onlineFetch = async (url, init = {}) => {
       targetProfileId: PROFILE,
       target: PROFILE,
       functions,
-      schema: null,
+      schema: { schemaHash: DESCRIPTOR_SCHEMA_HASH, ephemeralCollections: [] },
       capabilityManifest,
     });
   }
@@ -235,8 +286,67 @@ try {
   assert.deepEqual(state.data, ROWS, 'retained rows render offline from the cold store');
   assert.equal(state.freshness, 'retained', 'rows are labeled retained, never current');
   assert.equal(state.status, 'refreshing', 'retained rows are never presented as settled');
+  assert.equal(state.connection, 'stale', 'cold retained rows keep the offline transport fact');
 
   observer.dispose();
+  await provider.dispose();
+  await flush();
+} finally {
+  globalThis.fetch = originalFetch;
+}
+
+// --- The generated AppDescriptor path uses the same receipt/store owner.
+// --- Its portable document omits server interiors, so the receipt carries a
+// --- compact admitted projection instead of copying the descriptor or
+// --- creating a surface-specific cold cache.
+const descriptorStore = createMemoryRqsResumeStore();
+globalThis.fetch = onlineFetch;
+try {
+  const client = createExternalSessionClient('http://cold-boot-binding.test', {
+    bearerToken: BEARER,
+    rqsStore: descriptorStore,
+  });
+  const binding = await client.prepareReactBinding({ generatedManifest: descriptorApp });
+  assert.equal(binding.source, 'deployment');
+  const handle = await client.liveQuery('cells', {
+    connectionId: 'descriptor-warm',
+    transport: 'poll',
+    pollCadenceMs: 60_000,
+  });
+  await handle.flushResumeState();
+  handle.dispose();
+  const receipt = await descriptorStore.loadReactBindingReceipt();
+  assert.equal(receipt?.descriptorAdmission?.descriptorIdentity, descriptorApp.identity.descriptor);
+  assert.equal(receipt?.descriptorAdmission?.functions?.length, 1);
+} finally {
+  globalThis.fetch = originalFetch;
+}
+
+globalThis.fetch = async () => { throw new TypeError('fetch failed'); };
+try {
+  const cold = createExternalSessionClient('http://cold-boot-binding.test', {
+    bearerToken: BEARER,
+    rqsStore: descriptorStore,
+  });
+  const binding = await cold.prepareReactBinding({ generatedManifest: descriptorApp });
+  assert.equal(binding.source, 'persisted-receipt');
+  const provider = createSnapbackReactProvider(binding, { connectionId: 'descriptor-cold' });
+  const surface = observeSnapbackSurface(
+    provider,
+    descriptorApp.surfaces.cells,
+    {},
+    { presence: {} },
+    () => {},
+  );
+  await flush();
+  await flush();
+  const snapshot = surface.snapshot();
+  assert.deepEqual(snapshot.data.cells, ROWS, 'descriptor surface renders the retained rows');
+  assert.strictEqual(snapshot.data.cells, snapshot.state.cells.data);
+  assert.equal(snapshot.state.cells.freshness, 'retained');
+  assert.equal(snapshot.state.cells.status, 'refreshing');
+  assert.equal(snapshot.state.cells.connection, 'stale');
+  await surface.dispose();
   await provider.dispose();
   await flush();
 } finally {
@@ -265,7 +375,8 @@ try {
 }
 
 // --- A drifted generated manifest never adopts the receipt: the digest
-// --- binding is the admission.
+// --- binding is the admission, and the existing typed binding-mismatch
+// --- refusal remains visible instead of leaking a raw transport TypeError.
 globalThis.fetch = async () => { throw new TypeError('fetch failed'); };
 try {
   const drifted = createExternalSessionClient('http://cold-boot-binding.test', {
@@ -279,8 +390,10 @@ try {
         capabilityManifest,
       },
     }),
-    (error) => error instanceof TypeError,
-    'a generated manifest the receipt never admitted falls through to the connectivity error',
+    (error) => error?.code === 'SNAPBACK_REACT_BINDING_MISMATCH'
+      && error.diagnostic?.details?.expectedBundleHash === 'sha256:drifted-bundle'
+      && error.diagnostic?.details?.actualBundleHash === functions.bundleHash,
+    'a generated manifest the receipt never admitted keeps the typed binding mismatch',
   );
 } finally {
   globalThis.fetch = originalFetch;

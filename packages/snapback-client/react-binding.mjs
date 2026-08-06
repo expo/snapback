@@ -360,6 +360,88 @@ function groupResponseArgsMatch(mapping, params, actual) {
 // refusal stays loud), and only for a byte-identical generated manifest.
 const BINDING_RECEIPT_FORMAT_VERSION = 1;
 
+function persistedReceiptMismatch(message, generated, receipt, details = {}) {
+  const error = diagnosticError(
+    'SNAPBACK_REACT_BINDING_MISMATCH',
+    message,
+    {
+      expectedAppId: generated.functions.appId,
+      actualAppId: receipt?.appId ?? null,
+      expectedBundleHash: generated.functions.bundleHash,
+      actualBundleHash: receipt?.deployment?.bundleHash ?? null,
+      ...details,
+    },
+  );
+  Object.defineProperty(error, REACT_BINDING_MISMATCH_CONTEXT, {
+    value: Object.freeze({
+      source: 'persisted-receipt',
+      localDevelopment: false,
+    }),
+  });
+  return error;
+}
+
+function descriptorAdmissionFromReceipt(receipt, generated) {
+  const admission = receipt.descriptorAdmission;
+  if (
+    !admission
+    || typeof admission !== 'object'
+    || admission.descriptorIdentity !== generated.descriptor.identity.descriptor
+    || !Array.isArray(admission.functions)
+    || !Array.isArray(admission.ephemeralCollections)
+  ) {
+    throw persistedReceiptMismatch(
+      'persisted binding receipt does not carry the admitted AppDescriptor deployment view',
+      generated,
+      receipt,
+      {
+        expectedDescriptorIdentity: generated.descriptor.identity.descriptor,
+        actualDescriptorIdentity: admission?.descriptorIdentity ?? null,
+      },
+    );
+  }
+  const functionsById = new Map();
+  for (const fact of admission.functions) {
+    if (
+      !fact
+      || typeof fact !== 'object'
+      || typeof fact.id !== 'string'
+      || typeof fact.queryArtifact !== 'string'
+      || typeof fact.authorityIndependent !== 'boolean'
+      || functionsById.has(fact.id)
+    ) {
+      throw persistedReceiptMismatch(
+        'persisted binding receipt carries invalid AppDescriptor function admission facts',
+        generated,
+        receipt,
+      );
+    }
+    functionsById.set(fact.id, Object.freeze({
+      queryArtifact: fact.queryArtifact,
+      authorityIndependent: fact.authorityIndependent,
+    }));
+  }
+  const expectedFunctionIds = generated.functions.functions.map((definition) => definition.id);
+  if (
+    functionsById.size !== expectedFunctionIds.length
+    || expectedFunctionIds.some((id) => !functionsById.has(id))
+  ) {
+    throw persistedReceiptMismatch(
+      'persisted binding receipt carries a different AppDescriptor function generation',
+      generated,
+      receipt,
+      {
+        expectedFunctionIds: expectedFunctionIds.slice().sort(),
+        actualFunctionIds: [...functionsById.keys()].sort(),
+      },
+    );
+  }
+  return Object.freeze({
+    functionsById,
+    ephemeralCollections: deepFreeze(structuredClone(admission.ephemeralCollections)),
+  });
+}
+
 async function adoptPersistedBindingReceipt(client, generated, cause) {
   if (!isConnectivityFailureError(cause)) return null;
   const store = client.rqsStore;
@@ -374,21 +456,46 @@ async function adoptPersistedBindingReceipt(client, generated, cause) {
     !receipt
     || typeof receipt !== 'object'
     || receipt.formatVersion !== BINDING_RECEIPT_FORMAT_VERSION
-    || receipt.appId !== generated.functions.appId
     || typeof receipt.generatedManifestDigest !== 'string'
     || !receipt.deployment
     || typeof receipt.deployment !== 'object'
-    || receipt.generatedManifestDigest !== await sha256GeneratedManifest(generated)
   ) return null;
+  if (receipt.appId !== generated.functions.appId) return null;
+  if (receipt.generatedManifestDigest !== await sha256GeneratedManifest(generated)) {
+    throw persistedReceiptMismatch(
+      'generated artifacts do not match the persisted binding receipt',
+      generated,
+      receipt,
+      generated.descriptorMode ? {
+        expectedSchemaHash: generated.descriptor.identity.schema,
+        actualSchemaHash: receipt.deployment.schemaHash ?? null,
+        expectedDescriptorIdentity: generated.descriptor.identity.descriptor,
+        actualDescriptorIdentity: receipt.descriptorAdmission?.descriptorIdentity ?? null,
+      } : {},
+    );
+  }
+  const descriptorAdmission = generated.descriptorMode
+    ? descriptorAdmissionFromReceipt(receipt, generated)
+    : null;
   // The digest equality above proves the presented generated manifest is
-  // byte-identical to the one online admission proved equal to the
-  // deployment — so the deployed view IS the generated manifest, and every
-  // per-item admission check below re-runs against it unchanged.
+  // byte-identical to the one online admission proved. In legacy manifest
+  // mode the deployed view IS that generated manifest. Descriptor mode keeps
+  // its portable document environment-independent, so the same receipt also
+  // carries the compact server-only facts from the admitted deployment view;
+  // every per-item admission check below still re-runs in this owner.
+  // @ref LLP 0179#appbinding-seam — descriptor cold boot reaches LLP 0114's
+  // existing receipt/admission owner; it does not create a surface cache or
+  // a second binding format.
   const inspection = {
     targetProfileId: receipt.deployment.targetProfileId,
     target: receipt.deployment.target,
     functions: generated.functions,
-    schema: generated.schema === null
+    schema: descriptorAdmission !== null
+      ? {
+        schemaHash: receipt.deployment.schemaHash,
+        ephemeralCollections: descriptorAdmission.ephemeralCollections,
+      }
+      : generated.schema === null
       ? (receipt.deployment.schemaHash == null
         ? null
         : { schemaHash: receipt.deployment.schemaHash })
@@ -406,6 +513,8 @@ async function adoptPersistedBindingReceipt(client, generated, cause) {
       deployment: receipt.deployment,
       capabilityDigest: receipt.capabilityDigest ?? null,
       registeredBundleAvailable: receipt.registeredBundleAvailable === true,
+      mixedBundleAvailable: receipt.mixedBundleAvailable === true,
+      descriptorFunctionFacts: descriptorAdmission?.functionsById ?? null,
     },
   };
 }
@@ -559,11 +668,6 @@ async function prepareReactBindingOnce(
     ]);
   } catch (error) {
     if (!allowPersistedReceipt) throw error;
-    // The portable descriptor intentionally omits server-owned function
-    // interiors. Its online admission can use the authenticated deployment
-    // view for RQS/policy facts, but the legacy receipt does not retain that
-    // view. Do not manufacture it from the public references on cold boot.
-    if (generated.descriptorMode) throw error;
     const adopted = await adoptPersistedBindingReceipt(client, generated, error);
     if (!adopted) throw error;
     ({ inspection, session, receiptFacts } = adopted);
@@ -672,13 +776,17 @@ async function prepareReactBindingOnce(
     }
     references[reference.name] = reference;
     referencesById.set(reference.id, reference);
+    const descriptorReceiptFact = receiptFacts?.descriptorFunctionFacts?.get(reference.id)
+      ?? null;
     queryArtifactsById.set(
       reference.id,
-      queryArtifactHash(generated.descriptorMode ? actual : definition),
+      descriptorReceiptFact?.queryArtifact
+        ?? queryArtifactHash(generated.descriptorMode ? actual : definition),
     );
     authorityIndependentById.set(
       reference.id,
-      (generated.descriptorMode ? actual : definition).authorityIndependent === true,
+      descriptorReceiptFact?.authorityIndependent
+        ?? (generated.descriptorMode ? actual : definition).authorityIndependent === true,
     );
     const descriptor = deepFreeze(
       structuredClone(definition.resultContract ?? { kind: 'unknown' }),
@@ -1141,7 +1249,7 @@ async function prepareReactBindingOnce(
       REGISTERED_BUNDLE_CAPABILITY,
     );
   const mixedBundleAvailable = receiptFacts
-    ? false
+    ? receiptFacts.mixedBundleAvailable
     : Array.isArray(
       inspection.capabilityManifest?.supportedCapabilities,
     ) && inspection.capabilityManifest.supportedCapabilities.includes(
@@ -1177,7 +1285,28 @@ async function prepareReactBindingOnce(
       routeManifestHash,
       authMode: session?.activeMode ?? null,
       registeredBundleAvailable,
+      mixedBundleAvailable,
       capabilityDigest,
+      ...(generated.descriptorMode ? {
+        // AppDescriptor deliberately omits the server function interiors.
+        // Persist only the admitted facts this binding owner needs to
+        // reconstruct its existing RQS/presence admission on a cold boot;
+        // the byte-identical descriptor is supplied again by the app.
+        descriptorAdmission: {
+          descriptorIdentity: generated.descriptor.identity.descriptor,
+          functions: generated.functions.functions.map((definition) => {
+            const actual = deployedFunctions.get(definition.id);
+            return {
+              id: definition.id,
+              queryArtifact: queryArtifactHash(actual),
+              authorityIndependent: actual.authorityIndependent === true,
+            };
+          }),
+          ephemeralCollections: structuredClone(
+            inspection.schema?.ephemeralCollections ?? [],
+          ),
+        },
+      } : {}),
       savedAt: Date.now(),
     });
   }

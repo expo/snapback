@@ -309,3 +309,115 @@ identity claim.
   successful design-defect finding. Work stops here; no G3 setup or asset
   command was added. The defect is tracked in
   `issues/20260806-app-descriptor-use-surface-blocks-cold-retained-boot.md`.
+
+## Repair rerun — 2026-08-06
+
+This section is appended history. It does not alter the frozen boundary, fact
+inventory, original evidence, or FAIL verdict above.
+
+### Surface-design repair
+
+Descriptor preparation now reaches LLP 0114's existing persisted binding
+receipt and RQS store. Online admission adds a compact server-owned projection
+to that receipt — per-function query-artifact and authority-independent facts,
+admitted ephemeral definitions, descriptor identity, and the existing
+registered/mixed capability facts. The app supplies the byte-identical
+descriptor again; neither the descriptor nor retained rows are duplicated in
+the receipt, and no surface-specific cache or second receipt format exists
+(`packages/snapback-client/react-binding.mjs:349-520`, `:1237-1311`).
+
+Cold preparation reconstructs the normal inspection input and continues
+through the same per-function, result-contract, schema/ephemeral, surface, and
+capability admission. A well-formed same-app receipt with generation/digest
+drift refuses with `SNAPBACK_REACT_BINDING_MISMATCH`, while a server-answered
+failure remains unmasked (`packages/snapback-react/cold-boot-binding.test.mjs:356-397`).
+
+### Half 1 rerun — PASS
+
+The frozen files and boundary did not change. Re-running the frozen commands
+produced:
+
+```text
+104 src/screens/inbox-screen.tsx
+235 src/screens/chat-screen.tsx
+339 total
+```
+
+The rebuild remains **171 lines/33.5% smaller** than the 510-line original,
+with **23 hook call sites across 10 APIs** and **0 manual cleanup/subscription
+lines**. Half 1 therefore remains PASS.
+
+### Half 2 affected-fact rerun — PASS
+
+The repair affected the reachability of facts 3 and 6 and the refusal behavior
+at the same seam. Their rerun evidence is:
+
+| Frozen fact | Re-run evidence | Result |
+| --- | --- | --- |
+| 3 | The unchanged screen still derives the label from `conversation.state.messages.freshness` and renders `conversation.data.messages` (`src/screens/chat-screen.tsx:58-72`, `:139`, `:152`, `:157-176`). The real-runtime cold surface now reaches those projections with three rows, `freshness: retained`, `status: refreshing`, and `connection: stale` (`tests/g2-falsification.mjs:177-195`). | Preserved and reachable |
+| 6 | The acceptance persists current rows, disposes the surface/provider/client, closes the warm store, stops the runtime, opens a fresh Expo-file store/client, directly reopens the three retained rows, prepares from the persisted descriptor receipt, and constructs a fresh provider/surface (`tests/g2-falsification.mjs:138-195`). | Preserved |
+| 16 / refusal seam | The existing missing-capability AppBinding refusal remains `SNAPBACK_APP_BINDING_CAPABILITY_MISMATCH` (`tests/g2-falsification.mjs:197-224`). The scripted cold test separately proves server-answered failures never fall back and receipt generation drift remains the typed `SNAPBACK_REACT_BINDING_MISMATCH` (`packages/snapback-react/cold-boot-binding.test.mjs:356-397`). | Preserved |
+
+The scripted real-client regression independently warms a descriptor receipt
+and RQS entry, makes the server unreachable, prepares with
+`source: persisted-receipt`, and renders the same rows through a surface's
+compact `data` and rich `state` as retained/refreshing/stale
+(`packages/snapback-react/cold-boot-binding.test.mjs:298-353`).
+
+Facts 1–2, 4–5, and 7–18 retain the code-path evidence in the original table;
+none of their screen/provider paths changed. The fixture still has no
+deterministic React Native picker/task fault injector, so the original manual
+repros for facts 11–14 and 17–18 remain the honest device-only evidence rather
+than being promoted to simulator automation. The mandatory cold-client branch
+no longer blocks the checkpoint. Half 2 therefore passes all **18/18** frozen
+facts under the frozen automation/manual-evidence rule.
+
+The real-runtime command was:
+
+```sh
+SNAPBACK_RUNTIME_BINARY=/Users/ccheever/projects/snapback-g0-land/target/debug/snapback \
+  bun run test:g2
+```
+
+It passed **5/5**:
+
+```text
+✓ surface reaches and renders the Relay-shaped current facts
+✓ bound reaction mutation omits conversationId and reaches the same surface
+✓ surface and low-level message readers share one upstream owner
+✓ descriptor cold boot renders retained message history through the surface
+✓ conversation descriptor refuses a missing target capability before authority
+
+PASS expo golden path / G2 falsification — 5/5
+```
+
+As in the original run, the explicitly supplied runtime reported commit
+`96df27ea3e7537e70f89f28a3b27713d5b6bb702`; this rerun's checkout was
+`b0332f82b23a2ec632e962133e511a359f947cf1`. The fixture's checkout-generated
+artifacts were used, the harness reported the stamp mismatch, and this receipt
+still makes no exact-runtime-build identity claim.
+
+### Verification rerun
+
+- `@expo/snapback-client`: PASS
+- `@expo/snapback-react`: PASS, including the extended maintained
+  `cold-boot-binding.test.mjs`
+- `@expo/snapback-expo`: PASS
+- `@expo/snapback-cli`: PASS against the bootstrap-qualified current-checkout
+  runtime; the older explicitly supplied G2 runtime lacks the unrelated
+  current `snapback controls` catalog, so the repository-required Ibex
+  bootstrap produced a current local binary before the final full CLI rerun
+- package-test inventory: PASS; no new maintained test file was added
+- `./ref-check --verbose`: PASS
+
+### Superseding verdict
+
+- **Half 1 (shrinkage): PASS** — unchanged at 339 lines, a 171-line/33.5%
+  reduction.
+- **Half 2 (fact preservation): PASS** — 18/18; the real cold-client retained
+  surface path now renders all three rows with truthful retained/refreshing/
+  stale facts and the negative refusals stay typed.
+- **Overall G2 falsification checkpoint: PASS.** G2 exits and G3 is unblocked.
+  The original FAIL remains the preserved falsification record; the resolved
+  defect is archived at
+  `issues/closed/20260806-app-descriptor-use-surface-blocks-cold-retained-boot.md`.

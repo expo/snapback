@@ -1,6 +1,6 @@
 # AppDescriptor `useSurface` blocks process-cold retained rendering
 
-**Status:** Open — blocks LLP 0176 G2 and all G3 setup
+**Status:** Resolved — LLP 0176 G2 rerun passes; G3 unblocked
 **Impact:** 5
 **Urgency:** 5
 **Ease:** 2
@@ -79,3 +79,28 @@ only its provider fallback diagnostic; it cannot render saved history through
 
 This is a product design defect, not a missing-guide-knowledge report, so it
 does not carry `guide-gap`.
+
+## Resolution — 2026-08-06
+
+The descriptor-only rethrow was removed. Online AppDescriptor preparation now
+adds a compact admitted deployment projection to LLP 0114's existing binding
+receipt: per-function query-artifact/authority-independent facts, admitted
+ephemeral definitions, descriptor identity, and registered/mixed capability
+facts. Cold preparation supplies the byte-identical descriptor, reconstructs
+the normal inspection input from that projection, and re-runs the existing
+function/result/schema/surface admission before constructing the provider.
+No second receipt format, retained store, cache, or surface boot owner was
+introduced.
+
+Same-app receipt drift now refuses with the existing typed
+`SNAPBACK_REACT_BINDING_MISMATCH`; server-answered failures still never fall
+back. The scripted regression in
+`packages/snapback-react/cold-boot-binding.test.mjs` covers legacy and
+descriptor receipt adoption, retained/refreshing/stale surface rendering,
+server-answered refusal, and typed generation drift. The real-runtime
+`demos/expo-golden-path-fixture/tests/g2-falsification.mjs` acceptance renders
+all three retained messages through `data` and `state` and passes 5/5.
+
+The frozen receipt was updated append-only, LLPs 0114/0179/0181 record the
+seam and boot-state decision, and LLP 0176 records Half 1 PASS, Half 2 PASS
+(18/18), overall PASS, and G3 unblocked.

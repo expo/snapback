@@ -174,13 +174,24 @@ await runAcceptance(suite, async () => {
     clientStoreId: 'g2-falsification',
     rqsStore: coldStore,
   });
-  await suite.check('G2 defect witness: descriptor cold boot refuses before retained surface state', async () => {
+  await suite.check('descriptor cold boot renders retained message history through the surface', async () => {
     assert(await coldStore.loadReactBindingReceipt(), 'the exact binding receipt is present before cold preparation');
-    await assert.rejects(
-      offline.prepareReactBinding({ generatedManifest: app }),
-      (error) => error instanceof TypeError && error.message === 'fetch failed',
-      'descriptor-mode preparation must currently reproduce the connectivity refusal that makes retained surface state unreachable',
+    const binding = await offline.prepareReactBinding({ generatedManifest: app });
+    assert.equal(binding.source, 'persisted-receipt');
+    offlineProvider = createSnapbackReactProvider(binding, { connectionId: 'g2-offline' });
+    offlineSurface = observeSnapbackSurface(
+      offlineProvider,
+      app.surfaces.conversation,
+      { conversationId: 'conversation_engine_room' },
+      { presence: { typing: skip } },
+      () => {},
     );
+    await eventually(() => offlineSurface.snapshot().state.messages.freshness === 'retained');
+    const snapshot = offlineSurface.snapshot();
+    assert.equal(snapshot.data.messages.length, 3);
+    assert.strictEqual(snapshot.data.messages, snapshot.state.messages.data);
+    assert.equal(snapshot.state.messages.status, 'refreshing');
+    assert.equal(snapshot.state.messages.connection, 'stale');
   });
 
   await suite.check('conversation descriptor refuses a missing target capability before authority', async () => {
