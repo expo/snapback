@@ -10,7 +10,7 @@
 //   inside @expo/snapback-cli; the app-data catalog is derived deterministically at
 //   server start from the codegen-emitted artifacts.
 
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -43,6 +43,43 @@ const TELEMETRY_EXPORT_HOST_ENVELOPE_ALLOWANCE = 64 * 1024;
 // @ref LLP 0024#authority-tuple — the five pinned modes; the local slice
 // serves the first four and refuses servicePrincipal honestly.
 const LOCAL_AUTHORITY_MODES = ['none', 'unauthenticated', 'devUser', 'devAdminBypass'];
+const CONTROL_CATALOG_URI = 'snapback-controls://catalog';
+const CONTROL_INSTANCE_URI = 'snapback-controls://instance';
+const CONTROL_OPERATION_URI_PREFIX = 'snapback-controls://operation/';
+
+// These declarations are the MCP-resource projection facts consumed by the
+// control-catalog compiler. Content still comes from the native binary at
+// request time; this array contains names/annotations only, never a catalog
+// or Guide snapshot.
+//
+// @ref LLP 0184#4-agent-discovery-and-setup — the control server re-serves
+// build-matched resources from its co-installed native runtime.
+export const CONTROL_RESOURCES = [
+  {
+    operation: 'control.catalog.read',
+    uri: CONTROL_CATALOG_URI,
+    name: 'control-catalog',
+    title: 'Snapback control catalog — searchable index',
+    description: 'Search operation, title, and intents in the exact catalog embedded in the co-installed native binary.',
+    annotations: { readOnlyHint: true },
+  },
+  {
+    operation: 'control.catalog.describe',
+    uriTemplate: `${CONTROL_OPERATION_URI_PREFIX}{operation}`,
+    name: 'control-operation',
+    title: 'Describe one Snapback control operation',
+    description: 'Read one complete build-catalog row by stable operation id.',
+    annotations: { readOnlyHint: true },
+  },
+  {
+    operation: 'control.catalog.instance.read',
+    uri: CONTROL_INSTANCE_URI,
+    name: 'control-catalog-instance',
+    title: 'Running Snapback instance availability snapshot',
+    description: 'Read the admin-gated instance projection and refuse unless its catalogDigest matches this native build.',
+    annotations: { readOnlyHint: true },
+  },
+];
 
 const AUTHORITY_INPUT_SCHEMA = {
   type: 'object',
@@ -680,6 +717,26 @@ export const CONTROL_TOOLS = [
   },
 ];
 
+export function requireMatchingControlCatalogIdentity(catalog, instance) {
+  const buildDigest = catalog?.catalogDigest;
+  const instanceDigest = instance?.catalogDigest;
+  if (typeof buildDigest !== 'string' || typeof instanceDigest !== 'string') {
+    throw diagnosticError(
+      'SNAPBACK_MCP_CONTROL_CATALOG_IDENTITY_INVALID',
+      'the build catalog or instance projection has no catalogDigest',
+      { buildDigest: buildDigest ?? null, instanceDigest: instanceDigest ?? null },
+    );
+  }
+  if (buildDigest !== instanceDigest) {
+    throw diagnosticError(
+      'SNAPBACK_MCP_CONTROL_CATALOG_IDENTITY_MISMATCH',
+      'the co-installed native build catalog does not match the running instance projection; refusing to combine them',
+      { buildDigest, instanceDigest },
+    );
+  }
+  return { catalog, instance };
+}
+
 export class McpControlServer {
   constructor(options = {}) {
     this.backendRoot = resolve(options.backendDirectory ?? 'snapback');
@@ -702,6 +759,234 @@ export class McpControlServer {
   resolveRuntime() {
     this.runtime ??= resolveRuntimeBinary({ runtimeBinary: this.runtimeBinary });
     return this.runtime;
+  }
+
+  nativeResourceUnavailable(error) {
+    const underlying = error?.diagnostic ?? diagnostic(
+      error?.code ?? 'SNAPBACK_RUNTIME_BINARY_MISSING',
+      error?.message ?? String(error),
+    );
+    return diagnostic(
+      'SNAPBACK_MCP_NATIVE_DOCUMENTATION_UNAVAILABLE',
+      'Guide and control-catalog resources are unavailable because no compatible co-installed native Snapback binary could provide the build-matched bytes',
+      { underlying },
+    );
+  }
+
+  runNativeJson(args, code, message) {
+    const runtime = this.resolveRuntime();
+    const result = native(runtime.binary, args, {
+      cwd: this.projectRoot,
+      env: this.env,
+    });
+    if (result.status !== 0) {
+      throw diagnosticError(code, message, {
+        status: result.status,
+        signal: result.signal ?? null,
+        stderr: result.stderr?.slice(0, 2_000) ?? '',
+      });
+    }
+    try {
+      return { value: JSON.parse(result.stdout), text: result.stdout.trimEnd() };
+    } catch (cause) {
+      const error = diagnosticError(code, `${message}: native output was not JSON`, {});
+      error.cause = cause;
+      throw error;
+    }
+  }
+
+  nativeControlCatalog() {
+    const output = this.runNativeJson(
+      ['controls', 'list', '--json'],
+      'SNAPBACK_MCP_CONTROL_CATALOG_UNAVAILABLE',
+      'the co-installed native control catalog could not be read',
+    );
+    if (output.value?.schemaVersion !== 'snapback.control-catalog.v1'
+      || typeof output.value?.catalogDigest !== 'string'
+      || !Array.isArray(output.value?.entries)) {
+      throw diagnosticError(
+        'SNAPBACK_MCP_CONTROL_CATALOG_INVALID',
+        'the co-installed native binary returned an invalid control catalog',
+        {},
+      );
+    }
+    return output;
+  }
+
+  nativeControlDescription(operation) {
+    return this.runNativeJson(
+      ['controls', 'describe', operation, '--json'],
+      'SNAPBACK_MCP_CONTROL_DESCRIPTION_UNAVAILABLE',
+      `the co-installed native control row ${operation} could not be read`,
+    );
+  }
+
+  nativeGuideRequest(method, params = {}) {
+    const runtime = this.resolveRuntime();
+    const request = { jsonrpc: '2.0', id: 1, method, params };
+    const result = spawnSync(runtime.binary, ['mcp'], {
+      cwd: this.projectRoot,
+      env: scrubDynamicLoaderEnvironment(this.env),
+      encoding: 'utf8',
+      input: `${JSON.stringify(request)}\n`,
+      timeout: 30_000,
+    });
+    if (result.status !== 0) {
+      throw diagnosticError(
+        'SNAPBACK_MCP_NATIVE_GUIDE_UNAVAILABLE',
+        'the co-installed native Guide MCP server could not provide build-matched resources',
+        {
+          status: result.status,
+          signal: result.signal ?? null,
+          stderr: result.stderr?.slice(0, 2_000) ?? '',
+        },
+      );
+    }
+    let response;
+    try {
+      response = JSON.parse(result.stdout.trim());
+    } catch (cause) {
+      const error = diagnosticError(
+        'SNAPBACK_MCP_NATIVE_GUIDE_INVALID',
+        'the co-installed native Guide MCP server returned invalid JSON',
+        {},
+      );
+      error.cause = cause;
+      throw error;
+    }
+    if (response?.error) {
+      throw diagnosticError(
+        'SNAPBACK_MCP_NATIVE_GUIDE_UNAVAILABLE',
+        `the co-installed native Guide MCP server refused ${method}: ${response.error.message}`,
+        { nativeErrorCode: response.error.code },
+      );
+    }
+    return response?.result;
+  }
+
+  controlResourceCatalog(catalog) {
+    const identity = {
+      'snapback/catalogDigest': catalog.catalogDigest,
+      'snapback/readOnly': true,
+    };
+    const resources = [
+      {
+        uri: CONTROL_CATALOG_URI,
+        name: 'control-catalog',
+        title: 'Snapback control catalog — searchable index',
+        description: 'Search operation ids, titles, and intents; bytes come from the co-installed native binary.',
+        mimeType: 'application/json',
+        annotations: { readOnlyHint: true },
+        _meta: { ...identity, 'snapback/operation': 'control.catalog.read' },
+      },
+      {
+        uri: CONTROL_INSTANCE_URI,
+        name: 'control-catalog-instance',
+        title: 'Running Snapback instance availability snapshot',
+        description: 'Requires a running ready-file target and refuses a catalogDigest mismatch.',
+        mimeType: 'application/json',
+        annotations: { readOnlyHint: true },
+        _meta: { ...identity, 'snapback/operation': 'control.catalog.instance.read' },
+      },
+    ];
+    for (const entry of catalog.entries) {
+      resources.push({
+        uri: `${CONTROL_OPERATION_URI_PREFIX}${encodeURIComponent(entry.operation)}`,
+        name: entry.operation,
+        title: entry.title,
+        description: `Complete control-catalog row for ${entry.operation}`,
+        mimeType: 'application/json',
+        annotations: { readOnlyHint: true },
+        _meta: { ...identity, 'snapback/operation': 'control.catalog.describe' },
+      });
+    }
+    return resources;
+  }
+
+  controlResourceTemplates(catalog) {
+    return [{
+      uriTemplate: `${CONTROL_OPERATION_URI_PREFIX}{operation}`,
+      name: 'control-operation',
+      title: 'Describe one Snapback control operation',
+      description: 'Substitute an operation id from snapback-controls://catalog.',
+      mimeType: 'application/json',
+      annotations: { readOnlyHint: true },
+      _meta: {
+        'snapback/catalogDigest': catalog.catalogDigest,
+        'snapback/operation': 'control.catalog.describe',
+        'snapback/readOnly': true,
+      },
+    }];
+  }
+
+  async readControlResource(uri) {
+    if (typeof uri !== 'string') return null;
+    if (uri === CONTROL_CATALOG_URI) {
+      const { value, text } = this.nativeControlCatalog();
+      return {
+        contents: [{
+          uri,
+          mimeType: 'application/json',
+          text,
+          _meta: {
+            'snapback/catalogDigest': value.catalogDigest,
+            'snapback/readOnly': true,
+          },
+        }],
+      };
+    }
+    if (uri === CONTROL_INSTANCE_URI) {
+      const { value: catalog } = this.nativeControlCatalog();
+      const { ok, status, payload } = await this.adminFetch(
+        'GET',
+        '/_snapback/api/control-catalog/instance',
+      );
+      if (!ok) {
+        throw diagnosticError(
+          'SNAPBACK_MCP_CONTROL_INSTANCE_UNAVAILABLE',
+          `the running instance projection returned HTTP ${status}`,
+          { status, payload },
+        );
+      }
+      requireMatchingControlCatalogIdentity(catalog, payload);
+      return {
+        contents: [{
+          uri,
+          mimeType: 'application/json',
+          text: JSON.stringify(payload, null, 2),
+          _meta: {
+            'snapback/catalogDigest': catalog.catalogDigest,
+            'snapback/startupNonce': payload.startupNonce,
+            'snapback/readOnly': true,
+          },
+        }],
+      };
+    }
+    if (uri.startsWith(CONTROL_OPERATION_URI_PREFIX)) {
+      let operation;
+      try {
+        operation = decodeURIComponent(uri.slice(CONTROL_OPERATION_URI_PREFIX.length));
+      } catch {
+        throw diagnosticError('SNAPBACK_MCP_CONTROL_OPERATION_INVALID', 'control operation URI is invalid', { uri });
+      }
+      if (!operation || operation.includes('/')) {
+        throw diagnosticError('SNAPBACK_MCP_CONTROL_OPERATION_INVALID', 'control operation URI is invalid', { uri });
+      }
+      const { value, text } = this.nativeControlDescription(operation);
+      return {
+        contents: [{
+          uri,
+          mimeType: 'application/json',
+          text,
+          _meta: {
+            'snapback/catalogDigest': value.catalogDigest,
+            'snapback/operation': operation,
+            'snapback/readOnly': true,
+          },
+        }],
+      };
+    }
+    return null;
   }
 
   currentDescriptor() {
@@ -1536,6 +1821,61 @@ export class McpControlServer {
     };
   }
 
+  listResources() {
+    const resources = [];
+    const diagnostics = [];
+    let catalog = null;
+    try {
+      catalog = this.nativeControlCatalog().value;
+      resources.push(...this.controlResourceCatalog(catalog));
+    } catch (error) {
+      diagnostics.push(this.nativeResourceUnavailable(error));
+    }
+    try {
+      const guide = this.nativeGuideRequest('resources/list');
+      resources.push(...(guide?.resources ?? []));
+    } catch (error) {
+      diagnostics.push(this.nativeResourceUnavailable(error));
+    }
+    return {
+      resources,
+      _meta: {
+        ...(catalog ? { 'snapback/catalogDigest': catalog.catalogDigest } : {}),
+        'snapback/resourceDiagnostics': diagnostics,
+      },
+    };
+  }
+
+  listResourceTemplates() {
+    const diagnostics = [];
+    let resourceTemplates = [];
+    try {
+      const catalog = this.nativeControlCatalog().value;
+      resourceTemplates = this.controlResourceTemplates(catalog);
+    } catch (error) {
+      diagnostics.push(this.nativeResourceUnavailable(error));
+    }
+    try {
+      const guide = this.nativeGuideRequest('resources/templates/list');
+      resourceTemplates.push(...(guide?.resourceTemplates ?? []));
+    } catch (error) {
+      diagnostics.push(this.nativeResourceUnavailable(error));
+    }
+    return {
+      resourceTemplates,
+      _meta: { 'snapback/resourceDiagnostics': diagnostics },
+    };
+  }
+
+  async readResource(uri) {
+    const control = await this.readControlResource(uri);
+    if (control) return control;
+    if (typeof uri === 'string' && uri.startsWith('snapback-guide://')) {
+      return this.nativeGuideRequest('resources/read', { uri });
+    }
+    return null;
+  }
+
   async handleRequest(request) {
     const id = request?.id;
     const method = request?.method;
@@ -1550,15 +1890,35 @@ export class McpControlServer {
       case 'initialize':
         return success({
           protocolVersion: PROTOCOL_VERSION,
-          capabilities: { tools: { listChanged: false } },
+          capabilities: {
+            tools: { listChanged: false },
+            resources: { subscribe: false, listChanged: false },
+          },
           serverInfo: { name: 'snapback-control', version: packageVersion() },
           instructions: 'Control-plane tools project LLP 0024 host operations; '
             + 'snapback_fn_* tools are the generated app-data catalog. Every result '
             + 'is the shared hostOpsResult envelope; ok:false envelopes are '
-            + 'app-level failures, not tool errors.',
+            + 'app-level failures, not tool errors. Read snapback-controls://catalog '
+            + 'to search the build catalog and snapback-guide://manifest for the '
+            + 'Guide; both are supplied by the co-installed native binary.',
         });
       case 'ping':
         return success({});
+      case 'resources/list':
+        return success(this.listResources());
+      case 'resources/templates/list':
+        return success(this.listResourceTemplates());
+      case 'resources/read': {
+        try {
+          const result = await this.readResource(request.params?.uri);
+          if (result === null) return failure(-32002, `Resource not found: ${request.params?.uri}`);
+          return success(result);
+        } catch (error) {
+          const detail = error?.diagnostic
+            ?? diagnostic(error?.code ?? 'SNAPBACK_MCP_RESOURCE_UNAVAILABLE', error?.message ?? String(error));
+          return failure(-32001, `${detail.code}: ${detail.message}`);
+        }
+      }
       case 'tools/list':
         return success(this.listTools());
       case 'tools/call': {

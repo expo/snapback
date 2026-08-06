@@ -10,8 +10,18 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { generateApp, managedAdminToken, scaffoldApp } from './index.mjs';
-import { buildAppDataCatalog, functionToolName } from './mcp-control.mjs';
+import {
+  generateApp,
+  managedAdminToken,
+  readReadyDescriptor,
+  scaffoldApp,
+} from './index.mjs';
+import {
+  McpControlServer,
+  buildAppDataCatalog,
+  functionToolName,
+  requireMatchingControlCatalogIdentity,
+} from './mcp-control.mjs';
 
 const packageDir = dirname(fileURLToPath(import.meta.url));
 const runtimeBinary = process.env.SNAPBACK_RUNTIME_BINARY
@@ -30,6 +40,33 @@ assert.ok(
   const missing = buildAppDataCatalog(join(tmpdir(), 'snapback-mcp-no-such-backend'));
   assert.equal(missing.catalog, null);
   assert.equal(missing.diagnostics[0].code, 'SNAPBACK_MCP_CATALOG_ARTIFACTS_MISSING');
+
+  assert.throws(
+    () => requireMatchingControlCatalogIdentity(
+      { catalogDigest: `sha256:${'a'.repeat(64)}` },
+      { catalogDigest: `sha256:${'b'.repeat(64)}` },
+    ),
+    (error) => error.code === 'SNAPBACK_MCP_CONTROL_CATALOG_IDENTITY_MISMATCH',
+  );
+
+  const missingNative = new McpControlServer({
+    backendDirectory: join(tmpdir(), 'snapback-mcp-no-native-backend'),
+    projectRoot: tmpdir(),
+    runtimeBinary: join(tmpdir(), 'snapback-native-does-not-exist'),
+  });
+  const unavailable = await missingNative.handleRequest({
+    jsonrpc: '2.0', id: 1, method: 'resources/list', params: {},
+  });
+  assert.deepEqual(unavailable.result.resources, []);
+  assert.ok(unavailable.result._meta['snapback/resourceDiagnostics'].length > 0);
+  assert.equal(
+    unavailable.result._meta['snapback/resourceDiagnostics'][0].code,
+    'SNAPBACK_MCP_NATIVE_DOCUMENTATION_UNAVAILABLE',
+  );
+  assert.match(
+    unavailable.result._meta['snapback/resourceDiagnostics'][0].message,
+    /no compatible co-installed native Snapback binary/,
+  );
 }
 
 class McpClient {
@@ -106,6 +143,55 @@ try {
   const initialized = await client.request('initialize', {});
   assert.equal(initialized.result.protocolVersion, '2025-06-18');
   assert.equal(initialized.result.serverInfo.name, 'snapback-control');
+  assert.deepEqual(initialized.result.capabilities.resources, { subscribe: false, listChanged: false });
+
+  const resourceList = await client.request('resources/list');
+  assert.deepEqual(resourceList.result._meta['snapback/resourceDiagnostics'], []);
+  const resourceUris = resourceList.result.resources.map((resource) => resource.uri);
+  assert.ok(resourceUris.includes('snapback-controls://catalog'));
+  assert.ok(resourceUris.includes('snapback-controls://operation/debug.networkProfileSet'));
+  assert.ok(resourceUris.includes('snapback-guide://manifest'));
+  assert.equal(
+    resourceList.result.resources.find(
+      (resource) => resource.uri === 'snapback-controls://catalog',
+    ).annotations.readOnlyHint,
+    true,
+  );
+
+  const templates = await client.request('resources/templates/list');
+  assert.ok(
+    templates.result.resourceTemplates.some(
+      (template) => template.uriTemplate === 'snapback-controls://operation/{operation}',
+    ),
+  );
+  assert.equal(
+    templates.result.resourceTemplates.find(
+      (template) => template.uriTemplate === 'snapback-controls://operation/{operation}',
+    ).annotations.readOnlyHint,
+    true,
+  );
+
+  const catalogResource = await client.request('resources/read', {
+    uri: 'snapback-controls://catalog',
+  });
+  const buildControlCatalog = JSON.parse(catalogResource.result.contents[0].text);
+  assert.equal(buildControlCatalog.schemaVersion, 'snapback.control-catalog.v1');
+  assert.match(buildControlCatalog.catalogDigest, /^sha256:[0-9a-f]{64}$/);
+  assert.ok(buildControlCatalog.entries.length >= 100);
+
+  const describedControl = await client.request('resources/read', {
+    uri: 'snapback-controls://operation/debug.networkProfileSet',
+  });
+  const describedControlRow = JSON.parse(describedControl.result.contents[0].text);
+  assert.equal(describedControlRow.catalogDigest, buildControlCatalog.catalogDigest);
+  assert.equal(describedControlRow.entry.operation, 'debug.networkProfileSet');
+
+  const guideManifestResource = await client.request('resources/read', {
+    uri: 'snapback-guide://manifest',
+  });
+  const guideManifest = JSON.parse(guideManifestResource.result.contents[0].text);
+  assert.match(guideManifest.contentHash, /^[0-9a-f]{64}$/);
+  assert.equal(typeof guideManifest.buildIdentity.commit, 'string');
 
   const listed = await client.request('tools/list');
   const tools = listed.result.tools;
@@ -165,6 +251,15 @@ try {
   assert.equal(restarted.structuredContent.operation, 'host.restart');
   assert.equal(restarted.structuredContent.ok, true, JSON.stringify(restarted.structuredContent));
   assert.ok(Number.isInteger(restarted.structuredContent.data.current.pid));
+
+  const instanceResource = await client.request('resources/read', {
+    uri: 'snapback-controls://instance',
+  });
+  assert.equal(instanceResource.error, undefined, JSON.stringify(instanceResource.error));
+  const instanceCatalog = JSON.parse(instanceResource.result.contents[0].text);
+  assert.equal(instanceCatalog.schemaVersion, 'snapback.control-catalog-instance.v1');
+  assert.equal(instanceCatalog.catalogDigest, buildControlCatalog.catalogDigest);
+  assert.equal(instanceCatalog.startupNonce, readReadyDescriptor(readyFile).startupNonce);
 
   for (const [tool, operation] of [
     ['snapback_load_schema', 'schema.load'],

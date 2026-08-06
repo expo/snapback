@@ -133,6 +133,15 @@
           "items": { "type": "string", "minLength": 1 },
           "description": "§Design/2: additive, alongside the row's own projections.hostOps/route identity, never a substitute for it. Used for host.restart's MCP projection (composed of host.stop + host.start)."
         },
+        "hostOpsDisposition": {
+          "enum": ["served", "cliOnly", "pinnedUnbuilt"],
+          "description": "Projection of the LLP 0024 host-operation allowlist owning this hostOps row. Used by generated Guide inventories; absent for non-hostOps rows."
+        },
+        "registeredOperations": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "description": "The LLP 0031 multiplexed operation identities registered for this hostOps request spelling. Generated from the registry export so Guide identity counts never parse Rust source text."
+        },
         "availability": {
           "type": "object",
           "additionalProperties": false,

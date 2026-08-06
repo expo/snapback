@@ -183,6 +183,36 @@
     },
     {
       "method": "GET",
+      "path": "/_snapback/api/control-catalog",
+      "class": "SystemApi",
+      "pathPolicy": "AdminRead",
+      "credentialResolution": "AdminCredential",
+      "invocationAuthority": "Operator",
+      "effectPolicy": "None",
+      "responseSensitivity": "OperatorMetadata"
+    },
+    {
+      "method": "GET",
+      "path": "/_snapback/api/control-catalog/instance",
+      "class": "SystemApi",
+      "pathPolicy": "AdminRead",
+      "credentialResolution": "AdminCredential",
+      "invocationAuthority": "Operator",
+      "effectPolicy": "None",
+      "responseSensitivity": "OperatorMetadata"
+    },
+    {
+      "method": "GET",
+      "path": "/_snapback/api/control-catalog/operations/{operation}",
+      "class": "SystemApi",
+      "pathPolicy": "AdminRead",
+      "credentialResolution": "AdminCredential",
+      "invocationAuthority": "Operator",
+      "effectPolicy": "None",
+      "responseSensitivity": "OperatorMetadata"
+    },
+    {
+      "method": "GET",
       "path": "/_snapback/api/debug/network-profile",
       "class": "SystemApi",
       "pathPolicy": "AdminRead",

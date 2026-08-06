@@ -42,7 +42,7 @@ postures visible when you configure an agent:
 | Server | What it exposes | Authority consequence |
 | --- | --- | --- |
 | `snapback mcp` | The native Rust binary's resource-only Guide server. It reads the compile-time-embedded Guide corpus and exposes the manifest, flat projection, and manifest-named pages at stable `snapback-guide://` URIs. It has no mutation or host-operation tools. | Least authority: safe to wire into any agent, with no additional authority grant. |
-| `snapback mcp-control` | The explicit JS control-plane server shipped by `@expo/snapback-cli`: `snapback_start`, `snapback_stop`, `snapback_restart`, `snapback_inspect`, `snapback_reset`, `snapback_load_schema`, `snapback_load_functions`, `snapback_run_function`, `snapback_acceptance_run`, network-profile get/set, and the generated app-data catalog. It also re-serves the Guide and control catalog, using the co-installed native runtime for the embedded Guide bytes so the npm package never carries a second static copy that could drift from the runtime build. | Standing local admin: it authenticates with the auto-minted local admin token, so the wired-in client has admin authority over the local Snapback instance. |
+| `snapback mcp-control` | The explicit JS control-plane server shipped by `@expo/snapback-cli`: typed control tools, the generated app-data catalog, `snapback-controls://catalog` plus per-operation/instance resources, and the native Guide resources. It invokes the co-installed native runtime for both embedded Guide and build-catalog bytes; the npm package carries no second snapshot. If that binary is unavailable, resource listing reports `SNAPBACK_MCP_NATIVE_DOCUMENTATION_UNAVAILABLE` and lists no pretend Guide/catalog resources. | Standing local admin: it authenticates with the auto-minted local admin token, so the wired-in client has admin authority over the local Snapback instance. |
 
 The split makes documentation safe by default while keeping a capable operating
 surface available by explicit choice. `mcp-control` has the same local authority
@@ -220,6 +220,9 @@ you never build around a feature because you didn't know it existed.
   identity-bound partial done-oracle receipt.
 
 ### Operating
+- [Discover agent controls](./operating/agent-controls.md) — search the
+  build-bound control catalog, describe exact CLI/MCP/API projections, and
+  bind advisory instance availability by digest.
 - [Local instance forks](./operating/instance-forks.md) — give each worktree a
   finite-TTL, quarantined copy of realistic local state; run fork-aware
   acceptance and retain bounded app-row diff receipts (partial/unpublished).

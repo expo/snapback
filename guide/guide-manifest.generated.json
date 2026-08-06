@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "41f47b0887e20a8e786ea936864f58596dd574b6"
+    "commit": "711e4d763d87cadf0c638bd15ed33a85427e4f11"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -217,6 +217,11 @@
       }
     ],
     "operating": [
+      {
+        "id": "operating.agent-controls",
+        "order": 1,
+        "title": "Discover agent controls"
+      },
       {
         "id": "operating.secrets-and-config",
         "order": 1,
@@ -1485,7 +1490,7 @@
       "examples": [],
       "reviewed": "2026-08-06",
       "reviewedCommit": "850427c31b9a668d55b46995e08389cd13a2c9b6",
-      "sha256": "c230330794b08bf43cb57fce95fee97c8c305aa7aa09907f08f7bf33856d1b33",
+      "sha256": "ec18294a4f0471e3642036417b8f53f859784b0fd44feee8abd80f56b5f3f4fd",
       "snippets": []
     },
     "clients.app-cli": {
@@ -2191,7 +2196,7 @@
       ],
       "reviewed": "2026-08-06",
       "reviewedCommit": "850427c31b9a668d55b46995e08389cd13a2c9b6",
-      "sha256": "40f9fa5cc8b37afcade46fadc2117d17603c1197f0b7bb3a52c269d9babdf699",
+      "sha256": "c86ac817750e847d785b42d7ebde574415554cccb4f482c89273aa13521dfae5",
       "snippets": [
         {
           "lang": "json",
@@ -2240,6 +2245,32 @@
           "source": "admin-ui/tests/fatal-rendering.mjs"
         }
       ]
+    },
+    "operating.agent-controls": {
+      "path": "guide/operating/agent-controls.md",
+      "title": "Discover agent controls",
+      "order": 1,
+      "status": "current",
+      "targets": [
+        "local"
+      ],
+      "maturity": "shipped",
+      "capabilities": [
+        "operating.agent-controls"
+      ],
+      "authorities": [
+        "llp/0184-agent-accessible-control-plane.rfc.md",
+        "llp/0031-server-route-taxonomy.spec.md",
+        "llp/0042-agent-mcp-surface.rfc.md",
+        "src/control_catalog.rs",
+        "src/cli.rs",
+        "packages/snapback-cli/mcp-control.mjs"
+      ],
+      "examples": [],
+      "reviewed": "2026-08-06",
+      "reviewedCommit": "711e4d763",
+      "sha256": "76de8f6d6524f121295212f8910ab9b9410b0c7e878468d9d3f6d82d1b358333",
+      "snippets": []
     },
     "operating.diagnostics": {
       "path": "guide/operating/diagnostics.md",
@@ -2333,7 +2364,7 @@
       ],
       "reviewed": "2026-08-06",
       "reviewedCommit": "acbb7b922a060788fd09f3f98211eb9ce35f23f4",
-      "sha256": "ba11d412263d478261fd144f357207477d28ac97995772e8b710fe4736bd95e1",
+      "sha256": "907b5aceb2d08629de267fdd90f9d16771e5725b8e7b9c5b37f8bcf72dd0d4fd",
       "snippets": [
         {
           "lang": "json",
@@ -2887,7 +2918,7 @@
       "examples": [],
       "reviewed": "2026-08-03",
       "reviewedCommit": "7b467cf16",
-      "sha256": "3252dae5ea3b8a012db4081a9c83aecde91560e2e1b900afb215e47a03e12c02",
+      "sha256": "130577ea51d0e7e6079dc6ef40df77d81273558743ec62f4807b2f0ff4719ad0",
       "snippets": []
     },
     "sync.offline-and-retention": {
@@ -2940,9 +2971,9 @@
         "packages/snapback-contract/agent-authority-contract.test.mjs",
         "packages/snapback-react/offline.test.mjs"
       ],
-      "reviewed": "2026-08-06",
-      "reviewedCommit": "711e4d763d87cadf0c638bd15ed33a85427e4f11",
-      "sha256": "fde971949340552da32f8e05c9a0628c1b999f33f59748ce740994cc738a5287",
+      "reviewed": "2026-08-05",
+      "reviewedCommit": "HEAD",
+      "sha256": "8fe5f0ae2b8af693d44cd055129a6514060e60661d801373a7387bfad08502be",
       "snippets": [
         {
           "lang": "js",
@@ -3147,6 +3178,7 @@
       "deploy.release-build",
       "deploy.target-control",
       "operating.admin-console",
+      "operating.agent-controls",
       "operating.diagnostics",
       "operating.guide-mcp",
       "operating.host-ops",
@@ -3182,8 +3214,8 @@
     ]
   },
   "surfaces": {
-    "routes": 117,
+    "routes": 120,
     "hostOps": 37
   },
-  "contentHash": "e7f73abea6c6eb8eb63880ed4828c76f668a06de3ef0aa95826f921e5d8f5e4f"
+  "contentHash": "9e506f94c30dc0c73bd3fef44f3d27ec7da45e4576b9d94262f81b3dcc434529"
 }

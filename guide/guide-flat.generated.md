@@ -22,15 +22,9 @@ reviewed-commit: 850427c31b9a668d55b46995e08389cd13a2c9b6
 
 <!-- @ref LLP 0061#2-the-capability-index-registry-lite-with-witnesses — witnesses, GAP rows, and the joined surfaces -->
 
-Every author-facing capability Snapback has. **GAP** rows make missing coverage
-explicit and owned. Shipped rows carry a code **witness**. The
-[surface map](./surface-map.md)
-classifies the machine-enumerable route and host-op registries;
-`scripts/check-guide.mjs` joins it to code so shipped surfaces cannot silently
-disappear.
-
-`ccheever` owns this guide. Track gaps in Exact Linear issues labeled `Snapback`
-and `guide-gap`.
+All author-facing capabilities. **GAP** rows are owned; shipped rows need a
+**witness**. The [surface map](./surface-map.md) is checked against route and
+host-op registries. Owner: `ccheever`; label gaps `guide-gap`.
 
 ## Capabilities
 
@@ -105,6 +99,7 @@ and `guide-gap`.
 | operating.admin-console | Shipped browser debugger for Data, Functions, Realtime, Errors, Logs, capabilities, and guide docs, with master-derived fragment, device approval, and one-time operator claim-link handoffs | console, dashboard, admin link, claim link, remote browser, table inspection, browse table, table scan, inspect rows, see backend, debug backend, inspect function, inspect realtime, Expo debugging, React debugging | local | shipped | route /_snapback/admin | llp/0017 | operating/admin-console.md |
 | operating.network-profiles | Named network condition profiles: server-side egress latency injection (mutation ack, live delta, query response lanes) with fail-closed local-only activation, startup-env and admin-API toggles, per-frame socket/poll markers, surface/principal activation provenance, and coalesced live deadlines | latency, slow network, network profile, delay, jitter, local-first testing | local | shipped | route /_snapback/api/debug/network-profile + host_ops.debug.networkProfileSet + demos/zero-bakeoff/protocol/environment.v2.json | llp/0167 | operating/network-profiles.md |
 | operating.host-ops | Host operations over CLI/HTTP | cli, ops, host operations | local | shipped | route /_snapback/api/host-ops | llp/0024 | operating/host-ops.md |
+| operating.agent-controls | Build/instance control discovery | controls list, controls describe, catalog | local | shipped | route /_snapback/api/control-catalog | llp/0184 | operating/agent-controls.md |
 | operating.diagnostics | Stable SNAPBACK_* codes; exact current-checkout link/launch diagnosis with one binary-selection recovery record; installed disposable vertical-slice doctor | diagnostics, errors, doctor, linker, missing symbols, stale binary, runtime recovery | all | shipped | `runRuntimeLinkProbe` in scripts/runtime-link-smoke.mjs | llp/0010, llp/0031, llp/0041, llp/0074 | operating/diagnostics.md |
 | operating.declaration-conformance | Per-invocation declared-vs-captured read/write report and local strict opt-in, plus `snapback verify` aggregation over explicitly registered acceptance paths: authoritative under-declarations and missing reports fail, universally extra declarations warn, and observed incomplete/unsupported provenance stays an explicit partial rather than a verdict. The Cloudflare target refuses `strictDeclarations: true` at compiled-schema load and `/app/ensure` with `SNAPBACK_STRICT_DECLARATIONS_TARGET_UNSUPPORTED`; it never admits the flag unenforced. Automatic discovery of every repository acceptance path, app-data-plane ring wiring, complete mutation-envelope provenance, and authoritative Cloudflare capture/reporting remain GAPs | declaration drift, undeclared read, undeclared write, strict declarations, conformance, coverage, missingReads, read set, write set | local | partial | `aggregateConformance` in packages/snapback-cli/verify.mjs | llp/0146, llp/0127, llp/0010 | GAP (guide page for the conformance report and strict opt-in; owner: ccheever, review: 2026-08-31) |
 | operating.verify | Five-stage CLI done-oracle with source-regenerated artifact identity, digest-bound runtime readiness, local admission plus registered-path D1 aggregation, generated capability resolution, registered acceptance execution, identity/test-byte-bound receipt, ordered next actions, and mechanically unique recommendation. Live-target admission, automatic acceptance-path discovery, `acceptance.run`, product-completeness claims, and CV-14 semantic-review custody are explicit nonclaims | verify, done oracle, receipt, recommended next, test bytes, readiness | local | partial | `runVerify` in packages/snapback-cli/verify.mjs | llp/0146, llp/0010 | testing/verify.md |
@@ -168,7 +163,7 @@ postures visible when you configure an agent:
 | Server | What it exposes | Authority consequence |
 | --- | --- | --- |
 | `snapback mcp` | The native Rust binary's resource-only Guide server. It reads the compile-time-embedded Guide corpus and exposes the manifest, flat projection, and manifest-named pages at stable `snapback-guide://` URIs. It has no mutation or host-operation tools. | Least authority: safe to wire into any agent, with no additional authority grant. |
-| `snapback mcp-control` | The explicit JS control-plane server shipped by `@expo/snapback-cli`: `snapback_start`, `snapback_stop`, `snapback_restart`, `snapback_inspect`, `snapback_reset`, `snapback_load_schema`, `snapback_load_functions`, `snapback_run_function`, `snapback_acceptance_run`, network-profile get/set, and the generated app-data catalog. It also re-serves the Guide and control catalog, using the co-installed native runtime for the embedded Guide bytes so the npm package never carries a second static copy that could drift from the runtime build. | Standing local admin: it authenticates with the auto-minted local admin token, so the wired-in client has admin authority over the local Snapback instance. |
+| `snapback mcp-control` | The explicit JS control-plane server shipped by `@expo/snapback-cli`: typed control tools, the generated app-data catalog, `snapback-controls://catalog` plus per-operation/instance resources, and the native Guide resources. It invokes the co-installed native runtime for both embedded Guide and build-catalog bytes; the npm package carries no second snapshot. If that binary is unavailable, resource listing reports `SNAPBACK_MCP_NATIVE_DOCUMENTATION_UNAVAILABLE` and lists no pretend Guide/catalog resources. | Standing local admin: it authenticates with the auto-minted local admin token, so the wired-in client has admin authority over the local Snapback instance. |
 
 The split makes documentation safe by default while keeping a capable operating
 surface available by explicit choice. `mcp-control` has the same local authority
@@ -346,6 +341,9 @@ you never build around a feature because you didn't know it existed.
   identity-bound partial done-oracle receipt.
 
 ### Operating
+- [Discover agent controls](./operating/agent-controls.md) — search the
+  build-bound control catalog, describe exact CLI/MCP/API projections, and
+  bind advisory instance availability by digest.
 - [Local instance forks](./operating/instance-forks.md) — give each worktree a
   finite-TTL, quarantined copy of realistic local state; run fork-aware
   acceptance and retain bounded app-row diff receipts (partial/unpublished).
@@ -489,6 +487,9 @@ here (or listed here but gone from the code).
 | /_snapback/api/functions/{name}/run | testing.acceptance |
 | /_snapback/api/health | operating.inspect |
 | /_snapback/api/host-ops | operating.host-ops |
+| /_snapback/api/control-catalog | operating.agent-controls |
+| /_snapback/api/control-catalog/instance | operating.agent-controls |
+| /_snapback/api/control-catalog/operations/{operation} | operating.agent-controls |
 | /_snapback/api/inspect | operating.inspect |
 | /_snapback/api/jobs | backend.jobs-one-off |
 | /_snapback/api/jobs/drain | backend.jobs-one-off |
@@ -10096,6 +10097,224 @@ the review manifest will record the new custody.
 
 ---
 
+<!-- snapback-guide-source: guide/operating/agent-controls.md -->
+---
+title: Discover agent controls
+id: operating.agent-controls
+order: 1
+audience: agent-first
+capabilities: [operating.agent-controls]
+authorities: [llp/0184-agent-accessible-control-plane.rfc.md, llp/0031-server-route-taxonomy.spec.md, llp/0042-agent-mcp-surface.rfc.md, src/control_catalog.rs, src/cli.rs, packages/snapback-cli/mcp-control.mjs]
+examples: []
+status: current
+targets: [local]
+maturity: shipped
+reviewed: 2026-08-06
+reviewed-commit: 711e4d763
+---
+
+# Discover agent controls
+
+> **Local target only.** This page describes the local dev/test target.
+> Hosted targets make deliberately weaker or different claims — see
+> [auth/targets](../auth/targets.md).
+
+Use the control catalog to find an operation by intent before guessing route,
+CLI, or MCP names. The catalog describes a build; it does not grant authority
+and it does not promise that one running target will admit an invocation.
+
+## Search the build catalog
+
+The native CLI works without a running server because it reads the catalog
+embedded in its own executable:
+
+```sh
+snapback controls list --intent "network profile"
+snapback controls list --intent "table scan" --json
+```
+
+Text output summarizes `operation`, `surfaceAccess`, `operability`, and
+`status`. JSON output retains the build catalog's `schemaVersion`,
+`catalogDigest`, build identity, and matching complete entries. Every word in
+`--intent` must occur in the operation id, title, or intent keywords.
+
+Through `snapback mcp-control`, read `snapback-controls://catalog`. It is the
+same searchable JSON index, obtained by invoking the co-installed native
+binary rather than reading a package snapshot. The resource list also exposes
+one `snapback-controls://operation/<operation>` URI per row.
+
+## Describe one operation
+
+```sh
+snapback controls describe debug.networkProfileSet
+snapback controls describe debug.networkProfileSet --json
+```
+
+The complete row includes projections, route policy and response sensitivity,
+destructive/approval posture, target/profile availability, Guide anchor, and
+any CLI/MCP/internal/unavailable reason. The MCP resource template
+`snapback-controls://operation/{operation}` returns the same native row with
+the catalog digest in metadata.
+
+## Build versus instance identity
+
+An admin-authenticated running server exposes:
+
+- `GET /_snapback/api/control-catalog` — the exact catalog bytes compiled into
+  the server;
+- `GET /_snapback/api/control-catalog/operations/{operation}` — one complete
+  row with its build digest; and
+- `GET /_snapback/api/control-catalog/instance` — startup nonce, target,
+  profile, advisory enabled-operation ids, and the digest it instantiates.
+
+The control MCP's `snapback-controls://instance` resource reads the instance
+projection only from its validated ready-file target, compares it with the
+co-installed native build catalog, and refuses a digest mismatch. A matching
+snapshot can still become stale during one process lifetime. Invocation
+admission is always authoritative; direct tools re-run the subsystem gate.
+
+## Native resource availability
+
+`mcp-control` does not ship a second Guide or control-catalog copy. It invokes
+the co-installed native binary's `snapback mcp` server for Guide resources and
+`snapback controls` for catalog resources. If a compatible native binary is
+missing, `resources/list` reports
+`SNAPBACK_MCP_NATIVE_DOCUMENTATION_UNAVAILABLE` in resource diagnostics and
+does not list pretend Guide/catalog resources. Direct reads fail explicitly;
+documentation absence never appears as success.
+
+## Generated inventory
+
+<!-- BEGIN GENERATED CONTROL CATALOG: CONTROL CATALOG INVENTORY -->
+The embedded build catalog contains **109 operations** at digest `sha256:592e8b217835f500671e889a134bd6ac6f288b1bde6a79bd610521ad4135baf5`. The counts and inventory below are generated; do not edit them by hand.
+
+| Axis | Value | Count |
+| --- | --- | ---: |
+| surfaceAccess | `apiOnly` | 39 |
+| surfaceAccess | `cliOnly` | 29 |
+| surfaceAccess | `mcpOnly` | 3 |
+| surfaceAccess | `native` | 34 |
+| surfaceAccess | `none` | 4 |
+| operability | `direct` | 77 |
+| operability | `internal` | 11 |
+| operability | `mediated` | 7 |
+| operability | `unavailable` | 14 |
+
+| Operation | Surface | Operability | Status | CLI | MCP | Guide |
+| --- | --- | --- | --- | --- | --- | --- |
+| `acceptance.run` | `mcpOnly` | `unavailable` | `unbuilt` | — | snapback_acceptance_run | — |
+| `admin.link.exchange` | `cliOnly` | `mediated` | `shipped` | snapback admin link | — | — |
+| `admin.link.mint` | `cliOnly` | `mediated` | `shipped` | snapback admin link | — | — |
+| `admin.link.revoke` | `cliOnly` | `mediated` | `shipped` | snapback admin link --revoke <claim> | — | — |
+| `admin.link.status` | `cliOnly` | `mediated` | `shipped` | snapback admin link --status <claim> | — | — |
+| `app.ensure.provision` | `apiOnly` | `direct` | `shipped` | — | — | — |
+| `app.inspect` | `native` | `direct` | `shipped` | snapback host inspect | snapback_inspect | operating/host-ops.md |
+| `app.reset` | `native` | `direct` | `shipped` | snapback host reset | snapback_reset | — |
+| `app.seed.clear.v1` | `apiOnly` | `direct` | `shipped` | — | — | — |
+| `app.seed.ensure.v1` | `apiOnly` | `direct` | `shipped` | — | — | — |
+| `app.seed.preview.v1` | `apiOnly` | `direct` | `shipped` | — | — | — |
+| `app.seed.reset-install.v1` | `apiOnly` | `direct` | `shipped` | — | — | — |
+| `asset.delete` | `native` | `direct` | `shipped` | snapback assets delete | snapback_asset_delete | — |
+| `asset.ensureSeedFixture` | `cliOnly` | `direct` | `shipped` | snapback assets ensure-seed-fixture | — | — |
+| `asset.exportCut` | `native` | `direct` | `shipped` | snapback assets export-cut | snapback_asset_export_cut | — |
+| `asset.gcSweep` | `native` | `direct` | `shipped` | snapback assets gc-sweep | snapback_asset_gc_sweep | — |
+| `asset.importCut` | `native` | `direct` | `shipped` | snapback assets import-cut | snapback_asset_import_cut | — |
+| `asset.inspect` | `native` | `direct` | `shipped` | snapback assets inspect | snapback_asset_inspect | — |
+| `asset.list` | `native` | `direct` | `shipped` | snapback assets list | snapback_asset_list | — |
+| `asset.put` | `cliOnly` | `direct` | `shipped` | snapback assets put | — | — |
+| `asset.retry` | `native` | `direct` | `shipped` | snapback assets retry | snapback_asset_retry | — |
+| `asset.rotateSigningKey` | `native` | `direct` | `shipped` | snapback assets rotate-signing-key | snapback_asset_rotate_signing_key | — |
+| `auth.mailbox.read` | `apiOnly` | `direct` | `shipped` | — | — | — |
+| `auth.mintSession` | `apiOnly` | `direct` | `shipped` | — | — | — |
+| `auth.rescueCollidingTable` | `apiOnly` | `direct` | `shipped` | — | — | — |
+| `branch.create.v1` | `apiOnly` | `unavailable` | `shipped` | — | — | — |
+| `branch.drop.v1` | `apiOnly` | `unavailable` | `shipped` | — | — | — |
+| `branch.execute.v1` | `apiOnly` | `unavailable` | `shipped` | — | — | — |
+| `branch.inspect.v1` | `apiOnly` | `unavailable` | `shipped` | — | — | — |
+| `branch.list.v1` | `apiOnly` | `unavailable` | `shipped` | — | — | — |
+| `branch.reap.v1` | `apiOnly` | `unavailable` | `shipped` | — | — | — |
+| `capability.manifest.read` | `apiOnly` | `direct` | `shipped` | — | — | — |
+| `cli.auth.backup` | `cliOnly` | `direct` | `shipped` | snapback auth backup | — | — |
+| `cli.auth.restore` | `cliOnly` | `direct` | `shipped` | snapback auth restore | — | — |
+| `cli.buildIdentity` | `cliOnly` | `direct` | `shipped` | snapback build-identity | — | — |
+| `cli.fork.create` | `cliOnly` | `direct` | `shipped` | snapback fork create | — | — |
+| `cli.fork.diff` | `cliOnly` | `direct` | `shipped` | snapback fork diff | — | — |
+| `cli.fork.drop` | `cliOnly` | `direct` | `shipped` | snapback fork drop | — | — |
+| `cli.fork.list` | `cliOnly` | `direct` | `shipped` | snapback fork list | — | — |
+| `cli.fork.reap` | `cliOnly` | `direct` | `shipped` | snapback fork reap | — | — |
+| `cli.migrate.apply` | `cliOnly` | `direct` | `shipped` | snapback migrate apply | — | — |
+| `cli.migrate.approve` | `cliOnly` | `direct` | `shipped` | snapback migrate approve | — | — |
+| `cli.migrate.cancel` | `cliOnly` | `direct` | `shipped` | snapback migrate cancel | — | — |
+| `cli.migrate.preview` | `cliOnly` | `direct` | `shipped` | snapback migrate preview | — | — |
+| `cli.migrate.rehearse` | `cliOnly` | `direct` | `shipped` | snapback migrate rehearse | — | — |
+| `cli.migrate.rollback` | `cliOnly` | `unavailable` | `unbuilt` | snapback migrate rollback | — | — |
+| `cli.migrate.verify` | `cliOnly` | `direct` | `shipped` | snapback migrate verify | — | — |
+| `cli.telemetry.query` | `cliOnly` | `direct` | `shipped` | snapback telemetry query | — | — |
+| `client-mutations.purge` | `apiOnly` | `internal` | `shipped` | — | — | — |
+| `config.plan` | `native` | `direct` | `shipped` | snapback config plan | snapback_config_plan | operating/secrets-and-config.md#cli-and-mcp-projections-for-statusplanverify |
+| `config.set` | `cliOnly` | `direct` | `shipped` | — | — | — |
+| `config.status` | `native` | `direct` | `shipped` | snapback config status | snapback_config_status | operating/secrets-and-config.md#cli-and-mcp-projections-for-statusplanverify |
+| `config.unset` | `native` | `direct` | `shipped` | snapback config unset | snapback_config_unset | — |
+| `config.verify` | `native` | `direct` | `shipped` | snapback config verify <entry> | snapback_config_verify | operating/secrets-and-config.md#cli-and-mcp-projections-for-statusplanverify |
+| `connection.disconnect` | `native` | `direct` | `shipped` | snapback connections disconnect | snapback_connection_disconnect | — |
+| `console.approval.approve` | `cliOnly` | `mediated` | `shipped` | snapback admin approve | — | — |
+| `console.approval.poll` | `cliOnly` | `mediated` | `shipped` | snapback admin approve | — | — |
+| `console.approval.request` | `cliOnly` | `mediated` | `shipped` | snapback admin approve | — | — |
+| `console.credential` | `apiOnly` | `internal` | `shipped` | — | — | — |
+| `console.reachability.bind` | `apiOnly` | `internal` | `shipped` | — | — | — |
+| `console.reachability.drop` | `apiOnly` | `internal` | `shipped` | — | — | — |
+| `console.reachability.register` | `apiOnly` | `internal` | `shipped` | — | — | — |
+| `console.reachability.renew` | `apiOnly` | `internal` | `shipped` | — | — | — |
+| `control.catalog.describe` | `native` | `direct` | `shipped` | snapback controls describe <operation> | snapback-controls://operation/{operation} | operating/agent-controls.md#describe-one-operation |
+| `control.catalog.instance.read` | `mcpOnly` | `direct` | `shipped` | — | snapback-controls://instance | operating/agent-controls.md#build-versus-instance-identity |
+| `control.catalog.read` | `native` | `direct` | `shipped` | snapback controls list | snapback-controls://catalog | operating/agent-controls.md#search-the-build-catalog |
+| `cron.runOne` | `native` | `direct` | `shipped` | snapback cron run | snapback_cron_run | — |
+| `cron.status.read` | `apiOnly` | `direct` | `shipped` | — | — | — |
+| `cron.tick` | `native` | `direct` | `shipped` | snapback cron tick | snapback_cron_tick | — |
+| `data.scan` | `native` | `direct` | `shipped` | snapback data scan <table> | snapback_data_scan | operating/host-ops.md#direct-climcp-projections-beyond-host-ops-llp-0184-phase-2-p1 |
+| `debug.networkProfileGet` | `native` | `direct` | `shipped` | snapback network-profile get | snapback_network_profile_get | operating/network-profiles.md#read-the-active-profile |
+| `debug.networkProfileSet` | `native` | `direct` | `shipped` | snapback network-profile set | snapback_network_profile_set | operating/network-profiles.md#set-a-profile |
+| `direct_runner.action` | `apiOnly` | `direct` | `shipped` | — | — | — |
+| `direct_runner.mutation` | `apiOnly` | `direct` | `shipped` | — | — | — |
+| `direct_runner.query` | `apiOnly` | `direct` | `shipped` | — | — | — |
+| `direct_runner.unknown` | `apiOnly` | `unavailable` | `shipped` | — | — | — |
+| `ephemeral.cleanup` | `apiOnly` | `direct` | `shipped` | — | — | — |
+| `errors.issue` | `native` | `direct` | `shipped` | snapback errors issue | snapback_errors_issue | operating/host-ops.md |
+| `errors.issues` | `native` | `direct` | `shipped` | snapback errors issues | snapback_errors_issues | operating/host-ops.md |
+| `errors.transition` | `native` | `direct` | `shipped` | snapback errors transition | snapback_errors_transition | operating/host-ops.md |
+| `function.explain` | `apiOnly` | `direct` | `shipped` | — | — | — |
+| `function.run` | `native` | `direct` | `shipped` | snapback host run | snapback_run_function | — |
+| `functions.load` | `native` | `direct` | `shipped` | snapback host load --functions <path> | snapback_load_functions | — |
+| `functions.reload` | `apiOnly` | `unavailable` | `unbuilt` | — | — | — |
+| `health` | `apiOnly` | `direct` | `shipped` | — | — | — |
+| `health.read` | `apiOnly` | `direct` | `shipped` | — | — | — |
+| `host.restart` | `mcpOnly` | `direct` | `shipped` | — | snapback_restart | — |
+| `host.start` | `cliOnly` | `direct` | `shipped` | snapback host start | snapback_start | — |
+| `host.stop` | `cliOnly` | `direct` | `shipped` | snapback host stop | snapback_stop | — |
+| `hostCall.dispatch` | `none` | `internal` | `shipped` | — | — | — |
+| `inspect` | `apiOnly` | `direct` | `shipped` | — | — | — |
+| `jobs.drain` | `native` | `direct` | `shipped` | snapback jobs drain | snapback_jobs_drain | — |
+| `jobs.list` | `native` | `direct` | `shipped` | snapback jobs list | snapback_jobs_list | operating/host-ops.md#direct-climcp-projections-beyond-host-ops-llp-0184-phase-2-p1 |
+| `jobs.show` | `native` | `direct` | `shipped` | snapback jobs show <id> | snapback_jobs_show | operating/host-ops.md#direct-climcp-projections-beyond-host-ops-llp-0184-phase-2-p1 |
+| `object.evict` | `apiOnly` | `direct` | `shipped` | — | — | — |
+| `operations.explain` | `apiOnly` | `unavailable` | `shipped` | — | — | — |
+| `push.maintenance` | `apiOnly` | `internal` | `shipped` | — | — | — |
+| `receipts` | `apiOnly` | `direct` | `shipped` | — | — | — |
+| `route.unknown.refuse` | `none` | `internal` | `shipped` | — | — | — |
+| `schema.load` | `native` | `direct` | `shipped` | snapback host load --schema <path> | snapback_load_schema | — |
+| `schema.reload` | `apiOnly` | `unavailable` | `unbuilt` | — | — | — |
+| `secretRead.mint` | `cliOnly` | `direct` | `shipped` | snapback secret-read-mint | — | — |
+| `storage.operation-coverage.activate` | `apiOnly` | `unavailable` | `shipped` | — | — | — |
+| `storage.protected-erasure` | `apiOnly` | `unavailable` | `shipped` | — | — | — |
+| `telemetry.events` | `native` | `direct` | `shipped` | snapback telemetry events | snapback_telemetry_events | operating/host-ops.md |
+| `telemetry.export` | `native` | `direct` | `shipped` | snapback telemetry export | snapback_telemetry_export | operating/host-ops.md |
+| `telemetry.stats` | `native` | `direct` | `shipped` | snapback telemetry stats | snapback_telemetry_stats | operating/host-ops.md |
+| `test.<subpath-determined-by-coordinator>` | `none` | `internal` | `shipped` | — | — | — |
+| `test.corruptMeta` | `none` | `internal` | `shipped` | — | — | — |
+<!-- END GENERATED CONTROL CATALOG: CONTROL CATALOG INVENTORY -->
+
+---
+
 <!-- snapback-guide-source: guide/operating/secrets-and-config.md -->
 ---
 title: Secrets and deployment config
@@ -10313,47 +10532,48 @@ carries the storage diagnostic; tooling must not substitute zero.
 
 ## Served request operations
 
-The endpoint serves thirty-six request spellings (`SERVED_HOST_OPS` in
-`src/host_ops.rs`):
+<!-- BEGIN GENERATED CONTROL CATALOG: HOST OPS SERVED -->
+The endpoint serves **36 request spellings**. This count and table are generated from the build catalog's LLP 0024 allowlist projection:
 
 | Request operation | Purpose |
 | --- | --- |
-| `app.inspect` | Full runtime/artifact/capability projection. |
-| `app.reset` | Coordinated destructive reset, optionally with seed. |
-| `app.seed.ensure.v1` | Install a generated versioned seed or observe its current match. |
-| `app.seed.preview.v1` | Classify a versioned install/reset/clear without writing. |
-| `app.seed.reset-install.v1` | Coordinated destructive reset plus versioned install. |
-| `app.seed.clear.v1` | Coordinated destructive clear with an idempotent receipt. |
-| `schema.load` | Load a generated schema manifest. |
-| `functions.load` | Load a generated function/config/cron manifest. |
-| `function.run` | Run a query/live query, mutation, or action with its kind-specific gate. |
-| `function.explain` | Explain a supported kind; currently `mutationDryRun` is implemented. |
-| `auth.mintSession` | Dev/test session mint requiring the process-bound impersonation capability. |
-| `auth.rescueCollidingTable` | Operator-only pre-auth catalog collision recovery. |
-| `branch.create.v1` | Create a managed operator in-app branch (allowed functions, TTL, egress policy). |
-| `branch.execute.v1` | Execute an allowed function inside a branch under a caller-retained replay-stable request id. |
-| `branch.list.v1` | List managed branches. |
-| `branch.reap.v1` | Reap expired managed branches. |
-| `branch.inspect.v1` | Inspect one managed branch. |
-| `branch.drop.v1` | Drop one managed branch. |
-| `asset.put` | Put asset bytes/metadata through the same machinery as the asset routes. |
-| `asset.ensureSeedFixture` | Install or observe a deterministic seed-fixture asset. |
-| `asset.inspect` | Inspect one asset record. |
-| `asset.list` | List asset records. |
-| `asset.retry` | Retry a failed asset processing step. |
-| `asset.gcSweep` | Deterministic receipted GC sweep with an injected clock. |
-| `asset.delete` | Delete one asset through the authorized deletion path. |
-| `asset.rotateSigningKey` | Rotate the delivery signing key, invalidating outstanding signed URLs. |
-| `asset.exportCut` | Export a consistent asset cut to an absolute directory. |
-| `asset.importCut` | Import a previously exported consistent asset cut. |
-| `telemetry.stats` | Aggregated telemetry statistics (structural metadata). |
-| `telemetry.events` | Bounded filtered raw telemetry events (secret-read lease). |
-| `telemetry.export` | Bounded NDJSON telemetry export (secret-read lease). |
-| `errors.issues` | Structural error-issue listing. |
-| `errors.issue` | Raw detail for one error issue (secret-read lease). |
-| `errors.transition` | Resolve/ignore state transition for one issue. |
-| `debug.networkProfileGet` | Return the active network condition profile and its activation provenance. |
-| `debug.networkProfileSet` | Activate a built-in named profile or an inline profile through the shared activation gate. |
+| `app.inspect` | Inspect the running app |
+| `app.reset` | Reset local app state |
+| `app.seed.clear.v1` | app.seed.clear.v1 |
+| `app.seed.ensure.v1` | app.seed.ensure.v1 |
+| `app.seed.preview.v1` | app.seed.preview.v1 |
+| `app.seed.reset-install.v1` | app.seed.reset-install.v1 |
+| `asset.delete` | Delete one asset |
+| `asset.ensureSeedFixture` | asset.ensureSeedFixture |
+| `asset.exportCut` | Export a consistent asset cut |
+| `asset.gcSweep` | Run asset reclamation and publication maintenance |
+| `asset.importCut` | Validate or apply an exported asset cut |
+| `asset.inspect` | Inspect one asset |
+| `asset.list` | List assets by availability state |
+| `asset.put` | asset.put |
+| `asset.retry` | Re-drive pending asset work |
+| `asset.rotateSigningKey` | Rotate the asset delivery signing key |
+| `auth.mintSession` | auth.mintSession |
+| `auth.rescueCollidingTable` | auth.rescueCollidingTable |
+| `branch.create.v1` | branch.create.v1 |
+| `branch.drop.v1` | branch.drop.v1 |
+| `branch.execute.v1` | branch.execute.v1 |
+| `branch.inspect.v1` | branch.inspect.v1 |
+| `branch.list.v1` | branch.list.v1 |
+| `branch.reap.v1` | branch.reap.v1 |
+| `debug.networkProfileGet` | Read the active network condition profile |
+| `debug.networkProfileSet` | Set the active network condition profile |
+| `errors.issue` | Inspect one error issue |
+| `errors.issues` | List error issues |
+| `errors.transition` | Transition error issue state |
+| `function.explain` | function.explain |
+| `function.run` | Run one generated function |
+| `functions.load` | Load the generated function manifest |
+| `schema.load` | Load the generated schema manifest |
+| `telemetry.events` | Read a bounded telemetry event page |
+| `telemetry.export` | Export one bounded telemetry page |
+| `telemetry.stats` | Read aggregate telemetry health |
+<!-- END GENERATED CONTROL CATALOG: HOST OPS SERVED -->
 
 `snapback session mint --email <address> --ready-file <path>` projects
 `auth.mintSession` through the same target and authority handling and prints only
@@ -10386,69 +10606,59 @@ unbuilt and fail as `SNAPBACK_HOST_OP_UNIMPLEMENTED`. All three families are
 registered at AdminWrite so an authenticated request reaches that structured
 envelope; unknown names stay unregistered and fail closed before dispatch.
 
-## The exact 47 registry identities
+## Registered operation identities
 
-The HTTP request names above expand into these 47 audited operation
-identities (the last six are the registered CLI-only and pinned-unbuilt
-verbs):
+<!-- BEGIN GENERATED CONTROL CATALOG: HOST OPS REGISTERED -->
+The request spellings above expand into **47 registered operation identities**. This inventory is generated from each catalog row's LLP 0031 registry projection:
 
-1. `host_ops.app.inspect`
-2. `host_ops.function.explain`
-3. `host_ops.function.explain.impersonated`
-4. `host_ops.app.reset`
+1. `host_ops.acceptance.run`
+2. `host_ops.app.inspect`
+3. `host_ops.app.reset`
+4. `host_ops.app.seed.clear.v1`
 5. `host_ops.app.seed.ensure.v1`
 6. `host_ops.app.seed.preview.v1`
 7. `host_ops.app.seed.reset-install.v1`
-8. `host_ops.app.seed.clear.v1`
-9. `host_ops.schema.load`
-10. `host_ops.functions.load`
-11. `host_ops.branch.create.v1`
-12. `host_ops.branch.execute.v1`
-13. `host_ops.branch.list.v1`
-14. `host_ops.branch.reap.v1`
-15. `host_ops.branch.inspect.v1`
-16. `host_ops.branch.drop.v1`
-17. `host_ops.auth.mintSession`
-18. `host_ops.auth.rescueCollidingTable`
-19. `host_ops.function.run.query`
-20. `host_ops.function.run.mutation`
-21. `host_ops.function.run.action`
-22. `host_ops.function.run.unknown`
-23. `host_ops.function.run.impersonated`
-24. `host_ops.asset.put`
-25. `host_ops.asset.ensureSeedFixture`
-26. `host_ops.asset.inspect`
-27. `host_ops.asset.list`
-28. `host_ops.asset.retry`
-29. `host_ops.asset.gcSweep`
-30. `host_ops.asset.delete`
-31. `host_ops.asset.rotateSigningKey`
-32. `host_ops.asset.exportCut`
-33. `host_ops.asset.importCut`
-34. `host_ops.telemetry.stats`
-35. `host_ops.telemetry.events`
-36. `host_ops.telemetry.export`
-37. `host_ops.errors.issues`
-38. `host_ops.errors.issue`
-39. `host_ops.errors.transition`
-40. `host_ops.debug.networkProfileGet`
-41. `host_ops.debug.networkProfileSet`
-42. `host_ops.schema.reload`
-43. `host_ops.functions.reload`
-44. `host_ops.acceptance.run`
-45. `host_ops.host.start`
-46. `host_ops.host.stop`
-47. `host_ops.host.restart`
-
-> **Hand-count drift note (2026-08-06).** These counts are hand-maintained
-> and have now drifted twice (28/39 → corrected to 30/41; then the six
-> `branch.*.v1` operations landed while the page still said thirty/41).
-> This correction to 36/47 is the second repair; the structural fix is
-> generating these tables from the control catalog (LLP 0184 Phase 1 items
-> 4–5, tracked in
-> `issues/20260805-llp0184-phase1-served-catalog-and-guide-tables-deferred.md`).
-> If you find these counts disagreeing with `SERVED_HOST_OPS` in
-> `src/host_ops.rs` again, fix the generator ticket, not just the numbers.
+8. `host_ops.asset.delete`
+9. `host_ops.asset.ensureSeedFixture`
+10. `host_ops.asset.exportCut`
+11. `host_ops.asset.gcSweep`
+12. `host_ops.asset.importCut`
+13. `host_ops.asset.inspect`
+14. `host_ops.asset.list`
+15. `host_ops.asset.put`
+16. `host_ops.asset.retry`
+17. `host_ops.asset.rotateSigningKey`
+18. `host_ops.auth.mintSession`
+19. `host_ops.auth.rescueCollidingTable`
+20. `host_ops.branch.create.v1`
+21. `host_ops.branch.drop.v1`
+22. `host_ops.branch.execute.v1`
+23. `host_ops.branch.inspect.v1`
+24. `host_ops.branch.list.v1`
+25. `host_ops.branch.reap.v1`
+26. `host_ops.debug.networkProfileGet`
+27. `host_ops.debug.networkProfileSet`
+28. `host_ops.errors.issue`
+29. `host_ops.errors.issues`
+30. `host_ops.errors.transition`
+31. `host_ops.function.explain`
+32. `host_ops.function.explain.impersonated`
+33. `host_ops.function.run.query`
+34. `host_ops.function.run.mutation`
+35. `host_ops.function.run.action`
+36. `host_ops.function.run.unknown`
+37. `host_ops.function.run.impersonated`
+38. `host_ops.functions.load`
+39. `host_ops.functions.reload`
+40. `host_ops.host.restart`
+41. `host_ops.host.start`
+42. `host_ops.host.stop`
+43. `host_ops.schema.load`
+44. `host_ops.schema.reload`
+45. `host_ops.telemetry.events`
+46. `host_ops.telemetry.export`
+47. `host_ops.telemetry.stats`
+<!-- END GENERATED CONTROL CATALOG: HOST OPS REGISTERED -->
 
 Query/explain reads, durable writes, credential-producing operations, and
 dev impersonation therefore keep distinct `RoutePolicy`, authority, effect,

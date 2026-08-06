@@ -68,6 +68,8 @@ pub mod conformance;
 #[doc(hidden)]
 pub mod contract_exact;
 #[doc(hidden)]
+pub mod control_catalog;
+#[doc(hidden)]
 pub mod cron;
 #[doc(hidden)]
 pub mod data_tier;

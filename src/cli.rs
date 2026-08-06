@@ -884,6 +884,13 @@ pub enum HostCommand {
         #[command(subcommand)]
         command: ForkCommand,
     },
+    // @ref LLP 0184#4-agent-discovery-and-setup — catalog discovery works
+    // offline from the exact build-bound artifact embedded in this binary.
+    /// Search or describe the build's administrative control catalog.
+    Controls {
+        #[command(subcommand)]
+        command: ControlsCommand,
+    },
     // @ref LLP 0187#t4--build-the-out-of-repo-funnel-before-it-is-tested-for-real —
     // the packaged native runtime is the checkout-independent guide carrier.
     // @ref LLP 0061#4-distribution-and-discovery — the CLI searches the same
@@ -1225,6 +1232,27 @@ pub enum DataCommand {
         /// automatically from the ready file (requires --ready-file).
         #[arg(long)]
         secret_read_lease: Option<String>,
+    },
+}
+
+#[derive(clap::Subcommand)]
+pub enum ControlsCommand {
+    /// Search controls by operation id, title, and intent keywords.
+    List {
+        /// Words that must all occur in the operation id, title, or intents.
+        #[arg(long)]
+        intent: Option<String>,
+        /// Emit the build-catalog JSON shape (with filtered entries when
+        /// --intent is present).
+        #[arg(long)]
+        json: bool,
+    },
+    /// Show the complete catalog row for one operation.
+    Describe {
+        operation: String,
+        /// Emit a catalog-identity wrapper plus the complete row as JSON.
+        #[arg(long)]
+        json: bool,
     },
 }
 
@@ -2193,6 +2221,7 @@ pub async fn run_from_env() -> anyhow::Result<()> {
             AuthCommand::Restore { from, db } => auth_restore(&from, &db),
         },
         Some(HostCommand::Fork { command }) => fork_command(command).await,
+        Some(HostCommand::Controls { command }) => controls_command(command),
         Some(HostCommand::Guide { query }) => guide_command(&query),
         Some(HostCommand::Mcp) => crate::guide_mcp::run_stdio(),
         Some(HostCommand::BuildIdentity) => {
@@ -4519,6 +4548,52 @@ fn admin_json_post_no_content(target: &TargetArgs, path: &str, value: Value) -> 
             anyhow::bail!("{path} failed with HTTP {status}: {body}")
         }
         Err(error) => Err(error).context(format!("{path} request failed")),
+    }
+}
+
+fn controls_command(command: ControlsCommand) -> anyhow::Result<()> {
+    match command {
+        ControlsCommand::List { intent, json } => {
+            let catalog = crate::control_catalog::search(intent.as_deref());
+            if json {
+                println!("{}", serde_json::to_string_pretty(&catalog)?);
+                return Ok(());
+            }
+            let digest = crate::control_catalog::catalog_digest(&catalog).unwrap_or("unknown");
+            println!("Build control catalog {digest}");
+            println!("OPERATION\tSURFACE\tOPERABILITY\tSTATUS");
+            for entry in catalog["entries"].as_array().into_iter().flatten() {
+                println!(
+                    "{}\t{}\t{}\t{}",
+                    entry["operation"].as_str().unwrap_or(""),
+                    entry["surfaceAccess"].as_str().unwrap_or(""),
+                    entry["operability"].as_str().unwrap_or(""),
+                    entry["status"].as_str().unwrap_or(""),
+                );
+            }
+            Ok(())
+        }
+        ControlsCommand::Describe { operation, json } => {
+            let Some(entry) = crate::control_catalog::operation(&operation) else {
+                anyhow::bail!("control catalog contains no operation {operation:?}");
+            };
+            let output = serde_json::json!({
+                "schemaVersion": crate::control_catalog::CATALOG_SCHEMA_VERSION,
+                "catalogDigest": crate::control_catalog::catalog_digest(
+                    crate::control_catalog::build_catalog()
+                ),
+                "entry": entry,
+            });
+            if !json {
+                println!(
+                    "Build catalog row (identity {})",
+                    crate::control_catalog::catalog_digest(crate::control_catalog::build_catalog())
+                        .unwrap_or("unknown")
+                );
+            }
+            println!("{}", serde_json::to_string_pretty(&output)?);
+            Ok(())
+        }
     }
 }
 
@@ -8349,8 +8424,8 @@ mod tests {
     use super::{
         AdminArgs, AdminCommand, Args, AssetsCommand, AuthCommand, AuthConstructionFailure,
         AuthCoordinatorReadinessReceipt, AuthProgramConstructionReceipts,
-        BEFORE_STARTUP_TARGET_RESERVATION, Cli, ConfigCommand, ConnectionsCommand, CronCommand,
-        ErrorsCommand, ForkCommand, HostCommand, JobsCommand,
+        BEFORE_STARTUP_TARGET_RESERVATION, Cli, ConfigCommand, ConnectionsCommand, ControlsCommand,
+        CronCommand, ErrorsCommand, ForkCommand, HostCommand, JobsCommand,
         ManagedPath, NetworkProfileCommand, ReadyFileTarget, ResolvedHttpTarget, SessionCommand,
         TargetArgs, TelemetryCommand, automatic_reap_before_create, bind_first_available,
         bind_listener, console_claim_fragment_url, console_fragment_url, fork_secret_disposition,
@@ -8428,6 +8503,41 @@ mod tests {
         assert!(capability < browse, "{output}");
         assert!(output.contains("/_snapback/guide/flat.md"), "{output}");
         assert!(output.contains("snapback mcp"), "{output}");
+    }
+
+    #[test]
+    fn controls_cli_parses_offline_list_and_describe_json_forms() {
+        let list = Cli::parse_from([
+            "snapback",
+            "controls",
+            "list",
+            "--intent",
+            "network profile",
+            "--json",
+        ]);
+        assert!(matches!(
+            list.command,
+            Some(HostCommand::Controls {
+                command: ControlsCommand::List {
+                    intent: Some(intent),
+                    json: true,
+                }
+            }) if intent == "network profile"
+        ));
+
+        let describe = Cli::parse_from([
+            "snapback",
+            "controls",
+            "describe",
+            "debug.networkProfileSet",
+            "--json",
+        ]);
+        assert!(matches!(
+            describe.command,
+            Some(HostCommand::Controls {
+                command: ControlsCommand::Describe { operation, json: true }
+            }) if operation == "debug.networkProfileSet"
+        ));
     }
 
     #[test]

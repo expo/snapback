@@ -3767,6 +3767,32 @@ pub(crate) fn admin_route_registrations() -> Vec<RegisteredRoute> {
             ),
             get(admin_health),
         ),
+        // @ref LLP 0184#1-controlcatalogv1 — the build catalog and instance
+        // availability projection carry distinct, digest-bound identities;
+        // these reads do not participate in invocation admission.
+        // @ref LLP 0031#independent-policy-axes — operator discovery metadata
+        // uses the ordinary AdminRead/AdminCredential/OperatorMetadata tuple.
+        RegisteredRoute::new(
+            read(
+                "/_snapback/api/control-catalog",
+                ResponseSensitivity::OperatorMetadata,
+            ),
+            get(admin_control_catalog),
+        ),
+        RegisteredRoute::new(
+            read(
+                "/_snapback/api/control-catalog/instance",
+                ResponseSensitivity::OperatorMetadata,
+            ),
+            get(admin_control_catalog_instance),
+        ),
+        RegisteredRoute::new(
+            read(
+                "/_snapback/api/control-catalog/operations/{operation}",
+                ResponseSensitivity::OperatorMetadata,
+            ),
+            get(admin_control_catalog_operation),
+        ),
         // @ref LLP 0167#authority-one-activation-chokepoint — route policy
         //   authenticates read/write separately; PUT still terminates at the
         //   shared environment activation gate below.
@@ -4085,6 +4111,42 @@ async fn admin_telemetry_stats(
     Query(request): Query<crate::telemetry_query::TelemetryStatsRequestV1>,
 ) -> Result<Json<crate::telemetry_query::TelemetryStatsResponseV1>, ApiError> {
     Ok(Json(runtime.telemetry.query_stats(&request)?))
+}
+
+async fn admin_control_catalog() -> Response {
+    let mut response = Response::new(Body::from(crate::control_catalog::BUILD_CATALOG_BYTES));
+    response.headers_mut().insert(
+        header::CONTENT_TYPE,
+        HeaderValue::from_static("application/json; charset=utf-8"),
+    );
+    if let Some(digest) =
+        crate::control_catalog::catalog_digest(crate::control_catalog::build_catalog())
+        && let Ok(value) = HeaderValue::from_str(digest)
+    {
+        response.headers_mut().insert(
+            HeaderName::from_static(crate::control_catalog::CATALOG_DIGEST_HEADER),
+            value,
+        );
+    }
+    response
+}
+
+async fn admin_control_catalog_instance(
+    State(runtime): State<AppState>,
+) -> Json<serde_json::Value> {
+    Json(crate::control_catalog::instance_projection(&runtime))
+}
+
+async fn admin_control_catalog_operation(Path(operation): Path<String>) -> Response {
+    let Some(entry) = crate::control_catalog::operation(&operation) else {
+        return StatusCode::NOT_FOUND.into_response();
+    };
+    Json(serde_json::json!({
+        "schemaVersion": crate::control_catalog::CATALOG_SCHEMA_VERSION,
+        "catalogDigest": crate::control_catalog::catalog_digest(crate::control_catalog::build_catalog()),
+        "entry": entry,
+    }))
+    .into_response()
 }
 
 async fn admin_network_profile_get(

@@ -30,6 +30,7 @@ function scratchRepo() {
     'control-catalog',
     'cloudflare/hosted-adapter-manifest.json',
     'cloudflare/gateway-paths.inventory.json',
+    'guide/operating',
     'packages/snapback-cli',
     'node_modules/ajv',
   ]) {
@@ -91,7 +92,32 @@ test('check preserves the valid generation snapshot while recomputing catalog co
     writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
     const stale = runCompiler(dir, ['--check']);
     assert.equal(stale.ok, false, 'the informational snapshot exception must not hide content drift');
-    assert.match(stale.output, /control-catalog\/generated\/control-catalog\.v1\.json is stale/);
+    assert.match(
+      stale.output,
+      /generated CONTROL CATALOG INVENTORY table\/count is stale|control-catalog\/generated\/control-catalog\.v1\.json is stale/,
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('rule 9 fails when a generated Guide catalog count drifts', () => {
+  const dir = scratchRepo();
+  try {
+    const generated = runCompiler(dir);
+    assert.equal(generated.ok, true, `expected clean compile, got:\n${generated.output}`);
+    const guidePath = join(dir, 'guide/operating/agent-controls.md');
+    const guide = readFileSync(guidePath, 'utf8');
+    const drifted = guide.replace(
+      /The embedded build catalog contains \*\*(\d+) operations\*\*/,
+      (_match, count) => `The embedded build catalog contains **${Number(count) + 1} operations**`,
+    );
+    assert.notEqual(drifted, guide, 'generated count fixture must be present');
+    writeFileSync(guidePath, drifted);
+
+    const result = runCompiler(dir, ['--check']);
+    assert.equal(result.ok, false, 'stale generated Guide count must fail --check');
+    assert.match(result.output, /generated CONTROL CATALOG INVENTORY table\/count is stale/);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

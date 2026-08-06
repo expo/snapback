@@ -132,6 +132,19 @@
     "config.unset": {
       "operability": "direct",
       "note": "Carries no secret value — LLP 0036 specifies a 1:1 snapback_config_* MCP mapping alongside the CLI verb, so both projections land together (§Product contract/P3). A P2-style controlled mutation. LLP 0184 §P2 landed both `snapback config unset` (src/cli.rs ConfigCommand::Unset) and `snapback_config_unset` (mcp-control.mjs); surfaceAccess is now derived as native from those real projections rather than an aspirational override."
+    },
+    "control.catalog.read": {
+      "operability": "direct",
+      "note": "The server serves the exact compiled catalog; the offline CLI and control MCP consume the same native binary's embedded projection."
+    },
+    "control.catalog.describe": {
+      "operability": "direct",
+      "note": "A read-only per-operation view over the same embedded build catalog."
+    },
+    "control.catalog.instance.read": {
+      "operability": "direct",
+      "cliDeferralReason": "The v1 CLI stays honestly build-only/offline. Instance availability is served by the admin-gated HTTP endpoint and the control MCP resource; invocation admission remains authoritative.",
+      "note": "Advisory startup snapshot only. Consumers compare catalogDigest and invocation admission remains authoritative."
     }
   },
   "pinned": {
