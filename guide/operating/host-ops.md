@@ -50,7 +50,7 @@ carries the storage diagnostic; tooling must not substitute zero.
 
 ## Served request operations
 
-The endpoint serves twenty-eight request spellings:
+The endpoint serves thirty request spellings:
 
 | Request operation | Purpose |
 | --- | --- |
@@ -82,18 +82,25 @@ The endpoint serves twenty-eight request spellings:
 | `errors.issues` | Structural error-issue listing. |
 | `errors.issue` | Raw detail for one error issue (secret-read lease). |
 | `errors.transition` | Resolve/ignore state transition for one issue. |
+| `debug.networkProfileGet` | Return the active network condition profile and its activation provenance. |
+| `debug.networkProfileSet` | Activate a built-in named profile or an inline profile through the shared activation gate. |
 
-`host.start`, `host.stop`, and `host.restart` are CLI-only lifecycle
-verbs—a running server cannot safely own starting/stopping itself; over
-HTTP they fail as `SNAPBACK_HOST_OP_CLI_ONLY`.
+`host.start` and `host.stop` are CLI-only lifecycle verbs today—a running
+server cannot safely own starting/stopping itself; over HTTP they fail as
+`SNAPBACK_HOST_OP_CLI_ONLY`, and the `snapback` CLI is their working
+projection. `host.restart` also fails as `SNAPBACK_HOST_OP_CLI_ONLY` over
+HTTP, but has no CLI command yet; its only current projection is the
+composed `snapback_restart` MCP tool, which spawns `host.stop` then
+`host.start` under one request id and envelope (a `snapback restart` CLI
+command is planned but not shipped).
 `schema.reload`, `functions.reload`, and `acceptance.run` are pinned but
-unbuilt and fail as `SNAPBACK_HOST_OP_UNIMPLEMENTED`. Both families are
+unbuilt and fail as `SNAPBACK_HOST_OP_UNIMPLEMENTED`. All three families are
 registered at AdminWrite so an authenticated request reaches that structured
 envelope; unknown names stay unregistered and fail closed before dispatch.
 
-## The exact 39 registry identities
+## The exact 41 registry identities
 
-The HTTP request names above expand into these 39 audited operation
+The HTTP request names above expand into these 41 audited operation
 identities (the last six are the registered CLI-only and pinned-unbuilt
 verbs):
 
@@ -130,12 +137,14 @@ verbs):
 31. `host_ops.errors.issues`
 32. `host_ops.errors.issue`
 33. `host_ops.errors.transition`
-34. `host_ops.schema.reload`
-35. `host_ops.functions.reload`
-36. `host_ops.acceptance.run`
-37. `host_ops.host.start`
-38. `host_ops.host.stop`
-39. `host_ops.host.restart`
+34. `host_ops.debug.networkProfileGet`
+35. `host_ops.debug.networkProfileSet`
+36. `host_ops.schema.reload`
+37. `host_ops.functions.reload`
+38. `host_ops.acceptance.run`
+39. `host_ops.host.start`
+40. `host_ops.host.stop`
+41. `host_ops.host.restart`
 
 Query/explain reads, durable writes, credential-producing operations, and
 dev impersonation therefore keep distinct `RoutePolicy`, authority, effect,

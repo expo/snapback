@@ -30,7 +30,7 @@
   },
   "inputs": {
     "profilesSha256": "700b03e0101540cc209f25e0e61835783323a1e4ab727962dbbfeef81b4203ab",
-    "lockfileSha256": "295900d1cc605a41af337ca27ddbc567120e6d432d4b9aa6c101274a4d881489"
+    "lockfileSha256": "9628eafaecbc80ec49e2730ae786e518b0a0958556ac24c2c78236e0b7926be5"
   },
   "behaviorCommands": [
     "node packages/snapback-client/package.test.mjs",
@@ -42,7 +42,7 @@
       "filename": "baseline.push-registry.v1.json",
       "inputs": {
         "profilesSha256": "5d1b24cc923e06fae40d466f5f80cff3ab3f9a50af7f4fe9b402bad060797cf4",
-        "lockfileSha256": "295900d1cc605a41af337ca27ddbc567120e6d432d4b9aa6c101274a4d881489"
+        "lockfileSha256": "9628eafaecbc80ec49e2730ae786e518b0a0958556ac24c2c78236e0b7926be5"
       },
       "behaviorCommands": [
         "node packages/snapback-client/push-registry.test.mjs"
@@ -52,7 +52,7 @@
       "filename": "baseline.push-installation-expo.v1.json",
       "inputs": {
         "profilesSha256": "2d473301b61aeffd323e71c68fa9e1697b44e47118a97b8eb07a751fd678420b",
-        "lockfileSha256": "295900d1cc605a41af337ca27ddbc567120e6d432d4b9aa6c101274a4d881489"
+        "lockfileSha256": "9628eafaecbc80ec49e2730ae786e518b0a0958556ac24c2c78236e0b7926be5"
       },
       "behaviorCommands": [
         "node packages/snapback-client/push-registry.test.mjs"
@@ -62,7 +62,7 @@
       "filename": "baseline.vector-search.v1.json",
       "inputs": {
         "profilesSha256": "2d473301b61aeffd323e71c68fa9e1697b44e47118a97b8eb07a751fd678420b",
-        "lockfileSha256": "295900d1cc605a41af337ca27ddbc567120e6d432d4b9aa6c101274a4d881489"
+        "lockfileSha256": "9628eafaecbc80ec49e2730ae786e518b0a0958556ac24c2c78236e0b7926be5"
       },
       "behaviorCommands": [
         "node packages/snapback-client/package.test.mjs"
@@ -72,7 +72,7 @@
       "filename": "baseline.result-transform.v1.json",
       "inputs": {
         "profilesSha256": "2d473301b61aeffd323e71c68fa9e1697b44e47118a97b8eb07a751fd678420b",
-        "lockfileSha256": "295900d1cc605a41af337ca27ddbc567120e6d432d4b9aa6c101274a4d881489"
+        "lockfileSha256": "9628eafaecbc80ec49e2730ae786e518b0a0958556ac24c2c78236e0b7926be5"
       },
       "behaviorCommands": [
         "node packages/snapback-client/ir-evaluator.test.mjs",
@@ -86,7 +86,7 @@
       "filename": "baseline.micro-phase-b.v1.json",
       "inputs": {
         "profilesSha256": "247ad02d4d08b89057e1fbc99372a7f951423da12200174e5eda8080070cc6a2",
-        "lockfileSha256": "295900d1cc605a41af337ca27ddbc567120e6d432d4b9aa6c101274a4d881489"
+        "lockfileSha256": "9628eafaecbc80ec49e2730ae786e518b0a0958556ac24c2c78236e0b7926be5"
       },
       "behaviorCommands": [
         "node packages/snapback-client/micro.test.mjs",
@@ -97,7 +97,7 @@
       "filename": "baseline.ir-evaluator.v1.json",
       "inputs": {
         "profilesSha256": "2d473301b61aeffd323e71c68fa9e1697b44e47118a97b8eb07a751fd678420b",
-        "lockfileSha256": "295900d1cc605a41af337ca27ddbc567120e6d432d4b9aa6c101274a4d881489"
+        "lockfileSha256": "9628eafaecbc80ec49e2730ae786e518b0a0958556ac24c2c78236e0b7926be5"
       },
       "behaviorCommands": [
         "node packages/snapback-client/ir-evaluator.test.mjs"
@@ -107,7 +107,7 @@
       "filename": "baseline.local-sync-absence.v1.json",
       "inputs": {
         "profilesSha256": "2d473301b61aeffd323e71c68fa9e1697b44e47118a97b8eb07a751fd678420b",
-        "lockfileSha256": "295900d1cc605a41af337ca27ddbc567120e6d432d4b9aa6c101274a4d881489"
+        "lockfileSha256": "9628eafaecbc80ec49e2730ae786e518b0a0958556ac24c2c78236e0b7926be5"
       },
       "behaviorCommands": [
         "node packages/snapback-client/package.test.mjs",
@@ -121,7 +121,7 @@
       "workloadVersion": "llp-0166-local-persistent-store.v1",
       "inputs": {
         "profilesSha256": "37a0fe0037a1ed88e069bd03faef3d90f30ab4a2028ed4d2c94a6e5d5e642f54",
-        "lockfileSha256": "295900d1cc605a41af337ca27ddbc567120e6d432d4b9aa6c101274a4d881489"
+        "lockfileSha256": "9628eafaecbc80ec49e2730ae786e518b0a0958556ac24c2c78236e0b7926be5"
       },
       "behaviorCommands": [
         "node packages/snapback-client/package.test.mjs",
@@ -140,7 +140,7 @@
       "workloadVersion": "llp-0166-integrated-review-fixes.2026-08-04.v1",
       "inputs": {
         "profilesSha256": "37a0fe0037a1ed88e069bd03faef3d90f30ab4a2028ed4d2c94a6e5d5e642f54",
-        "lockfileSha256": "295900d1cc605a41af337ca27ddbc567120e6d432d4b9aa6c101274a4d881489"
+        "lockfileSha256": "9628eafaecbc80ec49e2730ae786e518b0a0958556ac24c2c78236e0b7926be5"
       },
       "behaviorCommands": [
         "node packages/snapback-client/store-runtime-wiring.test.mjs",
@@ -153,7 +153,7 @@
       "workloadVersion": "llp-0155-move3-phase1.v1",
       "inputs": {
         "profilesSha256": "37a0fe0037a1ed88e069bd03faef3d90f30ab4a2028ed4d2c94a6e5d5e642f54",
-        "lockfileSha256": "295900d1cc605a41af337ca27ddbc567120e6d432d4b9aa6c101274a4d881489"
+        "lockfileSha256": "9628eafaecbc80ec49e2730ae786e518b0a0958556ac24c2c78236e0b7926be5"
       },
       "behaviorCommands": [
         "node packages/snapback-client/package.test.mjs",
@@ -175,7 +175,7 @@
       "workloadVersion": "llp-0155-generated-mutation-ir.v1",
       "inputs": {
         "profilesSha256": "37a0fe0037a1ed88e069bd03faef3d90f30ab4a2028ed4d2c94a6e5d5e642f54",
-        "lockfileSha256": "295900d1cc605a41af337ca27ddbc567120e6d432d4b9aa6c101274a4d881489"
+        "lockfileSha256": "9628eafaecbc80ec49e2730ae786e518b0a0958556ac24c2c78236e0b7926be5"
       },
       "behaviorCommands": [
         "node packages/snapback-client/package.test.mjs",
@@ -192,7 +192,7 @@
       "workloadVersion": "llp-0166-offline-unavailable.v1",
       "inputs": {
         "profilesSha256": "37a0fe0037a1ed88e069bd03faef3d90f30ab4a2028ed4d2c94a6e5d5e642f54",
-        "lockfileSha256": "295900d1cc605a41af337ca27ddbc567120e6d432d4b9aa6c101274a4d881489"
+        "lockfileSha256": "9628eafaecbc80ec49e2730ae786e518b0a0958556ac24c2c78236e0b7926be5"
       },
       "behaviorCommands": [
         "node packages/snapback-client/package.test.mjs",
@@ -207,7 +207,7 @@
       "workloadVersion": "llp-0093-0094-finite-carrier-completeness.v1",
       "inputs": {
         "profilesSha256": "37a0fe0037a1ed88e069bd03faef3d90f30ab4a2028ed4d2c94a6e5d5e642f54",
-        "lockfileSha256": "295900d1cc605a41af337ca27ddbc567120e6d432d4b9aa6c101274a4d881489"
+        "lockfileSha256": "9628eafaecbc80ec49e2730ae786e518b0a0958556ac24c2c78236e0b7926be5"
       },
       "behaviorCommands": [
         "node packages/snapback-client/package.test.mjs",
@@ -221,7 +221,7 @@
       "workloadVersion": "llp-0091-rowless-rqs-resume-ordering.v1",
       "inputs": {
         "profilesSha256": "37a0fe0037a1ed88e069bd03faef3d90f30ab4a2028ed4d2c94a6e5d5e642f54",
-        "lockfileSha256": "295900d1cc605a41af337ca27ddbc567120e6d432d4b9aa6c101274a4d881489"
+        "lockfileSha256": "9628eafaecbc80ec49e2730ae786e518b0a0958556ac24c2c78236e0b7926be5"
       },
       "behaviorCommands": [
         "node packages/snapback-client/package.test.mjs",
@@ -238,7 +238,7 @@
       "workloadVersion": "move3-single-table-lifecycle.v1",
       "inputs": {
         "profilesSha256": "37a0fe0037a1ed88e069bd03faef3d90f30ab4a2028ed4d2c94a6e5d5e642f54",
-        "lockfileSha256": "295900d1cc605a41af337ca27ddbc567120e6d432d4b9aa6c101274a4d881489"
+        "lockfileSha256": "9628eafaecbc80ec49e2730ae786e518b0a0958556ac24c2c78236e0b7926be5"
       },
       "behaviorCommands": [
         "node packages/snapback-client/ir-evaluator.test.mjs",

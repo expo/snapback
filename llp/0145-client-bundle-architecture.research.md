@@ -1515,6 +1515,24 @@ closure and root-consuming supplemental fixtures while adding three public
 store subpaths. Its measured receipt and attribution are recorded under LLP
 0166 D9 after the implementation and this instrument amendment are committed.
 
+#### 2026-08-05 amendment — source-bound input provenance
+
+Each immutable ledger's profile and lockfile digests describe the inputs at
+the reachable Git commit that first carried that ledger. Validation therefore
+reopens those exact Git blobs and verifies the retained digests there, while
+the ledger's separately recorded source revision continues to bind its
+measured package trees. It does not require the current checkout's
+whole-workspace lockfile to remain byte-identical to every historical receipt.
+A new package outside the measured client closures may legitimately add a
+workspace row without rewriting the old receipt.
+
+The current checkout is still measured with its current lockfile, and every
+profile still compares against exactly one active frozen ceiling. Changes to a
+measured dependency or package closure therefore remain visible in the output,
+attribution, behavior train, and ceiling comparison. This corrects input
+provenance without loosening a ceiling or permitting a historical ledger to
+change.
+
 #### 2026-08-04 rowless token-resume ordering rollover
 
 LLP 0091's valid rowless rung-1/rung-2 resume can deliver its durable

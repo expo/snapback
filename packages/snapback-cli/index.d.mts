@@ -529,22 +529,6 @@ export function attachDevControlChannel(options: {
   readonly stdin?: DevControlStdin;
 }): () => void;
 
-export interface PackagedCliHelpEntry {
-  readonly name: string;
-  readonly usage: string;
-  readonly description: string;
-  readonly lifecycle: string;
-  readonly output: string;
-  readonly exits: string;
-  readonly recovery: string;
-  readonly path?: readonly string[];
-  readonly details?: readonly string[];
-}
-
-/** Data-only help registries rendered before command dispatch. */
-export const PACKAGED_CLI_COMMANDS: readonly PackagedCliHelpEntry[];
-export const PACKAGED_CLI_SUBCOMMANDS: readonly PackagedCliHelpEntry[];
-
 // ---------------------------------------------------------------------------
 // CLI entry
 // ---------------------------------------------------------------------------

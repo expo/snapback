@@ -4,7 +4,7 @@ id: meta.index
 order: 1
 audience: agent-first
 capabilities: [operating.served-guide, operating.guide-mcp]
-authorities: [llp/0061-agent-first-snapback-guide.rfc.md, llp/0000-snapback.explainer.md, llp/0064-native-client-surfaces.rfc.md]
+authorities: [llp/0061-agent-first-snapback-guide.rfc.md, llp/0000-snapback.explainer.md, llp/0042-agent-mcp-surface.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0184-agent-accessible-control-plane.rfc.md, src/cli.rs, src/guide_mcp.rs, packages/snapback-cli/index.mjs, packages/snapback-cli/mcp-control.mjs]
 examples: [demos/todo, demos/todo-v2, demos/cursors-web, demos/card-game, demos/partiful-matrix]
 status: current
 targets: [all]
@@ -32,12 +32,65 @@ carry `x-snapback-guide-content-sha256` and
 guide bytes with a different server build. Building Snapback itself is a
 different job — that's `AGENTS.md` and the LLP corpus, not this guide.
 
-For MCP clients, run `snapback mcp`. The read-only server exposes the same
-manifest, flat projection, and manifest-named pages at stable
-`snapback-guide://` resource URIs. Every resource repeats the guide content
-hash and build commit in MCP metadata; read the manifest first and refuse to
-combine resources whose identities differ. This resource-only command exposes
-no mutation or host-operation tools.
+## Choose the MCP authority
+
+Snapback ships two local stdio MCP servers. Keep their different authority
+postures visible when you configure an agent:
+
+| Server | What it exposes | Authority consequence |
+| --- | --- | --- |
+| `snapback mcp` | The native Rust binary's resource-only Guide server. It reads the compile-time-embedded Guide corpus and exposes the manifest, flat projection, and manifest-named pages at stable `snapback-guide://` URIs. It has no mutation or host-operation tools. | Least authority: safe to wire into any agent, with no additional authority grant. |
+| `snapback mcp-control` | The explicit JS control-plane server shipped by `@expo/snapback-cli`: `snapback_start`, `snapback_stop`, `snapback_restart`, `snapback_inspect`, `snapback_reset`, `snapback_load_schema`, `snapback_load_functions`, `snapback_run_function`, `snapback_acceptance_run`, network-profile get/set, and the generated app-data catalog. It also re-serves the Guide and control catalog, using the co-installed native runtime for the embedded Guide bytes so the npm package never carries a second static copy that could drift from the runtime build. | Standing local admin: it authenticates with the auto-minted local admin token, so the wired-in client has admin authority over the local Snapback instance. |
+
+The split makes documentation safe by default while keeping a capable operating
+surface available by explicit choice. `mcp-control` has the same local authority
+the CLI already exercises, but it is still a real authority grant that a cold
+agent must understand before opting in; configuring it does not grant hosted or
+remote authority, and no credential is copied into MCP configuration.
+
+Generate the project-scoped configuration instead of guessing client syntax:
+
+```sh
+snapback agent setup --print codex
+snapback agent setup --print claude --server mcp
+snapback agent setup --install cursor --server mcp-control
+```
+
+`--print` supports `codex`, `claude`, `cursor`, and `generic`; without
+`--server` it prints both entries. Codex uses `.codex/config.toml` in a trusted
+project, Claude uses `.mcp.json`, and Cursor uses `.cursor/mcp.json`. Installation
+and exact uninstall require an explicit `--server mcp|mcp-control`; installation
+shows the target file, requested server, and authority consequence before it
+writes, then returns a receipt.
+
+For a manual setup, the two commands are simply:
+
+```sh
+snapback mcp
+snapback mcp-control
+```
+
+A project-scoped JSON client entry has this minimal shape when the installed
+`@expo/snapback-cli` `snapback` bin is on `PATH` (the setup command emits the
+resolved local executable paths instead):
+
+```json fragment reason="manual MCP client configuration; generated executable paths are installation-specific"
+{
+  "mcpServers": {
+    "snapback-guide": {
+      "command": "snapback",
+      "args": ["mcp"]
+    },
+    "snapback-control": {
+      "command": "snapback",
+      "args": ["mcp-control"]
+    }
+  }
+}
+```
+
+Every Guide resource repeats the content hash and build commit in MCP metadata;
+read the manifest first and refuse to combine resources whose identities differ.
 
 **Start every task here:** check the
 [capability index](./capabilities.md) first — it lists everything Snapback
@@ -163,6 +216,9 @@ you never build around a feature because you didn't know it existed.
   declare, set, verify, grant, and consume write-only values.
 - [Host operations](./operating/host-ops.md) — the complete CLI/HTTP
   operation inventory and its authority envelopes.
+- [Network condition profiles](./operating/network-profiles.md) — inject
+  server-side egress latency for honest optimistic-UI, settlement, and
+  convergence testing, then restore `normal`.
 - [Diagnostics](./operating/diagnostics.md) — stable codes, assertion
   discipline, exact runtime link/launch doctoring, binary recovery records,
   and bootstrap failure vocabulary.
