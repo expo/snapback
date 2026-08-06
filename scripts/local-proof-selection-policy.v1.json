@@ -357,6 +357,7 @@
         "sequence-allocation-publication",
         "local-store-publication",
         "snapshot-batch-parity",
+        "snapshot-batch-v2-parity",
         "result-transform-ship-gate",
         "promotion-fixtures",
         "github-latest-proof-fixtures",
@@ -581,6 +582,7 @@
       "gates": [
         "local-store-publication",
         "snapshot-batch-parity",
+        "snapshot-batch-v2-parity",
         "current-binary-build",
         "current-binary-readiness",
         "versioned-seed-conformance"

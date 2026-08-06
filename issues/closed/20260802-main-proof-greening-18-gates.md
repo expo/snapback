@@ -1615,3 +1615,10 @@ sequence carrier SHA-256
 `13b5142f8f1f25cb47a5528e81cb41977343612d7cedb5f6926e857c346b2dac`,
 and persistent-store carrier SHA-256
 `9e03ff3c2c2e47996b02dc7bca9e1b31e53678474db9b26ce023e4a225e080a8`.
+
+The first exact complete-proof plan also caught a selector-inventory omission
+from SBSB2 parity landing `20fd2f753`: its new `snapshot-batch-v2-parity`
+canonical gate had not been assigned to any cadence group. The checked policy
+now classifies it beside v1 parity in both the publication and versioned-seed
+groups. All 134 canonical gates classify, the 12 selector/inventory fixtures
+pass, and an exact complete selection receipt validates before execution.
