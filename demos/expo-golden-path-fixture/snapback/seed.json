@@ -6,6 +6,19 @@
         "text": "Seed reached the G1 live query",
         "source": "seed"
       }
+    ],
+    "conversations": [
+      {
+        "_id": "g2_conversation_seed",
+        "title": "Generated surface conversation"
+      }
+    ],
+    "messages": [
+      {
+        "_id": "g2_message_seed",
+        "conversationId": "g2_conversation_seed",
+        "body": "Conversation surface reached the provider"
+      }
     ]
   }
 }

@@ -10,6 +10,8 @@ import {
 } from 'react-native';
 import {
   SnapbackExpoProvider,
+  skip,
+  useSurface,
   useSnapbackConnection,
   useSnapbackExpoBootState,
   useSnapbackMutation,
@@ -19,12 +21,14 @@ import type { ExpoBootState } from '@expo/snapback-expo';
 
 import { app } from './snapback/generated/app.mjs';
 import api from './snapback/generated/api.mjs';
+import type { Id } from './snapback/generated/api.d.ts';
 
 const mutationText = 'Mutation round-trip reached the live query';
 const emptyQueryArgs = Object.freeze({});
 const receiptPlatform = Platform.OS === 'android' ? 'Android emulator' : 'iOS simulator';
 const receiptSource = Platform.OS === 'android' ? 'android-emulator' : 'ios-simulator';
 const passMarker = Platform.OS === 'android' ? 'G1_ANDROID_PASS' : 'G1_IOS_PASS';
+const surfaceConversationId = 'g2_conversation_seed' as Id<'conversations'>;
 
 function emit(event: string, details: Record<string, unknown> = {}) {
   console.log(`SNAPBACK_G1_EVENT ${JSON.stringify({ event, ...details })}`);
@@ -57,6 +61,11 @@ function ReceiptScreen() {
   const connection = useSnapbackConnection();
   const query = useSnapbackQuery(api.listReceiptNotes, emptyQueryArgs);
   const addReceiptNote = useSnapbackMutation(api.addReceiptNote);
+  const conversation = useSurface(
+    app.surfaces.conversation,
+    { conversationId: surfaceConversationId },
+    { presence: { typing: skip } },
+  );
   const mutationStarted = useRef(false);
   const bootLogged = useRef(false);
   const seedLogged = useRef(false);
@@ -152,6 +161,16 @@ function ReceiptScreen() {
           <Text style={styles.value}>{boot.status}</Text>
           <Text testID="provider-route" style={styles.detail}>
             {boot.status === 'ready' ? boot.binding.target.routing : 'pending'}
+          </Text>
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.label}>Generated conversation surface</Text>
+          <Text testID="surface-status" style={styles.value}>
+            {conversation.state.messages.status} / {conversation.state.details.status}
+          </Text>
+          <Text style={styles.detail}>
+            messages: {conversation.data.messages?.length ?? 'not renderable'} · typing: {conversation.presence.typing.status}
           </Text>
         </View>
 

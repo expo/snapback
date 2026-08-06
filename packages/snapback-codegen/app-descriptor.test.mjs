@@ -31,15 +31,36 @@ mkdirSync(backend, { recursive: true });
 const validSchema = `
 import { defineSchema, defineTable, v } from '${defineUrl}';
 export default defineSchema({
-  items: defineTable({ title: v.string() }).sync(),
+  items: defineTable({ group: v.string(), title: v.string() }).index('by_group', ['group']).sync(),
 });
 `;
 const validFunctions = `
-import { arg, defineLiveQuery, defineMutation, insert, v } from '${defineUrl}';
-export const listItems = defineLiveQuery({ table: 'items', args: {} });
+import { arg, bind, defineAssetUpload, defineLiveQuery, defineMutation, defineSurface, eq, input, insert, param, v } from '${defineUrl}';
+export const listItems = defineLiveQuery({
+  table: 'items',
+  args: { group: v.string() },
+  filter: [eq('group', arg('group'))],
+  index: 'by_group',
+});
 export const createItem = defineMutation({
-  args: { title: v.string() },
-  plan: insert('items', { title: arg('title') }),
+  args: { group: v.string(), title: v.string() },
+  plan: insert('items', { group: arg('group'), title: arg('title') }),
+});
+export const itemAttachment = defineAssetUpload({
+  args: { group: v.string() },
+  auth: 'authenticated',
+  accept: { mediaTypes: ['application/octet-stream'], maxBytes: 1_000_000 },
+  authorize: async (ctx) => ({ owner: ctx.auth.userId }),
+});
+export const items = defineSurface({
+  params: { group: v.string() },
+  reads: { rows: bind(listItems, { group: param('group') }) },
+  mutations: {
+    create: bind(createItem, { group: param('group'), title: input('title') }),
+  },
+  assets: {
+    attachment: bind(itemAttachment, { group: param('group') }),
+  },
 });
 `;
 
@@ -86,11 +107,23 @@ try {
   assert.equal(descriptor.format, 'snapback.app.v1');
   assert.deepEqual(Object.keys(descriptor.api.queries), ['listItems']);
   assert.deepEqual(Object.keys(descriptor.api.mutations), ['createItem']);
-  assert.deepEqual(Object.keys(descriptor.api.assets), []);
+  assert.deepEqual(Object.keys(descriptor.api.assets), ['itemAttachment']);
   assert.deepEqual(Object.keys(descriptor.api.ephemeral), []);
   assert.deepEqual(Object.keys(descriptor.api.queryGroups), []);
   assert.deepEqual(descriptor.commands, {});
-  assert.deepEqual(descriptor.surfaces, {});
+  assert.deepEqual(Object.keys(descriptor.surfaces), ['items']);
+  assert.deepEqual(descriptor.surfaces.items.params.group.kind, 'string');
+  assert.deepEqual(descriptor.surfaces.items.reads.rows.bindings.group, {
+    kind: 'param', name: 'group',
+  });
+  assert.deepEqual(descriptor.surfaces.items.mutations.create.bindings, {
+    group: { kind: 'param', name: 'group' },
+    title: { kind: 'input', name: 'title' },
+  });
+  assert.deepEqual(Object.keys(descriptor.surfaces.items.mutations.create.inputs), ['title']);
+  assert.deepEqual(descriptor.surfaces.items.assets.attachment.bindings.group, {
+    kind: 'param', name: 'group',
+  });
   assert(descriptor.capabilities.required.includes('live_subscriptions'));
   assert(descriptor.capabilities.required.includes('mutation_read_set_validation'));
   assert.deepEqual(descriptor.api.queries.listItems.sourceSpan, {
@@ -181,6 +214,18 @@ try {
   assert.strictEqual(apiModule.createItem, appModule.app.api.mutations.createItem);
   assert.strictEqual(appModule.listItems, appModule.app.api.queries.listItems);
   assert.strictEqual(appModule.createItem, appModule.app.api.mutations.createItem);
+  assert.strictEqual(
+    appModule.app.surfaces.items.reads.rows.reference,
+    appModule.app.api.queries.listItems,
+  );
+  assert.strictEqual(
+    appModule.app.surfaces.items.mutations.create.reference,
+    appModule.app.api.mutations.createItem,
+  );
+  assert.strictEqual(
+    appModule.app.surfaces.items.assets.attachment.reference,
+    appModule.app.api.assets.itemAttachment,
+  );
   assert(Object.isFrozen(appModule.app));
 
   const consumer = join(root, 'fixture', 'consumer.ts');
@@ -189,7 +234,11 @@ import legacyApi, { app, createItem as legacyCreateItem, listItems as legacyList
 import generatedApp, { createItem, listItems } from './snapback/generated/app';
 import type { FunctionArgs } from './snapback/generated/api';
 
-const args: FunctionArgs<typeof createItem> = { title: 'typed' };
+const args: FunctionArgs<typeof createItem> = { group: 'typed', title: 'typed' };
+type CreateSurfaceInput = NonNullable<typeof generatedApp.surfaces.items.mutations.create.__input>;
+const surfaceInput: CreateSurfaceInput = { title: 'typed' };
+// @ts-expect-error bound group is removed from the member call input
+const surfaceInputWithBoundParam: CreateSurfaceInput = { group: 'typed', title: 'typed' };
 const query = generatedApp.api.queries.listItems;
 const mutation = app.api.mutations.createItem;
 const sameQuery: typeof query = legacyApi.listItems;
@@ -198,7 +247,8 @@ const sameNamedQuery: typeof listItems = legacyListItems;
 const sameNamedMutation: typeof createItem = legacyCreateItem;
 // @ts-expect-error mutations do not appear in the query namespace
 generatedApp.api.queries.createItem;
-void args; void sameQuery; void sameMutation; void sameNamedQuery; void sameNamedMutation;
+void args; void surfaceInput; void surfaceInputWithBoundParam;
+void sameQuery; void sameMutation; void sameNamedQuery; void sameNamedMutation;
 `);
   const typecheck = spawnSync(join(repoRoot, 'node_modules', '.bin', 'tsc'), [
     '--noEmit',
@@ -233,7 +283,7 @@ void args; void sameQuery; void sameMutation; void sameNamedQuery; void sameName
   prematureSurface.identity.descriptor = appDescriptorDigestV1(prematureSurface);
   assert(hasCode(
     validateAppDescriptorV1(prematureSurface),
-    'SNAPBACK_APP_DESCRIPTOR_MEMBER_CLASS_UNSUPPORTED',
+    'SNAPBACK_APP_DESCRIPTOR_MEMBER_TYPE_MISMATCH',
   ));
 
   assert(hasCode(
@@ -255,13 +305,47 @@ void args; void sameQuery; void sameMutation; void sameNamedQuery; void sameName
     'JCS identity is independent of insertion order',
   );
 
-  // Generation refusals for an S0 validator mismatch, an existing member
-  // budget, and an unknown definition class all preserve the prior document.
+  // Generation refusals preserve the prior descriptor publication.
   writeFileSync(join(backend, 'functions.mjs'), `
 import { defineLiveQuery } from '${defineUrl}';
 export const listItems = defineLiveQuery({ table: 'items', args: { broken: 42 } });
 `);
   await assertGenerationRefusedPreservingDescriptor('FUNCTION_INVALID_VALIDATOR');
+
+  writeValidSources();
+  writeFileSync(join(backend, 'functions.mjs'), `
+import { bind, defineLiveQuery, defineSurface, param, v } from '${defineUrl}';
+export const listItems = defineLiveQuery({ table: 'items', args: { group: v.string() } });
+export const items = defineSurface({
+  params: { group: v.string() },
+  reads: { rows: bind(listItems, { group: param('missing') }) },
+});
+`);
+  await assertGenerationRefusedPreservingDescriptor('SNAPBACK_SURFACE_PARAMETER_UNKNOWN');
+
+  writeValidSources();
+  writeFileSync(join(backend, 'functions.mjs'), `
+import { bind, defineLiveQuery, defineSurface, param, v } from '${defineUrl}';
+const shared = defineLiveQuery({ table: 'items', args: { group: v.string() } });
+export const listItems = shared;
+export const duplicateItems = shared;
+export const items = defineSurface({
+  params: { group: v.string() },
+  reads: { rows: bind(shared, { group: param('group') }) },
+});
+`);
+  await assertGenerationRefusedPreservingDescriptor('SNAPBACK_SURFACE_BINDING_AMBIGUOUS');
+
+  writeValidSources();
+  writeFileSync(join(backend, 'functions.mjs'), `
+import { bind, defineLiveQuery, defineSurface, param, v } from '${defineUrl}';
+export const listItems = defineLiveQuery({ table: 'items', args: { principal: v.principal() } });
+export const items = defineSurface({
+  params: { principal: v.principal() },
+  reads: { rows: bind(listItems, { principal: param('principal') }) },
+});
+`);
+  await assertGenerationRefusedPreservingDescriptor('SNAPBACK_SURFACE_AUTH_BINDING_REFUSED');
 
   writeValidSources();
   writeFileSync(join(backend, 'schema.mjs'), `
@@ -311,7 +395,7 @@ export const futureMember = { ...query, __snapbackDefinitionKind: 'surface' };
   assert.equal(schema.$id, 'https://schemas.snapback.dev/app-descriptor/v1.schema.json');
   assert.equal(schema.properties.format.const, 'snapback.app.v1');
   assert.equal(schema.properties.commands.maxProperties, 0);
-  assert.equal(schema.properties.surfaces.maxProperties, 0);
+  assert.equal(schema.properties.surfaces.additionalProperties.$ref, '#/$defs/surfaceDescriptor');
   const validatePortableSchema = new Ajv2020({ allErrors: true, strict: false }).compile(schema);
   assert.equal(
     validatePortableSchema(descriptor),

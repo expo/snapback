@@ -611,6 +611,8 @@ export interface PreparedReactBinding {
   readonly references: Readonly<Record<string, SnapbackFunctionReference>>;
   readonly ephemeral: Readonly<Record<string, SnapbackEphemeralReference>>;
   readonly groups: Readonly<Record<string, SnapbackQueryGroupReference>>;
+  readonly assetIntents: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
+  readonly surfaces: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
   prepareQueryGroup<Ref extends SnapbackQueryGroupReference>(
     reference: Ref,
     params: QueryGroupParams<Ref>,
@@ -1499,6 +1501,10 @@ export function admittedReactQueryGroup(
   binding: unknown,
   reference: SnapbackQueryGroupReference,
 ): SnapbackQueryGroupReference;
+export function admittedReactSurface(
+  binding: unknown,
+  reference: Readonly<Record<string, unknown>>,
+): Readonly<Record<string, unknown>>;
 export function admittedReactReference(
   binding: unknown,
   reference: SnapbackFunctionReference,

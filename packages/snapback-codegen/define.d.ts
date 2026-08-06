@@ -777,11 +777,45 @@ export declare const allow: Record<string, (...args: unknown[]) => unknown>;
 export declare const ephemeral: { collection(spec: Record<string, unknown>): unknown };
 export declare function defineEphemeral(collections: Record<string, unknown>): unknown;
 
+// LLP 0179's closed generated-surface declaration grammar.
+export interface SurfaceParam<Name extends string = string> {
+  readonly __surfaceValue: true;
+  readonly kind: 'param';
+  readonly name: Name;
+}
+export interface SurfaceInput<Name extends string = string> {
+  readonly __surfaceValue: true;
+  readonly kind: 'input';
+  readonly name: Name;
+}
+export interface SurfaceBinding<Reference = unknown, Bindings extends Record<string, unknown> = Record<string, unknown>> {
+  readonly __surfaceBinding: true;
+  readonly reference: Reference;
+  readonly bindings: Bindings;
+}
+export declare function param<const Name extends string>(name: Name): SurfaceParam<Name>;
+export declare function input<const Name extends string>(name: Name): SurfaceInput<Name>;
+export declare function bind<Reference, const Bindings extends Record<string, unknown>>(
+  reference: Reference,
+  bindings?: Bindings,
+): SurfaceBinding<Reference, Bindings>;
+export interface SurfaceSpec {
+  readonly params?: Record<string, Validator>;
+  readonly reads?: Record<string, SurfaceBinding>;
+  readonly mutations?: Record<string, SurfaceBinding>;
+  readonly commands?: Record<string, SurfaceBinding>;
+  readonly assets?: Record<string, SurfaceBinding>;
+  readonly presence?: Record<string, SurfaceBinding>;
+}
+export declare function defineSurface<const Spec extends SurfaceSpec>(spec: Spec): Spec;
+
 export declare function isFunctionDef(value: unknown): boolean;
 export declare function isCronDef(value: unknown): boolean;
 export declare function isConfigDef(value: unknown): boolean;
 export declare function isEphemeralCollectionDef(value: unknown): boolean;
 export declare function isEphemeralDef(value: unknown): boolean;
+export declare function isSurfaceDef(value: unknown): boolean;
+export declare function isSurfaceBinding(value: unknown): boolean;
 export declare function isRoutesDef(value: unknown): boolean;
 export declare function isTableDef(value: unknown): boolean;
 

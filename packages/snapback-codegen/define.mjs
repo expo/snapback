@@ -24,6 +24,8 @@ const TABLE = Symbol('snapback.table');
 const EPHEMERAL_COLLECTION = Symbol('snapback.ephemeralCollection');
 const EPHEMERAL = Symbol('snapback.ephemeral');
 const ASSET_UPLOAD = Symbol('snapback.assetUpload');
+const SURFACE = Symbol('snapback.surface');
+const SURFACE_BINDING = Symbol('snapback.surfaceBinding');
 const PUSH_SEAM = Symbol('snapback.pushSeam');
 const OBJECT_GET_PROTOTYPE_OF = Object.getPrototypeOf;
 const REFLECT_APPLY = Reflect.apply;
@@ -1697,6 +1699,81 @@ export function defineEphemeral(collections) {
     assert(collection && collection[EPHEMERAL_COLLECTION], `ephemeral collection ${name} must be ephemeral.collection(...)`);
   }
   return { [EPHEMERAL]: true, collections };
+}
+
+// ---------------------------------------------------------------------------
+// Generated application surfaces
+// ---------------------------------------------------------------------------
+// @ref LLP 0179#closed-grammar — surface declarations are bounded data. The
+// only dynamic-looking leaves are named parameter/input substitutions; there
+// are no callbacks, conditionals, inheritance, or nested surfaces.
+
+const SURFACE_FIELDS = new Set([
+  'params', 'reads', 'mutations', 'commands', 'assets', 'presence',
+]);
+const SURFACE_NAMESPACES = ['reads', 'mutations', 'commands', 'assets', 'presence'];
+
+export function param(name) {
+  assert(isUserIdentifier(name), 'param() expects a portable parameter name');
+  return Object.freeze({ __surfaceValue: true, kind: 'param', name });
+}
+
+export function input(name) {
+  assert(isUserIdentifier(name), 'input() expects a portable member-input name');
+  return Object.freeze({ __surfaceValue: true, kind: 'input', name });
+}
+
+const portableSurfaceLiteral = (value) => (
+  value === null
+  || typeof value === 'string'
+  || typeof value === 'boolean'
+  || (typeof value === 'number' && Number.isFinite(value))
+);
+
+export function bind(reference, bindings = {}) {
+  assert(reference && typeof reference === 'object', 'bind() expects a generated-reference definition');
+  exactObject(bindings, 'bind() bindings', new Set(Object.keys(bindings ?? {})));
+  for (const [name, value] of Object.entries(bindings)) {
+    if (value?.__surfaceValue === true || portableSurfaceLiteral(value)) continue;
+    assert(
+      value && typeof value === 'object' && !Array.isArray(value),
+      `bind() ${name} is outside the closed surface grammar`,
+    );
+    for (const child of Object.values(value)) {
+      assert(
+        child?.__surfaceValue === true || portableSurfaceLiteral(child),
+        `bind() ${name} must be a flat scope record of param(), input(), or portable literals`,
+      );
+    }
+  }
+  return {
+    [SURFACE_BINDING]: true,
+    __surfaceBinding: true,
+    reference,
+    bindings: { ...bindings },
+  };
+}
+
+export function defineSurface(spec) {
+  exactObject(spec, 'defineSurface()', SURFACE_FIELDS);
+  const params = spec.params ?? {};
+  assert(params && typeof params === 'object' && !Array.isArray(params), 'defineSurface() params must be an object');
+  for (const [name, validator] of Object.entries(params)) {
+    assert(isUserIdentifier(name), `surface parameter ${name} must be a portable identifier`);
+    assert(validator?.__validator === true, `surface parameter ${name} must be a validator`);
+  }
+  const namespaces = {};
+  for (const namespace of SURFACE_NAMESPACES) {
+    const members = spec[namespace] ?? {};
+    assert(members && typeof members === 'object' && !Array.isArray(members), `surface ${namespace} must be an object`);
+    namespaces[namespace] = {};
+    for (const [name, member] of Object.entries(members)) {
+      assert(isUserIdentifier(name), `surface ${namespace} member ${name} must be a portable identifier`);
+      assert(member?.[SURFACE_BINDING] === true, `surface ${namespace}.${name} must use bind(...)`);
+      namespaces[namespace][name] = member;
+    }
+  }
+  return { [SURFACE]: true, params: { ...params }, ...namespaces };
 }
 
 // ---------------------------------------------------------------------------
@@ -3720,6 +3797,14 @@ export function defineAssetUpload(spec) {
 
 export function isAssetUploadDef(value) {
   return !!(value && value[ASSET_UPLOAD]);
+}
+
+export function isSurfaceDef(value) {
+  return !!(value && value[SURFACE]);
+}
+
+export function isSurfaceBinding(value) {
+  return !!(value && value[SURFACE_BINDING]);
 }
 
 export function isFunctionDef(value) {

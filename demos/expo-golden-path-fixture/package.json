@@ -13,18 +13,18 @@
     "expo": "~57.0.7",
     "react": "19.2.3",
     "react-native": "0.86.2",
-    "@expo/snapback-client": "file:.snapback/local-source-packages/client.37ce2e03482c20d37dbe52fe6ea358b9590c215c048aa7e4094c65aa4a89f253.tgz",
+    "@expo/snapback-client": "file:.snapback/local-source-packages/client.0f489654aa82ef0d152980d821caa249c8969b59fa826f7a76a8a59283b50e6e.tgz",
     "@expo/snapback-expo": "file:.snapback/local-source-packages/expo.ca78c1b2ad38da6d9e437ef93f49fd9a5ea870ee262bb6b947474d6257f56dba.tgz",
-    "@expo/snapback-react": "file:.snapback/local-source-packages/react.4cb30dbec2bbc01c0bc0ad7acb9d4c7ab6ade373b66848548782156a52069c31.tgz"
+    "@expo/snapback-react": "file:.snapback/local-source-packages/react.5fd5bdc3091271ac3f6a4773a21d9a8edeb88be6f210abffb288d71564a3d239.tgz"
   },
   "devDependencies": {
     "@types/react": "~19.2.0",
     "typescript": "~6.0.3"
   },
   "overrides": {
-    "@expo/snapback-client": "file:.snapback/local-source-packages/client.37ce2e03482c20d37dbe52fe6ea358b9590c215c048aa7e4094c65aa4a89f253.tgz",
+    "@expo/snapback-client": "file:.snapback/local-source-packages/client.0f489654aa82ef0d152980d821caa249c8969b59fa826f7a76a8a59283b50e6e.tgz",
     "@expo/snapback-contract": "file:.snapback/local-source-packages/contract.f09973691df7dc65d5ac08ac6a538c69f46654cac71b0670506374f34a18d1c0.tgz",
     "@expo/snapback-expo": "file:.snapback/local-source-packages/expo.ca78c1b2ad38da6d9e437ef93f49fd9a5ea870ee262bb6b947474d6257f56dba.tgz",
-    "@expo/snapback-react": "file:.snapback/local-source-packages/react.4cb30dbec2bbc01c0bc0ad7acb9d4c7ab6ade373b66848548782156a52069c31.tgz"
+    "@expo/snapback-react": "file:.snapback/local-source-packages/react.5fd5bdc3091271ac3f6a4773a21d9a8edeb88be6f210abffb288d71564a3d239.tgz"
   }
 }
