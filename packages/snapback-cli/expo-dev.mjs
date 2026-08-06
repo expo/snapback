@@ -1,8 +1,14 @@
 import { spawn, spawnSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { existsSync, readFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+} from 'node:fs';
 import { createServer as createHttpServer } from 'node:http';
 import { createServer as createNetServer } from 'node:net';
+import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 
 import {
@@ -156,6 +162,279 @@ function appOrigin(host, port) {
   return `http://${renderedHost}:${port}`;
 }
 
+function commandResultDetails(result) {
+  return Object.freeze({
+    status: result?.status ?? null,
+    signal: result?.signal ?? null,
+    ...(result?.error ? { cause: result.error.code ?? result.error.message } : {}),
+  });
+}
+
+function adbSerialClass(serial, fields) {
+  if (/^emulator-\d+$/u.test(serial)) return 'emulator';
+  if (
+    /:\d+$/u.test(serial)
+    || /^adb-.+\._adb-tls-(?:connect|pairing)\._tcp\.?$/u.test(serial)
+  ) return 'tcpip';
+  if (fields.some((field) => field.startsWith('usb:'))) return 'usb';
+  // ADB's USB serial is otherwise opaque. Unknown non-network, non-emulator
+  // serials stay on the local USB class; selection still requires state=device.
+  return 'usb';
+}
+
+// @ref LLP 0176#open-questions — OQ4 admits Android emulators and physical
+// USB devices through the same per-serial adb reverse discipline, while TCP/IP
+// adb is a network carrier and therefore remains outside this supervisor.
+export function parseAdbDeviceInventory(stdout) {
+  const devices = [];
+  for (const rawLine of String(stdout ?? '').split('\n')) {
+    const line = rawLine.trim();
+    if (!line || /^List of devices attached\b/u.test(line) || line.startsWith('*')) continue;
+    const fields = line.split(/\s+/u);
+    if (fields.length < 2) continue;
+    const [serial, state, ...details] = fields;
+    const deviceClass = adbSerialClass(serial, details);
+    devices.push(Object.freeze({
+      serial,
+      state,
+      class: deviceClass,
+      transport: deviceClass === 'tcpip' ? 'network' : 'local',
+      details: Object.freeze([...details]),
+    }));
+  }
+  return Object.freeze(devices);
+}
+
+export function enumerateAndroidAdbDevices({
+  adbBinary = 'adb',
+  run = spawnSync,
+  env = process.env,
+} = {}) {
+  const result = run(adbBinary, ['devices', '-l'], {
+    encoding: 'utf8', env, timeout: 15_000,
+  });
+  if (result?.error || result?.status !== 0) {
+    throw diagnosticError(
+      'SNAPBACK_EXPO_ADB_INVENTORY_FAILED',
+      'adb could not enumerate Android devices for supervised routing',
+      commandResultDetails(result),
+    );
+  }
+  return parseAdbDeviceInventory(result.stdout);
+}
+
+function publicDeviceInventory(devices) {
+  return devices.map((device) => Object.freeze({
+    serial: device.serial,
+    class: device.class,
+    state: device.state,
+  }));
+}
+
+function refuseTcpAdbDevice(device) {
+  throw diagnosticError(
+    'SNAPBACK_EXPO_ADB_TCPIP_DEVICE_REFUSED',
+    'TCP/IP-connected adb devices are not admitted by the USB/port-forward supervisor',
+    {
+      serial: device.serial,
+      class: device.class,
+      reason: 'network-reachability-requires-llp-0168-carrier-review',
+      admittedClasses: ['emulator', 'usb'],
+    },
+  );
+}
+
+export function selectAndroidAdbDevice(devices, { serial = null } = {}) {
+  const inventory = Array.isArray(devices) ? devices : [];
+  let selected = null;
+  if (serial !== null) {
+    selected = inventory.find((device) => device.serial === serial) ?? null;
+    if (selected === null) {
+      throw diagnosticError(
+        'SNAPBACK_EXPO_ANDROID_DEVICE_NOT_FOUND',
+        `adb did not report the requested Android device ${serial}`,
+        { serial, devices: publicDeviceInventory(inventory) },
+      );
+    }
+  } else {
+    const admitted = inventory.filter((device) => (
+      device.state === 'device' && (device.class === 'emulator' || device.class === 'usb')
+    ));
+    if (admitted.length > 1) {
+      throw diagnosticError(
+        'SNAPBACK_EXPO_ANDROID_DEVICE_AMBIGUOUS',
+        'more than one emulator/USB Android device is available; select one with --android-serial',
+        { devices: publicDeviceInventory(admitted) },
+      );
+    }
+    if (admitted.length === 1) selected = admitted[0];
+    else {
+      const tcpip = inventory.find((device) => device.state === 'device' && device.class === 'tcpip');
+      if (tcpip) refuseTcpAdbDevice(tcpip);
+      throw diagnosticError(
+        'SNAPBACK_EXPO_ANDROID_DEVICE_NOT_FOUND',
+        'no ready Android emulator or USB device is attached',
+        { devices: publicDeviceInventory(inventory) },
+      );
+    }
+  }
+  if (selected.class === 'tcpip') refuseTcpAdbDevice(selected);
+  if (selected.state !== 'device') {
+    throw diagnosticError(
+      'SNAPBACK_EXPO_ANDROID_DEVICE_UNAVAILABLE',
+      `the requested Android device is ${selected.state}, not ready`,
+      { serial: selected.serial, class: selected.class, state: selected.state },
+    );
+  }
+  return Object.freeze({ serial: selected.serial, class: selected.class });
+}
+
+export function parseDevicectlDeviceInventory(document) {
+  let parsed = document;
+  if (typeof parsed === 'string') {
+    try { parsed = JSON.parse(parsed); } catch (cause) {
+      throw diagnosticError(
+        'SNAPBACK_EXPO_IOS_DEVICE_INVENTORY_INVALID',
+        'devicectl did not produce valid JSON device inventory',
+        { cause: cause.message },
+      );
+    }
+  }
+  if (!Array.isArray(parsed?.result?.devices)) {
+    throw diagnosticError(
+      'SNAPBACK_EXPO_IOS_DEVICE_INVENTORY_INVALID',
+      'devicectl JSON did not contain result.devices',
+    );
+  }
+  return Object.freeze(parsed.result.devices
+    .filter((entry) => (
+      entry?.hardwareProperties?.reality === 'physical'
+      && String(entry?.hardwareProperties?.platform ?? '').toLowerCase() === 'ios'
+    ))
+    .map((entry) => {
+      const transportType = String(entry?.connectionProperties?.transportType ?? 'unknown');
+      const paired = entry?.connectionProperties?.pairingState === 'paired';
+      const tunnelState = String(entry?.connectionProperties?.tunnelState ?? 'unknown');
+      const deviceClass = /^(?:wired|usb)$/iu.test(transportType) ? 'usb' : 'network';
+      const available = paired
+        && deviceClass === 'usb'
+        && !/^(?:disconnected|unavailable)$/iu.test(tunnelState);
+      return Object.freeze({
+        serial: entry?.hardwareProperties?.udid ?? entry?.identifier ?? null,
+        hardwareSerial: entry?.hardwareProperties?.serialNumber ?? null,
+        name: entry?.deviceProperties?.name ?? null,
+        class: deviceClass,
+        state: paired ? (available ? 'device' : 'unavailable') : 'unpaired',
+        transportType,
+        tunnelState,
+      });
+    })
+    .filter((device) => typeof device.serial === 'string' && device.serial.length > 0));
+}
+
+export function enumerateIosDevices({
+  xcrunBinary = 'xcrun',
+  run = spawnSync,
+  env = process.env,
+} = {}) {
+  const scratch = mkdtempSync(join(tmpdir(), 'snapback-expo-devicectl-'));
+  const output = join(scratch, 'devices.json');
+  try {
+    const result = run(xcrunBinary, [
+      'devicectl', 'list', 'devices', '--json-output', output, '--quiet',
+    ], { encoding: 'utf8', env, timeout: 30_000 });
+    if (result?.error || result?.status !== 0) {
+      throw diagnosticError(
+        'SNAPBACK_EXPO_IOS_DEVICE_INVENTORY_FAILED',
+        'xcrun devicectl could not enumerate iOS devices',
+        commandResultDetails(result),
+      );
+    }
+    return parseDevicectlDeviceInventory(readFileSync(output, 'utf8'));
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+}
+
+export function selectIosUsbDevice(devices, { udid } = {}) {
+  const inventory = Array.isArray(devices) ? devices : [];
+  const selected = inventory.find((device) => (
+    device.serial === udid || device.hardwareSerial === udid
+  ));
+  if (!selected) {
+    throw diagnosticError(
+      'SNAPBACK_EXPO_IOS_DEVICE_NOT_FOUND',
+      `devicectl did not report the requested iOS device ${udid}`,
+      { udid, devices: publicDeviceInventory(inventory) },
+    );
+  }
+  if (selected.class !== 'usb') {
+    throw diagnosticError(
+      'SNAPBACK_EXPO_IOS_NETWORK_DEVICE_REFUSED',
+      'the selected iOS device is reachable through a network transport, not USB',
+      {
+        serial: selected.serial,
+        class: selected.class,
+        transportType: selected.transportType,
+        reason: 'network-reachability-requires-llp-0168-carrier-review',
+      },
+    );
+  }
+  if (selected.state !== 'device') {
+    throw diagnosticError(
+      'SNAPBACK_EXPO_IOS_DEVICE_UNAVAILABLE',
+      'the selected iOS USB device is not paired and connected',
+      { serial: selected.serial, state: selected.state, tunnelState: selected.tunnelState },
+    );
+  }
+  return Object.freeze({ serial: selected.serial, class: 'usb' });
+}
+
+export function inspectIosForwardingTools({
+  xcrunBinary = 'xcrun',
+  iproxyBinary = 'iproxy',
+  run = spawnSync,
+  env = process.env,
+} = {}) {
+  const version = run(xcrunBinary, ['devicectl', '--version'], {
+    encoding: 'utf8', env, timeout: 15_000,
+  });
+  const help = run(xcrunBinary, ['devicectl', 'help', 'device'], {
+    encoding: 'utf8', env, timeout: 15_000,
+  });
+  const iproxy = run(iproxyBinary, ['--help'], {
+    encoding: 'utf8', env, timeout: 15_000,
+  });
+  return Object.freeze({
+    devicectl: Object.freeze({
+      available: !version?.error && version?.status === 0,
+      version: version?.status === 0 ? String(version.stdout ?? '').trim() : null,
+      supportsTcpForward: help?.status === 0
+        && /\b(?:forward|port-forward|reverse)\b/iu.test(String(help.stdout ?? '')),
+    }),
+    iproxy: Object.freeze({
+      available: !iproxy?.error && iproxy?.status === 0,
+      direction: 'host-loopback-to-ios-service',
+      supportsRequiredReverseDirection: false,
+    }),
+    requiredDirection: 'ios-device-loopback-to-host-loopback',
+  });
+}
+
+export function refuseUnsupportedIosUsbForwarding(device, options = {}) {
+  const tools = options.tools ?? inspectIosForwardingTools(options);
+  throw diagnosticError(
+    'SNAPBACK_EXPO_IOS_USB_REVERSE_FORWARD_UNAVAILABLE',
+    'neither devicectl nor iproxy can forward iOS device loopback to host loopback',
+    {
+      device,
+      tools,
+      reason: 'devicectl-has-no-tcp-forward-and-iproxy-is-host-to-device-only',
+      recovery: 'use the iOS simulator; a physical iOS carrier needs a device-side bridge or a separately accepted posture',
+    },
+  );
+}
+
 // @ref LLP 0181#ios-simulator — the iOS simulator consumes resolved same-host
 // loopback origins; application code never supplies one.
 // @ref LLP 0181#android-emulator — adb reverse is the preferred Android route
@@ -167,6 +446,7 @@ export function createExpoRoutingPlan({
   bootstrapPort,
   androidTransport = 'adb-reverse',
   androidSerial = null,
+  androidDeviceClass = null,
 } = {}) {
   const ports = Object.freeze([
     Object.freeze({ owner: 'backend', devicePort: backendPort, hostPort: backendPort }),
@@ -185,6 +465,7 @@ export function createExpoRoutingPlan({
       ports,
       forwards: Object.freeze([]),
       fallback: null,
+      device: Object.freeze({ serial: null, class: 'simulator' }),
     });
   }
   if (platform !== 'android') {
@@ -203,6 +484,10 @@ export function createExpoRoutingPlan({
       ports,
       forwards: Object.freeze([]),
       fallback: Object.freeze({ host: '10.0.2.2', requiresAdbReverse: false }),
+      device: Object.freeze({
+        serial: androidSerial,
+        class: androidDeviceClass ?? 'emulator',
+      }),
     });
   }
   if (androidTransport !== 'adb-reverse') {
@@ -210,6 +495,12 @@ export function createExpoRoutingPlan({
       'SNAPBACK_EXPO_ROUTE_INVALID',
       'Android transport must be adb-reverse or emulator-host-alias.',
       { androidTransport },
+    );
+  }
+  if (typeof androidSerial !== 'string' || androidSerial.length === 0) {
+    throw diagnosticError(
+      'SNAPBACK_EXPO_ANDROID_DEVICE_REQUIRED',
+      'adb reverse requires one enumerated emulator or USB device serial',
     );
   }
   return Object.freeze({
@@ -225,6 +516,26 @@ export function createExpoRoutingPlan({
     }))),
     fallback: Object.freeze({ host: '10.0.2.2', requiresAdbReverse: false }),
     androidSerial,
+    device: Object.freeze({
+      serial: androidSerial,
+      class: androidDeviceClass ?? (/^emulator-\d+$/u.test(androidSerial) ? 'emulator' : 'usb'),
+    }),
+  });
+}
+
+export function createExpoRoutingReadiness(route) {
+  return Object.freeze({
+    platform: route.platform,
+    device: Object.freeze({
+      serial: route.device?.serial ?? null,
+      class: route.device?.class ?? null,
+    }),
+    route: Object.freeze({
+      transport: route.transport,
+      bindingRouting: route.bindingRouting,
+      appHost: route.appHost,
+      fallback: route.fallback,
+    }),
   });
 }
 
@@ -236,7 +547,13 @@ export function installAndroidPortForwarding(plan, {
   if (plan?.platform !== 'android' || plan.transport !== 'adb-reverse') {
     return Object.freeze({ installed: Object.freeze([]), remove() {} });
   }
-  const prefix = plan.androidSerial ? ['-s', plan.androidSerial] : [];
+  if (typeof plan.androidSerial !== 'string' || plan.androidSerial.length === 0) {
+    throw diagnosticError(
+      'SNAPBACK_EXPO_ANDROID_DEVICE_REQUIRED',
+      'adb reverse ownership requires an exact selected device serial',
+    );
+  }
+  const prefix = ['-s', plan.androidSerial];
   const installed = [];
   const invoke = (args) => run(adbBinary, [...prefix, ...args], {
     encoding: 'utf8', env, timeout: 15_000,
@@ -261,12 +578,28 @@ export function installAndroidPortForwarding(plan, {
         { status: listed.status, signal: listed.signal },
       );
     }
+    const reported = String(listed.stdout ?? '').split('\n').map((line) => {
+      const fields = line.trim().split(/\s+/u).filter(Boolean);
+      if (fields.length < 2) return null;
+      return fields.length >= 3
+        ? { serial: fields[0], device: fields.at(-2), host: fields.at(-1) }
+        : { serial: plan.androidSerial, device: fields[0], host: fields[1] };
+    }).filter(Boolean);
     for (const forward of installed) {
-      if (!listed.stdout.includes(forward.device) || !listed.stdout.includes(forward.host)) {
+      if (!reported.some((rule) => (
+        rule.serial === plan.androidSerial
+        && rule.device === forward.device
+        && rule.host === forward.host
+      ))) {
         throw diagnosticError(
           'SNAPBACK_EXPO_ADB_REVERSE_FAILED',
           `adb did not report the installed ${forward.owner} reverse rule`,
-          { owner: forward.owner, device: forward.device, host: forward.host },
+          {
+            owner: forward.owner,
+            serial: plan.androidSerial,
+            device: forward.device,
+            host: forward.host,
+          },
         );
       }
     }
@@ -626,6 +959,53 @@ function publicBinding(binding) {
   return structuredClone(binding);
 }
 
+function resolveExpoDeviceSelection(options) {
+  const platform = options.platform ?? 'ios';
+  if (platform === 'ios') {
+    if (options.iosUdid === undefined || options.iosUdid === null) {
+      return Object.freeze({ serial: null, class: 'simulator' });
+    }
+    const inventory = options.iosDeviceInventory
+      ?? enumerateIosDevices({
+        xcrunBinary: options.xcrunBinary,
+        run: options.devicectlRun,
+        env: options.env,
+      });
+    const device = selectIosUsbDevice(inventory, { udid: options.iosUdid });
+    refuseUnsupportedIosUsbForwarding(device, {
+      ...(options.iosForwardingTools ? { tools: options.iosForwardingTools } : {}),
+      xcrunBinary: options.xcrunBinary,
+      iproxyBinary: options.iproxyBinary,
+      run: options.iosToolRun,
+      env: options.env,
+    });
+  }
+  if (platform !== 'android') {
+    throw diagnosticError(
+      'SNAPBACK_EXPO_DEVICE_UNSUPPORTED',
+      'supervised Expo development supports only iOS and Android',
+      { platform },
+    );
+  }
+  const inventory = options.androidDeviceInventory
+    ?? enumerateAndroidAdbDevices({
+      adbBinary: options.adbBinary,
+      run: options.adbRun,
+      env: options.env,
+    });
+  const device = selectAndroidAdbDevice(inventory, {
+    serial: options.androidSerial ?? null,
+  });
+  if (options.androidTransport === 'emulator-host-alias' && device.class !== 'emulator') {
+    throw diagnosticError(
+      'SNAPBACK_EXPO_ANDROID_HOST_ALIAS_DEVICE_INVALID',
+      '10.0.2.2 is admitted only for an Android emulator, never a USB device',
+      { serial: device.serial, class: device.class },
+    );
+  }
+  return device;
+}
+
 // @ref LLP 0181#supervised-development-baseline — one owner coordinates the
 // backend, Metro, expiring binding, transient session exchange, correlated
 // readiness stream, signal-ready close operation, and complete cleanup.
@@ -661,6 +1041,13 @@ export async function runExpoDev(options = {}) {
   let closePromise = null;
   let closeSupervisor = null;
   try {
+    const selectedDevice = resolveExpoDeviceSelection(options);
+    emit({
+      ok: true,
+      state: 'device-selected',
+      platform: options.platform ?? 'ios',
+      device: selectedDevice,
+    });
     dev = await runDev({
       ...options.devOptions,
       backendDirectory: backendRoot,
@@ -726,7 +1113,8 @@ export async function runExpoDev(options = {}) {
       metroPort,
       bootstrapPort: bootstrap.port,
       androidTransport: options.androidTransport ?? 'adb-reverse',
-      androidSerial: options.androidSerial ?? null,
+      androidSerial: selectedDevice.serial,
+      androidDeviceClass: selectedDevice.class,
     });
     binding = bindingFromDescriptor({
       descriptor,
@@ -780,13 +1168,7 @@ export async function runExpoDev(options = {}) {
     emit({
       ok: authority.status === 'ready',
       state: finalState,
-      platform: route.platform,
-      route: {
-        transport: route.transport,
-        bindingRouting: route.bindingRouting,
-        appHost: route.appHost,
-        fallback: route.fallback,
-      },
+      ...createExpoRoutingReadiness(route),
       binding: publicBinding(binding),
       authority: authority.status === 'ready'
         ? { status: 'ready', kind: 'session', authMode: 'sessions' }
@@ -828,6 +1210,7 @@ export async function runExpoDev(options = {}) {
       state: finalState,
       correlationId,
       supervisorGeneration: generation,
+      device: route.device,
       binding: publicBinding(binding),
       exchangeOrigin: bootstrap.origin,
       metroOrigin: `http://${LOOPBACK_HOST}:${metroPort}`,

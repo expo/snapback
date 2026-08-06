@@ -294,6 +294,20 @@ pub fn create_infra(tx: &Transaction<'_>) -> SnapbackResult<()> {
            coverage_digest TEXT NOT NULL,
            activated_at_ms INTEGER NOT NULL CHECK(activated_at_ms >= 0)
          );
+         CREATE TABLE IF NOT EXISTS _snapback_operation_coverage_continuity_v1 (
+           stream_id TEXT PRIMARY KEY,
+           state TEXT NOT NULL CHECK(state IN ('continuous','broken')),
+           expected_manifest_version INTEGER NOT NULL CHECK(expected_manifest_version > 0),
+           expected_coverage_digest TEXT NOT NULL,
+           first_activated_at_ms INTEGER NOT NULL CHECK(first_activated_at_ms >= 0),
+           gap_detected_at_ms INTEGER,
+           gap_reason TEXT,
+           CHECK(
+             (state='continuous' AND gap_detected_at_ms IS NULL AND gap_reason IS NULL)
+             OR
+             (state='broken' AND gap_detected_at_ms IS NOT NULL AND gap_reason IS NOT NULL)
+           )
+         );
          CREATE TABLE IF NOT EXISTS _snapback_host_identity_leases_v1 (
            stream_id TEXT NOT NULL,
            operation_id TEXT NOT NULL,
@@ -365,6 +379,150 @@ pub fn create_infra(tx: &Transaction<'_>) -> SnapbackResult<()> {
             [],
         )?;
     }
+    // @ref LLP 0165#derived-fork-authorizer-backed-net-diff--2026-08-06 — the
+    // registered-connection class needs a monotonic fact that an exact
+    // manifest restore cannot erase.
+    // Databases activated before the continuity carrier shipped acquire one
+    // from the latest still-present manifest during the ordinary additive
+    // infrastructure migration. Once present, the row is monotonic: a
+    // registered-writer reconstruction gap changes it to `broken`, and no
+    // activation path can turn it back to `continuous`.
+    tx.execute(
+        "INSERT INTO _snapback_operation_coverage_continuity_v1(
+           stream_id,state,expected_manifest_version,expected_coverage_digest,
+           first_activated_at_ms,gap_detected_at_ms,gap_reason
+         )
+         SELECT coverage.stream_id,'continuous',coverage.manifest_version,
+                coverage.coverage_digest,coverage.activated_at_ms,NULL,NULL
+           FROM _snapback_operation_coverage_v1 coverage
+          WHERE coverage.manifest_version=(
+                  SELECT MAX(candidate.manifest_version)
+                    FROM _snapback_operation_coverage_v1 candidate
+                   WHERE candidate.stream_id=coverage.stream_id
+                )
+         ON CONFLICT(stream_id) DO NOTHING",
+        [],
+    )?;
+    Ok(())
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct OperationCoverageContinuityV1 {
+    pub stream_id: String,
+    pub state: String,
+    pub expected_manifest_version: u64,
+    pub expected_coverage_digest: String,
+    pub first_activated_at_ms: u64,
+    pub gap_detected_at_ms: Option<u64>,
+    pub gap_reason: Option<String>,
+}
+
+pub(crate) fn operation_coverage_continuity(
+    conn: &Connection,
+    stream_id: &str,
+) -> SnapbackResult<Option<OperationCoverageContinuityV1>> {
+    let row = conn
+        .query_row(
+            "SELECT state,expected_manifest_version,expected_coverage_digest,
+                    first_activated_at_ms,gap_detected_at_ms,gap_reason
+               FROM _snapback_operation_coverage_continuity_v1
+              WHERE stream_id=?1",
+            [stream_id],
+            |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, u64>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, u64>(3)?,
+                    row.get::<_, Option<u64>>(4)?,
+                    row.get::<_, Option<String>>(5)?,
+                ))
+            },
+        )
+        .optional()?;
+    let Some((
+        state,
+        expected_manifest_version,
+        expected_coverage_digest,
+        first_activated_at_ms,
+        gap_detected_at_ms,
+        gap_reason,
+    )) = row
+    else {
+        return Ok(None);
+    };
+    let valid_state = match state.as_str() {
+        "continuous" => gap_detected_at_ms.is_none() && gap_reason.is_none(),
+        "broken" => {
+            gap_detected_at_ms.is_some()
+                && gap_reason.as_deref().is_some_and(|value| !value.is_empty())
+        }
+        _ => false,
+    };
+    if expected_manifest_version == 0 || expected_coverage_digest.is_empty() || !valid_state {
+        return Err(invalid("coverage continuity carrier is invalid"));
+    }
+    Ok(Some(OperationCoverageContinuityV1 {
+        stream_id: stream_id.to_owned(),
+        state,
+        expected_manifest_version,
+        expected_coverage_digest,
+        first_activated_at_ms,
+        gap_detected_at_ms,
+        gap_reason,
+    }))
+}
+
+/// Irreversibly record that a process-owned registered writer observed a
+/// missing or contradictory coverage boundary. Restoring the manifest bytes
+/// later cannot erase this fact or re-earn whole-window completeness.
+///
+/// @ref LLP 0165#derived-fork-authorizer-backed-net-diff--2026-08-06 — a
+/// whole-window coverage gap is monotonic within the registered-writer class.
+pub(crate) fn break_operation_coverage_continuity(
+    conn: &Connection,
+    stream_id: &str,
+    expected_manifest_version: u64,
+    expected_coverage_digest: &str,
+    detected_at_ms: u64,
+    reason: &str,
+) -> SnapbackResult<()> {
+    if stream_id.is_empty()
+        || expected_manifest_version == 0
+        || expected_coverage_digest.is_empty()
+        || reason.is_empty()
+    {
+        return Err(invalid("coverage continuity gap evidence is invalid"));
+    }
+    let changed = conn.execute(
+        "UPDATE _snapback_operation_coverage_continuity_v1
+            SET state='broken',gap_detected_at_ms=COALESCE(gap_detected_at_ms,?2),
+                gap_reason=COALESCE(gap_reason,?3)
+          WHERE stream_id=?1",
+        params![
+            stream_id,
+            to_i64(detected_at_ms, "coverage gap time")?,
+            reason
+        ],
+    )?;
+    if changed == 0 {
+        conn.execute(
+            "INSERT INTO _snapback_operation_coverage_continuity_v1(
+               stream_id,state,expected_manifest_version,expected_coverage_digest,
+               first_activated_at_ms,gap_detected_at_ms,gap_reason
+             ) VALUES(?1,'broken',?2,?3,?4,?4,?5)",
+            params![
+                stream_id,
+                to_i64(
+                    expected_manifest_version,
+                    "expected coverage manifest version"
+                )?,
+                expected_coverage_digest,
+                to_i64(detected_at_ms, "coverage gap time")?,
+                reason,
+            ],
+        )?;
+    }
     Ok(())
 }
 
@@ -411,6 +569,42 @@ pub fn register_coverage_in(
             to_i64(activated_at_ms, "coverage activation time")?,
         ],
     )?;
+    match operation_coverage_continuity(tx, &manifest.stream_id)? {
+        None => {
+            tx.execute(
+                "INSERT INTO _snapback_operation_coverage_continuity_v1(
+                   stream_id,state,expected_manifest_version,expected_coverage_digest,
+                   first_activated_at_ms,gap_detected_at_ms,gap_reason
+                 ) VALUES(?1,'continuous',?2,?3,?4,NULL,NULL)",
+                params![
+                    manifest.stream_id,
+                    to_i64(manifest.manifest_version, "coverage manifest version")?,
+                    manifest.coverage_digest,
+                    to_i64(activated_at_ms, "coverage activation time")?,
+                ],
+            )?;
+        }
+        Some(continuity) if continuity.state == "continuous" => {
+            if manifest.manifest_version <= continuity.expected_manifest_version {
+                return Err(invalid(
+                    "coverage manifest versions must advance monotonically",
+                ));
+            }
+            tx.execute(
+                "UPDATE _snapback_operation_coverage_continuity_v1
+                    SET expected_manifest_version=?2,expected_coverage_digest=?3
+                  WHERE stream_id=?1 AND state='continuous'",
+                params![
+                    manifest.stream_id,
+                    to_i64(manifest.manifest_version, "coverage manifest version")?,
+                    manifest.coverage_digest,
+                ],
+            )?;
+        }
+        Some(_) => {
+            return Err(invalid("broken coverage continuity cannot be re-armed"));
+        }
+    }
     Ok(())
 }
 

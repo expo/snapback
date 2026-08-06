@@ -74,6 +74,7 @@ const latestRetainedDate = () => {
 const DATE = process.argv.includes('--check') ? latestRetainedDate() : RUN_DATE;
 const RECEIPT_PATH = join(FIXTURE_DIR, `move1-exit.${DATE}.v1.json`);
 const BUDGET_PATH = join(FIXTURE_DIR, `budget-freeze.${DATE}.v1.json`);
+const RUNTIME_READINESS_PATH = join(FIXTURE_DIR, `runtime-readiness.${DATE}.v1.json`);
 const EVIDENCE_PATH = join(ROOT, 'tests/acceptance/fleet-observatory-move1-v1-evidence.md');
 const SERVER_BINARY = resolve(
   process.env.SNAPBACK_RUNTIME_BINARY || join(ROOT, 'target/debug/snapback'),
@@ -94,6 +95,23 @@ const GATES = Object.freeze([
 
 const sha256Hex = (bytes) => createHash('sha256').update(bytes).digest('hex');
 const sourceDigest = (path) => ({ path, sha256: sha256Hex(readFileSync(join(ROOT, path))) });
+
+const SOURCE_PATHS = Object.freeze([
+  'tests/acceptance/fleet-observatory-move1-v1.mjs',
+  'demos/fleet-observatory-move1/snapback/schema.mjs',
+  'demos/fleet-observatory-move1/snapback/functions.mjs',
+  'demos/fleet-observatory-move1/snapback/trusted-composition-activation.json',
+  'demos/fleet-observatory-move1/snapback/generated/artifacts.json',
+  'demos/fleet-observatory-move1/demo.snapback.json',
+  'demos/fleet-observatory-move1/fixture.mjs',
+  'demos/fleet-observatory-move1/src/App.tsx',
+  `demos/fleet-observatory-move1/workload-manifest.${WORKLOAD_DATE}.v1.json`,
+  'packages/snapback-client/index.mjs',
+  'packages/snapback-client/materialization-store.mjs',
+  'packages/snapback-client/materialization-store-runtime.mjs',
+  'packages/snapback-client/store-policy.mjs',
+  'packages/snapback-client/store-runtime.mjs',
+]);
 
 function diagnosticCode(error) {
   return error?.diagnostic?.code ?? error?.code ?? String(error?.message ?? error);
@@ -772,6 +790,20 @@ async function runRealExit() {
       },
     };
 
+    // startServer's configured rung verifies (and, when necessary,
+    // requalifies) this exact binary through LLP 0010 CV-3. Retain that
+    // digest-bound receipt with the workload evidence so --check can reopen
+    // the binary-identity edge without consulting mutable target/ bytes.
+    const runtimeReadinessReceipt = JSON.parse(await readFile(
+      `${SERVER_BINARY}.runtime-readiness.json`,
+      'utf8',
+    ));
+    const serverBinarySha256 = sha256Hex(readFileSync(SERVER_BINARY));
+    assert.equal(runtimeReadinessReceipt.schemaVersion, 'snapback.runtime-readiness.v1');
+    assert.equal(runtimeReadinessReceipt.binary.sha256, serverBinarySha256);
+    assert.equal(runtimeReadinessReceipt.qualification.ok, true);
+    const retainedRuntimeReadiness = `${JSON.stringify(runtimeReadinessReceipt, null, 2)}\n`;
+
     return {
       activation: {
         format: activationRaw.format,
@@ -861,9 +893,14 @@ async function runRealExit() {
       },
       runtime: {
         serverBinary: relative(ROOT, SERVER_BINARY),
-        serverBinarySha256: sha256Hex(readFileSync(SERVER_BINARY)),
+        serverBinarySha256,
         launchRung: fixtureServer.launch?.rung ?? null,
+        readinessReceipt: {
+          path: relative(ROOT, RUNTIME_READINESS_PATH),
+          sha256: sha256Hex(retainedRuntimeReadiness),
+        },
       },
+      retainedRuntimeReadiness,
     };
   } finally {
     try { await mainLive?.dispose(); } catch {}
@@ -877,26 +914,10 @@ async function runRealExit() {
 }
 
 function sourceProvenance() {
-  const paths = [
-    'tests/acceptance/fleet-observatory-move1-v1.mjs',
-    'demos/fleet-observatory-move1/snapback/schema.mjs',
-    'demos/fleet-observatory-move1/snapback/functions.mjs',
-    'demos/fleet-observatory-move1/snapback/trusted-composition-activation.json',
-    'demos/fleet-observatory-move1/snapback/generated/artifacts.json',
-    'demos/fleet-observatory-move1/demo.snapback.json',
-    'demos/fleet-observatory-move1/fixture.mjs',
-    'demos/fleet-observatory-move1/src/App.tsx',
-    `demos/fleet-observatory-move1/workload-manifest.${WORKLOAD_DATE}.v1.json`,
-    'packages/snapback-client/index.mjs',
-    'packages/snapback-client/materialization-store.mjs',
-    'packages/snapback-client/materialization-store-runtime.mjs',
-    'packages/snapback-client/store-policy.mjs',
-    'packages/snapback-client/store-runtime.mjs',
-  ];
   return {
     revision: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT, encoding: 'utf8' }).trim(),
     dirty: true,
-    files: paths.map(sourceDigest),
+    files: SOURCE_PATHS.map(sourceDigest),
   };
 }
 
@@ -910,6 +931,9 @@ function evidenceMarkdown(receipt) {
 **Run date:** ${DATE}
 **Source revision:** \`${receipt.source.revision}\` (dirty lane worktree)
 **Controlled run:** ${receipt.controlledRun.status}
+${receipt.controlledRun.status === 'PASS' ? `**Qualified server binary SHA-256:** \`${receipt.controlledRun.runtime.serverBinarySha256}\`
+**Retained runtime-readiness receipt:** \`${receipt.controlledRun.runtime.readinessReceipt.path}\` (SHA-256 \`${receipt.controlledRun.runtime.readinessReceipt.sha256}\`)
+` : ''}
 
 This is the fresh Fleet successor receipt. It does not rewrite LLP 0138's
 frozen evidence, flip the local-store carrier GAP, or change a capability row.
@@ -955,7 +979,13 @@ async function verifyRetainedArtifacts() {
       assert.match(gate.reason, /^SNAPBACK_FLEET_SANDBOX_SOCKET_BLOCKED:/u);
     }
   }
+  assert.deepEqual(
+    receipt.source.files.map(({ path }) => path),
+    SOURCE_PATHS,
+    'retained receipt must cover the exact Fleet source manifest',
+  );
   for (const file of receipt.source.files) {
+    assert.match(file.sha256, /^[0-9a-f]{64}$/u, `${file.path}: invalid source digest`);
     assert.equal(
       sha256Hex(await readFile(join(ROOT, file.path))),
       file.sha256,
@@ -976,11 +1006,50 @@ async function verifyRetainedArtifacts() {
       receipt.controlledRun.activation.deploymentId,
       activation.activation.deploymentId,
     );
+    // The retained runtime-readiness sidecar preserves the controlled run's
+    // digest-bound binary identity. Reopen only that tracked evidence chain:
+    // comparing with target/debug/snapback (or SNAPBACK_RUNTIME_BINARY) made
+    // the local proof depend on mutable ambient build output.
+    const readinessBytes = await readFile(RUNTIME_READINESS_PATH);
     assert.equal(
-      receipt.controlledRun.runtime.serverBinarySha256,
-      sha256Hex(await readFile(SERVER_BINARY)),
-      'retained receipt must remain bound to the exact server binary',
+      receipt.controlledRun.runtime.readinessReceipt.path,
+      relative(ROOT, RUNTIME_READINESS_PATH),
+      'retained receipt must name the dated runtime-readiness evidence',
     );
+    assert.match(
+      receipt.controlledRun.runtime.readinessReceipt.sha256,
+      /^[0-9a-f]{64}$/u,
+      'retained runtime-readiness evidence must have a digest',
+    );
+    assert.equal(
+      sha256Hex(readinessBytes),
+      receipt.controlledRun.runtime.readinessReceipt.sha256,
+      'retained runtime-readiness evidence drifted',
+    );
+    const readiness = JSON.parse(readinessBytes.toString('utf8'));
+    assert.equal(readiness.schemaVersion, 'snapback.runtime-readiness.v1');
+    assert.match(
+      receipt.controlledRun.runtime.serverBinarySha256,
+      /^[0-9a-f]{64}$/u,
+      'retained receipt must record the qualification binary digest',
+    );
+    assert.equal(
+      readiness.binary.sha256,
+      receipt.controlledRun.runtime.serverBinarySha256,
+      'retained runtime-readiness evidence must bind the workload binary',
+    );
+    assert.ok(Number.isSafeInteger(readiness.binary.bytes) && readiness.binary.bytes > 0);
+    assert.equal(readiness.qualification.probe, 'restricted-no-eval-handler-vm');
+    assert.equal(readiness.qualification.ok, true);
+    assert.equal(readiness.qualification.report.schemaVersion, 'snapback.runtime-qualify.v1');
+    assert.equal(readiness.qualification.report.ok, true);
+    assert.deepEqual(readiness.qualification.report.binary, readiness.buildIdentity);
+    assert.ok(Array.isArray(readiness.artifacts) && readiness.artifacts.length > 0);
+    for (const artifact of readiness.artifacts) {
+      assert.equal(typeof artifact.path, 'string');
+      assert.ok(Number.isSafeInteger(artifact.bytes) && artifact.bytes > 0);
+      assert.match(artifact.sha256, /^[0-9a-f]{64}$/u);
+    }
     assert.equal(receipt.summary.pass, 8);
     assert.equal(receipt.summary.blocked, 0);
   }
@@ -995,7 +1064,11 @@ async function verifyRetainedArtifacts() {
       predecessorEvidenceRewritten: false,
     });
   }
-  assert.equal(existsSync(EVIDENCE_PATH), true);
+  assert.equal(
+    await readFile(EVIDENCE_PATH, 'utf8'),
+    evidenceMarkdown(receipt),
+    'retained Fleet evidence prose drifted from the machine receipt',
+  );
   console.log(
     `PASS Fleet Observatory retained receipt: ${receipt.summary.pass}/8 PASS, ${receipt.summary.blocked} BLOCKED`,
   );
@@ -1065,6 +1138,7 @@ async function main() {
   };
   await mkdir(FIXTURE_DIR, { recursive: true });
   if (real) await writeFile(BUDGET_PATH, `${JSON.stringify(real.budgetFreeze, null, 2)}\n`);
+  if (real) await writeFile(RUNTIME_READINESS_PATH, real.retainedRuntimeReadiness);
   await writeFile(RECEIPT_PATH, `${JSON.stringify(receipt, null, 2)}\n`);
   await writeFile(EVIDENCE_PATH, evidenceMarkdown(receipt));
   console.log(JSON.stringify({

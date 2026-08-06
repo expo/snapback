@@ -1,0 +1,1021 @@
+{
+  "actorIdentity": {
+    "actors": {
+      "assignee": {
+        "principalSha256": "sha256:724bae7653c08f1eaa12153fcd7c47b5b1197148bd54a2315af9e547fc386722",
+        "sourceUserID": "_4MJeHV4T-qZb52fyNwQ9"
+      },
+      "creator": {
+        "principalSha256": "sha256:f018d2d1bf5ba7c32b6ef942cb6a26053e9fb39867ad3cfdcdea98a093b92add",
+        "sourceUserID": "FPEhfZQwiEMgpk3WnEY72"
+      },
+      "crew-admin": {
+        "principalSha256": "sha256:a97e33aa79ac94e6546525ad9203ae51d45855ae5ffecd5d443bc6bf10ea2f72",
+        "sourceUserID": "2wKdbVVF7qtnn5bx92sr9"
+      },
+      "ordinary-user": {
+        "principalSha256": "sha256:e63de4983bb3baadef40c4e6774238122d41179fe2a8629dc4c9dccdb335a011",
+        "sourceUserID": "9Fw3n6EQS8mzE126AFJxb"
+      },
+      "removed-member": {
+        "principalSha256": "sha256:147b5c930dfb8836e4fa38fcde4c5594b3753cb5380ee5f2c098c7a53b51e351",
+        "sourceUserID": "Gg4MskWt3M-ttzzlrJ9jn"
+      }
+    },
+    "mode": "fresh server-minted sessions; raw session carriers excluded"
+  },
+  "arm": "snapback-control",
+  "assistance": [
+    {
+      "at": "2026-08-06T19:40:56.887Z",
+      "kind": "governing-design",
+      "purpose": "ZB acceptance and immutable evidence contract",
+      "sequence": 1,
+      "source": "llp/0183-zerobugs-quality-surface.rfc.md"
+    },
+    {
+      "at": "2026-08-06T19:40:56.887Z",
+      "kind": "guide",
+      "purpose": "fresh owned server and non-vacuous check lifecycle",
+      "sequence": 2,
+      "source": "guide/testing/acceptance.md"
+    },
+    {
+      "at": "2026-08-06T19:40:56.887Z",
+      "kind": "landed-lane-evidence",
+      "purpose": "reuse source-oracle, actor, mutation, effect, and adapter checks",
+      "sequence": 3,
+      "source": "demos/zerobugs/control/tests/acceptance/lane2-live.mts..lane6a-live.mts"
+    }
+  ],
+  "attempt": "v1",
+  "browserIdentity": {
+    "chromePidRecordedInCleanup": true,
+    "mode": "real-headless-chrome",
+    "product": "Chrome/150.0.7871.187",
+    "profileOwnedAndRemovedAfterProcessExit": true,
+    "profileRoot": "/tmp",
+    "protocolVersion": "1.3",
+    "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/150.0.0.0 Safari/537.36",
+    "v8Version": "15.0.245.21"
+  },
+  "capabilityFacts": [
+    {
+      "id": "browser.chrome-control",
+      "status": "supported-local-control"
+    },
+    {
+      "id": "browser.auth-custody.reload",
+      "status": "gap"
+    },
+    {
+      "id": "browser.auth-custody.two-tab",
+      "status": "supported-local-control"
+    },
+    {
+      "id": "performance.raw-local-control",
+      "samplePolicy": "single raw Stage 0.5 observation",
+      "status": "supported-local-control"
+    },
+    {
+      "id": "performance.large-fixture",
+      "owner": "Lane 8",
+      "status": "gap"
+    },
+    {
+      "id": "performance.hot-profile",
+      "owner": "Lane 8",
+      "status": "gap"
+    }
+  ],
+  "checks": {
+    "counts": {
+      "fail": 1,
+      "gap": 2,
+      "missing": 0,
+      "pass": 10
+    },
+    "executed": 13,
+    "expected": 13,
+    "harness": {
+      "expectedChecks": 13,
+      "failed": 1,
+      "ok": false,
+      "passed": 10,
+      "shortfall": null,
+      "skipped": 2,
+      "total": 13
+    },
+    "missing": [],
+    "rows": [
+      {
+        "details": {
+          "expectedChecks": 13,
+          "rawMeasurementPolicy": "one raw sample per named path; no aggregate, score, margin, or cross-arm claim",
+          "receiptMode": "immutable live attempt"
+        },
+        "id": "gate-definition-and-receipt-assembly",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "browser": {
+            "chromePidRecordedInCleanup": true,
+            "mode": "real-headless-chrome",
+            "product": "Chrome/150.0.7871.187",
+            "profileOwnedAndRemovedAfterProcessExit": true,
+            "profileRoot": "/tmp",
+            "protocolVersion": "1.3",
+            "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/150.0.0.0 Safari/537.36",
+            "v8Version": "15.0.245.21"
+          },
+          "browserEnvironment": {
+            "chromeBinary": "CHROME_BIN",
+            "snapbackOutboundActions": "enabled",
+            "zbugsPin": "ZBUGS_PIN supplied by supervisor",
+            "zerobugsTestDefaults": "enabled"
+          },
+          "bundle": {
+            "bytes": 2620494,
+            "cssBytes": 96321,
+            "files": 18,
+            "javascriptBytes": 2064870
+          },
+          "fixtureIssues": 517,
+          "network": "loopback-only; normal identity profile except declared 900ms CDP mutation latency; cold reload disables HTTP cache",
+          "pinnedSourceCommit": "25c2c7308d3eb674d2d895022c9da11ef0c742fb",
+          "stack": [
+            "Snapback local Ibex/SQLite",
+            "zerobugs-control-composition.v1",
+            "Vite relay",
+            "headless Chrome/CDP"
+          ],
+          "targetProfile": "local-dev-sqlite-ibex",
+          "viteBuildDurationMs": 1964.348
+        },
+        "id": "full-stack-release-browser-and-network-identity",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "end": "list window phase ready with useful rows painted",
+          "profile": "local loopback; normal; browser cache default",
+          "samplesMs": [
+            737.652
+          ],
+          "start": "Page.navigate issued in a fresh owned Chrome profile",
+          "visibleRows": 40
+        },
+        "id": "normal-list-ready-raw-timing",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "end": "authenticated session phase, actor name, and list-ready state painted",
+          "profile": "local deterministic OAuth fixture and one-use email-code bootstrap",
+          "samplesMs": [
+            812.482
+          ],
+          "start": "primary mousedown/up/click Login activation"
+        },
+        "id": "login-round-trip-raw-timing",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "actorPublished": true,
+          "distinction": "IndexedDB rows are auth custody only; no Zerobugs query is admitted for offline retention.",
+          "listWindowReady": true,
+          "retainedQueryPayloadsClaimed": 0,
+          "storage": {
+            "databaseCount": 2,
+            "databases": [
+              {
+                "name": "snapback-auth-custody",
+                "stores": [
+                  {
+                    "count": 1,
+                    "name": "custody"
+                  },
+                  {
+                    "count": 0,
+                    "name": "leases"
+                  }
+                ],
+                "version": 1
+              },
+              {
+                "name": "snapback-rqs-store.v1",
+                "stores": [
+                  {
+                    "count": 0,
+                    "name": "entries"
+                  },
+                  {
+                    "count": 0,
+                    "name": "materializations"
+                  },
+                  {
+                    "count": 0,
+                    "name": "memberships"
+                  },
+                  {
+                    "count": 0,
+                    "name": "outbox"
+                  },
+                  {
+                    "count": 0,
+                    "name": "pageSets"
+                  },
+                  {
+                    "count": 1,
+                    "name": "storeMeta"
+                  }
+                ],
+                "version": 3
+              }
+            ],
+            "decodedBodyBytes": 17594170,
+            "localStorageEntries": 1,
+            "objectStoreCount": 8,
+            "readableCookieNames": 0,
+            "recordCount": 2,
+            "resourceCount": 187,
+            "sessionStorageEntries": 0,
+            "storageEstimate": {
+              "quota": 10737438140,
+              "usage": 19900
+            },
+            "transferBytes": 324428,
+            "visibleIssueRows": 40
+          }
+        },
+        "id": "authenticated-list-ready-and-custody",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "end": "pending optimistic issue overlay painted",
+          "profile": "CDP loopback latency 900ms, matching the Lane 6b representative mutation seam",
+          "samplesMs": [
+            8.514
+          ],
+          "start": "primary Save Issue activation"
+        },
+        "id": "optimistic-paint-raw-timing",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "end": "authoritative issue detail settlement painted",
+          "independentObserverTiming": "not measured in this browser sample; Lane 4/ZB3 owns observer convergence",
+          "paintToSettlementSamplesMs": [
+            504.817
+          ],
+          "start": "pending optimistic overlay painted",
+          "submitToSettlementSamplesMs": [
+            513.331
+          ]
+        },
+        "id": "optimistic-paint-to-settlement-raw-timing",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "end": "authenticated session and current list window ready",
+          "profile": "local loopback cold-online; same owned Chrome profile; IndexedDB retained",
+          "samplesMs": [
+            914.103
+          ],
+          "start": "full Page.navigate with Chrome HTTP cache disabled"
+        },
+        "id": "cold-reload-to-ready-raw-timing",
+        "status": "PASS"
+      },
+      {
+        "diagnostic": {
+          "code": "ERR_ASSERTION",
+          "details": null,
+          "id": "full-reload-adopts-authenticated-custody",
+          "message": "login consumes exactly one exchange\n\n0 !== 1\n",
+          "redacted": true
+        },
+        "id": "full-reload-adopts-authenticated-custody",
+        "status": "FAIL"
+      },
+      {
+        "details": {
+          "actorsEqual": true,
+          "firstTargetClosedBeforeSuccessorReload": true,
+          "secondTabExchangeRequests": 0,
+          "successorReloadSamplesMs": [
+            524.943
+          ],
+          "successorState": "authenticated list ready",
+          "tabsAuthenticatedFromOneExchange": 2,
+          "totalInitialLoginExchangeRequests": 0
+        },
+        "id": "two-tab-shared-custody-and-successor-ownership",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "afterFullReloadAndTwoTabHandoff": {
+            "databaseCount": 2,
+            "databases": [
+              {
+                "name": "snapback-auth-custody",
+                "stores": [
+                  {
+                    "count": 1,
+                    "name": "custody"
+                  },
+                  {
+                    "count": 0,
+                    "name": "leases"
+                  }
+                ],
+                "version": 1
+              },
+              {
+                "name": "snapback-rqs-store.v1",
+                "stores": [
+                  {
+                    "count": 0,
+                    "name": "entries"
+                  },
+                  {
+                    "count": 0,
+                    "name": "materializations"
+                  },
+                  {
+                    "count": 0,
+                    "name": "memberships"
+                  },
+                  {
+                    "count": 1,
+                    "name": "outbox"
+                  },
+                  {
+                    "count": 0,
+                    "name": "pageSets"
+                  },
+                  {
+                    "count": 1,
+                    "name": "storeMeta"
+                  }
+                ],
+                "version": 3
+              }
+            ],
+            "decodedBodyBytes": 17589446,
+            "localStorageEntries": 1,
+            "objectStoreCount": 8,
+            "readableCookieNames": 0,
+            "recordCount": 3,
+            "resourceCount": 184,
+            "sessionStorageEntries": 0,
+            "storageEstimate": {
+              "quota": 10737446664,
+              "usage": 28424
+            },
+            "transferBytes": 318504,
+            "visibleIssueRows": 40
+          },
+          "afterLogin": {
+            "databaseCount": 2,
+            "databases": [
+              {
+                "name": "snapback-auth-custody",
+                "stores": [
+                  {
+                    "count": 1,
+                    "name": "custody"
+                  },
+                  {
+                    "count": 0,
+                    "name": "leases"
+                  }
+                ],
+                "version": 1
+              },
+              {
+                "name": "snapback-rqs-store.v1",
+                "stores": [
+                  {
+                    "count": 0,
+                    "name": "entries"
+                  },
+                  {
+                    "count": 0,
+                    "name": "materializations"
+                  },
+                  {
+                    "count": 0,
+                    "name": "memberships"
+                  },
+                  {
+                    "count": 0,
+                    "name": "outbox"
+                  },
+                  {
+                    "count": 0,
+                    "name": "pageSets"
+                  },
+                  {
+                    "count": 1,
+                    "name": "storeMeta"
+                  }
+                ],
+                "version": 3
+              }
+            ],
+            "decodedBodyBytes": 17594170,
+            "localStorageEntries": 1,
+            "objectStoreCount": 8,
+            "readableCookieNames": 0,
+            "recordCount": 2,
+            "resourceCount": 187,
+            "sessionStorageEntries": 0,
+            "storageEstimate": {
+              "quota": 10737438140,
+              "usage": 19900
+            },
+            "transferBytes": 324428,
+            "visibleIssueRows": 40
+          },
+          "queryRetention": {
+            "admittedQueries": 0,
+            "retainedPayloadsClaimed": 0
+          },
+          "rawBearerValuesReadOrRetained": 0
+        },
+        "id": "custody-counters-account-for-browser-storage",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "owner": "deferred Lane 8 large/hot qualification job",
+          "reason": "The large fixture generator is inventoried but no canonical large control artifact is generated; normal data cannot stand in for it."
+        },
+        "id": "large-fixture-measurements",
+        "status": "GAP"
+      },
+      {
+        "details": {
+          "owner": "deferred Lane 8 large/hot qualification job",
+          "reason": "The hot-recent mutation/fanout profile is deferred with the frozen large fixture and has no runnable Stage 0.5 control workload."
+        },
+        "id": "hot-profile-measurements",
+        "status": "GAP"
+      }
+    ]
+  },
+  "cleanup": {
+    "ownership": "Every resource registered through the gate runner was cleaned in reverse ownership order.",
+    "results": [
+      {
+        "label": "ZB5 second tab CDP target/socket",
+        "reverseIndex": 0,
+        "status": "PASS",
+        "targets": [
+          {
+            "id": "FBDFA7813CC08B4C992F939B5A90D764",
+            "kind": "browser-target"
+          }
+        ]
+      },
+      {
+        "label": "ZB5 primary CDP target/socket",
+        "reverseIndex": 1,
+        "status": "PASS",
+        "targets": [
+          {
+            "id": "F7843BF2B0F6168320C26FA060FCE36B",
+            "kind": "browser-target"
+          }
+        ]
+      },
+      {
+        "label": "zerobugs-zb5 Chrome process/profile",
+        "reverseIndex": 2,
+        "status": "PASS",
+        "targets": [
+          {
+            "id": "69848",
+            "kind": "process"
+          },
+          {
+            "kind": "directory",
+            "path": "/tmp/zerobugs-zb5-DcP1ly"
+          }
+        ]
+      },
+      {
+        "label": "zb5 Vite dev relay",
+        "reverseIndex": 3,
+        "status": "PASS",
+        "targets": [
+          {
+            "id": "69683",
+            "kind": "process"
+          }
+        ]
+      },
+      {
+        "label": "zb5 gateway",
+        "reverseIndex": 4,
+        "status": "PASS",
+        "targets": [
+          {
+            "id": "69136",
+            "kind": "process"
+          },
+          {
+            "kind": "file",
+            "path": "/private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/zerobugs-zb5-Hy20Q4/zb5-gateway.ready.json"
+          },
+          {
+            "kind": "directory",
+            "path": "/private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/zerobugs-zb5-Hy20Q4/zb5-captures"
+          }
+        ]
+      },
+      {
+        "label": "Snapback server",
+        "reverseIndex": 5,
+        "status": "PASS",
+        "targets": [
+          {
+            "id": "67028",
+            "kind": "process"
+          }
+        ]
+      },
+      {
+        "label": "ZB5 scratch namespace",
+        "reverseIndex": 6,
+        "status": "PASS",
+        "targets": [
+          {
+            "kind": "directory",
+            "path": "/private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/zerobugs-zb5-Hy20Q4"
+          }
+        ]
+      }
+    ],
+    "status": "PASS",
+    "targets": [
+      {
+        "id": "FBDFA7813CC08B4C992F939B5A90D764",
+        "kind": "browser-target"
+      },
+      {
+        "id": "F7843BF2B0F6168320C26FA060FCE36B",
+        "kind": "browser-target"
+      },
+      {
+        "id": "69848",
+        "kind": "process"
+      },
+      {
+        "kind": "directory",
+        "path": "/tmp/zerobugs-zb5-DcP1ly"
+      },
+      {
+        "id": "69683",
+        "kind": "process"
+      },
+      {
+        "id": "69136",
+        "kind": "process"
+      },
+      {
+        "kind": "file",
+        "path": "/private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/zerobugs-zb5-Hy20Q4/zb5-gateway.ready.json"
+      },
+      {
+        "kind": "directory",
+        "path": "/private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/zerobugs-zb5-Hy20Q4/zb5-captures"
+      },
+      {
+        "id": "67028",
+        "kind": "process"
+      },
+      {
+        "kind": "directory",
+        "path": "/private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/zerobugs-zb5-Hy20Q4"
+      }
+    ]
+  },
+  "completedAt": "2026-08-06T19:41:14.385Z",
+  "componentReleaseIdentities": [
+    {
+      "id": "zerobugs-control-composition",
+      "path": "demos/zerobugs/control/composition/zerobugs-control-composition.v1.json",
+      "runtime": {
+        "entrypoint": "composition/server.mts",
+        "hostEnv": "ZERBUGS_GATEWAY_HOST",
+        "name": "bun",
+        "portEnv": "ZERBUGS_GATEWAY_PORT",
+        "readyFileEnv": "ZERBUGS_GATEWAY_READY_FILE",
+        "version": "1.3.12"
+      },
+      "sha256": "sha256:20f5979c095376fc4b89c9780bb3073da6ef147bf327a25c7a1ef24d38018012",
+      "snapbackRelease": {
+        "appId": "zerobugs-control",
+        "bundleHash": "snapback.v1:sessions:function:sha256:71c0388b762244a7b55d30b2dc60419067aa54f34c1613b665d4023c9f44c133",
+        "inputsHash": "snapback.v1:sessions:inputs:sha256:fc70057e0f736feb5cd8c35837eff291ce9df1102f5dc92f3d09da18272fb8b1",
+        "schemaHash": "snapback.v1:sessions:schema:sha256:556a1db53ffa60f7f7d8075fae3e6ae8c046f0ae28f262e29aaf74a3ad61f7bc",
+        "schemaVersion": "snapback.v1",
+        "targetProfileId": "local-dev-sqlite-ibex"
+      },
+      "status": "supported-local-control",
+      "version": 1
+    }
+  ],
+  "custodyAccounting": {
+    "admittedRetainableQueries": 0,
+    "afterFullReloadAndTwoTabHandoff": {
+      "databaseCount": 2,
+      "databases": [
+        {
+          "name": "snapback-auth-custody",
+          "stores": [
+            {
+              "count": 1,
+              "name": "custody"
+            },
+            {
+              "count": 0,
+              "name": "leases"
+            }
+          ],
+          "version": 1
+        },
+        {
+          "name": "snapback-rqs-store.v1",
+          "stores": [
+            {
+              "count": 0,
+              "name": "entries"
+            },
+            {
+              "count": 0,
+              "name": "materializations"
+            },
+            {
+              "count": 0,
+              "name": "memberships"
+            },
+            {
+              "count": 1,
+              "name": "outbox"
+            },
+            {
+              "count": 0,
+              "name": "pageSets"
+            },
+            {
+              "count": 1,
+              "name": "storeMeta"
+            }
+          ],
+          "version": 3
+        }
+      ],
+      "decodedBodyBytes": 17589446,
+      "localStorageEntries": 1,
+      "objectStoreCount": 8,
+      "readableCookieNames": 0,
+      "recordCount": 3,
+      "resourceCount": 184,
+      "sessionStorageEntries": 0,
+      "storageEstimate": {
+        "quota": 10737446664,
+        "usage": 28424
+      },
+      "transferBytes": 318504,
+      "visibleIssueRows": 40
+    },
+    "afterLogin": {
+      "databaseCount": 2,
+      "databases": [
+        {
+          "name": "snapback-auth-custody",
+          "stores": [
+            {
+              "count": 1,
+              "name": "custody"
+            },
+            {
+              "count": 0,
+              "name": "leases"
+            }
+          ],
+          "version": 1
+        },
+        {
+          "name": "snapback-rqs-store.v1",
+          "stores": [
+            {
+              "count": 0,
+              "name": "entries"
+            },
+            {
+              "count": 0,
+              "name": "materializations"
+            },
+            {
+              "count": 0,
+              "name": "memberships"
+            },
+            {
+              "count": 0,
+              "name": "outbox"
+            },
+            {
+              "count": 0,
+              "name": "pageSets"
+            },
+            {
+              "count": 1,
+              "name": "storeMeta"
+            }
+          ],
+          "version": 3
+        }
+      ],
+      "decodedBodyBytes": 17594170,
+      "localStorageEntries": 1,
+      "objectStoreCount": 8,
+      "readableCookieNames": 0,
+      "recordCount": 2,
+      "resourceCount": 187,
+      "sessionStorageEntries": 0,
+      "storageEstimate": {
+        "quota": 10737438140,
+        "usage": 19900
+      },
+      "transferBytes": 324428,
+      "visibleIssueRows": 40
+    },
+    "authNetworkFacts": {
+      "initialLoginAuthRequests": 6,
+      "initialLoginExchangeRequests": 0,
+      "reloadAuthRequests": 0,
+      "reloadExchangeRequests": 0
+    },
+    "mode": "real Chrome IndexedDB/Web Locks custody",
+    "rawSessionCarriersRetained": 0,
+    "retainedQueryPayloadsClaimed": 0
+  },
+  "diagnostics": [
+    {
+      "code": "ERR_ASSERTION",
+      "details": null,
+      "id": "full-reload-adopts-authenticated-custody",
+      "message": "login consumes exactly one exchange\n\n0 !== 1\n",
+      "redacted": true
+    }
+  ],
+  "execution": {
+    "harnessAcceptedCount": true,
+    "setupCompleted": true,
+    "status": "PASS"
+  },
+  "fixtureIdentity": {
+    "digest": "sha256:be2eb1f31fe95e0a5c46a5230d98b18d762449e330691cb73e33d578fec276bd",
+    "extensionId": "policy-extension-v1",
+    "id": "normal-seed-v1",
+    "mode": "fresh normal fixture plus policy extension; load verified by gate checks",
+    "rowCount": 3758,
+    "seedVersion": "normal-seed-v1.policy-extension-v1"
+  },
+  "gate": "zb5",
+  "generatedIdentities": [
+    {
+      "id": "schemaManifest",
+      "path": "demos/zerobugs/control/snapback/generated/schema.manifest.json",
+      "release": {
+        "appId": "zerobugs-control",
+        "bundleHash": "snapback.v1:sessions:function:sha256:71c0388b762244a7b55d30b2dc60419067aa54f34c1613b665d4023c9f44c133",
+        "inputsHash": "snapback.v1:sessions:inputs:sha256:fc70057e0f736feb5cd8c35837eff291ce9df1102f5dc92f3d09da18272fb8b1",
+        "schemaHash": "snapback.v1:sessions:schema:sha256:556a1db53ffa60f7f7d8075fae3e6ae8c046f0ae28f262e29aaf74a3ad61f7bc",
+        "schemaVersion": "snapback.v1",
+        "targetProfileId": "local-dev-sqlite-ibex"
+      },
+      "sha256": "sha256:a2a46a753008fe92272a2eb24cb43c57fba851be9dd64bef49b49b6fd8a95b96"
+    },
+    {
+      "id": "functionManifest",
+      "path": "demos/zerobugs/control/snapback/generated/functions.manifest.json",
+      "release": {
+        "appId": "zerobugs-control",
+        "bundleHash": "snapback.v1:sessions:function:sha256:71c0388b762244a7b55d30b2dc60419067aa54f34c1613b665d4023c9f44c133",
+        "inputsHash": "snapback.v1:sessions:inputs:sha256:fc70057e0f736feb5cd8c35837eff291ce9df1102f5dc92f3d09da18272fb8b1",
+        "schemaHash": "snapback.v1:sessions:schema:sha256:556a1db53ffa60f7f7d8075fae3e6ae8c046f0ae28f262e29aaf74a3ad61f7bc",
+        "schemaVersion": "snapback.v1",
+        "targetProfileId": "local-dev-sqlite-ibex"
+      },
+      "sha256": "sha256:7d66a60ff891ff2334d21e1d14162887209e4496af7b402806f8f9c0f20b9963"
+    },
+    {
+      "id": "capabilityManifest",
+      "path": "demos/zerobugs/control/snapback/generated/capability.manifest.json",
+      "release": {
+        "appId": "zerobugs-control",
+        "bundleHash": "snapback.v1:sessions:function:sha256:71c0388b762244a7b55d30b2dc60419067aa54f34c1613b665d4023c9f44c133",
+        "inputsHash": "snapback.v1:sessions:inputs:sha256:fc70057e0f736feb5cd8c35837eff291ce9df1102f5dc92f3d09da18272fb8b1",
+        "schemaHash": "snapback.v1:sessions:schema:sha256:556a1db53ffa60f7f7d8075fae3e6ae8c046f0ae28f262e29aaf74a3ad61f7bc",
+        "schemaVersion": "snapback.v0",
+        "targetProfileId": "local-dev-sqlite-ibex"
+      },
+      "sha256": "sha256:8f9212e82b140d1ebfbaa00ca55c7df02298ac8c1424ff7931a9d84a102947f7"
+    },
+    {
+      "id": "contractDataManifest",
+      "path": "demos/zerobugs/control/snapback/generated/contract-data.manifest.json",
+      "release": {
+        "appId": "zerobugs-control",
+        "bundleHash": "snapback.v1:sessions:function:sha256:71c0388b762244a7b55d30b2dc60419067aa54f34c1613b665d4023c9f44c133",
+        "inputsHash": "snapback.v1:sessions:inputs:sha256:fc70057e0f736feb5cd8c35837eff291ce9df1102f5dc92f3d09da18272fb8b1",
+        "schemaHash": "snapback.v1:sessions:schema:sha256:556a1db53ffa60f7f7d8075fae3e6ae8c046f0ae28f262e29aaf74a3ad61f7bc",
+        "schemaVersion": "snapback.v1",
+        "targetProfileId": "local-dev-sqlite-ibex"
+      },
+      "sha256": "sha256:6701d2e93f18dac78c54bfc0bf61ce691c9d0cad5a8faed19d7de8dbb37ddbff"
+    },
+    {
+      "id": "artifactIndex",
+      "path": "demos/zerobugs/control/snapback/generated/artifacts.json",
+      "release": {
+        "appId": "zerobugs-control",
+        "bundleHash": "snapback.v1:sessions:function:sha256:71c0388b762244a7b55d30b2dc60419067aa54f34c1613b665d4023c9f44c133",
+        "inputsHash": "snapback.v1:sessions:inputs:sha256:fc70057e0f736feb5cd8c35837eff291ce9df1102f5dc92f3d09da18272fb8b1",
+        "schemaHash": "snapback.v1:sessions:schema:sha256:556a1db53ffa60f7f7d8075fae3e6ae8c046f0ae28f262e29aaf74a3ad61f7bc",
+        "schemaVersion": "snapback.v1",
+        "targetProfileId": "local-dev-sqlite-ibex"
+      },
+      "sha256": "sha256:d35d3d6815093829a6633c19c70032ed66bc0501cdb977e0bb49095515e15b2b"
+    }
+  ],
+  "machineIdentity": {
+    "arch": "arm64",
+    "cpuCount": 18,
+    "hostnameSha256": "sha256:4a238cd09cfb162aa54334e6f1b3fba341960951bd6f36b2b01b6e77a72395c0",
+    "platform": "darwin"
+  },
+  "manifest": {
+    "id": "zerobugs-acceptance.v1",
+    "path": "demos/zerobugs/manifest/acceptance.v1.json",
+    "sha256": "sha256:3eb0280a5803da887cea371193f62ff372ac537efa24e7cd53b150afe0d1fc2c"
+  },
+  "network": "loopback-only; normal identity profile except declared 900ms CDP mutation latency; cold reload disables HTTP cache",
+  "outcome": "FAIL",
+  "rawArtifacts": [
+    {
+      "path": "demos/zerobugs/control/PLAN.md",
+      "sha256": "sha256:7615225d535f638e1650dafec42790d07ecce76fd0e687ced888a7a636239803"
+    },
+    {
+      "path": "demos/zerobugs/control/composition/zerobugs-control-composition.v1.json",
+      "sha256": "sha256:20f5979c095376fc4b89c9780bb3073da6ef147bf327a25c7a1ef24d38018012"
+    },
+    {
+      "path": "demos/zerobugs/control/snapback/generated/artifacts.json",
+      "sha256": "sha256:d35d3d6815093829a6633c19c70032ed66bc0501cdb977e0bb49095515e15b2b"
+    },
+    {
+      "path": "demos/zerobugs/control/snapback/generated/capability.manifest.json",
+      "sha256": "sha256:8f9212e82b140d1ebfbaa00ca55c7df02298ac8c1424ff7931a9d84a102947f7"
+    },
+    {
+      "path": "demos/zerobugs/control/snapback/generated/contract-data.manifest.json",
+      "sha256": "sha256:6701d2e93f18dac78c54bfc0bf61ce691c9d0cad5a8faed19d7de8dbb37ddbff"
+    },
+    {
+      "path": "demos/zerobugs/control/snapback/generated/functions.manifest.json",
+      "sha256": "sha256:7d66a60ff891ff2334d21e1d14162887209e4496af7b402806f8f9c0f20b9963"
+    },
+    {
+      "path": "demos/zerobugs/control/snapback/generated/schema.manifest.json",
+      "sha256": "sha256:a2a46a753008fe92272a2eb24cb43c57fba851be9dd64bef49b49b6fd8a95b96"
+    },
+    {
+      "path": "demos/zerobugs/control/source-inventory.v1.json",
+      "sha256": "sha256:e42a627f175f46100b5f88c5afd15bd098b09432f3473e83e09d64c26846816e"
+    },
+    {
+      "path": "demos/zerobugs/control/src/data/mutations.ts",
+      "sha256": "sha256:9b8663e1d8c67c44b913d10dbb53f8b3bac63add50a93c56213758ea660c38e6"
+    },
+    {
+      "path": "demos/zerobugs/control/src/data/snapback.ts",
+      "sha256": "sha256:b8443e31993ba49946af4aa127b4d4d350210c4c88512d875261ff8c9c87b6fc"
+    },
+    {
+      "path": "demos/zerobugs/control/tests/acceptance/gate-support.mjs",
+      "sha256": "sha256:52e514bc20ab2ac0dfba2639e7e07ac2f38f824836070c3847867afb221f2437"
+    },
+    {
+      "path": "demos/zerobugs/control/tests/acceptance/gates/zb5.mjs",
+      "sha256": "sha256:79196064a2cc3e6f408fc07021f653cdae79c62eea1bee694784813306d792fb"
+    },
+    {
+      "path": "demos/zerobugs/control/tests/acceptance/lane6b-live.mts",
+      "sha256": "sha256:b36d5e64e5f3761462e6699be077663277f8c2fcdba598a9094d1f31862bd994"
+    },
+    {
+      "path": "demos/zerobugs/control/tests/acceptance/stage-c-live.mjs",
+      "sha256": "sha256:49492abcd5afda6f0083cb0552bd38e42f3713f976efc59cb4832c7bf74552a4"
+    },
+    {
+      "path": "demos/zerobugs/control/tests/fixtures/fixture-digests.json",
+      "sha256": "sha256:56afa56a74f0edddfd71ac0e7a09f5c12bc1e2eaed9e2be2f2ad6c84c31d38b3"
+    },
+    {
+      "path": "demos/zerobugs/manifest/acceptance.v1.json",
+      "sha256": "sha256:3eb0280a5803da887cea371193f62ff372ac537efa24e7cd53b150afe0d1fc2c"
+    },
+    {
+      "path": "demos/zerobugs/stage0/inventory.v1.json",
+      "sha256": "sha256:0d7233897864c39f99ef5c46946da21ddfc8a404e6f0441c741c02192a43eaa3"
+    },
+    {
+      "path": "guide/auth/sessions-and-principals.md",
+      "sha256": "sha256:e868958cff234cfcb65bdae3aee84164370dc761274fc793b1afe25ec20ea61f"
+    },
+    {
+      "path": "guide/operating/network-profiles.md",
+      "sha256": "sha256:eecc308a4fb6e2768a11bb90611c05c39dca314cbee87a93ec07222185b0b9cc"
+    },
+    {
+      "path": "guide/testing/acceptance.md",
+      "sha256": "sha256:36217c23daac04ad360ed0866a6f76a17fd59e9d7aa8afa340f36513a4c2db75"
+    }
+  ],
+  "refusalFacts": [
+    {
+      "id": "performance-composite-score",
+      "status": "refused"
+    },
+    {
+      "id": "performance-unfrozen-margin",
+      "owner": "acceptance.v2 variability trials",
+      "status": "refused"
+    },
+    {
+      "admittedRetainableQueries": 0,
+      "id": "auth-custody-as-query-retention",
+      "status": "refused"
+    }
+  ],
+  "schemaVersion": "zerobugs-gate-receipt.v1",
+  "sourceAccounting": {
+    "browserGateExpectedChecks": 13,
+    "bundle": {
+      "bytes": 2620494,
+      "cssBytes": 96321,
+      "files": 18,
+      "javascriptBytes": 2064870
+    },
+    "lane2ExpectedChecks": 9,
+    "measurementSamples": 6,
+    "rawMeasurements": {
+      "coldReloadToReadyMs": 914.103,
+      "loginRoundTripMs": 812.482,
+      "normalListReadyMs": 737.652,
+      "optimisticMutation": {
+        "paintToSettlementMs": 504.817,
+        "submitToPaintMs": 8.514,
+        "submitToSettlementMs": 513.331
+      },
+      "twoTabSuccessorReloadMs": 524.943
+    }
+  },
+  "startedAt": "2026-08-06T19:40:56.887Z",
+  "targetIdentity": {
+    "appId": "zerobugs-control",
+    "bundleHash": "snapback.v1:sessions:function:sha256:71c0388b762244a7b55d30b2dc60419067aa54f34c1613b665d4023c9f44c133",
+    "id": "local-dev-sqlite-ibex",
+    "inputsHash": "snapback.v1:sessions:inputs:sha256:fc70057e0f736feb5cd8c35837eff291ce9df1102f5dc92f3d09da18272fb8b1",
+    "mode": "fresh local Ibex plus SQLite server",
+    "schemaHash": "snapback.v1:sessions:schema:sha256:556a1db53ffa60f7f7d8075fae3e6ae8c046f0ae28f262e29aaf74a3ad61f7bc",
+    "schemaVersion": "snapback.v1"
+  },
+  "workarounds": [
+    {
+      "id": "W-WINDOW",
+      "status": "measured in its source-faithful browser projection"
+    },
+    {
+      "id": "W-REDUCER",
+      "status": "one representative optimistic paint/settlement sample"
+    },
+    {
+      "id": "W-IDENTITY",
+      "status": "browser login resolves the server-bound crew fixture actor"
+    }
+  ]
+}

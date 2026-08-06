@@ -1,13 +1,29 @@
 # LLP 0176: Expo messaging golden-path program
 
 **Type:** Plan
-**Status:** Review
+**Status:** Accepted
 **Systems:** React/Expo, Client integration, Assets, Auth, Live queries,
 Ephemeral state, Code generation, Developer experience, Packaging, Local
 server lifecycle, Testing, Competitive evaluation
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-05
-**Revised:** 2026-08-06 (r) — Closed (q)'s per-OS nonclaim: text-only and one
+**Revised:** 2026-08-06 (t) — Recorded G4's registry-only result against the
+live 0.1.10 ten-package vector: clean external generation, Metro closure,
+local Expo export, and EAS stage-only inspection succeeded, but both fleet
+platforms stopped before Metro because the packaged runtime rejects generated
+`single_table_v1`; the published Expo package also predates E2's picker
+adapter, and release bundles retain supervised-development symbols. `m1` and
+`m2` were not reached (`C/F/D = 73/6/3` at the first blocker). Main contains
+the two runtime-source repairs but they are unpublished, so G4 remains failed
+awaiting a coherent successor release. This is simulator/emulator evidence
+explicitly NOT claiming LLP 0064; no paid EAS build or published release
+artifact beyond local export is claimed.
+2026-08-06 (s) — Accepted by the author (sitting ruling on the
+program recommendations): direction and ordering ratified with G0–G3
+complete and receipted; this does not close G4/G5. The same sitting ruled
+OQ4 and OQ5 (answers recorded in §Open questions) and authorized one real
+EAS development-client build per OS as G4 closure evidence.
+2026-08-06 (r) — Closed (q)'s per-OS nonclaim: text-only and one
 picked-image send now share the same typed `chat.commands.send` call under
 one ordinary session on a real iOS simulator and Android emulator (system
 photo pickers, delivery URLs rendered, the visible negative truthfully
@@ -854,6 +870,56 @@ explicitly labeled as *not* an 0064 claim, and the 0064 receipt itself moves
 to G5 alongside the device carrier that produces it — G4 must not report a
 per-OS capability claim its own evidence cannot support.
 
+**2026-08-06 G4 external 0.1.10 attempt — FAIL, retained as distribution
+proof.** The clean external repository at
+`/Users/ccheever/projects/snapback-g4-external` installed only public package
+names, with no source path, override, or monorepo edge. Codegen emitted one
+Sessions-mode `conversation` surface and `send` command. Metro resolved its
+entire Snapback closure from generated app files plus public `node_modules`;
+both local Expo exports completed; and the requested EAS stage-only archive
+contained only the app, generated backend, and registry manifest/lock.
+
+The proof consumes the live 0.1.10 vector under the fast-path provenance
+closed in
+[`issues/closed/20260803-first-npm-latest-promotion.md`](../issues/closed/20260803-first-npm-latest-promotion.md):
+the ten npm `latest` tarballs, including the first Expo-facade publication,
+were byte-identical to its retained ledger. This note cites that close-out and
+does not reopen its disposition; client bundle metrology was green on main at
+G4 start.
+
+Both fleet copies then failed before backend readiness or Metro with
+`SNAPBACK_CAPABILITY_UNSUPPORTED: target does not support required capability
+single_table_v1`. The runtime activation repair is on main at `f2b79cc6d`, and
+E2's provider-owned picker adapter is on main at `47b4a59ac`, but neither is in
+0.1.10. Directly passing the documented ImagePicker asset therefore also fails
+the published type boundary. Separately, both exported Hermes bundles retain
+`/_snapback/expo/v1/bootstrap` and
+`EXPO_PUBLIC_SNAPBACK_SUPERVISOR_ORIGIN`; no concrete bearer or origin leaked,
+but G4's stricter release-shape check fails.
+
+The proposed OQ5 metric was frozen before the external directory existed. At
+the first runtime blocker, approximately 11 minutes after `t0`, the cumulative
+vector was `C/F/D = 73/6/3` (`A = 82`); `m1` first live render and `m2` first
+committed/rendered image send were not reached. The requested bakeoff sources
+do not provide comparable action ledgers: Diary 0058's 26m03s Snapback versus
+11m15s Convex figures are full-app lanes, Diary 0059 gives line counts and paid
+EAS results but no time/command log, and Diary 0060 measures orchestration.
+The asymmetry and guarantee ledger are frozen in the receipt rather than
+converted into a false score.
+
+The platform receipts are
+[`20260806-g4-external-ios-simulator.md`](../demos/expo-golden-path-fixture/receipts/20260806-g4-external-ios-simulator.md)
+and
+[`20260806-g4-external-android-emulator.md`](../demos/expo-golden-path-fixture/receipts/20260806-g4-external-android-emulator.md);
+the complete verdict is
+[`20260806-g4-external-summary.md`](../demos/expo-golden-path-fixture/receipts/20260806-g4-external-summary.md).
+Neither platform reached its `G4_*_PASS` marker. These simulator/emulator
+receipts are explicitly **NOT an LLP 0064 claim**. No real EAS build ran—the
+paid build awaits author approval—and no published-package release artifact
+beyond local `expo export` is claimed. G4 remains open pending a successor
+registry release and rerun; the findings are tracked in
+[`issues/20260806-guide-gap-g4-live-0110-external-vector.md`](../issues/20260806-guide-gap-g4-live-0110-external-vector.md).
+
 ### G5 — secure physical-device carrier
 
 - Specify and review the physical-device discovery, secure transport, route
@@ -1029,15 +1095,33 @@ to create replacement primitives. Tickets include
    supply a path this Plan has not yet checked? If 0039 must be unfrozen,
    does that decision belong to this program at all, or is it a
    prerequisite this Plan can only name and wait on?
-4. Can a USB/port-forward physical-device path cover both OSes before G5, or
-   should real-device qualification wait for hosted HTTPS or the reviewed LAN
-   carrier?
-5. Which setup/ceremony metric is stable enough to compare against the
-   bakeoffs without rewarding omitted guarantees?
+4. **Ruled 2026-08-06:** the USB/port-forward path leads — Android rides the
+   supervisor's existing verified `adb reverse` machinery on a USB-attached
+   device; iOS adds a bounded `devicectl`/USB port-forward extension under
+   the same loopback-from-the-app posture, with nothing for LLP 0168 to
+   review (no LAN listener). Receipts are produced opportunistically when a
+   physical device is available; G4 does not block on them and ships
+   simulator/emulator evidence explicitly labeled as not an LLP 0064 claim.
+   Hosted HTTPS remains the hosted-target lane (LLP 0103/0105), not this
+   program's 0064 path. Fallback if iOS USB forwarding proves unreliable:
+   revisit hosted HTTPS despite the claim-separation cost.
+5. **Ruled 2026-08-06:** author actions (commands typed + files hand-edited
+   + decisions) from empty external repository to (m1) first rendered live
+   query and (m2) first committed image send is the primary metric;
+   wall-clock is recorded as secondary; a mandatory guarantees ledger
+   (settled Sessions auth, loopback-only listeners, typed contracts,
+   retained cold boot, truthful residue provenance) accompanies every
+   comparison so a shorter path that drops a guarantee is visibly
+   non-comparable. Baselines come from Diaries 0058–0060's recorded command
+   logs, with asymmetries stated, not from re-run competitor arms. The
+   metric definition is frozen in the G4 receipt before any number is
+   claimed.
 
 ## Status
 
-Review. This revision resolves the overlap among LLPs 0176–0181 at the document
+Accepted (2026-08-06). G0–G3 are complete with receipts; G4 is in flight
+against the live 0.1.10 vector; G5 remains parked behind LLP 0168's own
+gate. This revision resolves the overlap among LLPs 0176–0181 at the document
 level: 0176 is the program, 0179 owns the stable app vocabulary, 0180 adds one
 bounded command kind to it, and 0181 binds it to Expo environments. The first
 implementation work should be G0, followed by the G1 descriptor/binding spine;

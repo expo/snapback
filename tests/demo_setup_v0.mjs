@@ -18,6 +18,7 @@ assert.deepEqual([...demos.keys()].sort(), [
   'cursors-web',
   'dispatch-board',
   'file-drop',
+  'fleet-observatory-move1',
   'graffiti',
   'latency-kanban',
   'messaging-snapback',

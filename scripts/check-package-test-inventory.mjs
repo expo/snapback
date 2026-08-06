@@ -53,6 +53,7 @@ const inventories = [
       'comparator-profile.test.mjs',
       'dev-cli-diagnostics.test.mjs',
       'dev-loop.test.mjs',
+      'expo-device-forwarding.test.mjs',
       'expo-dev-loop.test.mjs',
       'fake-expo-push.test.mjs',
       'hosted-admission-producer.test.mjs',
@@ -624,7 +625,10 @@ const total = results.reduce((sum, result) => sum + result.count, 0);
 // here, which left this gate red on main. Registered on sight, not owned.
 // 223 -> 224 (2026-08-06, LLP 0181 E2): @expo/snapback-expo gains the
 // picker/content-URI asset-source adapter suite.
-assert.equal(total, 224, 'reviewed package/admin test count changed');
+// 224 -> 225 (2026-08-06, LLP 0176 OQ4): @expo/snapback-cli gains the
+// headless physical-device inventory, network-refusal, exact adb-reverse
+// ownership/rollback, readiness-shape, and iOS tooling-direction suite.
+assert.equal(total, 225, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }

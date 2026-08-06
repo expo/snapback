@@ -4,6 +4,31 @@ export const SUPERVISED_EXCHANGE_PATH: '/_snapback/expo/v1/bootstrap';
 
 export type ExpoDevicePlatform = 'ios' | 'android';
 export type AndroidExpoTransport = 'adb-reverse' | 'emulator-host-alias';
+export type AndroidAdbDeviceClass = 'emulator' | 'usb' | 'tcpip';
+export type ExpoDeviceClass = 'simulator' | 'emulator' | 'usb';
+
+export interface ExpoDeviceIdentity {
+  readonly serial: string | null;
+  readonly class: ExpoDeviceClass;
+}
+
+export interface AndroidAdbDevice {
+  readonly serial: string;
+  readonly state: string;
+  readonly class: AndroidAdbDeviceClass;
+  readonly transport: 'local' | 'network';
+  readonly details: readonly string[];
+}
+
+export interface IosDeviceInventoryEntry {
+  readonly serial: string;
+  readonly hardwareSerial: string | null;
+  readonly name: string | null;
+  readonly class: 'usb' | 'network';
+  readonly state: 'device' | 'unavailable' | 'unpaired';
+  readonly transportType: string;
+  readonly tunnelState: string;
+}
 
 export interface ExpoRoutingPlan {
   readonly platform: ExpoDevicePlatform;
@@ -22,6 +47,7 @@ export interface ExpoRoutingPlan {
   }>[];
   readonly fallback: Readonly<{ host: '10.0.2.2'; requiresAdbReverse: false }> | null;
   readonly androidSerial?: string | null;
+  readonly device: ExpoDeviceIdentity;
 }
 
 export interface ExpoOwnedListener {
@@ -40,7 +66,59 @@ export function createExpoRoutingPlan(options: Readonly<{
   bootstrapPort: number;
   androidTransport?: AndroidExpoTransport;
   androidSerial?: string | null;
+  androidDeviceClass?: 'emulator' | 'usb' | null;
 }>): ExpoRoutingPlan;
+
+export function createExpoRoutingReadiness(plan: ExpoRoutingPlan): Readonly<{
+  platform: ExpoDevicePlatform;
+  device: ExpoDeviceIdentity;
+  route: Readonly<{
+    transport: ExpoRoutingPlan['transport'];
+    bindingRouting: ExpoRoutingPlan['bindingRouting'];
+    appHost: string;
+    fallback: ExpoRoutingPlan['fallback'];
+  }>;
+}>;
+
+export function parseAdbDeviceInventory(stdout: string): readonly AndroidAdbDevice[];
+
+export function enumerateAndroidAdbDevices(options?: Readonly<{
+  adbBinary?: string;
+  run?: (...args: any[]) => any;
+  env?: Readonly<Record<string, string | undefined>>;
+}>): readonly AndroidAdbDevice[];
+
+export function selectAndroidAdbDevice(
+  devices: readonly AndroidAdbDevice[],
+  options?: Readonly<{ serial?: string | null }>,
+): Readonly<{ serial: string; class: 'emulator' | 'usb' }>;
+
+export function parseDevicectlDeviceInventory(
+  document: string | Readonly<Record<string, unknown>>,
+): readonly IosDeviceInventoryEntry[];
+
+export function enumerateIosDevices(options?: Readonly<{
+  xcrunBinary?: string;
+  run?: (...args: any[]) => any;
+  env?: Readonly<Record<string, string | undefined>>;
+}>): readonly IosDeviceInventoryEntry[];
+
+export function selectIosUsbDevice(
+  devices: readonly IosDeviceInventoryEntry[],
+  options: Readonly<{ udid: string }>,
+): Readonly<{ serial: string; class: 'usb' }>;
+
+export function inspectIosForwardingTools(options?: Readonly<{
+  xcrunBinary?: string;
+  iproxyBinary?: string;
+  run?: (...args: any[]) => any;
+  env?: Readonly<Record<string, string | undefined>>;
+}>): Readonly<Record<string, unknown>>;
+
+export function refuseUnsupportedIosUsbForwarding(
+  device: Readonly<{ serial: string; class: 'usb' }>,
+  options?: Readonly<Record<string, unknown>>,
+): never;
 
 export function installAndroidPortForwarding(
   plan: ExpoRoutingPlan,
@@ -72,6 +150,7 @@ export interface ExpoDevSupervisor {
   readonly state: 'ready' | 'authority-required';
   readonly correlationId: string;
   readonly supervisorGeneration: string;
+  readonly device: ExpoDeviceIdentity;
   readonly binding: Readonly<Record<string, unknown>>;
   readonly exchangeOrigin: string;
   readonly metroOrigin: string;

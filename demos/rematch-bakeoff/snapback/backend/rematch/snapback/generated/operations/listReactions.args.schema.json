@@ -1,0 +1,15 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/rematch/listReactions.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "conversationId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "conversationId"
+  ],
+  "title": "rematch:listReactions arguments",
+  "type": "object"
+}

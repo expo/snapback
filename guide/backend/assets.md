@@ -345,6 +345,17 @@ admin routes (`packages/snapback-vite/allowlist.mjs`). No app-owned Vite
 proxy is needed, and a relative URL such as
 `/__snapback/assets/public/<id>/display` works directly as an `<img src>`.
 
+The relay is a Vite-loop convenience, not a CORS requirement. The dev
+server's CORS lane admits loopback browser origins directly, and its
+preflight allows the TUS request headers (`tus-resumable`,
+`upload-offset`, `upload-length`, `upload-checksum`) and exposes the TUS
+response family (including `upload-offset`) to page JavaScript. A browser
+carrier with no Vite relay — Expo web is the common case — completes
+picker → `useSnapbackAssetUpload` → typed attach against the dev server
+origin with no app-authored proxy. Relative delivery URLs are the one
+relay-only affordance; a direct cross-origin app uses absolute delivery
+URLs against the dev server origin instead.
+
 Two facts shape the browser flow:
 
 - **Interactive uploads need sessions custody.** The ordinary browser and

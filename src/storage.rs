@@ -21,6 +21,8 @@ use serde_json::{Map, Number, Value, json};
 use sha2::{Digest, Sha256};
 use std::cell::{Cell, RefCell};
 use std::collections::{BTreeMap, BTreeSet};
+use std::fs::{self, File, OpenOptions};
+use std::io::Write as _;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 #[cfg(test)]
@@ -2456,12 +2458,7 @@ impl LocalDatabase {
     }
 
     fn refresh_writer_authority_manifest(&self) -> SnapbackResult<()> {
-        let manifest = match crate::seed_identity::strict_current_data_version_stream(&self.conn)? {
-            Some(stream_id) => {
-                crate::operation_ledger::active_coverage_manifest(&self.conn, &stream_id)?
-            }
-            None => None,
-        };
+        let manifest = registered_writer_coverage_manifest(&self.conn, self.path.as_deref())?;
         self.writer_authority.set_manifest(manifest)
     }
 
@@ -2686,36 +2683,42 @@ impl LocalDatabase {
         lanes.dedup();
         writers.sort();
         writers.dedup();
-        let tx = self.conn.transaction()?;
-        let stream_id = auth_invalidation::ensure_data_version_stream_in(&tx)?;
-        let manifest_version: i64 = tx.query_row(
-            "SELECT COALESCE(MAX(manifest_version), 0) + 1
-             FROM _snapback_operation_coverage_v1",
-            [],
-            |row| row.get(0),
-        )?;
-        let manifest_version = u64::try_from(manifest_version).map_err(|_| {
-            SnapbackError::error(
-                "SNAPBACK_OPERATION_COVERAGE_INVALID",
-                "storage",
-                "test coverage manifest version overflowed",
-            )
-        })?;
-        let manifest = crate::commit_envelope::OperationCoverageManifestV1 {
-            schema_version: 1,
-            manifest_version,
-            stream_id: stream_id.clone(),
-            covered_lanes: lanes.clone(),
-            writer_choke_points: writers.clone(),
-            coverage_digest: crate::operation_ledger::coverage_digest(
-                &stream_id,
+        let manifest = {
+            let _writer = self
+                .writer_authority
+                .enter(write_authority::LocalWriterLaneV1::OperationLedger)?;
+            let tx = self.conn.transaction()?;
+            let stream_id = auth_invalidation::ensure_data_version_stream_in(&tx)?;
+            let manifest_version: i64 = tx.query_row(
+                "SELECT COALESCE(MAX(manifest_version), 0) + 1
+                 FROM _snapback_operation_coverage_v1",
+                [],
+                |row| row.get(0),
+            )?;
+            let manifest_version = u64::try_from(manifest_version).map_err(|_| {
+                SnapbackError::error(
+                    "SNAPBACK_OPERATION_COVERAGE_INVALID",
+                    "storage",
+                    "test coverage manifest version overflowed",
+                )
+            })?;
+            let manifest = crate::commit_envelope::OperationCoverageManifestV1 {
+                schema_version: 1,
                 manifest_version,
-                &lanes,
-                &writers,
-            ),
+                stream_id: stream_id.clone(),
+                covered_lanes: lanes.clone(),
+                writer_choke_points: writers.clone(),
+                coverage_digest: crate::operation_ledger::coverage_digest(
+                    &stream_id,
+                    manifest_version,
+                    &lanes,
+                    &writers,
+                ),
+            };
+            crate::operation_ledger::register_coverage_in(&tx, &manifest, now_millis())?;
+            tx.commit()?;
+            manifest
         };
-        crate::operation_ledger::register_coverage_in(&tx, &manifest, now_millis())?;
-        tx.commit()?;
         self.writer_authority.arm_manifest(&self.conn, manifest)?;
         Ok(())
     }
@@ -3223,6 +3226,17 @@ impl LocalDatabase {
         // for an ordinary window larger than the current age, but it must not
         // turn a non-portable caller value into an apparently valid floor.
         validate_portable_timestamp_millis(now_ms)?;
+        // Journal retention is a process-owned system writer. On an armed
+        // fork it receives exactly the DELETE authority for
+        // `_snapback_changes`; it cannot write app rows, advance the storage
+        // version, or originate journal entries.
+        //
+        // @ref LLP 0165#derived-fork-authorizer-backed-net-diff--2026-08-06
+        //   — maintenance stays inside the registered writer class instead
+        //   of silently failing every sweep after coverage activation.
+        let _writer = self
+            .writer_authority
+            .enter(write_authority::LocalWriterLaneV1::JournalMaintenance)?;
         let tx = Transaction::new_unchecked(&self.conn, TransactionBehavior::Immediate)?;
         let head = current_version_on(&tx)?;
         let mut version_floor = head.saturating_sub(retain_versions);
@@ -7771,7 +7785,9 @@ fn load_schema_manifest_from_connection(
 pub(crate) fn active_schema_manifest_from_connection(
     conn: &Connection,
 ) -> SnapbackResult<Option<SchemaManifest>> {
-    Ok(auth_mode::inspect_for_open(conn)?.active_manifest().cloned())
+    Ok(auth_mode::inspect_for_open(conn)?
+        .active_manifest()
+        .cloned())
 }
 
 /// Resolve one schema-checked room membership projection on any SQLite
@@ -10725,6 +10741,345 @@ pub(crate) struct RegisteredSystemWriterV1 {
     _token: write_authority::GeneratedWriterTokenV1,
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ForkWriterCoverageGapV1<'a> {
+    schema_version: &'static str,
+    stream_id: &'a str,
+    expected_manifest_version: u64,
+    expected_manifest_digest: &'a str,
+    detected_at_ms: u64,
+    reason: &'a str,
+}
+
+fn persist_fork_writer_coverage_gap(
+    path: &Path,
+    stream_id: &str,
+    expected_manifest_version: u64,
+    expected_manifest_digest: &str,
+    detected_at_ms: u64,
+    reason: &str,
+) -> SnapbackResult<()> {
+    let gap_path = path.with_file_name(crate::instance_fork::APP_ROW_COVERAGE_GAP_FILE);
+    let body = serde_json::to_vec(&ForkWriterCoverageGapV1 {
+        schema_version: "snapback.fork-app-row-coverage-gap.v1",
+        stream_id,
+        expected_manifest_version,
+        expected_manifest_digest,
+        detected_at_ms,
+        reason,
+    })
+    .map_err(|error| {
+        SnapbackError::error(
+            crate::instance_fork::WRITER_COVERAGE_GAP_CODE,
+            "instanceFork",
+            format!("encode durable fork writer-coverage gap: {error}"),
+        )
+    })?;
+    match OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&gap_path)
+    {
+        Ok(mut file) => {
+            file.write_all(&body).map_err(|error| {
+                SnapbackError::error(
+                    crate::instance_fork::WRITER_COVERAGE_GAP_CODE,
+                    "instanceFork",
+                    format!("write durable fork writer-coverage gap: {error}"),
+                )
+            })?;
+            file.sync_all().map_err(|error| {
+                SnapbackError::error(
+                    crate::instance_fork::WRITER_COVERAGE_GAP_CODE,
+                    "instanceFork",
+                    format!("sync durable fork writer-coverage gap: {error}"),
+                )
+            })?;
+            File::open(gap_path.parent().unwrap_or_else(|| Path::new(".")))
+                .and_then(|directory| directory.sync_all())
+                .map_err(|error| {
+                    SnapbackError::error(
+                        crate::instance_fork::WRITER_COVERAGE_GAP_CODE,
+                        "instanceFork",
+                        format!("sync fork writer-coverage gap directory: {error}"),
+                    )
+                })?;
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {}
+        Err(error) => {
+            return Err(SnapbackError::error(
+                crate::instance_fork::WRITER_COVERAGE_GAP_CODE,
+                "instanceFork",
+                format!("create durable fork writer-coverage gap: {error}"),
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn writer_coverage_gap_error(
+    reason: &str,
+    stream_id: &str,
+    expected_manifest_version: u64,
+    expected_manifest_digest: &str,
+) -> SnapbackError {
+    SnapbackError::error(
+        crate::instance_fork::WRITER_COVERAGE_GAP_CODE,
+        "instanceFork",
+        "registered writer coverage was discontinuous; recreate the fork",
+    )
+    .with_detail("reason", reason.to_owned())
+    .with_detail("streamId", stream_id.to_owned())
+    .with_detail("expectedManifestVersion", expected_manifest_version)
+    .with_detail(
+        "expectedManifestDigest",
+        expected_manifest_digest.to_owned(),
+    )
+}
+
+fn break_registered_writer_coverage(
+    conn: &Connection,
+    path: Option<&Path>,
+    stream_id: &str,
+    expected_manifest_version: u64,
+    expected_manifest_digest: &str,
+    reason: &str,
+    fork_evidence_present: bool,
+) -> SnapbackResult<crate::commit_envelope::OperationCoverageManifestV1> {
+    let detected_at_ms = now_millis();
+    let sidecar = if fork_evidence_present {
+        path.map(|path| {
+            persist_fork_writer_coverage_gap(
+                path,
+                stream_id,
+                expected_manifest_version,
+                expected_manifest_digest,
+                detected_at_ms,
+                reason,
+            )
+        })
+        .transpose()
+    } else {
+        Ok(None)
+    };
+    let durable_row = crate::operation_ledger::break_operation_coverage_continuity(
+        conn,
+        stream_id,
+        expected_manifest_version,
+        expected_manifest_digest,
+        detected_at_ms,
+        reason,
+    );
+    if sidecar.is_err() && durable_row.is_err() {
+        return Err(writer_coverage_gap_error(
+            reason,
+            stream_id,
+            expected_manifest_version,
+            expected_manifest_digest,
+        )
+        .with_detail("durableGapRecord", "failed"));
+    }
+    Err(writer_coverage_gap_error(
+        reason,
+        stream_id,
+        expected_manifest_version,
+        expected_manifest_digest,
+    ))
+}
+
+/// Reconstruct one process-owned writable connection's coverage authority.
+/// The manifest, monotonic continuity row, active stream, and both derived-
+/// fork receipt carriers must agree before the authorizer can be installed.
+/// Any contradiction is durably irreversible before the connection refuses.
+///
+/// @ref LLP 0165#derived-fork-authorizer-backed-net-diff--2026-08-06 — every
+/// registered writer joins the same continuous fork-point-to-head boundary.
+fn registered_writer_coverage_manifest(
+    conn: &Connection,
+    path: Option<&Path>,
+) -> SnapbackResult<Option<crate::commit_envelope::OperationCoverageManifestV1>> {
+    let gap_file_present = path.is_some_and(|path| {
+        path.with_file_name(crate::instance_fork::APP_ROW_COVERAGE_GAP_FILE)
+            .exists()
+    });
+    let database_receipt = conn
+        .query_row(
+            "SELECT value FROM _snapback_meta WHERE key=?1",
+            [crate::instance_fork::APP_ROW_COVERAGE_META_KEY],
+            |row| row.get::<_, String>(0),
+        )
+        .optional()?;
+    let file_receipt = match path.map(|path| {
+        fs::read(path.with_file_name(crate::instance_fork::APP_ROW_COVERAGE_RECEIPT_FILE))
+    }) {
+        Some(Ok(body)) => Some(body),
+        Some(Err(error)) if error.kind() == std::io::ErrorKind::NotFound => None,
+        Some(Err(error)) => {
+            return Err(SnapbackError::error(
+                crate::instance_fork::WRITER_COVERAGE_GAP_CODE,
+                "instanceFork",
+                format!("read fork writer-coverage receipt: {error}"),
+            ));
+        }
+        None => None,
+    };
+    let fork_evidence_present = database_receipt.is_some() || file_receipt.is_some();
+    let receipt = match (database_receipt.as_deref(), file_receipt.as_deref()) {
+        (None, None) => None,
+        (Some(database), Some(file)) => {
+            let database: crate::instance_fork::ForkAppRowCoverageReceiptV1 =
+                serde_json::from_str(database).map_err(|_| {
+                    SnapbackError::error(
+                        crate::instance_fork::WRITER_COVERAGE_GAP_CODE,
+                        "instanceFork",
+                        "database writer-coverage receipt is malformed",
+                    )
+                })?;
+            let file: crate::instance_fork::ForkAppRowCoverageReceiptV1 =
+                serde_json::from_slice(file).map_err(|_| {
+                    SnapbackError::error(
+                        crate::instance_fork::WRITER_COVERAGE_GAP_CODE,
+                        "instanceFork",
+                        "file writer-coverage receipt is malformed",
+                    )
+                })?;
+            if database != file {
+                return break_registered_writer_coverage(
+                    conn,
+                    path,
+                    &database.data_version_stream,
+                    database.manifest_version,
+                    &database.manifest_digest,
+                    "fork-coverage-receipts-disagree",
+                    true,
+                )
+                .map(Some);
+            }
+            Some(database)
+        }
+        (Some(database), None) => {
+            let receipt: crate::instance_fork::ForkAppRowCoverageReceiptV1 =
+                serde_json::from_str(database).map_err(|_| {
+                    SnapbackError::error(
+                        crate::instance_fork::WRITER_COVERAGE_GAP_CODE,
+                        "instanceFork",
+                        "sole database writer-coverage receipt is malformed",
+                    )
+                })?;
+            return break_registered_writer_coverage(
+                conn,
+                path,
+                &receipt.data_version_stream,
+                receipt.manifest_version,
+                &receipt.manifest_digest,
+                "fork-coverage-file-missing",
+                true,
+            )
+            .map(Some);
+        }
+        (None, Some(file)) => {
+            let receipt: crate::instance_fork::ForkAppRowCoverageReceiptV1 =
+                serde_json::from_slice(file).map_err(|_| {
+                    SnapbackError::error(
+                        crate::instance_fork::WRITER_COVERAGE_GAP_CODE,
+                        "instanceFork",
+                        "sole file writer-coverage receipt is malformed",
+                    )
+                })?;
+            return break_registered_writer_coverage(
+                conn,
+                path,
+                &receipt.data_version_stream,
+                receipt.manifest_version,
+                &receipt.manifest_digest,
+                "fork-coverage-database-receipt-missing",
+                true,
+            )
+            .map(Some);
+        }
+    };
+
+    let current_stream = crate::seed_identity::strict_current_data_version_stream(conn)?;
+    let expected_stream = receipt
+        .as_ref()
+        .map(|receipt| receipt.data_version_stream.as_str())
+        .or(current_stream.as_deref());
+    let Some(expected_stream) = expected_stream else {
+        return Ok(None);
+    };
+    let manifest = current_stream
+        .as_deref()
+        .filter(|stream| *stream == expected_stream)
+        .map(|stream| crate::operation_ledger::active_coverage_manifest(conn, stream))
+        .transpose()?
+        .flatten();
+    let continuity = crate::operation_ledger::operation_coverage_continuity(conn, expected_stream)?;
+    let expectation = receipt
+        .as_ref()
+        .map(|receipt| (receipt.manifest_version, receipt.manifest_digest.as_str()))
+        .or_else(|| {
+            continuity.as_ref().map(|continuity| {
+                (
+                    continuity.expected_manifest_version,
+                    continuity.expected_coverage_digest.as_str(),
+                )
+            })
+        })
+        .or_else(|| {
+            manifest
+                .as_ref()
+                .map(|manifest| (manifest.manifest_version, manifest.coverage_digest.as_str()))
+        });
+    let Some((expected_version, expected_digest)) = expectation else {
+        return Ok(None);
+    };
+    let valid = !gap_file_present
+        && current_stream.as_deref() == Some(expected_stream)
+        && manifest.as_ref().is_some_and(|manifest| {
+            manifest.manifest_version == expected_version
+                && manifest.coverage_digest == expected_digest
+        })
+        && continuity.as_ref().is_some_and(|continuity| {
+            continuity.state == "continuous"
+                && continuity.expected_manifest_version == expected_version
+                && continuity.expected_coverage_digest == expected_digest
+        })
+        && receipt.as_ref().is_none_or(|receipt| {
+            manifest.as_ref().is_some_and(|manifest| {
+                receipt.covered_lanes == manifest.covered_lanes
+                    && receipt.writer_choke_points == manifest.writer_choke_points
+            })
+        });
+    if !valid {
+        let reason = if gap_file_present {
+            "durable-coverage-gap-already-recorded"
+        } else if current_stream.as_deref() != Some(expected_stream) {
+            "active-stream-mismatch"
+        } else if continuity
+            .as_ref()
+            .is_some_and(|value| value.state == "broken")
+        {
+            "coverage-continuity-broken"
+        } else if manifest.is_none() {
+            "active-manifest-missing"
+        } else {
+            "coverage-manifest-or-continuity-mismatch"
+        };
+        return break_registered_writer_coverage(
+            conn,
+            path,
+            expected_stream,
+            expected_version,
+            expected_digest,
+            reason,
+            fork_evidence_present,
+        )
+        .map(Some);
+    }
+    Ok(manifest)
+}
+
 impl RegisteredSystemWriterV1 {
     pub(crate) fn conn(&self) -> &Connection {
         &self.conn
@@ -10746,10 +11101,7 @@ pub(crate) fn open_registered_system_writer_v1(
     if let Some(schema) = active_schema_manifest_from_connection(&conn)? {
         authority.set_schema(&schema)?;
     }
-    let manifest = match crate::seed_identity::strict_current_data_version_stream(&conn)? {
-        Some(stream_id) => crate::operation_ledger::active_coverage_manifest(&conn, &stream_id)?,
-        None => None,
-    };
+    let manifest = registered_writer_coverage_manifest(&conn, Some(path))?;
     authority.set_manifest(manifest)?;
     authority.install(&conn)?;
     let lane = match purpose {
@@ -27279,6 +27631,7 @@ mod guarded_commit_tests {
             write_authority::LocalWriterLaneV1::VectorIndex,
             write_authority::LocalWriterLaneV1::PushRegistry,
             write_authority::LocalWriterLaneV1::JobAndCronState,
+            write_authority::LocalWriterLaneV1::JournalMaintenance,
             write_authority::LocalWriterLaneV1::OperationLedger,
             write_authority::LocalWriterLaneV1::HistoryAndCheckpoint,
             write_authority::LocalWriterLaneV1::BranchRegistry,
@@ -27350,12 +27703,16 @@ mod guarded_commit_tests {
             "items"
         );
         assert_authorization_denied(
-            db.conn.execute("ATTACH DATABASE ':memory:' AS attached", []),
+            db.conn
+                .execute("ATTACH DATABASE ':memory:' AS attached", []),
             "ATTACH",
         );
         assert_authorization_denied(db.conn.execute("DETACH DATABASE main", []), "DETACH");
         for (sql, operation) in [
-            ("CREATE TEMP TABLE temp_items(value TEXT)", "temporary table"),
+            (
+                "CREATE TEMP TABLE temp_items(value TEXT)",
+                "temporary table",
+            ),
             (
                 "CREATE TEMP VIEW temp_items_view AS SELECT * FROM items",
                 "temporary view",
@@ -27365,7 +27722,10 @@ mod guarded_commit_tests {
                 "temporary trigger",
             ),
             ("CREATE TABLE escaped_items(value TEXT)", "ordinary DDL"),
-            ("ALTER TABLE items RENAME TO items_alias", "covered-table rename"),
+            (
+                "ALTER TABLE items RENAME TO items_alias",
+                "covered-table rename",
+            ),
         ] {
             assert_authorization_denied(db.conn.execute(sql, []), operation);
         }
@@ -27423,15 +27783,14 @@ mod guarded_commit_tests {
         let directory = tempfile::tempdir().expect("registered writer fixture");
         let path = directory.path().join("armed.sqlite3");
         let mut db = LocalDatabase::open(&path).expect("file database");
-        db.apply_schema(schema()).expect("apply registered writer schema");
+        db.apply_schema(schema())
+            .expect("apply registered writer schema");
         db.activate_local_target_operation_coverage(1)
             .expect("arm registered writer database");
 
-        let second = open_registered_system_writer_v1(
-            &path,
-            RegisteredSystemWriterPurposeV1::VectorIndex,
-        )
-        .expect("open registered vector writer");
+        let second =
+            open_registered_system_writer_v1(&path, RegisteredSystemWriterPurposeV1::VectorIndex)
+                .expect("open registered vector writer");
         assert!(
             second
                 .conn()
@@ -27450,8 +27809,18 @@ mod guarded_commit_tests {
              VALUES('second-bypass',1,1,1,'denied')",
             [],
         )));
+        assert!(denied(
+            second
+                .conn()
+                .execute("INSERT INTO _snapback_changes DEFAULT VALUES", [],)
+        ));
+        assert!(denied(
+            second
+                .conn()
+                .execute("DELETE FROM _snapback_operation_coverage_v1", [],)
+        ));
         assert!(denied(second.conn().execute(
-            "INSERT INTO _snapback_changes DEFAULT VALUES",
+            "DELETE FROM _snapback_operation_coverage_continuity_v1",
             [],
         )));
         {
@@ -27579,7 +27948,7 @@ mod guarded_commit_tests {
     }
 
     #[test]
-    fn agent_safe_app_effective_coverage_rejects_subset_superset_and_removed_manifests() {
+    fn agent_safe_app_effective_coverage_rejects_subset_superset_and_manifest_removal() {
         let exact_lanes = vec![
             crate::operation_ledger::ORDINARY_MUTATION_LANE_V1.to_owned(),
             crate::operation_ledger::HOST_CHILD_MUTATION_LANE_V1.to_owned(),
@@ -27626,18 +27995,37 @@ mod guarded_commit_tests {
                 .agent_safe_exact_operation_coverage_active()
                 .unwrap()
         );
-        removed
+        let denied = removed
             .conn
             .execute("DELETE FROM _snapback_operation_coverage_v1", [])
-            .expect("remove durable activation");
-        removed
-            .refresh_writer_authority_manifest()
-            .expect("refresh removed activation");
+            .expect_err("armed coverage carrier deletion must be denied");
         assert!(
-            !removed
-                .agent_safe_exact_operation_coverage_active()
-                .unwrap()
+            matches!(
+                denied,
+                rusqlite::Error::SqliteFailure(failure, _)
+                    if failure.code == rusqlite::ErrorCode::AuthorizationForStatementDenied
+            ),
+            "manifest removal returned {denied:?}"
         );
+        assert!(
+            removed
+                .agent_safe_exact_operation_coverage_active()
+                .unwrap(),
+            "denied carrier DML leaves the exact coverage cut active"
+        );
+        removed
+            .install_operation_coverage_for_test(
+                vec![
+                    crate::operation_ledger::ORDINARY_MUTATION_LANE_V1.to_owned(),
+                    crate::operation_ledger::HOST_CHILD_MUTATION_LANE_V1.to_owned(),
+                ],
+                crate::operation_ledger::ORDINARY_MUTATION_WRITERS_V1
+                    .into_iter()
+                    .chain(crate::operation_ledger::HOST_CHILD_MUTATION_WRITERS_V1)
+                    .map(str::to_owned)
+                    .collect(),
+            )
+            .expect("re-arm releases SQLite cache memory through the admitted pragma path");
     }
 
     #[test]

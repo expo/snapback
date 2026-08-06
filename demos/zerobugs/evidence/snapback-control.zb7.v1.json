@@ -1,0 +1,671 @@
+{
+  "actorIdentity": {
+    "declaredActors": [
+      "ordinary-user",
+      "creator",
+      "assignee",
+      "crew-admin",
+      "removed-member"
+    ],
+    "mode": "fresh bound sessions verified by landed lane setup checks"
+  },
+  "arm": "snapback-control",
+  "assistance": [
+    {
+      "at": "2026-08-06T19:45:13.977Z",
+      "kind": "governing-design",
+      "purpose": "ZB acceptance and immutable evidence contract",
+      "sequence": 1,
+      "source": "llp/0183-zerobugs-quality-surface.rfc.md"
+    },
+    {
+      "at": "2026-08-06T19:45:13.977Z",
+      "kind": "guide",
+      "purpose": "fresh owned server and non-vacuous check lifecycle",
+      "sequence": 2,
+      "source": "guide/testing/acceptance.md"
+    },
+    {
+      "at": "2026-08-06T19:45:13.977Z",
+      "kind": "landed-lane-evidence",
+      "purpose": "reuse source-oracle, actor, mutation, effect, and adapter checks",
+      "sequence": 3,
+      "source": "demos/zerobugs/control/tests/acceptance/lane2-live.mts..lane6a-live.mts"
+    }
+  ],
+  "attempt": "v1",
+  "browserIdentity": {
+    "mode": "not-used-headless-server-gate",
+    "owner": "browser-only facts are assigned to ZB5-ZB7"
+  },
+  "capabilityFacts": [
+    {
+      "id": "recovery.gateway-process-restart",
+      "status": "supported-local-control"
+    },
+    {
+      "id": "effect.fail-before-send-retry",
+      "status": "supported-local-control"
+    },
+    {
+      "id": "effect.fail-after-send-ambiguity",
+      "status": "supported-local-control"
+    },
+    {
+      "id": "asset.missing-delivery-404",
+      "status": "supported-local-control"
+    },
+    {
+      "id": "route.injected-500",
+      "owner": "D7",
+      "status": "gap"
+    },
+    {
+      "id": "deployment.public-tls",
+      "owner": "D8",
+      "status": "gap"
+    },
+    {
+      "id": "identity.real-oauth",
+      "owner": "D7",
+      "status": "gap"
+    },
+    {
+      "id": "effect.production-providers",
+      "owner": "D7",
+      "status": "gap"
+    },
+    {
+      "id": "asset.production-provider",
+      "owner": "D7/D8",
+      "status": "gap"
+    },
+    {
+      "id": "recovery.backup-restore-release",
+      "owner": "D8",
+      "status": "gap"
+    },
+    {
+      "id": "deployment.hosted-target",
+      "owner": "D8",
+      "status": "gap"
+    }
+  ],
+  "checks": {
+    "counts": {
+      "fail": 0,
+      "gap": 10,
+      "missing": 0,
+      "pass": 10
+    },
+    "executed": 20,
+    "expected": 20,
+    "harness": {
+      "expectedChecks": 20,
+      "failed": 0,
+      "ok": true,
+      "passed": 10,
+      "shortfall": null,
+      "skipped": 10,
+      "total": 20
+    },
+    "missing": [],
+    "rows": [
+      {
+        "details": {
+          "expectedChecks": 20,
+          "localLiveChecks": 9,
+          "receiptMode": "immutable live attempt",
+          "requiredProductionGaps": 10
+        },
+        "id": "gate-definition-and-receipt-assembly",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "exercise": "fresh live Lane 5 composition run inside ZB7; not receipt citation alone",
+          "lane": "lane5",
+          "sourceCheck": "effect-fault-before-send-retries-from-durable-intent-once",
+          "sourceExpectedChecks": 16,
+          "sourceReceipt": "zerobugs-lane5-live.v1"
+        },
+        "id": "effect-fault-before-send-live-retry",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "exercise": "fresh live Lane 5 composition run inside ZB7; not receipt citation alone",
+          "lane": "lane5",
+          "sourceCheck": "effect-fault-after-send-is-explicitly-ambiguous-and-fenced",
+          "sourceExpectedChecks": 16,
+          "sourceReceipt": "zerobugs-lane5-live.v1"
+        },
+        "id": "effect-fault-after-send-live-ambiguity-fence",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "exercise": "fresh five-MIME upload/delivery/cleanup inventory in this ZB7 server namespace",
+          "lane": "lane5",
+          "sourceCheck": "route-07-upload-five-types-server-policy-delivery-and-cleanup",
+          "sourceExpectedChecks": 16,
+          "sourceReceipt": "zerobugs-lane5-live.v1"
+        },
+        "id": "asset-upload-delivery-and-cleanup-inventory-live",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "authenticatedQueryStatus": 200,
+          "carrier": "HttpOnly gateway cookie backed by a server-minted Snapback session",
+          "rawCookieRetained": false
+        },
+        "id": "gateway-session-established-before-process-fault",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "gatewayUnavailableObserved": true,
+          "sameSnapbackServerStayedRunning": true,
+          "signal": "owned process-tree stop"
+        },
+        "id": "gateway-kill-is-observed-mid-session",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "releaseIdentityStable": true,
+          "samePort": true,
+          "startupNonceRotated": true,
+          "targetProfile": "local-dev-sqlite-ibex"
+        },
+        "id": "gateway-restarts-on-same-port-with-same-release",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "gatewayPortStable": true,
+          "gatewayStartupIdentityRotated": true,
+          "postRestartStatus": 200,
+          "preFaultStatus": 200,
+          "rawCookieRetained": false,
+          "sessionReminted": false
+        },
+        "id": "preexisting-session-recovers-after-gateway-restart",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "cleanupRequiredForMissingProbe": false,
+          "pathClass": "/assets/<well-formed-missing-key>",
+          "publishedMetadataRows": 0,
+          "status": 404
+        },
+        "id": "missing-asset-route-returns-404",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "cleanupOrder": "reverse ownership; processes before scratch deletion",
+          "finalResultLocation": "receipt.cleanup",
+          "gateRunnerHardFailureOnCleanupError": true,
+          "ownedResourceClasses": [
+            "Snapback process/database/readiness namespace",
+            "Lane 5 child gateway/capture namespace",
+            "first stopped gateway readiness carrier",
+            "second live gateway process/readiness carrier",
+            "shared local capture directory"
+          ]
+        },
+        "id": "owned-local-cleanup-inventory",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "owner": "D7 supported route-composition profile",
+          "reason": "The versioned gateway has no declared test-only 500 injection seam. Unknown routes honestly return 404, so a synthetic 500 would not prove route recovery."
+        },
+        "id": "route-500-fault-injection-seam",
+        "status": "GAP"
+      },
+      {
+        "details": {
+          "owner": "D8 hosted target qualification",
+          "reason": "The Stage 0.5 control binds loopback HTTP only and no public TLS target is frozen."
+        },
+        "id": "public-tls-edge",
+        "status": "GAP"
+      },
+      {
+        "details": {
+          "owner": "D7 production identity adapter",
+          "reason": "The gateway exercises a deterministic local GitHub-shaped fixture, not a real provider callback over public TLS."
+        },
+        "id": "real-oauth-provider",
+        "status": "GAP"
+      },
+      {
+        "details": {
+          "owner": "D7 production effect adapter",
+          "reason": "Local authenticated capture proves payload/idempotency/recovery only; it is not a production email-provider receipt."
+        },
+        "id": "production-email-provider",
+        "status": "GAP"
+      },
+      {
+        "details": {
+          "owner": "D7 production effect adapter",
+          "reason": "Local authenticated capture proves payload/idempotency/recovery only; it is not a production webhook or Discord-provider receipt."
+        },
+        "id": "production-webhook-provider",
+        "status": "GAP"
+      },
+      {
+        "details": {
+          "owner": "D7 asset profile and D8 hosted target qualification",
+          "reason": "The local native asset store plus source-shaped alias is proven; no hosted object provider/origin policy is frozen."
+        },
+        "id": "production-asset-provider",
+        "status": "GAP"
+      },
+      {
+        "details": {
+          "owner": "D8 selected target backup profile",
+          "reason": "No complete application backup format/target is frozen for this control; the asset cut alone is explicitly not a whole-app backup."
+        },
+        "id": "backup-create-and-readback",
+        "status": "GAP"
+      },
+      {
+        "details": {
+          "owner": "D8 selected target recovery profile",
+          "reason": "There is no frozen paused-target restore/activation path for the complete application."
+        },
+        "id": "paused-restore-verify-activate-reconnect",
+        "status": "GAP"
+      },
+      {
+        "details": {
+          "owner": "D8 deployment and release qualification",
+          "reason": "Generated and component identities are pinned locally, but no clean public immutable deploy or schema/function roll-forward is qualified."
+        },
+        "id": "immutable-release-and-compatible-roll-forward",
+        "status": "GAP"
+      },
+      {
+        "details": {
+          "owner": "D8 target selection and hosted qualification",
+          "reason": "acceptance.v1 deliberately leaves the first complete hosted target unfrozen; local evidence cannot stand in for it."
+        },
+        "id": "hosted-target-support",
+        "status": "GAP"
+      }
+    ]
+  },
+  "cleanup": {
+    "ownership": "Every resource registered through the gate runner was cleaned in reverse ownership order.",
+    "results": [
+      {
+        "label": "zb7-second gateway",
+        "reverseIndex": 0,
+        "status": "PASS",
+        "targets": [
+          {
+            "id": "28566",
+            "kind": "process"
+          },
+          {
+            "kind": "file",
+            "path": "/private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/zerobugs-zb7-e91ekG/zb7-second-gateway.ready.json"
+          },
+          {
+            "kind": "directory",
+            "path": "/private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/zerobugs-zb7-e91ekG/zb7-restart-captures"
+          }
+        ]
+      },
+      {
+        "label": "zb7-first gateway",
+        "reverseIndex": 1,
+        "status": "PASS",
+        "targets": [
+          {
+            "id": "28548",
+            "kind": "process"
+          },
+          {
+            "kind": "file",
+            "path": "/private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/zerobugs-zb7-e91ekG/zb7-first-gateway.ready.json"
+          },
+          {
+            "kind": "directory",
+            "path": "/private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/zerobugs-zb7-e91ekG/zb7-restart-captures"
+          }
+        ]
+      },
+      {
+        "label": "Snapback server",
+        "reverseIndex": 2,
+        "status": "PASS",
+        "targets": [
+          {
+            "id": "15378",
+            "kind": "process"
+          }
+        ]
+      },
+      {
+        "label": "ZB7 scratch namespace",
+        "reverseIndex": 3,
+        "status": "PASS",
+        "targets": [
+          {
+            "kind": "directory",
+            "path": "/private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/zerobugs-zb7-e91ekG"
+          }
+        ]
+      }
+    ],
+    "status": "PASS",
+    "targets": [
+      {
+        "id": "28566",
+        "kind": "process"
+      },
+      {
+        "kind": "file",
+        "path": "/private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/zerobugs-zb7-e91ekG/zb7-second-gateway.ready.json"
+      },
+      {
+        "kind": "directory",
+        "path": "/private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/zerobugs-zb7-e91ekG/zb7-restart-captures"
+      },
+      {
+        "id": "28548",
+        "kind": "process"
+      },
+      {
+        "kind": "file",
+        "path": "/private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/zerobugs-zb7-e91ekG/zb7-first-gateway.ready.json"
+      },
+      {
+        "kind": "directory",
+        "path": "/private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/zerobugs-zb7-e91ekG/zb7-restart-captures"
+      },
+      {
+        "id": "15378",
+        "kind": "process"
+      },
+      {
+        "kind": "directory",
+        "path": "/private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/zerobugs-zb7-e91ekG"
+      }
+    ]
+  },
+  "completedAt": "2026-08-06T19:46:27.199Z",
+  "componentReleaseIdentities": [
+    {
+      "id": "zerobugs-control-composition",
+      "path": "demos/zerobugs/control/composition/zerobugs-control-composition.v1.json",
+      "runtime": {
+        "entrypoint": "composition/server.mts",
+        "hostEnv": "ZERBUGS_GATEWAY_HOST",
+        "name": "bun",
+        "portEnv": "ZERBUGS_GATEWAY_PORT",
+        "readyFileEnv": "ZERBUGS_GATEWAY_READY_FILE",
+        "version": "1.3.12"
+      },
+      "sha256": "sha256:20f5979c095376fc4b89c9780bb3073da6ef147bf327a25c7a1ef24d38018012",
+      "snapbackRelease": {
+        "appId": "zerobugs-control",
+        "bundleHash": "snapback.v1:sessions:function:sha256:71c0388b762244a7b55d30b2dc60419067aa54f34c1613b665d4023c9f44c133",
+        "inputsHash": "snapback.v1:sessions:inputs:sha256:fc70057e0f736feb5cd8c35837eff291ce9df1102f5dc92f3d09da18272fb8b1",
+        "schemaHash": "snapback.v1:sessions:schema:sha256:556a1db53ffa60f7f7d8075fae3e6ae8c046f0ae28f262e29aaf74a3ad61f7bc",
+        "schemaVersion": "snapback.v1",
+        "targetProfileId": "local-dev-sqlite-ibex"
+      },
+      "status": "supported-local-control",
+      "version": 1
+    }
+  ],
+  "custodyAccounting": {
+    "browserFactsRetained": 0,
+    "gatewaySessionReminted": false,
+    "mode": "headless server session through a restarted gateway",
+    "rawSessionCarriersRetained": 0
+  },
+  "diagnostics": [],
+  "execution": {
+    "harnessAcceptedCount": true,
+    "setupCompleted": true,
+    "status": "PASS"
+  },
+  "fixtureIdentity": {
+    "digest": "sha256:be2eb1f31fe95e0a5c46a5230d98b18d762449e330691cb73e33d578fec276bd",
+    "extensionId": "policy-extension-v1",
+    "id": "normal-seed-v1",
+    "mode": "fresh normal fixture plus policy extension; load verified by gate checks",
+    "rowCount": 3758,
+    "seedVersion": "normal-seed-v1.policy-extension-v1"
+  },
+  "gate": "zb7",
+  "generatedIdentities": [
+    {
+      "id": "schemaManifest",
+      "path": "demos/zerobugs/control/snapback/generated/schema.manifest.json",
+      "release": {
+        "appId": "zerobugs-control",
+        "bundleHash": "snapback.v1:sessions:function:sha256:71c0388b762244a7b55d30b2dc60419067aa54f34c1613b665d4023c9f44c133",
+        "inputsHash": "snapback.v1:sessions:inputs:sha256:fc70057e0f736feb5cd8c35837eff291ce9df1102f5dc92f3d09da18272fb8b1",
+        "schemaHash": "snapback.v1:sessions:schema:sha256:556a1db53ffa60f7f7d8075fae3e6ae8c046f0ae28f262e29aaf74a3ad61f7bc",
+        "schemaVersion": "snapback.v1",
+        "targetProfileId": "local-dev-sqlite-ibex"
+      },
+      "sha256": "sha256:a2a46a753008fe92272a2eb24cb43c57fba851be9dd64bef49b49b6fd8a95b96"
+    },
+    {
+      "id": "functionManifest",
+      "path": "demos/zerobugs/control/snapback/generated/functions.manifest.json",
+      "release": {
+        "appId": "zerobugs-control",
+        "bundleHash": "snapback.v1:sessions:function:sha256:71c0388b762244a7b55d30b2dc60419067aa54f34c1613b665d4023c9f44c133",
+        "inputsHash": "snapback.v1:sessions:inputs:sha256:fc70057e0f736feb5cd8c35837eff291ce9df1102f5dc92f3d09da18272fb8b1",
+        "schemaHash": "snapback.v1:sessions:schema:sha256:556a1db53ffa60f7f7d8075fae3e6ae8c046f0ae28f262e29aaf74a3ad61f7bc",
+        "schemaVersion": "snapback.v1",
+        "targetProfileId": "local-dev-sqlite-ibex"
+      },
+      "sha256": "sha256:7d66a60ff891ff2334d21e1d14162887209e4496af7b402806f8f9c0f20b9963"
+    },
+    {
+      "id": "capabilityManifest",
+      "path": "demos/zerobugs/control/snapback/generated/capability.manifest.json",
+      "release": {
+        "appId": "zerobugs-control",
+        "bundleHash": "snapback.v1:sessions:function:sha256:71c0388b762244a7b55d30b2dc60419067aa54f34c1613b665d4023c9f44c133",
+        "inputsHash": "snapback.v1:sessions:inputs:sha256:fc70057e0f736feb5cd8c35837eff291ce9df1102f5dc92f3d09da18272fb8b1",
+        "schemaHash": "snapback.v1:sessions:schema:sha256:556a1db53ffa60f7f7d8075fae3e6ae8c046f0ae28f262e29aaf74a3ad61f7bc",
+        "schemaVersion": "snapback.v0",
+        "targetProfileId": "local-dev-sqlite-ibex"
+      },
+      "sha256": "sha256:8f9212e82b140d1ebfbaa00ca55c7df02298ac8c1424ff7931a9d84a102947f7"
+    },
+    {
+      "id": "contractDataManifest",
+      "path": "demos/zerobugs/control/snapback/generated/contract-data.manifest.json",
+      "release": {
+        "appId": "zerobugs-control",
+        "bundleHash": "snapback.v1:sessions:function:sha256:71c0388b762244a7b55d30b2dc60419067aa54f34c1613b665d4023c9f44c133",
+        "inputsHash": "snapback.v1:sessions:inputs:sha256:fc70057e0f736feb5cd8c35837eff291ce9df1102f5dc92f3d09da18272fb8b1",
+        "schemaHash": "snapback.v1:sessions:schema:sha256:556a1db53ffa60f7f7d8075fae3e6ae8c046f0ae28f262e29aaf74a3ad61f7bc",
+        "schemaVersion": "snapback.v1",
+        "targetProfileId": "local-dev-sqlite-ibex"
+      },
+      "sha256": "sha256:6701d2e93f18dac78c54bfc0bf61ce691c9d0cad5a8faed19d7de8dbb37ddbff"
+    },
+    {
+      "id": "artifactIndex",
+      "path": "demos/zerobugs/control/snapback/generated/artifacts.json",
+      "release": {
+        "appId": "zerobugs-control",
+        "bundleHash": "snapback.v1:sessions:function:sha256:71c0388b762244a7b55d30b2dc60419067aa54f34c1613b665d4023c9f44c133",
+        "inputsHash": "snapback.v1:sessions:inputs:sha256:fc70057e0f736feb5cd8c35837eff291ce9df1102f5dc92f3d09da18272fb8b1",
+        "schemaHash": "snapback.v1:sessions:schema:sha256:556a1db53ffa60f7f7d8075fae3e6ae8c046f0ae28f262e29aaf74a3ad61f7bc",
+        "schemaVersion": "snapback.v1",
+        "targetProfileId": "local-dev-sqlite-ibex"
+      },
+      "sha256": "sha256:d35d3d6815093829a6633c19c70032ed66bc0501cdb977e0bb49095515e15b2b"
+    }
+  ],
+  "machineIdentity": {
+    "arch": "arm64",
+    "cpuCount": 18,
+    "hostnameSha256": "sha256:4a238cd09cfb162aa54334e6f1b3fba341960951bd6f36b2b01b6e77a72395c0",
+    "platform": "darwin"
+  },
+  "manifest": {
+    "id": "zerobugs-acceptance.v1",
+    "path": "demos/zerobugs/manifest/acceptance.v1.json",
+    "sha256": "sha256:3eb0280a5803da887cea371193f62ff372ac537efa24e7cd53b150afe0d1fc2c"
+  },
+  "network": "loopback-only; normal network profile",
+  "outcome": "GAP",
+  "rawArtifacts": [
+    {
+      "path": "demos/zerobugs/control/PLAN.md",
+      "sha256": "sha256:7615225d535f638e1650dafec42790d07ecce76fd0e687ced888a7a636239803"
+    },
+    {
+      "path": "demos/zerobugs/control/composition/effects/deliver.mts",
+      "sha256": "sha256:4a8e77878531e51fc35644226067088bd10c5fb984941d7bbde756af4002753c"
+    },
+    {
+      "path": "demos/zerobugs/control/composition/server.mts",
+      "sha256": "sha256:72df91eb983874cde5c52cc564a9493678164dde60e5b874fa7c29584efc61cf"
+    },
+    {
+      "path": "demos/zerobugs/control/composition/zerobugs-control-composition.v1.json",
+      "sha256": "sha256:20f5979c095376fc4b89c9780bb3073da6ef147bf327a25c7a1ef24d38018012"
+    },
+    {
+      "path": "demos/zerobugs/control/snapback/generated/artifacts.json",
+      "sha256": "sha256:d35d3d6815093829a6633c19c70032ed66bc0501cdb977e0bb49095515e15b2b"
+    },
+    {
+      "path": "demos/zerobugs/control/snapback/generated/capability.manifest.json",
+      "sha256": "sha256:8f9212e82b140d1ebfbaa00ca55c7df02298ac8c1424ff7931a9d84a102947f7"
+    },
+    {
+      "path": "demos/zerobugs/control/snapback/generated/contract-data.manifest.json",
+      "sha256": "sha256:6701d2e93f18dac78c54bfc0bf61ce691c9d0cad5a8faed19d7de8dbb37ddbff"
+    },
+    {
+      "path": "demos/zerobugs/control/snapback/generated/functions.manifest.json",
+      "sha256": "sha256:7d66a60ff891ff2334d21e1d14162887209e4496af7b402806f8f9c0f20b9963"
+    },
+    {
+      "path": "demos/zerobugs/control/snapback/generated/schema.manifest.json",
+      "sha256": "sha256:a2a46a753008fe92272a2eb24cb43c57fba851be9dd64bef49b49b6fd8a95b96"
+    },
+    {
+      "path": "demos/zerobugs/control/tests/acceptance/gate-support.mjs",
+      "sha256": "sha256:52e514bc20ab2ac0dfba2639e7e07ac2f38f824836070c3847867afb221f2437"
+    },
+    {
+      "path": "demos/zerobugs/control/tests/acceptance/gates/zb7.mjs",
+      "sha256": "sha256:bfebfcda9d2f8a22950acbbe3e730b62a7e6b164826d9dca1f394eaab5d77cf9"
+    },
+    {
+      "path": "demos/zerobugs/control/tests/acceptance/lane5-live.mts",
+      "sha256": "sha256:975be4f34837a70a1f3d59aaa2a0a6add62c05ad3f476961da9d49c8b3b4c3d6"
+    },
+    {
+      "path": "demos/zerobugs/control/tests/acceptance/stage-c-live.mjs",
+      "sha256": "sha256:cc574ba16b9ec3b7058977d132206c638de584c87d4cbf63128a0fbbd951d87d"
+    },
+    {
+      "path": "demos/zerobugs/control/tests/fixtures/fixture-digests.json",
+      "sha256": "sha256:56afa56a74f0edddfd71ac0e7a09f5c12bc1e2eaed9e2be2f2ad6c84c31d38b3"
+    },
+    {
+      "path": "demos/zerobugs/manifest/acceptance.v1.json",
+      "sha256": "sha256:3eb0280a5803da887cea371193f62ff372ac537efa24e7cd53b150afe0d1fc2c"
+    },
+    {
+      "path": "demos/zerobugs/stage0/inventory.v1.json",
+      "sha256": "sha256:0d7233897864c39f99ef5c46946da21ddfc8a404e6f0441c741c02192a43eaa3"
+    },
+    {
+      "path": "guide/backend/actions-and-fetch.md",
+      "sha256": "sha256:89365efc7eec13d6e457a5fb9ee373cd724436b16c023709d140b4f052ee34ff"
+    },
+    {
+      "path": "guide/backend/assets.md",
+      "sha256": "sha256:df68624334dff15fa7fb6495726022c741709a03e84fafd117a517f3f08d5750"
+    },
+    {
+      "path": "guide/testing/acceptance.md",
+      "sha256": "sha256:36217c23daac04ad360ed0866a6f76a17fd59e9d7aa8afa340f36513a4c2db75"
+    }
+  ],
+  "refusalFacts": [
+    {
+      "id": "unknown-route-as-success",
+      "status": "refused"
+    },
+    {
+      "id": "missing-asset-as-present",
+      "status": "refused"
+    },
+    {
+      "id": "ambiguous-effect-automatic-replay",
+      "status": "refused"
+    },
+    {
+      "id": "local-capture-as-production-provider",
+      "status": "refused"
+    },
+    {
+      "id": "local-loopback-as-hosted-qualification",
+      "status": "refused"
+    }
+  ],
+  "schemaVersion": "zerobugs-gate-receipt.v1",
+  "sourceAccounting": {
+    "gatewayRecovery": {
+      "gatewayPortStable": true,
+      "gatewayStartupIdentityRotated": true,
+      "postRestartStatus": 200,
+      "preFaultStatus": 200,
+      "rawCookieRetained": false,
+      "sessionReminted": false
+    },
+    "lane5ExpectedChecks": 16,
+    "localLiveChecks": 9,
+    "namedProductionGaps": 10,
+    "zb7ExpectedChecks": 20
+  },
+  "startedAt": "2026-08-06T19:45:13.977Z",
+  "targetIdentity": {
+    "appId": "zerobugs-control",
+    "bundleHash": "snapback.v1:sessions:function:sha256:71c0388b762244a7b55d30b2dc60419067aa54f34c1613b665d4023c9f44c133",
+    "id": "local-dev-sqlite-ibex",
+    "inputsHash": "snapback.v1:sessions:inputs:sha256:fc70057e0f736feb5cd8c35837eff291ce9df1102f5dc92f3d09da18272fb8b1",
+    "mode": "fresh local Ibex plus SQLite server",
+    "schemaHash": "snapback.v1:sessions:schema:sha256:556a1db53ffa60f7f7d8075fae3e6ae8c046f0ae28f262e29aaf74a3ad61f7bc",
+    "schemaVersion": "snapback.v1"
+  },
+  "workarounds": [
+    {
+      "id": "C-GATEWAY",
+      "status": "killed and restarted live with coherent release identity"
+    },
+    {
+      "id": "C-NOTIFY",
+      "status": "fail-before/after-send pair re-exercised live"
+    },
+    {
+      "id": "C-ASSET",
+      "status": "missing 404 plus five-type delivery/cleanup re-exercised live"
+    }
+  ]
+}

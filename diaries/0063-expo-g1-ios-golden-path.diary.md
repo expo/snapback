@@ -2,14 +2,16 @@
 
 **Date:** 2026-08-06
 **Systems:** Expo SDK 57, `@expo/snapback-expo`, AppDescriptor, surfaces,
-supervised development, iOS simulator, Android emulator
+supervised development, iOS simulator, Android emulator, external packaging
 **Related:** `demos/expo-golden-path-fixture/`, LLP 0176 G1, LLP 0179,
 LLP 0181, `demos/expo-golden-path-fixture/receipts/20260806-g1-ios-simulator.md`,
 `demos/expo-golden-path-fixture/receipts/20260806-g1-android-emulator.md`,
 LLP 0176 G2,
 `demos/expo-golden-path-fixture/receipts/20260806-g2-ios-simulator.md`,
 `demos/expo-golden-path-fixture/receipts/20260806-g2-android-emulator.md`,
-LLP 0176 G3, LLP 0180
+LLP 0176 G3, LLP 0180, LLP 0176 G4,
+`demos/expo-golden-path-fixture/receipts/20260806-g4-external-summary.md`,
+`issues/20260806-guide-gap-g4-live-0110-external-vector.md`
 
 ## What was built
 
@@ -490,3 +492,102 @@ The dated iOS and Android receipts complete LLP 0181 E2 and the Expo arm of
 LLP 0176 G3 for supervised simulator/emulator online use. They make no
 background, restart, offline, attempt-grant, release, physical-device,
 LAN-carrier, or LLP 0064 claim.
+
+## 2026-08-06 — G4 external distribution attempt against live 0.1.10
+
+### What was attempted
+
+The proof started from an empty git repository outside Snapback, created a
+blank Expo 57 app, installed only published package names, generated one
+conversation descriptor, and authored the north-star screen around
+`conversation.commands.send({ body, image: picked })`. The ceremony rule was
+written before the target directory existed. Fleet copies then ran the same
+registry lock on the Air's iOS simulator and mini's Android emulator.
+
+The external path had no `file:`, workspace, link, override, or monorepo edge.
+It remains at `/Users/ccheever/projects/snapback-g4-external` with its action
+ledger and evidence; remote temp copies were removed after receipt capture.
+
+### What felt good or easy
+
+- The public packages cold-installed without dependency overrides. Codegen
+  accepted the authored Sessions schema, one surface, the image-bearing
+  command, and seed data on its first generation pass.
+- Expo could export both platforms without the server ever booting. The source
+  map made the closure unusually inspectable: every Snapback module resolved
+  from public `node_modules` or generated app files, with no hidden checkout
+  reach-back.
+- The packaged runtime refusal was structured and identical on both hosts.
+  `runtime-qualify` still passed its own restricted VM check, which cleanly
+  separated a coherent-capability defect from a corrupt native install.
+- The deliberate wrong-descriptor probe was excellent at the runtime seam:
+  `SNAPBACK_APP_BINDING_IDENTITY_MISMATCH` arrived in 2 ms and its message
+  described the exact mismatch.
+
+### What felt bad, hard, or surprising
+
+- The guide documented registry constraints but not the install set. It also
+  said to scaffold and run the conventional child backend, while `snapback
+  new` only creates a whole project. Combining that with an existing
+  `create-expo-app` root required a sibling scaffold and manual backend copy.
+- A blank Expo scaffold's TypeScript reach includes generated Contract source
+  projections, which import undocumented `@exact/contract/exports`. Narrowing
+  `tsconfig.json` to the app entrypoints and generated declarations avoided
+  treating Contract source as Expo runtime input, but it is still ceremony the
+  documented path did not name.
+- The largest failure was packaging coherence: public codegen requires
+  `single_table_v1`, while the equally public runtime rejects it before Metro.
+  The repair is already on main but postdates the published release identity.
+  No application change can repair that honestly.
+- The published Expo package also predates the provider picker adapter that G3
+  proved from source. Its files contain no adapter registration, and the
+  documented direct ImagePicker call fails its public type. Again, main is
+  fixed and the registry is not.
+- Both Hermes release bundles lack actual bearer values and concrete dev
+  origins, but retain the supervisor environment name and bootstrap endpoint.
+  That is honest enough to distinguish from a secret leak, but still fails
+  G4's explicit no-development-endpoint bar.
+- Searching the public guide for the exact binding diagnostic returned no
+  match. A broad `binding` query eventually reached the right pages, but the
+  exact code should have been the shortest route; the guide and retrieval seed
+  are updated in this change.
+
+These are exactly the kinds of external-consumer gaps the guide should have
+prevented. They are tracked together in
+`issues/20260806-guide-gap-g4-live-0110-external-vector.md` rather than hidden
+inside a negative receipt.
+
+### Frozen measurement and bakeoff comparison
+
+The proposed, author-sign-off-pending metric counts commands, distinct
+hand-edited files, and unresolved author decisions. At the first runtime
+blocker the vector was `73/6/3` (`A = 82`) approximately 11 minutes after
+`t0`. Neither first live render (`m1`) nor committed/rendered image send (`m2`)
+was reached, so the diary does not manufacture milestone times.
+
+Diary 0058's 26m03s Snapback and 11m15s Convex values cover full application
+lanes—including debugging, acceptance, bundles, offline work, and tickets—not
+these G4 milestones. Diary 0059 has code-size and two paid EAS outcomes but no
+clock or command log; Diary 0060 times orchestration agents, not authorship.
+G4 reached a hard blocker in roughly the duration of the Relay Room Convex
+lane, but that is directional context only. It is not an apples-to-apples
+claim or a substitute action score.
+
+Compared with React plus Convex or Supabase, the intended Snapback screen is
+still attractive: one typed surface and command can hide storage/row
+sequencing and state residue explicitly. The public 0.1.10 experience is the
+opposite of that product promise because coherent package selection, scaffold
+composition, and a pre-Metro capability refusal dominate before any screen
+value is visible. Hosted alternatives also avoid the local runtime/supervisor
+precondition, although their storage-plus-row semantics may remain more
+application-owned once running.
+
+### Result and boundary
+
+G4 fails against 0.1.10. Metro closure and EAS stage-only inspection pass;
+both platform application gates and the release-shape dev-symbol check fail.
+No paid EAS build ran. The Air simulator and mini emulator evidence is
+explicitly **NOT an LLP 0064 claim**, and there is no physical-device path.
+There is no published-package release-artifact claim beyond local Expo export.
+The runtime and picker repairs are fixed on main but await a coherent public
+release before this external proof can be rerun green.

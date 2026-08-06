@@ -56,25 +56,31 @@ impl LocalDatabase {
         &mut self,
         activated_at_ms: u64,
     ) -> SnapbackResult<()> {
-        let tx = self
-            .conn
-            .transaction_with_behavior(TransactionBehavior::Immediate)?;
-        let stream = ensure_data_version_stream_in(&tx)?;
-        let manifest = crate::operation_ledger::activate_ordinary_mutation_coverage_in(
-            &tx,
-            &stream,
-            activated_at_ms,
-        )?;
-        let persisted = crate::operation_ledger::active_coverage_manifest(&tx, &stream)?
-            .ok_or_else(|| {
-                corrupt("ordinary-mutation activation did not retain a coverage manifest")
-            })?;
-        if persisted != manifest {
-            return Err(corrupt(
-                "ordinary-mutation activation did not retain the closed coverage manifest",
-            ));
-        }
-        tx.commit()?;
+        let manifest = {
+            let _writer = self
+                .writer_authority
+                .enter(super::write_authority::LocalWriterLaneV1::OperationLedger)?;
+            let tx = self
+                .conn
+                .transaction_with_behavior(TransactionBehavior::Immediate)?;
+            let stream = ensure_data_version_stream_in(&tx)?;
+            let manifest = crate::operation_ledger::activate_ordinary_mutation_coverage_in(
+                &tx,
+                &stream,
+                activated_at_ms,
+            )?;
+            let persisted = crate::operation_ledger::active_coverage_manifest(&tx, &stream)?
+                .ok_or_else(|| {
+                    corrupt("ordinary-mutation activation did not retain a coverage manifest")
+                })?;
+            if persisted != manifest {
+                return Err(corrupt(
+                    "ordinary-mutation activation did not retain the closed coverage manifest",
+                ));
+            }
+            tx.commit()?;
+            manifest
+        };
         // The same-process SQLite authorizer observes this exact committed
         // manifest before activation reports success. Reopen reconstructs the
         // same state from the durable row.
@@ -103,50 +109,30 @@ impl LocalDatabase {
             ));
         }
 
-        let tx = self
-            .conn
-            .transaction_with_behavior(TransactionBehavior::Immediate)?;
-        let stream = ensure_data_version_stream_in(&tx)?;
-        let manifest = crate::operation_ledger::activate_local_target_mutation_coverage_in(
-            &tx,
-            &stream,
-            activated_at_ms,
-        )?;
-        let persisted = crate::operation_ledger::active_coverage_manifest(&tx, &stream)?
-            .ok_or_else(|| corrupt("local-target activation lost its coverage manifest"))?;
-        if persisted != manifest {
-            return Err(corrupt(
-                "local-target activation did not retain the exact coverage manifest",
-            ));
-        }
-        let actual_lanes = manifest
-            .covered_lanes
-            .iter()
-            .map(String::as_str)
-            .collect::<std::collections::BTreeSet<_>>();
-        let expected_lanes = [
-            crate::operation_ledger::ORDINARY_MUTATION_LANE_V1,
-            crate::operation_ledger::HOST_CHILD_MUTATION_LANE_V1,
-        ]
-        .into_iter()
-        .collect::<std::collections::BTreeSet<_>>();
-        let actual_writers = manifest
-            .writer_choke_points
-            .iter()
-            .map(String::as_str)
-            .collect::<std::collections::BTreeSet<_>>();
-        let expected_writers = crate::operation_ledger::ORDINARY_MUTATION_WRITERS_V1
-            .into_iter()
-            .chain(crate::operation_ledger::HOST_CHILD_MUTATION_WRITERS_V1)
-            .collect::<std::collections::BTreeSet<_>>();
-        if actual_lanes != expected_lanes || actual_writers != expected_writers {
-            return Err(SnapbackError::error(
-                "SNAPBACK_OPERATION_COVERAGE_INCOMPLETE",
-                "storage",
-                "local operation coverage manifest is not the exact closed adapter set",
-            ));
-        }
-        tx.commit()?;
+        let manifest = {
+            let _writer = self
+                .writer_authority
+                .enter(super::write_authority::LocalWriterLaneV1::OperationLedger)?;
+            let tx = self
+                .conn
+                .transaction_with_behavior(TransactionBehavior::Immediate)?;
+            let stream = ensure_data_version_stream_in(&tx)?;
+            let manifest = crate::operation_ledger::activate_local_target_mutation_coverage_in(
+                &tx,
+                &stream,
+                activated_at_ms,
+            )?;
+            let persisted = crate::operation_ledger::active_coverage_manifest(&tx, &stream)?
+                .ok_or_else(|| corrupt("local-target activation lost its coverage manifest"))?;
+            if persisted != manifest {
+                return Err(corrupt(
+                    "local-target activation did not retain the exact coverage manifest",
+                ));
+            }
+            validate_local_target_coverage_manifest(&manifest)?;
+            tx.commit()?;
+            manifest
+        };
         self.writer_authority
             .arm_manifest(&self.conn, manifest.clone())?;
         Ok(manifest)
@@ -174,55 +160,31 @@ impl LocalDatabase {
             ));
         }
 
-        let tx = self
-            .conn
-            .transaction_with_behavior(TransactionBehavior::Immediate)?;
-        let stream = ensure_data_version_stream_in(&tx)?;
-        let manifest =
-            crate::operation_ledger::activate_derived_fork_app_row_journal_coverage_in(
-                &tx,
-                &stream,
-                activated_at_ms,
-            )?;
-        let persisted = crate::operation_ledger::active_coverage_manifest(&tx, &stream)?
-            .ok_or_else(|| corrupt("derived-fork activation lost its coverage manifest"))?;
-        if persisted != manifest {
-            return Err(corrupt(
-                "derived-fork activation did not retain the exact coverage manifest",
-            ));
-        }
-        let actual_lanes = manifest
-            .covered_lanes
-            .iter()
-            .map(String::as_str)
-            .collect::<std::collections::BTreeSet<_>>();
-        let expected_lanes = [
-            crate::operation_ledger::DERIVED_FORK_ORDINARY_APP_ROW_JOURNAL_LANE_V1,
-            crate::operation_ledger::DERIVED_FORK_HOST_CHILD_APP_ROW_JOURNAL_LANE_V1,
-        ]
-        .into_iter()
-        .collect::<std::collections::BTreeSet<_>>();
-        let actual_writers = manifest
-            .writer_choke_points
-            .iter()
-            .map(String::as_str)
-            .collect::<std::collections::BTreeSet<_>>();
-        let expected_writers = crate::operation_ledger::ORDINARY_MUTATION_WRITERS_V1
-            .into_iter()
-            .chain(crate::operation_ledger::HOST_CHILD_MUTATION_WRITERS_V1)
-            .collect::<std::collections::BTreeSet<_>>();
-        if manifest.covered_lanes.len() != expected_lanes.len()
-            || actual_lanes != expected_lanes
-            || manifest.writer_choke_points.len() != expected_writers.len()
-            || actual_writers != expected_writers
-        {
-            return Err(SnapbackError::error(
-                "SNAPBACK_OPERATION_COVERAGE_INCOMPLETE",
-                "storage",
-                "derived-fork journal coverage manifest is not the exact closed adapter set",
-            ));
-        }
-        tx.commit()?;
+        let manifest = {
+            let _writer = self
+                .writer_authority
+                .enter(super::write_authority::LocalWriterLaneV1::OperationLedger)?;
+            let tx = self
+                .conn
+                .transaction_with_behavior(TransactionBehavior::Immediate)?;
+            let stream = ensure_data_version_stream_in(&tx)?;
+            let manifest =
+                crate::operation_ledger::activate_derived_fork_app_row_journal_coverage_in(
+                    &tx,
+                    &stream,
+                    activated_at_ms,
+                )?;
+            let persisted = crate::operation_ledger::active_coverage_manifest(&tx, &stream)?
+                .ok_or_else(|| corrupt("derived-fork activation lost its coverage manifest"))?;
+            if persisted != manifest {
+                return Err(corrupt(
+                    "derived-fork activation did not retain the exact coverage manifest",
+                ));
+            }
+            validate_derived_fork_coverage_manifest(&manifest)?;
+            tx.commit()?;
+            manifest
+        };
         self.writer_authority
             .arm_manifest(&self.conn, manifest.clone())?;
         Ok(manifest)
@@ -237,6 +199,9 @@ impl LocalDatabase {
         &self,
         encoded: &str,
     ) -> SnapbackResult<()> {
+        let _writer = self
+            .writer_authority
+            .enter(super::write_authority::LocalWriterLaneV1::OperationLedger)?;
         self.conn.execute(
             "INSERT INTO _snapback_meta(key,value) VALUES(?1,?2)",
             params![crate::instance_fork::APP_ROW_COVERAGE_META_KEY, encoded],
@@ -401,6 +366,78 @@ impl LocalDatabase {
         Ok(self
             .conn
             .query_row("SELECT total_changes()", [], |row| row.get(0))?)
+    }
+}
+
+fn validate_local_target_coverage_manifest(
+    manifest: &crate::commit_envelope::OperationCoverageManifestV1,
+) -> SnapbackResult<()> {
+    let actual_lanes = manifest
+        .covered_lanes
+        .iter()
+        .map(String::as_str)
+        .collect::<std::collections::BTreeSet<_>>();
+    let expected_lanes = [
+        crate::operation_ledger::ORDINARY_MUTATION_LANE_V1,
+        crate::operation_ledger::HOST_CHILD_MUTATION_LANE_V1,
+    ]
+    .into_iter()
+    .collect::<std::collections::BTreeSet<_>>();
+    let actual_writers = manifest
+        .writer_choke_points
+        .iter()
+        .map(String::as_str)
+        .collect::<std::collections::BTreeSet<_>>();
+    let expected_writers = crate::operation_ledger::ORDINARY_MUTATION_WRITERS_V1
+        .into_iter()
+        .chain(crate::operation_ledger::HOST_CHILD_MUTATION_WRITERS_V1)
+        .collect::<std::collections::BTreeSet<_>>();
+    if actual_lanes == expected_lanes && actual_writers == expected_writers {
+        Ok(())
+    } else {
+        Err(SnapbackError::error(
+            "SNAPBACK_OPERATION_COVERAGE_INCOMPLETE",
+            "storage",
+            "local operation coverage manifest is not the exact closed adapter set",
+        ))
+    }
+}
+
+fn validate_derived_fork_coverage_manifest(
+    manifest: &crate::commit_envelope::OperationCoverageManifestV1,
+) -> SnapbackResult<()> {
+    let actual_lanes = manifest
+        .covered_lanes
+        .iter()
+        .map(String::as_str)
+        .collect::<std::collections::BTreeSet<_>>();
+    let expected_lanes = [
+        crate::operation_ledger::DERIVED_FORK_ORDINARY_APP_ROW_JOURNAL_LANE_V1,
+        crate::operation_ledger::DERIVED_FORK_HOST_CHILD_APP_ROW_JOURNAL_LANE_V1,
+    ]
+    .into_iter()
+    .collect::<std::collections::BTreeSet<_>>();
+    let actual_writers = manifest
+        .writer_choke_points
+        .iter()
+        .map(String::as_str)
+        .collect::<std::collections::BTreeSet<_>>();
+    let expected_writers = crate::operation_ledger::ORDINARY_MUTATION_WRITERS_V1
+        .into_iter()
+        .chain(crate::operation_ledger::HOST_CHILD_MUTATION_WRITERS_V1)
+        .collect::<std::collections::BTreeSet<_>>();
+    if manifest.covered_lanes.len() == expected_lanes.len()
+        && actual_lanes == expected_lanes
+        && manifest.writer_choke_points.len() == expected_writers.len()
+        && actual_writers == expected_writers
+    {
+        Ok(())
+    } else {
+        Err(SnapbackError::error(
+            "SNAPBACK_OPERATION_COVERAGE_INCOMPLETE",
+            "storage",
+            "derived-fork journal coverage manifest is not the exact closed adapter set",
+        ))
     }
 }
 

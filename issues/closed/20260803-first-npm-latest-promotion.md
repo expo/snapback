@@ -171,3 +171,39 @@ the published versions.
   of the parallel attempt's stop, not as a dispute of that close-out: LLP
   0176 G4 may consume the live 0.1.10 vector, citing the fast-path
   provenance, once the metrology gate is green again on main.
+
+- **2026-08-06 — 0.1.11 successor attempt BLOCKED before staging; nothing
+  published.** The attempt pinned clean `origin/main`
+  `34c61fdc63968f143c59e1afab976dca79380237`, confirmed npm authentication,
+  selected the complete 134-gate inventory and ran it fail-fast under the
+  repository-pinned Node 24.18.0 (26 PASS, then 1 FAIL). Capability maturity,
+  agent-safe publication, and
+  client-bundle metrology (56 profiles, no frozen-ceiling regressions) were
+  green. The proof then failed `fleet-observatory-move1-receipt`: the retained
+  Fleet controlled-run receipt binds debug server SHA-256 `c96d9f9b…`, while
+  the mutable ignored `target/debug/snapback` in this checkout is the valid
+  clean `430c48669` build with SHA-256 `1e67934b…`. Rebuilding at the candidate
+  would produce a candidate-bound identity, not the historical receipt bytes.
+  The non-hermetic gate is filed as
+  `issues/20260806-local-proof-fleet-receipt-ambient-binary-drift.md`. Per this
+  log's central-gate rule, the attempt did not stage tarballs, create a 0.1.11
+  ledger, publish any package, move `latest`, or run public-registry/G4 smoke
+  proofs. A landed gate repair and fresh green candidate proof are required
+  before retry.
+
+- **2026-08-06 — 0.1.11 successor attempt 2 BLOCKED before staging; nothing
+  published.** The attempt fetched and pinned clean `origin/main`
+  `ea347f4122fe975902669849c6db6be5834bf967`, confirmed npm authentication as
+  `ccheever`, observed `latest: 0.1.10` and no `0.1.11` on all ten names, and
+  selected the complete 134-gate inventory under the repository-pinned Node
+  24.18.0. The repaired capability-maturity and agent-safe-publication gates,
+  governed client-bundle metrology (56 profiles, no frozen-ceiling
+  regressions), and hermetic Fleet receipt (8/8 PASS) were green. The proof
+  then stopped after 43 PASS at `demo-materialization`: discovery correctly
+  includes the metadata-declared `demos/fleet-observatory-move1`, but
+  `tests/demo_setup_v0.mjs` omits that id from its exact expected inventory.
+  Filed `issues/20260806-local-proof-demo-materialization-inventory-drift.md`.
+  Per this log's central-gate rule, the attempt did not stage tarballs, create
+  a 0.1.11 ledger, publish or move any dist-tag, or run public-registry/G4
+  smoke proofs. A landed inventory repair and fresh complete green candidate
+  proof are required before retry.

@@ -14,8 +14,8 @@
 use super::{LocalDatabase, SchemaManifest};
 use crate::commit_envelope::OperationCoverageManifestV1;
 use crate::diagnostic::{SnapbackError, SnapbackResult};
-use rusqlite::config::DbConfig;
 use rusqlite::Connection;
+use rusqlite::config::DbConfig;
 use rusqlite::hooks::{AuthAction, AuthContext, Authorization};
 use serde::Serialize;
 use std::collections::BTreeSet;
@@ -47,6 +47,7 @@ pub(super) enum LocalWriterLaneV1 {
     VectorIndex,
     PushRegistry,
     JobAndCronState,
+    JournalMaintenance,
     OperationLedger,
     HistoryAndCheckpoint,
     BranchRegistry,
@@ -55,7 +56,7 @@ pub(super) enum LocalWriterLaneV1 {
 }
 
 impl LocalWriterLaneV1 {
-    pub(super) const ALL: [Self; 23] = [
+    pub(super) const ALL: [Self; 24] = [
         Self::OrdinaryHostPlan,
         Self::OrdinaryIbexBuffered,
         Self::HostChildHostPlan,
@@ -74,6 +75,7 @@ impl LocalWriterLaneV1 {
         Self::VectorIndex,
         Self::PushRegistry,
         Self::JobAndCronState,
+        Self::JournalMaintenance,
         Self::OperationLedger,
         Self::HistoryAndCheckpoint,
         Self::BranchRegistry,
@@ -103,6 +105,7 @@ impl LocalWriterLaneV1 {
             Self::VectorIndex => "vectorIndex",
             Self::PushRegistry => "pushRegistry",
             Self::JobAndCronState => "jobAndCronState",
+            Self::JournalMaintenance => "journalMaintenance",
             Self::OperationLedger => "operationLedger",
             Self::HistoryAndCheckpoint => "historyAndCheckpoint",
             Self::BranchRegistry => "branchRegistry",
@@ -137,6 +140,7 @@ impl LocalWriterLaneV1 {
             Self::VectorIndex => "vector::sqlite/vector::rebuild",
             Self::PushRegistry => "push registry/queue transactions",
             Self::JobAndCronState => "jobs/cron durable state transactions",
+            Self::JournalMaintenance => "LocalDatabase::prune_change_journal",
             Self::OperationLedger => "operation_ledger lifecycle transactions",
             Self::HistoryAndCheckpoint => "proof_checkpoint/history transactions",
             Self::BranchRegistry => "instance_fork/fork_promotion registry transactions",
@@ -219,6 +223,9 @@ impl LocalWriterLaneV1 {
             Self::PushRegistry => Some("system-custody-only-app-writes-use-parent-writer"),
             Self::JobAndCronState => {
                 Some("system-scheduler-only-child-app-writes-use-host-adapter")
+            }
+            Self::JournalMaintenance => {
+                Some("retention-only-delete-never-originates-application-dml")
             }
             Self::OperationLedger => {
                 Some("envelope-metadata-writer-never-writes-application-tables")
@@ -324,6 +331,21 @@ impl WriterAuthorityState {
                 .active_writer
                 .is_some_and(LocalWriterLaneV1::schema_authority)
             || self.internal_schema_maintenance
+    }
+
+    fn permits_coverage_carrier_write(&self) -> bool {
+        !self.armed() || self.active_writer == Some(LocalWriterLaneV1::OperationLedger)
+    }
+
+    fn permits_journal_prune(&self) -> bool {
+        self.active_writer == Some(LocalWriterLaneV1::JournalMaintenance)
+    }
+
+    fn permits_maintenance_pragma(&self, pragma_name: &str, pragma_value: Option<&str>) -> bool {
+        (pragma_name.eq_ignore_ascii_case("shrink_memory") && pragma_value.is_none())
+            || (pragma_name.eq_ignore_ascii_case("wal_checkpoint")
+                && pragma_value.is_some_and(|value| value.eq_ignore_ascii_case("FULL"))
+                && self.active_writer == Some(LocalWriterLaneV1::BranchRegistry))
     }
 }
 
@@ -530,6 +552,7 @@ impl WriterAuthorityV1 {
                     | LocalWriterLaneV1::JobAndCronState
                     | LocalWriterLaneV1::OperationLedger
                     | LocalWriterLaneV1::HistoryAndCheckpoint
+                    | LocalWriterLaneV1::JournalMaintenance
                     | LocalWriterLaneV1::BranchRegistry => false,
                     LocalWriterLaneV1::DryRun => false,
                 };
@@ -665,6 +688,10 @@ fn authorize(state: &Arc<Mutex<WriterAuthorityState>>, context: AuthContext<'_>)
         table.eq_ignore_ascii_case("_snapback_changes")
             || table.eq_ignore_ascii_case("_snapback_version")
     };
+    let coverage_carrier = |table: &str| {
+        table.eq_ignore_ascii_case("_snapback_operation_coverage_v1")
+            || table.eq_ignore_ascii_case("_snapback_operation_coverage_continuity_v1")
+    };
     let system_table = |table: &str| {
         table.starts_with("_snapback_")
             || table.starts_with("_auth_")
@@ -700,9 +727,31 @@ fn authorize(state: &Arc<Mutex<WriterAuthorityState>>, context: AuthContext<'_>)
         AuthAction::Insert { table_name }
         | AuthAction::Delete { table_name }
         | AuthAction::Update { table_name, .. }
+            if coverage_carrier(table_name) =>
+        {
+            if context.accessor.is_none() && state.permits_coverage_carrier_write() {
+                Authorization::Allow
+            } else {
+                Authorization::Deny
+            }
+        }
+        AuthAction::Insert { table_name }
+        | AuthAction::Delete { table_name }
+        | AuthAction::Update { table_name, .. }
             if schema_alias(table_name) =>
         {
             if context.accessor.is_none() && state.permits_schema_catalog_write() {
+                Authorization::Allow
+            } else {
+                Authorization::Deny
+            }
+        }
+        AuthAction::Delete { table_name }
+            if table_name.eq_ignore_ascii_case("_snapback_changes") =>
+        {
+            if context.accessor.is_none()
+                && (state.permits_app_write() || state.permits_journal_prune())
+            {
                 Authorization::Allow
             } else {
                 Authorization::Deny
@@ -722,9 +771,7 @@ fn authorize(state: &Arc<Mutex<WriterAuthorityState>>, context: AuthContext<'_>)
         AuthAction::Insert { table_name }
         | AuthAction::Delete { table_name }
         | AuthAction::Update { table_name, .. } => {
-            if !state.armed()
-                || (context.accessor.is_none() && system_table(table_name))
-            {
+            if !state.armed() || (context.accessor.is_none() && system_table(table_name)) {
                 Authorization::Allow
             } else {
                 Authorization::Deny
@@ -794,7 +841,9 @@ fn authorize(state: &Arc<Mutex<WriterAuthorityState>>, context: AuthContext<'_>)
                 .iter()
                 .any(|allowed| pragma_name.eq_ignore_ascii_case(allowed));
             let read_only = argument_read_only || scalar_read_only;
-            if !pragma_name.eq_ignore_ascii_case("writable_schema") && read_only {
+            if state.permits_maintenance_pragma(pragma_name, pragma_value)
+                || (!pragma_name.eq_ignore_ascii_case("writable_schema") && read_only)
+            {
                 Authorization::Allow
             } else {
                 Authorization::Deny

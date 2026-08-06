@@ -6,7 +6,19 @@
 experience, Developer experience, CLI, Documentation, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-03
-**Revised:** 2026-08-06 (never-launched managed-fork app binding: the public
+**Revised:** 2026-08-06 (round-2 derived-fork review closure: registered writer
+construction now reconstructs the fork receipt/stream/manifest plus a monotonic
+coverage-continuity carrier before issuing authority, protects those carriers
+from arbitrary armed DML, and records any observed gap in both the database and
+`fork-app-row-coverage-gap.v1.json`, so exact manifest restoration cannot
+re-earn the upgraded net-diff class. Armed renewal admits its lifecycle
+checkpoint before lineage mutation and compensates ordinary later failures to
+the previous consistent carrier cut; recover is proven on the same armed
+complete-pair path. Armed journal pruning owns a dedicated registered writer
+lane, and net scans preflight borrowed SQLite text/blob/vector lengths plus
+decode/serialization expansion before owned row construction. Adds
+`SNAPBACK_FORK_WRITER_COVERAGE_GAP` and clarifies the app-root re-pin and
+legacy cleanup procedures.); 2026-08-06 (never-launched managed-fork app binding: the public
 `publish_managed` / `publish_managed_with_base` library APIs now require the
 opaque `ExpectedForkAppV1` established from the invoking canonical app root
 and logical app id, revalidate its durable app-root identity at mint, and
@@ -961,8 +973,15 @@ lifetime from creation (`MANAGED_FORK_MAX_LIFETIME_MS`, 7d, author-ratified
 `ForkRenewReceiptV1`, and carries all
 three expiry carriers (database lineage, mint receipt, registry entry)
 through a sentinel-plus-intent protocol that `fork recover` completes after a
-crash at any cut. The serving watchdog re-reads the database lineage at its
-deadline, so renewing a live fork extends the running server. Renewal may
+crash at any cut. On an armed fork, the lifecycle registered-writer token
+admits the exact non-mutating `wal_checkpoint(FULL)` and runs it before the
+lineage transaction. The mint receipt and advisory registry are then replaced
+durably; any ordinary failure after the database change compensates all three
+carriers to the previous expiry and removes the intent/sentinel before
+refusing. Only the explicit crash-cut path preserves the intent for idempotent
+recovery, which re-enters this same sequence. The serving watchdog re-reads
+the database lineage at its deadline, so renewing a live fork extends the
+running server. Renewal may
 move a finite expiry but may not clear it. Independently,
 derived-deployment forks never promote or clear their TTL. A permanent copied
 environment, if ever added, is a different provisioning product rather than a
@@ -1267,6 +1286,13 @@ canonical invoking root; its optional wire type exists only so old rows decode
 and can be refused with `SNAPBACK_FORK_APP_BINDING_REQUIRED` rather than being
 silently selected.
 
+Legacy/unbound entries remain counted in the fork root's byte admission even
+though managed reap cannot prove authority to delete them. The v1 manual
+cleanup path is intentionally out of band: an operator first stops and
+identifies the exact legacy process/directory from independent provenance,
+then removes that exact UUID registry row and direct-child directory. Snapback
+does not offer a wildcard or recursive `--unbound` deletion mode.
+
 **App binding — `snapback.fork-app-binding.v1`.** The invoking root first owns
 `.snapback/instance-fork-app-identity.v1.json`, binding its canonical path to
 the logical `appId`. Publication copies that identity into the staging intent,
@@ -1286,7 +1312,14 @@ registry and fork-local receipt before recording readiness, so a launch-time
 disagreement refuses instead of rebinding the fork. The lower-level crash-
 corpus `publish` entry point remains unmanaged: it emits no app binding and
 cannot later pass a managed lifecycle selector. Consequently, lack of launch
-is not legacy evidence; lack of a mint-time binding is.
+is not legacy evidence; lack of a mint-time binding is. The app-root identity
+is deliberately one logical app id per canonical root. To re-pin a worktree,
+first use the current identity to drop or reap every managed fork it owns;
+then remove only
+`.snapback/instance-fork-app-identity.v1.json`. The next `fork create` /
+`ensure_expected_app` establishes the new app id. Removing the identity while
+owned forks remain makes those forks unselectable through managed commands and
+does not authorize rebinding them.
 
 **Journal diff receipt — `ForkDiffReceiptV3`,
 `schemaVersion: "snapback.fork-journal-diff.v3"`** (incompatible replacement
@@ -1334,7 +1367,19 @@ covered lane names are `derivedForkOrdinaryAppRowJournal` and
 `derivedForkHostChildAppRowJournal`; they map to the four generated physical
 app-row writer adapters and are deliberately distinct from LLP 0163's
 operation-envelope lanes. Thus this receipt does not imply operation
-attribution.
+attribution. Activation also creates
+`_snapback_operation_coverage_continuity_v1`, keyed by data-version stream and
+binding the expected manifest version/digest. Its state is monotonic from
+`continuous` to `broken`. Every process-owned primary or secondary writable
+connection reconstructs the two receipts, active stream, manifest, and this
+continuity row before it can receive a token. Arbitrary armed DML cannot alter
+the manifest or continuity carriers. If reconstruction observes a missing or
+contradictory active boundary, it marks the row `broken` and creates the
+append-only sibling `fork-app-row-coverage-gap.v1.json` with
+`schemaVersion: "snapback.fork-app-row-coverage-gap.v1"`, `streamId`, expected
+manifest version/digest, detection time, and reason. Either broken carrier
+permanently excludes this fork from the whole-window class; the recovery action
+is recreation, not manifest restoration or re-arm.
 
 **Net diff receipt — `ForkNetDiffReceiptV3`,
 `schemaVersion: "snapback.fork-net-diff.v3"`** (incompatible replacement,
@@ -1375,7 +1420,13 @@ Net-diff work is bounded before map growth: journal rows, base/head scanned
 rows, WAL validation bytes, and bytes observed during streaming each refuse with
 `SNAPBACK_FORK_RESOURCE_LIMIT_REFUSED` plus `phase`, `limitKind`, limits, and
 observed usage. A revert-heavy journal or oversized unchanged database cannot
-fold/compare first and pass after consuming unbounded memory.
+fold/compare first and pass after consuming unbounded memory. Before a scanned
+SQLite row becomes an owned document, borrowed text/blob lengths are charged
+for JSON escaping, hex expansion, JSON parse overhead, vector decoding, and
+bounded serialization; a single value larger than the byte budget therefore
+refuses before proportional Rust allocation. The default journal-sequence
+receipt has a different bound: it pre-counts rows but does not have a byte-work
+budget.
 
 Creation byte limits are an atomic admission-time estimate, not a live
 filesystem quota. Fork-local database writes and asset uploads may grow the
@@ -1408,6 +1459,7 @@ the freeze:
 | `SNAPBACK_FORK_NET_DIFF_UNAVAILABLE` | `fork diff --net` was invoked on a fork created without `--retain-base`. |
 | `SNAPBACK_FORK_DIFF_ORACLE_MISMATCH` | The base/head net oracle found a change the journal cannot explain; the journal receipt cannot be trusted for that span. |
 | `SNAPBACK_FORK_WRITER_COVERAGE_INVALID` | Derived-fork writer-coverage evidence is partial, malformed, late, fork-point-mismatched, or disagrees with the active stream/manifest; the completeness claim refuses. |
+| `SNAPBACK_FORK_WRITER_COVERAGE_GAP` | A registered writer observed that a previously armed fork's active manifest/stream/continuity boundary was absent or contradictory. The discontinuity is durably irreversible for this fork; recreate it rather than restoring carriers or re-arming. |
 | `SNAPBACK_FORK_CUSTODY_UNCLASSIFIED` | A Snapback-owned source table has no closed custody-manifest rule. |
 | `SNAPBACK_FORK_DESTINATION_EXISTS` | Publication would overwrite an existing destination. |
 | `SNAPBACK_FORK_DIFF_INVALID` | A selected journal row cannot be decoded into the diff receipt (currently a malformed post-image). |

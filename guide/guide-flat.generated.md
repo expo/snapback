@@ -90,7 +90,7 @@ host-op registries. Owner: `ccheever`; label gaps `guide-gap`.
 | clients.optimistic-overlays | Derived optimistic mutations + reconciliation | optimistic, overlays, latency | local | shipped | `deriveOptimisticReducer` in packages/snapback-contract/index.mjs | llp/0052 | clients/contract-adapter.md |
 | clients.react | Prepared React provider over one headless store/transport seam: exact generated single/grouped live queries, capability-gated all-live and mixed-route references with one-commit register-mode adoption, explicit per-child registered-live/read-only boot provenance, honest weakest aggregate connection state, explicit live fallback, attach-deadline recovery, sessions authorization adoption, result-validated optimistic mutation rebase/rollback, local managed connection-keyed presence, per-query `freshness`/`retention` offline facts with the `useSnapbackOutbox` queued-intent projection, Strict Mode/HMR sharing, complete cleanup, and retained Signal Desk receipts | react, hooks, useSyncExternalStore, useSnapbackQuery, Convex useQuery, result inference, typed mutation, optimistic rollback, replay advisory, projectRecordFields, optimistic toggle helper, presence, ephemeral hook, useSnapbackPresence, typing indicator, query groups, mixed route, read-only snapshot, bundle prime, registered bundle, hmr, offline freshness, outbox badge | local | shipped | `useSnapbackPresence` in packages/snapback-react/index.d.mts | llp/0012, llp/0064, llp/0074, llp/0090, llp/0101, llp/0114, llp/0106, llp/0107, llp/0129, llp/0157 | clients/react.md |
 | clients.surfaces | Generated application surfaces bind one screen/resource's reads, ordinary mutations, asset-bearing commands, raw assets, and presence around shared params; React and headless projections share canonical owners. The closed command task composes zero/one asset child with one ordinary mutation and reports truthful failure, ambiguity, and residue provenance. | defineSurface, useSurface, observeSnapbackSurface, application surface, screen surface, one hook for a screen, bind query and mutation, surface presence, conversation surface, useSnapbackSurface, defineCommand, useSnapbackCommand, image send, upload then mutate, command task | local | partial | `useSnapbackCommand` in packages/snapback-react/index.d.mts | llp/0179, llp/0180, llp/0114, llp/0176 | clients/surfaces.md |
-| clients.react-expo | React Expo Online; supervised no-URL simulator/emulator boot. G1 receipts prove routing; devices, LAN, and release are not claimed. | react native, expo, ios, android, snapback dev --expo, SnapbackExpoProvider, adb reverse, 10.0.2.2, authority-required | local | shipped | `runExpoDev` in packages/snapback-cli/expo-dev.mjs + expo-golden-path-fixture receipts | llp/0012, llp/0064, llp/0176, llp/0181 | clients/react-expo.md |
+| clients.react-expo | React Expo Online; supervised no-URL simulator/emulator boot. G1 receipts prove those routes. Android USB selection plus exact `adb reverse` ownership is headless-proven with a live Online receipt pending; iOS USB honestly refuses because current `devicectl` has no TCP forward and `iproxy` is the wrong direction. Physical-device capability, LAN/tunnel, and release remain unclaimed. | react native, expo, ios, android, physical device, USB device, snapback dev --expo, SnapbackExpoProvider, adb reverse, TCP/IP adb refused, ios udid, iproxy, 10.0.2.2, authority-required | local | shipped | `runExpoDev` in packages/snapback-cli/expo-dev.mjs + packages/snapback-cli/expo-device-forwarding.test.mjs + simulator/emulator receipts | llp/0012, llp/0064, llp/0176, llp/0181 | clients/react-expo.md |
 | operating.server-lifecycle | Start/reuse/stop servers safely; ports; provenance; crash detection | run server, ports, bindPortExactly, lifecycle, watchdog, crash, prebuilt binary, seed reset | local | shipped | `startServer` in demos/_kit/server-process.mjs | llp/0010, llp/0030 | testing/acceptance.md |
 | operating.instance-forks | Experimental source-only finite-TTL derived-instance CLI with expiry enforcement, bounded renewal, resource-limit admission, recovery, bounded inspection, scalar projections, diff, concurrency-safe cleanup, fork-per-worktree and parallel-suite guidance, and exact drop; LLP 0158 is Accepted as the local contract, but the separate derived capability remains unsupported and this source evidence is not a claim | fork, derived instance, fork per worktree, parallel suite, inspect, status, recover, renew, diff, automatic reap, resource limits | none | partial | `ForkCommand` in src/cli.rs + tests/instance_fork_cli_v1.rs + instance_fork unit matrices (parent-write invisibility, renewal crash cuts, concurrency, disk pressure, egress/credential) + tests/acceptance/instance-fork-fleet-dogfood.2026-08-03.v1.json + demos/todo/tests/acceptance/fork-parallel-dispositions.mjs (source proof only; public tuple Missing) | llp/0158, llp/0185 | GAP (derived-capability qualification/publication, exact-diff validation, and hosted-target work remain; owner: Charlie, review: 2026-08-31; see operating/instance-forks.md) |
 | operating.agent-safe-storage | Registered Experimental `agent_safe_storage_v1` identity for the `agentSafe.v1` extension/component-fact vocabulary; it is not the `AgentSafeV1` core aggregate and no target currently supports it | operation envelope, explanation, agent-safe storage, capability facts | none | partial | `AgentSafeCapabilityExtensionV1` in src/manifest.rs (Missing-only public projection) | llp/0162 | GAP (acceptance corpus, review, acceptance, and publication gates; all projections remain Missing; owner: Charlie, review: 2026-08-31) |
@@ -918,10 +918,10 @@ land):
    rows." Expected pages: `auth/sessions-and-principals.md`,
    `recipes/hidden-hands.md`.
 
-Cases 4–7 are regression seeds from the replicated 2026-08-04/05 bakeoff
-discoverability misses (LLP 0187 T7, landed under LLP 0186 W2). The standing
-rule: every replicated discoverability miss, once fixed in the guide, must
-add a seed case here that would have caught it.
+Cases 4–8 are regression seeds from the replicated 2026-08-04/05 bakeoff and
+2026-08-06 G4 external-proof discoverability misses (LLP 0187 T7, landed under
+LLP 0186 W2). The standing rule: every replicated discoverability miss, once
+fixed in the guide, must add a seed case here that would have caught it.
 
 4. **Relational routing:** "Show a user's conversation list (a membership
    join)." Expected pages: `backend/relational-queries.md`. The run fails if
@@ -938,6 +938,11 @@ add a seed case here that would have caught it.
    pages: `backend/assets.md` (the unified ImagePicker recipe). The plan
    must state the owner-authorization rule — attempt creation may be public,
    but ownership checks are never anonymous.
+8. **Expo binding identity:** "My Expo app reports
+   `SNAPBACK_APP_BINDING_IDENTITY_MISMATCH`." Expected page:
+   `clients/react-expo.md`. The plan must regenerate the descriptor, stop an
+   older supervisor, and restart the supervised loop; it fails if it suggests
+   overriding the identity or weakening binding admission.
 
 ## Budget
 
@@ -4088,6 +4093,17 @@ under `/__snapback`, while continuing to refuse `/_snapback/*` system and
 admin routes (`packages/snapback-vite/allowlist.mjs`). No app-owned Vite
 proxy is needed, and a relative URL such as
 `/__snapback/assets/public/<id>/display` works directly as an `<img src>`.
+
+The relay is a Vite-loop convenience, not a CORS requirement. The dev
+server's CORS lane admits loopback browser origins directly, and its
+preflight allows the TUS request headers (`tus-resumable`,
+`upload-offset`, `upload-length`, `upload-checksum`) and exposes the TUS
+response family (including `upload-offset`) to page JavaScript. A browser
+carrier with no Vite relay — Expo web is the common case — completes
+picker → `useSnapbackAssetUpload` → typed attach against the dev server
+origin with no app-authored proxy. Relative delivery URLs are the one
+relay-only affordance; a direct cross-origin app uses absolute delivery
+URLs against the dev server origin instead.
 
 Two facts shape the browser flow:
 
@@ -8490,7 +8506,7 @@ order: 3
 audience: agent-first
 capabilities: [clients.react-expo]
 authorities: [llp/0012-headless-integration-contract.spec.md, llp/0017-admin-console-inspection-surface.rfc.md, llp/0041-packaged-dev-loop.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0176-expo-messaging-golden-path.plan.md, llp/0181-zero-configuration-expo.rfc.md, packages/snapback-cli/expo-dev.mjs, packages/snapback-client/index.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-client/rqs-store-default.mjs, packages/snapback-client/rqs-store-expo.mjs, packages/snapback-expo/app-binding.mjs, packages/snapback-expo/config-plugin.cjs, packages/snapback-expo/index.mjs, packages/snapback-expo/provider.mjs, packages/snapback-expo/supervised-environment.mjs, packages/snapback-react/index.mjs, scripts/install-local-snapback-packages.mjs, demos/partiful-matrix/tests/acceptance/native-react-expo.mjs, demos/_kit/eas-stage-build.mjs]
-examples: [demos/expo-golden-path-fixture, demos/expo-golden-path-fixture/receipts/20260806-g1-ios-simulator.md, demos/expo-golden-path-fixture/receipts/20260806-g1-android-emulator.md, demos/partiful-matrix/native/react-expo, packages/snapback-client/webcrypto-fallback.test.mjs, packages/snapback-expo/provider.test.mjs, packages/snapback-react/webcrypto-fallback.test.mjs, packages/snapback-client/rqs-store-expo.test.mjs, packages/snapback-client/rqs-resume-expo.test.mjs, scripts/local-source-package-closure.test.mjs, demos/rn-durable-store-witness/probe-App.tsx, demos/tandem-expo-bakeoff/scripts/build-ios-dev-client, demos/_kit/tests/repo-layout-unit.mjs]
+examples: [demos/expo-golden-path-fixture, demos/expo-golden-path-fixture/receipts/20260806-g1-ios-simulator.md, demos/expo-golden-path-fixture/receipts/20260806-g1-android-emulator.md, demos/expo-golden-path-fixture/receipts/20260806-g4-external-summary.md, demos/expo-golden-path-fixture/receipts/physical-device-online-checklist.md, demos/partiful-matrix/native/react-expo, packages/snapback-cli/expo-device-forwarding.test.mjs, packages/snapback-client/webcrypto-fallback.test.mjs, packages/snapback-expo/provider.test.mjs, packages/snapback-react/webcrypto-fallback.test.mjs, packages/snapback-client/rqs-store-expo.test.mjs, packages/snapback-client/rqs-resume-expo.test.mjs, scripts/local-source-package-closure.test.mjs, demos/rn-durable-store-witness/probe-App.tsx, demos/tandem-expo-bakeoff/scripts/build-ios-dev-client, demos/_kit/tests/repo-layout-unit.mjs]
 status: current
 targets: [local]
 maturity: shipped
@@ -8560,10 +8576,11 @@ remain a separate workflow: use only the published package versions and no
 source paths or local overrides there.
 
 For image messages, use the authenticated
-[Expo ImagePicker asset recipe](../backend/assets.md#upload-from-expo-imagepicker-with-an-ordinary-session).
-It covers the native URI-to-Blob bridge, `useSnapbackAssetUpload`, the
-completed task receipt, and typed attachment; a client with no real session
-cannot finish the multi-request upload under any intent auth mode.
+[Expo ImagePicker command recipe](../backend/assets.md#send-one-expo-imagepicker-image-with-an-ordinary-session).
+It passes the picker asset directly to the typed command and keeps the native
+source adapter, upload task, asset id, and attachment sequence behind the
+provider-owned client. A client with no real session cannot finish the
+multi-request upload under any intent auth mode.
 
 ## Debug the backend before writing another probe
 
@@ -8584,6 +8601,15 @@ back to `curl`, raw host operations, or a one-off verification script.
 ## Run the supervised Expo development loop
 
 <!-- since: 0.1.10 -->
+
+> **Published 0.1.10 caveat.** The package names exist on npm, but the dated
+> [external-consumer G4 proof](repo:demos/expo-golden-path-fixture/receipts/20260806-g4-external-summary.md)
+> found that the 0.1.10 generated descriptor requires `single_table_v1` while
+> the 0.1.10 packaged runtime rejects it, before Metro starts. That Expo
+> package also predates the provider's ImagePicker source adapter. Use the
+> source-checkout install above until a successor closure containing both
+> already-landed source repairs is published; do not cast the picker asset or
+> mix checkout and registry packages to force 0.1.10 through.
 
 The north-star boot has three application-visible pieces: the config-plugin
 entry, the generated `app`, and `SnapbackExpoProvider`. There is no backend URL
@@ -8654,18 +8680,36 @@ continues as anonymous. See [Sessions and principals](../auth/sessions-and-princ
 for the mode transition, and [LLP 0181 §Provider](repo:llp/0181-zero-configuration-expo.rfc.md#provider)
 for the provider state contract.
 
-### Choose simulator or emulator routing
+### Diagnose a binding identity mismatch
+
+`SNAPBACK_APP_BINDING_IDENTITY_MISMATCH` means the imported
+`AppDescriptor` and the delivered `AppBinding` name different descriptor
+identities. Stop any older supervisor, regenerate the conventional
+`snapback/generated/` app from the backend you intend to run, then restart
+`snapback dev --expo`. Do not overwrite the identity, construct a second
+descriptor in application code, or weaken admission: the refusal prevents a
+client generated for one backend shape from being bound to another.
+
+### Choose simulator, emulator, or USB routing
 
 | Carrier | Route selected by the supervised baseline | What stays loopback-only |
 | --- | --- | --- |
 | iOS simulator | Same-host loopback; the binding and Expo origin use `127.0.0.1`. | Backend, Metro, and bootstrap exchange. |
 | Android emulator | Preferred: one verified `adb reverse` rule for each of the backend, Metro, and bootstrap ports, so the app still addresses `127.0.0.1`. Fallback: the emulator-only `10.0.2.2` host alias under `routing: "port-forward"`. | Every host listener. The fallback is routing posture, not permission to bind on LAN. |
+| Android USB device | Select the exact USB serial with `--android-serial`. The supervisor classifies the `adb devices -l` row, rejects TCP/IP/mDNS adb, and installs/verifies/removes the same three `adb -s <serial> reverse` rules under `routing: "port-forward"`. | Every host listener. The USB mechanism is headless-proven; its live LLP 0064 Online receipt is pending. |
+| iOS USB device | `--ios-udid` enumerates physical devices with `xcrun devicectl` and rejects network transports. The current command then refuses with `SNAPBACK_EXPO_IOS_USB_REVERSE_FORWARD_UNAVAILABLE`: `devicectl` 518.33 has no TCP forward, while `iproxy` forwards Mac-to-device, the wrong direction for device loopback-to-Mac. | No listener or forward is created. A device-side bridge or a new author-approved posture is still required. |
 
 These routes and their cleanup are the closed iOS/Android branches in the
 [supervisor](repo:packages/snapback-cli/expo-dev.mjs),
 [LLP 0181 §iOS simulator](repo:llp/0181-zero-configuration-expo.rfc.md#ios-simulator),
 and
 [LLP 0181 §Android emulator](repo:llp/0181-zero-configuration-expo.rfc.md#android-emulator).
+The final readiness event reports `device.serial` and `device.class` alongside
+the unchanged binding `source: "supervised-dev"`; Android USB remains
+`bindingRouting: "port-forward"`. Device selection is exact and ambiguity
+refuses rather than allowing adb to choose whichever target happens to be
+first.
+
 Supervised binding admission tolerates at most 60 seconds of the host issuer's
 clock running ahead of the simulator/emulator clock. Expiry remains strict; a
 larger skew refuses with `SNAPBACK_APP_BINDING_NOT_YET_VALID`, in which case
@@ -8684,10 +8728,15 @@ an ordinary mutation returning through that query, loopback listener
 enumeration, and complete supervisor cleanup. Together they complete the LLP
 0176 G1 simulator/emulator exit.
 
-This supervised loop does **not** claim physical-device development, a LAN or
-tunnel edge, or a release build. Physical-device and LAN carriers remain
-separately gated; release bindings and per-OS release acceptance use the
-separate path later on this page
+This supervised loop still makes **no LLP 0064 physical-device claim**. The
+Android USB mechanism has shipped with fake-inventory, exact forward,
+verification, rollback/removal, and readiness-shape tests, but no live device
+receipt exists. The iOS USB mechanism is not shipped: the tooling probe ruled
+out `devicectl` and `iproxy` for the required reverse direction. The
+[manual Online receipt checklist](repo:demos/expo-golden-path-fixture/receipts/physical-device-online-checklist.md)
+keeps both facts explicit and must not be cited as a receipt. LAN/tunnel edges
+remain separately gated; release bindings and per-OS release acceptance use
+the separate path later on this page
 ([LLP 0181 §Real devices in the baseline](repo:llp/0181-zero-configuration-expo.rfc.md#real-devices-in-the-baseline),
 [LLP 0181 §Release binding](repo:llp/0181-zero-configuration-expo.rfc.md#release-binding)).
 Tests and advanced multi-target shells may inject a
@@ -12668,6 +12717,14 @@ diffed immediately with the owning CLI `--app-root`. The low-level `publish`
 crash-corpus primitive is deliberately unmanaged and cannot be selected by
 managed lifecycle commands.
 
+That root identity is a deliberate one-app pin. If a worktree must change to a
+different logical app id, first use its current identity to list and drop (or
+reap) every managed fork it owns. Then remove only
+`.snapback/instance-fork-app-identity.v1.json`; the next `fork create` records
+the new app id. Do not remove the identity while owned forks remain: doing so
+makes them fail closed under managed lifecycle commands and does not transfer
+their authority to the new app id.
+
 ## Fork instead of seeding an acceptance suite
 
 Suites using `openHeadlessApp` opt in with `forkFrom`. The ordinary call still
@@ -12784,7 +12841,12 @@ already-expired fork outright (`SNAPBACK_FORK_RENEW_EXPIRED` — reap and
 recreate instead), and emits a durable `snapback.fork-renew.v1` receipt both
 in the envelope and beside the fork database. A renewal that crashes mid-way
 is completed by `fork recover` from its durable intent; a running fork server
-re-reads the renewed expiry at its old deadline and keeps serving.
+re-reads the renewed expiry at its old deadline and keeps serving. On an armed
+fork the lifecycle token permits the exact checkpoint before the lineage
+transaction. An ordinary later failure compensates database lineage, mint
+receipt, and registry to the previous expiry and refuses cleanly; an injected
+or real crash preserves the sentinel/intent so `fork recover` can finish the
+same sequence.
 
 `drop` stops and removes exactly one verified fork; concurrent drop/reap of
 the same fork settles with one winner and `SNAPBACK_FORK_NOT_FOUND` for the
@@ -12836,7 +12898,7 @@ details object in automation; the message is for people.
 | Diagnostic | Action |
 | --- | --- |
 | `SNAPBACK_FORK_APP_BINDING_MISMATCH` | The selected fork belongs to another canonical app root or logical app identity, or the invoking app-root identity was replaced after it was loaded. Invoke from the owning `--app-root`; library callers should reload the opaque identity; never use the shared fork root as authority. |
-| `SNAPBACK_FORK_APP_BINDING_REQUIRED` | The entry predates mint-time app binding, came from the unmanaged low-level primitive, or lost that evidence. It is deliberately unselectable; a managed fork does not enter this class merely because it was never launched. Inspect and migrate/recreate it out of band rather than weakening the check. |
+| `SNAPBACK_FORK_APP_BINDING_REQUIRED` | The entry predates mint-time app binding, came from the unmanaged low-level primitive, or lost that evidence. It is deliberately unselectable; a managed fork does not enter this class merely because it was never launched. Legacy bytes still count against root admission. Stop and identify the exact legacy process/directory from independent provenance, then remove only that UUID's registry row and direct-child directory out of band; there is no wildcard/recursive unbound reap. |
 | `SNAPBACK_FORK_PUBLICATION_PARTIAL` | Run `fork recover` on the exact sentinel-bearing destination before boot. |
 | `SNAPBACK_FORK_QUARANTINED` | Treat the database as non-bootable; recover its managed publication rather than clearing stamps by hand. |
 | `SNAPBACK_FORK_LINEAGE_INVALID` | Stop. Do not trust or delete the target until its local lineage provenance is understood. |
@@ -12848,6 +12910,7 @@ details object in automation; the message is for people.
 | `SNAPBACK_FORK_RENEW_EXPIRED` | Renewal never resurrects: the fork is already past expiry — reap it and create a fresh fork. |
 | `SNAPBACK_FORK_RESOURCE_LIMIT_REFUSED` | A configured bound refused deterministically; the details name the resource (`fork-count`, `fork-bytes`, `total-bytes`, `diff-work`, `renewal-lifetime`) and the observed usage. Net diff additionally reports its streaming `phase`, `limitKind`, journal/scanned rows, and bytes. Drop forks, raise the explicit flag, or bound the request. |
 | `SNAPBACK_FORK_WRITER_COVERAGE_INVALID` | Do not treat the fork as whole-window covered. Its durable fork-point receipt is partial, tampered, late, or no longer matches the active stream/manifest; recreate it through `fork create`. |
+| `SNAPBACK_FORK_WRITER_COVERAGE_GAP` | A registered writer observed a missing or contradictory boundary after coverage had armed. Snapback records the discontinuity in the database and `fork-app-row-coverage-gap.v1.json`; restoring a manifest cannot regain the class. Recreate the fork. |
 
 ## Read the diff at its real boundary
 
@@ -12872,12 +12935,23 @@ retained base against the head directly — independent of the journal — with
 pre- and post-images, a named substrate (`retained-base-v1`) and
 machine-readable covered/omitted domains. Both v3 receipt types carry
 `receiptDigest`, a domain-separated SHA-256 digest over the JCS-canonical form
-of every other emitted fact, so approval can bind the exact receipt. A fork
+of every other emitted fact, so approval can bind the exact receipt. To verify
+one, remove the top-level `receiptDigest`, serialize the remaining object with
+JCS, prefix those bytes with
+`snapback:fork-journal-diff-receipt:v3\n` or
+`snapback:fork-net-diff-receipt:v3\n` according to `schemaVersion`, compute
+SHA-256 over the concatenation, and compare the lowercase
+`sha256:<64-hex>` spelling. A fork
 created through the complete cold-start carrier path can advertise
 `registered-connection-defensive-app-rows-v1` only
 when its digest-bound coverage receipt proves the two app-row writer lanes
 were armed at the fork point and the journal cross-check verifies through the
-observed head. A partial generated layout remains
+observed head. The active manifest and its per-stream continuity row are
+protected carriers. Every registered writable connection must reconstruct the
+matching database/file receipts, stream, manifest, and `continuous` row before
+receiving a token. If one observes a gap, the continuity row becomes `broken`
+and the sibling gap file is created; neither can be re-armed or erased by an
+exact manifest restore. A partial generated layout remains
 `journal-enumerated-v1` because its historical schema load occurs after bind.
 Read
 `writerCoverage.coverageWindow`, `manifestDigest`, `coveredLanes`, and
@@ -12891,18 +12965,23 @@ implemented by this net view. Any other unarmed or late-armed fork and a
 retention gap remain `journal-enumerated-v1`. A change the journal cannot explain refuses
 with `SNAPBACK_FORK_DIFF_ORACLE_MISMATCH`; on the armed path, the same refusal
 applies when a row's latest journal post-image disagrees with the independently
-scanned head. Contradictory coverage evidence refuses with
-`SNAPBACK_FORK_WRITER_COVERAGE_INVALID`, instead of lending either condition
-cover. Without a retained base, `--net` refuses with
+scanned head. Static receipt/fork-point contradictions refuse with
+`SNAPBACK_FORK_WRITER_COVERAGE_INVALID`; a discontinuity observed by a
+registered writer refuses with `SNAPBACK_FORK_WRITER_COVERAGE_GAP`, instead of
+lending either condition cover. Without a retained base, `--net` refuses with
 `SNAPBACK_FORK_NET_DIFF_UNAVAILABLE`.
 
 The journal receipt is a review aid, not a complete audit and not production
 migration admission. A long-lived fork can also outlive its journal floor;
-then diff refuses instead of returning an incomplete receipt. Both surfaces
-are work-bounded: journal rows, net base/head scanned rows, WAL validation
-bytes, and streamed bytes are
-checked during streaming, before unbounded maps can grow. Past `--max-rows`
-(default 100k) or the fixed byte budget, diff refuses with
+then diff refuses instead of returning an incomplete receipt. The default
+journal receipt pre-counts and bounds rows before materialization; it does not
+have a byte-work budget. Net diff separately bounds journal rows, base/head
+scanned rows, WAL validation bytes, and streamed bytes. Before converting a
+scanned row to an owned document, it charges borrowed SQLite value lengths for
+text escaping, blob hex expansion, JSON parsing, vector decoding, and bounded
+serialization, so one oversized value refuses before proportional expansion.
+Past `--max-rows` (default 100k), or past the fixed byte budget on net diff,
+the operation refuses with
 `SNAPBACK_FORK_RESOURCE_LIMIT_REFUSED` and observed usage instead of
 materializing an unbounded receipt. Use the reviewed migration rehearsal flow
 for production apply decisions.

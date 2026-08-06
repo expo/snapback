@@ -230,8 +230,7 @@ fn executable_fork_lifecycle_is_detached_exact_and_reap_safe() {
         app_root: todo_root.clone(),
         fork_ids: Vec::new(),
     };
-    let created =
-        fork_create_with_options(&source, &todo_root, &fork_root, "5m", false, true);
+    let created = fork_create_with_options(&source, &todo_root, &fork_root, "5m", false, true);
     cleanup.track(fork_id(&created));
     assert_eq!(created["ok"], true);
     assert_eq!(created["data"]["secrets"], "scrubbed");
@@ -249,9 +248,11 @@ fn executable_fork_lifecycle_is_detached_exact_and_reap_safe() {
         writer_coverage["activationHeadVersion"],
         writer_coverage["forkPointVersion"]
     );
-    assert!(writer_coverage["manifestDigest"]
-        .as_str()
-        .is_some_and(|digest| digest.starts_with("sha256:")));
+    assert!(
+        writer_coverage["manifestDigest"]
+            .as_str()
+            .is_some_and(|digest| digest.starts_with("sha256:"))
+    );
     assert_eq!(
         writer_coverage["coveredLanes"],
         serde_json::json!([
@@ -259,9 +260,11 @@ fn executable_fork_lifecycle_is_detached_exact_and_reap_safe() {
             "derivedForkOrdinaryAppRowJournal"
         ])
     );
-    assert!(writer_coverage["uncoveredLanes"]
-        .as_array()
-        .is_some_and(|lanes| !lanes.is_empty()));
+    assert!(
+        writer_coverage["uncoveredLanes"]
+            .as_array()
+            .is_some_and(|lanes| !lanes.is_empty())
+    );
     let mut list = snapback();
     list.args([
         "fork",
@@ -331,11 +334,19 @@ fn executable_fork_lifecycle_is_detached_exact_and_reap_safe() {
         "snapback.fork-journal-diff.v3"
     );
     assert_eq!(diff["data"]["receipt"]["attribution"], "absent-v1");
-    assert_eq!(diff["data"]["receipt"]["base"]["versionBoundary"], "exclusive");
-    assert_eq!(diff["data"]["receipt"]["head"]["versionBoundary"], "inclusive");
-    assert!(diff["data"]["receipt"]["receiptDigest"]
-        .as_str()
-        .is_some_and(|digest| digest.starts_with("sha256:")));
+    assert_eq!(
+        diff["data"]["receipt"]["base"]["versionBoundary"],
+        "exclusive"
+    );
+    assert_eq!(
+        diff["data"]["receipt"]["head"]["versionBoundary"],
+        "inclusive"
+    );
+    assert!(
+        diff["data"]["receipt"]["receiptDigest"]
+            .as_str()
+            .is_some_and(|digest| digest.starts_with("sha256:"))
+    );
     assert!(
         diff["data"]["receipt"]["rows"]
             .as_array()
@@ -359,9 +370,11 @@ fn executable_fork_lifecycle_is_detached_exact_and_reap_safe() {
     assert_eq!(net_receipt["schemaVersion"], "snapback.fork-net-diff.v3");
     assert_eq!(net_receipt["base"]["versionBoundary"], "exclusive");
     assert_eq!(net_receipt["head"]["versionBoundary"], "inclusive");
-    assert!(net_receipt["receiptDigest"]
-        .as_str()
-        .is_some_and(|digest| digest.starts_with("sha256:")));
+    assert!(
+        net_receipt["receiptDigest"]
+            .as_str()
+            .is_some_and(|digest| digest.starts_with("sha256:"))
+    );
     assert_eq!(
         net_receipt["completeness"],
         "registered-connection-defensive-app-rows-v1"
@@ -376,8 +389,7 @@ fn executable_fork_lifecycle_is_detached_exact_and_reap_safe() {
         writer_coverage["coveredLanes"]
     );
     assert_eq!(
-        net_receipt["rows"][0]["postImage"]["completed"],
-        false,
+        net_receipt["rows"][0]["postImage"]["completed"], false,
         "the independent oracle emits the schema-decoded logical row"
     );
 
@@ -580,10 +592,7 @@ fn same_app_id_app_roots_cannot_cross_select_a_shared_fork_root() {
         fork_ids: vec![id_b.clone()],
     };
 
-    for (app_root, own_id, hidden_id) in [
-        (&app_a, &id_a, &id_b),
-        (&app_b, &id_b, &id_a),
-    ] {
+    for (app_root, own_id, hidden_id) in [(&app_a, &id_a, &id_b), (&app_b, &id_b, &id_a)] {
         let listed = successful(
             {
                 let mut command = snapback();
@@ -692,8 +701,14 @@ fn same_app_id_app_roots_cannot_cross_select_a_shared_fork_root() {
         ]);
         successful(command, label);
     }
-    assert_eq!(todo_titles(&data_path(&created_a, "database")), vec!["only-a"]);
-    assert_eq!(todo_titles(&data_path(&created_b, "database")), vec!["only-b"]);
+    assert_eq!(
+        todo_titles(&data_path(&created_a, "database")),
+        vec!["only-a"]
+    );
+    assert_eq!(
+        todo_titles(&data_path(&created_b, "database")),
+        vec!["only-b"]
+    );
 
     let expires_b = created_b["data"]["receipt"]["lineage"]["expiresAtMs"]
         .as_u64()
@@ -719,7 +734,10 @@ fn same_app_id_app_roots_cannot_cross_select_a_shared_fork_root() {
         reaped["data"]["receipt"]["reapedForkIds"],
         serde_json::json!([id_b])
     );
-    assert!(destination_a.is_dir(), "app B reap cannot delete app A fork");
+    assert!(
+        destination_a.is_dir(),
+        "app B reap cannot delete app A fork"
+    );
     assert!(!destination_b.exists(), "app B reap deletes its own fork");
     cleanup_b.fork_ids.clear();
 
@@ -784,9 +802,11 @@ fn library_minted_never_launched_fork_diffs_only_for_its_owning_app_root() {
         "mint publishes fork-local app binding before any launch"
     );
     assert!(
-        std::fs::read_dir(&destination)
+        std::fs::read_dir(&destination).unwrap().all(|entry| !entry
             .unwrap()
-            .all(|entry| !entry.unwrap().file_name().to_string_lossy().ends_with(".ready.json")),
+            .file_name()
+            .to_string_lossy()
+            .ends_with(".ready.json")),
         "the fixture never publishes runtime readiness"
     );
 
@@ -805,7 +825,11 @@ fn library_minted_never_launched_fork_diffs_only_for_its_owning_app_root() {
     drop(conn);
 
     for (extra, schema, operation) in [
-        (Vec::<&str>::new(), "snapback.fork-journal-diff.v3", "attributed diff"),
+        (
+            Vec::<&str>::new(),
+            "snapback.fork-journal-diff.v3",
+            "attributed diff",
+        ),
         (vec!["--net"], "snapback.fork-net-diff.v3", "net diff"),
     ] {
         let mut command = snapback();
@@ -1214,11 +1238,9 @@ fn signed_issue_status(server_url: &str, bearer: &str, asset_id: &str) -> u16 {
 }
 
 fn primary_blob_path(database: &Path, asset_id: &str) -> PathBuf {
-    let conn = rusqlite::Connection::open_with_flags(
-        database,
-        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
-    )
-    .expect("open asset database read-only");
+    let conn =
+        rusqlite::Connection::open_with_flags(database, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
+            .expect("open asset database read-only");
     let physical_key: String = conn
         .query_row(
             "SELECT b.physical_key
@@ -1261,11 +1283,9 @@ fn asset_gc_sweep(ready: &Path, token: &str, now_ms: u64, operation: &str) -> Va
 }
 
 fn todo_titles(database: &Path) -> Vec<String> {
-    let conn = rusqlite::Connection::open_with_flags(
-        database,
-        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
-    )
-    .expect("open database read-only");
+    let conn =
+        rusqlite::Connection::open_with_flags(database, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
+            .expect("open database read-only");
     let mut statement = conn
         .prepare("SELECT title FROM todos ORDER BY title")
         .expect("prepare todo title query");
@@ -2099,7 +2119,7 @@ fn executable_fork_renew_extends_a_live_fork_within_the_maximum() {
     let directory = tempfile::tempdir().expect("renew fixture");
     let source = parent_with_schema(directory.path());
     let app_root = directory.path().join("app");
-    std::fs::create_dir(&app_root).unwrap();
+    copy_todo_app_root(&app_root);
     let fork_root = directory.path().join("forks");
     let mut cleanup = ForkCleanup {
         fork_root: fork_root.clone(),
@@ -2109,6 +2129,11 @@ fn executable_fork_renew_extends_a_live_fork_within_the_maximum() {
 
     let created = fork_create(&source, &app_root, &fork_root, "5s", false);
     cleanup.track(fork_id(&created));
+    assert_eq!(
+        created["data"]["writerCoverageReceipt"]["schemaVersion"],
+        "snapback.fork-app-row-coverage.v1",
+        "renewal acceptance must exercise an armed complete-pair fork"
+    );
     let original_expiry = created["data"]["receipt"]["lineage"]["expiresAtMs"]
         .as_u64()
         .expect("original expiry");
@@ -2221,6 +2246,117 @@ fn executable_fork_renew_extends_a_live_fork_within_the_maximum() {
         reaped["data"]["receipt"]["reapedForkIds"],
         serde_json::json!([]),
         "the renewed fork is not reap-eligible at its superseded expiry"
+    );
+}
+
+#[test]
+fn executable_fork_recover_completes_interrupted_renewal_on_an_armed_fork() {
+    let directory = tempfile::tempdir().expect("armed renewal recovery fixture");
+    let source = parent_with_schema(directory.path());
+    let app_root = directory.path().join("app");
+    copy_todo_app_root(&app_root);
+    let fork_root = directory.path().join("forks");
+    let mut cleanup = ForkCleanup {
+        fork_root: fork_root.clone(),
+        app_root: app_root.clone(),
+        fork_ids: Vec::new(),
+    };
+    let created = fork_create_with_options(&source, &app_root, &fork_root, "5m", false, true);
+    cleanup.track(fork_id(&created));
+    assert_eq!(
+        created["data"]["writerCoverageReceipt"]["schemaVersion"],
+        "snapback.fork-app-row-coverage.v1"
+    );
+
+    let ready = data_path(&created, "readyFile");
+    let descriptor: Value = serde_json::from_slice(&std::fs::read(&ready).expect("ready file"))
+        .expect("ready descriptor");
+    let pid = descriptor["pid"].as_u64().expect("fork pid").to_string();
+    assert!(
+        Command::new("kill")
+            .args(["-9", &pid])
+            .status()
+            .expect("stop armed fork before crash-cut renewal")
+            .success()
+    );
+    for _ in 0..100 {
+        if !Command::new("kill")
+            .args(["-0", &pid])
+            .status()
+            .expect("probe stopped armed fork")
+            .success()
+        {
+            break;
+        }
+        std::thread::sleep(Duration::from_millis(25));
+    }
+
+    let expected = snapback::instance_fork::load_expected_app(&app_root)
+        .expect("load armed fork app identity");
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .expect("wall clock")
+        .as_millis() as u64;
+    let cut = snapback::instance_fork::renew_managed_with_crash_cut_for_test(
+        &fork_root,
+        fork_id(&created),
+        &expected,
+        now_ms,
+        10 * 60_000,
+        snapback::instance_fork::RenewCut::AfterDatabaseUpdate,
+    )
+    .expect_err("inject renewal crash after the armed database update");
+    assert_eq!(cut.diagnostic.code, "SNAPBACK_FORK_TEST_CRASH_CUT");
+    let destination = data_path(&created, "database")
+        .parent()
+        .expect("fork destination")
+        .to_path_buf();
+    assert!(
+        destination
+            .join(snapback::instance_fork::STAGING_SENTINEL)
+            .is_file()
+    );
+
+    let mut recover = snapback();
+    recover.args([
+        "fork",
+        "recover",
+        destination.to_str().unwrap(),
+        "--app-root",
+        app_root.to_str().unwrap(),
+        "--fork-root",
+        fork_root.to_str().unwrap(),
+    ]);
+    let recovered = successful(recover, "recover interrupted armed renewal");
+    assert_eq!(recovered["data"]["disposition"], "published-recovered");
+    assert!(
+        !destination
+            .join(snapback::instance_fork::STAGING_SENTINEL)
+            .exists()
+    );
+    assert!(
+        snapback::instance_fork::verified_derived_fork_app_row_coverage(&data_path(
+            &created, "database"
+        ))
+        .expect("verify recovered armed coverage")
+        .is_some()
+    );
+
+    let mut diff = snapback();
+    diff.args([
+        "fork",
+        "diff",
+        fork_id(&created),
+        "--net",
+        "--app-root",
+        app_root.to_str().unwrap(),
+        "--fork-root",
+        fork_root.to_str().unwrap(),
+    ]);
+    let diff = successful(diff, "net diff after armed renewal recovery");
+    assert_eq!(
+        diff["data"]["receipt"]["completeness"],
+        "registered-connection-defensive-app-rows-v1"
     );
 }
 
@@ -2392,17 +2528,18 @@ fn partial_generated_layout_stays_journal_enumerated() {
         app_root: app_root.clone(),
         fork_ids: Vec::new(),
     };
-    let created =
-        fork_create_with_options(&source, &app_root, &fork_root, "5m", false, true);
+    let created = fork_create_with_options(&source, &app_root, &fork_root, "5m", false, true);
     cleanup.track(fork_id(&created));
     assert_eq!(created["data"]["writerCoverageReceipt"], Value::Null);
-    assert!(health(
-        created["target"]["serverUrl"]
-            .as_str()
-            .expect("partial fork URL")
-    )["ok"]
-        .as_bool()
-        .unwrap_or(false));
+    assert!(
+        health(
+            created["target"]["serverUrl"]
+                .as_str()
+                .expect("partial fork URL")
+        )["ok"]
+            .as_bool()
+            .unwrap_or(false)
+    );
     assert!(
         !data_path(&created, "database")
             .with_file_name(snapback::instance_fork::APP_ROW_COVERAGE_RECEIPT_FILE)
@@ -2489,7 +2626,10 @@ fn executable_net_diff_names_its_substrate_and_requires_a_retained_base() {
     assert_eq!(receipt["schemaVersion"], "snapback.fork-net-diff.v3");
     assert_eq!(receipt["substrate"], "retained-base-v1");
     assert_eq!(receipt["completeness"], "journal-enumerated-v1");
-    assert_eq!(receipt["journalConsistency"], "journal-cross-check-verified");
+    assert_eq!(
+        receipt["journalConsistency"],
+        "journal-cross-check-verified"
+    );
     assert_eq!(receipt["attribution"], "absent-v1");
     assert_eq!(receipt["writerCoverage"]["coverageWindow"], "unverified");
     assert_eq!(receipt["writerCoverage"]["manifestDigest"], Value::Null);
@@ -2648,8 +2788,7 @@ fn executable_fork_recover_repairs_one_finite_partial_publication() {
     let refused = refused.output().expect("run unbounded recovery");
     assert!(!refused.status.success());
     assert!(
-        String::from_utf8_lossy(&refused.stderr)
-            .contains("SNAPBACK_FORK_APP_BINDING_REQUIRED"),
+        String::from_utf8_lossy(&refused.stderr).contains("SNAPBACK_FORK_APP_BINDING_REQUIRED"),
         "{}",
         String::from_utf8_lossy(&refused.stderr)
     );
