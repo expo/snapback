@@ -440,6 +440,1508 @@ export const acceptancePrivateOverlay = defineJsQuery({
   },
 });
 
+// @ref LLP 0183#zb3--optimistic-programs-and-durable-intent — authoritative
+// writes, projection repair, and durable effect intent settle atomically.
+// Lane 4 authoritative mutation helpers. Every source-id lookup is explicit:
+// the pinned application keeps its public ids while Snapback alone mints the
+// physical prefixed `_id` values used by typed references.
+
+function assertVisibilityDomain(value) {
+  if (value !== 'public' && value !== 'internal') {
+    throw new Error('issue visibility must be public or internal');
+  }
+  return value;
+}
+
+function assertSubscriptionCommand(value) {
+  if (value !== 'subscribe' && value !== 'unsubscribe') {
+    throw new Error('notification subscription must be subscribe or unsubscribe');
+  }
+  return value;
+}
+
+function assertIntentDomain(trigger, kind, state) {
+  let expectedKind = null;
+  if (trigger === 'issueCreate') expectedKind = 'create-issue';
+  else if (trigger === 'issueUpdate') expectedKind = 'update-issue';
+  else if (trigger === 'issueAddLabel') expectedKind = 'update-issue';
+  else if (trigger === 'issueRemoveLabel') expectedKind = 'update-issue';
+  else if (trigger === 'emojiAddToIssue') expectedKind = 'add-emoji-to-issue';
+  else if (trigger === 'emojiAddToComment') expectedKind = 'add-emoji-to-comment';
+  else if (trigger === 'commentAdd') expectedKind = 'add-comment';
+  else if (trigger === 'commentEdit') expectedKind = 'edit-comment';
+  if (!expectedKind || kind !== expectedKind || state !== 'pending') {
+    throw new Error('notification intent has an invalid closed-domain value');
+  }
+}
+
+function assertBoundedRows(rows, label) {
+  if (rows.length >= 1_024) {
+    throw new Error(`${label} reached the portable 1,024-row boundary`);
+  }
+  return rows;
+}
+
+function assertCommentBody(issue, body) {
+  if (typeof body !== 'string') throw new Error('comment body must be a string');
+  const limit = issue.id === 'duuW9Nyj5cTNLlimp9Qje' ? 1_024 : 65_536;
+  if (Array.from(body).length > limit) {
+    throw new Error(`comment body exceeds the ${limit}-character limit`);
+  }
+}
+
+// PostgreSQL's identity starts at 3000 and explicit values (including the
+// policy-extension sentinel) do not advance that sequence. The control has no
+// first-class numeric identity column, so choose the first unused generated
+// value under the same bounded transaction that inserts the issue.
+export function nextIssueShortID(issues) {
+  const used = new Set(issues
+    .map(issue => issue.shortID)
+    .filter(value => Number.isSafeInteger(value) && value >= 3_000));
+  let candidate = 3_000;
+  while (used.has(candidate)) {
+    if (candidate >= Number.MAX_SAFE_INTEGER) {
+      throw new Error('issue short id sequence is exhausted');
+    }
+    candidate += 1;
+  }
+  return candidate;
+}
+
+export function planIssueDependentCleanup(
+  issue,
+  comments,
+  joins,
+  views,
+  notifications,
+  emojiRows,
+) {
+  const commentIDs = new Set(comments.map(comment => comment._id));
+  return {
+    commentIDs: comments.map(comment => comment._id),
+    emojiIDs: emojiRows
+      .filter(emoji => emoji.subjectID === issue._id || commentIDs.has(emoji.subjectID))
+      .map(emoji => emoji._id),
+    issueLabels: joins.map(join => ({id: join._id, labelID: join.labelID})),
+    viewStateIDs: views.map(view => view._id),
+    notificationIDs: notifications.map(notification => notification._id),
+  };
+}
+
+export function planCommentDependentCleanup(comment, emojiRows) {
+  return {
+    commentID: comment._id,
+    emojiIDs: emojiRows
+      .filter(emoji => emoji.subjectID === comment._id)
+      .map(emoji => emoji._id),
+  };
+}
+
+async function sourceRowByID(ctx, table, sourceID) {
+  return await ctx.db
+    .query(table)
+    .withIndex('by_source_id')
+    .eq('id', sourceID)
+    .first();
+}
+
+async function requireSourceRowByID(ctx, table, sourceID) {
+  const row = await sourceRowByID(ctx, table, sourceID);
+  if (!row) throw new Error(`${table} was not found`);
+  return row;
+}
+
+async function requireMutationVisibleIssue(ctx, issue) {
+  const user = await requireSourceUser(ctx);
+  if (!issue) throw new Error('issue was not found or is not visible');
+  assertVisibilityDomain(issue.visibility);
+  if (
+    issue.visibility !== 'public'
+    && issue.creatorID !== user._id
+    && user.role !== 'crew'
+  ) {
+    throw new Error('issue was not found or is not visible');
+  }
+  return user;
+}
+
+async function resolveProjectArgument(ctx, sourceProjectID) {
+  return await requireSourceRowByID(
+    ctx,
+    'project',
+    sourceProjectID ?? 'iCNlS2qEpzYWEes1RTf-D',
+  );
+}
+
+async function resolveOptionalAssignee(ctx, sourceAssigneeID) {
+  if (sourceAssigneeID === null || sourceAssigneeID === undefined) return null;
+  return await requireSourceRowByID(ctx, 'user', sourceAssigneeID);
+}
+
+async function upsertIssueNotification(ctx, issue, userID, subscribed, created, forceUpdate) {
+  const existing = await ctx.db
+    .query('issueNotifications')
+    .withIndex('by_user_issue')
+    .eq('userID', userID)
+    .eq('issueID', issue._id)
+    .first();
+  if (!existing) {
+    await ctx.db.insert('issueNotifications', {
+      userID,
+      issueID: issue._id,
+      subscribed,
+      created,
+    });
+  } else if (forceUpdate) {
+    await ctx.db.patch('issueNotifications', existing._id, {subscribed, created});
+  }
+}
+
+async function repairIssueListRead(ctx, issue) {
+  assertVisibilityDomain(issue.visibility);
+  const existing = await ctx.db
+    .query('issueListRead')
+    .withIndex('by_issue')
+    .eq('issueID', issue._id)
+    .first();
+  const values = {
+    issueID: issue._id,
+    sourceIssueID: issue.id,
+    projectID: issue.projectID,
+    creatorID: issue.creatorID,
+    assigneeID: issue.assigneeID ?? null,
+    open: issue.open,
+    visibility: issue.visibility,
+    modified: issue.modified,
+    created: issue.created,
+  };
+  if (existing) await ctx.db.patch('issueListRead', existing._id, values);
+  else await ctx.db.insert('issueListRead', values);
+}
+
+async function repairIssueSearchDocument(ctx, issue) {
+  assertVisibilityDomain(issue.visibility);
+  const comments = assertBoundedRows(
+    await ctx.db
+      .query('comment')
+      .withIndex('by_issue_created')
+      .eq('issueID', issue._id)
+      .order('created', 'asc')
+      .take(1_024)
+      .collect(),
+    'issue search comments',
+  );
+  const existing = await ctx.db
+    .query('issueSearchDocument')
+    .withIndex('by_issue')
+    .eq('issueID', issue._id)
+    .first();
+  const values = {
+    issueID: issue._id,
+    sourceIssueID: issue.id,
+    projectID: issue.projectID,
+    visibility: issue.visibility,
+    title: issue.title,
+    description: issue.description,
+    commentText: comments.map(comment => comment.body).join('\n'),
+  };
+  if (existing) await ctx.db.patch('issueSearchDocument', existing._id, values);
+  else await ctx.db.insert('issueSearchDocument', values);
+}
+
+async function bumpSearchEpoch(ctx, projectID, visibility) {
+  assertVisibilityDomain(visibility);
+  const epoch = await ctx.db
+    .query('searchEpoch')
+    .withIndex('by_project_visibility')
+    .eq('projectID', projectID)
+    .eq('visibility', visibility)
+    .first();
+  if (!epoch || !Number.isSafeInteger(epoch.epoch)) {
+    throw new Error('search epoch is missing or invalid');
+  }
+  if (epoch.epoch >= Number.MAX_SAFE_INTEGER) {
+    throw new Error('search epoch is exhausted');
+  }
+  await ctx.db.patch('searchEpoch', epoch._id, {epoch: epoch.epoch + 1});
+}
+
+async function repairProjectUserRead(ctx, projectID, userID) {
+  const [creatorIssue, assigneeIssue, user, existing] = await Promise.all([
+    ctx.db
+      .query('issue')
+      .withIndex('by_project_creator_modified')
+      .eq('projectID', projectID)
+      .eq('creatorID', userID)
+      .first(),
+    ctx.db
+      .query('issue')
+      .withIndex('by_project_assignee_modified')
+      .eq('projectID', projectID)
+      .eq('assigneeID', userID)
+      .first(),
+    ctx.db.get('user', userID),
+    ctx.db
+      .query('projectUserRead')
+      .withIndex('by_project_user')
+      .eq('projectID', projectID)
+      .eq('userID', userID)
+      .first(),
+  ]);
+  if (!user || (user.role !== 'crew' && user.role !== 'user')) {
+    throw new Error('project-user repair found an invalid user role');
+  }
+  const values = {
+    projectID,
+    userID,
+    isCreator: Boolean(creatorIssue),
+    isAssignee: Boolean(assigneeIssue),
+    isCrew: user.role === 'crew' && !user.login.startsWith('rocibot'),
+  };
+  if (values.isCreator || values.isAssignee || values.isCrew) {
+    if (existing) await ctx.db.patch('projectUserRead', existing._id, values);
+    else await ctx.db.insert('projectUserRead', values);
+  } else if (existing) {
+    await ctx.db.delete('projectUserRead', existing._id);
+  }
+}
+
+async function insertIssueLabelRead(ctx, issue, label) {
+  const existing = await ctx.db
+    .query('issueLabelRead')
+    .withIndex('by_issue_label')
+    .eq('issueID', issue._id)
+    .eq('labelID', label._id)
+    .first();
+  if (existing) throw new Error('issue label already exists');
+  await ctx.db.insert('issueLabelRead', {
+    projectID: issue.projectID,
+    issueID: issue._id,
+    labelID: label._id,
+  });
+}
+
+async function removeIssueLabelRead(ctx, issueID, labelID) {
+  const existing = await ctx.db
+    .query('issueLabelRead')
+    .withIndex('by_issue_label')
+    .eq('issueID', issueID)
+    .eq('labelID', labelID)
+    .first();
+  if (existing) await ctx.db.delete('issueLabelRead', existing._id);
+}
+
+export function validRecipientEmail(value) {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  const at = trimmed.indexOf('@');
+  const lastAt = trimmed.lastIndexOf('@');
+  if (
+    trimmed.length === 0
+    || at <= 0
+    || at !== lastAt
+    || at >= trimmed.length - 3
+    || trimmed.slice(at + 1).indexOf('.') <= 0
+    || /\s/u.test(trimmed)
+  ) return null;
+  return trimmed;
+}
+
+export function buildNotificationRecipientSnapshot(
+  issue,
+  actor,
+  includeActor,
+  subscriptions,
+  users,
+) {
+  assertVisibilityDomain(issue.visibility);
+  const usersByID = new Map(users.map(user => [user._id, user]));
+  const byEmail = new Map();
+  for (const subscription of subscriptions) {
+    if (!subscription.subscribed) continue;
+    const user = usersByID.get(subscription.userID);
+    if (!user || (user.role !== 'crew' && user.role !== 'user')) {
+      throw new Error('notification recipient has an invalid role');
+    }
+    if (!includeActor && user._id === actor._id) continue;
+    if (issue.visibility === 'internal' && user.role !== 'crew') continue;
+    const email = validRecipientEmail(user.email);
+    if (!email) continue;
+    if (!byEmail.has(email)) byEmail.set(email, {sourceUserID: user.id, email});
+  }
+  const recipients = [...byEmail.values()].sort((left, right) => (
+    left.email < right.email ? -1 : left.email > right.email ? 1
+      : left.sourceUserID < right.sourceUserID ? -1
+        : left.sourceUserID > right.sourceUserID ? 1 : 0
+  ));
+  return {
+    actorSourceUserID: actor.id,
+    includeActor,
+    issueVisibility: issue.visibility,
+    issueShortID: issue.shortID ?? null,
+    recipients,
+    discordEligible: issue.visibility === 'public',
+  };
+}
+
+async function notificationRecipientSnapshot(ctx, issue, actor, includeActor) {
+  assertVisibilityDomain(issue.visibility);
+  const subscriptions = assertBoundedRows(
+    await ctx.db
+      .query('issueNotifications')
+      .withIndex('by_issue_user')
+      .eq('issueID', issue._id)
+      .take(1_024)
+      .collect(),
+    'notification subscriptions',
+  );
+  const users = [];
+  for (const subscription of subscriptions) {
+    const user = await ctx.db.get('user', subscription.userID);
+    if (user) users.push(user);
+  }
+  return buildNotificationRecipientSnapshot(
+    issue,
+    actor,
+    includeActor,
+    subscriptions,
+    users,
+  );
+}
+
+async function enqueueNotificationIntent(ctx, trigger, kind, issue, actor, payload, includeActor) {
+  assertIntentDomain(trigger, kind, 'pending');
+  const recipientSnapshot = await notificationRecipientSnapshot(
+    ctx,
+    issue,
+    actor,
+    includeActor,
+  );
+  // Duplicate protocol delivery returns the retained mutation settlement
+  // without re-entering this handler. Runtime answers are replay-stable too,
+  // so this is one durable logical-effect identity rather than a delivery
+  // attempt id or the intent row's physical id.
+  const idempotencyKey = `notification:${trigger}:${ctx.runtime.id()}`;
+  const intentID = await ctx.db.insert('notificationIntent', {
+    idempotencyKey,
+    trigger,
+    kind,
+    issueID: issue._id,
+    sourceIssueID: issue.id,
+    actorID: actor._id,
+    created: ctx.runtime.now(),
+    payloadSnapshot: JSON.stringify(payload),
+    recipientSnapshot: JSON.stringify(recipientSnapshot),
+    discordEligible: recipientSnapshot.discordEligible,
+    state: 'pending',
+  });
+  return {intentID, idempotencyKey};
+}
+
+function mutationReceipt(mutator, sourceID, rowID, issueID, intent, authoritativeTime) {
+  return {
+    mutator,
+    outcome: 'applied',
+    sourceID: sourceID ?? null,
+    rowID: rowID ?? null,
+    issueID: issueID ?? null,
+    intentID: intent?.intentID ?? null,
+    intentKey: intent?.idempotencyKey ?? null,
+    authoritativeTime: authoritativeTime ?? null,
+  };
+}
+
+export function notificationPayload(kind, actor, issue, details) {
+  return {
+    kind,
+    actor: {id: actor.id, login: actor.login},
+    issue: {
+      id: issue.id,
+      shortID: issue.shortID ?? null,
+      title: issue.title,
+      description: issue.description,
+      visibility: issue.visibility,
+    },
+    ...details,
+  };
+}
+
+function mutationReceiptValidator() {
+  return v.object({
+    mutator: v.string(),
+    outcome: v.literal('applied'),
+    sourceID: nullableStringValidator(),
+    rowID: nullableStringValidator(),
+    issueID: nullableStringValidator(),
+    intentID: nullableStringValidator(),
+    intentKey: nullableStringValidator(),
+    authoritativeTime: v.union([v.null(), v.number()]),
+  });
+}
+
+export const issueCreate = defineJsMutation({
+  auth: 'authenticated',
+  args: {
+    id: v.string(),
+    title: v.string(),
+    description: v.optional(v.string()),
+    created: v.number(),
+    modified: v.number(),
+    projectID: v.optional(v.string()),
+  },
+  reads: [
+    'comment', 'identityBinding', 'issue', 'issueListRead',
+    'issueNotifications', 'issueSearchDocument', 'project',
+    'projectUserRead', 'searchEpoch', 'user',
+  ],
+  writes: [
+    'issue', 'issueNotifications', 'issueListRead', 'issueSearchDocument',
+    'notificationIntent', 'projectUserRead', 'searchEpoch',
+  ],
+  result: results.value(mutationReceiptValidator()),
+  outgrewIr: 'conditional-writes',
+  handler: async (ctx, args) => {
+    const actor = await requireSourceUser(ctx);
+    const project = await resolveProjectArgument(ctx, args.projectID);
+    const shortID = nextIssueShortID(assertBoundedRows(
+      await ctx.db.query('issue').take(1_024).collect(),
+      'issue short id allocation',
+    ));
+    const now = ctx.runtime.now();
+    const values = {
+      id: args.id,
+      shortID,
+      title: args.title,
+      description: args.description ?? '',
+      open: true,
+      created: now,
+      modified: now,
+      projectID: project._id,
+      creatorID: actor._id,
+      visibility: assertVisibilityDomain('public'),
+    };
+    const rowID = await ctx.db.insert('issue', values);
+    const issue = {...values, _id: rowID};
+    await upsertIssueNotification(ctx, issue, actor._id, true, now, false);
+    await repairIssueListRead(ctx, issue);
+    await repairIssueSearchDocument(ctx, issue);
+    await repairProjectUserRead(ctx, issue.projectID, actor._id);
+    await bumpSearchEpoch(ctx, issue.projectID, issue.visibility);
+    const intent = await enqueueNotificationIntent(
+      ctx,
+      'issueCreate',
+      'create-issue',
+      issue,
+      actor,
+      notificationPayload('create-issue', actor, issue, {}),
+      true,
+    );
+    return mutationReceipt('issue.create', issue.id, rowID, issue.id, intent, now);
+  },
+});
+
+export const issueUpdate = defineJsMutation({
+  auth: 'authenticated',
+  args: {
+    id: v.string(),
+    title: v.optional(v.string()),
+    description: v.optional(v.string()),
+    open: v.optional(v.boolean()),
+    assigneeID: v.optional(v.union([v.null(), v.string()])),
+    visibility: v.optional(v.string()),
+    modified: v.number(),
+  },
+  reads: [
+    'comment', 'identityBinding', 'issue', 'issueListRead',
+    'issueNotifications', 'issueSearchDocument', 'projectUserRead',
+    'searchEpoch', 'user',
+  ],
+  writes: [
+    'issue', 'issueNotifications', 'issueListRead', 'issueSearchDocument',
+    'notificationIntent', 'projectUserRead', 'searchEpoch',
+  ],
+  result: results.value(mutationReceiptValidator()),
+  outgrewIr: 'conditional-writes',
+  handler: async (ctx, args) => {
+    const oldIssue = await sourceRowByID(ctx, 'issue', args.id);
+    const actor = await assertCreatorOrCrew(ctx, oldIssue);
+    assertVisibilityDomain(oldIssue.visibility);
+    const hasAssignee = Object.hasOwn(args, 'assigneeID');
+    const assignee = hasAssignee
+      ? await resolveOptionalAssignee(ctx, args.assigneeID)
+      : null;
+    if (Object.hasOwn(args, 'visibility')) assertVisibilityDomain(args.visibility);
+    const now = ctx.runtime.now();
+    const updates = {modified: now};
+    // The pinned server forwards the authoritative update payload to notify;
+    // formatting ignores `modified`, but Lane 5 still needs the exact snapshot
+    // to reconstruct or inspect that decision without rereading mutable rows.
+    const submitted = {id: args.id, modified: now};
+    if (Object.hasOwn(args, 'title')) {
+      updates.title = args.title;
+      submitted.title = args.title;
+    }
+    if (Object.hasOwn(args, 'description')) {
+      updates.description = args.description;
+      submitted.description = args.description;
+    }
+    if (Object.hasOwn(args, 'open')) {
+      updates.open = args.open;
+      submitted.open = args.open;
+    }
+    if (hasAssignee) {
+      updates.assigneeID = assignee?._id ?? null;
+      submitted.assigneeID = assignee?.id ?? null;
+    }
+    if (Object.hasOwn(args, 'visibility')) {
+      updates.visibility = args.visibility;
+      submitted.visibility = args.visibility;
+    }
+    await ctx.db.patch('issue', oldIssue._id, updates);
+    const issue = {...oldIssue, ...updates};
+
+    if (hasAssignee && assignee) {
+      await upsertIssueNotification(ctx, issue, assignee._id, true, now, false);
+    }
+    if (
+      hasAssignee
+      && oldIssue.assigneeID
+      && oldIssue.assigneeID !== (assignee?._id ?? null)
+    ) {
+      await upsertIssueNotification(
+        ctx,
+        issue,
+        oldIssue.assigneeID,
+        false,
+        now,
+        true,
+      );
+    }
+
+    await repairIssueListRead(ctx, issue);
+    await repairIssueSearchDocument(ctx, issue);
+    if (hasAssignee && oldIssue.assigneeID) {
+      await repairProjectUserRead(ctx, issue.projectID, oldIssue.assigneeID);
+    }
+    if (hasAssignee && assignee) {
+      await repairProjectUserRead(ctx, issue.projectID, assignee._id);
+    }
+    if (
+      Object.hasOwn(args, 'title')
+      || Object.hasOwn(args, 'description')
+      || Object.hasOwn(args, 'visibility')
+    ) {
+      await bumpSearchEpoch(ctx, issue.projectID, oldIssue.visibility);
+      if (issue.visibility !== oldIssue.visibility) {
+        await bumpSearchEpoch(ctx, issue.projectID, issue.visibility);
+      }
+    }
+    const intent = await enqueueNotificationIntent(
+      ctx,
+      'issueUpdate',
+      'update-issue',
+      issue,
+      actor,
+      notificationPayload('update-issue', actor, issue, {update: submitted}),
+      false,
+    );
+    return mutationReceipt('issue.update', issue.id, issue._id, issue.id, intent, now);
+  },
+});
+
+export const issueDelete = defineJsMutation({
+  auth: 'authenticated',
+  args: {id: v.string()},
+  reads: [
+    'comment', 'emoji', 'identityBinding', 'issue', 'issueLabel',
+    'issueLabelRead', 'issueListRead', 'issueNotifications',
+    'issueSearchDocument', 'projectUserRead', 'searchEpoch', 'user', 'viewState',
+  ],
+  writes: [
+    'comment', 'emoji', 'issue', 'issueLabel', 'issueLabelRead',
+    'issueListRead', 'issueNotifications', 'issueSearchDocument',
+    'projectUserRead', 'searchEpoch', 'viewState',
+  ],
+  result: results.value(mutationReceiptValidator()),
+  outgrewIr: 'general-iteration',
+  handler: async (ctx, args) => {
+    const issue = await sourceRowByID(ctx, 'issue', args.id);
+    await assertCreatorOrCrew(ctx, issue);
+    assertVisibilityDomain(issue.visibility);
+    const comments = assertBoundedRows(
+      await ctx.db
+        .query('comment')
+        .withIndex('by_issue')
+        .eq('issueID', issue._id)
+        .take(1_024)
+        .collect(),
+      'issue comments',
+    );
+    const joins = assertBoundedRows(
+      await ctx.db
+        .query('issueLabel')
+        .withIndex('by_issue')
+        .eq('issueID', issue._id)
+        .take(1_024)
+        .collect(),
+      'issue labels',
+    );
+    const views = assertBoundedRows(
+      await ctx.db
+        .query('viewState')
+        .withIndex('by_issue_user')
+        .eq('issueID', issue._id)
+        .take(1_024)
+        .collect(),
+      'issue view state',
+    );
+    const notifications = assertBoundedRows(
+      await ctx.db
+        .query('issueNotifications')
+        .withIndex('by_issue_user')
+        .eq('issueID', issue._id)
+        .take(1_024)
+        .collect(),
+      'issue notifications',
+    );
+    const issueEmoji = assertBoundedRows(
+      await ctx.db
+        .query('emoji')
+        .withIndex('by_subject')
+        .eq('subjectID', issue._id)
+        .take(1_024)
+        .collect(),
+      'issue emoji',
+    );
+    const allEmoji = [...issueEmoji];
+    for (const comment of comments) {
+      const commentEmoji = assertBoundedRows(
+        await ctx.db
+          .query('emoji')
+          .withIndex('by_subject')
+          .eq('subjectID', comment._id)
+          .take(1_024)
+          .collect(),
+        'comment emoji',
+      );
+      allEmoji.push(...commentEmoji);
+    }
+    const cleanup = planIssueDependentCleanup(
+      issue,
+      comments,
+      joins,
+      views,
+      notifications,
+      allEmoji,
+    );
+    for (const emojiID of cleanup.emojiIDs) await ctx.db.delete('emoji', emojiID);
+    for (const commentID of cleanup.commentIDs) await ctx.db.delete('comment', commentID);
+    for (const join of cleanup.issueLabels) {
+      await removeIssueLabelRead(ctx, issue._id, join.labelID);
+      await ctx.db.delete('issueLabel', join.id);
+    }
+    for (const viewID of cleanup.viewStateIDs) await ctx.db.delete('viewState', viewID);
+    for (const notificationID of cleanup.notificationIDs) {
+      await ctx.db.delete('issueNotifications', notificationID);
+    }
+    const listRead = await ctx.db
+      .query('issueListRead')
+      .withIndex('by_issue')
+      .eq('issueID', issue._id)
+      .first();
+    if (listRead) await ctx.db.delete('issueListRead', listRead._id);
+    const searchDocument = await ctx.db
+      .query('issueSearchDocument')
+      .withIndex('by_issue')
+      .eq('issueID', issue._id)
+      .first();
+    if (searchDocument) await ctx.db.delete('issueSearchDocument', searchDocument._id);
+    await ctx.db.delete('issue', issue._id);
+    await repairProjectUserRead(ctx, issue.projectID, issue.creatorID);
+    if (issue.assigneeID) {
+      await repairProjectUserRead(ctx, issue.projectID, issue.assigneeID);
+    }
+    await bumpSearchEpoch(ctx, issue.projectID, issue.visibility);
+    return mutationReceipt('issue.delete', issue.id, issue._id, issue.id, null, null);
+  },
+});
+
+// Inventory class: current IR (Get/Guard/Insert). This control remains JS-tier
+// because the generated Get cannot resolve the pinned source id, AuthUserId is
+// not the bound source-user id, and the plan cannot append recipient intent.
+export const issueAddLabel = defineJsMutation({
+  auth: 'authenticated',
+  args: {
+    issueID: v.string(),
+    labelID: v.string(),
+    projectID: v.optional(v.string()),
+  },
+  reads: [
+    'identityBinding', 'issue', 'issueLabel', 'issueLabelRead',
+    'issueNotifications', 'label', 'project', 'user',
+  ],
+  writes: ['issueLabel', 'issueLabelRead', 'notificationIntent'],
+  result: results.value(mutationReceiptValidator()),
+  outgrewIr: 'filtered-read-guards',
+  handler: async (ctx, args) => {
+    const [issue, label, project] = await Promise.all([
+      sourceRowByID(ctx, 'issue', args.issueID),
+      requireSourceRowByID(ctx, 'label', args.labelID),
+      resolveProjectArgument(ctx, args.projectID),
+    ]);
+    const actor = await assertCreatorOrCrew(ctx, issue);
+    if (issue.projectID !== project._id || label.projectID !== project._id) {
+      throw new Error('issue, label, and project do not share one project');
+    }
+    const rowID = await ctx.db.insert('issueLabel', {
+      issueID: issue._id,
+      labelID: label._id,
+      projectID: project._id,
+    });
+    await insertIssueLabelRead(ctx, issue, label);
+    const intent = await enqueueNotificationIntent(
+      ctx,
+      'issueAddLabel',
+      'update-issue',
+      issue,
+      actor,
+      notificationPayload('update-issue', actor, issue, {update: {id: issue.id}}),
+      false,
+    );
+    return mutationReceipt('issue.addLabel', label.id, rowID, issue.id, intent, null);
+  },
+});
+
+export const issueRemoveLabel = defineJsMutation({
+  auth: 'authenticated',
+  args: {issueID: v.string(), labelID: v.string()},
+  reads: [
+    'identityBinding', 'issue', 'issueLabel', 'issueLabelRead',
+    'issueNotifications', 'label', 'user',
+  ],
+  writes: ['issueLabel', 'issueLabelRead', 'notificationIntent'],
+  result: results.value(mutationReceiptValidator()),
+  outgrewIr: 'conditional-writes',
+  handler: async (ctx, args) => {
+    const [issue, label] = await Promise.all([
+      sourceRowByID(ctx, 'issue', args.issueID),
+      requireSourceRowByID(ctx, 'label', args.labelID),
+    ]);
+    const actor = await assertCreatorOrCrew(ctx, issue);
+    const join = await ctx.db
+      .query('issueLabel')
+      .withIndex('by_label_issue')
+      .eq('labelID', label._id)
+      .eq('issueID', issue._id)
+      .first();
+    if (!join) throw new Error('issue label was not found');
+    await ctx.db.delete('issueLabel', join._id);
+    await removeIssueLabelRead(ctx, issue._id, label._id);
+    const intent = await enqueueNotificationIntent(
+      ctx,
+      'issueRemoveLabel',
+      'update-issue',
+      issue,
+      actor,
+      notificationPayload('update-issue', actor, issue, {update: {id: issue.id}}),
+      false,
+    );
+    return mutationReceipt('issue.removeLabel', label.id, join._id, issue.id, intent, null);
+  },
+});
+
+export const notificationUpdate = defineJsMutation({
+  auth: 'authenticated',
+  args: {issueID: v.string(), subscribed: v.string(), created: v.number()},
+  reads: ['identityBinding', 'issue', 'issueNotifications', 'user'],
+  writes: ['issueNotifications'],
+  result: results.value(mutationReceiptValidator()),
+  outgrewIr: 'conditional-writes',
+  handler: async (ctx, args) => {
+    const issue = await sourceRowByID(ctx, 'issue', args.issueID);
+    const actor = await requireMutationVisibleIssue(ctx, issue);
+    const subscribed = assertSubscriptionCommand(args.subscribed) === 'subscribe';
+    const existing = await ctx.db
+      .query('issueNotifications')
+      .withIndex('by_user_issue')
+      .eq('userID', actor._id)
+      .eq('issueID', issue._id)
+      .first();
+    let rowID;
+    if (existing) {
+      rowID = existing._id;
+      await ctx.db.patch('issueNotifications', rowID, {
+        subscribed,
+        created: args.created,
+      });
+    } else {
+      rowID = await ctx.db.insert('issueNotifications', {
+        userID: actor._id,
+        issueID: issue._id,
+        subscribed,
+        created: args.created,
+      });
+    }
+    return mutationReceipt(
+      'notification.update',
+      actor.id,
+      rowID,
+      issue.id,
+      null,
+      args.created,
+    );
+  },
+});
+
+export const emojiAddToIssue = defineJsMutation({
+  auth: 'authenticated',
+  args: {
+    id: v.string(),
+    unicode: v.string(),
+    annotation: v.string(),
+    subjectID: v.string(),
+    created: v.number(),
+  },
+  reads: [
+    'identityBinding', 'issue', 'issueListRead', 'issueNotifications', 'user',
+  ],
+  writes: [
+    'emoji', 'issue', 'issueListRead', 'issueNotifications',
+    'notificationIntent',
+  ],
+  result: results.value(mutationReceiptValidator()),
+  outgrewIr: 'conditional-writes',
+  handler: async (ctx, args) => {
+    const issue = await sourceRowByID(ctx, 'issue', args.subjectID);
+    const actor = await requireMutationVisibleIssue(ctx, issue);
+    const now = ctx.runtime.now();
+    const rowID = await ctx.db.insert('emoji', {
+      id: args.id,
+      value: args.unicode,
+      annotation: args.annotation,
+      subjectID: issue._id,
+      creatorID: actor._id,
+      created: now,
+    });
+    await ctx.db.patch('issue', issue._id, {modified: now});
+    const updatedIssue = {...issue, modified: now};
+    await repairIssueListRead(ctx, updatedIssue);
+    await upsertIssueNotification(ctx, updatedIssue, actor._id, true, now, false);
+    const intent = await enqueueNotificationIntent(
+      ctx,
+      'emojiAddToIssue',
+      'add-emoji-to-issue',
+      updatedIssue,
+      actor,
+      notificationPayload('add-emoji-to-issue', actor, updatedIssue, {
+        emoji: args.unicode,
+      }),
+      false,
+    );
+    return mutationReceipt(
+      'emoji.addToIssue',
+      args.id,
+      rowID,
+      issue.id,
+      intent,
+      now,
+    );
+  },
+});
+
+export const emojiAddToComment = defineJsMutation({
+  auth: 'authenticated',
+  args: {
+    id: v.string(),
+    unicode: v.string(),
+    annotation: v.string(),
+    subjectID: v.string(),
+    created: v.number(),
+  },
+  reads: [
+    'comment', 'identityBinding', 'issue', 'issueListRead',
+    'issueNotifications', 'user',
+  ],
+  writes: ['emoji', 'issue', 'issueListRead', 'notificationIntent'],
+  result: results.value(mutationReceiptValidator()),
+  outgrewIr: 'filtered-read-guards',
+  handler: async (ctx, args) => {
+    const comment = await requireSourceRowByID(ctx, 'comment', args.subjectID);
+    const issue = await ctx.db.get('issue', comment.issueID);
+    const actor = await requireMutationVisibleIssue(ctx, issue);
+    const now = ctx.runtime.now();
+    const rowID = await ctx.db.insert('emoji', {
+      id: args.id,
+      value: args.unicode,
+      annotation: args.annotation,
+      subjectID: comment._id,
+      creatorID: actor._id,
+      created: now,
+    });
+    await ctx.db.patch('issue', issue._id, {modified: now});
+    const updatedIssue = {...issue, modified: now};
+    await repairIssueListRead(ctx, updatedIssue);
+    const intent = await enqueueNotificationIntent(
+      ctx,
+      'emojiAddToComment',
+      'add-emoji-to-comment',
+      updatedIssue,
+      actor,
+      notificationPayload('add-emoji-to-comment', actor, updatedIssue, {
+        emoji: args.unicode,
+        comment: {id: comment.id, body: comment.body},
+      }),
+      false,
+    );
+    return mutationReceipt(
+      'emoji.addToComment',
+      args.id,
+      rowID,
+      issue.id,
+      intent,
+      now,
+    );
+  },
+});
+
+export const emojiRemove = defineJsMutation({
+  auth: 'authenticated',
+  args: {id: v.string()},
+  reads: ['emoji', 'identityBinding', 'user'],
+  writes: ['emoji'],
+  result: results.value(mutationReceiptValidator()),
+  outgrewIr: 'conditional-writes',
+  handler: async (ctx, args) => {
+    const emoji = await sourceRowByID(ctx, 'emoji', args.id);
+    await assertCreatorOrCrew(ctx, emoji);
+    await ctx.db.delete('emoji', emoji._id);
+    return mutationReceipt('emoji.remove', emoji.id, emoji._id, null, null, null);
+  },
+});
+
+export const commentAdd = defineJsMutation({
+  auth: 'authenticated',
+  args: {
+    id: v.string(),
+    issueID: v.string(),
+    body: v.string(),
+    created: v.number(),
+  },
+  reads: [
+    'comment', 'identityBinding', 'issue', 'issueListRead',
+    'issueNotifications', 'issueSearchDocument', 'searchEpoch', 'user',
+  ],
+  writes: [
+    'comment', 'issue', 'issueListRead', 'issueNotifications',
+    'issueSearchDocument', 'notificationIntent', 'searchEpoch',
+  ],
+  result: results.value(mutationReceiptValidator()),
+  outgrewIr: 'conditional-writes',
+  handler: async (ctx, args) => {
+    const issue = await sourceRowByID(ctx, 'issue', args.issueID);
+    const actor = await requireMutationVisibleIssue(ctx, issue);
+    assertCommentBody(issue, args.body);
+    const now = ctx.runtime.now();
+    const rowID = await ctx.db.insert('comment', {
+      id: args.id,
+      issueID: issue._id,
+      body: args.body,
+      creatorID: actor._id,
+      created: now,
+    });
+    await ctx.db.patch('issue', issue._id, {modified: now});
+    const updatedIssue = {...issue, modified: now};
+    await repairIssueListRead(ctx, updatedIssue);
+    await repairIssueSearchDocument(ctx, updatedIssue);
+    await upsertIssueNotification(ctx, updatedIssue, actor._id, true, now, false);
+    await bumpSearchEpoch(ctx, updatedIssue.projectID, updatedIssue.visibility);
+    const intent = await enqueueNotificationIntent(
+      ctx,
+      'commentAdd',
+      'add-comment',
+      updatedIssue,
+      actor,
+      notificationPayload('add-comment', actor, updatedIssue, {
+        comment: {id: args.id, body: args.body},
+      }),
+      false,
+    );
+    return mutationReceipt('comment.add', args.id, rowID, issue.id, intent, now);
+  },
+});
+
+// Inventory class: current IR (Get/Guard/Patch). The source-id lookup,
+// principal-to-source ownership mapping, search repair, and durable recipient
+// branch keep the complete authoritative program on the JS tier.
+export const commentEdit = defineJsMutation({
+  auth: 'authenticated',
+  args: {id: v.string(), body: v.string()},
+  reads: [
+    'comment', 'identityBinding', 'issue', 'issueNotifications',
+    'issueSearchDocument', 'searchEpoch', 'user',
+  ],
+  writes: ['comment', 'issueSearchDocument', 'notificationIntent', 'searchEpoch'],
+  result: results.value(mutationReceiptValidator()),
+  outgrewIr: 'filtered-read-guards',
+  handler: async (ctx, args) => {
+    const comment = await sourceRowByID(ctx, 'comment', args.id);
+    const actor = await assertCreatorOrCrew(ctx, comment);
+    const issue = await ctx.db.get('issue', comment.issueID);
+    if (!issue) throw new Error('comment parent issue was not found');
+    assertVisibilityDomain(issue.visibility);
+    assertCommentBody(issue, args.body);
+    await ctx.db.patch('comment', comment._id, {body: args.body});
+    await repairIssueSearchDocument(ctx, issue);
+    await bumpSearchEpoch(ctx, issue.projectID, issue.visibility);
+    const intent = await enqueueNotificationIntent(
+      ctx,
+      'commentEdit',
+      'edit-comment',
+      issue,
+      actor,
+      notificationPayload('edit-comment', actor, issue, {
+        comment: {id: comment.id, body: args.body},
+      }),
+      false,
+    );
+    return mutationReceipt('comment.edit', comment.id, comment._id, issue.id, intent, null);
+  },
+});
+
+export const commentRemove = defineJsMutation({
+  auth: 'authenticated',
+  args: {id: v.string()},
+  reads: [
+    'comment', 'emoji', 'identityBinding', 'issue', 'issueSearchDocument',
+    'searchEpoch', 'user',
+  ],
+  writes: ['comment', 'emoji', 'issueSearchDocument', 'searchEpoch'],
+  result: results.value(mutationReceiptValidator()),
+  outgrewIr: 'general-iteration',
+  handler: async (ctx, args) => {
+    const comment = await sourceRowByID(ctx, 'comment', args.id);
+    await assertCreatorOrCrew(ctx, comment);
+    const issue = await ctx.db.get('issue', comment.issueID);
+    if (!issue) throw new Error('comment parent issue was not found');
+    assertVisibilityDomain(issue.visibility);
+    const emojiRows = assertBoundedRows(
+      await ctx.db
+        .query('emoji')
+        .withIndex('by_subject')
+        .eq('subjectID', comment._id)
+        .take(1_024)
+        .collect(),
+      'comment emoji',
+    );
+    const cleanup = planCommentDependentCleanup(comment, emojiRows);
+    for (const emojiID of cleanup.emojiIDs) await ctx.db.delete('emoji', emojiID);
+    await ctx.db.delete('comment', cleanup.commentID);
+    await repairIssueSearchDocument(ctx, issue);
+    await bumpSearchEpoch(ctx, issue.projectID, issue.visibility);
+    return mutationReceipt('comment.remove', comment.id, comment._id, issue.id, null, null);
+  },
+});
+
+export const labelCreate = defineJsMutation({
+  auth: 'authenticated',
+  args: {id: v.string(), name: v.string(), projectID: v.optional(v.string())},
+  reads: ['identityBinding', 'project', 'user'],
+  writes: ['label'],
+  result: results.value(mutationReceiptValidator()),
+  outgrewIr: 'filtered-read-guards',
+  handler: async (ctx, args) => {
+    await requireCrew(ctx);
+    const project = await resolveProjectArgument(ctx, args.projectID);
+    const rowID = await ctx.db.insert('label', {
+      id: args.id,
+      name: args.name,
+      projectID: project._id,
+    });
+    return mutationReceipt('label.create', args.id, rowID, null, null, null);
+  },
+});
+
+export const labelCreateAndAddToIssue = defineJsMutation({
+  auth: 'authenticated',
+  args: {
+    issueID: v.string(),
+    labelID: v.string(),
+    labelName: v.string(),
+    projectID: v.optional(v.string()),
+  },
+  reads: ['identityBinding', 'issue', 'issueLabelRead', 'project', 'user'],
+  writes: ['issueLabel', 'issueLabelRead', 'label'],
+  result: results.value(mutationReceiptValidator()),
+  outgrewIr: 'filtered-read-guards',
+  handler: async (ctx, args) => {
+    await requireCrew(ctx);
+    const [issue, project] = await Promise.all([
+      requireSourceRowByID(ctx, 'issue', args.issueID),
+      resolveProjectArgument(ctx, args.projectID),
+    ]);
+    if (issue.projectID !== project._id) {
+      throw new Error('issue and label project do not match');
+    }
+    const labelID = await ctx.db.insert('label', {
+      id: args.labelID,
+      name: args.labelName,
+      projectID: project._id,
+    });
+    const label = {
+      _id: labelID,
+      id: args.labelID,
+      name: args.labelName,
+      projectID: project._id,
+    };
+    await ctx.db.insert('issueLabel', {
+      issueID: issue._id,
+      labelID,
+      projectID: project._id,
+    });
+    await insertIssueLabelRead(ctx, issue, label);
+    return mutationReceipt(
+      'label.createAndAddToIssue',
+      args.labelID,
+      labelID,
+      issue.id,
+      null,
+      null,
+    );
+  },
+});
+
+export const viewStateSet = defineJsMutation({
+  auth: 'authenticated',
+  args: {issueID: v.string(), viewed: v.number()},
+  reads: ['identityBinding', 'issue', 'user', 'viewState'],
+  writes: ['viewState'],
+  result: results.value(mutationReceiptValidator()),
+  outgrewIr: 'conditional-writes',
+  handler: async (ctx, args) => {
+    const actor = await requireSourceUser(ctx);
+    const issue = await requireSourceRowByID(ctx, 'issue', args.issueID);
+    const existing = await ctx.db
+      .query('viewState')
+      .withIndex('by_user_issue')
+      .eq('userID', actor._id)
+      .eq('issueID', issue._id)
+      .first();
+    let rowID;
+    if (existing) {
+      rowID = existing._id;
+      await ctx.db.patch('viewState', rowID, {viewed: args.viewed});
+    } else {
+      rowID = await ctx.db.insert('viewState', {
+        issueID: issue._id,
+        userID: actor._id,
+        viewed: args.viewed,
+      });
+    }
+    return mutationReceipt('viewState.set', actor.id, rowID, issue.id, null, args.viewed);
+  },
+});
+
+export const userPrefSet = defineJsMutation({
+  auth: 'authenticated',
+  args: {key: v.string(), value: v.string()},
+  reads: ['identityBinding', 'user', 'userPref'],
+  writes: ['userPref'],
+  result: results.value(mutationReceiptValidator()),
+  outgrewIr: 'conditional-writes',
+  handler: async (ctx, args) => {
+    const actor = await requireSourceUser(ctx);
+    const existing = await ctx.db
+      .query('userPref')
+      .withIndex('by_key_user')
+      .eq('key', args.key)
+      .eq('userID', actor._id)
+      .first();
+    let rowID;
+    if (existing) {
+      rowID = existing._id;
+      await ctx.db.patch('userPref', rowID, {value: args.value});
+    } else {
+      rowID = await ctx.db.insert('userPref', {
+        key: args.key,
+        userID: actor._id,
+        value: args.value,
+      });
+    }
+    return mutationReceipt('userPref.set', actor.id, rowID, null, null, null);
+  },
+});
+
+function issueLabelAuditValidator() {
+  return v.object({issueID: v.string(), labelID: v.string(), projectID: v.string()});
+}
+
+function projectUserReadAuditValidator() {
+  return v.object({
+    projectID: v.string(),
+    userID: v.string(),
+    isCreator: v.boolean(),
+    isAssignee: v.boolean(),
+    isCrew: v.boolean(),
+  });
+}
+
+function issueListReadAuditValidator() {
+  return v.object({
+    issueID: v.string(),
+    projectID: v.string(),
+    creatorID: v.string(),
+    assigneeID: nullableStringValidator(),
+    open: v.boolean(),
+    visibility: visibilityResultValidator(),
+    modified: v.number(),
+    created: v.number(),
+  });
+}
+
+function issueSearchDocumentAuditValidator() {
+  return v.object({
+    issueID: v.string(),
+    projectID: v.string(),
+    visibility: visibilityResultValidator(),
+    title: v.string(),
+    description: v.string(),
+    commentText: v.string(),
+  });
+}
+
+function searchEpochAuditValidator() {
+  return v.object({
+    projectID: v.string(),
+    visibility: visibilityResultValidator(),
+    epoch: v.integer(),
+  });
+}
+
+function intentAuditValidator() {
+  return v.object({
+    physicalID: v.string(),
+    idempotencyKey: v.string(),
+    trigger: v.string(),
+    kind: v.string(),
+    issueID: v.string(),
+    actorID: v.string(),
+    created: v.number(),
+    payloadSnapshot: v.string(),
+    recipientSnapshot: v.string(),
+    discordEligible: v.boolean(),
+    state: v.string(),
+  });
+}
+
+function attemptAuditValidator() {
+  return v.object({
+    physicalID: v.string(),
+    intentID: v.string(),
+    channel: v.string(),
+    recipientKey: v.string(),
+    attempt: v.integer(),
+    state: v.string(),
+    providerIdempotencyKey: v.string(),
+    started: v.number(),
+    finished: v.union([v.null(), v.number()]),
+    errorCode: nullableStringValidator(),
+    ambiguous: v.boolean(),
+  });
+}
+
+function lane4StateAuditValidator() {
+  return v.object({
+    issues: v.array(issueResultValidator(), {maxItems: 1_023}),
+    comments: v.array(commentResultValidator(), {maxItems: 1_023}),
+    labels: v.array(labelResultValidator(), {maxItems: 1_023}),
+    issueLabels: v.array(issueLabelAuditValidator(), {maxItems: 1_023}),
+    emoji: v.array(emojiResultValidator(), {maxItems: 1_023}),
+    viewState: v.array(viewStateResultValidator(), {maxItems: 1_023}),
+    userPref: v.array(userPrefResultValidator(), {maxItems: 1_023}),
+    issueNotifications: v.array(notificationResultValidator(), {maxItems: 1_023}),
+    projectUserRead: v.array(projectUserReadAuditValidator(), {maxItems: 1_023}),
+    issueListRead: v.array(issueListReadAuditValidator(), {maxItems: 1_023}),
+    issueLabelRead: v.array(issueLabelAuditValidator(), {maxItems: 1_023}),
+    issueSearchDocument: v.array(issueSearchDocumentAuditValidator(), {maxItems: 1_023}),
+    searchEpoch: v.array(searchEpochAuditValidator(), {maxItems: 1_023}),
+    notificationIntent: v.array(intentAuditValidator(), {maxItems: 1_023}),
+    notificationAttempt: v.array(attemptAuditValidator(), {maxItems: 1_023}),
+  });
+}
+
+function requiredMappedRow(map, id, label) {
+  const row = map.get(id);
+  if (!row) throw new Error(`lane4 audit found a broken ${label} reference`);
+  return row;
+}
+
+// Acceptance-only crew inspector. It releases source-shaped rows and semantic
+// projection fields so the live harness can independently rebuild the Lane 3
+// read models; it is not part of the application data adapter.
+export const lane4StateAudit = defineJsQuery({
+  auth: 'authenticated',
+  args: {},
+  reads: [
+    'comment', 'emoji', 'identityBinding', 'issue', 'issueLabel',
+    'issueLabelRead', 'issueListRead', 'issueNotifications',
+    'issueSearchDocument', 'label', 'notificationAttempt',
+    'notificationIntent', 'project', 'projectUserRead', 'searchEpoch',
+    'user', 'userPref', 'viewState',
+  ],
+  result: results.records(lane4StateAuditValidator()),
+  handler: async (ctx) => {
+    await requireCrew(ctx);
+    const [
+      users, projects, issues, comments, labels, issueLabels, emojiRows,
+      viewRows, prefRows, notificationRows, projectUserRows, listRows,
+      labelReadRows, searchRows, epochRows, intentRows, attemptRows,
+    ] = await Promise.all([
+      ctx.db.query('user').take(1_024).collect(),
+      ctx.db.query('project').take(1_024).collect(),
+      ctx.db.query('issue').take(1_024).collect(),
+      ctx.db.query('comment').take(1_024).collect(),
+      ctx.db.query('label').take(1_024).collect(),
+      ctx.db.query('issueLabel').take(1_024).collect(),
+      ctx.db.query('emoji').take(1_024).collect(),
+      ctx.db.query('viewState').take(1_024).collect(),
+      ctx.db.query('userPref').take(1_024).collect(),
+      ctx.db.query('issueNotifications').take(1_024).collect(),
+      ctx.db.query('projectUserRead').take(1_024).collect(),
+      ctx.db.query('issueListRead').take(1_024).collect(),
+      ctx.db.query('issueLabelRead').take(1_024).collect(),
+      ctx.db.query('issueSearchDocument').take(1_024).collect(),
+      ctx.db.query('searchEpoch').take(1_024).collect(),
+      ctx.db.query('notificationIntent').take(1_024).collect(),
+      ctx.db.query('notificationAttempt').take(1_024).collect(),
+    ]);
+    for (const [rows, label] of [
+      [users, 'users'], [projects, 'projects'], [issues, 'issues'],
+      [comments, 'comments'], [labels, 'labels'], [issueLabels, 'issue labels'],
+      [emojiRows, 'emoji'], [viewRows, 'view state'], [prefRows, 'preferences'],
+      [notificationRows, 'notifications'], [projectUserRows, 'project users'],
+      [listRows, 'issue list read'], [labelReadRows, 'issue label read'],
+      [searchRows, 'search documents'], [epochRows, 'search epochs'],
+      [intentRows, 'notification intents'], [attemptRows, 'notification attempts'],
+    ]) assertBoundedRows(rows, `lane4 audit ${label}`);
+
+    const usersByID = new Map(users.map(row => [row._id, row]));
+    const projectsByID = new Map(projects.map(row => [row._id, row]));
+    const issuesByID = new Map(issues.map(row => [row._id, row]));
+    const commentsByID = new Map(comments.map(row => [row._id, row]));
+    const labelsByID = new Map(labels.map(row => [row._id, row]));
+    return [{
+      issues: issues.map(issue => sourceIssueResult(
+        issue,
+        requiredMappedRow(projectsByID, issue.projectID, 'issue project'),
+        requiredMappedRow(usersByID, issue.creatorID, 'issue creator'),
+        issue.assigneeID
+          ? requiredMappedRow(usersByID, issue.assigneeID, 'issue assignee')
+          : null,
+      )),
+      comments: comments.map(comment => sourceCommentResult(
+        comment,
+        requiredMappedRow(issuesByID, comment.issueID, 'comment issue'),
+        requiredMappedRow(usersByID, comment.creatorID, 'comment creator'),
+      )),
+      labels: labels.map(label => sourceLabelResult(
+        label,
+        requiredMappedRow(projectsByID, label.projectID, 'label project'),
+      )),
+      issueLabels: issueLabels.map(edge => ({
+        issueID: requiredMappedRow(issuesByID, edge.issueID, 'join issue').id,
+        labelID: requiredMappedRow(labelsByID, edge.labelID, 'join label').id,
+        projectID: requiredMappedRow(projectsByID, edge.projectID, 'join project').id,
+      })),
+      emoji: emojiRows.map(emoji => {
+        const subject = issuesByID.get(emoji.subjectID) ?? commentsByID.get(emoji.subjectID);
+        if (!subject) throw new Error('lane4 audit found a broken emoji subject');
+        return sourceEmojiResult(
+          emoji,
+          subject.id,
+          requiredMappedRow(usersByID, emoji.creatorID, 'emoji creator'),
+        );
+      }),
+      viewState: viewRows.map(view => sourceViewStateResult(
+        view,
+        requiredMappedRow(issuesByID, view.issueID, 'view issue'),
+        requiredMappedRow(usersByID, view.userID, 'view user'),
+      )),
+      userPref: prefRows.map(pref => sourceUserPrefResult(
+        pref,
+        requiredMappedRow(usersByID, pref.userID, 'preference user'),
+      )),
+      issueNotifications: notificationRows.map(notification => sourceNotificationResult(
+        notification,
+        requiredMappedRow(issuesByID, notification.issueID, 'notification issue'),
+        requiredMappedRow(usersByID, notification.userID, 'notification user'),
+      )),
+      projectUserRead: projectUserRows.map(row => ({
+        projectID: requiredMappedRow(projectsByID, row.projectID, 'project-user project').id,
+        userID: requiredMappedRow(usersByID, row.userID, 'project-user user').id,
+        isCreator: row.isCreator,
+        isAssignee: row.isAssignee,
+        isCrew: row.isCrew,
+      })),
+      issueListRead: listRows.map(row => ({
+        issueID: row.sourceIssueID,
+        projectID: requiredMappedRow(projectsByID, row.projectID, 'list project').id,
+        creatorID: requiredMappedRow(usersByID, row.creatorID, 'list creator').id,
+        assigneeID: row.assigneeID
+          ? requiredMappedRow(usersByID, row.assigneeID, 'list assignee').id
+          : null,
+        open: row.open,
+        visibility: assertVisibilityDomain(row.visibility),
+        modified: row.modified,
+        created: row.created,
+      })),
+      issueLabelRead: labelReadRows.map(row => ({
+        issueID: requiredMappedRow(issuesByID, row.issueID, 'label-read issue').id,
+        labelID: requiredMappedRow(labelsByID, row.labelID, 'label-read label').id,
+        projectID: requiredMappedRow(projectsByID, row.projectID, 'label-read project').id,
+      })),
+      issueSearchDocument: searchRows.map(row => ({
+        issueID: row.sourceIssueID,
+        projectID: requiredMappedRow(projectsByID, row.projectID, 'search project').id,
+        visibility: assertVisibilityDomain(row.visibility),
+        title: row.title,
+        description: row.description,
+        commentText: row.commentText,
+      })),
+      searchEpoch: epochRows.map(row => ({
+        projectID: requiredMappedRow(projectsByID, row.projectID, 'epoch project').id,
+        visibility: assertVisibilityDomain(row.visibility),
+        epoch: row.epoch,
+      })),
+      notificationIntent: intentRows.map(row => ({
+        physicalID: row._id,
+        idempotencyKey: row.idempotencyKey,
+        trigger: row.trigger,
+        kind: row.kind,
+        issueID: row.sourceIssueID,
+        actorID: requiredMappedRow(usersByID, row.actorID, 'intent actor').id,
+        created: row.created,
+        payloadSnapshot: row.payloadSnapshot,
+        recipientSnapshot: row.recipientSnapshot,
+        discordEligible: row.discordEligible,
+        state: row.state,
+      })),
+      notificationAttempt: attemptRows.map(row => ({
+        physicalID: row._id,
+        intentID: row.intentID,
+        channel: row.channel,
+        recipientKey: row.recipientKey,
+        attempt: row.attempt,
+        state: row.state,
+        providerIdempotencyKey: row.providerIdempotencyKey,
+        started: row.started,
+        finished: row.finished ?? null,
+        errorCode: row.errorCode ?? null,
+        ambiguous: row.ambiguous,
+      })),
+    }];
+  },
+});
+
 // Lane 3 query result contracts. These are source-shaped records rather than
 // raw stored documents: the pinned Zero surface does not expose Snapback
 // system fields, user email/github ids, or physical foreign-key ids.

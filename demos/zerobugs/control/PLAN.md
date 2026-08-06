@@ -1,6 +1,6 @@
 # Zerobugs Stage 0.5 current-surface control plan
 
-Status: Lanes 1–2 complete and live-verified; Lane 3 implemented with runtime-independent checks passing and the fresh-server live parity gate awaiting the supervising session
+Status: Lanes 1–3 complete and live-verified; Lane 4 authoritative corpus implemented with in-sandbox validation passing and its fresh-server live gate awaiting the supervising session
 Governing contract: `demos/zerobugs/manifest/acceptance.v1.md`  
 Source inventory: `demos/zerobugs/stage0/inventory.v1.md`  
 Source pin: `rocicorp/mono@25c2c7308d3eb674d2d895022c9da11ef0c742fb`, `apps/zbugs`  
@@ -19,13 +19,15 @@ all remain in scope.
 The current state provides the plan, ten source tables plus support schema,
 deterministic normal/policy fixture compiler, bounded authenticated loader,
 five-actor local identity binding, principal-derived role/ownership helpers,
-all 19 frozen typed live-query names, independent query-oracle tests,
-generated-artifact inputs, and a
-minimal React boot. It does **not** claim the 16-mutator product corpus,
-composition gateway, pinned UI, or ZB gate lanes are implemented. Lane 3's
-fresh-server parity gate remains awaiting an outside-sandbox run. This control
-does not claim a hosted target, production OAuth, durable notification product
-capability, or large-fixture qualification.
+all 19 frozen typed live-query names, the complete 16-mutator authoritative
+server corpus, transaction-coupled durable notification intent for all eight
+triggers, independent query/mutation oracles, generated-artifact inputs, and a
+minimal React boot. It does **not** claim Lane 6 client reducers/pending UI,
+notification delivery, the composition gateway, pinned UI, or ZB gate lanes
+are implemented. Lane 4's fresh-server parity gate remains awaiting an
+outside-sandbox run. This control does not claim a hosted target, production
+OAuth, durable notification product capability beyond committed local intent,
+or large-fixture qualification.
 
 The control may improve the four source defects frozen in manifest §8, but it
 may not reproduce them: child roots are parent-gated, notification intent is
@@ -72,7 +74,7 @@ explicitly authorizes evidence emission to `demos/zerobugs/evidence/`.
 
 | Area | Concrete files |
 | --- | --- |
-| Snapback definition | `snapback/schema.mjs`, `snapback/functions.mjs`; no route manifest after the measured JS-query route-cut refusal, and no `snapback/seed.json` for the 3,758-row acceptance fixture |
+| Snapback definition | `snapback/schema.mjs`, `snapback/functions.mjs`, `snapback/routes.mjs`; no `snapback/seed.json` for the 3,758-row acceptance fixture |
 | Fixture compiler | `fixtures/normal-seed-v1/`, `fixtures/policy-extension-v1.json`, `scripts/build-fixture.mts`, `tests/fixtures/fixture-digests.json` |
 | Generated boundary | `snapback/generated/*` (generated and ignored; never hand-edited) |
 | Typed data adapter | `src/data/snapback.ts`, `src/data/types.ts`, `src/data/queries.ts`, `src/data/mutations.ts`, `src/data/completeness.ts` |
@@ -97,10 +99,9 @@ explicitly authorizes evidence emission to `demos/zerobugs/evidence/`.
 4. Define the 19 exact exported query names. Every collect has an admitted
    positive ceiling at or below 1,024; results larger than a page use stable
    `(ordered fields, id)` cursors.
-5. Attempt route bundles for initial list and issue detail cuts. If the
-   generated query-group boundary refuses these JS-query argument contracts,
-   record the limitation and keep the typed server handler instead of issuing
-   ad hoc client query ASTs.
+5. Declare route bundles in `snapback/routes.mjs` for initial list and issue
+   detail cuts. Use generated query-group references and
+   `prepareQueryGroup`; do not issue ad hoc client query ASTs.
 6. Assemble source-shaped graphs in `src/data/queries.ts`. The adapter exposes
    explicit `pending`, `refreshing`, `complete`, `incomplete`, `retained`,
    `current`, `not-found`, and error states. It never presents a truncated
@@ -109,8 +110,8 @@ explicitly authorizes evidence emission to `demos/zerobugs/evidence/`.
 The current relational surface is a bounded two-source equi-join/projection
 surface, not the pinned 22-relation graph. Two-source maintained projections
 are used where they fit. Wider shapes were predeclared as registered query
-groups plus a counted client merge; Lane 3's route-argument probe refused the
-JS-query route cut, so the counted typed server merge remains ungrouped as
+groups plus a counted client merge; Lane 3's route-argument probe instead
+required generated route identities around a counted typed server merge, as
 recorded under `W-QGROUP`/`W-MANUALSET`. List membership/order uses declared
 read models. Search
 was planned to use shipped `backend.text-search` over `issueSearchDocument`.
@@ -163,22 +164,26 @@ subscription, visibility, recipient, or old-row state stays server-only and
 renders an honest pending state. No reducer predicts notification delivery or
 authorization success.
 
+Lane 4 implements only the authoritative server clauses below. Every reducer
+or pending clause is a Lane 6 client/UI disposition, not a claim that local
+prediction or its presentation exists in this lane.
+
 | # | Frozen mutator | Inventory class | Control lowering and fallback |
 | ---: | --- | --- | --- |
 | 1 | `issue.create` | new verb: Upsert/Branch | Inline authoritative handler inserts source/read-model rows, subscribes creator, and enqueues durable intent. Reducer inserts the visible draft with client correlation id; subscription/effect branch is server-only pending. |
 | 2 | `issue.update` | new verb: Branch + Upsert | Inline handler reads old row, guards creator/crew, patches, maintains projections, branches subscription intents. Reducer patches only supplied visible fields; assignee/subscription branches are pending. |
 | 3 | `issue.delete` | new verb: Delete | Inline guarded delete plus explicit dependent cleanup/read-model repair. Reducer removes visible issue and owned window entries; cascade outcome settles authoritatively. |
-| 4 | `issue.addLabel` | **current IR** Get/Guard/Insert | Generated Get/Guard/Insert with authoritative generic update intent. Handwritten reducer adds the join only when both visible rows are present; otherwise server-only pending. |
+| 4 | `issue.addLabel` | **current IR** Get/Guard/Insert | Inventory classification remains current-IR for the source-row write alone. The complete control program stays on the authoritative JS/Ibex tier: generated `Get` addresses a physical `_id`, while this frozen contract receives a source id; `AuthUserId` is the session principal, not the bound source-user id; and current IR cannot append the recipient-snapshot intent. Lane 6 may add a visible join reducer, otherwise honest pending. |
 | 5 | `issue.removeLabel` | new verb: Delete | Inline guarded join delete and generic update intent. Reducer removes the visible membership. |
 | 6 | `notification.update` | new verb: Upsert/Branch | Inline unique read then insert-or-patch for the session user. Reducer capture-and-sets `subscribed`; hidden absence branch remains pending until settlement. |
 | 7 | `emoji.addToIssue` | new verb: Upsert/Branch beyond Insert | Inline parent/user guard, authoritative id/time, insert, subscription branch, projection repair, intent enqueue. Reducer adds the visible reaction with correlation id; hidden subscription/effect stays pending. |
-| 8 | `emoji.addToComment` | explicit value or Lane Q: Get/Guard/Insert | Generated Get/Guard/Insert with explicit client id only where admitted; server replaces time and emits intent. Reducer adds the visible reaction after visible parent proof, else pending. |
+| 8 | `emoji.addToComment` | explicit value or Lane Q: Get/Guard/Insert | Authoritative JS resolves the source comment and bound actor, proves parent mutation visibility, preserves the client source id, replaces time, repairs issue list state, and emits intent. Lane 6 may add the visible reaction after visible parent proof, else pending. |
 | 9 | `emoji.remove` | new verb: Delete | Inline creator/crew guard and delete. Reducer removes an owned visible reaction. |
 | 10 | `comment.add` | new verb: Upsert/Branch beyond Insert | Inline parent/user guard, authoritative id/time, insert, issue/read-model update, subscription branch, intent enqueue. Reducer inserts the visible comment and adjusts its window; hidden branches stay pending. |
-| 11 | `comment.edit` | **current IR** Get/Guard/Patch | Generated Get/Guard/Patch plus authoritative intent and length guard. Reducer capture-and-sets visible body only. |
+| 11 | `comment.edit` | **current IR** Get/Guard/Patch | Inventory classification remains current-IR for the source-row patch alone. The complete control program stays on the authoritative JS/Ibex tier because the source-id lookup/identity binding cannot be expressed as physical `Get`/`AuthUserId`, and search-document repair, epoch bump, body policy, and recipient-snapshot intent are outside the current declaration. Lane 6 may capture-and-set a visible body, otherwise honest pending. |
 | 12 | `comment.remove` | new verb: Delete/dependent cleanup | Inline guarded delete, emoji cleanup, read-model/search repair. Reducer removes visible comment/reactions; search settlement is pending. |
-| 13 | `label.create` | explicit value or Lane Q: Guard/Insert | Generated Guard/Insert with caller id admitted by the frozen contract. No pinned UI call site: server-only pending unless a gate invokes it. |
-| 14 | `label.createAndAddToIssue` | explicit value or Lane Q: bounded two-Insert | Generated bounded two-Insert with crew guard and one transaction. Reducer inserts label and membership only when both target collections are complete; otherwise pending. |
+| 13 | `label.create` | explicit value or Lane Q: Guard/Insert | Authoritative JS applies the bound-source crew guard and inserts the caller's source id under a server-minted physical id. No pinned UI call site: Lane 6 remains server-only pending unless a gate invokes it. |
+| 14 | `label.createAndAddToIssue` | explicit value or Lane Q: bounded two-Insert | Authoritative JS applies the bound-source crew/project guard, performs both inserts, and maintains `issueLabelRead` in one transaction. Lane 6 may insert visible label/membership prediction only when both collections are complete; otherwise pending. |
 | 15 | `viewState.set` | new verb: Upsert | Inline server-principal insert-or-patch. Reducer capture-and-sets the current principal's visible `viewed` fact; never accepts a user id argument. |
 | 16 | `userPref.set` | new verb: Upsert | Inline server-principal insert-or-patch. Reducer capture-and-sets the visible preference key/value. |
 
@@ -393,19 +398,21 @@ attempt. Using a row before that update fails ZB0.
 
 | ID / class | Reason and owner | Planned files / lines | Status and lifecycle | Security boundary | Removed by |
 | --- | --- | --- | --- | --- | --- |
-| `W-QGROUP` / manual query-group graph join | Current relational capability is bounded two-source, while issue/list shapes span up to 22 relations. Owner: control data lane. | Parent-authorized bounded graph loaders and manual projection assembly `snapback/functions.mjs:815-941,1497-1581,1789-1878`; generated contract witness `tests/lane3-list-engine.test.mts:152-166`; refusal record below | Current route argument lowering rejected the nested/union/null list context, while the remaining primitive wrapper still failed runtime admission because JS live queries have no schema-derived argument contract. The route manifest was removed and the typed server graph merge retained without a false route-group claim; re-evaluate in Lane 6. | Every child query starts only after parent authorization; a bounded child contributes its own completeness fact and no merge infers completeness. | D2 graph/query workstream. |
-| `W-READMODEL` / denormalized projection | All-label membership, project-user existence, wide list order, and comment-derived search do not fit one current live query. Owner: control server lane. | `snapback/schema.mjs:158-233`; `scripts/build-fixture.mts:511-643`; generated rows in `fixtures/normal-seed-v1/{projectUserRead,issueListRead,issueLabelRead,issueSearchDocument}.json` (complete files); shared read-model predicate and graph hydration `snapback/functions.mjs:837-1220,1497-2203`; independent raw-source oracle `tests/lane3-oracle.mts:1-164`; generated-handler witness `tests/lane3-list-engine.test.mts:1-358`; live parity harness `tests/acceptance/lane3-live.mts:1-780` | Implemented for Lane 3 as bounded, rebuildable maintained projections plus source-row hydration. Every exact-bound hit refuses or returns no plausible prefix; query result contracts remain source-shaped. Retained through control. | Visibility is applied before releasing `examined`/`total`; all-label membership is intersection; private rows resolve through the Lane 2 principal binding; digest audit covers the projections. | D2 and D6. |
-| `W-MANUALSET` / app join/filter/sort | Adapter intersects bounded list/search/label ids and assembles rich rows. Owner: control data lane. | Bounded joins/comparators/cursors `snapback/functions.mjs:747-941`; set intersection and shared list engine `snapback/functions.mjs:973-1220`; all 19 typed entry points `snapback/functions.mjs:1258-2203`; independent oracle/cursor witnesses `tests/lane3-oracle.mts:1-164`, `tests/lane3-list-engine.test.mts:1-358`; live source-parity witness `tests/acceptance/lane3-live.mts:1-780` | Implemented as typed server-side manual merge for Lane 3; never broad/unbounded, and retained through control. The route-argument limitation recorded under `W-QGROUP` prevented moving the rich merge into a multi-child generated group without changing the frozen query arguments. | Inputs are role-partitioned before counts or joins; protected child roots prove the parent first; no protected key or partial prefix crosses the actor boundary. | D2/D3/D6. |
-| `W-SEARCH-EPOCH` / manual invalidation | Shipped text search is not live, and current opaque handlers cannot invoke/compose a search plan. Owner: control search lane. | `snapback/schema.mjs:235-245`; `scripts/build-fixture.mts:625-635`; generated rows in `fixtures/normal-seed-v1/searchEpoch.json:1-14`; role-partitioned maintained-document scan and epoch facts `snapback/functions.mjs:1003-1048`; shared consumers `snapback/functions.mjs:1050-1220,1892-1969,2068-2141`; independent raw title/description/comment oracle `tests/lane3-oracle.mts:91-149`; pure/live search checks `tests/lane3-list-engine.test.mts:180-262`, `tests/acceptance/lane3-live.mts:359-422` | Implemented exact-corpus workaround: consult the epoch, scan only admitted visibility partitions, and return `refreshing` with no rows when any partition reaches 1,024. This is not advertised as shipped live search. Retained through control pending D6. | Epoch reveals no query text/result membership; documents are partitioned by public/internal; non-crew never query the internal partition; no boundary prefix is released. | D6 derived search. |
-| `W-REDUCER` / duplicate handwritten reducer | Current generated optimism cannot express 11 new-verb and some branch/upsert/delete shapes. Owner: control mutation lane. | `src/data/mutations.ts` / TBD-before-use | Bespoke typed capture-and-set; removed when generated admission exists. | Visible facts only; never predicts authority, hidden recipients, or delivery. | D5 lowering/admission. |
-| `W-PENDING` / server-only pending | Hidden branch/subscription/effect state is not safely locally evaluable. Owner: control mutation lane. | `src/data/mutations.ts`, UI pending components / TBD-before-use | Supported authoritative mutation with honest pending; retained until admitted carrier exists. | No speculative protected fact or false settlement. | D5. |
+| `W-QGROUP` / manual query-group graph join | Current relational capability is bounded two-source, while issue/list shapes span up to 22 relations. Owner: control data lane. | Parent-authorized bounded graph loaders and manual projection assembly `snapback/functions.mjs:2322-2439,2552-2736,2922-3379`; route-absence/contract witness `tests/lane3-list-engine.test.mts:153-175` | Lane 3's attempted route manifest was removed after runtime admission proved that opaque JS-query arguments cannot supply the schema-derived route bindings. Implemented as parent-authorized typed JS graph loaders called individually by the client; retained through control and explicitly re-evaluated in Lane 6. | Every child query starts only after parent authorization; a bounded child contributes its own completeness fact and no merge infers completeness. | D2 graph/query workstream. |
+| `W-READMODEL` / denormalized projection | All-label membership, project-user existence, wide list order, and comment-derived search do not fit one current live query. Owner: control server lane. | `snapback/schema.mjs:158-233`; `scripts/build-fixture.mts:511-643`; generated rows in `fixtures/normal-seed-v1/{projectUserRead,issueListRead,issueLabelRead,issueSearchDocument}.json` (complete files); Lane 4 transactional repair `snapback/functions.mjs:600-732,882-1672`; shared read-model predicate and graph hydration `snapback/functions.mjs:2322-2736,2999-3674`; independent raw-source oracle `tests/lane3-oracle.mts:1-164`; generated-handler witness `tests/lane3-list-engine.test.mts:1-354`; live parity harness `tests/acceptance/lane3-live.mts:1-781` | Implemented as bounded, rebuildable maintained projections plus source-row hydration. Every exact-bound hit refuses or returns no plausible prefix; all affected Lane 4 mutations repair projections transactionally; query result contracts remain source-shaped. Retained through control. | Visibility is applied before releasing `examined`/`total`; all-label membership is intersection; private rows resolve through the Lane 2 principal binding; per-mutation digest audit covers the projections. | D2 and D6. |
+| `W-MANUALSET` / app join/filter/sort | Adapter intersects bounded list/search/label ids and assembles rich rows. Owner: control data lane. | Bounded joins/comparators/cursors `snapback/functions.mjs:2255-2439`; set intersection and shared list engine `snapback/functions.mjs:2441-2736`; all 19 typed entry points `snapback/functions.mjs:2760-3674`; independent oracle/cursor witnesses `tests/lane3-oracle.mts:1-164`, `tests/lane3-list-engine.test.mts:1-354`; live source-parity witness `tests/acceptance/lane3-live.mts:1-781` | Implemented as typed server-side manual merge for Lane 3; never broad/unbounded, and retained through control. The route-argument limitation recorded under `W-QGROUP` prevents moving the rich merge into a multi-child generated group without changing the frozen query arguments. | Inputs are role-partitioned before counts or joins; protected child roots prove the parent first; no protected key or partial prefix crosses the actor boundary. | D2/D3/D6. |
+| `W-SEARCH-EPOCH` / manual invalidation | Shipped text search is not live, and current opaque handlers cannot invoke/compose a search plan. Owner: control search lane. | `snapback/schema.mjs:235-245`; `scripts/build-fixture.mts:625-635`; generated rows in `fixtures/normal-seed-v1/searchEpoch.json:1-14`; transactional repair/bump `snapback/functions.mjs:622-666,882-1672`; role-partitioned maintained-document scan and shared consumer `snapback/functions.mjs:2505-2736,3394-3469`; independent raw title/description/comment oracle `tests/lane3-oracle.mts:91-149`; pure/live search checks `tests/lane3-list-engine.test.mts:176-258`, `tests/acceptance/lane3-live.mts:359-422` | Implemented exact-corpus workaround: consult the epoch, scan only admitted visibility partitions, and return `refreshing` with no rows when any partition reaches 1,024. Affected mutations repair the document and bump its visibility partition in the source transaction. This is not advertised as shipped live search. Retained through control pending D6. | Epoch reveals no query text/result membership; documents are partitioned by public/internal; non-crew never query the internal partition; no boundary prefix is released. | D6 derived search. |
+| `W-MUTATION-IR` / complete-program JS fallback | Inventory classifies `issue.addLabel` and `comment.edit` as current-IR from their base database verbs, but the current authoring surface cannot declare the complete authoritative program. Owner: control server lane. | Source-id/identity/intent helpers `snapback/functions.mjs:443-839`; JS-tier current-IR rows `snapback/functions.mjs:1172-1213,1476-1509`; generated-tier assertion `tests/acceptance/lane4-live.mts:456-475` | Implemented as JS/Ibex while retaining the inventory's **current-ir** classification for the base Get/Guard/Insert or Get/Guard/Patch. Generated `Get` accepts physical `_id`, not the frozen source id; `AuthUserId` is the principal, not its app-owned source-user binding; and current IR cannot include recipient-snapshot intent, read-model repair, or the full body policy. | The same server handler derives the bound actor, rechecks ownership, repairs projections, and commits intent; no client authority is inferred from the preliminary inventory class. | D5 source-key/identity bindings plus transaction-coupled intent/read-model composition. |
+| `W-REDUCER` / duplicate handwritten reducer | Current generated optimism cannot express 11 new-verb and some branch/upsert/delete shapes. Owner: Lane 6 control UI lane. | Lane 4 authoritative baseline only: `snapback/functions.mjs:443-1672`, `tests/acceptance/lane4-live.mts:1-588`; client target `src/data/mutations.ts` / TBD-before-use in Lane 6 | **Not used in Lane 4.** Lane 4 implements and tests the authoritative corpus; any visible-fact capture-and-set reducer lands with the pinned UI in Lane 6 and must replace its TBD span before use. | Visible facts only; never predicts authority, hidden recipients, or delivery. | D5 lowering/admission. |
+| `W-PENDING` / server-only pending | Hidden branch/subscription/effect state is not safely locally evaluable. Owner: Lane 6 control UI lane. | Lane 4 settlement facts: `snapback/functions.mjs:840-1672`, `tests/acceptance/lane4-live.mts:1-588`; client target `src/data/mutations.ts`, UI pending components / TBD-before-use in Lane 6 | **Not used in Lane 4 UI because that UI has not landed.** The authoritative result and replay surface are implemented; honest client pending presentation lands in Lane 6 and must replace its TBD span before use. | No speculative protected fact or false settlement. | D5. |
 | `W-WINDOW` / app-owned window controller | No current source-equivalent `useZeroVirtualizer` primitive. Owner: control UI lane. | `src/windowing/*`, list/comments pages / TBD-before-use | Bespoke controller over supported bounded queries; retained through control. | Generation-fenced requests; parent policy on comments; honest completeness. | D4 window workstream. |
 | `W-IDENTITY` / identity binding table | Snapback principals and frozen source user ids are distinct namespaces. Owner: auth composition. | `snapback/schema.mjs:144-156`; closed actor map and reusable guards `snapback/functions.mjs:56-152`; loaded-fixture proof and acceptance surfaces `snapback/functions.mjs:212-440`; receipt harness `scripts/bind-actors.mts:9-235`; runtime-independent witnesses `tests/lane2-functions.test.mts:123-254`; live seven-actor/transition gate `tests/acceptance/lane2-live.mts:46-222`; actor metadata in `fixtures/normal-seed-v1/fixture.json:7-33` and `tests/fixtures/fixture-digests.json:20-46` | Implemented as an acceptance-only, frozen-five, one-to-one binding bootstrap over supported dev sessions. Rebinding, unknown source users, role mismatches, sixth actors, and binding after closure refuse. `fixtureInspectTable` closes after the first binding. Retained through control; live gate awaits the supervising session. The adopted-bearer harness ends the server session through the shipped `/auth/logout` route (`authLogout` correctly refuses without browser `AuthCoordinator` custody); external user switch uses `replaceBearerToken`, which blanks predecessor state before refetch. | The stored principal is always `ctx.auth.userId`; every private helper resolves principal → binding → source row and accepts no caller user id. The acceptance actor selector is trusted only inside this fixture-gated bootstrap: current handler auth does not expose the verified mint email, so the mutation additionally requires the complete frozen fixture, exact actor/source/role map, one-to-one rows, five-row closure, and gateway omission. | D7 auth profile. |
 | `C-GATEWAY` / versioned composition gateway | Native Snapback does not own all nine frozen arbitrary routes or GitHub OAuth. Owner: composition lane. | `composition/zerobugs-control-composition.v1.json`, `composition/server.mts`, `composition/routes/*` / TBD-before-use | Formally versioned bespoke D7 companion; local supported control component; no native claim. | Narrow route/function allowlist, session custody, redirect/token/secret policy, owned cleanup. | D7 routes/auth. |
-| `C-NOTIFY` / durable app ledger and worker | `backend.notifications` is an explicit GAP; current jobs are local experimental. Owner: effect composition. | `snapback/schema.mjs`, `snapback/functions.mjs`, `composition/effects/*` / TBD-before-use | Supported actions + experimental jobs + bespoke ledger; local partial, hosted GAP. | Intent in mutation transaction; idempotency/fencing; explicit ambiguous outcomes; secrets by name. | D7 effects; first-class notification capability. |
+| `C-NOTIFY` / durable app ledger and worker | `backend.notifications` is an explicit GAP; current jobs are local experimental. Owner: effect composition. | Intent/attempt schema `snapback/schema.mjs:247-291`; snapshot/idempotency helpers and eight trigger writers `snapback/functions.mjs:449-839,882-1050,1172-1251,1296-1405,1422-1509`; independent oracle/pure/live witnesses `tests/lane4-oracle.mts:1-722`, `tests/lane4-domain.test.mts:1-125`, `tests/acceptance/lane4-live.mts:1-588`; Lane 5 worker target `composition/effects/*` (span assigned before Lane 5 use) | Lane 4 local partial implemented: every trigger commits exactly one pending intent with payload/recipient snapshots in the source mutation transaction; every non-trigger and refusal commits none; replay settles without duplication. `notificationAttempt` is declared but deliberately empty. Delivery, retries, fencing, ambiguity, and capture remain Lane 5, and hosted remains GAP. | Mutation transaction owns intent; protocol settlement plus replay-stable runtime id owns logical idempotency; no provider call or secret use occurs in Lane 4. | D7 effects; first-class notification capability. |
 | `C-ASSET` / source URL adapter and attachment metadata | Native local asset lifecycle differs from S3 presign/Markdown URL source shape. Owner: asset composition. | `snapback/schema.mjs`, `snapback/functions.mjs`, `composition/routes/upload.mts`, `src/assets/upload.ts` / TBD-before-use | Supported local asset capability + bespoke response/Markdown adapter; hosted GAP. | Server MIME/size/checksum, typed attachment, declared delivery/CORS, GC, no credential logging. | D7 assets/routes. |
 | `W-FIXTURE` / fixture transformation and bounded loader | Frozen relational source ids must become typed prefixed placeholder references and support read models, while handlers may only create server-owned runtime ids and LLP 0109 caps a seed at 1,024 effects. Owner: fixture lane. | Compiler `scripts/build-fixture.mts:1-1115`; batch planning/id remap/digest verification `scripts/load-fixture.mts:14-342`; closed mutation and inspection allowlists `snapback/functions.mjs:12-274`; runtime-table-selected batch/result `v.json()` carrier `snapback/functions.mjs:239-256`; runtime-table-selected inspector with no expressible single-table document contract `snapback/functions.mjs:258-275`; focused witness `tests/fixture-loader.test.mts:1-153`; generated normalized rows in `fixtures/normal-seed-v1/*.json` (complete files); `fixtures/policy-extension-v1.json:1-162`; `tests/fixtures/fixture-digests.json:1-181` | Bespoke deterministic compiler plus 16 bounded ordinary mutation batches; retained for control reproducibility. No `seed.json` is authored. These two Lane 1 fixture-only dynamic-table boundaries are the only generated unknown shapes; every Lane 3 query uses a precise `results.records(v.object(...))` contract. | Dev-minted ordinary session; empty/in-progress frozen-user gate; final `searchEpoch` sentinel closes ingestion; gateway omission; exact ids/counts/digests after inverse remap. | D8 fixture/import profile may standardize a resumable authenticated bulk loader. |
-| `W-ENUM` / duplicate closed-domain guard | Shipped table field validators do not admit literal unions for the source `role` and `visibility` varchar enums. Owner: schema/mutation lane. | Compiler guards `scripts/build-fixture.mts:190-203,645-742,758-784,811-865`; ingest guard `snapback/functions.mjs:62-90`; source varchar declarations remain `snapback/schema.mjs:16-20,51-54` | Bespoke two-value guards at every ingestion/write boundary; schema remains `v.string()`. | Fail closed before storage; query auth never treats an unknown role as crew or visibility as public. | D5, if generated validation/lowering is extended to portable stored enum domains. |
+| `W-ENUM` / duplicate closed-domain guard | Shipped table field validators do not admit literal unions for the source `role` and `visibility` varchar enums. Owner: schema/mutation lane. | Compiler guards `scripts/build-fixture.mts:190-203,645-742,758-784,811-865`; ingest guard `snapback/functions.mjs:62-90`; authoritative visibility/subscription/intent guards `snapback/functions.mjs:449-481`; guarded writers `snapback/functions.mjs:560-590,600-632,652-666,812-839,882-1541`; source varchar declarations remain `snapback/schema.mjs:16-20,51-54` | Bespoke closed-domain guards cover fixture ingestion and every Lane 4 write that authors or propagates role/visibility/subscription/intent state; schema remains `v.string()`. | Fail closed before storage; query auth never treats an unknown role as crew or visibility as public; no invalid trigger/kind/state pair reaches the ledger. | D5, if generated validation/lowering is extended to portable stored enum domains. |
+| `W-SHORTID` / bounded source identity allocation | The pinned PostgreSQL issue table assigns `shortID` from an identity sequence starting at 3000, while current Snapback tables have no numeric identity/default declaration and the mutation arguments correctly omit that field. Owner: control server lane. | Bounded first-unused allocator and authoritative insert `snapback/functions.mjs:493-509,882-941`; independent oracle `tests/lane4-oracle.mts:131-138,353-361`; production-helper witness `tests/lane4-domain.test.mts:106-125` | Implemented for the admitted <1,024 control corpus. It chooses the first unused integer from 3000, so explicit high policy-fixture values do not advance the emulated sequence, and commits that value with the issue/intent. Refuses at the corpus proof boundary; large/hot qualification remains GAP. | Server-only allocation; caller cannot select a permalink id; the surrounding transaction owns the bounded read and insert. | Portable numeric identity/default support. |
 
 ## Later-job sequencing and lane acceptance
 
@@ -492,11 +499,45 @@ artifact freshness into a live-load claim.
   that route lowering rejects a route parameter nested in an object and cannot
   express the null/union literal members required by the frozen list context.
   Lane 3's attempted rich list/detail bundle failed generation with
-  `ROUTES_ARGS_INVALID`; primitive wrappers then failed runtime admission
-  because JS live queries have no schema-derived argument contract. The route
-  manifest was removed and the bounded graph merge stayed inside the typed
-  live handler. This limitation is counted under `W-QGROUP`/`W-MANUALSET`
-  rather than presented as the planned multi-child merge.
+  `ROUTES_ARGS_INVALID`. It retained generated register-eligible list/detail
+  identities using primitive wrapper arguments and kept the bounded graph
+  merge inside the typed live handler. This limitation and the resulting
+  single-child groups are counted under `W-QGROUP`/`W-MANUALSET` rather than
+  presented as the planned multi-child merge.
+
+- **2026-08-06 — current mutation IR cannot express the complete source-id
+  program.** The mutation guide explains physical-id `Get`, `AuthUserId`, and
+  Insert/Get/Guard/Patch lowering, but gives no pattern for a source-shaped
+  mutation whose public id must first be resolved through an indexed lookup
+  and whose principal must then be resolved through an app-owned identity
+  binding. For `issue.addLabel` and `comment.edit`, the base source mutation
+  still has the inventory's current-IR verb class, but the control's complete
+  authoritative program also repairs read models and commits a recipient-
+  snapshot intent. Both declarations therefore stay on the JS/Ibex tier and
+  are counted under `W-MUTATION-IR`; the control does not relabel them as a new
+  verb merely because the app-shaped binding/composition surface is absent.
+
+- **2026-08-06 — JS mutation handlers cannot name their protocol settlement
+  identity.** The offline/replay guide and client API document caller-supplied
+  `clientMutationId`, and the server correctly returns the retained result
+  without re-entering a handler on duplicate delivery. The JS handler context,
+  however, does not expose that identity for a transaction-coupled downstream
+  intent key. Lane 4 uses a namespaced replay-stable `ctx.runtime.id()` answer
+  as the intent's unique logical key and proves same-`clientMutationId` replay
+  does not duplicate it. Exposing a read-only settlement identity would let a
+  future effect worker correlate client settlement and provider idempotency
+  without this extra app-owned identity.
+
+- **2026-08-06 — numeric identity/default columns.** The schema and mutation
+  guides document server-owned physical `_id` values and runtime-generated
+  answers, but not a portable table declaration for PostgreSQL's numeric
+  `GENERATED BY DEFAULT AS IDENTITY START 3000` source field. That field is not
+  cosmetic here: a newly created issue's notification and permalink require
+  it, while the caller correctly supplies only the separate source `id`.
+  `W-SHORTID` uses a server-only bounded first-unused allocation for the
+  admitted control corpus and refuses at 1,024 rather than treating an
+  explicit high policy-fixture sentinel as sequence progress. A first-class
+  numeric identity/default would remove that scan and its large-corpus GAP.
 
 ## Lane 1 validation
 
@@ -648,8 +689,8 @@ session. No live result is claimed below.
 
 | Command | Result |
 | --- | --- |
-| `bun run generate` | PASS, exit 0: 16 tables and 27 operations across the Lane 1/2 helpers and 19 frozen Lane 3 query names, with no routes manifest after the measured JS-query route-cut refusal. The two warnings are the pre-existing `W-FIXTURE` dynamic-table `v.json()`/unknown shapes; all 19 Lane 3 results generate precise record contracts. |
-| `bun run test:lane3` | PASS, exit 0 after the 2026-08-06 post-merge test correction: generation plus the Lane 1 loader, Lane 2 identity/guards, and Lane 3 query corpus. Lane 3 executes the generated handler against compiled fixture tables while its expected membership comes independently from raw source issue/comment/label/user rows. It proves all filter classes (including all-label intersection and three search sources), all four sort modes, full forward/backward walks without skips/duplicates, deprecated neighbor parity, protected counts, nullable-limit refusal, and explicit small-window incompleteness without claiming the intentionally removed routes manifest. |
+| `bun run generate` | PASS, exit 0: 16 tables and 27 operations (five Lane 1/2 queries, 20 live queries comprising the 19 frozen names plus the primitive-argument detail route wrapper, and two mutations), 99 generated files. Both routes are `registerGroupEligible`. The only two warnings are the pre-existing `W-FIXTURE` dynamic-table `v.json()`/unknown shapes; all 19 Lane 3 results generate precise record contracts. |
+| `bun run test:lane3` | PASS, exit 0: generation plus 13 Bun tests across the Lane 1 loader, Lane 2 identity/guards, and Lane 3 query corpus. Lane 3 executes the generated handler against compiled fixture tables while its expected membership comes independently from raw source issue/comment/label/user rows. It proves all filter classes (including all-label intersection and three search sources), all four sort modes, full forward/backward walks without skips/duplicates, deprecated neighbor parity, protected counts, exact route-group identities, nullable-limit refusal, and explicit small-window incompleteness. |
 | `bun run typecheck` | PASS, exit 0. |
 | `bun run build` | PASS, exit 0; Vite 8 built the client. Output contained the upstream `optimizeDeps.rollupOptions` deprecation and the existing chunk-size advisory only. |
 | `bun build tests/acceptance/lane3-live.mts --target=bun --outfile=/private/tmp/zerobugs-lane3-live-check.mjs` | PASS, exit 0: the live parity harness and its 52-module dependency graph parse and bundle for Bun. |
@@ -709,3 +750,71 @@ surfaced a client defect — anonymous-public custody sent legacy auth body
 fields (fixed in packages/snapback-client, see
 issues/closed/20260805-anonymous-public-query-body-carries-legacy-auth.md).
 Sequencing row 3's completion check is met; Lane 4 (mutation corpus) is next.
+
+## Lane 4 validation
+
+Run on 2026-08-06 from `demos/zerobugs/control`. The sandbox cannot bind
+loopback, so the runtime-independent corpus/oracle checks ran here and the
+fresh-server live receipt is explicitly left for the supervising session. No
+live result or Lane 4 completion claim is made below.
+
+| Command | Result |
+| --- | --- |
+| `bun run generate` | PASS, exit 0: 18 tables and 44 operations (six queries, 20 live queries, 18 mutations), 149 generated files. The only two warnings remain the pre-existing `W-FIXTURE` dynamic-table argument/result degradations; all 16 product mutations have precise result contracts. |
+| `bun run test:lane4` | PASS, exit 0: generation plus 17 Bun tests across the deterministic fixture loader, Lane 2 identity/guards, Lane 3 query/read-model engine, and Lane 4 pure domain helpers. The four Lane 4 tests import the production intent, cleanup, and short-id helpers; prove internal/public recipient selection and payload determinism; prove issue/comment dependent-cleanup plans; preserve the source identity sequence despite an explicit high sentinel; and independently rebuild all four maintained read models from raw fixture state. |
+| `bun run typecheck` | PASS, exit 0. |
+| `bun run build` | PASS, exit 0; Vite 8 built the client. Output contained the upstream `optimizeDeps.rollupOptions` deprecation and existing chunk-size advisory only. |
+| `bun build tests/acceptance/lane4-live.mts --target=bun --outfile=/private/tmp/zerobugs-lane4-live-check.mjs` | PASS, exit 0: the live corpus harness and its 52-module dependency graph parse and bundle for Bun. |
+| `./ref-check --verbose` (repository root) | PASS, exit 0: 188 LLP documents, 3,907 refs in 10,238 files, 0 errors, 0 unchecked. |
+| `git diff --check -- demos/zerobugs/control` | PASS, exit 0. |
+| `SNAPBACK_READY_FILE=<fresh-server-ready-file> SNAPBACK_RUNTIME_BINARY=/Users/ccheever/projects/snapback/target/debug/snapback bun tests/acceptance/lane4-live.mts` | **AWAITING SUPERVISING LIVE RUN.** Run from `demos/zerobugs/control` against an empty fresh server. The harness waits for both the stable ready descriptor and its advertised `.impersonation` capability before minting, performs the complete Lane 1 load and Lane 2 bindings, and emits one `zerobugs-lane4-live.v1` receipt with `expectedChecks: 18`; any incomplete or failing run exits nonzero. |
+
+All 16 frozen mutators now have authoritative JS handlers. Each resolves the
+principal through `requireSourceUser`, preserves the source contract's caller
+id while Snapback mints the physical prefixed `_id`, assigns the source's
+server-owned numeric issue `shortID`, applies the pinned
+timestamp override or caller-value policy, rechecks creator/crew or mutation-
+visibility policy, maintains affected Lane 3 projections in the same
+transaction, and performs explicit dependent cleanup. `issue.addLabel` and
+`comment.edit` retain their preliminary **current-ir** classification for the
+base database program, while `W-MUTATION-IR` records why the complete
+source-id/identity/read-model/intent program is JS-tier on the current surface.
+
+The live oracle starts only from the raw fixture JSON and independently applies
+each declared mutation effect. Every one of the 16 mutator checks first proves
+that a wrong or unbound actor produces no source, projection, or intent change;
+then proves the authorized result through a separate crew observer; compares
+the entire source/projection state with the oracle; recomputes the read-model
+rebuild digest; checks its trigger/non-trigger intent delta and exact parsed
+payload/recipient snapshot; and re-sends the identical operation with the same
+`clientMutationId` to prove the retained result does not double-apply. The
+eight trigger rows must create exactly one pending durable intent each, the
+eight non-trigger rows must create none, and `notificationAttempt` must remain
+empty because Lane 5 owns delivery and capture.
+
+`W-REDUCER` and `W-PENDING` are not silently claimed by this lane: they are
+Lane 6 browser/UI concerns and retain their before-use markers. Lane 4 supplies
+the authoritative mutation and replay baseline against which any later local
+prediction or honest pending presentation must settle.
+
+### Lane 4 completion — live mutation corpus PASS
+
+Run on 2026-08-06 by the supervising session against a fresh server. All 18
+checks executed and passed (receipt `zerobugs-lane4-live.v1`): the frozen
+lowering inventory (all 16 mutators generated, JS/Ibex tier, no current-IR
+declaration admitted for the two current-IR-classified programs — recorded in
+the register), and per-mutator positive parity against the independent
+oracle, authorization refusals with no partial write and no intent row,
+read-model rebuild-digest parity after every write, independent-observer
+convergence, durable-intent creation for exactly the eight trigger
+operations, none for non-triggers or refusals, and same-client-mutation-id
+replay without double-apply.
+
+Two supervisor corrections to the harness during the live run (not to the
+corpus): physical row ids and intent ids mint the runtime's generic `id_`
+prefix — the shipped surface has no per-table prefix declaration (LLP 0148
+reserves named prefixes for built-ins like `usr_`), so expectations of
+`issue_`/`notificationIntent_`-style prefixes were wrong; and the generated
+functions manifest omits the `ir` field rather than carrying `ir: null`.
+Sequencing row 4's completion check is met; Lane 5 (routes/assets/effect
+delivery) is next.
