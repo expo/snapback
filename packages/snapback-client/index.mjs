@@ -4094,14 +4094,18 @@ export class SnapbackClient {
 
       const sessionsMode = session?.activeMode === 'sessions';
       let requestBody = body;
-      if (path.startsWith('/mutation/') && body?.clientMutationId) {
-        const queuedAvailability = session?.availability?.queuedReplay;
-        if (session && queuedAvailability?.available !== true) {
-          const code = queuedAvailability?.reason ?? 'SNAPBACK_AUTH_POLICY_UNAVAILABLE';
-          throw clientCodedError(
-            new Error(`${code}: queued mutation replay is unavailable`),
-            code,
-          );
+      const mutationIdentityRequest = path.startsWith('/mutation/') && body?.clientMutationId;
+      const rangeIdentityRequest = path === '/client-mutations/identity-range';
+      if (mutationIdentityRequest || rangeIdentityRequest) {
+        if (mutationIdentityRequest) {
+          const queuedAvailability = session?.availability?.queuedReplay;
+          if (session && queuedAvailability?.available !== true) {
+            const code = queuedAvailability?.reason ?? 'SNAPBACK_AUTH_POLICY_UNAVAILABLE';
+            throw clientCodedError(
+              new Error(`${code}: queued mutation replay is unavailable`),
+              code,
+            );
+          }
         }
         const descriptor = body.authorityDescriptor ?? session?.authorityDescriptor ?? null;
         if (descriptor !== null || sessionsMode) {
@@ -6521,11 +6525,7 @@ export class SnapbackClient {
     if (settlementClaims !== null) body.settlementClaims = settlementClaims;
     if (boundedSkew !== null) body.boundedSkew = boundedSkew;
     let operationAuthorityPrincipalId = typeof userId === 'string' ? userId : null;
-    if (
-      operationIdentityEnabled
-      && body.authorityDescriptor
-      && this.authProtocols.authClient != null
-    ) {
+    if (operationIdentityEnabled && this.authProtocols.authClient != null) {
       const session = await this.authSession();
       const currentDescriptor = requireAuthorityDescriptor(
         session?.authorityDescriptor,
@@ -6536,13 +6536,17 @@ export class SnapbackClient {
         && typeof session?.authority?.userId === 'string'
         ? session.authority.userId
         : null;
-      if (!sameAuthorityDescriptor(currentDescriptor, body.authorityDescriptor)) {
+      if (
+        body.authorityDescriptor
+        && !sameAuthorityDescriptor(currentDescriptor, body.authorityDescriptor)
+      ) {
         const error = new Error(
           'SNAPBACK_OPERATION_RANGE_REAUTH_REQUIRED: mutation descriptor is not current',
         );
         error.code = 'SNAPBACK_OPERATION_RANGE_REAUTH_REQUIRED';
         throw error;
       }
+      body.authorityDescriptor = currentDescriptor;
       operationAuthorityPrincipalId = currentPrincipalId;
     }
     const durableMutationRecord = clientMutationId ? {
@@ -6600,6 +6604,8 @@ export class SnapbackClient {
               stored.id,
               authorityCohortKey,
               range,
+              body.authorityDescriptor ?? undefined,
+              operationAuthorityPrincipalId ?? undefined,
             );
           } catch (error) {
             if (isConnectivityFailureError(error) || isOperationRangeCapacityError(error)) {

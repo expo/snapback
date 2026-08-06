@@ -2080,9 +2080,19 @@ pub fn lookup_operation(
         originator(proposed.key.originator_class),
         proposed.key.operation_id,
     ];
-    let row: Option<(String, String, i64, Option<i64>, String, String)> = conn
+    let row: Option<(
+        String,
+        String,
+        i64,
+        Option<i64>,
+        i64,
+        Option<i64>,
+        String,
+        String,
+    )> = conn
         .query_row(
             "SELECT audience, epoch_id, epoch_sequence, counter,
+                    terminal_at_ms, acknowledged_at_ms,
                     identity_json, record_json
              FROM _snapback_operation_suppression_v1
              WHERE stream_id=?1 AND originator_class=?2 AND operation_id=?3",
@@ -2095,6 +2105,8 @@ pub fn lookup_operation(
                     row.get(3)?,
                     row.get(4)?,
                     row.get(5)?,
+                    row.get(6)?,
+                    row.get(7)?,
                 ))
             },
         )
@@ -2104,6 +2116,8 @@ pub fn lookup_operation(
         row_epoch_id,
         row_epoch_sequence,
         row_counter,
+        row_terminal_at_ms,
+        row_acknowledged_at_ms,
         identity_json,
         record_json,
     )) = row
@@ -2132,6 +2146,12 @@ pub fn lookup_operation(
             || identity.bound_facts.audience != row_audience
             || identity_epoch_id != row_epoch_id
             || optional_i64(identity_counter, "stored operation counter")? != row_counter
+            || to_i64(record.terminal_at_ms, "stored operation terminal time")?
+                != row_terminal_at_ms
+            || optional_i64(
+                record.acknowledged_at_ms,
+                "stored operation acknowledgement time",
+            )? != row_acknowledged_at_ms
             || referenced_epoch_sequence != Some(row_epoch_sequence)
         {
             return Err(invalid("stored operation suppression is incoherent"));
@@ -2588,6 +2608,25 @@ pub fn close_epoch_if_complete_in(
             if !rotation_recorded {
                 false
             } else {
+                // The retention decision below uses the SQL terminal-time
+                // projection. Re-run the exact lookup classifier first so a
+                // divergent SQL/JSON projection fails closed instead of
+                // shortening the host receipt window.
+                for identity in suppression_identities_for_epoch(
+                    tx,
+                    OperationOriginatorClassV1::Host,
+                    audience,
+                    epoch_id,
+                )? {
+                    if !matches!(
+                        lookup_operation(tx, &identity)?,
+                        OperationLookupV1::ExactReplay(_)
+                    ) {
+                        return Err(invalid(
+                            "host suppression row is not exact retained authority",
+                        ));
+                    }
+                }
                 let live_host_lease: bool = tx.query_row(
                     "SELECT EXISTS(
                        SELECT 1 FROM _snapback_host_identity_leases_v1
@@ -5447,7 +5486,10 @@ mod tests {
             prune_compact_envelope_in(&tx, &pending_guard)
                 .expect("prune pending-guard compact envelope")
         );
-        let mut pending_envelope = envelope(pending_guard.clone(), 1, 0);
+        tx.execute_batch("SAVEPOINT pending_writer_guard")
+            .expect("pending writer savepoint");
+        insert_covered_change(&tx, 77, "pending-guard-rolled-back");
+        let mut pending_envelope = envelope(pending_guard.clone(), 77, 1);
         pending_envelope.snapshot.association = SnapshotAssociationKindV1::ProducedCommit;
         pending_envelope.recorded_at_ms = 13;
         pending_envelope.receipt.state = OperationReceiptStateV1::Pending;
@@ -5474,18 +5516,27 @@ mod tests {
                 .code,
             "SNAPBACK_OPERATION_ALREADY_RECORDED"
         );
-        let (pending_rows, tombstones): (u64, u64) = tx
+        tx.execute_batch("ROLLBACK TO pending_writer_guard; RELEASE pending_writer_guard")
+            .expect("rollback pending writer publication");
+        let (staged_rows, pending_rows, envelopes, tombstones): (u64, u64, u64, u64) = tx
             .query_row(
                 "SELECT
+                   (SELECT COUNT(*) FROM app_rows WHERE id='pending-guard-rolled-back') +
+                   (SELECT COUNT(*) FROM _snapback_changes WHERE version=77),
                    (SELECT COUNT(*) FROM _snapback_operation_pending_v1
+                     WHERE stream_id=?1 AND originator_class='host' AND operation_id=?2),
+                   (SELECT COUNT(*) FROM _snapback_commit_envelopes_v1
                      WHERE stream_id=?1 AND originator_class='host' AND operation_id=?2),
                    (SELECT COUNT(*) FROM _snapback_operation_tombstones_v1
                      WHERE stream_id=?1 AND originator_class='host' AND operation_id=?2)",
                 params![pending_guard.key.stream_id, pending_guard.key.operation_id],
-                |row| Ok((row.get(0)?, row.get(1)?)),
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
             )
             .expect("pending guard retained state");
-        assert_eq!((pending_rows, tombstones), (0, 1));
+        assert_eq!(
+            (staged_rows, pending_rows, envelopes, tombstones),
+            (0, 0, 0, 1)
+        );
         let mut live_ticket = host.clone();
         live_ticket.key.operation_id = derive_host_operation_id("promotion:ticket-1", 0);
         live_ticket.issuance = OperationIssuanceV1::HostIncarnation {
@@ -5582,6 +5633,40 @@ mod tests {
         );
         complete_host_identity_lease_in(&tx, &live_ticket, HOST_RECEIPT_WINDOW_MS_V1 + 11)
             .expect("ticket completed");
+        tx.execute(
+            "UPDATE _snapback_operation_suppression_v1
+                SET terminal_at_ms=0
+              WHERE stream_id=?1 AND originator_class='host' AND operation_id=?2",
+            params![host.key.stream_id, host.key.operation_id],
+        )
+        .expect("stage retention-time projection corruption");
+        assert_eq!(
+            lookup_operation(&tx, &host)
+                .expect_err("terminal-time-corrupt suppression never settles")
+                .diagnostic
+                .code,
+            "SNAPBACK_OPERATION_LEDGER_INVALID"
+        );
+        assert_eq!(
+            close_epoch_if_complete_in(
+                &tx,
+                OperationOriginatorClassV1::Host,
+                "audience-1",
+                "host-epoch-1",
+                HOST_RECEIPT_WINDOW_MS_V1 + 11,
+            )
+            .expect_err("host closure cannot trust a divergent terminal time")
+            .diagnostic
+            .code,
+            "SNAPBACK_OPERATION_LEDGER_INVALID"
+        );
+        tx.execute(
+            "UPDATE _snapback_operation_suppression_v1
+                SET terminal_at_ms=10
+              WHERE stream_id=?1 AND originator_class='host' AND operation_id=?2",
+            params![host.key.stream_id, host.key.operation_id],
+        )
+        .expect("restore coherent retention time");
         assert!(
             close_epoch_if_complete_in(
                 &tx,

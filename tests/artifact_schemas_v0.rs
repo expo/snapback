@@ -29,6 +29,10 @@ use snapback::auth::deployment::{
     HostedAdmission, HostedAuthCapabilities, HostedOperatorSurface, SessionInvalidation,
     SharedAuthenticationThrottleConfig,
 };
+use snapback::commit_envelope::{
+    OperationIdentityTombstoneV1, OperationKeyV1, OperationOriginatorClassV1,
+    OperationTerminalOutcomeV1,
+};
 use snapback::cron::{CronInspectState, CronRunOutcome, CronRunRecord, CronRunTrigger};
 use snapback::data_tier::{
     DATA_TIER_CORPUS_FORMAT_VERSION, DATA_TIER_CORPUS_NAME, DATA_TIER_PROFILE_FILE,
@@ -85,7 +89,9 @@ use snapback::result_transform::{
 use snapback::runtime::{
     CapabilityState, IbexCliCapability, IbexSubmoduleCapability, RuntimeCapabilities,
 };
-use snapback::schema_export::{SchemaArtifact, artifact_instances, artifact_schemas};
+use snapback::schema_export::{
+    EXTERNALLY_MANAGED_SCHEMA_ARTIFACTS, SchemaArtifact, artifact_instances, artifact_schemas,
+};
 use snapback::service_profile::{
     PublishedArtifactRef, RemoteAuthCapabilityManifest, RemoteCredentialPolicy,
     RemoteDataCapabilityManifest, RemoteEndpointPolicy, RemoteServiceDataTierIdentity,
@@ -625,6 +631,29 @@ fn dk7_committed_public_instances_match_rust_types() {
             "{file} drifted from the Rust authority; regenerate with `cargo run --bin snapback-schemagen`"
         );
     }
+}
+
+#[test]
+fn operation_identity_tombstone_schema_accepts_required_nullable_host_counter() {
+    let tombstone = OperationIdentityTombstoneV1 {
+        schema_version: 1,
+        key: OperationKeyV1 {
+            stream_id: "stream-1".to_owned(),
+            originator_class: OperationOriginatorClassV1::Host,
+            operation_id: "host-operation-1".to_owned(),
+        },
+        identity_digest: format!("sha256:{}", "a".repeat(64)),
+        auth_facts_digest: format!("sha256:{}", "b".repeat(64)),
+        audience: "host-audience-1".to_owned(),
+        epoch_id: "host-epoch-1".to_owned(),
+        counter: None,
+        terminal_outcome: OperationTerminalOutcomeV1::Committed,
+        receipt_digest: format!("sha256:{}", "c".repeat(64)),
+        retained_at_ms: 10,
+    };
+    let value = serde_json::to_value(tombstone).expect("host tombstone serializes");
+    assert_eq!(value.get("counter"), Some(&Value::Null));
+    assert_validates("operation.identity-tombstone-v1.schema.json", &value);
 }
 
 #[test]
@@ -1467,6 +1496,11 @@ fn dk7_every_artifact_has_a_committed_schema_file() {
     let generated: std::collections::BTreeSet<String> = artifact_schemas()
         .into_iter()
         .map(|a| a.file.to_owned())
+        .chain(
+            EXTERNALLY_MANAGED_SCHEMA_ARTIFACTS
+                .iter()
+                .map(|file| (*file).to_owned()),
+        )
         .collect();
     let committed: std::collections::BTreeSet<String> = fs::read_dir(schemas_dir())
         .expect("read schemas/ dir")

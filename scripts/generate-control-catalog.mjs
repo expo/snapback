@@ -684,11 +684,24 @@ try {
   // best-effort; not fatal for local generation
 }
 
+const outPath = join(ROOT, 'control-catalog/generated/control-catalog.v1.json');
+let buildIdentity = { sourceCommit, dirty };
+let generatedAtCommit = sourceCommit;
+if (CHECK_ONLY && existsSync(outPath)) {
+  // A checked-in generated artifact necessarily changes the commit that
+  // contains it. Preserve and validate its generation snapshot while
+  // recomputing the semantic catalog below; requiring the snapshot to equal
+  // the current HEAD would make every clean committed checkout stale.
+  const existing = readJson(outPath);
+  buildIdentity = existing.buildIdentity;
+  generatedAtCommit = existing.generatedAtCommit;
+}
+
 const catalog = {
   schemaVersion: 'snapback.control-catalog.v1',
   catalogDigest,
-  buildIdentity: { sourceCommit, dirty },
-  generatedAtCommit: sourceCommit,
+  buildIdentity,
+  generatedAtCommit,
   entries: normalized,
 };
 
@@ -708,7 +721,6 @@ if (!validateCatalog(catalog)) {
   ]);
 }
 
-const outPath = join(ROOT, 'control-catalog/generated/control-catalog.v1.json');
 const outText = `${JSON.stringify(catalog, null, 2)}\n`;
 
 if (CHECK_ONLY) {

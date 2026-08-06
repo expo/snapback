@@ -14,7 +14,9 @@
 //!   schemas that make the Rust types the single source of truth.
 //! @ref LLP 0032#decision-docket — DK-7 / P3(c) regeneration entry point.
 
-use snapback::schema_export::{SchemaArtifact, artifact_instances, artifact_schemas};
+use snapback::schema_export::{
+    EXTERNALLY_MANAGED_SCHEMA_ARTIFACTS, SchemaArtifact, artifact_instances, artifact_schemas,
+};
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
@@ -47,6 +49,7 @@ fn write_schema_artifacts(schemas_dir: &Path, artifacts: &[SchemaArtifact]) -> s
     let expected = artifacts
         .iter()
         .map(|artifact| artifact.file)
+        .chain(EXTERNALLY_MANAGED_SCHEMA_ARTIFACTS.iter().copied())
         .collect::<BTreeSet<_>>();
     for artifact in artifacts {
         let path = schemas_dir.join(artifact.file);

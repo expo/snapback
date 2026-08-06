@@ -890,6 +890,63 @@ test('fresh same-principal authority atomically covers capacity-stranded intent'
   assert.equal(mutationBodies[0].operationIssuance.epoch_id, 'epoch-successor');
 });
 
+test('sessions mode automatically carries current authority through range issuance', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const issuedAtMs = Date.now();
+  const rangeBodies = [];
+  const mutationBodies = [];
+  globalThis.fetch = async (url, init = {}) => {
+    const target = String(url);
+    if (target.endsWith('/auth/session')) {
+      return Response.json(sessionHandshake(TEST_AUTHORITY_DESCRIPTOR, TEST_SESSION_USER_ID));
+    }
+    const body = JSON.parse(init.body);
+    if (target.endsWith('/client-mutations/identity-range')) {
+      rangeBodies.push(body);
+      return Response.json({
+        schemaVersion: 1,
+        range: {
+          schemaVersion: 1,
+          audience: 'audience-automatic-session',
+          authorityInstanceId: TEST_AUTHORITY_DESCRIPTOR.authorityInstanceId,
+          epochId: 'epoch-automatic-session',
+          epochSequence: 1,
+          rangeStart: 0,
+          rangeEndExclusive: 256,
+          issuedAtMs,
+          expiresAtMs: issuedAtMs + 60_000,
+          authorityAuthenticatorDigest: `sha256:${'a'.repeat(64)}`,
+        },
+      });
+    }
+    mutationBodies.push(body);
+    return Response.json({
+      result: { ok: true },
+      version: 1,
+      authorityDescriptor: TEST_AUTHORITY_DESCRIPTOR,
+    });
+  };
+  const client = new SnapbackClient('https://operation-automatic-session.example', {
+    bearerToken: 'sbs_automatic_session',
+    authClientProtocol: 1,
+    rqsStore: store,
+    operationIdentityProtocol: 1,
+  });
+  const result = await client.mutate('createThing', {
+    args: { title: 'automatic session authority' },
+  });
+  assert.deepEqual(result.result, { ok: true });
+  assert.equal(rangeBodies.length, 1);
+  assert.deepEqual(rangeBodies[0].authorityDescriptor, TEST_AUTHORITY_DESCRIPTOR);
+  assert.equal(mutationBodies.length, 1);
+  assert.deepEqual(mutationBodies[0].authorityDescriptor, TEST_AUTHORITY_DESCRIPTOR);
+  const [retained] = await store.outboxRecords();
+  assert.deepEqual(retained.authorityDescriptor, TEST_AUTHORITY_DESCRIPTOR);
+  assert.equal(retained.operationAuthorityPrincipalId, TEST_SESSION_USER_ID);
+  assert.equal(retained.operationIssuance.epoch_id, 'epoch-automatic-session');
+});
+
 test('authority rotation allocates a disjoint range without rebinding old queued identity', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();

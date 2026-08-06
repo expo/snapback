@@ -647,6 +647,12 @@ pub struct PendingOperationTerminalSupplementV1 {
 
 // @ref LLP 0043#dated-c28-lifecycle-reconciliation-2026-08-05 — separate
 // payload-free digests preserve the exact/auth-stale/reused collision split.
+fn nullable_operation_counter_schema(
+    generator: &mut schemars::SchemaGenerator,
+) -> schemars::Schema {
+    generator.subschema_for::<Option<u64>>()
+}
+
 #[derive(Clone, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct OperationIdentityTombstoneV1 {
@@ -667,7 +673,7 @@ pub struct OperationIdentityTombstoneV1 {
     /// Retained SQL projection used to enforce client-range counter
     /// uniqueness. Keeping the scalar in the closed tombstone lets lookup
     /// validate SQL/JSON coherence without retaining the identity payload.
-    #[schemars(required)]
+    #[schemars(required, schema_with = "nullable_operation_counter_schema")]
     pub counter: Option<u64>,
     pub terminal_outcome: OperationTerminalOutcomeV1,
     #[schemars(pattern(SHA256_PATTERN))]

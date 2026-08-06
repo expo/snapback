@@ -2,7 +2,7 @@
 
 **Status:** Open
 **Opened:** 2026-08-03 (LLP 0163 durable storage slice)
-**Updated:** 2026-08-05 (C27 pre-result abandonment and C28 identity-lifecycle correction; Draft/Missing unchanged); 2026-08-04 (fork-boundary correction — managed branches pin
+**Updated:** 2026-08-05 (merged C28 stopped before performance; C29 repairs automatic sessions range custody, Host tombstone schema nullability, retention-time coherence, and pending rollback proof; Draft/Missing unchanged); 2026-08-05 (C27 pre-result abandonment and C28 identity-lifecycle correction; Draft/Missing unchanged); 2026-08-04 (fork-boundary correction — managed branches pin
 canonical schema/function-bundle identities and preserve exact retry across
 parent drift, but CaptureOnly is truthfully non-promotable. Product provider
 custody, ordered settlement, and public effect-bearing strict promotion are
@@ -55,6 +55,23 @@ The remaining closure gates are:
 
 Until all relevant corpus rows pass for a named target, capability manifests
 must remain `Missing` and must not advertise envelope coverage.
+
+## C28 review stop and C29 carrier repair — 2026-08-05
+
+Fresh mutually blind review of exact merged C28 commit
+`e60473b41159d639bb35ac926564ae49b64f9f51` returned two `NOT READY`
+verdicts before performance. No paired or absolute process ran. C29 now makes
+the sessions client obtain and durably bind the current authority descriptor
+and principal before range assignment, while the transport independently
+injects the descriptor on the range route. It also makes Host tombstone
+`counter` required-nullable in the generated schema, validates the suppression
+terminal/acknowledgement projections before Host retention decisions, and
+proves the pending writer rolls back staged application and journal writes on
+a retained-identity refusal.
+
+The focused carrier proof is green, but this record does not activate the
+manifest or advertise coverage. Fresh exact review, one-shot fixed-Air
+performance, named-author acceptance, and publication binding remain open.
 
 ## Progress — 2026-08-04
 

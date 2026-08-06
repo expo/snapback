@@ -55,7 +55,10 @@
       "description": "Retained SQL projection used to enforce client-range counter\nuniqueness. Keeping the scalar in the closed tombstone lets lookup\nvalidate SQL/JSON coherence without retaining the identity payload.",
       "format": "uint64",
       "minimum": 0,
-      "type": "integer"
+      "type": [
+        "integer",
+        "null"
+      ]
     },
     "epochId": {
       "type": "string"

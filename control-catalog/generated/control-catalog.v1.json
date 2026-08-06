@@ -1,11 +1,11 @@
 {
   "schemaVersion": "snapback.control-catalog.v1",
-  "catalogDigest": "sha256:919b2ba9fea2c3edb02f8311352a2d61c9e2ef07240a9b19b66947735b5a6736",
+  "catalogDigest": "sha256:63def2a7245bf3c00ae8cbf63ed0ac4500e7cd9f1a39ac509e1c59e40630cab2",
   "buildIdentity": {
-    "sourceCommit": "8c8312374a2dd748074bf2a33f625630b87411c2",
+    "sourceCommit": "e60473b41159d639bb35ac926564ae49b64f9f51",
     "dirty": true
   },
-  "generatedAtCommit": "8c8312374a2dd748074bf2a33f625630b87411c2",
+  "generatedAtCommit": "e60473b41159d639bb35ac926564ae49b64f9f51",
   "entries": [
     {
       "operation": "acceptance.run",
@@ -1142,6 +1142,306 @@
         "cli": null,
         "mcp": null,
         "hostOps": "auth.rescueCollidingTable",
+        "http": "POST /_snapback/api/host-ops",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0024-agent-operating-surface"
+      ],
+      "sources": [
+        "src/host_ops.rs",
+        "packages/snapback-cli/mcp-control.mjs"
+      ]
+    },
+    {
+      "operation": "branch.create.v1",
+      "title": "branch.create.v1",
+      "intents": [],
+      "status": "shipped",
+      "domain": "hostOps",
+      "surfaceAccess": "apiOnly",
+      "operability": "unavailable",
+      "unavailableReason": {
+        "owner": "llp/0184-agent-accessible-control-plane",
+        "ticketOrDesignPointer": null,
+        "note": "Not yet manually classified by the LLP 0184 Phase 1 backfill. Defaults to unavailable (never a permissive guess) until an authored operability-overrides.json entry exists."
+      },
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "routePolicy": "AdminWrite",
+        "effect": "None",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": null,
+        "mcp": null,
+        "hostOps": "branch.create.v1",
+        "http": "POST /_snapback/api/host-ops",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0024-agent-operating-surface"
+      ],
+      "sources": [
+        "src/host_ops.rs",
+        "packages/snapback-cli/mcp-control.mjs"
+      ]
+    },
+    {
+      "operation": "branch.drop.v1",
+      "title": "branch.drop.v1",
+      "intents": [],
+      "status": "shipped",
+      "domain": "hostOps",
+      "surfaceAccess": "apiOnly",
+      "operability": "unavailable",
+      "unavailableReason": {
+        "owner": "llp/0184-agent-accessible-control-plane",
+        "ticketOrDesignPointer": null,
+        "note": "Not yet manually classified by the LLP 0184 Phase 1 backfill. Defaults to unavailable (never a permissive guess) until an authored operability-overrides.json entry exists."
+      },
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "routePolicy": "AdminWrite",
+        "effect": "None",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": null,
+        "mcp": null,
+        "hostOps": "branch.drop.v1",
+        "http": "POST /_snapback/api/host-ops",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0024-agent-operating-surface"
+      ],
+      "sources": [
+        "src/host_ops.rs",
+        "packages/snapback-cli/mcp-control.mjs"
+      ]
+    },
+    {
+      "operation": "branch.execute.v1",
+      "title": "branch.execute.v1",
+      "intents": [],
+      "status": "shipped",
+      "domain": "hostOps",
+      "surfaceAccess": "apiOnly",
+      "operability": "unavailable",
+      "unavailableReason": {
+        "owner": "llp/0184-agent-accessible-control-plane",
+        "ticketOrDesignPointer": null,
+        "note": "Not yet manually classified by the LLP 0184 Phase 1 backfill. Defaults to unavailable (never a permissive guess) until an authored operability-overrides.json entry exists."
+      },
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "routePolicy": "AdminWrite",
+        "effect": "None",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": null,
+        "mcp": null,
+        "hostOps": "branch.execute.v1",
+        "http": "POST /_snapback/api/host-ops",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0024-agent-operating-surface"
+      ],
+      "sources": [
+        "src/host_ops.rs",
+        "packages/snapback-cli/mcp-control.mjs"
+      ]
+    },
+    {
+      "operation": "branch.inspect.v1",
+      "title": "branch.inspect.v1",
+      "intents": [],
+      "status": "shipped",
+      "domain": "hostOps",
+      "surfaceAccess": "apiOnly",
+      "operability": "unavailable",
+      "unavailableReason": {
+        "owner": "llp/0184-agent-accessible-control-plane",
+        "ticketOrDesignPointer": null,
+        "note": "Not yet manually classified by the LLP 0184 Phase 1 backfill. Defaults to unavailable (never a permissive guess) until an authored operability-overrides.json entry exists."
+      },
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "routePolicy": "AdminWrite",
+        "effect": "None",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": null,
+        "mcp": null,
+        "hostOps": "branch.inspect.v1",
+        "http": "POST /_snapback/api/host-ops",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0024-agent-operating-surface"
+      ],
+      "sources": [
+        "src/host_ops.rs",
+        "packages/snapback-cli/mcp-control.mjs"
+      ]
+    },
+    {
+      "operation": "branch.list.v1",
+      "title": "branch.list.v1",
+      "intents": [],
+      "status": "shipped",
+      "domain": "hostOps",
+      "surfaceAccess": "apiOnly",
+      "operability": "unavailable",
+      "unavailableReason": {
+        "owner": "llp/0184-agent-accessible-control-plane",
+        "ticketOrDesignPointer": null,
+        "note": "Not yet manually classified by the LLP 0184 Phase 1 backfill. Defaults to unavailable (never a permissive guess) until an authored operability-overrides.json entry exists."
+      },
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "routePolicy": "AdminWrite",
+        "effect": "None",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": null,
+        "mcp": null,
+        "hostOps": "branch.list.v1",
+        "http": "POST /_snapback/api/host-ops",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0024-agent-operating-surface"
+      ],
+      "sources": [
+        "src/host_ops.rs",
+        "packages/snapback-cli/mcp-control.mjs"
+      ]
+    },
+    {
+      "operation": "branch.reap.v1",
+      "title": "branch.reap.v1",
+      "intents": [],
+      "status": "shipped",
+      "domain": "hostOps",
+      "surfaceAccess": "apiOnly",
+      "operability": "unavailable",
+      "unavailableReason": {
+        "owner": "llp/0184-agent-accessible-control-plane",
+        "ticketOrDesignPointer": null,
+        "note": "Not yet manually classified by the LLP 0184 Phase 1 backfill. Defaults to unavailable (never a permissive guess) until an authored operability-overrides.json entry exists."
+      },
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "routePolicy": "AdminWrite",
+        "effect": "None",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": null,
+        "mcp": null,
+        "hostOps": "branch.reap.v1",
         "http": "POST /_snapback/api/host-ops",
         "adminClient": null,
         "console": null
@@ -3974,6 +4274,55 @@
       ]
     },
     {
+      "operation": "operations.explain",
+      "title": "operations.explain",
+      "intents": [],
+      "status": "shipped",
+      "domain": "systemApi",
+      "surfaceAccess": "apiOnly",
+      "operability": "unavailable",
+      "unavailableReason": {
+        "owner": "llp/0184-agent-accessible-control-plane",
+        "ticketOrDesignPointer": null,
+        "note": "Not yet manually classified by the LLP 0184 Phase 1 backfill. Defaults to unavailable (never a permissive guess) until an authored operability-overrides.json entry exists."
+      },
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "routePolicy": "AdminRead",
+        "effect": "None",
+        "responseSensitivity": "SensitiveApplicationData"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": true
+      },
+      "projections": {
+        "cli": null,
+        "mcp": null,
+        "hostOps": null,
+        "http": "POST /_snapback/api/operations/explain",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0031-server-route-taxonomy"
+      ],
+      "sources": [
+        "src/server.rs route_registry()"
+      ]
+    },
+    {
       "operation": "push.maintenance",
       "title": "push.maintenance",
       "intents": [],
@@ -4249,6 +4598,104 @@
         "src/server.rs route_registry()"
       ],
       "mcpDeferralReason": "Ready-file-only local operator authority (src/cli.rs HostCommand::SecretReadMint doc comment: 'can never be discovered from a URL'); no MCP projection."
+    },
+    {
+      "operation": "storage.operation-coverage.activate",
+      "title": "storage.operation-coverage.activate",
+      "intents": [],
+      "status": "shipped",
+      "domain": "systemApi",
+      "surfaceAccess": "apiOnly",
+      "operability": "unavailable",
+      "unavailableReason": {
+        "owner": "llp/0184-agent-accessible-control-plane",
+        "ticketOrDesignPointer": null,
+        "note": "Not yet manually classified by the LLP 0184 Phase 1 backfill. Defaults to unavailable (never a permissive guess) until an authored operability-overrides.json entry exists."
+      },
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "routePolicy": "AdminWrite",
+        "effect": "None",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": true
+      },
+      "projections": {
+        "cli": null,
+        "mcp": null,
+        "hostOps": null,
+        "http": "POST /_snapback/api/storage/operation-coverage/activate",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0031-server-route-taxonomy"
+      ],
+      "sources": [
+        "src/server.rs route_registry()"
+      ]
+    },
+    {
+      "operation": "storage.protected-erasure",
+      "title": "storage.protected-erasure",
+      "intents": [],
+      "status": "shipped",
+      "domain": "systemApi",
+      "surfaceAccess": "apiOnly",
+      "operability": "unavailable",
+      "unavailableReason": {
+        "owner": "llp/0184-agent-accessible-control-plane",
+        "ticketOrDesignPointer": null,
+        "note": "Not yet manually classified by the LLP 0184 Phase 1 backfill. Defaults to unavailable (never a permissive guess) until an authored operability-overrides.json entry exists."
+      },
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "routePolicy": "AdminWrite",
+        "effect": "None",
+        "responseSensitivity": "SensitiveApplicationData"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": true
+      },
+      "projections": {
+        "cli": null,
+        "mcp": null,
+        "hostOps": null,
+        "http": "POST /_snapback/api/storage/protected-erasure",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0031-server-route-taxonomy"
+      ],
+      "sources": [
+        "src/server.rs route_registry()"
+      ]
     },
     {
       "operation": "telemetry.events",

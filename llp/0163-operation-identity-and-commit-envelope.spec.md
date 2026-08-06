@@ -5,7 +5,7 @@
 **Systems:** Storage, Sync, Auth, Diagnostics, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-03
-**Revised:** 2026-08-05 (C27 pre-result abandonment and C28 lifecycle repair — comparison-complete tombstones, contiguous floors, bounded ranges, and transactional writer guards; Draft/Missing unchanged); 2026-08-04 (explicit activation transport — an authenticated,
+**Revised:** 2026-08-05 (merged C28 review stop and prospective C29 repair — automatic sessions range custody, nullable-required Host tombstones, terminal-time coherence, and pending-writer rollback; Draft/Missing unchanged); 2026-08-05 (C27 pre-result abandonment and C28 lifecycle repair — comparison-complete tombstones, contiguous floors, bounded ranges, and transactional writer guards; Draft/Missing unchanged); 2026-08-04 (explicit activation transport — an authenticated,
 managed-admission AdminWrite command now accepts only the versioned local
 target/profile pair and publishes the exact four-adapter manifest; it remains
 inactive until an operator invokes it, and independent review, author
@@ -183,7 +183,9 @@ diverge, this Spec is the defect until a dated revision reconciles them.
   be reclaimed inside an open epoch leaves a payload-free tombstone until
   the floor passes. The tombstone retains separate domain-separated digests
   of the full identity and its authorization facts plus the terminal outcome
-  class, never the individual bound facts. Exact agreement returns
+  class. It retains the audience/epoch/counter routing projections needed for
+  floor and uniqueness checks, but not the individual principal, authority,
+  input, or issuance-authenticator facts. Exact agreement returns
   `result-expired`; authorization divergence returns
   `SNAPBACK_AUTH_STALE_RESULT`; other identity divergence returns
   `SNAPBACK_CLIENT_MUTATION_ID_REUSED`. Tombstone growth in an open client
@@ -831,3 +833,29 @@ capability is still Missing, no published active lane can have created them.
 This repair is not a capability claim: LLP 0163 remains `Draft`, and
 every related capability remains `Missing` pending fresh full correctness,
 fixed-Air performance, independent review, and named-author acceptance.
+
+## Implementation record — 2026-08-05, merged C28 review stop and C29 repair
+
+Exact merged C28 commit `e60473b41159d639bb35ac926564ae49b64f9f51`
+received independent `NOT READY` verdicts before performance. No paired or
+absolute process ran. The defects were automatic sessions-mode range custody,
+Host tombstone schema nullability, retention-critical terminal-time SQL/JSON
+coherence, and missing staged app/journal rollback proof at the pending writer
+seam.
+
+C29 obtains and durably records the current sessions authority descriptor and
+authenticated principal before the first range assignment; the request layer
+also injects that descriptor on the range route. The Rust-owned tombstone
+schema now makes `counter` required and nullable, with a representative Host
+instance validated against the committed artifact. Suppression lookup compares
+SQL terminal/acknowledgement projections to the JSON record, and Host closure
+re-runs exact lookup before trusting the terminal-time projection. The pending
+writer negative stages application and journal rows under a savepoint, refuses
+the tombstoned identity, rolls the savepoint back, and proves no app, journal,
+envelope, or pending lifecycle row survived while the tombstone remains.
+
+Focused repair proof is 42/42 client tests, the exact writer/Host-closure test,
+35/35 artifact-schema tests, and the schemagen ownership/reaping test. This is
+not publication evidence: the Spec stays `Draft` and all related capabilities
+stay `Missing` pending a fresh clean exact candidate, independent reviews, and
+the unchanged performance/publication gates.

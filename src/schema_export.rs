@@ -116,6 +116,17 @@ pub struct SchemaArtifact {
     pub schema: Value,
 }
 
+/// JSON Schemas whose defining authority is a non-Rust compiler. The Rust
+/// schemagen must preserve these files, and the DK-7 directory-closure test
+/// includes them without pretending `artifact_schemas()` generated them.
+///
+/// @ref LLP 0184#phase-1--catalog-and-parity-gate — ControlCatalogV1 and its
+/// instance projection are owned by the checked cross-registry JS compiler.
+pub const EXTERNALLY_MANAGED_SCHEMA_ARTIFACTS: &[&str] = &[
+    "control-catalog-instance.v1.schema.json",
+    "control-catalog.v1.schema.json",
+];
+
 /// The single generator for every Snapback-owned committed schema.
 ///
 /// Both the `snapback-schemagen` bin (which writes `schemas/`) and the drift

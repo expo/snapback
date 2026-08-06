@@ -2,7 +2,7 @@
 
 **Status:** Open
 **Opened:** 2026-08-03 (Track B integrated implementation pass)
-**Updated:** 2026-08-05 (C27 terminated pre-result with no artifacts; C28 repairs tombstone comparison, contiguous floors, bounded ranges, and transactional writer guards; capabilities remain Missing); 2026-08-04 (pre-result row-13 protocol repair: the author-ratified
+**Updated:** 2026-08-05 (merged C28 stopped before performance after two NOT READY reviews; prospective C29 repairs automatic sessions range custody, Host tombstone schema nullability, terminal-time coherence, and pending-writer rollback proof; capabilities remain Missing); 2026-08-05 (C27 terminated pre-result with no artifacts; C28 repairs tombstone comparison, contiguous floors, bounded ranges, and transactional writer guards; capabilities remain Missing); 2026-08-04 (pre-result row-13 protocol repair: the author-ratified
 contention ceiling now matches the frozen 1,000-ms reservation and separate
 500-ms maximum promotion-commit duration; the absolute recorder binds exact
 baseline and compiled-candidate bytes, and its 128/eight-writer p99 uses the
@@ -45,8 +45,8 @@ not authorize capability publication.
 
 | LLP 0162 row | State through 2026-08-04 | Required closure |
 | --- | --- | --- |
-| 1 — atomic envelope | Partial | Public issuance, four-adapter activation, and crash cuts are landed. C28 additionally requires both writer seams to reclassify retained state transactionally and proves a post-prune direct replay rolls back app/journal publication. Fresh integrated proof remains. |
-| 2 — retry settlement | Partial | Range issue/refresh and atomic client custody are landed. C28 adds two-digest/counter-coherent tombstones, contiguous floor advancement, four-range/1,024-identity epoch capacity, exact lost-response re-service, atomic fifth-range refusal, and same-principal fresh-authority recovery without terminalizing stranded intent. Recreated-branch and fresh integrated proof remain. |
+| 1 — atomic envelope | Partial | Public issuance, four-adapter activation, and crash cuts are landed. C29 requires both writer seams to reclassify retained state transactionally and proves post-prune terminal and pending replays roll back staged app/journal publication. Fresh exact proof remains. |
+| 2 — retry settlement | Partial | Range issue/refresh and atomic client custody are landed. C29 adds automatic sessions descriptor/principal custody, required-nullable Host tombstones, terminal-time SQL/JSON coherence, two-digest/counter-coherent tombstones, contiguous floors, four-range/1,024 capacity, exact re-service, fifth-range refusal, and same-principal fresh-authority recovery. Fresh exact proof remains. |
 | 3 — provenance/explanation | Partial | Public/admin transport and protected custody are wired. The public lane now revalidates the active artifact, current function/grant/profile policy, derived audience, current and retained historical owners, and every closed fact for exact generated owner-create/update envelopes. Create's private mint observation is exact-site-bound and stripped before projection; generated delete is recognized but remains a current-row-absent refusal. Complete positive evaluators, if justified, for aggregate/non-row, hand-written/opaque, predicate, membership, effect-bearing, and remaining policy classes. |
 | 4 — coverage honesty | Partial | The local target now names 23 physical writer families with no grouped row. Exactly four ordinary/host adapters are envelope-mapped; every other family has an executable exclusion reason, and non-envelope app writers refuse after arming. Raw/cached/trigger/system-field/DDL bypass, exact four-writer publication, target-vs-app-effective, crash/reopen, retry, and ordinary/host asymmetry fixtures are green. An authenticated managed-admission AdminWrite command accepts only the versioned local target/profile pair and idempotently publishes that exact manifest; open, range issuance, and capability inspection do not invoke it. Complete-target exclusions, fixed-Air, remaining corpus, review, and acceptance gates keep the row Partial and the command uninvoked by default. |
 | 5 — fork isolation | Partial | F0b and the derived post-fork-parent-write fixture cover the copied-instance leg; managed custody and `branch.execute.v1` run real mutations/actions only on the server-derived current-head workspace. The carrier admits exact multiple operations, retains mutation facts atomically with app rows/journal/version, and pins canonical schema/function-bundle identities. Exact retries survive parent drift; novel requests refuse before handler bytes. Final integrated correctness/review remains. |
@@ -57,8 +57,8 @@ not authorize capability publication.
 | 10 — strict promotion | Partial | Frozen v1 no-effect contention/fairness/crash evidence is joined by atomic multi-operation retention. Any captured intent or approved effect fact—including effect-plus-write and transitive effect-dependent chains—refuses strict promotion before canonical mutation with `SNAPBACK_PROMOTION_CAPTURE_ONLY_UNSUPPORTED`. Public effect-bearing promotion remains outside this Track B publication scope; global writer coverage and applicable performance/review remain independent gates. |
 | 11 — history/checkpoint | Partial | Schema publication now atomically projects finite v2 per-record policy, removal erases retained detail, and current/per-version auth plus visible-only pagination/horizon and per-record pruning are covered without changing legacy v1 `maxRows`. The registered-copy sweep invalidates the complete materialized inventory before deletion and preserves crash/unreachable obligations, but it is not yet atomic with canonical protected-record deletion; close that new-checkpoint race and the remaining lifecycle corpus. |
 | 12 — boundary proof | Partial | Promotion and full migration verification are independently derived; migration's separate evaluator has explicit-value/equivalence plus executor-drift and staged-corruption negatives. Checkpoint concurrent-writer/publication/receipt-only no-upcast negatives are covered. Finish the remaining row-wide boundary integrations/coverage before an aggregate claim. |
-| 13 — performance | Partial | C27 produced no valid result: its only paired process was deliberately terminated pre-result and no artifact was written; the absolute gate was not run. The unchanged paired and absolute recorders must run once on a fresh exact post-C28 candidate after correctness/review clears. |
-| 14 — identity lifecycle | Partial | First-party job/cron/migration carriers and transport-level client exclusion are landed. C28 adds bounded successor-capacity, corruption, auth-divergence, and out-of-order floor negatives; fresh integrated review/publication proof remains. |
+| 13 — performance | Partial | C27 produced no result; C28 was stopped by review before any performance process. The unchanged paired and conditional absolute recorders must run once on a fresh exact post-C29 candidate after correctness/review clears. |
+| 14 — identity lifecycle | Partial | First-party job/cron/migration carriers and transport-level client exclusion are landed. C29 adds automatic sessions carriage, bounded successor-capacity, schema/corruption/auth-divergence, out-of-order floor, and retention-time negatives; fresh integrated review/publication proof remains. |
 
 The detailed LLP 0163 public-carrier work remains in its existing focused
 ticket. F1's operating guide and fork-aware acceptance-harness work remains in
@@ -87,6 +87,22 @@ pending direct-writer refusal/rollback, later-before-earlier closure, exact
 response-loss recovery, atomic capacity refusal, and same-principal successor
 recovery. C27's reviews are not post-C28 acceptance reviews. No
 capability state changes in this record.
+
+## Merged C28 review stop and prospective C29 repair — 2026-08-05
+
+Exact merged C28 commit `e60473b41159d639bb35ac926564ae49b64f9f51`
+was reviewed independently by Codex and Fable after newer `origin/main` was
+integrated. Both verdicts were `NOT READY`. No C28 performance process began,
+so there is no paired or absolute artifact. The review records name four
+blocking gaps: automatic sessions range custody, required-null Host tombstone
+schema validation, retention-time SQL/JSON coherence, and staged pending-
+writer rollback proof.
+
+Prospective C29 repairs all four. Its focused pre-freeze proof is 42/42 client
+tests, the direct Host/writer corruption-and-rollback fixture, 35/35 artifact
+schema tests including a representative Host tombstone, and the schemagen
+ownership/reaping test. Fresh exact reviews and both unchanged performance
+gates remain mandatory. Every related capability remains `Missing`.
 
 ## Dated implementation evidence — 2026-08-04
 
