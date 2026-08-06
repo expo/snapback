@@ -5,7 +5,9 @@
 **Systems:** React, React/Expo, Client integration, Live Queries, Ephemeral state, Code generation, Sync, Auth, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-27
-**Revised:** 2026-08-05 (mounted-provider HMR generation handoff: in a
+**Revised:** 2026-08-06 (IndexedDB binding-receipt commits now defer through
+boot-time Web Locks election, with observable terminal refusals and a
+browser-carrier regression witness); 2026-08-05 (mounted-provider HMR generation handoff: in a
 positively identified development environment, a regenerated same-app
 reference presented to an already-mounted provider becomes a
 provider-boundary invalidation — complete function admission re-runs against
@@ -1411,6 +1413,14 @@ user-switch custody wipe drops the receipt with the rest of the store.
 Regression witness: `packages/snapback-react/cold-boot-binding.test.mjs`
 (real client over a scripted wire; warmed store; cold offline process
 reaches a ready provider rendering `freshness: 'retained'` rows).
+
+**Dated implementation amendment (2026-08-06).** The IndexedDB arm's
+boot-time Web Locks election race silently dropped the receipt commit
+(`issues/20260804-guide-gap-react-expo-offline-cold-boot.md`). Its commit now
+returns `'deferred'` and flushes when this instance's election settles, with a
+`savedAt` staleness guard; terminal refusals surface as
+`SNAPBACK_REACT_BINDING_RECEIPT_NOT_PERSISTED`. Regression witness:
+`packages/snapback-react/cold-boot-binding-indexeddb.test.mjs`.
 
 ### Local development binding synchronization (dated amendment 2026-08-03)
 

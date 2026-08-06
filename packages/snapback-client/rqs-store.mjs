@@ -54,6 +54,8 @@ const RESIDENT_STORES = Object.freeze([
 const ALL_STORES = Object.freeze([...RESIDENT_STORES, STORE_META]);
 const OUTBOX_STATE_KEY = 'state';
 const REACT_BINDING_RECEIPT_KEY = 'reactBindingReceipt';
+const REACT_BINDING_RECEIPT_NOT_PERSISTED =
+  'SNAPBACK_REACT_BINDING_RECEIPT_NOT_PERSISTED';
 // @ref LLP 0166#writer-discipline-and-format-versioning — version 3 adds
 //   stores without rewriting entries/outbox; IndexedDB's upgrade transaction
 //   is the crash-safe migration and older open(..., 2) calls get VersionError.
@@ -64,6 +66,17 @@ function storeError(code, message, details = {}) {
   error.code = code;
   error.diagnostic = { code, message, details };
   return error;
+}
+
+function warnReactBindingReceiptNotPersisted(details) {
+  try {
+    globalThis.console?.warn?.(
+      `${REACT_BINDING_RECEIPT_NOT_PERSISTED}: react binding receipt was not persisted; the next offline cold boot cannot adopt it`,
+      details,
+    );
+  } catch {
+    // Environments without a console must not turn best-effort persistence into a failure.
+  }
 }
 
 const requestResult = (request) => new Promise((resolve, reject) => {
@@ -284,7 +297,35 @@ export function createIndexedDbRqsResumeStore({
   let closed = false;
   let writer = false;
   let releaseLock = null;
+  let pendingReactBindingReceipt = null;
   let initialMeta = createInitialStoreMeta({ clientStoreId, randomBytes });
+
+  async function flushPendingReactBindingReceipt() {
+    const pending = pendingReactBindingReceipt;
+    if (pending === null || closed) return;
+    try {
+      const db = await database();
+      const tx = db.transaction([OUTBOX], 'readwrite');
+      const txStore = tx.objectStore(OUTBOX);
+      const current = prepareReactBindingReceipt(
+        await requestResult(txStore.get(REACT_BINDING_RECEIPT_KEY)),
+      );
+      const currentSavedAt = current?.savedAt;
+      const pendingSavedAt = pending.savedAt;
+      // A surviving stale tab can still flush after takeover, just as it can
+      // resume entry writes; never let an older dated receipt replace a newer one.
+      if (!(
+        Number.isFinite(currentSavedAt)
+        && Number.isFinite(pendingSavedAt)
+        && currentSavedAt > pendingSavedAt
+      )) {
+        txStore.put(pending, REACT_BINDING_RECEIPT_KEY);
+      }
+      await transactionDone(tx);
+    } finally {
+      pendingReactBindingReceipt = null;
+    }
+  }
 
   // Single long-held exclusive lock: granted -> this context is THE writer
   // until close; otherwise the request waits in the lock queue and ownership
@@ -298,6 +339,9 @@ export function createIndexedDbRqsResumeStore({
     () => {
       if (closed) return undefined;
       writer = true;
+      void flushPendingReactBindingReceipt().catch((error) => {
+        warnReactBindingReceiptNotPersisted({ error });
+      });
       return new Promise((resolve) => {
         releaseLock = resolve;
       });
@@ -529,9 +573,16 @@ export function createIndexedDbRqsResumeStore({
     },
 
     async commitReactBindingReceipt(receipt) {
-      if (!this.isWriter()) return false;
       const stored = prepareReactBindingReceipt(receipt);
       if (stored === null) return false;
+      if (closed) return false;
+      // @ref LLP 0114#offline-binding-receipt-dated-amendment-2026-08-01 —
+      // boot-time persistence waits in instance custody until Web Locks elects
+      // this context, without delaying availability-only binding preparation.
+      if (!this.isWriter()) {
+        pendingReactBindingReceipt = stored;
+        return 'deferred';
+      }
       const db = await database();
       const tx = db.transaction([OUTBOX], 'readwrite');
       tx.objectStore(OUTBOX).put(stored, REACT_BINDING_RECEIPT_KEY);
@@ -696,6 +747,7 @@ export function createIndexedDbRqsResumeStore({
     /// sections and selected metadata slots clear in one transaction; owner
     /// high-waters survive and the local-row handle key rotates.
     async wipe() {
+      pendingReactBindingReceipt = null;
       if (!this.isWriter()) return false;
       const db = await database();
       const tx = db.transaction(ALL_STORES, 'readwrite');
@@ -723,6 +775,7 @@ export function createIndexedDbRqsResumeStore({
         previousClientStoreId = (await this.readStoreMeta()).clientStoreId;
         return { reset: false, reason: 'not_corrupt' };
       } catch { /* unreadable is the operation's intended input */ }
+      pendingReactBindingReceipt = null;
       const nextClientStoreId = mintClientStoreId(randomBytes);
       await onBeforeStoreIdentityRotation?.({
         carrier: 'indexeddb',
@@ -776,6 +829,7 @@ export function createIndexedDbRqsResumeStore({
     async close() {
       if (closed) return;
       closed = true;
+      pendingReactBindingReceipt = null;
       const wasWriter = releaseLock !== null;
       releaseLock?.();
       releaseLock = null;

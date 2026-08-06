@@ -172,6 +172,7 @@ const inventories = [
       'assets.test.mjs',
       'authorization-denial.test.mjs',
       'binding-development-sync.test.mjs',
+      'cold-boot-binding-indexeddb.test.mjs',
       'cold-boot-binding.test.mjs',
       'hmr-generation-handoff.test.mjs',
       'lifecycle.test.mjs',
@@ -592,7 +593,9 @@ const total = results.reduce((sum, result) => sum + result.count, 0);
 // 212 -> 214 (2026-08-05, LLP 0181 E1): the Expo package gains the transient
 // supervised-environment exchange suite and the CLI gains the real-runtime
 // backend/Metro/provider/routing/leak/cleanup acceptance loop.
-assert.equal(total, 214, 'reviewed package/admin test count changed');
+// 214 -> 215 (2026-08-06, LLP 0114 receipt race): @expo/snapback-react gains
+// the IndexedDB/Web Locks cold-boot binding regression.
+assert.equal(total, 215, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }
