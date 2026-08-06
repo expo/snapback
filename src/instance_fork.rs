@@ -3223,7 +3223,15 @@ mod tests {
             TABLE_CUSTODY.len(),
             "table custody entries are unique"
         );
-        assert_eq!(SIDECAR_CUSTODY.len(), 9);
+        assert_eq!(
+            SIDECAR_CUSTODY.len(),
+            10,
+            "the Phase 5 asset tree and LLP 0163 operation-detail keyring are both classified"
+        );
+        assert!(SIDECAR_CUSTODY.iter().any(|rule| {
+            rule.name == "*.operation-detail-keyring.json"
+                && rule.disposition == CustodyDisposition::Rotate
+        }));
         assert_eq!(
             SIDECAR_CUSTODY
                 .iter()
