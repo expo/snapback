@@ -1,0 +1,71 @@
+{
+  "id": "eas-payments",
+  "title": "EAS Payments (engine-first slice)",
+  "description": "A learning/prototype vertical slice of the EAS Payments Engine on Snapback: a store notification triggers an action, the action resolves authoritative transaction state (stubbed for this slice) and commits through one mutation, and entitlementGrants — the derived read model — backs the live query the app gates on. A cron sweep expires closed subscription windows through the same action -> mutation split.",
+  "artifactSchemaVersion": "snapback.v0",
+  "targetProfile": "local-dev-sqlite-ibex",
+  "systems": ["API", "Storage", "Runtime", "Realtime", "Scheduled execution", "Developer experience"],
+  "requiredCapabilities": {
+    "storageEngine": "sqlite",
+    "runtimeEngine": "ibex",
+    "liveSubscriptions": true,
+    "syncableLiveQuery": true,
+    "actions": true,
+    "cron": true
+  },
+  "backend": {
+    "source": "snapback/schema.mjs + snapback/functions.mjs",
+    "codegen": "node packages/snapback-codegen/index.mjs demos/eas-payments/snapback",
+    "generated": [
+      "snapback/generated/artifacts.json"
+    ],
+    "stalenessPolicy": "committed review manifest; regenerate with codegen; freshness tracked by artifacts.json inputsHash"
+  },
+  "seed": {
+    "profile": "deterministic",
+    "file": "snapback/seed.json",
+    "rows": { "products": 1, "entitlements": 1, "productEntitlements": 1 },
+    "users": ["user_ada", "user_grace", "user_dana"]
+  },
+  "surfaces": {
+    "headless": {
+      "requirement": "required",
+      "buildTargets": [],
+      "runner": "node demos/eas-payments/tests/acceptance/headless.mjs",
+      "toolchain": "node>=22 (built-in fetch); cargo to build/run the local server"
+    }
+  },
+  "acceptanceChecks": {
+    "headless": [
+      "health reports a local ibex+sqlite target",
+      "schema load (no error diagnostics)",
+      "generated references load: query, mutation, action, cron",
+      "deterministic reset + declarative seed installs the catalog",
+      "no purchase means no entitlement",
+      "validateReceipt: action -> mutation -> transaction + grant",
+      "getEntitlements returns pro, active, for that user",
+      "entitlements are user-scoped: a non-buyer holds nothing",
+      "the transaction carries store, status, and environment",
+      "replaying the receipt is idempotent end to end",
+      "a live subscriber sees a purchase land in realtime",
+      "recordPurchase rejects an unknown environment",
+      "the expireGrants cron job is declared against the sweep action",
+      "a grant past activeUntil flips off on a scheduler tick",
+      "an ordinary query is honestly reported as NOT live"
+    ]
+  },
+  "capabilityGaps": [
+    "store_adapters_apple_google_stripe",
+    "outbound_webhooks",
+    "per_project_isolation",
+    "sessions_auth",
+    "offerings_and_merchandising",
+    "metering"
+  ],
+  "notClaiming": [
+    "real store validation — validateReceipt derives a stubbed transaction id and expiry instead of calling Apple/Google/Stripe",
+    "production auth — the slice runs in dev auth mode; sessions mode is out of scope",
+    "the re-fetch-on-notification path — applyStoreState is a later slice",
+    "metering or billing — transactions carry an environment tag so sandbox rows can be excluded later, and nothing consumes it yet"
+  ]
+}

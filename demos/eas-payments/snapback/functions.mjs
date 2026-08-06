@@ -13,7 +13,7 @@
 //
 // @ref LLP 0027#external-data-and-action-egress — egress stays out of the
 //   transactional path: the action resolves state, then a mutation commits it.
-// @ref LLP 0108#inline-handlers — every JS handler here is the paved inline
+// @ref LLP 0108#source-authoring — every JS handler here is the paved inline
 //   `handler:` form, self-contained with its args, result contract, and
 //   declared reads/writes.
 
