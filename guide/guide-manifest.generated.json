@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "83f7a71193d94488511140f6fe4d0a6199803503"
+    "commit": "34c61fdc63968f143c59e1afab976dca79380237"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -1494,7 +1494,7 @@
       "examples": [],
       "reviewed": "2026-08-06",
       "reviewedCommit": "850427c31b9a668d55b46995e08389cd13a2c9b6",
-      "sha256": "527a5ef9344f8beb9a134c15742ee31bc28731776d493fd8844f8139c0bb194d",
+      "sha256": "c6f08c1c6f0b51b8179a0315a432e9027509d1e709bc8611bec13df524397476",
       "snippets": []
     },
     "clients.app-cli": {
@@ -1745,7 +1745,9 @@
         "demos/expo-golden-path-fixture/receipts/20260806-g1-ios-simulator.md",
         "demos/expo-golden-path-fixture/receipts/20260806-g1-android-emulator.md",
         "demos/expo-golden-path-fixture/receipts/20260806-g4-external-summary.md",
+        "demos/expo-golden-path-fixture/receipts/physical-device-online-checklist.md",
         "demos/partiful-matrix/native/react-expo",
+        "packages/snapback-cli/expo-device-forwarding.test.mjs",
         "packages/snapback-client/webcrypto-fallback.test.mjs",
         "packages/snapback-expo/provider.test.mjs",
         "packages/snapback-react/webcrypto-fallback.test.mjs",
@@ -1758,7 +1760,7 @@
       ],
       "reviewed": "2026-08-06",
       "reviewedCommit": "4ac8387f080a2659484fc09916ff22a076dc4ca8",
-      "sha256": "d839927339376c3de61bdd8bb09ef59a06787bf2faa7969d1ff81226887f6a95",
+      "sha256": "0367c72818ab476c328f5539a2355b03cce0fe45dc30dc5295a3665680ca27a6",
       "snippets": [
         {
           "lang": "json",
@@ -3366,5 +3368,5 @@
     "routes": 122,
     "hostOps": 43
   },
-  "contentHash": "a389cfdd296c032bb71062ea3c53d2172280bb9b216ab32f61cc0914927b030c"
+  "contentHash": "4c1a6911aa2f00a0ce507be29dce1775724d9a96e3a4e0b4bc178f55c9303fe6"
 }

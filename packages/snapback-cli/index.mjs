@@ -2749,7 +2749,7 @@ export const PACKAGED_CLI_COMMANDS = Object.freeze([
     output: 'snapback.verify.v1 receipt', exits: '0 all required stages pass; 1 failed/refused stage', recovery: 'Use the failed stage diagnostics and rerun against the same declared app identity.',
   },
   {
-    name: 'dev', usage: 'snapback dev [<backend-dir>] [--attach] [--no-watch] [--ready-file <path>] [--db <path>] [--client <dir>] [--client-command <cmd>] [--expo] [--expo-dir <dir>] [--expo-platform ios|android] [--email <address>] [--expo-command <cmd>] [--android-serial <serial>] [--json]',
+    name: 'dev', usage: 'snapback dev [<backend-dir>] [--attach] [--no-watch] [--ready-file <path>] [--db <path>] [--client <dir>] [--client-command <cmd>] [--expo] [--expo-dir <dir>] [--expo-platform ios|android] [--email <address>] [--expo-command <cmd>] [--android-serial <serial>] [--ios-udid <udid>] [--json]',
     description: 'Generate, start or attach, load, watch, and optionally supervise a web or Expo client surface.', lifecycle: 'long-running unless --no-watch (Expo supervision is always long-running)',
     output: 'snapback.dev.v1 JSON-line events; snapback.dev-command.v1 JSON lines are accepted on non-TTY stdin while it remains open', exits: '0 requested signal/TTY quit or successful --no-watch; 1 startup/watch/server failure',
     recovery: 'Act on the event diagnostic. Non-TTY stdin EOF only closes the optional control channel; use SIGINT/SIGTERM to stop the dev loop.',
@@ -3675,6 +3675,7 @@ export async function runCli(argv, options = {}) {
     const expoEmail = takeFlag(args, '--email');
     const expoCommand = takeFlag(args, '--expo-command');
     const androidSerial = takeFlag(args, '--android-serial');
+    const iosUdid = takeFlag(args, '--ios-udid');
     // A leftover flag-shaped token would silently become the backend
     // directory name (`snapback dev --help` "ran" against a directory named
     // --help and exited 1 with no output — 0137 a4-f2). Reject it loudly.
@@ -3684,7 +3685,7 @@ export async function runCli(argv, options = {}) {
         `unknown dev option ${args[0]}; usage: snapback dev [<backend-dir>] [--attach] [--no-watch] `
           + '[--ready-file <path>] [--db <path>] [--client <dir>] [--client-command <cmd>] '
           + '[--expo] [--expo-dir <dir>] [--expo-platform ios|android] [--email <address>] '
-          + '[--expo-command <cmd>] [--android-serial <serial>] [--json]',
+          + '[--expo-command <cmd>] [--android-serial <serial>] [--ios-udid <udid>] [--json]',
       );
     }
     const backendDirectory = args.shift() ?? 'snapback';
@@ -3695,11 +3696,11 @@ export async function runCli(argv, options = {}) {
         { args },
       );
     }
-    if (!expo && [expoDirectory, expoPlatform, expoEmail, expoCommand, androidSerial]
+    if (!expo && [expoDirectory, expoPlatform, expoEmail, expoCommand, androidSerial, iosUdid]
       .some((value) => value !== null)) {
       throw diagnosticError(
         'SNAPBACK_CLI_ARGUMENT_INVALID',
-        '--expo-dir, --expo-platform, --email, --expo-command, and --android-serial require --expo',
+        '--expo-dir, --expo-platform, --email, --expo-command, --android-serial, and --ios-udid require --expo',
       );
     }
     if (expo) {
@@ -3723,6 +3724,12 @@ export async function runCli(argv, options = {}) {
           '--android-serial requires --expo-platform android',
         );
       }
+      if (iosUdid !== null && platform !== 'ios') {
+        throw diagnosticError(
+          'SNAPBACK_CLI_ARGUMENT_INVALID',
+          '--ios-udid requires --expo-platform ios',
+        );
+      }
       const { runExpoDev } = await import('./expo-dev.mjs');
       let criticalExit = null;
       let rejectCritical = null;
@@ -3735,6 +3742,7 @@ export async function runCli(argv, options = {}) {
         ...(expoEmail ? { email: expoEmail } : {}),
         ...(expoCommand ? { metroCommand: expoCommand } : {}),
         ...(androidSerial ? { androidSerial } : {}),
+        ...(iosUdid ? { iosUdid } : {}),
         platform,
         onEvent(event) { console.log(JSON.stringify(event)); },
         onCriticalExit(error) {

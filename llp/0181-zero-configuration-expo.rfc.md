@@ -6,6 +6,17 @@
 Auth, Assets, Offline, Testing, Hosted environments, Code generation
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-05
+**Revised:** 2026-08-06 (j) — OQ4 USB implementation probe: Android physical
+devices now use the E1 supervisor's exact per-serial `adb reverse` ownership,
+with emulator/USB/TCP-IP inventory classes, TCP/IP refusal, exact verification,
+rollback/removal, readiness device facts, and a manual-but-not-yet-executed
+Online receipt checklist. The iOS half did not survive tool-direction
+verification: installed `devicectl` 518.33 exposes no TCP forward, and
+`iproxy` forwards host loopback to a device service rather than iOS device
+loopback to host loopback. `--ios-udid` therefore enumerates/refuses network
+devices and fails with a typed reverse-forward-unavailable diagnostic before
+starting children. No live-device or LLP 0064 claim follows; iOS still needs a
+device-side bridge or a new author ruling.
 **Revised:** 2026-08-06 (i) — E2 complete: the provider registers the
 picker/content-URI structural-source adapter, Expo binary transport, client
 checksum support, and ordinary-session custody; one real system-picked image
@@ -526,6 +537,25 @@ The G1/E1 baseline is complete with iOS simulator and Android emulator. This
 keeps zero-URL development moving while the harder physical-device network
 boundary receives a real design.
 
+**2026-08-06 OQ4 USB follow-on.** Android USB is now a representable extension
+of the existing `supervised-dev` `routing: "port-forward"` arm: selection is
+fixed to one local USB serial, every rule is installed/verified/removed through
+`adb -s`, TCP/IP/mDNS adb serials refuse as network reachability, and readiness
+names `device.serial` plus `device.class`. This creates no new host listener and
+does not change the binding source.
+
+The equivalent iOS extension remains unbuilt after a concrete tooling probe.
+Xcode `devicectl` 518.33 has device discovery/install/process commands but no
+TCP forward. libimobiledevice's `iproxy` binds a host-local port and forwards
+host-initiated connections to an iOS service; the required direction is the
+inverse, from the app's device-local `127.0.0.1` to the host's loopback-only
+backend/Metro/bootstrap listeners. Treating those as equivalent would make the
+first live receipt fail by construction. The supervisor accepts `--ios-udid`
+only far enough to distinguish USB from `localNetwork`, then emits
+`SNAPBACK_EXPO_IOS_USB_REVERSE_FORWARD_UNAVAILABLE` without starting owned
+children. A bounded device-side bridge or a separately authorized posture must
+precede iOS physical-device evidence.
+
 ## Release binding
 
 For EAS/release builds, generation selects a declared Snapback target for the
@@ -749,6 +779,16 @@ authentication against another local process.
 
 E0/E1 complete LLP 0176 G1.
 
+**2026-08-06 E1 USB follow-on delivery note — PARTIAL.** Android USB mechanics
+ship with headless fake inventories, emulator/USB/TCP-IP classification,
+network refusal, exact per-serial three-rule verification, failure rollback,
+idempotent removal, readiness shape, and the existing full simulator cleanup
+regression. No Android physical device was attached for this landing, so its
+dated LLP 0064 Online receipt remains pending. The iOS half is a typed
+non-capability for the tool-direction reason recorded in §Real devices in the
+baseline; neither a forward nor a receipt is claimed. The manual checklist is
+`demos/expo-golden-path-fixture/receipts/physical-device-online-checklist.md`.
+
 ### E2 — online asset command
 
 - Register the picker/content-URI adapter and required crypto/session support.
@@ -894,15 +934,21 @@ partial adapters into an unearned “offline” claim.
    proves absence from the named static surfaces, not live-channel security.
 3. Should release binding be embedded as generated source, an Expo Updates
    asset, or a signed public artifact, and which owner verifies its receipt?
-4. Can real Android and iOS devices both use a supported USB/port-forward path
-   before E5, or should real-device local development use hosted HTTPS?
+4. **Partially answered 2026-08-06 after the LLP 0176 OQ4 ruling:** Android can
+   use the existing supported USB `adb reverse` path and its mechanism ships,
+   live receipt pending. Current `devicectl` and `iproxy` cannot provide the
+   inverse direction required by iOS device loopback, so iOS remains blocked
+   on a device-side bridge or a new author ruling; hosted HTTPS is not silently
+   substituted into the LLP 0064 local-device claim.
 5. Which initial Expo SDK/React Native matrix is small enough to prove and
    useful enough to publish?
 
 ## Status
 
 Review. E0/E1 are implemented as the first slice: the correctly named package, one
-`AppBinding`, no-URL provider boot, and direct simulator/emulator routing.
+`AppBinding`, no-URL provider boot, direct simulator/emulator routing, and the
+headless-proven Android USB extension. Its live receipt is pending; iOS USB is
+a typed non-capability after the concrete tool-direction probe above.
 E2 adds the ordinary-session image command. Release/external proof follows.
 LAN relay, physical-device pairing over that relay, background attempt grants,
 and offline custody are explicitly outside the baseline. A super-refine

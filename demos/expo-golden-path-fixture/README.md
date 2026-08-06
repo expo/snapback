@@ -45,6 +45,13 @@ device-platform receipts are
 [`20260806-g2-ios-simulator.md`](./receipts/20260806-g2-ios-simulator.md) and
 [`20260806-g2-android-emulator.md`](./receipts/20260806-g2-android-emulator.md).
 
+For opportunistic physical-device qualification, use the explicitly non-receipt
+[`physical-device-online-checklist.md`](./receipts/physical-device-online-checklist.md).
+The Android USB supervisor mechanism is ready for that live run; no device was
+run for its landing. The iOS section records the current typed blocker rather
+than treating `iproxy`'s host-to-device direction as the required reverse
+forward. Do not cite the checklist itself as an LLP 0064 receipt.
+
 For the G2 headless checkpoint, use an explicitly qualified runtime binary:
 
 ```sh

@@ -64,8 +64,10 @@ export const listGhosts = defineQuery({ table: 'ghosts', args: {} });
 
   for (const [args, message] of [
     [['--expo-platform', 'android'], /require --expo/u],
+    [['--ios-udid', 'ios-device-1'], /require --expo/u],
     [['--expo', '--no-watch'], /long-running supervisor/u],
     [['--expo', '--android-serial', 'emulator-1'], /requires --expo-platform android/u],
+    [['--expo', '--expo-platform', 'android', '--ios-udid', 'ios-device-1'], /requires --expo-platform ios/u],
   ]) {
     const refused = spawnSync(process.execPath, [cli, 'dev', ...args], {
       cwd: project,
