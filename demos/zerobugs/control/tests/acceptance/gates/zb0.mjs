@@ -457,7 +457,17 @@ async function verifySourcePin(context) {
   assert.equal(context.fixtureDigests.manifestDigests.json, await sha256File(ACCEPTANCE_JSON_PATH));
   assert.equal(context.fixtureDigests.manifestDigests.markdown, await sha256File(ACCEPTANCE_MD_PATH));
   if (process.env.ZBUGS_PIN !== undefined) {
-    assert.equal(process.env.ZBUGS_PIN, pin.commit, 'ZBUGS_PIN matches the frozen commit');
+    // ZBUGS_PIN is the path to the pinned apps/zbugs working copy (the same
+    // contract every lane harness uses), not the commit hash. Prove it is
+    // the frozen pin by digest, which needs no .git in the scratch copy.
+    const envCheckoutRoot = resolve(process.env.ZBUGS_PIN, '../..');
+    for (const [path, digest] of Object.entries(context.sourceDigests.files)) {
+      assert.equal(
+        await sha256File(join(envCheckoutRoot, path)),
+        `sha256:${digest}`,
+        `ZBUGS_PIN ${path} matches the frozen pin digest`,
+      );
+    }
   }
 
   assert(context.pinnedSource, 'an offline pinned source checkout is available for digest verification');

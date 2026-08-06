@@ -301,3 +301,28 @@ Net: the browser lane keeps paying. Lanes 1–5 found platform bugs headlessly;
 Lane 6b's real Chrome found two shipped auth-custody defects, and its
 acceptance run then found the port's own data-layer instability the moment
 the auth wall came down.
+
+## 2026-08-06 — Lanes 7 and 8: eight receipts, one platform scan
+
+Lane 7 closed same-day: all eight ZB gates carry immutable receipts under
+`demos/zerobugs/evidence/`, with the failed first attempts preserved — every
+FAIL was a gate-authoring defect the supervising live runs caught (name-vs-
+identity lookup, guessed row order, a refusal expectation that contradicted
+LLP 0036's deliberate open value-free config reads, and a network-event
+ring buffer sliced by absolute index). The codex-builds/supervisor-runs
+split worked: socketless static verification consistently produced gates
+that were right about the product and wrong about the environment, and the
+immutable attempt trail records both.
+
+Lane 8 delivered the program's biggest platform find. The 5.5M-row ingest
+plan (6,176 ledgered batches through an additively-extended acceptance
+seam) measured 2.43 s/batch degrading to 3.69 s/batch within 150 batches.
+Diagnosis: the runtime validates `_version` integrity by scanning every
+touched application table on every buffered commit — Θ(table size), and no
+schema index the demo can declare bounds it. That is invisible at the
+1,024-row seed scale every prior demo lived at and disqualifying at one
+million rows. Filed as P1
+`issues/20260806-buffered-mutation-touched-table-version-scan.md`; the
+large/hot receipts stay honestly GAP'd on it. A control app existing to
+find scale-shaped truths found one in the storage engine on its first real
+day at scale — that is the program working as designed.
