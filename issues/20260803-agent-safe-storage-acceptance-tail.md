@@ -481,6 +481,36 @@ publish a capability on its own.
   exactly); other hosts rely on the 20-cut publication crash matrix.
   Digest-work/replay-floor legs stay with their owners above.
 
+### Phase 6 gate progress (2026-08-05 author rulings + verifications)
+
+- Publication mechanism decided (LLP 0185 Phase 0 item 6): the LLP 0061
+  guide capability-index claim governs `operating.instance-forks`; no LLP
+  0113 manifest or LLP 0134 registration act for the local claim.
+- LLP 0158's earlier Draft → Review author ruling is superseded by its v0.19
+  Accepted transition after independent implementation review. The separate
+  derived-fork capability remains `Missing` pending its own publication gates.
+- LLP 0024/0030 fork-field stability re-verified against the Phase 0
+  freeze: `schemas/host-ready.schema.json` is byte-unchanged since
+  `fbb596876`, and the only `src/host_ops.rs` change (`2af0dc9fc`) is an
+  operation-inventory documentation constant, not envelope fields.
+- Row-13 narrow-claim scope ruled (OQ6): fork lifecycle metrics only.
+  Dated release-profile evidence recorded
+  (`tests/acceptance/instance-fork-lifecycle-bench.2026-08-05.v1.json`,
+  macOS aarch64, commit 447f10fec): cold create 212 ms median (351 ms at a
+  32 MiB parent), live-parent create 200 ms, drop 63 ms, attributed diff
+  47 ms and net diff 68 ms at 10k journal rows, reap-of-three 76 ms, and
+  three concurrent creates at 417 ms wall versus a 212 ms sequential
+  median. **Proposed bounds (pending 0162-author ratification):** create ≤
+  2 s small / ≤ 3 s at 32 MiB / ≤ 2 s live; drop ≤ 1 s; attributed diff ≤
+  500 ms and net diff ≤ 750 ms per 10k rows; reap ≤ 1 s per sweep of
+  three; concurrent 3-create wall ≤ 3× the sequential-create bound.
+  Rerun recipe: `cargo test --release --test instance_fork_bench_v1 --
+  --ignored --nocapture`.
+- The fork-lifecycle record does not substitute for Track B row 13's separate
+  storage-engine paired and absolute runs. LLP 0163/0164/0165 implementation
+  is landed, but their fresh exact acceptance reviews, contract-bytes freeze,
+  and publication gates remain open until the final Track B candidate passes.
+
 The detailed LLP 0163 public-carrier work remains in its existing focused
 ticket. The F1 operating guide and fork-aware harness are complete and tracked
 by the closed `issues/closed/20260803-guide-gap-instance-forks.md`; remaining

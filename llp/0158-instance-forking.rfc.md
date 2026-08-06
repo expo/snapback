@@ -6,7 +6,22 @@
 experience, Developer experience, CLI, Documentation, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-03
-**Revised:** 2026-08-05 (LLP 0185 Phase 5: implemented OQ5's decided
+**Revised:** 2026-08-05 (author decisions, LLP 0185 Phase 0 items 2 and 6,
+ratified by Charlie 2026-08-05: the earlier Draft → Review transition and LLP
+0005 review loop were subsequently completed by v0.19's Accepted transition;
+the publication mechanism
+governing `operating.instance-forks` is the **LLP 0061 guide
+capability-index claim** — the existing index row, currently target `none`,
+is the claim surface Phase 6 item 6 will move, gated on Phase 6 item 0's
+governing-document checklist; the LLP 0113 `TargetCapabilityId` route and
+its LLP 0134 registration obligations are deliberately not taken for the
+local claim. LLP 0185 OQ6 row-13 scoping, same ruling: the narrow local
+claim is gated on fork lifecycle metrics — cold- and live-parent create
+latency by parent size, attributed and net diff latency at the diff-work
+bound, drop/reap latency, and concurrent-create contention — not the
+broader agent-safe-storage storage-engine submetrics, which stay with the
+full profile. Absolute bounds still require dated 0162-author
+ratification once measured.); 2026-08-05 (LLP 0185 Phase 5: implemented OQ5's decided
 same-cut fork-private asset custody — durable asset metadata now copies with
 a digest- and length-verified private blob-tree copy taken from the staged
 metadata cut, in-flight attempts/work-ledger claims scrub, signing keys keep
