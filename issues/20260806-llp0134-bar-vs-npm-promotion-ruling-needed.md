@@ -33,13 +33,20 @@ bar that governs npm releases.
 So the promotion capstone names a qualification bar that cannot currently
 be met and that the bar's own spec says does not govern npm releases.
 
-A second decision is entangled: the target version. `0.1.9` appears only as
-an inference from guide fences (`<!-- since: 0.1.9 unreleased -->` markers
-in `guide/backend/mutations.md` and `guide/auth/sessions-and-principals.md`)
-— it is not a recorded decision. Every `packages/*/package.json` says
-`0.1.0`, and the version is operator-supplied at publish time
-(`scripts/snapback-publish.mjs:81` default `0.1.0`, `:99` `--version`,
-`:272` stamps it into the staged manifests).
+A second decision is entangled: the target version. At audit time `0.1.9`
+appeared only as an inference from guide fences (`<!-- since: 0.1.9
+unreleased -->` markers in `guide/backend/mutations.md` and
+`guide/auth/sessions-and-principals.md`) — not a recorded decision. Every
+`packages/*/package.json` says `0.1.0`, and the version is operator-supplied
+at publish time (`scripts/snapback-publish.mjs:81` default `0.1.0`, `:99`
+`--version`, `:272` stamps it into the staged manifests).
+
+Same-day update: the Lane D preflight entry (2026-08-06, in
+`issues/20260803-first-npm-latest-promotion.md`) has since recorded 0.1.9
+executing on the 0.1.8 fast-path shape under LLP 0041's standing
+pre-consumer ruling, with the 0134 soak window decoupled as its own 14-day
+program. That resolves this release operationally but leaves both questions
+below standing for future promotions.
 
 ## Ask
 
