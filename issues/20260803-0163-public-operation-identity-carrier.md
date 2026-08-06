@@ -8,6 +8,31 @@ completeness choke point and LLP 0162 retains row-completion authority)
 **Systems:** Sync, Client integration, Storage, Jobs, Migrations, Testing
 **Related:** LLP 0043, LLP 0133, LLP 0162, LLP 0163
 
+## Author ruling — landing discipline for dual-READY cuts (2026-08-06)
+
+Ruled by Charlie to break the C27–C33 HEAD-chasing loop (every cut kept
+being invalidated by "the mandatory post-review fetch found newer main
+before performance"):
+
+- A cut that has received **mutually blind dual READY verdicts** (both
+  model families) **may land on main immediately**. A newer main found
+  after review requires a normal conflict-resolving merge, but it does
+  **not** invalidate the reviews or force a fresh cut.
+- The **performance leg runs immediately after landing**, against the
+  landed commit (row 13's genuinely paired, baseline-digest-bound protocol
+  with the public covered lane active).
+- **Nothing is claimed at landing.** The production activation command,
+  any coverage manifest above `Missing`, and every capability
+  advertisement remain gated on the post-landing performance result plus
+  the other named closure gates, exactly as before. Landing is
+  integration, not qualification.
+- If the post-landing performance leg fails its thresholds, record the
+  failure here and fix forward (or revert); a landed-but-unqualified cut
+  never activates.
+
+This ruling changes only the *ordering* of landing versus the performance
+leg; every honesty gate is unchanged.
+
 The LLP 0163 durable store and ordinary-mutation choke point accept an
 authenticated `OperationIssuanceV1`, but no public request currently carries
 one and no server endpoint issues finite authenticated ranges. Clients
