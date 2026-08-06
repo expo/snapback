@@ -753,6 +753,42 @@ test('uncovered offline intent obtains and durably assigns a range before reconn
   assert.equal(requests[1].body.operationIssuance.epoch_id, 'epoch-reconnect');
 });
 
+test('server epoch-capacity refusal keeps uncovered intent queued for fresh authority', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  globalThis.fetch = async (url) => {
+    assert.match(String(url), /\/client-mutations\/identity-range$/u);
+    return Response.json({
+      diagnostic: {
+        code: 'SNAPBACK_OPERATION_RANGE_EXHAUSTED',
+        message: 'client identity epoch reached its finite v1 counter capacity',
+      },
+    }, { status: 409 });
+  };
+  const client = new SnapbackClient('https://operation-capacity.example', {
+    rqsStore: store,
+    operationIdentityProtocol: 1,
+  });
+  const queued = await client.mutate('createThing', {
+    args: { title: 'wait-for-fresh-epoch' },
+    userId: 'user-a',
+  });
+  assert.equal(queued.queued, true);
+  assert.equal(queued.operationCoverageDisposition, 'uncovered-range-exhausted');
+  let [retained] = await store.outboxRecords();
+  assert.equal(retained.status, 'pending');
+  assert.equal(retained.operationIssuance, null);
+
+  const replay = await client.replayQueuedMutations();
+  assert.deepEqual(
+    { failed: replay.failed, remaining: replay.remaining, stopped: replay.stopped },
+    { failed: 0, remaining: 1, stopped: true },
+  );
+  [retained] = await store.outboxRecords();
+  assert.equal(retained.status, 'pending');
+  assert.equal(retained.operationIssuance, null);
+});
+
 test('authority rotation allocates a disjoint range without rebinding old queued identity', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();

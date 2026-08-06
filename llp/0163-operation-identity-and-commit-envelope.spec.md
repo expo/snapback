@@ -5,7 +5,7 @@
 **Systems:** Storage, Sync, Auth, Diagnostics, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-03
-**Revised:** 2026-08-04 (explicit activation transport — an authenticated,
+**Revised:** 2026-08-05 (C27 pre-result abandonment and C28 lifecycle repair — comparison-complete tombstones, contiguous floors, bounded ranges, and transactional writer guards; Draft/Missing unchanged); 2026-08-04 (explicit activation transport — an authenticated,
 managed-admission AdminWrite command now accepts only the versioned local
 target/profile pair and publishes the exact four-adapter manifest; it remains
 inactive until an operator invokes it, and independent review, author
@@ -155,14 +155,20 @@ diverge, this Spec is the defect until a dated revision reconciles them.
 - **Epochs and ranges.** Identities carry a server-issued authenticated
   issuance epoch bound to the authority-instance/session incarnation.
   Offline minting draws from server-preallocated authenticated finite
-  identity ranges persisted atomically client-side; range exhaustion
+  identity ranges persisted atomically client-side. Each range holds at most
+  256 counters and an epoch holds at most four contiguous ranges (1,024
+  identities total, matching the client outbox and per-auth settlement
+  bounds). Exact response-loss recovery may re-serve an unadmitted successor;
+  a fifth same-epoch range refuses `SNAPBACK_OPERATION_RANGE_EXHAUSTED`, and
+  further admission requires a fresh authenticated epoch. Range exhaustion
   degrades to disclosed uncovered queueing with refresh at reconnect. A
   client epoch closes only when both hold: its issuer is terminated **or
   revoked**, and every ranged identity is **admitted-and-acknowledged**,
   never-admitted and range-window-expired with an explicit outcome-unknown
   classification, or operator-purged (LLP 0043's acknowledgement — an
   admitted-but-unacknowledged identity holds its epoch open). The
-  per-audience floor advances past closed epochs only. Host-originated
+  per-audience floor advances only over the contiguous closed prefix; closing
+  a later sequence cannot leap an earlier nonclosed sequence. Host-originated
   identities carry their own predicate (they have no client
   acknowledgement): a server-authenticated host identity reclaims after
   its terminal receipt ages past a declared host window, and a range-less
@@ -175,8 +181,14 @@ diverge, this Spec is the defect until a dated revision reconciles them.
   (or past the host window, for host identities) or explicit operator
   purge; an identity whose last durable record would
   be reclaimed inside an open epoch leaves a payload-free tombstone until
-  the floor passes (tombstone growth in an open client epoch is bounded by
-  the range size). Lookup precedence: suppression record → compact
+  the floor passes. The tombstone retains separate domain-separated digests
+  of the full identity and its authorization facts plus the terminal outcome
+  class, never the individual bound facts. Exact agreement returns
+  `result-expired`; authorization divergence returns
+  `SNAPBACK_AUTH_STALE_RESULT`; other identity divergence returns
+  `SNAPBACK_CLIENT_MUTATION_ID_REUSED`. Tombstone growth in an open client
+  epoch is bounded by the 1,024-identity aggregate epoch cap. Lookup
+  precedence: suppression record → compact
   envelope or tombstone (`result-expired`, outcome-known/payload-gone) →
   epoch floor (`identity-horizon-passed`, outcome-unknown, never a terminal
   client `failed`).
@@ -188,6 +200,9 @@ diverge, this Spec is the defect until a dated revision reconciles them.
   family; LLP 0066 settlement capability), and field applicability marks
   are per LLP 0162 §1. Atomicity: data change, journal rows, envelope,
   suppression record, and initial receipt state commit in one transaction.
+  Both terminal and pending writer seams re-run the retained classifier in
+  that transaction before publication; prior handler lookup is not insertion
+  authority, and refusal rolls back staged app and journal writes.
 - **Retention and explanation.** Three declared independent clocks (detail,
   compact envelope identity, suppression) — none may pin the sync-resume
   replay floor; the envelope window is at least the journal window on
@@ -615,6 +630,10 @@ latest recorded range. A response lost after issuance is recoverable by
 re-serving that exact range only while the epoch has admitted no identity;
 after admission, missing durable custody refuses rather than risking counter
 reuse.
+Each range contains 256 counters and one epoch may own at most four contiguous
+ranges (1,024 identities in aggregate). The fifth range refuses atomically
+with `SNAPBACK_OPERATION_RANGE_EXHAUSTED`; the client retains uncovered intent
+locally and obtains a fresh authenticated epoch before admission continues.
 
 `MutationRequest.operationIssuance` extends `clientMutationId` through the
 existing retry settlement path. The transport rejects issuance without that
@@ -768,3 +787,33 @@ record, applicable cross-lane/asymmetric-retention corpus, independent review,
 and named-author acceptance remain required. LLP 0163 therefore remains
 Draft, no activation occurs by default, and every related capability remains
 `Missing`.
+
+## Implementation record — 2026-08-05, C27 abandonment and C28 lifecycle repair
+
+Exact candidate `cf56fd38229cebe3616f18c5f51e48c295f15d7c` was stopped
+pre-result and produced no paired artifact; the absolute recorder was not run.
+Independent review found four correctness defects: tombstones lacked enough
+payload-free comparison authority, later epoch closure could leap the floor
+over an earlier open epoch, same-epoch successor issuance was unbounded, and
+direct writer insertion could bypass a tombstone after ACK plus compact
+pruning.
+
+C28 gives each tombstone separate domain-separated full-identity and
+authorization-facts digests, validates its SQL/JSON epoch projection, and
+preserves the exact/auth-stale/other-divergence diagnostic split after compact
+pruning. Floors advance only over the contiguous closed prefix. Client epochs
+are capped at four contiguous 256-counter ranges, aligned with the existing
+1,024-record client outbox and per-auth settlement bound; exact lost-response
+re-service remains available and a fifth range refuses. Both terminal and
+pending writer insertions run the retained suppression/compact/tombstone/floor
+classifier inside their publication transaction before authentication,
+capacity, or insertion. Suppression replay also validates the retained record
+against its identity and SQL projection.
+
+Focused corpus covers digest golden vectors; input, audience, principal, and
+authority divergence after compact pruning; SQL/JSON corruption; direct-writer
+rollback; a later ready epoch closing while an earlier epoch remains open;
+bounded successor issuance, exact response-loss recovery, and atomic capacity
+refusal. This repair is not a capability claim: LLP 0163 remains `Draft`, and
+every related capability remains `Missing` pending fresh full correctness,
+fixed-Air performance, independent review, and named-author acceptance.

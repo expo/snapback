@@ -145,6 +145,13 @@ const isOperationResultExpiredError = (error) => (
   || error?.diagnostic?.details?.disposition === 'result-expired'
 );
 
+// @ref LLP 0043#dated-c28-lifecycle-reconciliation-2026-08-05 — aggregate
+// epoch capacity is uncovered queueing, never a terminal mutation failure.
+const isOperationRangeCapacityError = (error) => (
+  error?.diagnostic?.code === 'SNAPBACK_OPERATION_RANGE_EXHAUSTED'
+  || error?.code === 'SNAPBACK_OPERATION_RANGE_EXHAUSTED'
+);
+
 const operationOutcomeFromError = (error) => {
   const outcome = error?.diagnostic?.details?.outcome;
   return outcome === 'committed' || outcome === 'refused' ? outcome : 'unknown';
@@ -6293,6 +6300,16 @@ export class SnapbackClient {
           });
           break;
         }
+        if (isOperationRangeCapacityError(error)) {
+          stopped = true;
+          this.#recordOutboxDiagnostic({
+            code: 'SNAPBACK_OPERATION_RANGE_UNCOVERED_QUEUED',
+            mutation: record.function,
+            clientMutationId: record.id,
+            disposition: 'uncovered-range-exhausted',
+          });
+          break;
+        }
         if (isConnectivityFailureError(error)) {
           // Still offline: keep the record pending and preserve order.
           stopped = true;
@@ -6522,12 +6539,15 @@ export class SnapbackClient {
               range,
             );
           } catch (error) {
-            if (isConnectivityFailureError(error)) {
+            if (isConnectivityFailureError(error) || isOperationRangeCapacityError(error)) {
               this.#recordOutboxDiagnostic({
                 code: 'SNAPBACK_OPERATION_RANGE_UNCOVERED_QUEUED',
                 mutation: name,
                 clientMutationId: stored.id,
                 disposition: 'uncovered-range-exhausted',
+                reason: isOperationRangeCapacityError(error)
+                  ? 'authenticated-epoch-capacity'
+                  : 'connectivity',
               });
               return {
                 queued: true,

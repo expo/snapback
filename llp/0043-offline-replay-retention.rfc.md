@@ -5,7 +5,7 @@
 **Systems:** Sync, Storage, Client integration, Auth, API, Realtime, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-08-04 (author decision sitting #3
+**Revised:** 2026-08-05 (C28 lifecycle reconciliation — two-digest tombstones, contiguous closed-prefix floors, and four-range/1,024-identity client epoch capacity); 2026-08-04 (author decision sitting #3
 (`issues/closed/20260804-author-decision-sitting-3.md`): the JS-arm
 sessions-custody queue recorded design is **RATIFIED** — all four open
 points ruled: (1) v1 stays server-refusal-only, no LLP 0053
@@ -827,15 +827,39 @@ lifecycle as follows; the core rules are affirmed, not weakened.
 ### Dated v1 parameter record (2026-08-03 — LLP 0163 durable slice)
 
 The implemented v1 server bounds are a maximum **256 identities per
-authenticated client range** and a maximum **30-day issuance window**. Smaller
-ranges and shorter windows are valid. An admitted result that has not been
+authenticated client range**, at most **four contiguous ranges / 1,024
+identities in aggregate per authenticated client epoch**, and a maximum
+**30-day issuance window**. The aggregate aligns with the existing 1,024-record
+client outbox and per-auth settlement limits. Smaller ranges, fewer ranges,
+and shorter windows are valid. Exact response-loss recovery may re-serve the
+already committed unadmitted successor; a fifth range refuses atomically with
+`SNAPBACK_OPERATION_RANGE_EXHAUSTED` and continued admission requires a fresh
+authenticated session/epoch. An admitted result that has not been
 receipt-proven acknowledged has no time-based eviction and therefore holds its
 epoch open. On ACK, the replay payload is immediately eligible for reclamation;
 if the epoch floor has not passed it, reclamation writes a payload-free
-tombstone atomically. The tombstone is deleted only when the per-audience floor
-advances past the closed epoch. These are the constants exported by
+tombstone atomically. That tombstone retains separate domain-separated digests
+of the complete identity and its authorization facts, plus outcome and receipt
+digest; exact agreement returns `result-expired`, authorization divergence
+returns `SNAPBACK_AUTH_STALE_RESULT`, and other identity divergence returns
+`SNAPBACK_CLIENT_MUTATION_ID_REUSED`. The tombstone is deleted only when the
+per-audience floor advances over the contiguous closed epoch prefix; closing a
+later epoch cannot leap any lower nonclosed epoch. Terminal and pending writer
+insertion transactions re-run this retained classifier before publication, so
+a pre-handler lookup cannot authorize replay after reclamation. These are the
+constants and lifecycle rules exported by
 `src/operation_ledger.rs`; changing them requires another dated revision and
 updated lifecycle corpus.
+
+### Dated C28 lifecycle reconciliation (2026-08-05)
+
+This record supersedes any earlier reading that bounded only an individual
+range while permitting unbounded same-epoch successors, or that allowed any
+closed epoch to advance the floor independently of lower sequences. The
+payload-free digest projections and the 1,024-identity aggregate cap are
+normative retention parameters; they do not advertise a capability. LLP 0043
+remains Draft and all related capabilities remain `Missing` until LLP 0162's
+publication gates pass.
 
 ## Terminology note (2026-08-03) — "cold process" proof classes
 

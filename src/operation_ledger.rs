@@ -29,6 +29,16 @@ use crate::commit_envelope::{
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 
 pub const CLIENT_IDENTITY_RANGE_SIZE_V1: u64 = 256;
+/// Four finite ranges bound one authenticated client epoch to the same 1,024
+/// identities as the client outbox and per-auth settlement budget. A fifth
+/// range refuses and requires a fresh authenticated epoch instead of making
+/// the open epoch's tombstone population unbounded.
+///
+/// @ref LLP 0043#dated-c28-lifecycle-reconciliation-2026-08-05 — the
+/// aggregate epoch cap is a retention parameter, not merely a per-range bound.
+pub const CLIENT_IDENTITY_EPOCH_CAPACITY_V1: u64 = 1_024;
+pub const CLIENT_IDENTITY_EPOCH_MAX_RANGES_V1: u64 =
+    CLIENT_IDENTITY_EPOCH_CAPACITY_V1 / CLIENT_IDENTITY_RANGE_SIZE_V1;
 pub const CLIENT_IDENTITY_RANGE_WINDOW_MS_V1: u64 = 30 * 24 * 60 * 60 * 1_000;
 pub const HOST_RECEIPT_WINDOW_MS_V1: u64 = 24 * 60 * 60 * 1_000;
 pub const OPERATION_EXPLANATION_MAX_RESULTS_V1: usize = 100;
@@ -444,6 +454,38 @@ pub fn register_epoch_in(tx: &Transaction<'_>, epoch: &IdentityEpochV1) -> Snapb
     {
         return Err(invalid("identity epoch is invalid"));
     }
+    // @ref LLP 0163#implementation-record--2026-08-05-c27-abandonment-and-c28-lifecycle-repair
+    // — epoch registration stays contiguous so the retained floor has no gaps.
+    let latest_sequence: Option<i64> = tx.query_row(
+        "SELECT MAX(epoch_sequence) FROM _snapback_operation_epochs_v1
+         WHERE originator_class=?1 AND audience=?2",
+        params![originator(epoch.originator_class), epoch.audience],
+        |row| row.get(0),
+    )?;
+    if let Some(latest_sequence) = latest_sequence {
+        let expected = latest_sequence
+            .checked_add(1)
+            .ok_or_else(|| invalid("identity epoch sequence overflowed"))?;
+        if to_i64(epoch.epoch_sequence, "epoch sequence")? != expected {
+            return Err(invalid(
+                "identity epochs for one audience must be registered contiguously",
+            ));
+        }
+    } else {
+        let floor_exists: bool = tx.query_row(
+            "SELECT EXISTS(
+               SELECT 1 FROM _snapback_operation_floors_v1
+               WHERE originator_class=?1 AND audience=?2
+             )",
+            params![originator(epoch.originator_class), epoch.audience],
+            |row| row.get(0),
+        )?;
+        if floor_exists {
+            return Err(invalid(
+                "identity epoch history is missing below an existing floor",
+            ));
+        }
+    }
     tx.execute(
         "INSERT INTO _snapback_operation_epochs_v1(
            originator_class, audience, epoch_id, epoch_sequence,
@@ -708,6 +750,37 @@ pub fn register_client_range_in(
         return Err(refused(
             "SNAPBACK_OPERATION_RANGE_OVERLAP",
             "client identity ranges may not overlap",
+        ));
+    }
+    let (range_count, allocated, expected_start): (i64, i64, i64) = tx.query_row(
+        "SELECT COUNT(*), COALESCE(SUM(range_end_exclusive - range_start), 0),
+                COALESCE(MAX(range_end_exclusive), 0)
+         FROM _snapback_operation_ranges_v1
+         WHERE audience=?1 AND epoch_id=?2",
+        params![range.audience, range.epoch_id],
+        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+    )?;
+    let range_count = u64::try_from(range_count)
+        .map_err(|_| invalid("client identity epoch range count is invalid"))?;
+    let allocated = u64::try_from(allocated)
+        .map_err(|_| invalid("client identity epoch allocation is invalid"))?;
+    let expected_start = u64::try_from(expected_start)
+        .map_err(|_| invalid("client identity epoch range frontier is invalid"))?;
+    if range.range_start != expected_start {
+        return Err(refused(
+            "SNAPBACK_OPERATION_RANGE_CONTINUITY_INVALID",
+            "client identity ranges must extend the exact epoch frontier",
+        ));
+    }
+    let requested = range.range_end_exclusive - range.range_start;
+    if range_count >= CLIENT_IDENTITY_EPOCH_MAX_RANGES_V1
+        || allocated
+            .checked_add(requested)
+            .is_none_or(|total| total > CLIENT_IDENTITY_EPOCH_CAPACITY_V1)
+    {
+        return Err(refused(
+            "SNAPBACK_OPERATION_RANGE_EXHAUSTED",
+            "client identity epoch reached its finite v1 counter capacity",
         ));
     }
     tx.execute(
@@ -1226,6 +1299,9 @@ fn activate_mutation_coverage_in(
 
 /// Insert one envelope and its suppression/receipt state in the caller's data
 /// transaction. This function intentionally performs no COMMIT of its own.
+///
+/// @ref LLP 0163#implementation-record--2026-08-05-c27-abandonment-and-c28-lifecycle-repair
+/// — writer insertion reclassifies retained identity state transactionally.
 pub fn record_operation_in(
     tx: &Transaction<'_>,
     envelope: &CommitEnvelopeV1,
@@ -1234,6 +1310,7 @@ pub fn record_operation_in(
         .validate()
         .map_err(|error| invalid(format!("commit envelope is invalid: {error:?}")))?;
     let identity = &envelope.identity;
+    refuse_retained_identity_for_insert(tx, identity, "covered operation")?;
     let (epoch_id, counter, authenticator) = issuance_parts(identity);
     let epoch_sequence = authenticate_operation_identity(tx, identity)?;
     if let OperationIssuanceV1::ClientRange {
@@ -1272,19 +1349,6 @@ pub fn record_operation_in(
     require_active_coverage(tx, envelope)?;
     require_journal_complete(tx, envelope)?;
 
-    if let Some(retained) = load_identity_for_key(tx, identity)? {
-        return match retained.compare(identity) {
-            OperationIdentityComparison::ExactReplay => Err(refused(
-                "SNAPBACK_OPERATION_ALREADY_RECORDED",
-                "exact replay must be answered before executing the covered writer",
-            )),
-            OperationIdentityComparison::BoundFactsDiverged => Err(refused(
-                "SNAPBACK_CLIENT_MUTATION_ID_REUSED",
-                "operation identity was reused with divergent bound facts",
-            )),
-            OperationIdentityComparison::Novel => unreachable!("lookup used the same key"),
-        };
-    }
     if identity.key.originator_class == OperationOriginatorClassV1::Client {
         let counter = counter.expect("client issuance has a counter");
         let occupied: bool = tx.query_row(
@@ -1446,6 +1510,9 @@ pub fn require_pending_operation_capacity_in(
 /// row in the caller's application-visible transaction. Unlike
 /// `record_operation_in`, this seam deliberately accepts only Pending and does
 /// not create a terminal suppression record.
+///
+/// @ref LLP 0163#implementation-record--2026-08-05-c27-abandonment-and-c28-lifecycle-repair
+/// — pending and terminal publication share the same retained-state guard.
 pub fn record_pending_operation_in(
     tx: &Transaction<'_>,
     envelope: &CommitEnvelopeV1,
@@ -1480,6 +1547,7 @@ pub fn record_pending_operation_in(
             "v1 pending durable operations require authenticated host issuance",
         ));
     }
+    refuse_retained_identity_for_insert(tx, identity, "pending operation")?;
     let epoch_sequence = authenticate_operation_identity(tx, identity)?;
     require_pending_operation_capacity_in(
         tx,
@@ -1488,42 +1556,6 @@ pub fn record_pending_operation_in(
         Some(identity),
         maximum_pending_for_lane_audience,
     )?;
-    match lookup_pending_operation(tx, identity)? {
-        PendingOperationLookupV1::Novel => {}
-        PendingOperationLookupV1::Pending(retained) => {
-            reject_divergence(&retained.identity, identity)?;
-            return Err(refused(
-                "SNAPBACK_OPERATION_ALREADY_RECORDED",
-                "pending publication was already recorded; use exact lookup instead of republishing",
-            ));
-        }
-        PendingOperationLookupV1::Terminal(retained) => {
-            reject_divergence(&retained.identity, identity)?;
-            return Err(refused(
-                "SNAPBACK_OPERATION_ALREADY_RECORDED",
-                "terminal operation cannot be republished as pending",
-            ));
-        }
-        PendingOperationLookupV1::IdentityHorizonPassed => {
-            return Err(refused(
-                "SNAPBACK_OPERATION_IDENTITY_HORIZON_PASSED",
-                "pending operation identity is below the retained Host outcome horizon",
-            ));
-        }
-    }
-    if let Some(retained) = load_identity_for_key(tx, identity)? {
-        return match retained.compare(identity) {
-            OperationIdentityComparison::ExactReplay => Err(refused(
-                "SNAPBACK_OPERATION_ALREADY_RECORDED",
-                "pending publication was already recorded; use exact lookup instead of republishing",
-            )),
-            OperationIdentityComparison::BoundFactsDiverged => Err(refused(
-                "SNAPBACK_CLIENT_MUTATION_ID_REUSED",
-                "pending operation identity was reused with divergent bound facts",
-            )),
-            OperationIdentityComparison::Novel => unreachable!("lookup used the same key"),
-        };
-    }
     let (epoch_id, _, _) = issuance_parts(identity);
     tx.execute(
         "INSERT INTO _snapback_commit_envelopes_v1(
@@ -2048,42 +2080,128 @@ pub fn lookup_operation(
         originator(proposed.key.originator_class),
         proposed.key.operation_id,
     ];
-    let row: Option<(String, String)> = conn
+    let row: Option<(String, String, i64, Option<i64>, String, String)> = conn
         .query_row(
-            "SELECT identity_json, record_json
+            "SELECT audience, epoch_id, epoch_sequence, counter,
+                    identity_json, record_json
              FROM _snapback_operation_suppression_v1
              WHERE stream_id=?1 AND originator_class=?2 AND operation_id=?3",
             key_params,
-            |row| Ok((row.get(0)?, row.get(1)?)),
+            |row| {
+                Ok((
+                    row.get(0)?,
+                    row.get(1)?,
+                    row.get(2)?,
+                    row.get(3)?,
+                    row.get(4)?,
+                    row.get(5)?,
+                ))
+            },
         )
         .optional()?;
-    if let Some((identity_json, record_json)) = row {
+    if let Some((
+        row_audience,
+        row_epoch_id,
+        row_epoch_sequence,
+        row_counter,
+        identity_json,
+        record_json,
+    )) = row
+    {
         let identity: OperationIdentityV1 = decode(&identity_json, "stored operation identity")?;
-        reject_divergence(&identity, proposed)?;
         let record: OperationSuppressionRecordV1 =
             decode(&record_json, "stored suppression record")?;
+        let (identity_epoch_id, identity_counter, _) = issuance_parts(&identity);
+        let referenced_epoch_sequence: Option<i64> = conn
+            .query_row(
+                "SELECT epoch_sequence FROM _snapback_operation_epochs_v1
+                 WHERE originator_class=?1 AND audience=?2 AND epoch_id=?3",
+                params![
+                    originator(identity.key.originator_class),
+                    row_audience,
+                    row_epoch_id,
+                ],
+                |row| row.get(0),
+            )
+            .optional()?;
+        if identity.validate().is_err()
+            || record.schema_version != 1
+            || record.identity != identity
+            || !valid_sha256(&record.receipt_digest)
+            || identity.key != proposed.key
+            || identity.bound_facts.audience != row_audience
+            || identity_epoch_id != row_epoch_id
+            || optional_i64(identity_counter, "stored operation counter")? != row_counter
+            || referenced_epoch_sequence != Some(row_epoch_sequence)
+        {
+            return Err(invalid("stored operation suppression is incoherent"));
+        }
+        reject_divergence(&identity, proposed)?;
         return Ok(OperationLookupV1::ExactReplay(Box::new(record)));
     }
 
-    let tombstone: Option<String> = conn
+    // @ref LLP 0043#dated-c28-lifecycle-reconciliation-2026-08-05 — a
+    // payload-free tombstone remains complete collision authority after the
+    // compact envelope leaves.
+    let tombstone: Option<(String, String, i64, String)> = conn
         .query_row(
-            "SELECT tombstone_json FROM _snapback_operation_tombstones_v1
+            "SELECT audience, epoch_id, epoch_sequence, tombstone_json
+             FROM _snapback_operation_tombstones_v1
              WHERE stream_id=?1 AND originator_class=?2 AND operation_id=?3",
             params![
                 proposed.key.stream_id,
                 originator(proposed.key.originator_class),
                 proposed.key.operation_id,
             ],
-            |row| row.get(0),
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
         )
         .optional()?;
-    if let Some(tombstone) = tombstone {
+    if let Some((row_audience, row_epoch_id, row_epoch_sequence, tombstone)) = tombstone {
         let tombstone: OperationIdentityTombstoneV1 =
             decode(&tombstone, "stored operation tombstone")?;
-        if tombstone.audience != proposed.bound_facts.audience {
+        let referenced_epoch_sequence: Option<i64> = conn
+            .query_row(
+                "SELECT epoch_sequence FROM _snapback_operation_epochs_v1
+                 WHERE originator_class=?1 AND audience=?2 AND epoch_id=?3",
+                params![
+                    originator(proposed.key.originator_class),
+                    row_audience,
+                    row_epoch_id,
+                ],
+                |row| row.get(0),
+            )
+            .optional()?;
+        if tombstone.schema_version != 1
+            || tombstone.key != proposed.key
+            || tombstone.audience.is_empty()
+            || tombstone.epoch_id.is_empty()
+            || row_audience != tombstone.audience
+            || row_epoch_id != tombstone.epoch_id
+            || referenced_epoch_sequence != Some(row_epoch_sequence)
+            || !valid_sha256(&tombstone.identity_digest)
+            || !valid_sha256(&tombstone.auth_facts_digest)
+            || !valid_sha256(&tombstone.receipt_digest)
+        {
+            return Err(invalid("stored operation tombstone is incoherent"));
+        }
+        let proposed_identity_digest = operation_identity_digest(proposed)?;
+        let proposed_auth_facts_digest = operation_auth_facts_digest(proposed)?;
+        if tombstone.identity_digest != proposed_identity_digest {
             return Err(refused(
-                "SNAPBACK_AUTH_STALE_RESULT",
-                "operation tombstone belongs to another audience",
+                if tombstone.auth_facts_digest != proposed_auth_facts_digest {
+                    "SNAPBACK_AUTH_STALE_RESULT"
+                } else {
+                    "SNAPBACK_CLIENT_MUTATION_ID_REUSED"
+                },
+                "operation tombstone collides with divergent bound identity facts",
+            ));
+        }
+        if tombstone.auth_facts_digest != proposed_auth_facts_digest
+            || tombstone.audience != proposed.bound_facts.audience
+            || tombstone.epoch_id != issuance_parts(proposed).0
+        {
+            return Err(invalid(
+                "stored operation tombstone digests and lookup facts diverged",
             ));
         }
         return Ok(OperationLookupV1::ResultExpired {
@@ -2189,6 +2307,8 @@ pub fn acknowledge_and_reclaim_in(
     let tombstone = OperationIdentityTombstoneV1 {
         schema_version: 1,
         key: identity.key.clone(),
+        identity_digest: operation_identity_digest(identity)?,
+        auth_facts_digest: operation_auth_facts_digest(identity)?,
         audience: identity.bound_facts.audience.clone(),
         epoch_id,
         terminal_outcome: record.terminal_outcome,
@@ -2387,6 +2507,9 @@ pub fn terminate_epoch_in(
 
 /// Close an epoch only when its originator-specific predicate is complete and
 /// advance the per-audience floor atomically with tombstone reclamation.
+///
+/// @ref LLP 0163#implementation-record--2026-08-05-c27-abandonment-and-c28-lifecycle-repair
+/// — only the contiguous closed prefix may advance the floor.
 pub fn close_epoch_if_complete_in(
     tx: &Transaction<'_>,
     originator_class: OperationOriginatorClassV1,
@@ -2402,7 +2525,7 @@ pub fn close_epoch_if_complete_in(
             |row| Ok((row.get(0)?, row.get(1)?)),
         )
         .optional()?;
-    let Some((sequence, state)) = row else {
+    let Some((_sequence, state)) = row else {
         return Ok(false);
     };
     if state == "open" || state == "closed" {
@@ -2541,9 +2664,34 @@ pub fn close_epoch_if_complete_in(
          WHERE originator_class=?1 AND audience=?2 AND epoch_id=?3",
         params![originator(originator_class), audience, epoch_id],
     )?;
-    let next_floor = sequence
-        .checked_add(1)
-        .ok_or_else(|| invalid("epoch floor overflowed"))?;
+    // A later ready epoch may close before an earlier one. The audience floor
+    // is the first still-nonclosed sequence, never merely named+1; otherwise a
+    // later close could strand a live earlier identity and erase its tombstone.
+    let next_floor: i64 = tx.query_row(
+        "SELECT COALESCE(
+           (SELECT MIN(epoch_sequence)
+              FROM _snapback_operation_epochs_v1
+             WHERE originator_class=?1 AND audience=?2 AND state <> 'closed'),
+           (SELECT COALESCE(MAX(epoch_sequence), -1) + 1
+              FROM _snapback_operation_epochs_v1
+             WHERE originator_class=?1 AND audience=?2)
+         )",
+        params![originator(originator_class), audience],
+        |row| row.get(0),
+    )?;
+    let retained_floor: Option<i64> = tx
+        .query_row(
+            "SELECT floor_sequence FROM _snapback_operation_floors_v1
+             WHERE originator_class=?1 AND audience=?2",
+            params![originator(originator_class), audience],
+            |row| row.get(0),
+        )
+        .optional()?;
+    if retained_floor.is_some_and(|floor| floor > next_floor) {
+        return Err(invalid(
+            "identity floor already advances past a nonclosed earlier epoch",
+        ));
+    }
     tx.execute(
         "INSERT INTO _snapback_operation_floors_v1(
            originator_class, audience, floor_sequence, updated_at_ms
@@ -2613,6 +2761,7 @@ pub fn prune_compact_envelope_in(
         return Ok(false);
     };
     let envelope: CommitEnvelopeV1 = decode(&body, "commit envelope")?;
+    reject_divergence(&envelope.identity, identity)?;
     delete_protected_detail_in(tx, &envelope)?;
     Ok(tx.execute(
         "DELETE FROM _snapback_commit_envelopes_v1
@@ -3300,24 +3449,147 @@ fn pending_terminal_identities_for_epoch(
     .collect()
 }
 
-fn load_identity_for_key(
+fn refuse_retained_identity_for_insert(
     conn: &Connection,
     identity: &OperationIdentityV1,
-) -> SnapbackResult<Option<OperationIdentityV1>> {
-    let body: Option<String> = conn
-        .query_row(
-            "SELECT identity_json FROM _snapback_operation_suppression_v1
-             WHERE stream_id=?1 AND originator_class=?2 AND operation_id=?3",
+    subject: &str,
+) -> SnapbackResult<()> {
+    let epoch_id = issuance_parts(identity).0;
+    let originator_class = originator(identity.key.originator_class);
+    if identity.key.originator_class == OperationOriginatorClassV1::Client {
+        let (retained, below_floor): (bool, bool) = conn.query_row(
+            "SELECT
+               EXISTS(
+                 SELECT 1 FROM _snapback_operation_suppression_v1
+                  WHERE stream_id=?1 AND originator_class=?2 AND operation_id=?3
+                 UNION ALL
+                 SELECT 1 FROM _snapback_operation_tombstones_v1
+                  WHERE stream_id=?1 AND originator_class=?2 AND operation_id=?3
+                 UNION ALL
+                 SELECT 1 FROM _snapback_commit_envelopes_v1
+                  WHERE stream_id=?1 AND originator_class=?2 AND operation_id=?3
+               ),
+               EXISTS(
+                 SELECT 1 FROM _snapback_operation_floors_v1 AS floor
+                 JOIN _snapback_operation_epochs_v1 AS epoch
+                   ON epoch.originator_class=floor.originator_class
+                  AND epoch.audience=floor.audience
+                  AND epoch.epoch_id=?5
+                  AND epoch.epoch_sequence < floor.floor_sequence
+                 WHERE floor.originator_class=?2 AND floor.audience=?4
+               )",
             params![
                 identity.key.stream_id,
-                originator(identity.key.originator_class),
+                originator_class,
                 identity.key.operation_id,
+                identity.bound_facts.audience,
+                epoch_id,
             ],
-            |row| row.get(0),
-        )
-        .optional()?;
-    body.map(|body| decode(&body, "stored operation identity"))
-        .transpose()
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )?;
+        return if retained || below_floor {
+            refuse_retained_terminal_identity_for_insert(conn, identity, subject)
+        } else {
+            Ok(())
+        };
+    }
+
+    let (pending_index_exists, retained_envelope, retained_terminal, below_floor): (
+        bool,
+        Option<String>,
+        bool,
+        bool,
+    ) = conn.query_row(
+        "SELECT
+           EXISTS(
+             SELECT 1 FROM _snapback_operation_pending_v1
+              WHERE stream_id=?1 AND originator_class=?2 AND operation_id=?3
+             UNION ALL
+             SELECT 1 FROM _snapback_operation_terminal_supplements_v1
+              WHERE stream_id=?1 AND originator_class=?2 AND operation_id=?3
+           ),
+           (SELECT envelope_json FROM _snapback_commit_envelopes_v1
+             WHERE stream_id=?1 AND originator_class=?2 AND operation_id=?3),
+           EXISTS(
+             SELECT 1 FROM _snapback_operation_suppression_v1
+              WHERE stream_id=?1 AND originator_class=?2 AND operation_id=?3
+             UNION ALL
+             SELECT 1 FROM _snapback_operation_tombstones_v1
+              WHERE stream_id=?1 AND originator_class=?2 AND operation_id=?3
+           ),
+           EXISTS(
+             SELECT 1 FROM _snapback_operation_floors_v1 AS floor
+             JOIN _snapback_operation_epochs_v1 AS epoch
+               ON epoch.originator_class=floor.originator_class
+              AND epoch.audience=floor.audience
+              AND epoch.epoch_id=?5
+              AND epoch.epoch_sequence < floor.floor_sequence
+             WHERE floor.originator_class=?2 AND floor.audience=?4
+           )",
+        params![
+            identity.key.stream_id,
+            originator_class,
+            identity.key.operation_id,
+            identity.bound_facts.audience,
+            epoch_id,
+        ],
+        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+    )?;
+    let pending_envelope = retained_envelope
+        .as_deref()
+        .map(|body| decode::<CommitEnvelopeV1>(body, "retained commit envelope"))
+        .transpose()?
+        .is_some_and(|envelope| {
+            envelope.receipt.state == crate::commit_envelope::OperationReceiptStateV1::Pending
+        });
+    if pending_index_exists || pending_envelope {
+        return match lookup_pending_operation(conn, identity)? {
+            PendingOperationLookupV1::Pending(_) | PendingOperationLookupV1::Terminal(_) => {
+                Err(refused(
+                    "SNAPBACK_OPERATION_ALREADY_RECORDED",
+                    format!("{subject} identity already has retained pending state"),
+                ))
+            }
+            PendingOperationLookupV1::IdentityHorizonPassed => Err(refused(
+                "SNAPBACK_OPERATION_IDENTITY_HORIZON_PASSED",
+                format!("{subject} identity is below the retained outcome horizon"),
+            )),
+            PendingOperationLookupV1::Novel => {
+                if retained_terminal || retained_envelope.is_some() || below_floor {
+                    refuse_retained_terminal_identity_for_insert(conn, identity, subject)
+                } else {
+                    Err(invalid(
+                        "pending operation indexes exist without a retained lifecycle",
+                    ))
+                }
+            }
+        };
+    }
+    if retained_terminal || retained_envelope.is_some() || below_floor {
+        refuse_retained_terminal_identity_for_insert(conn, identity, subject)
+    } else {
+        Ok(())
+    }
+}
+
+fn refuse_retained_terminal_identity_for_insert(
+    conn: &Connection,
+    identity: &OperationIdentityV1,
+    subject: &str,
+) -> SnapbackResult<()> {
+    match lookup_operation(conn, identity)? {
+        OperationLookupV1::Novel => Ok(()),
+        OperationLookupV1::ExactReplay(_) | OperationLookupV1::ResultExpired { .. } => {
+            Err(refused(
+                "SNAPBACK_OPERATION_ALREADY_RECORDED",
+                format!("{subject} identity already has retained terminal state"),
+            ))
+        }
+        OperationLookupV1::IdentityHorizonPassed => Err(refused(
+            "SNAPBACK_OPERATION_IDENTITY_HORIZON_PASSED",
+            format!("{subject} identity is below the retained outcome horizon"),
+        )),
+    }
 }
 
 fn require_active_coverage(
@@ -3409,6 +3681,41 @@ fn reject_divergence(
             "operation lookup compared identities from different physical keys",
         )),
     }
+}
+
+fn operation_identity_digest(identity: &OperationIdentityV1) -> SnapbackResult<String> {
+    digest_serialized(
+        b"snapback:operation-identity-tombstone:identity:v1\n",
+        identity,
+    )
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct OperationTombstoneAuthFactsDigestV1<'a> {
+    audience: &'a str,
+    principal_fingerprint: &'a str,
+    authority_instance_id: &'a str,
+}
+
+fn operation_auth_facts_digest(identity: &OperationIdentityV1) -> SnapbackResult<String> {
+    digest_serialized(
+        b"snapback:operation-identity-tombstone:auth-facts:v1\n",
+        &OperationTombstoneAuthFactsDigestV1 {
+            audience: &identity.bound_facts.audience,
+            principal_fingerprint: &identity.bound_facts.principal_fingerprint,
+            authority_instance_id: &identity.bound_facts.authority_instance_id,
+        },
+    )
+}
+
+fn digest_serialized<T: Serialize>(domain: &[u8], value: &T) -> SnapbackResult<String> {
+    let bytes = serde_json::to_vec(value)
+        .map_err(|_| invalid("operation identity digest projection could not be encoded"))?;
+    let mut digest = Sha256::new();
+    digest.update(domain);
+    digest.update(bytes);
+    Ok(format!("sha256:{:x}", digest.finalize()))
 }
 
 fn issuance_parts(identity: &OperationIdentityV1) -> (&str, Option<u64>, &str) {
@@ -3802,6 +4109,36 @@ mod tests {
                 .code,
             "SNAPBACK_CLIENT_MUTATION_ID_REUSED"
         );
+        let tx = conn.transaction().expect("suppression corruption probe");
+        let body: String = tx
+            .query_row(
+                "SELECT record_json FROM _snapback_operation_suppression_v1
+                 WHERE stream_id=?1 AND originator_class='client' AND operation_id=?2",
+                params![first.key.stream_id, first.key.operation_id],
+                |row| row.get(0),
+            )
+            .expect("stored suppression");
+        let mut corrupt: OperationSuppressionRecordV1 =
+            serde_json::from_str(&body).expect("decode suppression");
+        corrupt.identity.bound_facts.input_fingerprint = sha('9');
+        tx.execute(
+            "UPDATE _snapback_operation_suppression_v1 SET record_json=?1
+             WHERE stream_id=?2 AND originator_class='client' AND operation_id=?3",
+            params![
+                serde_json::to_string(&corrupt).expect("encode corrupt suppression"),
+                first.key.stream_id,
+                first.key.operation_id,
+            ],
+        )
+        .expect("stage suppression corruption");
+        assert_eq!(
+            lookup_operation(&tx, &first)
+                .expect_err("mismatched suppression record never replays")
+                .diagnostic
+                .code,
+            "SNAPBACK_OPERATION_LEDGER_INVALID"
+        );
+        tx.rollback().expect("discard suppression corruption");
         let mut exhausted = client_identity(2, "operation-2", &authenticator);
         exhausted.issuance = OperationIssuanceV1::ClientRange {
             epoch_id: "epoch-1".to_owned(),
@@ -3822,6 +4159,17 @@ mod tests {
 
         let tx = conn.transaction().expect("ack first");
         acknowledge_and_reclaim_in(&tx, &first, 20).expect("ack first");
+        assert_eq!(
+            prune_compact_envelope_in(&tx, &divergent)
+                .expect_err("divergent identity cannot prune retained evidence")
+                .diagnostic
+                .code,
+            "SNAPBACK_CLIENT_MUTATION_ID_REUSED"
+        );
+        assert!(
+            prune_compact_envelope_in(&tx, &first).expect("prune first compact envelope"),
+            "the tombstone must remain the sole collision authority"
+        );
         terminate_epoch_in(
             &tx,
             OperationOriginatorClassV1::Client,
@@ -3846,6 +4194,91 @@ mod tests {
             lookup_operation(&conn, &first).expect("tombstone retry"),
             OperationLookupV1::ResultExpired { .. }
         ));
+        assert_eq!(
+            lookup_operation(&conn, &divergent)
+                .expect_err("tombstone refuses divergent input")
+                .diagnostic
+                .code,
+            "SNAPBACK_CLIENT_MUTATION_ID_REUSED"
+        );
+        let mut divergent_auth = first.clone();
+        divergent_auth.bound_facts.principal_fingerprint = "principal-other".to_owned();
+        assert_eq!(
+            lookup_operation(&conn, &divergent_auth)
+                .expect_err("tombstone refuses divergent auth")
+                .diagnostic
+                .code,
+            "SNAPBACK_AUTH_STALE_RESULT"
+        );
+        for (label, mutate) in [("audience", 0_u8), ("authority instance", 1_u8)] {
+            let mut mismatch = first.clone();
+            if mutate == 0 {
+                mismatch.bound_facts.audience = "audience-other".to_owned();
+            } else {
+                mismatch.bound_facts.authority_instance_id = "authority-other".to_owned();
+            }
+            assert_eq!(
+                lookup_operation(&conn, &mismatch)
+                    .expect_err(&format!("tombstone refuses divergent {label}"))
+                    .diagnostic
+                    .code,
+                "SNAPBACK_AUTH_STALE_RESULT"
+            );
+        }
+
+        // The writer seam independently rechecks retained state in the same
+        // transaction as app/journal publication. A caller that bypasses the
+        // normal pre-handler lookup still cannot execute a tombstoned key.
+        let tx = conn.transaction().expect("direct writer replay probe");
+        insert_covered_change(&tx, 3, "direct-replay-rolled-back");
+        assert_eq!(
+            record_operation_in(&tx, &envelope(first.clone(), 3, 1))
+                .expect_err("tombstoned identity cannot be reinserted")
+                .diagnostic
+                .code,
+            "SNAPBACK_OPERATION_ALREADY_RECORDED"
+        );
+        tx.rollback().expect("rollback direct replay probe");
+        let replay_rows: u64 = conn
+            .query_row(
+                "SELECT
+                   (SELECT COUNT(*) FROM app_rows WHERE id='direct-replay-rolled-back') +
+                   (SELECT COUNT(*) FROM _snapback_changes WHERE version=3)",
+                [],
+                |row| row.get(0),
+            )
+            .expect("count rolled-back direct replay writes");
+        assert_eq!(replay_rows, 0);
+        let (envelopes, suppressions, tombstones): (u64, u64, u64) = conn
+            .query_row(
+                "SELECT
+                   (SELECT COUNT(*) FROM _snapback_commit_envelopes_v1
+                     WHERE stream_id=?1 AND originator_class='client' AND operation_id=?2),
+                   (SELECT COUNT(*) FROM _snapback_operation_suppression_v1
+                     WHERE stream_id=?1 AND originator_class='client' AND operation_id=?2),
+                   (SELECT COUNT(*) FROM _snapback_operation_tombstones_v1
+                     WHERE stream_id=?1 AND originator_class='client' AND operation_id=?2)",
+                params![first.key.stream_id, first.key.operation_id],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .expect("retained replay state after rollback");
+        assert_eq!((envelopes, suppressions, tombstones), (0, 0, 1));
+
+        let tx = conn.transaction().expect("tombstone corruption probe");
+        tx.execute(
+            "UPDATE _snapback_operation_tombstones_v1 SET audience='audience-corrupt'
+             WHERE stream_id=?1 AND originator_class='client' AND operation_id=?2",
+            params![first.key.stream_id, first.key.operation_id],
+        )
+        .expect("stage tombstone projection corruption");
+        assert_eq!(
+            lookup_operation(&tx, &first)
+                .expect_err("projection-corrupt tombstone never settles")
+                .diagnostic
+                .code,
+            "SNAPBACK_OPERATION_LEDGER_INVALID"
+        );
+        tx.rollback().expect("discard tombstone corruption");
 
         let tx = conn.transaction().expect("ack second");
         acknowledge_and_reclaim_in(&tx, &second, 201).expect("ack second");
@@ -3859,11 +4292,113 @@ mod tests {
             )
             .expect("close complete epoch")
         );
-        prune_compact_envelope_in(&tx, &first).expect("prune first compact envelope");
+        assert!(
+            !prune_compact_envelope_in(&tx, &first).expect("first compact envelope remains pruned")
+        );
         tx.commit().expect("commit closure");
         assert_eq!(
             lookup_operation(&conn, &first).expect("below floor retry"),
             OperationLookupV1::IdentityHorizonPassed
+        );
+        let tx = conn.transaction().expect("below-floor writer probe");
+        insert_covered_change(&tx, 4, "below-floor-rolled-back");
+        assert_eq!(
+            record_operation_in(&tx, &envelope(first.clone(), 4, 1))
+                .expect_err("writer classifier runs before closed-epoch authentication")
+                .diagnostic
+                .code,
+            "SNAPBACK_OPERATION_IDENTITY_HORIZON_PASSED"
+        );
+        tx.rollback().expect("rollback below-floor writer probe");
+        let below_floor_rows: u64 = conn
+            .query_row(
+                "SELECT
+                   (SELECT COUNT(*) FROM app_rows WHERE id='below-floor-rolled-back') +
+                   (SELECT COUNT(*) FROM _snapback_changes WHERE version=4)",
+                [],
+                |row| row.get(0),
+            )
+            .expect("count rolled-back below-floor writes");
+        assert_eq!(below_floor_rows, 0);
+    }
+
+    #[test]
+    fn later_epoch_closure_cannot_leap_an_earlier_open_epoch() {
+        let mut conn = connection();
+        let authenticator = register_client_authority(&mut conn, 100);
+        let retained = client_identity(0, "operation-retained", &authenticator);
+        let first_delivery = client_identity(1, "operation-first-delivery", &authenticator);
+        let tx = conn.transaction().expect("retain lower tombstone");
+        insert_covered_change(&tx, 1, "retained-lower");
+        record_operation_in(&tx, &envelope(retained.clone(), 1, 1)).expect("record lower");
+        acknowledge_and_reclaim_in(&tx, &retained, 20).expect("reclaim lower");
+        prune_compact_envelope_in(&tx, &retained).expect("prune lower compact envelope");
+        register_epoch_in(
+            &tx,
+            &IdentityEpochV1 {
+                schema_version: 1,
+                originator_class: OperationOriginatorClassV1::Client,
+                audience: "audience-1".to_owned(),
+                authority_instance_id: "authority-2".to_owned(),
+                epoch_id: "epoch-2".to_owned(),
+                epoch_sequence: 2,
+                state: IdentityEpochStateV1::Open,
+                issued_at_ms: 21,
+                terminated_at_ms: None,
+                authority_authenticator_digest: sha('c'),
+            },
+        )
+        .expect("register later epoch");
+        terminate_epoch_in(
+            &tx,
+            OperationOriginatorClassV1::Client,
+            "audience-1",
+            "epoch-2",
+            false,
+            22,
+        )
+        .expect("terminate later epoch");
+        assert!(
+            close_epoch_if_complete_in(
+                &tx,
+                OperationOriginatorClassV1::Client,
+                "audience-1",
+                "epoch-2",
+                200,
+            )
+            .expect("close later ready epoch")
+        );
+        tx.commit().expect("commit out-of-order closure");
+
+        let floor: u64 = conn
+            .query_row(
+                "SELECT floor_sequence FROM _snapback_operation_floors_v1
+                 WHERE originator_class='client' AND audience='audience-1'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("retained floor");
+        assert_eq!(floor, 1, "floor remains at the earlier open epoch");
+        assert!(matches!(
+            lookup_operation(&conn, &retained).expect("lower tombstone survives"),
+            OperationLookupV1::ResultExpired { .. }
+        ));
+        assert_eq!(
+            lookup_operation(&conn, &first_delivery).expect("lower first delivery remains novel"),
+            OperationLookupV1::Novel
+        );
+    }
+
+    #[test]
+    fn tombstone_digest_vectors_are_stable() {
+        let identity = client_identity(0, "operation-0", &sha('a'));
+        assert_eq!(
+            operation_identity_digest(&identity).expect("identity digest"),
+            "sha256:e2ec83fc1627a35cb4ae18dcf3a6185ea4741cc3d48be018769d0ff66bd45e5c"
+        );
+        assert_eq!(
+            operation_auth_facts_digest(&identity).expect("auth facts digest"),
+            "sha256:19df90202954e9a6526d20e7120d54d0a9c824a5366d48c24305a017c3bd9742"
         );
     }
 
@@ -3920,6 +4455,16 @@ mod tests {
                 .diagnostic
                 .code,
             "SNAPBACK_OPERATION_RANGE_OVERLAP"
+        );
+        let mut gap = range.clone();
+        gap.range_start = 3;
+        gap.range_end_exclusive = 4;
+        assert_eq!(
+            register_client_range_in(&tx, &gap)
+                .expect_err("range cannot skip the retained frontier")
+                .diagnostic
+                .code,
+            "SNAPBACK_OPERATION_RANGE_CONTINUITY_INVALID"
         );
         tx.commit().expect("range commit");
     }
@@ -4092,6 +4637,57 @@ mod tests {
             "SNAPBACK_OPERATION_RANGE_CONTINUITY_INVALID"
         );
         tx.rollback().expect("rollback refusal");
+
+        let third = {
+            let tx = conn.transaction().expect("third range issuance");
+            let range =
+                issue_client_range_in(&tx, "stream-issued", audience, authority, Some(&second), 18)
+                    .expect("issue third contiguous range");
+            tx.commit().expect("commit third range");
+            range
+        };
+        let fourth = {
+            let tx = conn.transaction().expect("fourth range issuance");
+            let range =
+                issue_client_range_in(&tx, "stream-issued", audience, authority, Some(&third), 19)
+                    .expect("issue fourth contiguous range");
+            tx.commit().expect("commit fourth range");
+            range
+        };
+        let recovered_fourth = {
+            let tx = conn.transaction().expect("fourth response loss retry");
+            let range =
+                issue_client_range_in(&tx, "stream-issued", audience, authority, Some(&third), 20)
+                    .expect("re-serve unadmitted fourth range");
+            tx.commit().expect("commit fourth recovery no-op");
+            range
+        };
+        assert_eq!(recovered_fourth, fourth);
+
+        let tx = conn.transaction().expect("epoch capacity refusal");
+        assert_eq!(
+            issue_client_range_in(&tx, "stream-issued", audience, authority, Some(&fourth), 21)
+                .expect_err("fifth range exceeds finite epoch capacity")
+                .diagnostic
+                .code,
+            "SNAPBACK_OPERATION_RANGE_EXHAUSTED"
+        );
+        tx.rollback().expect("rollback capacity refusal");
+        let (range_count, allocated): (u64, u64) = conn
+            .query_row(
+                "SELECT COUNT(*), SUM(range_end_exclusive - range_start)
+                 FROM _snapback_operation_ranges_v1 WHERE audience=?1 AND epoch_id=?2",
+                params![audience, first.epoch_id],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .expect("bounded epoch allocation");
+        assert_eq!(range_count, CLIENT_IDENTITY_EPOCH_MAX_RANGES_V1);
+        assert_eq!(CLIENT_IDENTITY_EPOCH_MAX_RANGES_V1, 4);
+        assert_eq!(allocated, CLIENT_IDENTITY_EPOCH_CAPACITY_V1);
+        assert_eq!(
+            CLIENT_IDENTITY_EPOCH_CAPACITY_V1,
+            crate::storage::CLIENT_MUTATION_MAX_RECORDS_PER_AUTH
+        );
 
         let coverage = active_coverage_manifest(&conn, "stream-issued")
             .expect("coverage lookup")

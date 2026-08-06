@@ -645,12 +645,23 @@ pub struct PendingOperationTerminalSupplementV1 {
     pub transition_digest: String,
 }
 
+// @ref LLP 0043#dated-c28-lifecycle-reconciliation-2026-08-05 — separate
+// payload-free digests preserve the exact/auth-stale/reused collision split.
 #[derive(Clone, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct OperationIdentityTombstoneV1 {
     #[schemars(range(min = 1, max = 1))]
     pub schema_version: u32,
     pub key: OperationKeyV1,
+    /// Domain-separated digest of the complete retained identity. This is the
+    /// payload-free collision authority after compact-envelope pruning.
+    #[schemars(pattern(SHA256_PATTERN))]
+    pub identity_digest: String,
+    /// Domain-separated digest of audience, principal, and authority facts.
+    /// It preserves the stable auth-stale versus id-reused refusal split
+    /// without retaining those individual identity fields.
+    #[schemars(pattern(SHA256_PATTERN))]
+    pub auth_facts_digest: String,
     pub audience: String,
     pub epoch_id: String,
     pub terminal_outcome: OperationTerminalOutcomeV1,

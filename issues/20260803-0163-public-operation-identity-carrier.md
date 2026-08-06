@@ -2,7 +2,7 @@
 
 **Status:** Open
 **Opened:** 2026-08-03 (LLP 0163 durable storage slice)
-**Updated:** 2026-08-04 (fork-boundary correction — managed branches pin
+**Updated:** 2026-08-05 (C27 pre-result abandonment and C28 identity-lifecycle correction; Draft/Missing unchanged); 2026-08-04 (fork-boundary correction — managed branches pin
 canonical schema/function-bundle identities and preserve exact retry across
 parent drift, but CaptureOnly is truthfully non-promotable. Product provider
 custody, ordered settlement, and public effect-bearing strict promotion are
@@ -375,6 +375,29 @@ This closes the grouped-inventory defect and makes activation production
 callable, but does not invoke publication. Migration/cross-lane retention,
 fixed-Air performance, independent review, and author acceptance remain open;
 LLP 0163 stays Draft and every related capability stays `Missing`.
+
+## C28 identity-lifecycle correction — 2026-08-05
+
+The public carrier remains implemented, but exact C27 was stopped before any
+performance result after independent review found four defects beneath it.
+C28 retains separate domain-separated full-identity and authorization-facts
+digests in payload-free tombstones; validates suppression/tombstone SQL/JSON
+coherence; advances floors only over the contiguous closed epoch prefix; and
+caps a client epoch at four 256-counter ranges / 1,024 identities, aligned with
+the client outbox and per-auth settlement limits. Exact response-loss
+re-service remains available; the fifth range refuses atomically and requires a
+fresh authenticated epoch.
+
+Both `record_operation_in` and `record_pending_operation_in` now run the shared
+retained suppression/compact/tombstone/floor classifier inside their
+publication transaction, before authentication, capacity, or insertion. This
+prevents direct callers from republishing a reclaimed identity and makes any
+refusal roll back staged app and journal writes. Focused C28 corpus covers the
+diagnostic split, corruption, direct-writer rollback, out-of-order epoch
+closure, bounded successor issuance, and lost-response recovery. The C27
+review does not qualify C28; fixed-Air performance and fresh independent review
+remain mandatory, so this issue stays Open, LLP 0163 stays Draft, and every
+related capability stays `Missing`.
 
 ## Explicit activation-transport evidence — 2026-08-04
 

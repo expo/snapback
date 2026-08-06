@@ -2,7 +2,7 @@
 
 **Status:** Open
 **Opened:** 2026-08-03 (Track B integrated implementation pass)
-**Updated:** 2026-08-04 (pre-result row-13 protocol repair: the author-ratified
+**Updated:** 2026-08-05 (C27 terminated pre-result with no artifacts; C28 repairs tombstone comparison, contiguous floors, bounded ranges, and transactional writer guards; capabilities remain Missing); 2026-08-04 (pre-result row-13 protocol repair: the author-ratified
 contention ceiling now matches the frozen 1,000-ms reservation and separate
 500-ms maximum promotion-commit duration; the absolute recorder binds exact
 baseline and compiled-candidate bytes, and its 128/eight-writer p99 uses the
@@ -45,8 +45,8 @@ not authorize capability publication.
 
 | LLP 0162 row | State through 2026-08-04 | Required closure |
 | --- | --- | --- |
-| 1 — atomic envelope | Partial | Carry authenticated issuance on the public ordinary-mutation path, activate a complete target manifest, and run its full crash-cut matrix. |
-| 2 — retry settlement | Partial | Ship range issue/refresh plus atomic client range custody and finish restored-client, recreated-branch, delayed-delivery, host-retry, and exhaustion transport legs. |
+| 1 — atomic envelope | Partial | Public issuance, four-adapter activation, and crash cuts are landed. C28 additionally requires both writer seams to reclassify retained state transactionally and proves a post-prune direct replay rolls back app/journal publication. Fresh integrated proof remains. |
+| 2 — retry settlement | Partial | Range issue/refresh and atomic client custody are landed. C28 adds two-digest tombstone comparison, contiguous floor advancement, four-range/1,024-identity epoch capacity, exact lost-response re-service, and atomic fifth-range refusal. Recreated-branch and fresh integrated proof remain. |
 | 3 — provenance/explanation | Partial | Public/admin transport and protected custody are wired. The public lane now revalidates the active artifact, current function/grant/profile policy, derived audience, current and retained historical owners, and every closed fact for exact generated owner-create/update envelopes. Create's private mint observation is exact-site-bound and stripped before projection; generated delete is recognized but remains a current-row-absent refusal. Complete positive evaluators, if justified, for aggregate/non-row, hand-written/opaque, predicate, membership, effect-bearing, and remaining policy classes. |
 | 4 — coverage honesty | Partial | The local target now names 23 physical writer families with no grouped row. Exactly four ordinary/host adapters are envelope-mapped; every other family has an executable exclusion reason, and non-envelope app writers refuse after arming. Raw/cached/trigger/system-field/DDL bypass, exact four-writer publication, target-vs-app-effective, crash/reopen, retry, and ordinary/host asymmetry fixtures are green. An authenticated managed-admission AdminWrite command accepts only the versioned local target/profile pair and idempotently publishes that exact manifest; open, range issuance, and capability inspection do not invoke it. Complete-target exclusions, fixed-Air, remaining corpus, review, and acceptance gates keep the row Partial and the command uninvoked by default. |
 | 5 — fork isolation | Partial | F0b and the derived post-fork-parent-write fixture cover the copied-instance leg; managed custody and `branch.execute.v1` run real mutations/actions only on the server-derived current-head workspace. The carrier admits exact multiple operations, retains mutation facts atomically with app rows/journal/version, and pins canonical schema/function-bundle identities. Exact retries survive parent drift; novel requests refuse before handler bytes. Final integrated correctness/review remains. |
@@ -57,12 +57,33 @@ not authorize capability publication.
 | 10 — strict promotion | Partial | Frozen v1 no-effect contention/fairness/crash evidence is joined by atomic multi-operation retention. Any captured intent or approved effect fact—including effect-plus-write and transitive effect-dependent chains—refuses strict promotion before canonical mutation with `SNAPBACK_PROMOTION_CAPTURE_ONLY_UNSUPPORTED`. Public effect-bearing promotion remains outside this Track B publication scope; global writer coverage and applicable performance/review remain independent gates. |
 | 11 — history/checkpoint | Partial | Schema publication now atomically projects finite v2 per-record policy, removal erases retained detail, and current/per-version auth plus visible-only pagination/horizon and per-record pruning are covered without changing legacy v1 `maxRows`. The registered-copy sweep invalidates the complete materialized inventory before deletion and preserves crash/unreachable obligations, but it is not yet atomic with canonical protected-record deletion; close that new-checkpoint race and the remaining lifecycle corpus. |
 | 12 — boundary proof | Partial | Promotion and full migration verification are independently derived; migration's separate evaluator has explicit-value/equivalence plus executor-drift and staged-corruption negatives. Checkpoint concurrent-writer/publication/receipt-only no-upcast negatives are covered. Finish the remaining row-wide boundary integrations/coverage before an aggregate claim. |
-| 13 — performance | Partial | The final-integrated historical absolute rerun is recorded. Before the final result, LLP 0162 v0.13 ratifies the exact 1,000-ms reservation / 500-ms maximum promotion-commit terms and a 1,250,000-µs request-to-COMMIT p99 ceiling. The successor absolute recorder measures 128 active issuance-bearing envelope mutations across eight file-backed writers, binds the accepted baseline digest plus its compiled clean candidate identity, and separately scopes novel-operation timing to `DenyAll`/no-effects. A second recorder pairs the exactly reconstructed pre-profile tree with the active issuance-bearing covered lane in 11 AB/BA observations: registered point/range/query-plan and single-writer thresholds, active allocation/retention observations, and five-second CPU/RSS/disk gates. Run both exact clean recorders on the fixed Air and pass every applicable crash/reopen gate. |
-| 14 — identity lifecycle | Partial | Wire first-party host job/cron/migration callers and transport-level client exclusion, then finish capacity/purge/current-authority negative fixtures beyond the landed promotion-ticket lease. |
+| 13 — performance | Partial | C27 produced no valid result: its only paired process was deliberately terminated pre-result and no artifact was written; the absolute gate was not run. The unchanged paired and absolute recorders must run once on a fresh exact post-C28 candidate after correctness/review clears. |
+| 14 — identity lifecycle | Partial | First-party job/cron/migration carriers and transport-level client exclusion are landed. C28 adds bounded successor-capacity, corruption, auth-divergence, and out-of-order floor negatives; fresh integrated review/publication proof remains. |
 
 The detailed LLP 0163 public-carrier work remains in its existing focused
 ticket. F1's operating guide and fork-aware acceptance-harness work remains in
 the guide-gap ticket rather than being conflated with this implementation tail.
+
+## C27 pre-result abandonment and C28 repair — 2026-08-05
+
+Exact C27 commit `cf56fd38229cebe3616f18c5f51e48c295f15d7c`, bound
+implementation digest
+`sha256:f85812a14f2255f444bced135b0b3dc52d04656a5bdbc0199f764967020991ac`,
+was stopped before a performance result. One fixed-Air paired process began,
+then independent correctness review found four material defects and the
+process was deliberately terminated. No paired artifact exists and the
+absolute recorder was not run.
+
+C28 is the prospective correction: payload-free tombstones retain separately
+domain-separated full-identity and authorization-facts digests; floors advance
+only over contiguous closed epoch prefixes; one client epoch owns at most four
+contiguous 256-counter ranges (1,024 identities, aligned with the existing
+client outbox and per-auth settlement bounds); and terminal/pending insertion
+transactions re-run the retained classifier before publication. The focused
+corpus covers diagnostic separation, SQL/JSON corruption, direct-writer
+rollback, later-before-earlier closure, exact response-loss recovery, and
+atomic capacity refusal. C27's reviews are not post-C28 acceptance reviews. No
+capability state changes in this record.
 
 ## Dated implementation evidence — 2026-08-04
 
@@ -303,9 +324,13 @@ state changes above `Missing` are made here.
 
 ## Review and publication gates
 
-- LLP 0163, LLP 0164, and LLP 0165 remain `Draft`. Their existing extraction
+- LLP 0158 is already `Accepted` by its named author under its recorded review;
+  that status still publishes no derived capability. LLP 0163, LLP 0164, and
+  LLP 0165 remain `Draft`. Their existing extraction
   reviews predate the final integrated implementation and are not fabricated
   into final implementation reviews.
+- C27's pre-repair reviews do not qualify C28; fresh mutually blind reviews of
+  the exact post-C28 candidate remain mandatory.
 - Independent review and the documents' named acceptance authority must be
   obtained before changing their status.
 - A capability may move above `Missing` only for a named target/component whose
