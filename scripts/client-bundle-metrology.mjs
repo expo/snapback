@@ -38,6 +38,7 @@ const MICRO_CORE_MODULE = 'packages/snapback-client/micro-core.mjs';
 const MICRO_LIVE_MODULE = 'packages/snapback-client/micro-live.mjs';
 const STORE_RUNTIME_MODULE = 'packages/snapback-client/store-runtime.mjs';
 const REACT_RUNTIME_MODULE = 'packages/snapback-react/react-runtime.mjs';
+const REACT_BINDING_HMR_MODULE = 'packages/snapback-client/react-binding-hmr.mjs';
 const FINITE_CARRIER_MODULE = 'packages/snapback-client/finite-completeness-carrier.mjs';
 const MATERIALIZATION_RUNTIME_MODULE =
   'packages/snapback-client/materialization-store-runtime.mjs';
@@ -100,9 +101,29 @@ const RESOLVED_NARROW_SUBPATH_PROFILES = Object.freeze(
     resolveOptionalRuntimes: true,
   })),
 );
-const RESOLVED_NARROW_SUBPATH_PROFILE_IDS = Object.freeze(
-  RESOLVED_NARROW_SUBPATH_PROFILES.map((profile) => profile.id),
+// This immutable receipt predates the commands export. Keep its exact nine
+// profiles stable; each later export receives its own prospective additive
+// receipt instead of mutating historical first-run evidence.
+const LOCAL_SYNC_ABSENCE_V1_PROFILE_IDS = Object.freeze([
+  'resolved-public-subpath-agent-authority',
+  'resolved-public-subpath-assets',
+  'resolved-public-subpath-canonical-client-value',
+  'resolved-public-subpath-external-store',
+  'resolved-public-subpath-micro',
+  'resolved-public-subpath-micro-core',
+  'resolved-public-subpath-micro-live',
+  'resolved-public-subpath-push-installation-expo',
+  'resolved-public-subpath-search',
+]);
+const LOCAL_SYNC_ABSENCE_V1_PROFILES = Object.freeze(
+  RESOLVED_NARROW_SUBPATH_PROFILES.filter(
+    (profile) => LOCAL_SYNC_ABSENCE_V1_PROFILE_IDS.includes(profile.id),
+  ),
 );
+const COMMANDS_LOCAL_SYNC_ABSENCE_PROFILE_IDS = Object.freeze([
+  'public-subpath-commands',
+  'resolved-public-subpath-commands',
+]);
 const BEHAVIOR_COMMANDS = Object.freeze([
   ['node', ['packages/snapback-client/package.test.mjs']],
   ['node', ['packages/snapback-client/browser-closure.test.mjs']],
@@ -256,8 +277,8 @@ const SUPPLEMENTAL_LEDGER_SPECS = Object.freeze([
   Object.freeze({
     filename: 'baseline.local-sync-absence.v1.json',
     profileFilename: 'local-sync-absence-profiles.v1.json',
-    profileIds: RESOLVED_NARROW_SUBPATH_PROFILE_IDS,
-    derivedProfiles: RESOLVED_NARROW_SUBPATH_PROFILES,
+    profileIds: LOCAL_SYNC_ABSENCE_V1_PROFILE_IDS,
+    derivedProfiles: LOCAL_SYNC_ABSENCE_V1_PROFILES,
     authorities: Object.freeze([
       'LLP 0145#phase-a--establish-a-size-ratchet',
       'LLP 0063#workstream-8--performance-and-packaging-budgets',
@@ -265,6 +286,21 @@ const SUPPLEMENTAL_LEDGER_SPECS = Object.freeze([
     ]),
     behaviorCommands: Object.freeze([
       ['node', ['packages/snapback-client/package.test.mjs']],
+      ['node', ['packages/snapback-client/browser-closure.test.mjs']],
+    ]),
+  }),
+  Object.freeze({
+    filename: 'baseline.s2-commands.v1.json',
+    profileFilename: 's2-commands-profiles.v1.json',
+    profileIds: COMMANDS_LOCAL_SYNC_ABSENCE_PROFILE_IDS,
+    authorities: Object.freeze([
+      'LLP 0145#phase-a--establish-a-size-ratchet',
+      'LLP 0063#workstream-8--performance-and-packaging-budgets',
+      'LLP 0179#s2--command-member-and-wider-consumers',
+      'LLP 0180#acceptance',
+    ]),
+    behaviorCommands: Object.freeze([
+      ['node', ['packages/snapback-client/commands.test.mjs']],
       ['node', ['packages/snapback-client/browser-closure.test.mjs']],
     ]),
   }),
@@ -410,6 +446,18 @@ const OPERATION_IDENTITY_CARRIER_ROLLOVER_PROFILE_IDS = Object.freeze([
   'public-subpath-rqs-store-default',
   'public-subpath-rqs-store-expo',
   'public-subpath-rqs-store-file',
+]);
+const CLIENT_BUNDLE_DISPOSITION_ROLLOVER_PROFILE_IDS = Object.freeze([
+  'external-react-application',
+  'public-subpath-assets',
+  'public-subpath-outbox-shared',
+  'public-subpath-rqs-registered',
+  'public-subpath-rqs-store',
+  'public-subpath-rqs-store-default',
+  'public-subpath-rqs-store-expo',
+  'public-subpath-rqs-store-file',
+  'react-external',
+  'resolved-public-subpath-assets',
 ]);
 const ROLLOVER_LEDGER_SPECS = Object.freeze([
   Object.freeze({
@@ -729,6 +777,64 @@ const ROLLOVER_LEDGER_SPECS = Object.freeze([
       ['node', ['packages/snapback-client/rqs-store-file.test.mjs']],
     ]),
   }),
+  Object.freeze({
+    filename: 'baseline.client-bundle-disposition.v1.json',
+    profileFilename: 'client-bundle-disposition-profiles.v1.json',
+    workloadVersion: 'client-bundle-ratchet-disposition.2026-08-06.v1',
+    profileIds: CLIENT_BUNDLE_DISPOSITION_ROLLOVER_PROFILE_IDS,
+    predecessors: Object.freeze([
+      Object.freeze({
+        filename: 'baseline.v1.json',
+        profileIds: Object.freeze(['public-subpath-assets']),
+      }),
+      Object.freeze({
+        filename: 'baseline.local-sync-absence.v1.json',
+        profileIds: Object.freeze(['resolved-public-subpath-assets']),
+      }),
+      Object.freeze({
+        filename: 'baseline.move3-single-table-lifecycle.v1.json',
+        profileIds: Object.freeze([
+          'external-react-application',
+          'react-external',
+        ]),
+      }),
+      Object.freeze({
+        filename: 'baseline.operation-identity-carrier.v1.json',
+        profileIds: OPERATION_IDENTITY_CARRIER_ROLLOVER_PROFILE_IDS,
+      }),
+    ]),
+    authorities: Object.freeze([
+      'LLP 0063#workstream-8--performance-and-packaging-budgets',
+      'LLP 0145#phase-a--establish-a-size-ratchet',
+      'LLP 0081#4-execution-journaling-and-crash-recovery',
+      'LLP 0114#mounted-provider-hmr-generation-handoff-dated-amendment-2026-08-05',
+      'LLP 0163#implementation-record--2026-08-06-c33-dual-ready-landing-chain',
+      'LLP 0179#react-projection',
+      'LLP 0180#react-and-surface-projections',
+    ]),
+    rationale: Object.freeze({
+      date: '2026-08-06',
+      classification: 'mixed: accidental HMR closure fixed; later accepted capability growth rolled prospectively',
+      accidentalClosureFix: 'The 8ce5ca33e HMR handoff statically pulled the result-contract compiler, RQS hashing, and complete re-admission loop into every React entry. react-binding-hmr.mjs now remains behind a literal development-only dynamic import, so none of those bytes are included in this successor ceiling.',
+      legitimateGrowth: 'The remaining React mass is the accepted LLP 0179 provider.surface/useSurface composition and LLP 0180 synchronous CommandTask projection, including its asset client. Moving that implementation behind an asynchronous boundary would change provider.surface(...) and start(...) returning a ready binding/task synchronously; a narrow compatibility-preserving React entry requires a separate composition design and is tracked in issues/20260806-react-optional-capability-composition.md.',
+      smallDriftDisposition: 'The operation-lifecycle, tombstone/re-entry, assets, and retained-store correctness changes are the measured small-drift cluster. They are real shipped client behavior, so exactly their affected profiles advance while all unrelated ceilings and historical receipts remain immutable.',
+      summary: 'This disposition removes the accidental 35% HMR closure step, then records only the remaining accepted August client capability and correctness mass across the ten profiles that still exceed their active ceilings.',
+    }),
+    beforeAfterProfileIds: CLIENT_BUNDLE_DISPOSITION_ROLLOVER_PROFILE_IDS,
+    behaviorCommands: Object.freeze([
+      ['node', ['packages/snapback-client/package.test.mjs']],
+      ['node', ['packages/snapback-client/browser-closure.test.mjs']],
+      ['node', ['packages/snapback-client/assets.test.mjs']],
+      ['node', ['packages/snapback-client/commands.test.mjs']],
+      ['node', ['packages/snapback-client/outbox-store.test.mjs']],
+      ['node', ['packages/snapback-client/rqs-store.test.mjs']],
+      ['node', ['packages/snapback-client/rqs-store-file.test.mjs']],
+      ['node', ['packages/snapback-react/package.test.mjs']],
+      ['node', ['packages/snapback-react/commands.test.mjs']],
+      ['node', ['packages/snapback-react/hmr-generation-handoff.test.mjs']],
+      ['node', ['packages/snapback-react/surface.test.mjs']],
+    ]),
+  }),
 ]);
 
 function fail(message) {
@@ -865,7 +971,7 @@ const optionalRuntimeBoundaries = {
   name: 'snapback-client-metrology-optional-runtime-boundaries',
   setup(buildContext) {
     buildContext.onResolve({
-      filter: /^\.\/(?:store-runtime|react-runtime|finite-completeness-carrier|materialization-store-runtime)\.mjs$/,
+      filter: /^\.\/(?:store-runtime|react-runtime|react-binding-hmr|finite-completeness-carrier|materialization-store-runtime)\.mjs$/,
     }, (args) => (
       args.kind === 'dynamic-import' ? { path: args.path, external: true } : null
     ));
@@ -1263,6 +1369,11 @@ function assertStoreRuntimeClosure(profiles) {
       `${profile.id}: optional React failure/development runtime stays outside the static entry closure`,
     );
     assert.equal(
+      Object.hasOwn(profile.metafile.inputs, REACT_BINDING_HMR_MODULE),
+      false,
+      `${profile.id}: optional React binding HMR runtime stays outside the static entry closure`,
+    );
+    assert.equal(
       Object.hasOwn(profile.metafile.inputs, FINITE_CARRIER_MODULE),
       false,
       `${profile.id}: optional finite carrier verifier stays outside the static entry closure`,
@@ -1283,6 +1394,18 @@ function assertStoreRuntimeClosure(profiles) {
     )),
     'root retains one external dynamic store-runtime boundary',
   );
+  for (const id of ['external-react-application', 'react-external']) {
+    const react = profiles.find((profile) => profile.id === id);
+    assert.ok(react, `${id}: React profile is present`);
+    assert.ok(
+      react.metafile.output.imports.some((entry) => (
+        entry.kind === 'dynamic-import'
+        && entry.external === true
+        && entry.path === './react-binding-hmr.mjs'
+      )),
+      `${id}: retains one external dynamic React binding HMR boundary`,
+    );
+  }
 }
 
 function assertResolvedNarrowSubpathAbsence(profiles) {
@@ -1859,6 +1982,7 @@ function stableJson(value) {
 
 const mode = process.argv[2] ?? '--check';
 if (![
+  '--report',
   '--check',
   '--check-primary',
   '--write-baseline',
@@ -1866,11 +1990,19 @@ if (![
   '--write-supplemental-baseline',
   '--write-rollover-baseline',
 ].includes(mode)) {
-  console.error('usage: node scripts/client-bundle-metrology.mjs [--check|--check-primary|--write-baseline|--write-current|--write-supplemental-baseline|--write-rollover-baseline]');
+  console.error('usage: node scripts/client-bundle-metrology.mjs [--report|--check|--check-primary|--write-baseline|--write-current|--write-supplemental-baseline|--write-rollover-baseline]');
   process.exit(2);
 }
 
 const report = await measure();
+if (mode === '--report') {
+  await new Promise((resolve, reject) => {
+    process.stdout.write(stableJson(report), (error) => (
+      error ? reject(error) : resolve()
+    ));
+  });
+  process.exit(0);
+}
 if (mode === '--write-baseline') {
   if (existsSync(BASELINE_PATH)) fail('baseline.v1.json already exists; the first-run baseline is immutable');
   const additiveIds = new Set(additiveProfileIds());
