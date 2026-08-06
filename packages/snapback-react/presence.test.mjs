@@ -176,6 +176,17 @@ const binding = await prepareReactBindingForClient(client, {
 });
 const ref = binding.ephemeral.presence;
 const provider = createSnapbackReactProvider(binding, { connectionId: 'presence-test' });
+const detachedDescriptor = provider.registry.presenceDescriptor(
+  ref,
+  { roomId: 'detached' },
+  skip,
+);
+const detachedToken = provider.registry.createPresenceToken();
+assert.equal(
+  provider.registry.presenceSnapshot(detachedDescriptor, detachedToken),
+  provider.registry.presenceSnapshot(detachedDescriptor, detachedToken),
+  'the pre-subscribe snapshot required by useSyncExternalStore must be cached',
+);
 const states = [];
 const observer = observeSnapbackPresence(
   provider,

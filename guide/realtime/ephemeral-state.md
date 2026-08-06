@@ -4,13 +4,13 @@ id: realtime.ephemeral-state
 order: 2
 audience: agent-first
 capabilities: [realtime.ephemeral]
-authorities: [llp/0013-ephemeral-realtime-state.rfc.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0114-first-class-react-and-query-groups.spec.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/index.mjs, packages/snapback-contract/index.mjs, packages/snapback-react/index.d.mts]
-examples: [demos/cursors-web, demos/todo-v2/snapback/schema.mjs, demos/improvement-sweep/arms/a2-snapback-web/evidence/app/App.tsx]
+authorities: [llp/0013-ephemeral-realtime-state.rfc.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0114-first-class-react-and-query-groups.spec.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/index.mjs, packages/snapback-contract/index.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts]
+examples: [demos/cursors-web, demos/todo-v2/snapback/schema.mjs, demos/messaging-snapback/src/lib/useTyping.ts]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-05
-reviewed-commit: f3c7d9fbb394a413370a9264f22e72b6f151a25e
+reviewed: 2026-08-06
+reviewed-commit: 6e158169b3c908b8be149db4487a71dc35738470
 ---
 
 # Ephemeral realtime state
@@ -37,42 +37,56 @@ presence, conversation-scoped typing indicators, cursors, and other managed
 React values. There is no separate `useSnapbackEphemeral` hook.
 
 `scope` is the room boundary, so a conversation id gives one typing room per
-conversation. `value: skip` observes without publishing; a value publishes and
-refreshes it for the declared TTL. The first-party React provider owns the
-subscription, heartbeat, cleanup, reconnect, and authority transition:
+conversation. `ConnectionEphemeralCollectionReference` describes how each row
+inside that room is owned and keyed; it does not force a global or
+connection-only scope. `value: skip` observes without publishing. From that
+observer state, `publish` installs managed intent (including heartbeat) and
+`delete` clears it immediately. A non-skipped `value` is the declarative form.
+In both forms the first-party React provider owns subscription, heartbeat,
+cleanup, reconnect, and authority transition:
 
-```tsx source=demos/improvement-sweep/arms/a2-snapback-web/evidence/app/App.tsx
-  // presence: managed value while the view is mounted on this channel
-  const presence = useSnapbackPresence(api.ephemeral.chatPresence, {
-    scope: { channelId: channelId ?? 'lobby' },
-    value: { name: displayName },
-    ttlMs: 8_000,
-  });
-  const online = new Map<string, true>();
-  if (presence.status === 'ready' || presence.status === 'stale') {
-    for (const entry of presence.entries) online.set(entry.value.name, true);
+```tsx source=demos/messaging-snapback/src/lib/useTyping.ts
+import { useMemo } from 'react';
+import { skip, useSnapbackPresence } from '@messenger/snapback-react';
+import { ephemeral } from '@generated/api.mjs';
+
+export type Typer = { userHandle: string; name: string };
+
+const typingRef = ephemeral.typing;
+const PUBLISH_TTL_MS = typingRef.maxTtlMs;
+
+// `useSnapbackPresence` is the React hook for generated ephemeral collections.
+// Observer mode keeps publish/delete imperative so clearing a typing indicator
+// remains immediate while the provider owns the room, heartbeat, and cleanup.
+export function useTyping(conversationId: string, selfHandle: string) {
+  const scope = useMemo(() => ({ conversationId }), [conversationId]);
+  const presence = useSnapbackPresence(typingRef, { scope, value: skip });
+  const typers = useMemo<Typer[]>(() => {
+    if (presence.status !== 'ready' && presence.status !== 'stale') return [];
+    return presence.entries
+      .filter((entry) => entry.key !== presence.selfKey)
+      .filter((entry) => entry.value.userHandle !== selfHandle)
+      .map((entry) => entry.value);
+  }, [presence, selfHandle]);
+
+  function publishTyping(name: string) {
+    void presence
+      .publish({ userHandle: selfHandle, name }, { ttlMs: PUBLISH_TTL_MS })
+      .catch(() => {});
   }
 
-  // typing: managed value only while recent keystrokes exist
-  const [draft, setDraft] = useState('');
-  const [typing, setTyping] = useState(false);
-  const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const typingState = useSnapbackPresence(api.ephemeral.chatTyping, {
-    scope: { channelId: channelId ?? 'lobby' },
-    value: typing ? { name: displayName } : skip,
-    ttlMs: 2_000,
-  });
-  const typers = (typingState.status === 'ready' || typingState.status === 'stale')
-    ? typingState.entries
-        .filter((entry) => entry.key !== typingState.selfKey)
-        .map((entry) => entry.value.name)
-    : [];
+  function clearTyping() {
+    void presence.delete().catch(() => {});
+  }
+
+  return { typers, publishTyping, clearTyping };
+}
 ```
 
 See [the React client](../clients/react.md#publish-and-observe-ephemeral-presence)
 for the hook's state and lifecycle contract. Reach for the lower-level
 `subscribeEphemeral` overlay below only in headless code or when you
-deliberately need imperative publish/delete control.
+deliberately need to own overlay lifecycle, manual draining, or polling.
 
 ## Declare the complete collection contract
 

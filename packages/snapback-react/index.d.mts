@@ -201,6 +201,12 @@ type DeepReadonly<Value> =
       : Value extends object ? { readonly [Name in keyof Value]: DeepReadonly<Value[Name]> }
         : Value;
 
+/**
+ * React hook for a generated connection-owned ephemeral collection. The
+ * generated `scope` is the app-defined room boundary (for example, a
+ * conversation id); "presence" names the managed React projection, not a
+ * separate schema feature.
+ */
 export function useSnapbackPresence<
   Ref extends ConnectionEphemeralCollectionReference,
 >(

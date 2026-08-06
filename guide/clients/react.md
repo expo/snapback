@@ -5,7 +5,7 @@ order: 2
 audience: agent-first
 capabilities: [clients.react]
 authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0090-resumable-query-snapshots.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0112-generated-query-group-bundle-adoption.spec.md, llp/0157-composition-algebra-and-completeness.spec.md, packages/snapback-client/canonical-client-value.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-contract/result-contract-validator.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts, packages/snapback-react/exact-result-types.fixture.ts]
-examples: [packages/snapback-cli/templates/react, demos/chirp, demos/signal-desk/src/backends/snapback.ts, demos/signal-desk/tests/react.mjs, demos/signal-desk/acceptance/results/react-presence.v1.json, packages/snapback-react/binding-development-sync.test.mjs, packages/snapback-react/package.test.mjs, packages/snapback-react/optimistic.test.mjs, packages/snapback-react/presence.test.mjs, packages/snapback-react/offline.test.mjs, packages/snapback-react/exact-result-types.fixture.ts]
+examples: [packages/snapback-cli/templates/react, demos/chirp, demos/signal-desk/src/backends/snapback.ts, demos/signal-desk/tests/react.mjs, demos/signal-desk/acceptance/results/react-presence.v1.json, demos/messaging-snapback/src/lib/useTyping.ts, packages/snapback-react/binding-development-sync.test.mjs, packages/snapback-react/package.test.mjs, packages/snapback-react/optimistic.test.mjs, packages/snapback-react/presence.test.mjs, packages/snapback-react/offline.test.mjs, packages/snapback-react/exact-result-types.fixture.ts]
 status: current
 targets: [local]
 maturity: shipped
@@ -32,7 +32,7 @@ from that immutable binding:
 
 ```ts fragment reason="application composition varies by renderer and generated artifact imports"
 const binding = await client.prepareReactBinding({
-  generatedManifest: { schema, functions, capabilityManifest },
+  generatedManifest: app,
   developmentSync: {
     onStateChange(state) {
       setBootState(state);
@@ -55,9 +55,12 @@ browser debugger for Data, Functions, Realtime, Errors, and Logs against the
 same running backend — check it before falling back to `curl`, raw host
 operations, or a one-off verification script.
 
-Preparation verifies app, deployment, auth-mode, schema, function-catalog,
-result contracts, ephemeral declarations, and capability identity. The
-provider borrows the client; `provider.dispose()` drains provider-owned
+Use the generated `snapback.app.v1` descriptor exported as `app` by
+`generated/api.mjs`; it carries the same complete references components pass
+to hooks, including ephemeral collections. Preparation verifies app,
+deployment, auth-mode, schema, function-catalog, result contracts, ephemeral
+declarations, and capability identity. The provider borrows the client;
+`provider.dispose()` drains provider-owned
 subscriptions, rooms, stores, listeners, timers, connection grant, socket
 demand, and its auth-barrier participant.
 
@@ -301,7 +304,8 @@ generated connection-keyed ephemeral reference. A non-skipped value is
 declarative managed intent: the provider publishes it after the authoritative
 room snapshot and refreshes it within the generated TTL and rate limits. The
 [ephemeral-state reference](../realtime/ephemeral-state.md#find-the-react-hook-from-ephemeral-vocabulary)
-shows a conversation-scoped typing example; there is no separate
+transcludes the messaging demo's conversation-scoped typing hook, including
+observer-mode `publish`/`delete`; there is no separate
 `useSnapbackEphemeral` hook.
 
 ```ts fragment reason="presence fields come from the generated ephemeral declaration"
