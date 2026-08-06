@@ -6711,6 +6711,52 @@ mod tests {
             crate::operation_ledger::PENDING_HOST_IDENTITY_LEASE_EXPIRY_MS_V1
         );
 
+        let pending_epoch_id = match &identity.issuance {
+            OperationIssuanceV1::HostIncarnation { epoch_id, .. } => epoch_id.clone(),
+            other => panic!("migration pending identity must be Host-issued, got {other:?}"),
+        };
+        for (column, moved, restored) in [
+            ("lane", "moved-lane", MIGRATION_AGGREGATE_LANE_V1),
+            (
+                "audience",
+                "moved-audience",
+                identity.bound_facts.audience.as_str(),
+            ),
+            ("epoch_id", "moved-epoch", pending_epoch_id.as_str()),
+        ] {
+            db.conn
+                .execute(
+                    &format!(
+                        "UPDATE _snapback_operation_pending_v1 SET {column}=?1
+                          WHERE stream_id=?2 AND originator_class='host' AND operation_id=?3"
+                    ),
+                    params![moved, identity.key.stream_id, identity.key.operation_id],
+                )
+                .unwrap_or_else(|error| panic!("move pending {column}: {error}"));
+            assert_eq!(
+                crate::operation_ledger::require_pending_operation_capacity_in(
+                    &db.conn,
+                    MIGRATION_AGGREGATE_LANE_V1,
+                    &identity.bound_facts.audience,
+                    None,
+                    1,
+                )
+                .expect_err("moved pending projection cannot evade the lane budget")
+                .diagnostic
+                .code,
+                "SNAPBACK_OPERATION_LEDGER_INVALID"
+            );
+            db.conn
+                .execute(
+                    &format!(
+                        "UPDATE _snapback_operation_pending_v1 SET {column}=?1
+                          WHERE stream_id=?2 AND originator_class='host' AND operation_id=?3"
+                    ),
+                    params![restored, identity.key.stream_id, identity.key.operation_id],
+                )
+                .unwrap_or_else(|error| panic!("restore pending {column}: {error}"));
+        }
+
         let second = approval_for(&plan, now_millis());
         let capacity = staged_apply(&mut db, &plan, &second).expect_err("pending lane full");
         assert_eq!(

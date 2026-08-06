@@ -2,7 +2,7 @@
 
 **Status:** Open
 **Opened:** 2026-08-03 (LLP 0163 durable storage slice)
-**Updated:** 2026-08-05 (exact C29 stopped before performance; C30 repairs terminal-supplement projection coherence, automatic sessions ACK custody, the public explanation oracle, and the Host rollback matrix; Draft/Missing unchanged); 2026-08-05 (merged C28 stopped before performance; C29 repairs automatic sessions range custody, Host tombstone schema nullability, retention-time coherence, and pending rollback proof; Draft/Missing unchanged); 2026-08-05 (C27 pre-result abandonment and C28 identity-lifecycle correction; Draft/Missing unchanged); 2026-08-04 (fork-boundary correction — managed branches pin
+**Updated:** 2026-08-05 (exact C30 stopped before performance; C31 repairs global Host-lease, pending-capacity, and client-suppression projection coherence; Draft/Missing unchanged); 2026-08-05 (exact C29 stopped before performance; C30 repairs terminal-supplement projection coherence, automatic sessions ACK custody, the public explanation oracle, and the Host rollback matrix; Draft/Missing unchanged); 2026-08-05 (merged C28 stopped before performance; C29 repairs automatic sessions range custody, Host tombstone schema nullability, retention-time coherence, and pending rollback proof; Draft/Missing unchanged); 2026-08-05 (C27 pre-result abandonment and C28 identity-lifecycle correction; Draft/Missing unchanged); 2026-08-04 (fork-boundary correction — managed branches pin
 canonical schema/function-bundle identities and preserve exact retry across
 parent drift, but CaptureOnly is truthfully non-promotable. Product provider
 custody, ordered settlement, and public effect-bearing strict promotion are
@@ -89,6 +89,19 @@ not only the generated schema.
 
 The capability remains `Missing`. Fresh exact review, fixed-Air performance,
 named-author acceptance, and publication binding remain open.
+
+## C30 review stop and C31 carrier repair — 2026-08-05
+
+Exact merged C30 commit `365a3f21117cbaecdf80b8e5bff7debea47fc2d0`
+received Fable `READY` and Codex `NOT READY` before performance. C31 closes the
+blocking projection gaps by globally validating Host leases and pending
+lifecycles before closure or capacity decisions, and it proactively applies
+the same global suppression comparison to client closure. Moved
+lease/pending/suppression projections have direct fail-closed fixtures.
+
+The Spec remains `Draft` and the capability remains `Missing`. Fresh exact
+review, fixed-Air performance, named-author acceptance, and publication
+binding remain open.
 
 ## Progress — 2026-08-04
 

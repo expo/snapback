@@ -5,7 +5,7 @@
 **Systems:** Storage, Sync, Auth, Diagnostics, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-03
-**Revised:** 2026-08-05 (exact C29 review stop and prospective C30 repair — terminal-supplement retention coherence, automatic sessions ACK custody, closed public explanation lookup, and direct Host writer rollback matrix; Draft/Missing unchanged); 2026-08-05 (merged C28 review stop and prospective C29 repair — automatic sessions range custody, nullable-required Host tombstones, terminal-time coherence, and pending-writer rollback; Draft/Missing unchanged); 2026-08-05 (C27 pre-result abandonment and C28 lifecycle repair — comparison-complete tombstones, contiguous floors, bounded ranges, and transactional writer guards; Draft/Missing unchanged); 2026-08-04 (explicit activation transport — an authenticated,
+**Revised:** 2026-08-05 (exact C30 review stop and prospective C31 repair — global Host-lease and pending-capacity projection validation plus client-suppression closure symmetry; Draft/Missing unchanged); 2026-08-05 (exact C29 review stop and prospective C30 repair — terminal-supplement retention coherence, automatic sessions ACK custody, closed public explanation lookup, and direct Host writer rollback matrix; Draft/Missing unchanged); 2026-08-05 (merged C28 review stop and prospective C29 repair — automatic sessions range custody, nullable-required Host tombstones, terminal-time coherence, and pending-writer rollback; Draft/Missing unchanged); 2026-08-05 (C27 pre-result abandonment and C28 lifecycle repair — comparison-complete tombstones, contiguous floors, bounded ranges, and transactional writer guards; Draft/Missing unchanged); 2026-08-04 (explicit activation transport — an authenticated,
 managed-admission AdminWrite command now accepts only the versioned local
 target/profile pair and publishes the exact four-adapter manifest; it remains
 inactive until an operator invokes it, and independent review, author
@@ -890,3 +890,25 @@ The required-nullable tombstone counter is now required by Rust decoding as
 well as the generated schema. This Spec remains `Draft`; all related
 capabilities remain `Missing` pending fresh exact review, the unchanged
 performance gates, and publication acceptance.
+
+## Implementation record — 2026-08-05, exact C30 stop and C31 repair
+
+Fresh review of exact merged C30 commit
+`365a3f21117cbaecdf80b8e5bff7debea47fc2d0` returned Fable `READY` and
+Codex `NOT READY` before performance. Codex found that Host closure still
+trusted lease audience/epoch lookup projections and that pending-capacity
+admission still counted unvalidated lifecycle lane/audience projections.
+Fable separately identified the analogous client-suppression closure
+asymmetry as low priority. No paired or absolute process ran.
+
+C31 globally decodes and validates Host lease rows before register, complete,
+or closure; the physical key and SQL audience/epoch must match the retained
+identity. Pending-capacity admission likewise enumerates every lifecycle,
+checks physical key plus lane/audience/epoch JSON coherence through exact
+pending lookup, and counts only validated outcome-pending rows. Client and
+Host closure now share the global suppression comparison pass. Moved lease,
+pending, and client-suppression projections have direct fail-closed fixtures.
+
+This Spec stays `Draft` and every related capability stays `Missing` pending
+a fresh exact candidate, dual review, the unchanged performance gates, and
+publication acceptance.

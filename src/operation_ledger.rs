@@ -68,6 +68,13 @@ pub(crate) struct HostIncarnationAuthorityV1 {
     pub authority_authenticator_digest: String,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct HostIdentityLeaseV1 {
+    identity: OperationIdentityV1,
+    expires_at_ms: i64,
+    completed_at_ms: Option<i64>,
+}
+
 // Lookup results cross the storage/runtime boundary as one explicit value.
 // Boxing the common exact-replay arm would add an allocation to every retry.
 #[allow(clippy::large_enum_variant)]
@@ -1465,40 +1472,29 @@ pub fn require_pending_operation_capacity_in(
     if lane.is_empty() || audience.is_empty() || maximum == 0 {
         return Err(invalid("pending operation capacity arguments are invalid"));
     }
-    let active: i64 = conn.query_row(
-        "SELECT COUNT(*)
-           FROM _snapback_operation_pending_v1 AS pending
-           LEFT JOIN _snapback_operation_terminal_supplements_v1 AS terminal
-             ON terminal.stream_id=pending.stream_id
-            AND terminal.originator_class=pending.originator_class
-            AND terminal.operation_id=pending.operation_id
-          WHERE pending.lane=?1 AND pending.audience=?2
-            AND terminal.operation_id IS NULL",
-        params![lane, audience],
-        |row| row.get(0),
-    )?;
-    if u64::try_from(active).unwrap_or(u64::MAX) < maximum {
-        return Ok(());
-    }
-    if let Some(proposed) = proposed {
-        let retained: Option<String> = conn
-            .query_row(
-                "SELECT lifecycle_json FROM _snapback_operation_pending_v1
-                  WHERE stream_id=?1 AND originator_class=?2 AND operation_id=?3",
-                params![
-                    proposed.key.stream_id,
-                    originator(proposed.key.originator_class),
-                    proposed.key.operation_id,
-                ],
-                |row| row.get(0),
-            )
-            .optional()?;
-        if let Some(retained) = retained {
-            let retained: PendingOperationLifecycleV1 =
-                decode(&retained, "pending operation lifecycle")?;
+    // @ref LLP 0163#implementation-record--2026-08-05-exact-c30-stop-and-c31-repair — indexed lifecycle projections are advisory until globally compared with retained JSON.
+    // Enumerate first so a moved lane/audience projection cannot hide an
+    // outcome-pending publication from the bounded admission count.
+    let mut active = 0_u64;
+    let mut proposed_retained = false;
+    for (retained, outcome_pending) in validated_pending_lifecycles(conn)? {
+        if let Some(proposed) = proposed
+            && retained.identity.key == proposed.key
+        {
             reject_divergence(&retained.identity, proposed)?;
-            return Ok(());
+            proposed_retained = true;
         }
+        if outcome_pending
+            && retained.lane == lane
+            && retained.identity.bound_facts.audience == audience
+        {
+            active = active
+                .checked_add(1)
+                .ok_or_else(|| invalid("pending operation capacity overflowed"))?;
+        }
+    }
+    if active < maximum || proposed_retained {
+        return Ok(());
     }
     Err(refused(
         "SNAPBACK_OPERATION_PENDING_CAPACITY_FULL",
@@ -1825,6 +1821,46 @@ pub fn lookup_pending_operation(
     Ok(PendingOperationLookupV1::Pending(pending))
 }
 
+fn validated_pending_lifecycles(
+    conn: &Connection,
+) -> SnapbackResult<Vec<(PendingOperationLifecycleV1, bool)>> {
+    let mut statement = conn.prepare(
+        "SELECT stream_id,originator_class,operation_id,lifecycle_json
+           FROM _snapback_operation_pending_v1",
+    )?;
+    let rows = statement.query_map([], |row| {
+        Ok((
+            row.get::<_, String>(0)?,
+            row.get::<_, String>(1)?,
+            row.get::<_, String>(2)?,
+            row.get::<_, String>(3)?,
+        ))
+    })?;
+    let rows = rows.collect::<Result<Vec<_>, _>>()?;
+    drop(statement);
+    let mut retained = Vec::with_capacity(rows.len());
+    for (row_stream_id, row_originator, row_operation_id, lifecycle_json) in rows {
+        let lifecycle: PendingOperationLifecycleV1 =
+            decode(&lifecycle_json, "pending operation lifecycle")?;
+        let identity = &lifecycle.identity;
+        if row_stream_id != identity.key.stream_id
+            || row_originator != originator(identity.key.originator_class)
+            || row_operation_id != identity.key.operation_id
+        {
+            return Err(invalid("pending lifecycle primary key is incoherent"));
+        }
+        let outcome_pending = match lookup_pending_operation(conn, identity)? {
+            PendingOperationLookupV1::Pending(ref exact) if exact == &lifecycle => true,
+            PendingOperationLookupV1::Terminal(_) => false,
+            _ => {
+                return Err(invalid("pending lifecycle is not exact retained authority"));
+            }
+        };
+        retained.push((lifecycle, outcome_pending));
+    }
+    Ok(retained)
+}
+
 /// Append the terminal supplement in the caller's T-release/T-rollback
 /// transaction. The Pending envelope and lifecycle row remain immutable
 /// evidence of P, while this additive carrier participates independently in
@@ -1964,7 +2000,7 @@ pub fn authenticate_host_identity(
 ) -> SnapbackResult<()> {
     if identity.key.originator_class != OperationOriginatorClassV1::Host
         || !matches!(
-            identity.issuance,
+            &identity.issuance,
             OperationIssuanceV1::HostIncarnation { .. }
         )
     {
@@ -1974,6 +2010,112 @@ pub fn authenticate_host_identity(
         ));
     }
     authenticate_operation_identity(conn, identity).map(|_| ())
+}
+
+fn decode_validated_host_identity_lease(
+    row_stream_id: String,
+    row_operation_id: String,
+    row_audience: String,
+    row_epoch_id: String,
+    identity_json: String,
+    expires_at_ms: i64,
+    completed_at_ms: Option<i64>,
+) -> SnapbackResult<HostIdentityLeaseV1> {
+    let identity: OperationIdentityV1 = decode(&identity_json, "host identity lease")?;
+    identity
+        .validate()
+        .map_err(|_| invalid("host identity lease identity is invalid"))?;
+    if identity.key.originator_class != OperationOriginatorClassV1::Host
+        || !matches!(
+            &identity.issuance,
+            OperationIssuanceV1::HostIncarnation { .. }
+        )
+        || row_stream_id != identity.key.stream_id
+        || row_operation_id != identity.key.operation_id
+        || row_audience != identity.bound_facts.audience
+        || row_epoch_id != issuance_parts(&identity).0
+        || expires_at_ms < 0
+        || completed_at_ms.is_some_and(|value| value < 0)
+    {
+        return Err(invalid("stored host identity lease is incoherent"));
+    }
+    Ok(HostIdentityLeaseV1 {
+        identity,
+        expires_at_ms,
+        completed_at_ms,
+    })
+}
+
+fn load_validated_host_identity_lease(
+    conn: &Connection,
+    identity: &OperationIdentityV1,
+) -> SnapbackResult<Option<HostIdentityLeaseV1>> {
+    Ok(validated_host_identity_leases(conn)?
+        .into_iter()
+        .find(|lease| lease.identity.key == identity.key))
+}
+
+fn validated_host_identity_leases(conn: &Connection) -> SnapbackResult<Vec<HostIdentityLeaseV1>> {
+    let mut statement = conn.prepare(
+        "SELECT stream_id,operation_id,audience,epoch_id,identity_json,
+                expires_at_ms,completed_at_ms
+           FROM _snapback_host_identity_leases_v1",
+    )?;
+    let rows = statement.query_map([], |row| {
+        Ok((
+            row.get::<_, String>(0)?,
+            row.get::<_, String>(1)?,
+            row.get::<_, String>(2)?,
+            row.get::<_, String>(3)?,
+            row.get::<_, String>(4)?,
+            row.get::<_, i64>(5)?,
+            row.get::<_, Option<i64>>(6)?,
+        ))
+    })?;
+    let rows = rows.collect::<Result<Vec<_>, _>>()?;
+    drop(statement);
+    let mut leases = Vec::with_capacity(rows.len());
+    for (
+        row_stream_id,
+        row_operation_id,
+        row_audience,
+        row_epoch_id,
+        identity_json,
+        expires_at_ms,
+        completed_at_ms,
+    ) in rows
+    {
+        leases.push(decode_validated_host_identity_lease(
+            row_stream_id,
+            row_operation_id,
+            row_audience,
+            row_epoch_id,
+            identity_json,
+            expires_at_ms,
+            completed_at_ms,
+        )?);
+    }
+    Ok(leases)
+}
+
+/// @ref LLP 0163#implementation-record--2026-08-05-exact-c30-stop-and-c31-repair
+/// — closure must derive live Host custody from globally validated identities,
+/// not SQL audience/epoch accelerators that could move independently.
+fn host_epoch_has_live_lease(
+    conn: &Connection,
+    audience: &str,
+    epoch_id: &str,
+    now_ms: u64,
+) -> SnapbackResult<bool> {
+    let now_ms = to_i64(now_ms, "host closure time")?;
+    Ok(validated_host_identity_leases(conn)?
+        .into_iter()
+        .any(|lease| {
+            lease.identity.bound_facts.audience == audience
+                && issuance_parts(&lease.identity).0 == epoch_id
+                && lease.completed_at_ms.is_none()
+                && lease.expires_at_ms > now_ms
+        }))
 }
 
 /// Retain an authenticated host-only admission identity while external work is
@@ -1987,17 +2129,9 @@ pub(crate) fn register_host_identity_lease_in(
     authenticate_host_identity(tx, identity)?;
     let identity_json = serde_json::to_string(identity)
         .map_err(|_| invalid("host identity lease could not be encoded"))?;
-    let existing: Option<(String, i64)> = tx
-        .query_row(
-            "SELECT identity_json,expires_at_ms FROM _snapback_host_identity_leases_v1
-             WHERE stream_id=?1 AND operation_id=?2",
-            params![identity.key.stream_id, identity.key.operation_id],
-            |row| Ok((row.get(0)?, row.get(1)?)),
-        )
-        .optional()?;
-    if let Some((stored_identity, stored_expiry)) = existing {
-        if stored_identity == identity_json
-            && stored_expiry == to_i64(expires_at_ms, "host lease expiry")?
+    if let Some(existing) = load_validated_host_identity_lease(tx, identity)? {
+        if existing.identity == *identity
+            && existing.expires_at_ms == to_i64(expires_at_ms, "host lease expiry")?
         {
             return Ok(());
         }
@@ -2028,6 +2162,18 @@ pub(crate) fn complete_host_identity_lease_in(
     identity: &OperationIdentityV1,
     completed_at_ms: u64,
 ) -> SnapbackResult<()> {
+    let Some(existing) = load_validated_host_identity_lease(tx, identity)? else {
+        return Err(refused(
+            "SNAPBACK_HOST_OPERATION_LEASE_INVALID",
+            "host identity lease is missing, divergent, or already completed",
+        ));
+    };
+    if existing.identity != *identity || existing.completed_at_ms.is_some() {
+        return Err(refused(
+            "SNAPBACK_HOST_OPERATION_LEASE_INVALID",
+            "host identity lease is missing, divergent, or already completed",
+        ));
+    }
     let identity_json = serde_json::to_string(identity)
         .map_err(|_| invalid("host identity lease could not be encoded"))?;
     let changed = tx.execute(
@@ -2608,14 +2754,16 @@ pub fn close_epoch_if_complete_in(
     }
     let ready = match originator_class {
         OperationOriginatorClassV1::Client => {
-            let unacknowledged: bool = tx.query_row(
-                "SELECT EXISTS(
-                   SELECT 1 FROM _snapback_operation_suppression_v1
-                   WHERE originator_class='client' AND audience=?1 AND epoch_id=?2
-                 )",
-                params![audience, epoch_id],
-                |row| row.get(0),
-            )?;
+            // Use the JSON identity as authority for the SQL lookup
+            // projections. A moved unacknowledged receipt must fail closed,
+            // not disappear from client-epoch closure.
+            let unacknowledged = !suppression_identities_for_epoch(
+                tx,
+                OperationOriginatorClassV1::Client,
+                audience,
+                epoch_id,
+            )?
+            .is_empty();
             if unacknowledged {
                 false
             } else {
@@ -2670,15 +2818,10 @@ pub fn close_epoch_if_complete_in(
                         ));
                     }
                 }
-                let live_host_lease: bool = tx.query_row(
-                    "SELECT EXISTS(
-                       SELECT 1 FROM _snapback_host_identity_leases_v1
-                       WHERE audience=?1 AND epoch_id=?2
-                         AND completed_at_ms IS NULL AND expires_at_ms > ?3
-                     )",
-                    params![audience, epoch_id, to_i64(now_ms, "host closure time")?],
-                    |row| row.get(0),
-                )?;
+                // Lease audience/epoch columns are lookup accelerators, not
+                // authority. Enumerate and compare them with identity_json so
+                // a moved live lease cannot disappear from epoch closure.
+                let live_host_lease = host_epoch_has_live_lease(tx, audience, epoch_id, now_ms)?;
                 let outcome_pending = host_epoch_has_outcome_pending(tx, audience, epoch_id)?;
                 // Validate every Host terminal supplement before trusting its
                 // SQL audience/epoch/time projections in the retention query.
@@ -3515,58 +3658,43 @@ fn suppression_identities_for_epoch(
     audience: &str,
     epoch_id: &str,
 ) -> SnapbackResult<Vec<OperationIdentityV1>> {
-    if originator_class == OperationOriginatorClassV1::Host {
-        let mut statement = tx.prepare(
-            "SELECT stream_id,originator_class,operation_id,identity_json
-               FROM _snapback_operation_suppression_v1",
-        )?;
-        let rows = statement.query_map([], |row| {
-            Ok((
-                row.get::<_, String>(0)?,
-                row.get::<_, String>(1)?,
-                row.get::<_, String>(2)?,
-                row.get::<_, String>(3)?,
-            ))
-        })?;
-        let rows = rows.collect::<Result<Vec<_>, _>>()?;
-        drop(statement);
-        let mut identities = Vec::new();
-        for (row_stream_id, row_originator, row_operation_id, identity_json) in rows {
-            let identity: OperationIdentityV1 = decode(&identity_json, "suppression identity")?;
-            if identity.key.originator_class != OperationOriginatorClassV1::Host
-                && row_originator != originator(OperationOriginatorClassV1::Host)
-            {
-                continue;
-            }
-            if row_stream_id != identity.key.stream_id
-                || row_originator != originator(identity.key.originator_class)
-                || row_operation_id != identity.key.operation_id
-                || !matches!(
-                    lookup_operation(tx, &identity)?,
-                    OperationLookupV1::ExactReplay(_)
-                )
-            {
-                return Err(invalid(
-                    "host suppression row is not exact retained authority",
-                ));
-            }
-            if identity.bound_facts.audience == audience && issuance_parts(&identity).0 == epoch_id
-            {
-                identities.push(identity);
-            }
-        }
-        return Ok(identities);
-    }
     let mut statement = tx.prepare(
-        "SELECT identity_json FROM _snapback_operation_suppression_v1
-         WHERE originator_class=?1 AND audience=?2 AND epoch_id=?3",
+        "SELECT stream_id,originator_class,operation_id,identity_json
+           FROM _snapback_operation_suppression_v1",
     )?;
-    let rows = statement.query_map(
-        params![originator(originator_class), audience, epoch_id],
-        |row| row.get::<_, String>(0),
-    )?;
-    rows.map(|row| decode(&row?, "suppression identity"))
-        .collect()
+    let rows = statement.query_map([], |row| {
+        Ok((
+            row.get::<_, String>(0)?,
+            row.get::<_, String>(1)?,
+            row.get::<_, String>(2)?,
+            row.get::<_, String>(3)?,
+        ))
+    })?;
+    let rows = rows.collect::<Result<Vec<_>, _>>()?;
+    drop(statement);
+    let mut identities = Vec::new();
+    for (row_stream_id, row_originator, row_operation_id, identity_json) in rows {
+        let identity: OperationIdentityV1 = decode(&identity_json, "suppression identity")?;
+        if identity.key.originator_class != originator_class
+            && row_originator != originator(originator_class)
+        {
+            continue;
+        }
+        if row_stream_id != identity.key.stream_id
+            || row_originator != originator(identity.key.originator_class)
+            || row_operation_id != identity.key.operation_id
+            || !matches!(
+                lookup_operation(tx, &identity)?,
+                OperationLookupV1::ExactReplay(_)
+            )
+        {
+            return Err(invalid("suppression row is not exact retained authority"));
+        }
+        if identity.bound_facts.audience == audience && issuance_parts(&identity).0 == epoch_id {
+            identities.push(identity);
+        }
+    }
+    Ok(identities)
 }
 
 fn pending_terminal_identities_for_epoch(
@@ -4400,6 +4528,31 @@ mod tests {
             30,
         )
         .expect("terminate");
+        tx.execute(
+            "UPDATE _snapback_operation_suppression_v1 SET audience='audience-moved'
+             WHERE stream_id=?1 AND originator_class='client' AND operation_id=?2",
+            params![second.key.stream_id, second.key.operation_id],
+        )
+        .expect("move unacknowledged client suppression projection");
+        assert_eq!(
+            close_epoch_if_complete_in(
+                &tx,
+                OperationOriginatorClassV1::Client,
+                "audience-1",
+                "epoch-1",
+                200,
+            )
+            .expect_err("moved client suppression cannot disappear from closure")
+            .diagnostic
+            .code,
+            "SNAPBACK_OPERATION_LEDGER_INVALID"
+        );
+        tx.execute(
+            "UPDATE _snapback_operation_suppression_v1 SET audience='audience-1'
+             WHERE stream_id=?1 AND originator_class='client' AND operation_id=?2",
+            params![second.key.stream_id, second.key.operation_id],
+        )
+        .expect("restore client suppression projection");
         assert!(
             !close_epoch_if_complete_in(
                 &tx,
@@ -5949,6 +6102,87 @@ mod tests {
             )
             .expect("host window remains")
         );
+        for (column, moved, restored) in [
+            ("audience", "moved-audience", "audience-1"),
+            ("epoch_id", "moved-epoch", "host-epoch-1"),
+        ] {
+            tx.execute(
+                &format!(
+                    "UPDATE _snapback_host_identity_leases_v1 SET {column}=?1
+                      WHERE stream_id=?2 AND operation_id=?3"
+                ),
+                params![
+                    moved,
+                    live_ticket.key.stream_id,
+                    live_ticket.key.operation_id
+                ],
+            )
+            .unwrap_or_else(|error| panic!("move Host lease {column}: {error}"));
+            assert_eq!(
+                close_epoch_if_complete_in(
+                    &tx,
+                    OperationOriginatorClassV1::Host,
+                    "audience-1",
+                    "host-epoch-1",
+                    HOST_RECEIPT_WINDOW_MS_V1 + 11,
+                )
+                .expect_err("moved Host lease projection cannot hide a live ticket")
+                .diagnostic
+                .code,
+                "SNAPBACK_OPERATION_LEDGER_INVALID"
+            );
+            assert_eq!(
+                complete_host_identity_lease_in(&tx, &live_ticket, HOST_RECEIPT_WINDOW_MS_V1 + 11,)
+                    .expect_err("lease completion validates retained projections")
+                    .diagnostic
+                    .code,
+                "SNAPBACK_OPERATION_LEDGER_INVALID"
+            );
+            tx.execute(
+                &format!(
+                    "UPDATE _snapback_host_identity_leases_v1 SET {column}=?1
+                      WHERE stream_id=?2 AND operation_id=?3"
+                ),
+                params![
+                    restored,
+                    live_ticket.key.stream_id,
+                    live_ticket.key.operation_id
+                ],
+            )
+            .unwrap_or_else(|error| panic!("restore Host lease {column}: {error}"));
+        }
+        tx.execute(
+            "UPDATE _snapback_host_identity_leases_v1 SET operation_id='moved-operation'
+              WHERE stream_id=?1 AND operation_id=?2",
+            params![live_ticket.key.stream_id, live_ticket.key.operation_id],
+        )
+        .expect("move Host lease physical key");
+        assert_eq!(
+            close_epoch_if_complete_in(
+                &tx,
+                OperationOriginatorClassV1::Host,
+                "audience-1",
+                "host-epoch-1",
+                HOST_RECEIPT_WINDOW_MS_V1 + 11,
+            )
+            .expect_err("moved Host lease physical key cannot hide a live ticket")
+            .diagnostic
+            .code,
+            "SNAPBACK_OPERATION_LEDGER_INVALID"
+        );
+        assert_eq!(
+            complete_host_identity_lease_in(&tx, &live_ticket, HOST_RECEIPT_WINDOW_MS_V1 + 11,)
+                .expect_err("lease completion globally validates physical keys")
+                .diagnostic
+                .code,
+            "SNAPBACK_OPERATION_LEDGER_INVALID"
+        );
+        tx.execute(
+            "UPDATE _snapback_host_identity_leases_v1 SET operation_id=?1
+              WHERE stream_id=?2 AND operation_id='moved-operation'",
+            params![live_ticket.key.operation_id, live_ticket.key.stream_id],
+        )
+        .expect("restore Host lease physical key");
         assert!(
             !close_epoch_if_complete_in(
                 &tx,
