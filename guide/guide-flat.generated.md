@@ -10373,7 +10373,14 @@ projection. `host.restart` also fails as `SNAPBACK_HOST_OP_CLI_ONLY` over
 HTTP, but has no CLI command yet; its only current projection is the
 composed `snapback_restart` MCP tool, which spawns `host.stop` then
 `host.start` under one request id and envelope (a `snapback restart` CLI
-command is planned but not shipped).
+command is planned but not shipped). `snapback_stop` (and therefore the
+mutating half of `snapback_restart`) requires the same admin credential the
+HTTP host-ops route requires — it probes `POST /_snapback/api/host-ops`
+with the descriptor's managed admin token before signaling the process, and
+refuses without a valid token instead of stopping the server on local
+process access alone (LLP 0184 §Design/2 closes this gap in Phase 2;
+`snapback_start`'s fresh-spawn leg is unaffected, since there is no prior
+credential to hold when no server yet exists).
 `schema.reload`, `functions.reload`, and `acceptance.run` are pinned but
 unbuilt and fail as `SNAPBACK_HOST_OP_UNIMPLEMENTED`. All three families are
 registered at AdminWrite so an authenticated request reaches that structured
@@ -10507,6 +10514,60 @@ The partial local `servicePrincipal`/scoped-token slice is admitted only by
 generated app-data calls. Host operations—including `function.run`—do not
 resolve scoped tokens into authority; use the operation's explicit admin or
 dev-impersonation gate instead.
+
+## Controlled mutations: config, cron, jobs, connections
+
+These operations sit beside the host-ops multiplexer — each is its own
+admin-gated `POST /_snapback/api/...` route, not a `host-ops` request — but
+now have the same direct CLI and control-MCP shape (LLP 0184 §P2's
+"controlled mutations" projections). Each is `AdminWrite` and every CLI form
+below accepts the same `--url`/`--ready-file`/`--token` target flags as
+`host inspect`.
+
+`config.unset` removes one config entry's stored value. It carries only the
+entry identifier — no secret value crosses the wire, so it needs no secret
+carrier (unlike `config.set`, which stays CLI-only pending a defined MCP
+secret carrier):
+
+```sh
+snapback config unset --entry stripe.secretKey --ready-file .snapback/dev.ready.json
+```
+
+or `snapback_config_unset` (`{ "entry": "stripe.secretKey" }`) through
+`snapback mcp-control`.
+
+`cron.tick` force-claims and runs every currently-due cron job; `cron.runOne`
+force-runs one named job regardless of its schedule:
+
+```sh
+snapback cron tick --ready-file .snapback/dev.ready.json
+snapback cron run nightly-digest --ready-file .snapback/dev.ready.json
+```
+
+or `snapback_cron_tick` / `snapback_cron_run` (`{ "name": "nightly-digest" }`).
+
+`jobs.drain` claims and runs due one-off jobs under an injected clock — the
+deterministic seam that lets acceptance suites drive due-ness without
+sleeping, instead of the wall clock `cron.tick` uses:
+
+```sh
+snapback jobs drain --ready-file .snapback/dev.ready.json --now-ms 1700000000000 --max-waves 3
+```
+
+or `snapback_jobs_drain` (`{ "nowMs": 1700000000000, "maxWaves": 3 }`, both
+optional — absent `nowMs` means wall clock).
+
+`connection.disconnect` is an explicit **debug perturbation** of one live
+connection — force-closing a connection for local recovery/repair testing.
+It is never application disconnect authority: the underlying route accepts
+no request body, so `reason` is recorded in the CLI/MCP receipt for the
+caller's own audit trail, not acknowledged by the server.
+
+```sh
+snapback connections disconnect conn_01h8x2 --reason "stuck presence repair" --ready-file .snapback/dev.ready.json
+```
+
+or `snapback_connection_disconnect` (`{ "connectionId": "conn_01h8x2", "reason": "stuck presence repair" }`).
 
 ## Anti-patterns
 

@@ -799,9 +799,16 @@ pub enum HostCommand {
         #[command(subcommand)]
         command: ErrorsCommand,
     },
-    /// config.unset — remove an entry's stored value. Carries only an entry
-    /// identifier (LLP 0184 §P2/§P3: no secret value crosses the wire, so no
-    /// secret carrier is needed, unlike `config.set`).
+    /// data.scan — bounded read-only table projection (LLP 0184 P1).
+    Data {
+        #[command(subcommand)]
+        command: DataCommand,
+    },
+    /// config.status / config.plan / config.verify (LLP 0036; LLP 0184 P1
+    /// backfill) plus config.unset (LLP 0184 §P2/§P3) — non-secret config
+    /// planning, verification, and entry removal. `config unset` carries only
+    /// an entry identifier; no secret value crosses the wire, unlike
+    /// `config set`, which is not projected here (LLP 0184 §P3).
     Config {
         #[command(subcommand)]
         command: ConfigCommand,
@@ -813,10 +820,9 @@ pub enum HostCommand {
         #[command(subcommand)]
         command: CronCommand,
     },
-    /// jobs.drain — the injected-clock one-off jobs drain (LLP 0184 §P2's
-    /// typed projection of the existing `POST /_snapback/api/jobs/drain`
-    /// route; `jobs list`/`jobs show` are a separate, P1 read-only
-    /// projection of `GET /_snapback/api/jobs[/{id}]`).
+    /// jobs.list / jobs.show (LLP 0184 P1 read-only inspection) plus
+    /// jobs.drain (LLP 0184 §P2's injected-clock typed projection of the
+    /// existing `POST /_snapback/api/jobs/drain` route).
     Jobs {
         #[command(subcommand)]
         command: JobsCommand,
@@ -834,24 +840,6 @@ pub enum HostCommand {
     NetworkProfile {
         #[command(subcommand)]
         command: NetworkProfileCommand,
-    },
-    /// data.scan — bounded read-only table projection (LLP 0184 P1).
-    Data {
-        #[command(subcommand)]
-        command: DataCommand,
-    },
-    /// config.status / config.plan / config.verify — non-secret config
-    /// planning and verification (LLP 0036; LLP 0184 P1 backfill). `config
-    /// set`/`config unset` are not projected here yet (LLP 0184 §P3).
-    Config {
-        #[command(subcommand)]
-        command: ConfigCommand,
-    },
-    /// jobs.list / jobs.show — read-only one-off job inspection (LLP 0184
-    /// P1). Draining/mutating jobs is out of this slice's scope.
-    Jobs {
-        #[command(subcommand)]
-        command: JobsCommand,
     },
     /// Mint one short-lived, scoped administrative data-read lease. This is a
     /// ready-file-only operation because the proof root is local operator
@@ -1169,21 +1157,6 @@ pub enum ErrorsCommand {
     },
 }
 
-/// @ref LLP 0184#p2-controlled-mutations — `config.unset` carries no secret
-/// value, so it needs no secret carrier; it is a direct, `AdminWrite`
-/// projection of the existing `POST /_snapback/api/config/unset` route.
-#[derive(clap::Subcommand)]
-pub enum ConfigCommand {
-    /// config.unset — remove a config entry's stored value.
-    Unset {
-        #[command(flatten)]
-        target: TargetArgs,
-        /// The config entry identifier (e.g. `stripe.secretKey`).
-        #[arg(long)]
-        entry: String,
-    },
-}
-
 /// @ref LLP 0184#p2-controlled-mutations — typed CLI/MCP projections of the
 /// existing admin-gated cron dispatch routes, with an injected clock for
 /// `tick` so acceptance never depends on wall-clock due-ness.
@@ -1201,26 +1174,6 @@ pub enum CronCommand {
         target: TargetArgs,
         /// The cron job's declared name.
         name: String,
-    },
-}
-
-/// @ref LLP 0184#p2-controlled-mutations — the mutating jobs.drain
-/// projection; `jobs list`/`jobs show` are the separate P1 read-only
-/// projection of `GET /_snapback/api/jobs[/{id}]` (owned by a parallel
-/// workstream).
-#[derive(clap::Subcommand)]
-pub enum JobsCommand {
-    /// jobs.drain — claim and run due one-off jobs under an injected clock.
-    Drain {
-        #[command(flatten)]
-        target: TargetArgs,
-        /// The injected drain clock in epoch milliseconds. Absent means wall
-        /// clock.
-        #[arg(long)]
-        now_ms: Option<u64>,
-        /// Bounded cascade waves (server default 1 when absent).
-        #[arg(long)]
-        max_waves: Option<usize>,
     },
 }
 
@@ -1275,6 +1228,9 @@ pub enum DataCommand {
     },
 }
 
+/// @ref LLP 0184#p2-controlled-mutations — `config.unset` carries no secret
+/// value, so it needs no secret carrier; it is a direct, `AdminWrite`
+/// projection of the existing `POST /_snapback/api/config/unset` route.
 #[derive(clap::Subcommand)]
 pub enum ConfigCommand {
     /// config.status — the full per-entry state machine: names, states,
@@ -1300,6 +1256,14 @@ pub enum ConfigCommand {
         target: TargetArgs,
         entry: String,
     },
+    /// config.unset — remove a config entry's stored value.
+    Unset {
+        #[command(flatten)]
+        target: TargetArgs,
+        /// The config entry identifier (e.g. `stripe.secretKey`).
+        #[arg(long)]
+        entry: String,
+    },
 }
 
 #[derive(clap::Subcommand)]
@@ -1314,6 +1278,18 @@ pub enum JobsCommand {
         #[command(flatten)]
         target: TargetArgs,
         id: String,
+    },
+    /// jobs.drain — claim and run due one-off jobs under an injected clock.
+    Drain {
+        #[command(flatten)]
+        target: TargetArgs,
+        /// The injected drain clock in epoch milliseconds. Absent means wall
+        /// clock.
+        #[arg(long)]
+        now_ms: Option<u64>,
+        /// Bounded cascade waves (server default 1 when absent).
+        #[arg(long)]
+        max_waves: Option<usize>,
     },
 }
 
@@ -2212,8 +2188,6 @@ pub async fn run_from_env() -> anyhow::Result<()> {
             ),
         },
         Some(HostCommand::Data { command }) => data_command(command),
-        Some(HostCommand::Config { command }) => config_command(command),
-        Some(HostCommand::Jobs { command }) => jobs_command(command),
         Some(HostCommand::Auth { command }) => match command {
             AuthCommand::Backup { db, output } => auth_backup(&db, &output).await,
             AuthCommand::Restore { from, db } => auth_restore(&from, &db),
@@ -4284,33 +4258,6 @@ fn admin_json_get(
     telemetry_json_get(target, path, query, None)
 }
 
-/// Generic admin POST for the non-secret-carrying config/jobs family below.
-/// `config.set` is intentionally not routed through this helper — it needs
-/// the stdin/fd secret carrier LLP 0036 owns, not this JSON-body shape.
-fn admin_json_post(target: &TargetArgs, path: &str, value: Value) -> anyhow::Result<Value> {
-    let resolved = resolve_http_target_for_operation(target, false)?;
-    let token = target
-        .token
-        .clone()
-        .or_else(|| std::env::var("SNAPBACK_ADMIN_TOKEN").ok())
-        .filter(|token| !token.is_empty())
-        .or(resolved.minted_token);
-    let mut request = ureq::post(&format!("{}{path}", resolved.server_url));
-    if let Some(token) = token {
-        request = request.set("x-snapback-admin-token", &token);
-    }
-    match request.send_json(value) {
-        Ok(response) => response.into_json().context("response was not JSON"),
-        Err(ureq::Error::Status(status, response)) => {
-            let body = response
-                .into_string()
-                .unwrap_or_else(|_| "<unreadable response>".to_owned());
-            anyhow::bail!("request to {path} failed with HTTP {status}: {body}")
-        }
-        Err(error) => Err(error).context(format!("request to {path} failed")),
-    }
-}
-
 /// data.scan — LLP 0184 P1: a bounded, as-shipped projection of `DataQuery`
 /// (table/limit/offset, no cursor). Mirrors telemetry's automatic scoped
 /// secret-read lease minting; a Dev-policy server does not require the lease
@@ -4338,54 +4285,6 @@ fn data_command(command: DataCommand) -> anyhow::Result<()> {
                 vec![("limit", limit.to_string()), ("offset", offset.to_string())],
                 Some(&lease),
             )?;
-            println!("{}", serde_json::to_string_pretty(&response)?);
-            Ok(())
-        }
-    }
-}
-
-/// config.status / config.plan / config.verify — LLP 0036-owned operations,
-/// non-secret projections only (LLP 0184 §P3: `config.set`/`config.unset`
-/// are a separate, not-yet-landed slice).
-fn config_command(command: ConfigCommand) -> anyhow::Result<()> {
-    match command {
-        ConfigCommand::Status { target } => {
-            let response = admin_json_get(&target, "/_snapback/api/config/status", Vec::new())?;
-            println!("{}", serde_json::to_string_pretty(&response)?);
-            Ok(())
-        }
-        ConfigCommand::Plan { target, entry } => {
-            let mut query = Vec::new();
-            if let Some(entry) = entry {
-                query.push(("entry", entry));
-            }
-            let response = admin_json_get(&target, "/_snapback/api/config/plan", query)?;
-            println!("{}", serde_json::to_string_pretty(&response)?);
-            Ok(())
-        }
-        ConfigCommand::Verify { target, entry } => {
-            let response = admin_json_post(
-                &target,
-                "/_snapback/api/config/verify",
-                json!({ "entry": entry }),
-            )?;
-            println!("{}", serde_json::to_string_pretty(&response)?);
-            Ok(())
-        }
-    }
-}
-
-/// jobs.list / jobs.show — read-only one-off job inspection (LLP 0184 P1).
-/// Draining is a separate, mutating operation out of this slice's scope.
-fn jobs_command(command: JobsCommand) -> anyhow::Result<()> {
-    match command {
-        JobsCommand::List { target } => {
-            let response = admin_json_get(&target, "/_snapback/api/jobs", Vec::new())?;
-            println!("{}", serde_json::to_string_pretty(&response)?);
-            Ok(())
-        }
-        JobsCommand::Show { target, id } => {
-            let response = admin_json_get(&target, &format!("/_snapback/api/jobs/{id}"), Vec::new())?;
             println!("{}", serde_json::to_string_pretty(&response)?);
             Ok(())
         }
@@ -4623,11 +4522,36 @@ fn admin_json_post_no_content(target: &TargetArgs, path: &str, value: Value) -> 
     }
 }
 
-/// @ref LLP 0184#p2-controlled-mutations — `config.unset` direct CLI
-/// projection; LLP 0036 pairs it with a 1:1 `snapback_config_unset` MCP tool
-/// landed alongside (`packages/snapback-cli/mcp-control.mjs`).
+/// config.status / config.plan / config.verify — LLP 0036-owned, non-secret
+/// projections (LLP 0184 P1 backfill), plus config.unset (LLP 0184 §P2):
+/// `config.unset` direct CLI projection; LLP 0036 pairs it with a 1:1
+/// `snapback_config_unset` MCP tool landed alongside
+/// (`packages/snapback-cli/mcp-control.mjs`).
 fn config_command(command: ConfigCommand) -> anyhow::Result<()> {
     match command {
+        ConfigCommand::Status { target } => {
+            let response = admin_json_get(&target, "/_snapback/api/config/status", Vec::new())?;
+            println!("{}", serde_json::to_string_pretty(&response)?);
+            Ok(())
+        }
+        ConfigCommand::Plan { target, entry } => {
+            let mut query = Vec::new();
+            if let Some(entry) = entry {
+                query.push(("entry", entry));
+            }
+            let response = admin_json_get(&target, "/_snapback/api/config/plan", query)?;
+            println!("{}", serde_json::to_string_pretty(&response)?);
+            Ok(())
+        }
+        ConfigCommand::Verify { target, entry } => {
+            let response = admin_json_post(
+                &target,
+                "/_snapback/api/config/verify",
+                json!({ "entry": entry }),
+            )?;
+            println!("{}", serde_json::to_string_pretty(&response)?);
+            Ok(())
+        }
         ConfigCommand::Unset { target, entry } => {
             let response = admin_json_post(
                 &target,
@@ -4658,11 +4582,22 @@ fn cron_command(command: CronCommand) -> anyhow::Result<()> {
     }
 }
 
-/// @ref LLP 0184#p2-controlled-mutations — `jobs.drain`'s direct CLI
-/// projection; the injected `nowMs`/`maxWaves` fields are the same
-/// deterministic seam `JobsDrainRequest` already accepts (`src/admin.rs`).
+/// jobs.list / jobs.show — read-only one-off job inspection (LLP 0184 P1),
+/// plus jobs.drain (LLP 0184 §P2)'s direct CLI projection; the injected
+/// `nowMs`/`maxWaves` fields are the same deterministic seam
+/// `JobsDrainRequest` already accepts (`src/admin.rs`).
 fn jobs_command(command: JobsCommand) -> anyhow::Result<()> {
     match command {
+        JobsCommand::List { target } => {
+            let response = admin_json_get(&target, "/_snapback/api/jobs", Vec::new())?;
+            println!("{}", serde_json::to_string_pretty(&response)?);
+            Ok(())
+        }
+        JobsCommand::Show { target, id } => {
+            let response = admin_json_get(&target, &format!("/_snapback/api/jobs/{id}"), Vec::new())?;
+            println!("{}", serde_json::to_string_pretty(&response)?);
+            Ok(())
+        }
         JobsCommand::Drain {
             target,
             now_ms,

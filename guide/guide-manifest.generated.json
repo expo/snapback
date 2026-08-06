@@ -2,7 +2,11 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "9d9265593fa4463695e1d89c0c18bcadae1aabb9"
+    "commit": "00f9b2bd2ed4054eefec1738edf8829062ccba88"
+  },
+  "publishedClosure": {
+    "scope": "@expo/snapback-*",
+    "newestPublished": "0.1.8"
   },
   "nav": {
     ".": [
@@ -536,7 +540,7 @@
       ],
       "reviewed": "2026-08-03",
       "reviewedCommit": "c442237dedd412d1fe66a85c7a0ed463eba1e013",
-      "sha256": "4f9933cb2cbf37ad1e8ed7698088fb61e5ef7f97db3d0d86aeb2d1e12cfc96dc",
+      "sha256": "b39aa5f9de694190e59e95745e6bb2ffa435e5b43bb1abfd4d09eab063585924",
       "snippets": [
         {
           "lang": "js",
@@ -997,7 +1001,7 @@
       ],
       "reviewed": "2026-08-05",
       "reviewedCommit": "4a6000ac6f17a8c94bc2aecf573c0654e850b758",
-      "sha256": "c4762d69175f4d6148ae7b0fef52c082e3d4a240de24a05a1424396249733ab8",
+      "sha256": "ae8eae8f0a447e0d2175f335a4929faa11250b74766b1bc685647e3ab4034b5f",
       "snippets": [
         {
           "lang": "js",
@@ -1477,9 +1481,9 @@
         "packages/snapback-react/index.mjs"
       ],
       "examples": [],
-      "reviewed": "2026-08-05",
-      "reviewedCommit": "f3c7d9fbb394a413370a9264f22e72b6f151a25e",
-      "sha256": "58c6429173a09184b1cd815117abc27b38563c3c0a1c9242f957ac4e910aa3e6",
+      "reviewed": "2026-08-06",
+      "reviewedCommit": "850427c31b9a668d55b46995e08389cd13a2c9b6",
+      "sha256": "a3dec630c583f309fc0856f6ef9349f76e1efd8d1983d622607f8bf64df834ad",
       "snippets": []
     },
     "clients.app-cli": {
@@ -1710,6 +1714,7 @@
         "llp/0114-first-class-react-and-query-groups.spec.md",
         "llp/0176-expo-messaging-golden-path.plan.md",
         "llp/0181-zero-configuration-expo.rfc.md",
+        "packages/snapback-cli/expo-dev.mjs",
         "packages/snapback-client/index.mjs",
         "packages/snapback-client/react-binding.mjs",
         "packages/snapback-client/rqs-store-default.mjs",
@@ -1718,12 +1723,16 @@
         "packages/snapback-expo/config-plugin.cjs",
         "packages/snapback-expo/index.mjs",
         "packages/snapback-expo/provider.mjs",
+        "packages/snapback-expo/supervised-environment.mjs",
         "packages/snapback-react/index.mjs",
         "scripts/install-local-snapback-packages.mjs",
         "demos/partiful-matrix/tests/acceptance/native-react-expo.mjs",
         "demos/_kit/eas-stage-build.mjs"
       ],
       "examples": [
+        "demos/expo-golden-path-fixture",
+        "demos/expo-golden-path-fixture/receipts/20260806-g1-ios-simulator.md",
+        "demos/expo-golden-path-fixture/receipts/20260806-g1-android-emulator.md",
         "demos/partiful-matrix/native/react-expo",
         "packages/snapback-client/webcrypto-fallback.test.mjs",
         "packages/snapback-expo/provider.test.mjs",
@@ -1735,13 +1744,19 @@
         "demos/tandem-expo-bakeoff/scripts/build-ios-dev-client",
         "demos/_kit/tests/repo-layout-unit.mjs"
       ],
-      "reviewed": "2026-08-05",
-      "reviewedCommit": "f3c7d9fbb394a413370a9264f22e72b6f151a25e",
-      "sha256": "0bfd5643855d63ee286604d3bf52fdb8baeb32dd3a5fe568da441acbc8f2f2d3",
+      "reviewed": "2026-08-06",
+      "reviewedCommit": "4ac8387f080a2659484fc09916ff22a076dc4ca8",
+      "sha256": "af868911da303f13e9acbcdb2a7e290f757c7a58f6819a9a55bcf7003e5fe674",
       "snippets": [
         {
+          "lang": "json",
+          "class": "transcluded",
+          "source": "demos/expo-golden-path-fixture/app.json"
+        },
+        {
           "lang": "tsx",
-          "class": "fragment"
+          "class": "transcluded",
+          "source": "demos/expo-golden-path-fixture/App.tsx"
         },
         {
           "lang": "ts",
@@ -1808,9 +1823,9 @@
         "packages/snapback-react/offline.test.mjs",
         "packages/snapback-react/exact-result-types.fixture.ts"
       ],
-      "reviewed": "2026-08-05",
-      "reviewedCommit": "f3c7d9fbb394a413370a9264f22e72b6f151a25e",
-      "sha256": "75ad6c86424692ca4163d3da2a705a3f54f5155e9b303fd63f50aeeb735d0920",
+      "reviewed": "2026-08-06",
+      "reviewedCommit": "4ac8387f080a2659484fc09916ff22a076dc4ca8",
+      "sha256": "73ef92d51d85a3d171ac17e227efe8be597d4e792ae66640970265b80cae6555",
       "snippets": [
         {
           "lang": "ts",
@@ -1892,7 +1907,7 @@
       "examples": [],
       "reviewed": "2026-08-03",
       "reviewedCommit": "f9ae0083ef41bfc9d07f033da440f96048919613",
-      "sha256": "b805e180deaa21eda00a0dcbfb85dcaf65daedcc5d9b1864900d332029de568f",
+      "sha256": "fd4426e88e9a29fa415bb01e74b3aa1504e92942be12a4f22942c8d2e5ec184c",
       "snippets": []
     },
     "deploying.cloudflare": {
@@ -2045,7 +2060,7 @@
       ],
       "reviewed": "2026-08-05",
       "reviewedCommit": "4a6000ac6f17a8c94bc2aecf573c0654e850b758",
-      "sha256": "6957cc19ecb55b01fbe374820a54c8b7d651e79f2f7556062abe42889bb8cf15",
+      "sha256": "52d065c8229acfe3aea5a2ec91ba3b0b77a00cb5ef1f73f1a796d73eff29f1e8",
       "snippets": []
     },
     "getting-started.your-first-backend": {
@@ -2155,10 +2170,12 @@
         "llp/0000-snapback.explainer.md",
         "llp/0042-agent-mcp-surface.rfc.md",
         "llp/0064-native-client-surfaces.rfc.md",
+        "llp/0181-zero-configuration-expo.rfc.md",
         "llp/0184-agent-accessible-control-plane.rfc.md",
         "src/cli.rs",
         "src/guide_mcp.rs",
         "packages/snapback-cli/index.mjs",
+        "packages/snapback-cli/expo-dev.mjs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
       "examples": [
@@ -2166,11 +2183,12 @@
         "demos/todo-v2",
         "demos/cursors-web",
         "demos/card-game",
-        "demos/partiful-matrix"
+        "demos/partiful-matrix",
+        "demos/expo-golden-path-fixture"
       ],
-      "reviewed": "2026-08-05",
-      "reviewedCommit": "f3c7d9fbb394a413370a9264f22e72b6f151a25e",
-      "sha256": "bf2e2a49e951f5f3c6db419d6d571f5300a55e03dca1c29c79ca16570d6967d7",
+      "reviewed": "2026-08-06",
+      "reviewedCommit": "850427c31b9a668d55b46995e08389cd13a2c9b6",
+      "sha256": "fee341be6522a82e2ae19c3d0745719403bf633a2692a6adb6751d57617869c4",
       "snippets": [
         {
           "lang": "json",
@@ -2312,7 +2330,7 @@
       ],
       "reviewed": "2026-08-03",
       "reviewedCommit": "6e5d69d1037c6042fb9338221dfb489e00f5f78a",
-      "sha256": "34b5b34efa57991ba4964d357b67b4855150fd9c13f63eeb9767a5a612d48f0e",
+      "sha256": "e623accbd235b8f33a4bba8160619283e54c0a8a2f1de0a37a509652dae5b04a",
       "snippets": [
         {
           "lang": "json",
@@ -3160,5 +3178,5 @@
     "routes": 116,
     "hostOps": 37
   },
-  "contentHash": "1668a488fd9cea92cd9b08059f24f77f2ebe8193965b622482aaba723c3352b8"
+  "contentHash": "2b10eb7c831ba5ac62b4ccd650d6304372556b5e5b1da7f9bb635a2373927ae1"
 }
