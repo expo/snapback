@@ -27,6 +27,7 @@ const REPO_ROOT = realpathSync(resolve(dirname(SCRIPT_PATH), '..'));
 const PACKAGES_ROOT = join(REPO_ROOT, 'packages');
 const ROOT_PACKAGES = Object.freeze([
   '@expo/snapback-client',
+  '@expo/snapback-expo',
   '@expo/snapback-react',
 ]);
 const INTERNAL_PREFIX = '@expo/snapback-';
@@ -273,9 +274,9 @@ function usage() {
   return `Usage:
   node scripts/install-local-snapback-packages.mjs <expo-app-directory> [options]
 
-Configures @expo/snapback-client and @expo/snapback-react as local file
-dependencies, generates local overrides for their internal package closure,
-and runs the checkout-pinned Bun install.
+Configures @expo/snapback-client, @expo/snapback-expo, and
+@expo/snapback-react as local file dependencies, generates local overrides
+for their internal package closure, and runs the checkout-pinned Bun install.
 
 Options:
   --frozen-lockfile   Require package.json to match an existing bun.lock

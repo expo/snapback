@@ -4,9 +4,13 @@
   "private": true,
   "packageManager": "bun@1.3.12",
   "dependencies": {
+    "expo": "file:./expo-stub",
+    "react-native": "file:./react-native-stub",
     "react": "file:./react-stub"
   },
   "overrides": {
+    "expo": "file:./expo-stub",
+    "react-native": "file:./react-native-stub",
     "react": "file:./react-stub"
   }
 }

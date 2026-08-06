@@ -7770,8 +7770,8 @@ id: clients.react-expo
 order: 3
 audience: agent-first
 capabilities: [clients.react-expo]
-authorities: [llp/0012-headless-integration-contract.spec.md, llp/0017-admin-console-inspection-surface.rfc.md, llp/0041-packaged-dev-loop.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0176-expo-messaging-golden-path.plan.md, packages/snapback-client/index.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-client/rqs-store-default.mjs, packages/snapback-client/rqs-store-expo.mjs, packages/snapback-react/index.mjs, scripts/install-local-snapback-packages.mjs, demos/partiful-matrix/tests/acceptance/native-react-expo.mjs, demos/_kit/eas-stage-build.mjs]
-examples: [demos/partiful-matrix/native/react-expo, packages/snapback-client/webcrypto-fallback.test.mjs, packages/snapback-react/webcrypto-fallback.test.mjs, packages/snapback-client/rqs-store-expo.test.mjs, packages/snapback-client/rqs-resume-expo.test.mjs, scripts/local-source-package-closure.test.mjs, demos/rn-durable-store-witness/probe-App.tsx, demos/tandem-expo-bakeoff/scripts/build-ios-dev-client, demos/_kit/tests/repo-layout-unit.mjs]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0017-admin-console-inspection-surface.rfc.md, llp/0041-packaged-dev-loop.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0176-expo-messaging-golden-path.plan.md, llp/0181-zero-configuration-expo.rfc.md, packages/snapback-client/index.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-client/rqs-store-default.mjs, packages/snapback-client/rqs-store-expo.mjs, packages/snapback-expo/app-binding.mjs, packages/snapback-expo/config-plugin.cjs, packages/snapback-expo/index.mjs, packages/snapback-expo/provider.mjs, packages/snapback-react/index.mjs, scripts/install-local-snapback-packages.mjs, demos/partiful-matrix/tests/acceptance/native-react-expo.mjs, demos/_kit/eas-stage-build.mjs]
+examples: [demos/partiful-matrix/native/react-expo, packages/snapback-client/webcrypto-fallback.test.mjs, packages/snapback-expo/provider.test.mjs, packages/snapback-react/webcrypto-fallback.test.mjs, packages/snapback-client/rqs-store-expo.test.mjs, packages/snapback-client/rqs-resume-expo.test.mjs, scripts/local-source-package-closure.test.mjs, demos/rn-durable-store-witness/probe-App.tsx, demos/tandem-expo-bakeoff/scripts/build-ios-dev-client, demos/_kit/tests/repo-layout-unit.mjs]
 status: current
 targets: [local]
 maturity: shipped
@@ -7785,12 +7785,14 @@ reviewed-commit: f3c7d9fbb394a413370a9264f22e72b6f151a25e
 > Hosted targets make deliberately weaker or different claims — see
 > [auth/targets](../auth/targets.md).
 
-React Native/Expo uses the same packaged surface as React web:
-`@expo/snapback-client`, generated function references, and the
-`@expo/snapback-react` provider and hooks documented on
-[the React client page](./react.md). It is an **Online** surface: queries and
-mutations run against a reachable Snapback backend. It does not execute
-handlers locally and therefore does not claim local-first behavior or Parity.
+React Native/Expo uses `@expo/snapback-expo` as the environment facade over
+the same `@expo/snapback-client` and `@expo/snapback-react` owners used by
+React web. The facade consumes the generated `snapback.app.v1` descriptor,
+admits a separate environment binding, projects boot state, and delegates the
+provider and hooks documented on [the React client page](./react.md). It is an
+**Online** surface: queries and mutations run against a reachable Snapback
+backend. It does not execute handlers locally and therefore does not claim
+local-first behavior or Parity.
 
 Everything on the React page applies here — this page covers only what is
 different on the RN carrier: the boot path, the crypto prerequisites, the
@@ -7799,7 +7801,7 @@ optimistic mutations work unchanged: for a like/favorite button backed by a
 live feed, use [the optimistic toggle recipe](../recipes/optimistic-toggle.md)
 rather than component state plus a local counter delta.
 
-## Install the client pair from this source checkout
+## Install the Expo facade from this source checkout
 
 For an Expo app nested anywhere under this checkout, run one command from the
 Snapback repository root:
@@ -7810,10 +7812,10 @@ node scripts/install-local-snapback-packages.mjs <expo-app-directory>
 
 The command discovers the complete internal runtime closure from the checkout
 manifests, packs those exact source packages into the app's generated
-`.snapback/local-source-packages/` directory, points the client and React roots
-plus every top-level override at those local tarballs, and runs the Bun version
-pinned by this repository. Commit the app's resulting `package.json` and
-`bun.lock`; rerun the same command with `--frozen-lockfile` in CI or after
+`.snapback/local-source-packages/` directory, points the Expo, client, and React
+roots plus every top-level override at those local tarballs, and runs the Bun
+version pinned by this repository. Commit the app's resulting `package.json`
+and `bun.lock`; rerun the same command with `--frozen-lockfile` in CI or after
 deleting `node_modules`. The command regenerates the local tarballs before each
 install, so do not edit them by hand; treat that directory as generated (and
 ignore it in the app's source-control rules). Keep it present when invoking the
@@ -7853,7 +7855,37 @@ operator surface, not part of the Expo bundle; the command derives a browser
 credential without exposing the master admin token. Check it before falling
 back to `curl`, raw host operations, or a one-off verification script.
 
-## Boot: external bearer, prepared binding, provider
+## Boot from the generated application descriptor
+
+The E0 facade's application-facing shape has no URL prop and no second app
+model. Add `@expo/snapback-expo` to `expo.plugins`, import the generated `app`,
+and mount one provider:
+
+```tsx fragment reason="application root layout and generated import path vary by Expo Router project"
+import { SnapbackExpoProvider } from '@expo/snapback-expo';
+import { app } from './snapback/generated/app';
+
+export default function Root() {
+  return <SnapbackExpoProvider app={app}>{/* routes */}</SnapbackExpoProvider>;
+}
+```
+
+The package verifies the closed `snapback.app-binding.v1` union before it
+adopts ordinary session authority or prepares a store. Its boot projection is
+`starting` (`binding`, `authority`, or `client`), `ready`,
+`authority-required`, `unsupported`, or `error`; missing Sessions-mode
+authority is never anonymous success. AppState lifecycle signals quiesce and
+resume the existing React owner rather than introducing an Expo cache or sync
+protocol.
+
+This E0 surface deliberately stops at the environment admission seam. Until
+the E1 supervisor lands, the default development resolver reports
+`SNAPBACK_APP_BINDING_UNAVAILABLE`; tests and advanced multi-target shells can
+inject a `SnapbackExpoEnvironmentV1` whose binding still passes the same
+source-specific admission. Release binding selection and attestation are E3,
+not ambient runtime URL configuration.
+
+## Use the low-level provider when you own environment wiring
 
 A native app carries an adopted external bearer (see
 [auth/native-apps](../auth/native-apps.md) for how a trusted broker mints it —

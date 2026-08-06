@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "52dbb073bb425c4370682d521fbd5445d90512f1"
+    "commit": "627203ff52c8af911d0ec0d3845b00d5027588b8"
   },
   "nav": {
     ".": [
@@ -1709,10 +1709,15 @@
         "llp/0064-native-client-surfaces.rfc.md",
         "llp/0114-first-class-react-and-query-groups.spec.md",
         "llp/0176-expo-messaging-golden-path.plan.md",
+        "llp/0181-zero-configuration-expo.rfc.md",
         "packages/snapback-client/index.mjs",
         "packages/snapback-client/react-binding.mjs",
         "packages/snapback-client/rqs-store-default.mjs",
         "packages/snapback-client/rqs-store-expo.mjs",
+        "packages/snapback-expo/app-binding.mjs",
+        "packages/snapback-expo/config-plugin.cjs",
+        "packages/snapback-expo/index.mjs",
+        "packages/snapback-expo/provider.mjs",
         "packages/snapback-react/index.mjs",
         "scripts/install-local-snapback-packages.mjs",
         "demos/partiful-matrix/tests/acceptance/native-react-expo.mjs",
@@ -1721,6 +1726,7 @@
       "examples": [
         "demos/partiful-matrix/native/react-expo",
         "packages/snapback-client/webcrypto-fallback.test.mjs",
+        "packages/snapback-expo/provider.test.mjs",
         "packages/snapback-react/webcrypto-fallback.test.mjs",
         "packages/snapback-client/rqs-store-expo.test.mjs",
         "packages/snapback-client/rqs-resume-expo.test.mjs",
@@ -1731,8 +1737,12 @@
       ],
       "reviewed": "2026-08-05",
       "reviewedCommit": "f3c7d9fbb394a413370a9264f22e72b6f151a25e",
-      "sha256": "7caebcbf1a5d5ed169ff9d02774b66ab0851d0f49d065bb4dbb726568dbd4445",
+      "sha256": "0bfd5643855d63ee286604d3bf52fdb8baeb32dd3a5fe568da441acbc8f2f2d3",
       "snippets": [
+        {
+          "lang": "tsx",
+          "class": "fragment"
+        },
         {
           "lang": "ts",
           "class": "fragment"
@@ -3145,5 +3155,5 @@
     "routes": 111,
     "hostOps": 37
   },
-  "contentHash": "8843422fa1ed5afe812be9cacac9741b5b7607bf554f17fcc3d7fc0ed6ed2bce"
+  "contentHash": "ae0c6171e5bf9250bf00574d6d7bab4cd87420d5ca8890d036ddf9c1c2ee44a8"
 }

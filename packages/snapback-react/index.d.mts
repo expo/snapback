@@ -89,10 +89,15 @@ export interface SnapbackReactProvider {
       publish(value: unknown, options?: Readonly<Record<string, unknown>>): Promise<unknown>;
     }>) => unknown,
   ): Readonly<{ dispose(): void }>;
+  /** Quiesce provider-owned live query and presence handles for host lifecycle. */
+  pause(): Promise<void>;
+  /** Resume provider-owned live query and presence handles after host activation. */
+  resume(): Promise<void>;
   inspection(): Readonly<{
     providerInstanceId: string;
     terminal: boolean;
     custodyPaused: boolean;
+    hostPaused: boolean;
     stores: number;
     consumers: number;
     serverSubscriptions: number;

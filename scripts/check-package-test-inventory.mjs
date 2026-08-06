@@ -184,6 +184,19 @@ const inventories = [
     ],
   },
   {
+    id: '@expo/snapback-expo',
+    packageDir: 'packages/snapback-expo',
+    testDir: '.',
+    suffix: '.test.mjs',
+    expectedFiles: [
+      'app-binding.test.mjs',
+      'config-plugin.test.mjs',
+      'package-closure.test.mjs',
+      'package.test.mjs',
+      'provider.test.mjs',
+    ],
+  },
+  {
     id: '@expo/snapback-app-cli',
     packageDir: 'packages/snapback-app-cli',
     testDir: '.',
@@ -570,7 +583,11 @@ const total = results.reduce((sum, result) => sum + result.count, 0);
 // this canonical inventory; caught while landing the G0 A2 lane.
 // 206 -> 207 (2026-08-05, LLP 0179 S0): @expo/snapback-codegen gains the
 // generated descriptor identity, inspection, aliasing, and refusal suite.
-assert.equal(total, 207, 'reviewed package/admin test count changed');
+// 207 -> 212 (2026-08-05, LLP 0181 E0): @expo/snapback-expo gains the closed
+// AppBinding union/admission matrix, config-plugin and value-free receipt,
+// provider/boot/lifecycle composition, package surface, and packed nested
+// clean-room closure suites.
+assert.equal(total, 212, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }
