@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "0b628e76b9549410de9eb40e2eb54fc28cd73333"
+    "commit": "f0fde0c5ed4ca86ec0b824b0200d8d7d0306378a"
   },
   "nav": {
     ".": [
