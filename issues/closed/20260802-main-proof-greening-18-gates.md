@@ -1150,3 +1150,34 @@ inventory selects 214 tests, strict Clippy passes, deployment identities match,
 and all regenerated AppDescriptor/package surfaces reproduce. No correctness
 failure was found or repaired in the actively owned PUSH-01 seam or F0a fork
 implementation.
+
+### Exact final-candidate Linux telemetry carrier — 2026-08-06
+
+The replacement EPYC producer measured a clean detached checkout at exact
+source `f51c4b1a9456264b340e0af7b8d66e396b57be38`. Before dispatch the host
+reported 0.00 load, 243 GiB available memory, 874 GiB free disk, and no other
+Snapback, Cargo, Rust, Bun, or Node proof process. The retained Node 24.18.0 and
+Bun 1.3.12 archives were copied into the fresh run namespace and their upstream
+SHA-256 manifests rechecked successfully before the frozen install.
+
+The initial read-only doctor reported only the expected uninitialized Ibex
+submodule and missing fresh-worktree artifacts. The coded bootstrap initialized
+Ibex pin `4c34c831aa087d6783b0d68f281cdb374ed7fc89`, consumed the compatible
+prepared artifact set through supported `SNAPBACK_IBEX_CHECKOUT`, exact-linked
+and launched the candidate, and qualified its restricted no-eval handler VM.
+No administrator change, manual machine repair, loader bypass, or source
+substitution was used.
+
+The locked Rust smoke, clean release build, runtime-readiness issuance, full
+benchmark, and 120-second idle witness all passed. The retained receipt has
+SHA-256 `c70b0c6424c38fc533446a122cb642f33e36b311a20e7b0be1f01a4002060c2e`
+and covers 474 proof-source files with digest
+`a1621ee74a5e1fa32635a535d4cc97b95422924a4664a00c17f41fb655800b28`.
+The 1,205-line transcript at
+`/var/cache/expose-build/snapback-telemetry-f51.i6i9k8/telemetry-full.log`
+has SHA-256
+`0d45b1b91f1a255f440e18a1f995758ce60615460e01ac77fae30dc690100d81`.
+The idle interval observed zero telemetry storage mutations, zero process read
+bytes, zero process write bytes, 3/10 allowed CPU ticks, and zero RSS-page
+growth. This carrier closes the final batched drift prerequisite; it is a new
+measurement, not a rebound historical receipt.
