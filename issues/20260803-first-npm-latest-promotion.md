@@ -11,6 +11,18 @@ closure and packaging facets), LLP 0145 (client bundle metrology), LLP 0148
 
 ## Running log
 
+- **2026-08-05 — source-checkout consumer found a non-hermetic local package
+  edge.** Relay Room installed `@expo/snapback-client` and
+  `@expo/snapback-react` from local `file:` paths, but the client's exact
+  `@expo/snapback-contract@0.1.0` dependency still resolved through the
+  registry and stopped installation because that version was unavailable.
+  The app required both an explicit local Contract dependency and an
+  `overrides` entry. This is tracked separately in
+  `issues/20260805-local-source-package-closure-needs-contract-override.md`.
+  Publishing a coherent closure should make the registry path green, but the
+  promotion proof should also cover a source-checkout/file consumer so local
+  development cannot silently mix checkout packages with registry packages.
+
 - **2026-08-03 — PUSH-01 is closed and no longer caps promotion.** The local
   `notifications.expoPushSeam` surface has its packaged fake-provider kit and
   a retained physical iOS development-build ticket/receipt witness with both

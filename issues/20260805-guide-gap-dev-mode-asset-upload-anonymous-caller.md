@@ -84,6 +84,29 @@ image for them. On a native client (iOS/Android `expo-image`, not a browser
 that is untested here given the remaining time budget — noted as an open
 question rather than a claim.
 
+## Second integration example: Relay Room
+
+`demos/relay-room-bakeoff/snapback-expo` independently reached the same
+authority boundary. Its `messageImageUpload` is authenticated and returns
+`ctx.auth.userId` as owner, while the Expo app deliberately has only a visible
+test-persona switcher—not native session custody. The screen wires
+`ImagePicker` to a blob and `useSnapbackAssetUpload`, but that ordinary client
+surface cannot supply the caller identity required by the upload attempt.
+
+The build therefore proved images through `snapback assets put --user ...`,
+the same operator/impersonation workaround described above. A real
+393,493-byte PNG then completed processing, attached through the typed
+`ctx.assets.attach` path, and returned `200 image/png` from its public chat
+rendition; unauthenticated record-byte access correctly returned `403`. This
+narrows the blocked part of the workflow to client transfer authority rather
+than image processing, typed attachment, or delivery.
+
+This is corroborating integration evidence, not a second captured hook-level
+403: Relay Room's visual automation tool failed before a device tap-through.
+The inability to give the otherwise-complete Expo demo a supported dev-client
+upload identity is itself the authoring failure. Full notes are in
+`diaries/0058-relay-room-expo-backend-bakeoff.diary.md`.
+
 ## Suggested fix shape
 
 - `guide/backend/assets.md`: state plainly, near the top of "Upload and

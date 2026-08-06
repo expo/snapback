@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "288436d39820e3ee7c7b62d33999968d64d64e7b"
+    "commit": "870acf4c6b7d5447941341f1f1bc5cde4492c216"
   },
   "nav": {
     ".": [
@@ -1450,7 +1450,7 @@
       "examples": [],
       "reviewed": "2026-08-04",
       "reviewedCommit": "HEAD",
-      "sha256": "9fc8d4652b0ea7a23617ac08b0febea1aed3863403029e00af82269767b95b00",
+      "sha256": "96cca9fc828c2bf0c0fb655a4d2232ff83639d2b40698cc6650e1fbbb06f7984",
       "snippets": []
     },
     "clients.app-cli": {
@@ -2787,6 +2787,7 @@
         "llp/0110-bounded-children-and-activity-patterns.spec.md",
         "llp/0129-local-first-program.plan.md",
         "llp/0133-local-settlement.spec.md",
+        "llp/0135-sequence-allocation-and-snapshot-batch.spec.md",
         "llp/0157-composition-algebra-and-completeness.spec.md",
         "llp/0166-local-persistent-store.spec.md",
         "src/local-persistent-store-publication.v1.json",
@@ -2815,7 +2816,7 @@
       ],
       "reviewed": "2026-08-05",
       "reviewedCommit": "HEAD",
-      "sha256": "14d6debf73fe102b28786611c0781c98e8b4a00076a48acdb9df24dc536bac61",
+      "sha256": "8fe5f0ae2b8af693d44cd055129a6514060e60661d801373a7387bfad08502be",
       "snippets": [
         {
           "lang": "js",
@@ -3056,5 +3057,5 @@
     "routes": 111,
     "hostOps": 37
   },
-  "contentHash": "5ff53e888f497ef6c3e3eb0e0e04c1c86ba79c689791ed32c013dd0b0cd72c2b"
+  "contentHash": "91d2e67ae26f18b4d45fa9970cb1960894fd534b385b1ea40c57bc815b8e69cd"
 }

@@ -13,9 +13,12 @@ now publishes `single_table_v1@1`. Its current result-transform profile is
 are not residue.
 
 The following work genuinely remains:
-- **Fleet footprint/hydration row.** Remains an honest carrier-exit GAP blocked
-  on LLP 0135 OQ5's relational-node successor admission. Do not replace it with
-  a synthetic application or inferred measurement.
+- **Fleet footprint/hydration row.** Remains an honest carrier-exit GAP. The
+  LLP 0135 OQ5 product branch was ruled 2026-08-05: admit
+  `relational_query_v1@1` narrowly through reserved `snapshot-batch.v2` /
+  `sbsb2`. The row now waits on the reviewed exact profile registration,
+  implementation, and fresh Fleet measurement. Do not replace it with a
+  synthetic application or inferred measurement.
 - **DK-9 diagnostic spelling — Resolved 2026-08-05 by owner-document
   reconciliation.** LLP 0008 DK-9 and LLP 0166 §D1 now state that
   `SNAPBACK_RQS_STORE_LOCK_UNAVAILABLE` is the authoritative emitted code for
@@ -26,5 +29,6 @@ The following work genuinely remains:
   and `tests/` found two occurrences in two files for each spelling: one
   emitter and one matching test per carrier family.
 
-The Fleet row remains open and still requires its owning admission decision;
-the DK-9 owner-text residue is closed above.
+The Fleet row remains open, but its owning product decision is made. Its
+remaining blockers are the reviewed successor amendment, implementation, and
+fresh witness; the DK-9 owner-text residue is closed above.

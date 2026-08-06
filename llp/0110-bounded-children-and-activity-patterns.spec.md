@@ -5,7 +5,9 @@
 **Systems:** Application data API, Relational queries, Mutations, Code generation, Authorization, Live Queries, Storage portability, Contract/Exact, Diagnostics, Testing, Demo apps
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-27
-**Revised:** 2026-08-04 (local persistent-store / `single_table_v1`
+**Revised:** 2026-08-05 (Fleet GAP wording reconciled after LLP 0135 OQ5's
+narrow `snapshot-batch.v2` direction ruling; no receipt or support claim
+changes). 2026-08-04 (local persistent-store / `single_table_v1`
 publication-authority amendment; see dated section). 2026-08-03 (Accepted LLP 0157 boundary: this Spec keeps
 `BoundedChildrenQueryPlanV1`, bounded-child body semantics, and frozen `sbbc1`
 bytes; LLP 0157 owns the shared cursor-family registry and composition
@@ -1790,7 +1792,9 @@ qualified Triage successor's Move-1 and budget-freeze receipts, and the exact
 executor, schema/codegen, and client-store source bytes that implement the
 proof/wire/store path. The older carrier-exit receipt's Triage GAP is closed
 only by those separately digest-bound successor receipts; its Fleet GAP stays
-an explicit LLP 0135 OQ5 boundary and is not rewritten as success.
+explicit and is not rewritten as success. The 2026-08-05 LLP 0135 OQ5 product
+direction is ruled, while reviewed `snapshot-batch.v2` registration,
+implementation, and a fresh Fleet witness remain absent.
 
 The code-owned target registry may derive positive local support only when the
 embedded carrier parses, its compiled digest and every bound evidence/source

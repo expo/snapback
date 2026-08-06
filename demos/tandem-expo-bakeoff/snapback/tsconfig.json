@@ -1,0 +1,14 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    "paths": {
+      "@/*": ["./src/*"],
+      "@generated/*": ["./snapback/generated/*"],
+      "@tandem/shared/*": ["../shared/*"],
+      "@tandem/snapback-react": ["../../../packages/snapback-react/index.d.mts"]
+    },
+    "resolveJsonModule": true
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx", "../shared/**/*.ts", "../shared/**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts"]
+}

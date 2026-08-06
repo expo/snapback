@@ -1,0 +1,53 @@
+{
+  "title": "tandem convex / acceptance",
+  "passed": 8,
+  "skipped": 0,
+  "failed": 0,
+  "total": 8,
+  "ok": true,
+  "results": [
+    {
+      "name": "seed provisions one group and two direct conversations",
+      "ok": true,
+      "details": null
+    },
+    {
+      "name": "seeded messages preserve image, reply, and reaction projections",
+      "ok": true,
+      "details": null
+    },
+    {
+      "name": "messages send to DMs and groups with a non-threaded reply pointer",
+      "ok": true,
+      "details": null
+    },
+    {
+      "name": "a WebSocket subscription receives a second-client message",
+      "ok": true,
+      "details": null
+    },
+    {
+      "name": "reaction toggle adds, changes, and removes one user reaction",
+      "ok": true,
+      "details": null
+    },
+    {
+      "name": "storage upload attaches and publicly delivers a message image",
+      "ok": true,
+      "details": null
+    },
+    {
+      "name": "typing indicator expires through the scheduled nonce guard",
+      "ok": true,
+      "details": null
+    },
+    {
+      "name": "invalid membership and cross-conversation replies refuse",
+      "ok": true,
+      "details": null
+    }
+  ],
+  "expectedChecks": 8,
+  "cleanupErrors": [],
+  "cleanupErrorCount": 0
+}
