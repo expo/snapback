@@ -341,6 +341,11 @@ run todo-headless --requires current-binary-readiness -- node demos/todo/tests/a
 # acceptance-harness option preserves realistic parent state, verifies fork
 # isolation, and tears down through the exact registry-bound drop lifecycle.
 run forked-parent --requires current-binary-readiness -- node demos/todo/tests/acceptance/forked-parent.mjs
+# @ref LLP 0185#phase-2b--integrate-worktree-parallel-suite-and-fork-per-agent-workflows —
+# parallel lanes share one prepared parent, ownership binds cleanup to exact
+# worktree/agent-run identity, and interruptions settle into the three named
+# dispositions (clean, owner-swept orphan, recovered quarantine).
+run fork-parallel-dispositions --requires current-binary-readiness -- node demos/todo/tests/acceptance/fork-parallel-dispositions.mjs
 run todo-v2-headless --requires current-binary-readiness -- node demos/todo-v2/tests/acceptance/headless.mjs
 # Five deliberately different app kernels keep relational reads, trusted
 # runtime values, cron/live demand, route bundles, and membership authority in

@@ -5,11 +5,13 @@
 // cloning SQLite or killing a PID itself; registry-bound local evidence stays
 // the authority for cleanup and review receipts.
 
-import { spawn } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { execFileSync, spawn } from 'node:child_process';
+import { existsSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { isAbsolute, join, resolve } from 'node:path';
 
 const DEFAULT_OUTPUT_LIMIT = 1024 * 1024;
+const OWNER_FILE = 'fork-owner.json';
+const OWNER_SCHEMA_VERSION = 'snapback.fork-owner.v1';
 
 export async function startForkedServer({
   from,
@@ -129,6 +131,195 @@ export async function startForkedServer({
       drop: stop,
     }),
   };
+}
+
+// ---------------------------------------------------------------------------
+// LLP 0185 Phase 2b: worktree-, agent-, and parallel-suite fork workflows.
+//
+// Ownership is deterministic metadata written as a non-secret direct child of
+// the fork directory. Cleanup binds to that exact recorded identity — an
+// exact canonical worktree path or an exact owner/run pair — never a guessed
+// directory, and every deletion still goes through the registry-bound
+// product `fork drop`.
+
+// Resolve the exact identity of the git worktree containing `directory`.
+// The canonical toplevel path is the ownership key; a nested subdirectory
+// or a symlinked spelling of the same worktree resolves identically.
+export function resolveWorktreeIdentity(directory = process.cwd()) {
+  const toplevel = execFileSync('git', ['-C', resolve(directory), 'rev-parse', '--show-toplevel'], {
+    encoding: 'utf8',
+  }).trim();
+  if (!toplevel) {
+    throw forkHarnessError(
+      'SNAPBACK_FORK_HARNESS_WORKTREE_INVALID',
+      `${directory} is not inside a git worktree`,
+    );
+  }
+  return toplevel;
+}
+
+// One fork owned by one exact worktree: the fork loads that worktree's
+// generated artifacts, and its ownership record names the canonical
+// worktree toplevel so later cleanup can bind to it precisely.
+export async function startWorktreeFork({
+  worktree = process.cwd(),
+  purpose = 'worktree-dev',
+  ...options
+}) {
+  const identity = resolveWorktreeIdentity(worktree);
+  return startOwnedFork({
+    owner: { ownerKind: 'worktree', ownerId: identity, worktree: identity, runId: null, purpose },
+    appRoot: options.appRoot ?? identity,
+    ...options,
+  });
+}
+
+// One fork owned by one agent run. `ownerId` names the agent (or fleet
+// lane) and `runId` the specific run; both are required so interrupted
+// runs can be swept exactly, not by prefix or guesswork.
+export async function startAgentFork({ ownerId, runId, purpose = 'agent-run', ...options }) {
+  if (typeof ownerId !== 'string' || ownerId.length === 0
+    || typeof runId !== 'string' || runId.length === 0) {
+    throw new TypeError('startAgentFork requires non-empty ownerId and runId strings');
+  }
+  return startOwnedFork({
+    owner: { ownerKind: 'agent', ownerId, runId, worktree: null, purpose },
+    ...options,
+  });
+}
+
+async function startOwnedFork({ owner, ...options }) {
+  const server = await startForkedServer(options);
+  const destination = join(server.fork.forkRoot, forkDestinationName(server));
+  const record = {
+    schemaVersion: OWNER_SCHEMA_VERSION,
+    ...owner,
+    forkId: server.fork.forkId,
+    parentSource: resolve(options.from),
+    createdAtMs: server.fork.createEnvelope.data?.receipt?.lineage?.createdAtMs ?? null,
+    expiresAtMs: server.fork.createEnvelope.data?.receipt?.lineage?.expiresAtMs ?? null,
+  };
+  writeFileSync(join(destination, OWNER_FILE), `${JSON.stringify(record, null, 2)}\n`);
+  return {
+    ...server,
+    destination,
+    owner: Object.freeze(record),
+    // Shell-friendly connection exports; no secret values, only the paths
+    // that already carry owner-only custody.
+    envExports: Object.freeze({
+      SNAPBACK_FORK_ID: server.fork.forkId,
+      SNAPBACK_FORK_URL: server.baseUrl,
+      SNAPBACK_FORK_READY_FILE: server.readyFile,
+    }),
+  };
+}
+
+function forkDestinationName(server) {
+  const database = server.fork.createEnvelope.data?.database;
+  if (typeof database !== 'string') {
+    throw forkHarnessError(
+      'SNAPBACK_FORK_HARNESS_ENVELOPE_INVALID',
+      'fork.create did not return the fork database path',
+    );
+  }
+  // The CLI reports canonical paths; canonicalize the configured fork root
+  // the same way (macOS /var vs /private/var) before binding to it.
+  const canonicalRoot = realpathSync(server.fork.forkRoot);
+  const destination = resolve(database, '..');
+  if (resolve(destination, '..') !== canonicalRoot) {
+    throw forkHarnessError(
+      'SNAPBACK_FORK_HARNESS_ENVELOPE_INVALID',
+      'fork database is not a direct grandchild of the fork root',
+    );
+  }
+  return destination.slice(canonicalRoot.length + 1);
+}
+
+// Every registry-bound fork in `forkRoot` whose ownership record exactly
+// matches `match` (strict equality per provided key). Forks without a
+// record never match — ownership is explicit, not inferred.
+export async function discoverOwnedForks({
+  repoRoot,
+  appRoot,
+  forkRoot,
+  match = {},
+  serverBinary = null,
+  env = {},
+}) {
+  const resolvedRepoRoot = resolve(repoRoot);
+  const resolvedAppRoot = resolve(appRoot);
+  const resolvedForkRoot = resolve(forkRoot);
+  const binary = resolveForkBinary({ repoRoot: resolvedRepoRoot, serverBinary, env });
+  const listed = requireForkEnvelope(
+    await runForkCli(binary, [
+      'fork', 'list',
+      '--app-root', resolvedAppRoot,
+      '--fork-root', resolvedForkRoot,
+    ], { cwd: resolvedRepoRoot, env }),
+    'fork.list',
+  );
+  const owned = [];
+  for (const entry of listed.data.forks ?? []) {
+    const ownerPath = join(resolvedForkRoot, entry.destination, OWNER_FILE);
+    if (!existsSync(ownerPath)) continue;
+    let record;
+    try {
+      record = JSON.parse(readFileSync(ownerPath, 'utf8'));
+    } catch {
+      continue;
+    }
+    if (record?.schemaVersion !== OWNER_SCHEMA_VERSION) continue;
+    if (record.forkId !== entry.lineage?.forkId) continue;
+    const matches = Object.entries(match)
+      .every(([key, value]) => record[key] === value);
+    if (matches) owned.push({ entry, owner: record });
+  }
+  return owned;
+}
+
+// Drop exactly the forks whose ownership record matches. Returns the
+// dropped fork ids; every deletion goes through registry-bound `fork drop`.
+export async function dropOwnedForks(options) {
+  const owned = await discoverOwnedForks(options);
+  const { repoRoot, appRoot, forkRoot, serverBinary = null, env = {} } = options;
+  const resolvedRepoRoot = resolve(repoRoot);
+  const binary = resolveForkBinary({ repoRoot: resolvedRepoRoot, serverBinary, env });
+  const dropped = [];
+  for (const { owner } of owned) {
+    requireForkEnvelope(
+      await runForkCli(binary, [
+        'fork', 'drop', owner.forkId,
+        '--app-root', resolve(appRoot),
+        '--fork-root', resolve(forkRoot),
+      ], { cwd: resolvedRepoRoot, env }),
+      'fork.drop',
+    );
+    dropped.push(owner.forkId);
+  }
+  return dropped;
+}
+
+// Repair one crash-interrupted publication (or reap its pre-publication
+// staging) by exact destination through the product `fork recover` verb.
+export async function recoverForkDestination({
+  repoRoot,
+  appRoot,
+  forkRoot,
+  destination,
+  serverBinary = null,
+  env = {},
+}) {
+  const resolvedRepoRoot = resolve(repoRoot);
+  const binary = resolveForkBinary({ repoRoot: resolvedRepoRoot, serverBinary, env });
+  const envelope = requireForkEnvelope(
+    await runForkCli(binary, [
+      'fork', 'recover', resolve(destination),
+      '--app-root', resolve(appRoot),
+      '--fork-root', resolve(forkRoot),
+    ], { cwd: resolvedRepoRoot, env }),
+    'fork.recover',
+  );
+  return envelope.data;
 }
 
 function resolveForkBinary({ repoRoot, serverBinary, env }) {
