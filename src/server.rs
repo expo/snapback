@@ -19291,14 +19291,14 @@ async fn execute_data_patch_host_operation(
     )
     .await
     .and_then(|outcome| outcome);
-    let outcome = committed.and_then(|commit| {
-        Ok(serde_json::to_value(crate::data_patch::receipt(
+    let outcome = committed.map(|commit| {
+        serde_json::to_value(crate::data_patch::receipt(
             token_id,
             binding,
             commit.output.version,
             commit.output.changed_count,
         ))
-        .expect("closed data-patch receipt serializes"))
+        .expect("closed data-patch receipt serializes")
     });
     Ok(project_data_patch_result(
         &state,

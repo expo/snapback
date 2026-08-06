@@ -2350,7 +2350,6 @@ pub async fn run_from_env() -> anyhow::Result<()> {
         Some(HostCommand::Ephemeral { command }) => ephemeral_command(command),
         Some(HostCommand::Jobs { command }) => jobs_command(command),
         Some(HostCommand::Connections { command }) => connections_command(command),
-        Some(HostCommand::Ephemeral { command }) => ephemeral_command(command),
         Some(HostCommand::NetworkProfile { command }) => match command {
             NetworkProfileCommand::Get { target } => {
                 host_op_via_http(&target, json!({ "operation": "debug.networkProfileGet" }))

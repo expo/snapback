@@ -1455,6 +1455,16 @@ its retained receipt SHA-256 is
 `ebeb76105cd7d92cac22f635e73cca36efb0cbf0e4f35e92cc8c3f0957290662`.
 Neither run widened an effect ceiling or changed an actively owned
 correctness seam.
+
+Strict final-candidate clippy found two completed-main debts. The overlapping
+ephemeral CLI landings `d6bb5e69f` and `69136b5ac` had left the identical
+`HostCommand::Ephemeral` dispatch arm twice after integration, making the
+second arm unreachable. Data-patch landing `42ce63d93` used
+`Result::and_then` to return an unconditional `Ok`, which the pinned toolchain
+rejects in favor of the equivalent `map`. The duplicate arm is removed and
+the data-patch projection uses `map`; neither change alters the reachable
+behavior. The S1 codegen cutoff also deterministically rolled the tracked
+Cursors production dist, which is retained with the source that produced it.
 All three conformance gates, capability maturity, and agent-safe publication
 pass without a capability expansion or actively owned correctness edit.
 
