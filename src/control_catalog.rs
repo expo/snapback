@@ -1,0 +1,192 @@
+//! Build-bound control catalog and advisory instance availability projection.
+//!
+//! The checked catalog is embedded in the native binary. Neither the HTTP,
+//! CLI, nor MCP projections read a source checkout at runtime, so a packaged
+//! binary always describes the exact catalog it was compiled with.
+//!
+//! @ref LLP 0184#1-controlcatalogv1 — build and instance identities remain
+//! distinct and consumers must refuse a digest mismatch.
+//! @ref LLP 0184#2-derived-ownership-not-a-second-registry — this module only
+//! projects the generated join; invocation admission remains authoritative.
+
+use crate::admin::AppState;
+use serde_json::{Value, json};
+use std::sync::OnceLock;
+
+pub const CATALOG_SCHEMA_VERSION: &str = "snapback.control-catalog.v1";
+pub const INSTANCE_SCHEMA_VERSION: &str = "snapback.control-catalog-instance.v1";
+pub const CATALOG_DIGEST_HEADER: &str = "x-snapback-control-catalog-digest";
+
+pub static BUILD_CATALOG_BYTES: &[u8] = include_bytes!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/control-catalog/generated/control-catalog.v1.json"
+));
+
+static BUILD_CATALOG: OnceLock<Value> = OnceLock::new();
+
+pub fn build_catalog() -> &'static Value {
+    BUILD_CATALOG.get_or_init(|| {
+        let catalog: Value = serde_json::from_slice(BUILD_CATALOG_BYTES)
+            .expect("compiled control catalog must be valid JSON");
+        assert_eq!(
+            catalog.get("schemaVersion").and_then(Value::as_str),
+            Some(CATALOG_SCHEMA_VERSION),
+            "compiled control catalog has the wrong schemaVersion"
+        );
+        assert!(
+            catalog_digest(&catalog).is_some(),
+            "compiled control catalog has no catalogDigest"
+        );
+        catalog
+    })
+}
+
+pub fn catalog_digest(catalog: &Value) -> Option<&str> {
+    catalog.get("catalogDigest").and_then(Value::as_str)
+}
+
+pub fn operation(operation: &str) -> Option<&'static Value> {
+    build_catalog()
+        .get("entries")?
+        .as_array()?
+        .iter()
+        .find(|entry| entry.get("operation").and_then(Value::as_str) == Some(operation))
+}
+
+/// Return the build catalog with only entries matching every query token.
+/// The digest continues to identify the complete embedded catalog; filtering
+/// is a presentation projection, never a new catalog identity.
+pub fn search(intent: Option<&str>) -> Value {
+    let mut catalog = build_catalog().clone();
+    let tokens = intent
+        .unwrap_or_default()
+        .split_whitespace()
+        .map(str::to_lowercase)
+        .filter(|token| !token.is_empty())
+        .collect::<Vec<_>>();
+    if tokens.is_empty() {
+        return catalog;
+    }
+    let Some(entries) = catalog.get_mut("entries").and_then(Value::as_array_mut) else {
+        return catalog;
+    };
+    entries.retain(|entry| {
+        let operation = entry
+            .get("operation")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+        let title = entry
+            .get("title")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+        let intents = entry
+            .get("intents")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+            .filter_map(Value::as_str)
+            .collect::<Vec<_>>()
+            .join(" ");
+        let haystack = format!("{operation} {title} {intents}").to_lowercase();
+        tokens.iter().all(|token| haystack.contains(token))
+    });
+    catalog
+}
+
+fn instance_target(state: &AppState) -> &'static str {
+    if state.derived_instance_identity.is_some() {
+        "derived-hosted"
+    } else if state.server.auth_deployment == crate::auth::deployment::AuthDeploymentTarget::Hosted
+    {
+        "primary-hosted"
+    } else {
+        "local"
+    }
+}
+
+pub fn instance_projection(state: &AppState) -> Value {
+    let target = instance_target(state);
+    let profile = state.server.profile.as_str();
+    let enabled_capabilities = build_catalog()
+        .get("entries")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter(|entry| entry.get("status").and_then(Value::as_str) == Some("shipped"))
+        .filter(|entry| {
+            matches!(
+                entry.get("operability").and_then(Value::as_str),
+                Some("direct" | "mediated")
+            )
+        })
+        .filter(|entry| {
+            entry
+                .pointer("/availability/targets")
+                .and_then(Value::as_array)
+                .is_some_and(|targets| targets.iter().any(|candidate| candidate == target))
+        })
+        .filter(|entry| {
+            entry
+                .pointer("/availability/profiles")
+                .and_then(Value::as_array)
+                .is_none_or(|profiles| profiles.iter().any(|candidate| candidate == profile))
+        })
+        .filter_map(|entry| entry.get("operation").and_then(Value::as_str))
+        .collect::<Vec<_>>();
+
+    json!({
+        "schemaVersion": INSTANCE_SCHEMA_VERSION,
+        "catalogDigest": catalog_digest(build_catalog()).expect("catalog digest"),
+        "startupNonce": state.server_startup_nonce(),
+        "target": target,
+        "profile": profile,
+        "enabledCapabilities": enabled_capabilities,
+        "generatedAtMs": crate::server::now_millis(),
+    })
+}
+
+/// Bind the two catalog identities before a consumer merges availability.
+/// The instance snapshot is advisory after this check; each invocation still
+/// runs the owning subsystem's admission gate.
+pub fn require_matching_identity<'a>(
+    catalog: &'a Value,
+    instance: &'a Value,
+) -> Result<(&'a Value, &'a Value), &'static str> {
+    let build_digest = catalog_digest(catalog).ok_or("build catalog has no digest")?;
+    let instance_digest = catalog_digest(instance).ok_or("instance projection has no digest")?;
+    if build_digest != instance_digest {
+        return Err("build catalog and instance projection digests differ");
+    }
+    Ok((catalog, instance))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn search_matches_operation_title_and_intents_without_changing_identity() {
+        let full = build_catalog();
+        let filtered = search(Some("network profile"));
+        assert_eq!(catalog_digest(&filtered), catalog_digest(full));
+        assert!(
+            filtered["entries"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|entry| entry["operation"] == "debug.networkProfileSet")
+        );
+    }
+
+    #[test]
+    fn identity_binding_fails_closed_on_mismatch() {
+        let catalog = json!({ "catalogDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" });
+        let matching = json!({ "catalogDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" });
+        let mismatched = json!({ "catalogDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" });
+        assert!(require_matching_identity(&catalog, &matching).is_ok());
+        assert_eq!(
+            require_matching_identity(&catalog, &mismatched),
+            Err("build catalog and instance projection digests differ")
+        );
+    }
+}

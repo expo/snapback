@@ -19,6 +19,7 @@ test('session replacement blanks predecessor identity before successor publicati
   const controller = new SessionController({
     client: {
       async authSession() { return authenticated(); },
+      async authExchange() { throw new Error('not reached'); },
       async authLogout() { return null; },
       async replaceBearerToken() { await replacement; },
       async query() { return {rows: [current]}; },

@@ -413,7 +413,13 @@ server declares. That trigger fired on 2026-08-03 when LLP 0017's four claim
 routes were classified. The mechanical map now lives in
 `guide/surface-map.md` under its own 16 KiB budget; the checker still joins it
 to the capability table and both declared registries. The capability-index
-budget was not raised a second time.
+budget was not raised a second time in that change.
+
+**Size budget raised to 42 KiB (2026-08-06).** LLP 0184's required
+`operating.data-patch` classification arrived when the authored index was only
+seven bytes below its 40 KiB limit. No required classification row could be
+dropped, so the authored-index budget is now 43008 bytes. The separate
+mechanical surface map remains bounded at 16 KiB.
 
 Deliberately still deferred from 0365: the JSON registry file, joins over
 *every* enumerable surface, and the deferral-exception ledger.

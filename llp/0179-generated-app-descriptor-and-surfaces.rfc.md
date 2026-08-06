@@ -7,7 +7,11 @@ React/Expo, Live queries, Ephemeral state, Assets, Auth, Testing, Exact,
 Contract
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-05
-**Revised:** 2026-08-06 (f) — Accepted by the author (Charlie Cheever,
+**Revised:** 2026-08-06 (g) — G2 surface-design revision: descriptor binding
+must remain process-cold reachable through LLP 0114's single persisted
+binding-receipt/RQS owner. The receipt retains a compact admitted deployment
+projection for the byte-identical descriptor; surfaces gain no cache, receipt
+format, or boot lifecycle of their own. Earlier same day (f) — Accepted by the author (Charlie Cheever,
 LLP 0176 G1 gate). Per §React projection, this acceptance amends LLP 0114
 to add `useSurface` as a named projection over its canonical stores; the
 corresponding dated amendment is recorded in LLP 0114's own header and
@@ -509,6 +513,17 @@ environment-specific `AppBinding` from LLP 0181. Binding admission verifies:
 Session authority is adopted separately through the existing auth owner. The
 descriptor never contains a bearer or a persona, and a binding never becomes
 authority merely because its endpoint is reachable.
+
+The seam is also the descriptor's cold-boot seam. When live inspection is
+unreachable, `prepareReactBinding({ generatedManifest: app })` delegates to
+LLP 0114's existing persisted binding receipt. Because the portable descriptor
+omits server-owned interiors, online admission stores only the compact
+server-derived facts needed to reconstruct that owner's admitted function,
+RQS, ephemeral-policy, and capability view; the byte-identical descriptor is
+supplied again by the application. Admission still completes before a surface
+or provider exists, descriptor/generation drift keeps the existing typed
+binding mismatch, and `useSurface` merely projects whatever retained/current
+facts LLP 0114's canonical stores truthfully hold.
 
 ## What remains explicit
 

@@ -10,8 +10,18 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { generateApp, managedAdminToken, scaffoldApp } from './index.mjs';
-import { buildAppDataCatalog, functionToolName } from './mcp-control.mjs';
+import {
+  generateApp,
+  managedAdminToken,
+  readReadyDescriptor,
+  scaffoldApp,
+} from './index.mjs';
+import {
+  McpControlServer,
+  buildAppDataCatalog,
+  functionToolName,
+  requireMatchingControlCatalogIdentity,
+} from './mcp-control.mjs';
 
 const packageDir = dirname(fileURLToPath(import.meta.url));
 const runtimeBinary = process.env.SNAPBACK_RUNTIME_BINARY
@@ -30,6 +40,33 @@ assert.ok(
   const missing = buildAppDataCatalog(join(tmpdir(), 'snapback-mcp-no-such-backend'));
   assert.equal(missing.catalog, null);
   assert.equal(missing.diagnostics[0].code, 'SNAPBACK_MCP_CATALOG_ARTIFACTS_MISSING');
+
+  assert.throws(
+    () => requireMatchingControlCatalogIdentity(
+      { catalogDigest: `sha256:${'a'.repeat(64)}` },
+      { catalogDigest: `sha256:${'b'.repeat(64)}` },
+    ),
+    (error) => error.code === 'SNAPBACK_MCP_CONTROL_CATALOG_IDENTITY_MISMATCH',
+  );
+
+  const missingNative = new McpControlServer({
+    backendDirectory: join(tmpdir(), 'snapback-mcp-no-native-backend'),
+    projectRoot: tmpdir(),
+    runtimeBinary: join(tmpdir(), 'snapback-native-does-not-exist'),
+  });
+  const unavailable = await missingNative.handleRequest({
+    jsonrpc: '2.0', id: 1, method: 'resources/list', params: {},
+  });
+  assert.deepEqual(unavailable.result.resources, []);
+  assert.ok(unavailable.result._meta['snapback/resourceDiagnostics'].length > 0);
+  assert.equal(
+    unavailable.result._meta['snapback/resourceDiagnostics'][0].code,
+    'SNAPBACK_MCP_NATIVE_DOCUMENTATION_UNAVAILABLE',
+  );
+  assert.match(
+    unavailable.result._meta['snapback/resourceDiagnostics'][0].message,
+    /no compatible co-installed native Snapback binary/,
+  );
 }
 
 class McpClient {
@@ -106,6 +143,55 @@ try {
   const initialized = await client.request('initialize', {});
   assert.equal(initialized.result.protocolVersion, '2025-06-18');
   assert.equal(initialized.result.serverInfo.name, 'snapback-control');
+  assert.deepEqual(initialized.result.capabilities.resources, { subscribe: false, listChanged: false });
+
+  const resourceList = await client.request('resources/list');
+  assert.deepEqual(resourceList.result._meta['snapback/resourceDiagnostics'], []);
+  const resourceUris = resourceList.result.resources.map((resource) => resource.uri);
+  assert.ok(resourceUris.includes('snapback-controls://catalog'));
+  assert.ok(resourceUris.includes('snapback-controls://operation/debug.networkProfileSet'));
+  assert.ok(resourceUris.includes('snapback-guide://manifest'));
+  assert.equal(
+    resourceList.result.resources.find(
+      (resource) => resource.uri === 'snapback-controls://catalog',
+    ).annotations.readOnlyHint,
+    true,
+  );
+
+  const templates = await client.request('resources/templates/list');
+  assert.ok(
+    templates.result.resourceTemplates.some(
+      (template) => template.uriTemplate === 'snapback-controls://operation/{operation}',
+    ),
+  );
+  assert.equal(
+    templates.result.resourceTemplates.find(
+      (template) => template.uriTemplate === 'snapback-controls://operation/{operation}',
+    ).annotations.readOnlyHint,
+    true,
+  );
+
+  const catalogResource = await client.request('resources/read', {
+    uri: 'snapback-controls://catalog',
+  });
+  const buildControlCatalog = JSON.parse(catalogResource.result.contents[0].text);
+  assert.equal(buildControlCatalog.schemaVersion, 'snapback.control-catalog.v1');
+  assert.match(buildControlCatalog.catalogDigest, /^sha256:[0-9a-f]{64}$/);
+  assert.ok(buildControlCatalog.entries.length >= 100);
+
+  const describedControl = await client.request('resources/read', {
+    uri: 'snapback-controls://operation/debug.networkProfileSet',
+  });
+  const describedControlRow = JSON.parse(describedControl.result.contents[0].text);
+  assert.equal(describedControlRow.catalogDigest, buildControlCatalog.catalogDigest);
+  assert.equal(describedControlRow.entry.operation, 'debug.networkProfileSet');
+
+  const guideManifestResource = await client.request('resources/read', {
+    uri: 'snapback-guide://manifest',
+  });
+  const guideManifest = JSON.parse(guideManifestResource.result.contents[0].text);
+  assert.match(guideManifest.contentHash, /^[0-9a-f]{64}$/);
+  assert.equal(typeof guideManifest.buildIdentity.commit, 'string');
 
   const listed = await client.request('tools/list');
   const tools = listed.result.tools;
@@ -119,9 +205,11 @@ try {
     'snapback_errors_issues', 'snapback_errors_issue', 'snapback_errors_transition',
     // LLP 0184 §P2's controlled-mutation and asset-family direct tools.
     'snapback_config_unset', 'snapback_cron_tick', 'snapback_cron_run', 'snapback_jobs_drain',
-    'snapback_connection_disconnect',
+    'snapback_connection_disconnect', 'snapback_ephemeral_operator_delete',
     'snapback_asset_delete', 'snapback_asset_gc_sweep', 'snapback_asset_rotate_signing_key',
     'snapback_asset_export_cut', 'snapback_asset_import_cut',
+    // LLP 0184 §A's bounded direct row patch.
+    'snapback_data_patch_preview', 'snapback_data_patch_apply',
   ]) {
     assert.ok(names.includes(pinned), `missing pinned control tool ${pinned}`);
   }
@@ -135,6 +223,20 @@ try {
     assert.equal(profileSchema.oneOf[1].properties[field].maximum, 30_000);
   }
   assert.equal(tools.find((tool) => tool.name === 'snapback_reset').annotations.destructiveHint, true);
+  assert.equal(
+    tools.find((tool) => tool.name === 'snapback_data_patch_preview').annotations.destructiveHint,
+    false,
+  );
+  assert.equal(
+    tools.find((tool) => tool.name === 'snapback_data_patch_apply').annotations.destructiveHint,
+    true,
+  );
+  assert.equal(
+    tools.find((tool) => tool.name === 'snapback_data_patch_apply')
+      .inputSchema.properties.applyToken,
+    undefined,
+  );
+  assert.equal(tools.find((tool) => tool.name === 'snapback_ephemeral_operator_delete').annotations.destructiveHint, true);
 
   const catalog = listed.result._meta['snapback/appDataCatalog'];
   assert.equal(catalog.catalogKind, 'appDataMcpCatalog');
@@ -165,6 +267,15 @@ try {
   assert.equal(restarted.structuredContent.operation, 'host.restart');
   assert.equal(restarted.structuredContent.ok, true, JSON.stringify(restarted.structuredContent));
   assert.ok(Number.isInteger(restarted.structuredContent.data.current.pid));
+
+  const instanceResource = await client.request('resources/read', {
+    uri: 'snapback-controls://instance',
+  });
+  assert.equal(instanceResource.error, undefined, JSON.stringify(instanceResource.error));
+  const instanceCatalog = JSON.parse(instanceResource.result.contents[0].text);
+  assert.equal(instanceCatalog.schemaVersion, 'snapback.control-catalog-instance.v1');
+  assert.equal(instanceCatalog.catalogDigest, buildControlCatalog.catalogDigest);
+  assert.equal(instanceCatalog.startupNonce, readReadyDescriptor(readyFile).startupNonce);
 
   for (const [tool, operation] of [
     ['snapback_load_schema', 'schema.load'],
@@ -303,6 +414,63 @@ try {
   assert.equal(rows.length, 1, JSON.stringify(queried.structuredContent.data));
   assert.equal(rows[0].title, 'from mcp');
 
+  const patchAuthority = {
+    mode: 'devUser',
+    actorPrincipal: null,
+    effectivePrincipal: { userId: 'u_mcp', roles: [] },
+    localDevOnly: true,
+    adminBypass: false,
+    scope: null,
+    reason: null,
+  };
+  const patchInput = {
+    table: 'todos',
+    rowId: rows[0]._id,
+    expectedVersion: rows[0]._version,
+    patch: { title: 'patched through mcp' },
+    authority: patchAuthority,
+    reason: 'MCP control acceptance patch',
+  };
+  const patchPreview = await client.call('snapback_data_patch_preview', patchInput);
+  assert.equal(patchPreview.structuredContent.ok, true, JSON.stringify(patchPreview.structuredContent));
+  assert.match(patchPreview.structuredContent.data.applyTokenId, /^sha256:[0-9a-f]{64}$/);
+  assert.equal(patchPreview.structuredContent.data.applyToken, undefined);
+  assert.doesNotMatch(patchPreview.content[0].text, /sbpat_/);
+
+  // A non-authorizing id cannot switch the authority/patch binding. The MCP
+  // wrapper keeps the matching capability available for the exact apply.
+  const patchMismatch = await client.call('snapback_data_patch_apply', {
+    ...patchInput,
+    patch: { title: 'tampered through mcp' },
+    applyTokenId: patchPreview.structuredContent.data.applyTokenId,
+  });
+  assert.equal(patchMismatch.structuredContent.ok, false);
+  assert.equal(
+    patchMismatch.structuredContent.diagnostics[0].code,
+    'SNAPBACK_MCP_DATA_PATCH_TOKEN_UNAVAILABLE',
+  );
+
+  const patchApplied = await client.call('snapback_data_patch_apply', {
+    ...patchInput,
+    applyTokenId: patchPreview.structuredContent.data.applyTokenId,
+  });
+  assert.equal(patchApplied.structuredContent.ok, true, JSON.stringify(patchApplied.structuredContent));
+  assert.equal(patchApplied.structuredContent.data.receiptKind, 'dataPatchReceipt.v1');
+  assert.equal(patchApplied.structuredContent.data.authority.mode, 'devUser');
+  assert.equal(patchApplied.structuredContent.data.reason, patchInput.reason);
+  assert.equal(patchApplied.structuredContent.data.applyToken, undefined);
+  assert.doesNotMatch(patchApplied.content[0].text, /sbpat_/);
+
+  const patchReused = await client.call('snapback_data_patch_apply', {
+    ...patchInput,
+    applyTokenId: patchPreview.structuredContent.data.applyTokenId,
+  });
+  assert.equal(patchReused.structuredContent.ok, false);
+  assert.equal(
+    patchReused.structuredContent.diagnostics[0].code,
+    'SNAPBACK_MCP_DATA_PATCH_TOKEN_UNAVAILABLE',
+  );
+
   // Read diagnostics through MCP: the SC-1a recent-invocations ring reflects
   // the loads and runs since the restart; MCP-local authority refusals never
   // reached the server and are absent.
@@ -414,6 +582,24 @@ try {
   assert.notEqual(disconnectUnknown.isError, true, JSON.stringify(disconnectUnknown));
   assert.equal(disconnectUnknown.structuredContent.ok, true, JSON.stringify(disconnectUnknown.structuredContent));
   assert.equal(disconnectUnknown.structuredContent.data.reason, 'acceptance: unknown-connection probe');
+
+  // The fresh MCP process threads its readiness descriptor's startup nonce
+  // into the direct route. An unknown collection must therefore reach the
+  // store's distinct error instead of failing at the process fence.
+  const operatorDeleteUnknown = await client.call('snapback_ephemeral_operator_delete', {
+    collection: 'noSuchCollection',
+    scope: { boardId: 'board-1' },
+    entryKey: 'owner',
+    expectedScopeEpoch: 1,
+    expectedEntryGeneration: 1,
+    reason: 'acceptance: projection and nonce probe',
+  });
+  assert.equal(operatorDeleteUnknown.structuredContent.operation, 'ephemeral.operatorDelete');
+  assert.equal(operatorDeleteUnknown.structuredContent.ok, false, JSON.stringify(operatorDeleteUnknown.structuredContent));
+  assert.equal(
+    operatorDeleteUnknown.structuredContent.diagnostics[0].code,
+    'SNAPBACK_EPHEMERAL_UNKNOWN_COLLECTION',
+  );
 
   // Asset family: gcSweep (deterministic under an injected clock) and
   // rotateSigningKey are both safe, idempotent-enough to run in this

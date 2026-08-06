@@ -98,6 +98,49 @@ export interface SidecarStopReceipt {
   readonly escalatedTo?: 'SIGTERM' | 'SIGKILL' | null;
 }
 
+export interface SidecarArtifactGeneration {
+  readonly schemaVersion: string;
+  readonly appId: string;
+  readonly schemaHash: string;
+  readonly bundleHash: string;
+  readonly inputsHash: string;
+}
+
+export interface SidecarFreshSnapshotBarrierV1 {
+  readonly schemaVersion: 'snapback.outbox-fresh-snapshot-barrier.v1';
+  readonly status: 'passed';
+  readonly kind: 'full-snapshot';
+}
+
+/** Authoritative predecessor cut for one explicitly shared caller-owned
+ * sidecar store. Default per-origin stores never produce this handoff. */
+export interface SidecarStoreHandoffSnapshotV1 {
+  readonly schemaVersion: 'snapback.desktop-sidecar-store-handoff.v1';
+  readonly clientStoreId: string;
+  readonly writer: true;
+  readonly artifactGeneration: SidecarArtifactGeneration;
+  readonly pending: number;
+  readonly failed: number;
+  readonly quarantined: number;
+  readonly resultGone: number;
+}
+
+export interface SidecarOutboxBindingV1 {
+  readonly attachedUrl: string;
+}
+
+export interface SidecarOutboxBindingV2 {
+  readonly schemaVersion: 'snapback.desktop-sidecar-binding.v2';
+  readonly attachedUrl: string;
+  readonly startupNonce: string;
+  readonly clientStoreId: string;
+  readonly writer: true;
+  readonly freshSnapshotBarrier: SidecarFreshSnapshotBarrierV1;
+  readonly artifactGeneration: SidecarArtifactGeneration;
+}
+
+export type SidecarOutboxBinding = SidecarOutboxBindingV1 | SidecarOutboxBindingV2;
+
 export interface SidecarOutboxLease {
   readonly snapshot?: unknown;
   /** Resolve only after in-flight submissions have settled back into durable
@@ -109,7 +152,7 @@ export interface SidecarOutboxLease {
     outcome: 'swapped' | 'rolled-back' | 'recovered-new' | 'unchanged';
     attachment: SidecarAttachment;
     snapshot: unknown;
-  }>): Promise<Readonly<{ attachedUrl: string }>>;
+  }>): Promise<SidecarOutboxBinding>;
   /** Resume through a supported adoption path, or report the app store's
    * authoritative pending count when cross-client adoption is unavailable.
    * A swap does not commit unless this receipt attests the selected URL and
@@ -118,11 +161,11 @@ export interface SidecarOutboxLease {
     outcome: 'swapped' | 'rolled-back' | 'recovered-new' | 'unchanged';
     attachment: SidecarAttachment;
     snapshot: unknown;
-    binding: Readonly<{ attachedUrl: string }>;
+    binding: SidecarOutboxBinding;
   }>): Promise<SidecarOutboxResumeReceipt>;
 }
 
-export interface SidecarOutboxResumeReceipt {
+export interface SidecarOutboxResumeReceiptV1 {
   readonly schemaVersion: 'snapback.desktop-sidecar-outbox-resume.v1';
   readonly attachedUrl: string;
   readonly replayed: number;
@@ -130,6 +173,27 @@ export interface SidecarOutboxResumeReceipt {
   readonly failed?: number;
   readonly stopped?: boolean;
 }
+
+export interface SidecarOutboxResumeReceiptV2 {
+  readonly schemaVersion: 'snapback.desktop-sidecar-outbox-resume.v2';
+  readonly attachedUrl: string;
+  readonly startupNonce: string;
+  readonly clientStoreId: string;
+  readonly writer: true;
+  readonly freshSnapshotBarrier: SidecarFreshSnapshotBarrierV1;
+  readonly artifactGeneration: SidecarArtifactGeneration;
+  readonly pendingBefore: number;
+  readonly replayed: number;
+  readonly failedDelta: number;
+  readonly quarantinedDelta: number;
+  readonly resultGoneDelta: number;
+  readonly remaining: number;
+  readonly stopped: boolean;
+}
+
+export type SidecarOutboxResumeReceipt =
+  | SidecarOutboxResumeReceiptV1
+  | SidecarOutboxResumeReceiptV2;
 
 export interface SidecarOutboxAdapter {
   quiesce(context: Readonly<{

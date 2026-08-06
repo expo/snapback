@@ -5,6 +5,11 @@ Status: design spike; not an implementation or capability claim
 Scope: desktop sidecar, JS/Node file-store outbox, same-SQLite runtime replacement  
 Recommendation: **BUILD**, as an explicit sidecar-only store handoff; do not change the global per-origin default
 
+> **Post-build note (2026-08-06):** LLP 0129's follow-on now implements this
+> design. The PoC's non-writer result intentionally changed from the captured
+> pre-build `remaining: 0` below to authoritative `remaining: 1`; the zero was
+> the fail-open accounting defect this design required the build to remove.
+
 ## Executive finding
 
 The pending record is **not bound to the `SnapbackClient` instance that minted

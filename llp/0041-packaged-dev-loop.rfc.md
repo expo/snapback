@@ -6,6 +6,13 @@
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
 
+**Revised (runtime package seal):** 2026-08-06 (LLP 0123 Option 3 landed:
+Darwin and Linux runtime packages now carry one production-issued
+`snapback.runtime-readiness.v1` seal binding binary + shipped Hermes
+header/runtime digests, full build identity, source revision, and the
+successful CV-2 verdict; package resolution re-verifies it. The cross-host
+Linux transport sidecar is v2 and carries the header digest + verdict.)
+
 **Revised (unattended CLI contract):** 2026-08-05 (`snapback --help` now
 composes the package-owned and delegated native inventories; package command
 help is data-only and declares lifecycle/output/exit/recovery; a follow-up
@@ -68,6 +75,9 @@ section added, package/CLI surface corrected to repo reality, LLP 0030
 boundary stated, ready-file attach pinned; initial same day)
 **Related:** LLP 0000, LLP 0010, LLP 0012, LLP 0015, LLP 0016, LLP 0021, LLP 0023, LLP 0024, LLP 0030, LLP 0037, LLP 0038, LLP 0042
 
+**Revised (0.1.9 fast-path publication):** 2026-08-06 (0.1.9 published
+fast-path from clean main `7c16f6d0b8` to `latest` on all nine packages;
+see §Fast-path pre-consumer release, 0.1.9 entry.)
 **Revised (0.1.8 fast-path publication):** 2026-08-01 (author decision:
 pre-consumer releases may skip the staged proofs and the candidate-tag/
 leased-promotion ceremony entirely while the packages have no external
@@ -500,13 +510,16 @@ workflow input as publication authority.
 
 Cross-host assembly never executes a foreign native binary. The native Linux
 builder launches `build-identity` itself and retains one closed
-`snapback.runtime-artifact-attestation.v1` sidecar binding that exact clean
+`snapback.runtime-artifact-attestation.v2` sidecar binding that exact clean
 source revision and public-package identity to SHA-256 digests of the x86-64
-ELF runtime and Hermes library. The macOS assembler re-hashes both transported
-artifacts, validates the closed sidecar and source revision, and only then
-stages the Linux package. ELF header checks remain independent. A sidecar
-without byte equality, exact source identity, or the public-package build
-distribution refuses qualification.
+ELF runtime, Hermes library, and compile-side Hermes header, plus the complete
+successful `snapback.runtime-qualify.v1` verdict produced by executing that
+native pair. The macOS assembler re-hashes all transported artifacts,
+validates the closed sidecar and source revision, and only then stages the
+Linux package and emits its package-owned readiness seal. ELF header checks
+remain independent. A sidecar without byte equality, exact source identity,
+public-package build distribution, or an identity-matched successful verdict
+refuses qualification.
 
 #### Qualified staging substrate — 2026-08-01
 

@@ -7,7 +7,16 @@ Ephemeral state, Code generation, Developer experience, Packaging, Local
 server lifecycle, Testing, Competitive evaluation
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-05
-**Revised:** 2026-08-06 (k) — G1 exit complete: the author accepted LLPs
+**Revised:** 2026-08-06 (m) — G2 repair rerun: descriptor preparation now
+reuses LLP 0114's persisted binding-receipt/RQS owner, and the real-runtime
+surface witness renders all three retained messages with retained/refreshing/
+stale facts offline. Half 1 remains PASS, Half 2 is now PASS (18/18), G2 exits,
+and G3 is unblocked; the original FAIL record remains below as checkpoint
+history. Earlier same day (l) — G2 falsification checkpoint: the Relay Room
+surface rebuild passed the frozen shrinkage bar but failed process-cold
+retained rendering because AppDescriptor binding preparation cannot adopt the
+legacy persisted receipt offline; G2 remains open, G3 is halted, and Status
+remains Review. Earlier same day (k) — G1 exit complete: the author accepted LLPs
 0179/0180, whose acceptance amends LLP 0114 with the `useSurface` and
 `useSnapbackCommand` named projections (see LLP 0114 §Named projections
 from accepted RFCs); combined with the two receipt halves below, every G1
@@ -606,6 +615,40 @@ now met: G2 and G3 may truthfully call their React semantics settled.
 iOS simulator, and Android emulator without duplicate subscriptions or cleanup
 leaks, and the falsification checkpoint passes both halves against at least
 one real bakeoff fixture.
+
+**2026-08-06 falsification checkpoint — FAIL; Status unchanged.** Relay Room
+was frozen as the cleaner comparison because its two Snapback-specific screens
+place every low-level state beside the UI it drives and already contain zero
+manual subscription cleanup. The `useSurface` rebuild passed Half 1 at 339
+versus 510 physical screen lines (171 lines/33.5% smaller, beyond the frozen
+26-line/5.0% bar). Half 2 failed frozen fact 6: after an online run persisted
+both current message rows and the exact binding receipt, a fresh offline client
+using the generated AppDescriptor refused during binding preparation before a
+provider/surface could expose retained state. The descriptor intentionally
+omits server-owned function interiors and the legacy receipt cannot reconstruct
+the admitted deployment view, so `react-binding.mjs` rethrows connectivity in
+descriptor mode instead of adopting the receipt. This is the checkpoint's
+required design-defect outcome, not a partial pass: G2 has not exited and G3
+setup is halted. Baseline, fact-by-fact result, reproduction, and verdict are in
+[`20260806-g2-falsification-baseline.md`](../demos/expo-golden-path-fixture/receipts/20260806-g2-falsification-baseline.md);
+the repair is tracked by
+[`20260806-app-descriptor-use-surface-blocks-cold-retained-boot.md`](../issues/20260806-app-descriptor-use-surface-blocks-cold-retained-boot.md).
+
+**2026-08-06 falsification checkpoint repair rerun — PASS.** The repair did
+not add a surface-specific cache or receipt: descriptor-mode preparation now
+persists and adopts the compact admitted deployment projection through LLP
+0114's existing binding receipt and RQS store. The frozen Half-1 boundary was
+unchanged and re-measured at 339 versus 510 physical lines (171 lines/33.5%
+smaller), so Half 1 remains PASS. The real-runtime 5/5 acceptance now creates
+a fresh offline client/provider/surface and renders all three retained message
+rows through both `data.messages` and `state.messages`, with
+`freshness: retained`, `status: refreshing`, and `connection: stale`; the
+unchanged capability refusal remains typed. Together with the original 17
+preserved facts, frozen fact 6 is now preserved and Half 2 passes 18/18. G2
+has exited and G3 is unblocked. The append-only command/result record is in
+[`20260806-g2-falsification-baseline.md`](../demos/expo-golden-path-fixture/receipts/20260806-g2-falsification-baseline.md),
+and the resolved defect is in
+[`issues/closed/20260806-app-descriptor-use-surface-blocks-cold-retained-boot.md`](../issues/closed/20260806-app-descriptor-use-surface-blocks-cold-retained-boot.md).
 
 ### G3 — one online image-send command
 

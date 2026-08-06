@@ -12,8 +12,10 @@ import { assertPublicPackageBuildIdentity } from '../../scripts/runtime-package-
 const ATTESTATION_KEYS = [
   'binarySha256',
   'buildIdentity',
+  'hermesHeaderSha256',
   'hermesSha256',
   'platform',
+  'qualificationVerdict',
   'schemaVersion',
   'sourceRevision',
 ];
@@ -142,6 +144,29 @@ function validateBuildIdentity(identity, sourceRevision) {
   return identity;
 }
 
+function stableBinaryIdentity(identity) {
+  return {
+    crateVersion: identity?.crateVersion ?? null,
+    gitCommit: identity?.gitCommit ?? null,
+    gitDirty: identity?.gitDirty ?? null,
+    buildProfile: identity?.buildProfile ?? null,
+  };
+}
+
+function validateQualificationVerdict(verdict, buildIdentity, sourceRevision) {
+  if (
+    verdict?.schemaVersion !== 'snapback.runtime-qualify.v1'
+    || verdict.probe !== 'restricted-no-eval-handler-vm'
+    || verdict.ok !== true
+    || JSON.stringify(stableBinaryIdentity(verdict.binary))
+      !== JSON.stringify(stableBinaryIdentity(buildIdentity.binary))
+    || verdict.binary?.gitCommit !== sourceRevision
+  ) {
+    throw new TypeError('Linux runtime artifact qualification verdict drifted');
+  }
+  return verdict;
+}
+
 /**
  * Build the closed cross-host descriptor on the native Linux builder.
  *
@@ -152,17 +177,22 @@ function validateBuildIdentity(identity, sourceRevision) {
 export function createLinuxRuntimeArtifactAttestation({
   binaryPath,
   hermesPath,
+  hermesHeaderPath,
   buildIdentity,
+  qualificationVerdict,
   sourceRevision,
 }) {
   validateBuildIdentity(buildIdentity, sourceRevision);
+  validateQualificationVerdict(qualificationVerdict, buildIdentity, sourceRevision);
   return {
-    schemaVersion: 'snapback.runtime-artifact-attestation.v1',
+    schemaVersion: 'snapback.runtime-artifact-attestation.v2',
     platform: 'linux-x64',
     sourceRevision,
     binarySha256: sha256RegularFile(binaryPath, 'Linux runtime binary'),
     hermesSha256: sha256RegularFile(hermesPath, 'Linux Hermes library'),
+    hermesHeaderSha256: sha256RegularFile(hermesHeaderPath, 'Linux Hermes header'),
     buildIdentity: structuredClone(buildIdentity),
+    qualificationVerdict: structuredClone(qualificationVerdict),
   };
 }
 
@@ -170,24 +200,33 @@ export function validateLinuxRuntimeArtifactAttestation({
   attestation,
   binaryPath,
   hermesPath,
+  hermesHeaderPath,
   sourceRevision,
 }) {
   exactKeys(attestation, ATTESTATION_KEYS, 'Linux runtime artifact attestation');
   if (
-    attestation.schemaVersion !== 'snapback.runtime-artifact-attestation.v1'
+    attestation.schemaVersion !== 'snapback.runtime-artifact-attestation.v2'
     || attestation.platform !== 'linux-x64'
     || attestation.sourceRevision !== sourceRevision
     || !/^[0-9a-f]{64}$/u.test(attestation.binarySha256 ?? '')
     || !/^[0-9a-f]{64}$/u.test(attestation.hermesSha256 ?? '')
+    || !/^[0-9a-f]{64}$/u.test(attestation.hermesHeaderSha256 ?? '')
   ) {
     throw new TypeError('Linux runtime artifact attestation identity drifted');
   }
   validateBuildIdentity(attestation.buildIdentity, sourceRevision);
+  validateQualificationVerdict(
+    attestation.qualificationVerdict,
+    attestation.buildIdentity,
+    sourceRevision,
+  );
   if (
     attestation.binarySha256
       !== sha256RegularFile(binaryPath, 'Linux runtime binary')
     || attestation.hermesSha256
       !== sha256RegularFile(hermesPath, 'Linux Hermes library')
+    || attestation.hermesHeaderSha256
+      !== sha256RegularFile(hermesHeaderPath, 'Linux Hermes header')
   ) {
     throw new TypeError('Linux runtime artifact attestation digest drifted');
   }

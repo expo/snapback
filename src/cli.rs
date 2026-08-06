@@ -13,7 +13,7 @@ use clap::Parser;
 use rusqlite::OptionalExtension as _;
 use serde::Deserialize;
 use serde_json::{Value, json};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::ffi::OsString;
 use std::io::{self, ErrorKind, IsTerminal, Read as _};
 use std::net::IpAddr;
@@ -834,6 +834,14 @@ pub enum HostCommand {
         #[command(subcommand)]
         command: ConnectionsCommand,
     },
+    /// ephemeral.operatorDelete — local non-production administrator bypass
+    /// for one exactly inspected ephemeral entry. This is separate from
+    /// application-owned ephemeral deletion and evaluates no application
+    /// authorization (LLP 0184 §C).
+    Ephemeral {
+        #[command(subcommand)]
+        command: EphemeralCommand,
+    },
     /// debug.networkProfile* — inspect or change the process-local network
     /// condition profile through the shared host-ops envelope.
     #[command(name = "network-profile")]
@@ -883,6 +891,13 @@ pub enum HostCommand {
     Fork {
         #[command(subcommand)]
         command: ForkCommand,
+    },
+    // @ref LLP 0184#4-agent-discovery-and-setup — catalog discovery works
+    // offline from the exact build-bound artifact embedded in this binary.
+    /// Search or describe the build's administrative control catalog.
+    Controls {
+        #[command(subcommand)]
+        command: ControlsCommand,
     },
     // @ref LLP 0187#t4--build-the-out-of-repo-funnel-before-it-is-tested-for-real —
     // the packaged native runtime is the checkout-independent guide carrier.
@@ -1201,6 +1216,32 @@ pub enum ConnectionsCommand {
 }
 
 #[derive(clap::Subcommand)]
+pub enum EphemeralCommand {
+    /// ephemeral.operatorDelete — administrator bypass delete of one
+    /// ephemeral entry, fenced on BOTH the room's scope epoch and the
+    /// entry's own generation together (LLP 0184 §C). This is NOT the
+    /// same authority as an application deleting its own ephemeral entry;
+    /// it never evaluates application authorization.
+    OperatorDelete {
+        #[command(flatten)]
+        target: TargetArgs,
+        #[arg(long)]
+        collection: String,
+        /// Scope as a JSON object, e.g. '{"boardId":"board-1"}'.
+        #[arg(long = "scope-json")]
+        scope_json: String,
+        #[arg(long = "entry-key")]
+        entry_key: String,
+        #[arg(long = "expected-scope-epoch")]
+        expected_scope_epoch: u64,
+        #[arg(long = "expected-entry-generation")]
+        expected_entry_generation: u64,
+        #[arg(long)]
+        reason: String,
+    },
+}
+
+#[derive(clap::Subcommand)]
 pub enum DataCommand {
     /// data.scan — bounded read-only projection over `DataQuery`'s shipped
     /// fields: table, limit, offset. Not a cursor: the route has none, and
@@ -1225,6 +1266,31 @@ pub enum DataCommand {
         /// automatically from the ready file (requires --ready-file).
         #[arg(long)]
         secret_read_lease: Option<String>,
+    },
+    /// Preview or apply one existing-row closed field patch. The complete JSON
+    /// input, including an apply token when applying, is read from a file or
+    /// stdin and is never accepted as an argv value.
+    Patch(DataPatchArgs),
+}
+
+#[derive(clap::Subcommand)]
+pub enum ControlsCommand {
+    /// Search controls by operation id, title, and intent keywords.
+    List {
+        /// Words that must all occur in the operation id, title, or intents.
+        #[arg(long)]
+        intent: Option<String>,
+        /// Emit the build-catalog JSON shape (with filtered entries when
+        /// --intent is present).
+        #[arg(long)]
+        json: bool,
+    },
+    /// Show the complete catalog row for one operation.
+    Describe {
+        operation: String,
+        /// Emit a catalog-identity wrapper plus the complete row as JSON.
+        #[arg(long)]
+        json: bool,
     },
 }
 
@@ -1308,6 +1374,27 @@ pub enum NetworkProfileCommand {
         /// Built-in name (normal, optimistic, demo-slow) or an inline JSON object.
         profile: String,
     },
+}
+
+#[derive(clap::Args)]
+#[command(group(
+    clap::ArgGroup::new("data_patch_intent")
+        .required(true)
+        .multiple(false)
+        .args(["preview", "apply"])
+))]
+pub struct DataPatchArgs {
+    #[command(flatten)]
+    pub target: TargetArgs,
+    /// Validate and mint one short-lived apply token.
+    #[arg(long)]
+    pub preview: bool,
+    /// Consume the apply token carried inside the JSON input and commit.
+    #[arg(long)]
+    pub apply: bool,
+    /// Closed JSON input file, or '-' for stdin.
+    #[arg(long, value_name = "FILE|-")]
+    pub input: PathBuf,
 }
 
 #[derive(clap::Subcommand)]
@@ -2177,6 +2264,7 @@ pub async fn run_from_env() -> anyhow::Result<()> {
         Some(HostCommand::Cron { command }) => cron_command(command),
         Some(HostCommand::Jobs { command }) => jobs_command(command),
         Some(HostCommand::Connections { command }) => connections_command(command),
+        Some(HostCommand::Ephemeral { command }) => ephemeral_command(command),
         Some(HostCommand::NetworkProfile { command }) => match command {
             NetworkProfileCommand::Get { target } => {
                 host_op_via_http(&target, json!({ "operation": "debug.networkProfileGet" }))
@@ -2195,6 +2283,7 @@ pub async fn run_from_env() -> anyhow::Result<()> {
             AuthCommand::Restore { from, db } => auth_restore(&from, &db),
         },
         Some(HostCommand::Fork { command }) => fork_command(command).await,
+        Some(HostCommand::Controls { command }) => controls_command(command),
         Some(HostCommand::Guide { query }) => guide_command(&query),
         Some(HostCommand::Mcp) => crate::guide_mcp::run_stdio(),
         Some(HostCommand::BuildIdentity) => {
@@ -3695,6 +3784,35 @@ fn read_json_file(path: &Path) -> anyhow::Result<Value> {
     serde_json::from_str(&raw).with_context(|| format!("{} is not valid JSON", path.display()))
 }
 
+fn read_data_patch_input(path: &Path) -> anyhow::Result<Value> {
+    use std::io::Read as _;
+
+    const MAX_BYTES: usize = 1024 * 1024;
+    let mut bytes = Vec::new();
+    if path.as_os_str() == "-" {
+        std::io::stdin()
+            .take((MAX_BYTES + 1) as u64)
+            .read_to_end(&mut bytes)
+            .context("failed to read data patch JSON from stdin")?;
+    } else {
+        bytes = std::fs::read(path)
+            .with_context(|| format!("failed to read {}", path.display()))?;
+    }
+    anyhow::ensure!(
+        bytes.len() <= MAX_BYTES,
+        "data patch JSON exceeds the 1 MiB input bound"
+    );
+    let value: Value = serde_json::from_slice(&bytes).with_context(|| {
+        if path.as_os_str() == "-" {
+            "data patch stdin is not valid JSON".to_owned()
+        } else {
+            format!("{} is not valid JSON", path.display())
+        }
+    })?;
+    anyhow::ensure!(value.is_object(), "data patch input must be a JSON object");
+    Ok(value)
+}
+
 fn prepare_composition_activation_source(
     database_path: &Path,
     generated_dir: &Path,
@@ -3969,6 +4087,53 @@ fn resolve_http_target_for_operation(
     anyhow::bail!("no target: pass --url or --ready-file")
 }
 
+struct ResolvedOperatorEphemeralTarget {
+    http: ResolvedHttpTarget,
+    startup_nonce: String,
+}
+
+fn resolve_operator_ephemeral_target(
+    target: &TargetArgs,
+) -> anyhow::Result<ResolvedOperatorEphemeralTarget> {
+    if target.url.is_some() {
+        anyhow::bail!(
+            "SNAPBACK_EPHEMERAL_OPERATOR_DELETE_READY_FILE_REQUIRED: ephemeral operator-delete requires --ready-file; --url cannot supply the process-bound startup nonce"
+        );
+    }
+    let path = target.ready_file.as_deref().context(
+        "SNAPBACK_EPHEMERAL_OPERATOR_DELETE_READY_FILE_REQUIRED: pass --ready-file for ephemeral operator-delete",
+    )?;
+    let ready_target = ReadyFileTarget::open_existing(path)?;
+    let canonical_ready = ready_target.pinned_path().to_path_buf();
+    let descriptor_bytes = ready_target
+        .read_owner_only_sibling(&canonical_ready)
+        .with_context(|| format!("failed to read trusted ready file {}", path.display()))?;
+    let value: Value = serde_json::from_slice(&descriptor_bytes)
+        .with_context(|| format!("{} is not valid JSON", path.display()))?;
+    let descriptor = HostReadyDescriptor::validate(&value).map_err(|problems| {
+        anyhow::anyhow!(
+            "{} is not a valid readiness descriptor: {}",
+            path.display(),
+            problems.join("; ")
+        )
+    })?;
+    let health = fetch_health(&descriptor.server_url);
+    verify_live_descriptor_identity(&descriptor, &health, "ephemeral.operatorDelete")
+        .map_err(|diagnostic| anyhow::anyhow!("{}: {}", diagnostic.code, diagnostic.message))?;
+    let startup_nonce = descriptor.startup_nonce.clone().context(
+        "SNAPBACK_EPHEMERAL_OPERATOR_DELETE_READY_FILE_REQUIRED: readiness descriptor has no startupNonce",
+    )?;
+    let minted_token = discover_minted_token_pinned(&ready_target, &canonical_ready, &descriptor);
+    Ok(ResolvedOperatorEphemeralTarget {
+        http: ResolvedHttpTarget {
+            server_url: descriptor.server_url.trim_end_matches('/').to_owned(),
+            minted_token,
+            impersonation_capability: None,
+        },
+        startup_nonce,
+    })
+}
+
 fn read_impersonation_capability_from_stdin()
 -> anyhow::Result<crate::auth::crypto::ImpersonationBearer> {
     use std::io::Read as _;
@@ -4001,7 +4166,15 @@ fn request_requires_impersonation(request: &Value) -> bool {
     let impersonated = request
         .get("userId")
         .and_then(Value::as_str)
-        .is_some_and(|user_id| !user_id.is_empty());
+        .is_some_and(|user_id| !user_id.is_empty())
+        || request
+            .get("input")
+            .and_then(Value::as_object)
+            .and_then(|input| input.get("authority"))
+            .and_then(Value::as_object)
+            .and_then(|authority| authority.get("mode"))
+            .and_then(Value::as_str)
+            == Some("devUser");
     crate::server::host_ops_operation_spec(operation, None, impersonated).is_some_and(|spec| {
         [
             crate::server::PolicyAuthMode::Dev,
@@ -4289,6 +4462,23 @@ fn data_command(command: DataCommand) -> anyhow::Result<()> {
             println!("{}", serde_json::to_string_pretty(&response)?);
             Ok(())
         }
+        DataCommand::Patch(args) => {
+            if args.input.as_os_str() == "-" && args.target.impersonation_capability_stdin {
+                anyhow::bail!(
+                    "--input - and --impersonation-capability-stdin cannot share stdin; use a ready file or a JSON input file"
+                );
+            }
+            let input = read_data_patch_input(&args.input)?;
+            let operation = if args.preview {
+                crate::data_patch::DATA_PATCH_PREVIEW_OPERATION
+            } else {
+                crate::data_patch::DATA_PATCH_APPLY_OPERATION
+            };
+            host_op_via_http(
+                &args.target,
+                json!({ "operation": operation, "input": input }),
+            )
+        }
     }
 }
 
@@ -4470,6 +4660,15 @@ fn path_segment_escape(raw: &str) -> String {
 /// level more generic (an arbitrary path instead of one hardcoded route).
 fn admin_json_post(target: &TargetArgs, path: &str, value: Value) -> anyhow::Result<Value> {
     let resolved = resolve_http_target_for_operation(target, false)?;
+    admin_json_post_resolved(target, resolved, path, value)
+}
+
+fn admin_json_post_resolved(
+    target: &TargetArgs,
+    resolved: ResolvedHttpTarget,
+    path: &str,
+    value: Value,
+) -> anyhow::Result<Value> {
     let token = target
         .token
         .clone()
@@ -4520,6 +4719,52 @@ fn admin_json_post_no_content(target: &TargetArgs, path: &str, value: Value) -> 
             anyhow::bail!("{path} failed with HTTP {status}: {body}")
         }
         Err(error) => Err(error).context(format!("{path} request failed")),
+    }
+}
+
+fn controls_command(command: ControlsCommand) -> anyhow::Result<()> {
+    match command {
+        ControlsCommand::List { intent, json } => {
+            let catalog = crate::control_catalog::search(intent.as_deref());
+            if json {
+                println!("{}", serde_json::to_string_pretty(&catalog)?);
+                return Ok(());
+            }
+            let digest = crate::control_catalog::catalog_digest(&catalog).unwrap_or("unknown");
+            println!("Build control catalog {digest}");
+            println!("OPERATION\tSURFACE\tOPERABILITY\tSTATUS");
+            for entry in catalog["entries"].as_array().into_iter().flatten() {
+                println!(
+                    "{}\t{}\t{}\t{}",
+                    entry["operation"].as_str().unwrap_or(""),
+                    entry["surfaceAccess"].as_str().unwrap_or(""),
+                    entry["operability"].as_str().unwrap_or(""),
+                    entry["status"].as_str().unwrap_or(""),
+                );
+            }
+            Ok(())
+        }
+        ControlsCommand::Describe { operation, json } => {
+            let Some(entry) = crate::control_catalog::operation(&operation) else {
+                anyhow::bail!("control catalog contains no operation {operation:?}");
+            };
+            let output = serde_json::json!({
+                "schemaVersion": crate::control_catalog::CATALOG_SCHEMA_VERSION,
+                "catalogDigest": crate::control_catalog::catalog_digest(
+                    crate::control_catalog::build_catalog()
+                ),
+                "entry": entry,
+            });
+            if !json {
+                println!(
+                    "Build catalog row (identity {})",
+                    crate::control_catalog::catalog_digest(crate::control_catalog::build_catalog())
+                        .unwrap_or("unknown")
+                );
+            }
+            println!("{}", serde_json::to_string_pretty(&output)?);
+            Ok(())
+        }
     }
 }
 
@@ -4644,6 +4889,47 @@ fn connections_command(command: ConnectionsCommand) -> anyhow::Result<()> {
                     "ok": true,
                 }))?
             );
+            Ok(())
+        }
+    }
+}
+
+/// The startup nonce is server authority for this operation, not an optional
+/// client hint. A URL alone cannot prove which process owns it, so the CLI
+/// requires an owner-only ready descriptor, validates it against live health,
+/// and posts the nonce from that same pinned descriptor snapshot.
+///
+/// @ref LLP 0184#c-administrator-ephemeral-entry-delete--add-now — process,
+/// epoch, and generation fences on the explicit administrator bypass.
+fn ephemeral_command(command: EphemeralCommand) -> anyhow::Result<()> {
+    match command {
+        EphemeralCommand::OperatorDelete {
+            target,
+            collection,
+            scope_json,
+            entry_key,
+            expected_scope_epoch,
+            expected_entry_generation,
+            reason,
+        } => {
+            let scope: BTreeMap<String, String> = serde_json::from_str(&scope_json)
+                .context("--scope-json must be a JSON object whose values are strings")?;
+            let resolved = resolve_operator_ephemeral_target(&target)?;
+            let response = admin_json_post_resolved(
+                &target,
+                resolved.http,
+                "/_snapback/api/ephemeral/operator/delete",
+                json!({
+                    "collection": collection,
+                    "scope": scope,
+                    "entryKey": entry_key,
+                    "expectedScopeEpoch": expected_scope_epoch,
+                    "expectedEntryGeneration": expected_entry_generation,
+                    "reason": reason,
+                    "startupNonce": resolved.startup_nonce,
+                }),
+            )?;
+            println!("{}", serde_json::to_string_pretty(&response)?);
             Ok(())
         }
     }
@@ -8349,8 +8635,9 @@ mod tests {
     use super::{
         AdminArgs, AdminCommand, Args, AssetsCommand, AuthCommand, AuthConstructionFailure,
         AuthCoordinatorReadinessReceipt, AuthProgramConstructionReceipts,
-        BEFORE_STARTUP_TARGET_RESERVATION, Cli, ConfigCommand, ConnectionsCommand, CronCommand,
-        ErrorsCommand, ForkCommand, HostCommand, JobsCommand,
+        BEFORE_STARTUP_TARGET_RESERVATION, Cli, ConfigCommand, ConnectionsCommand, ControlsCommand,
+        CronCommand, DataCommand, DataPatchArgs, EphemeralCommand, ErrorsCommand, ForkCommand,
+        HostCommand, JobsCommand,
         ManagedPath, NetworkProfileCommand, ReadyFileTarget, ResolvedHttpTarget, SessionCommand,
         TargetArgs, TelemetryCommand, automatic_reap_before_create, bind_first_available,
         bind_listener, console_claim_fragment_url, console_fragment_url, fork_secret_disposition,
@@ -8428,6 +8715,41 @@ mod tests {
         assert!(capability < browse, "{output}");
         assert!(output.contains("/_snapback/guide/flat.md"), "{output}");
         assert!(output.contains("snapback mcp"), "{output}");
+    }
+
+    #[test]
+    fn controls_cli_parses_offline_list_and_describe_json_forms() {
+        let list = Cli::parse_from([
+            "snapback",
+            "controls",
+            "list",
+            "--intent",
+            "network profile",
+            "--json",
+        ]);
+        assert!(matches!(
+            list.command,
+            Some(HostCommand::Controls {
+                command: ControlsCommand::List {
+                    intent: Some(intent),
+                    json: true,
+                }
+            }) if intent == "network profile"
+        ));
+
+        let describe = Cli::parse_from([
+            "snapback",
+            "controls",
+            "describe",
+            "debug.networkProfileSet",
+            "--json",
+        ]);
+        assert!(matches!(
+            describe.command,
+            Some(HostCommand::Controls {
+                command: ControlsCommand::Describe { operation, json: true }
+            }) if operation == "debug.networkProfileSet"
+        ));
     }
 
     #[test]
@@ -10350,9 +10672,149 @@ mod tests {
     }
 
     #[test]
+    fn ephemeral_operator_delete_cli_parses_both_fences_and_reason() {
+        let parsed = Cli::parse_from([
+            "snapback",
+            "ephemeral",
+            "operator-delete",
+            "--ready-file",
+            "/tmp/snapback-ready.json",
+            "--collection",
+            "boardCursors",
+            "--scope-json",
+            r#"{"boardId":"board-1"}"#,
+            "--entry-key",
+            "conn_owner",
+            "--expected-scope-epoch",
+            "7",
+            "--expected-entry-generation",
+            "1",
+            "--reason",
+            "stuck presence repair",
+        ]);
+        assert!(matches!(
+            parsed.command,
+            Some(HostCommand::Ephemeral {
+                command: EphemeralCommand::OperatorDelete {
+                    collection,
+                    scope_json,
+                    entry_key,
+                    expected_scope_epoch: 7,
+                    expected_entry_generation: 1,
+                    reason,
+                    ..
+                }
+            }) if collection == "boardCursors"
+                && scope_json == r#"{"boardId":"board-1"}"#
+                && entry_key == "conn_owner"
+                && reason == "stuck presence repair"
+        ));
+
+        let missing_epoch = Cli::try_parse_from([
+            "snapback",
+            "ephemeral",
+            "operator-delete",
+            "--ready-file",
+            "/tmp/snapback-ready.json",
+            "--collection",
+            "boardCursors",
+            "--scope-json",
+            r#"{"boardId":"board-1"}"#,
+            "--entry-key",
+            "conn_owner",
+            "--expected-entry-generation",
+            "1",
+            "--reason",
+            "stuck presence repair",
+        ]);
+        assert!(missing_epoch.is_err());
+    }
+
+    #[test]
     fn path_segment_escape_encodes_reserved_bytes() {
         assert_eq!(path_segment_escape("nightly-digest"), "nightly-digest");
         assert_eq!(path_segment_escape("a/b c"), "a%2Fb%20c");
+    }
+
+    #[test]
+    fn data_patch_cli_requires_one_intent_and_file_or_stdin_json() {
+        let preview = Cli::parse_from([
+            "snapback",
+            "data",
+            "patch",
+            "--preview",
+            "--input",
+            "preview.json",
+            "--url",
+            "http://127.0.0.1:4287",
+        ]);
+        assert!(matches!(
+            preview.command,
+            Some(HostCommand::Data {
+                command: DataCommand::Patch(DataPatchArgs { preview: true, apply: false, .. })
+            })
+        ));
+
+        let apply = Cli::parse_from([
+            "snapback",
+            "data",
+            "patch",
+            "--apply",
+            "--input",
+            "-",
+            "--ready-file",
+            "server.ready.json",
+        ]);
+        assert!(matches!(
+            apply.command,
+            Some(HostCommand::Data {
+                command: DataCommand::Patch(DataPatchArgs { preview: false, apply: true, .. })
+            })
+        ));
+
+        let missing_intent = Cli::try_parse_from([
+            "snapback",
+            "data",
+            "patch",
+            "--input",
+            "patch.json",
+            "--url",
+            "http://127.0.0.1:4287",
+        ])
+        .unwrap_err();
+        assert_eq!(
+            missing_intent.kind(),
+            clap::error::ErrorKind::MissingRequiredArgument
+        );
+
+        let both = Cli::try_parse_from([
+            "snapback",
+            "data",
+            "patch",
+            "--preview",
+            "--apply",
+            "--input",
+            "patch.json",
+            "--url",
+            "http://127.0.0.1:4287",
+        ])
+        .unwrap_err();
+        assert_eq!(both.kind(), clap::error::ErrorKind::ArgumentConflict);
+
+        let token_in_argv = Cli::try_parse_from([
+            "snapback",
+            "data",
+            "patch",
+            "--apply",
+            "--input",
+            "patch.json",
+            "--apply-token",
+            "must-not-be-an-argv-carrier",
+            "--url",
+            "http://127.0.0.1:4287",
+        ])
+        .unwrap_err();
+        assert_eq!(token_in_argv.kind(), clap::error::ErrorKind::UnknownArgument);
     }
 
     #[test]

@@ -245,6 +245,36 @@ assert.equal(headlessConversation.snapshot().data.messages, undefined);
 await headlessConversation.dispose();
 await surfaceBoot.dispose();
 
+// G2 capability-refusal witness: the exact conversation descriptor cannot
+// boot against a supervised binding that omits one generated requirement.
+// The app-level fallback receives this diagnostic before authority, stores,
+// queries, rooms, mutations, or asset tasks can start.
+let capabilityMismatchAuthorityAdoptions = 0;
+const capabilityMismatchBinding = structuredClone(conversationBinding);
+const missingConversationCapability = conversationApp.capabilities.required[0];
+capabilityMismatchBinding.capabilities.offered = conversationApp.capabilities.required.slice(1);
+const capabilityMismatchBoot = createSnapbackExpoBoot({
+  app: conversationApp,
+  now: () => Date.parse('2026-08-05T20:30:00.000Z'),
+  environment: {
+    format: 'snapback.expo-environment.v1',
+    appState: appStateHarness(),
+    resolveBinding: async () => ({
+      binding: capabilityMismatchBinding,
+      admission: { delivery: { channel: 'local-supervised-ipc' } },
+    }),
+    async adoptAuthority() {
+      capabilityMismatchAuthorityAdoptions += 1;
+      return null;
+    },
+  },
+});
+const capabilityMismatchState = await capabilityMismatchBoot.start();
+assert.equal(capabilityMismatchState.status, 'unsupported');
+assert.equal(capabilityMismatchState.diagnostic.code, 'SNAPBACK_APP_BINDING_CAPABILITY_MISMATCH');
+assert.deepEqual(capabilityMismatchState.diagnostic.details.missingCapabilities, [missingConversationCapability]);
+assert.equal(capabilityMismatchAuthorityAdoptions, 0);
+
 let mismatchAuthorityAdoptions = 0;
 const mismatch = structuredClone(binding);
 mismatch.descriptorIdentity = 'sha256:foreign-descriptor';

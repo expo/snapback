@@ -7,6 +7,7 @@
 // Usage: node scripts/check-guide.mjs [--snippets] [--consistency]
 // (no flags = run everything; this is also the fast docs-only entry point)
 import { readFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
 import {
   FLAT_PATH,
@@ -44,6 +45,18 @@ if (runAll || flags.has('--consistency')) {
   surfaces = checkCapabilityIndex(root, index, pageInfo, errors);
   checkPublishedClosure(root, pageInfo, pageBodies, errors);
   checkFreshness(root, pageInfo, warnings, infos);
+  // @ref LLP 0184#3-completeness-and-parity-rules — rule 9: Guide control
+  // inventories and counts are checked projections of the build catalog.
+  try {
+    execFileSync(
+      process.execPath,
+      [join(root, 'scripts/generate-control-catalog.mjs'), '--check'],
+      { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
+    );
+  } catch (error) {
+    const detail = `${error.stdout ?? ''}${error.stderr ?? ''}`.trim();
+    errors.push(`control-catalog Guide projection check failed${detail ? `:\n${detail}` : ''}`);
+  }
 }
 
 if (runAll && index) {

@@ -22,6 +22,11 @@ import {
   queryResultEnvelope,
   type QueryName,
 } from './lib/envelopes.mts';
+import {
+  LoginBootstrapRegistry,
+  loginBootstrapCookieName,
+  type LoginBootstrapExchange,
+} from './lib/login-bootstrap.mts';
 import {markdownError, renderMachineIssueMarkdown} from './lib/markdown.mts';
 import {
   tokenDigest,
@@ -256,8 +261,26 @@ async function main(): Promise<void> {
   const artifacts = JSON.parse(await readFile(ARTIFACTS_PATH, 'utf8')) as JsonRecord;
   const {default: api} = await import(pathToFileURL(GENERATED_API_PATH).href) as {default: GeneratedApi};
   const {actorBySourceID, actorByGithubID, githubIDByActor} = await loadActorMaps();
-  const snapbackReady = JSON.parse(await readFile(readyFile, 'utf8')) as {serverUrl?: string};
+  const snapbackReady = JSON.parse(await readFile(readyFile, 'utf8')) as {
+    serverUrl?: string;
+    adminTokenFile?: string;
+    impersonationCapabilityFile?: string;
+  };
   if (typeof snapbackReady.serverUrl !== 'string') throw new Error('Snapback ready file has no serverUrl');
+  if (
+    typeof snapbackReady.adminTokenFile !== 'string'
+    || typeof snapbackReady.impersonationCapabilityFile !== 'string'
+  ) {
+    throw new Error('Snapback ready file has no browser-login operator carriers');
+  }
+  const snapbackAdminToken = (await readFile(snapbackReady.adminTokenFile, 'utf8')).trim();
+  const snapbackImpersonationCapability = await readFile(
+    snapbackReady.impersonationCapabilityFile,
+    'utf8',
+  );
+  if (!snapbackAdminToken || !snapbackImpersonationCapability) {
+    throw new Error('Snapback browser-login operator carriers are empty');
+  }
   const snapbackBaseUrl = snapbackReady.serverUrl.replace(/\/$/u, '');
   if (!/^http:\/\/(127\.0\.0\.1|localhost):\d+$/u.test(snapbackBaseUrl)) {
     throw new Error('Snapback ready file must name a loopback server');
@@ -291,6 +314,7 @@ async function main(): Promise<void> {
     redirect: string;
     expires: number;
   }>();
+  const loginBootstraps = new LoginBootstrapRegistry();
   const gatewayStartupNonce = randomBytes(16).toString('base64url');
 
   async function validatedSession(request: Request, required: boolean): Promise<{
@@ -334,6 +358,60 @@ async function main(): Promise<void> {
       rqsStore: null,
     });
     return {client, token: minted.token, close: async () => client.closeAuth()};
+  }
+
+  async function browserLoginExchange(actor: ActorId): Promise<{
+    exchange: LoginBootstrapExchange;
+    expiresAtMs: number;
+  }> {
+    // @ref LLP 0059#transition-barrier — a gateway-minted external bearer
+    // cannot bypass browser coordinator custody. Give the SPA the provider's
+    // one-use challenge/code so authExchange performs the supported barrier.
+    const email = actorEmail(actor);
+    const client = new SnapbackClient(snapbackBaseUrl, {
+      custody: 'anonymous-public',
+      adminToken: null,
+      rqsStore: null,
+    });
+    try {
+      const requested = await client.authRequestCode(email) as {
+        challengeId?: unknown;
+        expiresAt?: unknown;
+      };
+      if (
+        typeof requested.challengeId !== 'string'
+        || !/^sbc_[A-Za-z0-9._~-]+$/u.test(requested.challengeId)
+        || !Number.isSafeInteger(requested.expiresAt)
+      ) throw new HttpError(502, 'Snapback login challenge was malformed');
+      const mailboxResponse = await fetch(
+        `${snapbackBaseUrl}/_snapback/api/auth/mailbox?challengeId=${encodeURIComponent(requested.challengeId)}`,
+        {
+          headers: {
+            'x-snapback-admin-token': snapbackAdminToken,
+            'x-snapback-impersonation-capability': snapbackImpersonationCapability,
+          },
+        },
+      );
+      const mailbox = await mailboxResponse.json() as JsonRecord;
+      if (
+        !mailboxResponse.ok
+        || mailbox.challengeId !== requested.challengeId
+        || mailbox.canonicalAddress !== email
+        || typeof mailbox.code !== 'string'
+        || !/^\d{6}$/u.test(mailbox.code)
+        || !Number.isSafeInteger(mailbox.expiresAt)
+      ) throw new HttpError(502, 'Snapback login mailbox exchange was refused');
+      return {
+        exchange: Object.freeze({challengeId: requested.challengeId, code: mailbox.code}),
+        expiresAtMs: Math.min(
+          requested.expiresAt as number,
+          mailbox.expiresAt as number,
+          Date.now() + OAUTH_STATE_SECONDS * 1_000,
+        ),
+      };
+    } finally {
+      await client.closeAuth();
+    }
   }
 
   async function capture(provider: 'loops' | 'discord', request: Request): Promise<Response> {
@@ -428,22 +506,57 @@ async function main(): Promise<void> {
             || !constantEqual(stored.challenge, challenge) || stored.actor !== actor
           ) throw new HttpError(400, 'OAuth callback was refused');
           const session = await actorSession(actor);
+          let browserLogin: Awaited<ReturnType<typeof browserLoginExchange>>;
           try {
             const self = await session.client.query(api.gatewayIdentitySelf as never, {args: {}});
             const identity = jsonRecord(self.rows[0], 'OAuth identity');
             if (identity.githubID !== githubID) throw new HttpError(400, 'OAuth identity mapping was refused');
+            browserLogin = await browserLoginExchange(actor);
           } finally {
             await session.close();
           }
           const cookieName = url.protocol === 'https:' ? '__Host-zerobugs-session' : 'zerobugs-session';
+          const bootstrapCookieName = loginBootstrapCookieName(url.protocol);
+          const bootstrapToken = randomBytes(32).toString('base64url');
+          loginBootstraps.stage(
+            bootstrapToken,
+            browserLogin.exchange,
+            browserLogin.expiresAtMs,
+          );
+          const headers = new Headers({
+            location: stored.redirect,
+            'cache-control': 'no-store',
+          });
+          headers.append(
+            'set-cookie',
+            `${cookieName}=${session.token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=2592000${url.protocol === 'https:' ? '; Secure' : ''}`,
+          );
+          headers.append(
+            'set-cookie',
+            `${bootstrapCookieName}=${bootstrapToken}; HttpOnly; SameSite=Lax; Path=/api/auth/bootstrap; Max-Age=${OAUTH_STATE_SECONDS}${url.protocol === 'https:' ? '; Secure' : ''}`,
+          );
           return new Response(null, {
             status: 302,
-            headers: {
-              location: stored.redirect,
-              'cache-control': 'no-store',
-              'set-cookie': `${cookieName}=${session.token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=2592000${url.protocol === 'https:' ? '; Secure' : ''}`,
-            },
+            headers,
           });
+        }
+
+        if (method === 'POST' && url.pathname === '/api/auth/bootstrap') {
+          const cookieName = loginBootstrapCookieName(url.protocol);
+          const token = cookies(request).get(cookieName) ?? null;
+          const clearCookie = `${cookieName}=; HttpOnly; SameSite=Lax; Path=/api/auth/bootstrap; Max-Age=0${url.protocol === 'https:' ? '; Secure' : ''}`;
+          if (token === null) {
+            return new Response(null, {status: 204, headers: {'cache-control': 'no-store'}});
+          }
+          const exchange = loginBootstraps.consume(token);
+          if (!exchange) {
+            return jsonResponse(
+              {error: 'login bootstrap was invalid or expired'},
+              401,
+              {'set-cookie': clearCookie},
+            );
+          }
+          return jsonResponse(exchange, 200, {'set-cookie': clearCookie});
         }
 
         if (method === 'POST' && ['/api/get-queries', '/api/query'].includes(url.pathname)) {

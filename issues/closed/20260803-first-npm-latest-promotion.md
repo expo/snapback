@@ -1,6 +1,6 @@
 # First npm `latest` promotion of the nine-package surface
 
-**Status:** Open — authorized, sequenced as the wave capstone
+**Status:** Closed — executed 2026-08-06 (0.1.9 fast-path)
 **Opened:** 2026-08-03 (Charlie: "pull the trigger", follow-on ratification
 in `issues/20260802-author-decision-packet.md`)
 **Systems:** Packaging, Deployment, Testing
@@ -114,3 +114,24 @@ the published versions.
   explicitly re-scoped in this ticket — stating that the local proof was
   red on a known, filed gate and why that was acceptable — rather than
   closing while the checklist reads as met.
+
+- **2026-08-06 — EXECUTED: 0.1.9 live on npm `latest`; ticket closes.**
+  Fast-path per the supersession entry above, from clean main
+  `7c16f6d0b88ef6308d959d40d51fb36ee957fe99`. Receipts: nine `dry-run-ok`
+  staging rows; nine `npm publish --access public` publications in ledger
+  order; registry serves `latest: 0.1.9` on all nine names with the
+  `@expo/snapback-cli` shasum byte-identical to the staged tarball
+  (`b80e5f0b77b3…`); ledger retained at
+  `~/snapback-release-ledgers/fastpath-ledger-0.1.9-7c16f6d0b8.json`; cold
+  install from the public registry green (`runtime-qualify` ok with the
+  exact release identity, `snapback new` scaffold + `snapback dev` boot,
+  `/llms.txt` served with build-bound headers). The full LLP 0134 ceremony
+  did not run: the qualified-receipt path is structurally blocked
+  (`issues/20260806-qualified-publish-eas-provenance-blocker.md`), the
+  authority is undeployed (`issues/20260806-publication-authority-not-deployed.md`),
+  and the 0134-vs-packaging ruling is Charlie's
+  (`issues/20260806-llp0134-bar-vs-npm-promotion-ruling-needed.md`); the
+  0134 soak window runs as its own decoupled 14-day program. The
+  source-checkout/`file:` consumer proof remains open in
+  `issues/20260805-local-source-package-closure-needs-contract-override.md`.
+  Dated notes landed on LLP 0041/0074/0122 and the LLP 0115 board.

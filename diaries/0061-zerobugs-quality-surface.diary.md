@@ -226,3 +226,32 @@ at the heart of the control), and the client session surface — 58 pure
 tests plus a 6/6 live smoke. The controller is the piece Zerobugs' UX
 actually lives on; having it headless and oracle-tested before any JSX
 exists is the sequencing paying off.
+
+## 2026-08-06 — Lane 6b: the app runs in a browser, and finds two auth deadlocks
+
+The pinned Zerobugs UI now renders on Snapback in real Chrome: the 517-issue
+fixture list, filters, labels, dates, virtual windows, issue detail,
+permalinks, and the composer. Getting there took five environment fixes
+(readiness-descriptor shape, macOS symlink canonicalization for the
+mechanical impersonation sibling, exact-bytes sidecar parsing, a TDZ
+shadowing bug, OAuth redirect-allowlist ordering) and produced two genuine
+shipped-client defects that no headless test had ever hit:
+
+1. `AuthCoordinator.transition` holds the custody Web Lock across its
+   participant barrier; a participant's ack calls `synchronize()` on the same
+   lock. Classic lock-across-callback deadlock — invisible to the
+   memory-storage unit tests, fatal for any browser login racing query
+   hydration. Web-Lock instrumentation caught it cleanly (`acq` with no
+   `rel`, everything after queued forever).
+2. On the same path, external `synchronize()` hot-retried on `CLEARING`
+   instead of awaiting settlement.
+
+Both are fixed with green unit suites — and both are parked on a branch, not
+main, because after them the Chrome run wedges its CDP session in a way a
+`Debugger.pause` probe shows is *not* application spinning. Landing a
+half-understood change to shipped auth custody would be worse than waiting.
+
+Lesson worth keeping: the browser lane is where custody bugs live. Lanes 1-5
+verified queries, mutations, effects, and routes headlessly and found three
+platform bugs; Lane 6b's first real page load found two more, in the layer
+that only exists in a browser.

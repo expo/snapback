@@ -1,6 +1,6 @@
 # Zerobugs Stage 0.5 current-surface control plan
 
-Status: Lanes 1–5 complete and live-verified; Lane 6a typed client data/window/session layer implemented with in-sandbox validation passing and its fresh-server live smoke awaiting the supervising session; Lane 6b pinned UI port not started
+Status: Lanes 1–5 and 6a complete and live-verified; Lane 6b source-faithful pinned UI port implemented with all in-sandbox proofs passing, its real-Chrome flow proven through login/list/filter/sort/scroll/detail/permalink/composer/internal-not-found, and the IndexedDB custody repair awaiting the supervising 12-check reload/logout continuation
 Governing contract: `demos/zerobugs/manifest/acceptance.v1.md`  
 Source inventory: `demos/zerobugs/stage0/inventory.v1.md`  
 Source pin: `rocicorp/mono@25c2c7308d3eb674d2d895022c9da11ef0c742fb`, `apps/zbugs`  
@@ -22,11 +22,13 @@ five-actor local identity binding, principal-derived role/ownership helpers,
 all 19 frozen typed live-query names, the complete 16-mutator authoritative
 server corpus, transaction-coupled durable notification intent for all eight
 triggers, independent query/mutation oracles, generated-artifact inputs, and a
-minimal React boot, the Lane 5 versioned composition/delivery control, and the
-Lane 6a typed query/mutation/session adapters plus app-owned headless window
-controller. It does **not** claim the Lane 6b pinned UI port or ZB gate lanes
-are implemented. Lane 6a's fresh-server adapter smoke remains awaiting an
-outside-sandbox run. This control does not claim a hosted target, production
+Lane 5 versioned composition/delivery control, the Lane 6a typed
+query/mutation/session adapters plus app-owned headless window controller, and
+the Lane 6b pinned React/CSS/assets surface over those adapters. Its browser
+boot uses the shipped IndexedDB/Web Locks `AuthCoordinator` custody adapter so
+an exchanged session can be adopted after a full page reload. Lane 6b is not
+live-complete until its owned fresh-server/real-Chrome receipt passes; later ZB
+gate lanes remain unimplemented. This control does not claim a hosted target, production
 OAuth, durable notification product capability beyond committed local intent,
 or large-fixture qualification.
 
@@ -1023,3 +1025,343 @@ optimistically and settles to the authoritative row; a refused mutation
 rebases away with the refusal surfaced; and a session switch blanks
 predecessor client state. Lane 6b (the pinned UI port over this layer,
 verified in Chrome) completes sequencing row 6.
+
+## Lane 6b validation — source-faithful UI and real-Chrome driver
+
+Lane 6b ports the immutable Zerobugs `src/` pin over the already-landed Lane
+6a boundary. `src/data/snapback.ts` is the single browser boot: one
+IndexedDB/Web Locks-backed `AuthCoordinator`, one `SnapbackClient`,
+generated-manifest React binding, typed query adapter, mutation/presentation
+ledger, and session controller.
+The routed application now serves the pinned list/detail/composer/navigation
+surface at `/p/:projectName` and `/p/:projectName/issue/:id`; every product
+query and mutation enters through `src/data`, and the gateway-only login and
+asset routes remain same-origin composition calls. Vite's owned Snapback relay
+uses attach mode for ordinary development and an explicitly supplied external
+origin in the live harness; `/api` and `/assets` proxy to the composition
+gateway without adding a readable bearer.
+
+The list and comments ports use the Lane 6a controller rather than a local
+slice or a substitute virtualizer. List identity includes every filter and
+sort fact and maps only to `issueListV2`/`listIssueByID`. Comments map only to
+`commentsPage`/`comment`, feed natural-height `ResizeObserver` measurements,
+signal newest-row arrival to the controller, and retain the pinned permalink
+and offscreen-arrival behavior. Both render controller-owned before/after
+spacers, source-id keys, bounded forward/back demand, history scroll state,
+and authoritative permalink outcomes.
+
+### Port-treatment deviations
+
+Every stricter move is explicit; no adapter-coupled file is described as an
+as-is port.
+
+| Pinned file | Implemented treatment | Reason |
+| --- | --- | --- |
+| `emoji-utils.ts` | Moved from pure-root/near-byte to injected adapter typing | The algorithms and copy are preserved, but the pin's generic Zero `Row` type is replaced by Lane 6a `RichEmoji`, and its shared assertion import becomes a local invariant. |
+| `pages/issue/get-id.tsx` | Moved from near-byte presentation to a stricter local route adapter | The pinned shared issue-id package is outside the admitted client boundary. The local function preserves numeric short-id versus source-id parsing and returns the exact `issueDetail` adapter arguments. |
+| `root.tsx` | Query/auth adapter port with pinned routed shell, not a presentation-only copy | The Zero connection observer, IndexedDB sync marketing load pill, and Zero-specific OG updater are not truthful Snapback state. The replacement preserves routes/layout/loading copy while using the session transition barrier and page completeness. |
+| `pages/issue/issue-page.tsx` | Stricter typed relation/mutation adapter port | The pinned JSX/class/copy structure is retained, including edit, labels, emoji, comments, image attachment, notification state, and j/k navigation; relation completeness, authority, mutation settlement, and not-found now come from Lane 6a instead of Zero row inference. The purely decorative emoji-arrival top/bottom toast is not reproduced; current emoji rows still update and remain interactive. |
+| `pages/list/list-page.tsx`, `pages/issue/comments.tsx`, `hooks/use-wouter-scroll-state.ts` | Window-controller port | Required by the fixed mapping: controller-owned intervals/cursors/spacers/permalinks/scroll with page-owned natural-height measurement, rather than calling either pinned Zero virtualizer. |
+| `debug/**` | Stricter query adapter port | Debug pages show admitted completeness/refusal facts from typed generated refs and retain no free-form query or Zero initialization surface. |
+
+Presentation CSS, CSS modules, fonts, images, icons, Markdown, modal,
+combobox, button, tooltip, onboarding, relative-time, and other table-listed
+presentation files retain the pinned source shape. The ZB0 test additionally
+compares every pinned asset byte-for-byte. The Tailwind 3/PostCSS/SVGR pipeline
+and only the actually imported pin dependencies are installed at their
+resolved exact versions; no `@rocicorp/zero` package or substitute windowing
+library is admitted.
+
+### Pinned-source omissions and replacements
+
+`source-inventory.v1.json` is the machine-readable twin of this table.
+`tests/lane6b-source-inventory.test.mts` enumerates the immutable pin and the
+ported tree, verifies each replacement target exists with a reason, rejects
+all other omissions, compares all assets byte-for-byte, and rejects a Zero,
+shared-query/mutator, or readable bearer bypass.
+
+| Pinned path absent at its original path | Replacement | Reason |
+| --- | --- | --- |
+| `jwt.ts` | `src/auth/session.tsx` | Deliberately retired. Session/bearer custody is server/coordinator-owned; no client-readable JWT carrier is copied. |
+| `server/upload.ts` | `src/assets/upload.ts` | Replaced by the bounded same-origin gateway presign/PUT/delivery adapter using the HttpOnly session. |
+| `zero-init.tsx` | `src/data/snapback.ts` | Replaced by the generated-manifest Snapback boot, auth coordinator, typed data/mutation adapters, and React provider. |
+
+There are no unexplained pinned omissions. `zero-preload.ts` remains at its
+source path as a typed `issuePreloadV2` adapter; the prior Lane 6a scaffold's
+`App.tsx` and `styles.css` were removed because neither belongs to the pin.
+
+### In-sandbox validation
+
+Run on 2026-08-06 from `demos/zerobugs/control`. Loopback listeners and Chrome
+are unavailable in this sandbox, so the owned live command is intentionally
+not run or claimed here.
+
+| Command | Result |
+| --- | --- |
+| `bun install --frozen-lockfile` | PASS, exit 0: the exact pinned dependency set and updated lockfile resolve without mutation. |
+| `bun run generate` | PASS, exit 0: 20 tables, 53 operations, 176 generated files; only the two existing dynamic fixture introspection warnings. No tracked generated product diff. |
+| `bun run typecheck` | PASS, exit 0. |
+| `bun run build` | PASS, exit 0: the pinned Tailwind/PostCSS/SVG pipeline and 655 transformed modules built. Only the upstream Snapback Vite deprecation and large-chunk advisories were emitted. |
+| `bun run build:composition` | PASS, exit 0: gateway and delivery worker bundled. |
+| `bun test tests/*.test.mts` | PASS: 50 tests, 216 assertions, 0 failures, including all Lane 1–6a regression witnesses, the Lane 6b ZB0 inventory test, the bounded/one-use login-bootstrap witnesses, persisted-session/no-second-exchange restoration, and the remount/interleaved-generation plus post-session window re-request races. |
+| `bun test src/emoji-utils.test.ts` | PASS: the two pinned pure emoji tests, 16 assertions, 0 failures. |
+| `bun build tests/acceptance/lane6b-live.mts --target=bun --outfile=/private/tmp/lane6b-live-check.mjs` | PASS, exit 0: the supervising harness and its 59-module dependency graph parse and bundle for Bun (1.39 MB development bundle). |
+| `./ref-check --verbose` (repository root) | PASS, exit 0: 188 LLP documents, 4,449 refs in 11,834 files, 0 errors, 0 unchecked. |
+| `git diff --check -- demos/zerobugs/control` | PASS, exit 0 for the authorized deliverable. The pre-existing untracked `issues/20260806-chrome-indexeddb-profile-macos-tmpdir.md` entry is outside this task and remained untouched. |
+
+Exact supervising live command, run from `demos/zerobugs/control` after
+`scripts/bootstrap-ibex-runtime` has produced the qualified binary:
+
+```sh
+SNAPBACK_SERVER_BINARY=/absolute/path/to/target/debug/snapback \
+SNAPBACK_RUNTIME_BINARY=/absolute/path/to/target/debug/snapback \
+CHROME_BIN="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
+ZERBUGS_TEST_DEFAULTS=1 \
+bun tests/acceptance/lane6b-live.mts
+```
+
+The harness itself starts a fresh startup-artifact-bound server and SQLite
+database, installs required config before fixture data, loads and verifies the
+517-issue fixture, binds all five actors, owns a stable-port restartable OAuth
+gateway for ordinary/crew switching, runs `vite build`, starts the guide's Vite
+dev relay, and launches an owned headless Chrome profile/process through
+`demos/_kit/chrome-process.mjs`. Eleven checks cover the first list window,
+labels/view-state/project count, four filters against the independent oracle,
+sort and three forward windows/back without gaps or duplicates, public and
+internal relation graphs, ordinary not-found, permalink comment hydration,
+optimistic create plus real duplicate-id refusal/rebase, logout/switch blanking,
+and presign/upload/public-delivery Markdown image rendering. Success emits only
+`zerobugs-lane6b-live.v1` with equal `expectedChecks`/`executedChecks`; any run
+or cleanup failure exits nonzero, and process-tree exit precedes Chrome profile
+or scratch deletion.
+
+### Lane 6b live continuation: session handoff and supervisor corrections
+
+The intended OAuth-to-browser handoff uses only the shipped custody surfaces.
+The gateway callback still mints its own external-bearer session into an
+HttpOnly cookie for the companion `/api` and `/assets` routes, but that bearer
+does **not** become browser `AuthCoordinator` custody: the guide sanctions it
+only for `createExternalSessionClient`, a mutually separate custody arm, and
+ships no validated coordinator bearer-adoption API. After the OAuth identity
+mapping succeeds, the gateway therefore requests an email-code challenge for
+the same actor, reads the local-only mailbox under its server-side admin and
+impersonation carriers, and places only that challenge/code behind a bounded,
+single-use, expiring HttpOnly bootstrap cookie. On the redirected SPA boot,
+`POST /api/auth/bootstrap` consumes and clears the cookie; the SPA passes the
+closed challenge/code object to `SnapbackClient.authExchange` through the Vite
+relay. Snapback then mints a distinct browser session directly into the one
+`AuthCoordinator`; LLP 0059's transition barrier blanks predecessor state,
+fresh-handshakes, queries `gatewayIdentitySelf`, and only then publishes the
+user that flips the nav. No bearer or mailbox code enters a URL, readable
+browser storage, fixture, or log. This follows the sessions/native-auth guide
+boundary and the file-drop browser-relay acceptance pattern without inventing
+a runtime adoption route.
+
+The supervising 2026-08-06 live continuation proved that the app renders in
+headless Chrome: the 517-issue list painted real fixture rows. Before reaching
+that result, the following corrections were applied to
+`tests/acceptance/lane6b-live.mts` and are retained:
+
+1. The synthesized ready descriptor carries the complete
+   `HostReadyDescriptor` shape required by `session mint`, including its
+   schema/descriptor/startup/ready/host/port/pid/target/database/time/admin
+   axes; the earlier minimal stub was correctly refused.
+2. The scratch directory is `realpath()`-resolved because macOS exposes
+   `/var` through `/private/var`, while the impersonation carrier validates
+   exact mechanical sibling-path equality.
+3. The impersonation sidecar is written as exact bounded bytes with no
+   trailing newline; the runtime parser deliberately performs no trimming.
+4. `startGateway` names the spawned process `child`, avoiding the temporal
+   dead zone created by shadowing global `process` in its own initializer.
+5. The Vite port is allocated before gateway startup and its origin is passed
+   in `ZERBUGS_OAUTH_REDIRECT_ORIGINS`, so the callback may return to the SPA
+   rather than being refused by an allowlist containing only the gateway.
+6. The shared Chrome kit defaults `tempRoot` to `os.tmpdir()`, which is the
+   long per-user `/var/folders/.../T` path on this macOS host; it does not
+   resolve to literal `/tmp`. The supervising shell observed Chrome
+   `UnknownError: Internal error opening backing store` at the default path,
+   while an otherwise equivalent `/tmp` profile worked. The harness now asks
+   the kit to own a short `/tmp` profile by default, retains
+   `ZERBUGS_CHROME_PROFILE` for an explicit retained profile, and leaves kit
+   process-tree/profile cleanup unchanged. The cross-harness investigation is
+   tracked in `issues/20260806-chrome-indexeddb-profile-macos-tmpdir.md`.
+7. `page.wait` timeout errors include the current `location.href`, body text,
+   and an HTML snippet, making future redirect/render failures diagnosable.
+
+The only remaining live obligation is the supervising rerun after this
+handoff change: both ordinary and crew OAuth loops must return to their exact
+redirect target, reach authenticated coordinator custody, and paint
+`.logged-in-user-name`; the then-current eleven product checks and cleanup
+receipt then run unchanged.
+
+### Lane 6b live continuation: auth/window race closure
+
+The next two identical supervising runs split after the handoff: one reached
+`authenticated` but left the ordinary list empty, while the other remained at
+`transitioning` with the window honestly `refused`. The audit confirmed this is
+not a missing-provider wiring problem:
+
+- `src/data/snapback.ts` already constructs one module-level
+  `AuthCoordinator`, `SnapbackClient`, React binding/provider, and session
+  controller. `LoginProvider` only projects that controller; it does not
+  construct another one. The chosen closure is therefore remount-stable
+  singleton ownership, now enforced by `getSessionController` per client and
+  exercised with mount/unmount/remount interleavings. The gateway registry
+  deliberately remains bounded, expiring, and one-use. Re-serving a consumed
+  challenge/code would add a replay surface and would not make the provider's
+  own email code reusable.
+- Each top-level bootstrap, refresh, logout, or external-bearer flow now owns
+  one generation from its initial blank/loading publication through its
+  terminal publication. A stale completion may return only while a newer
+  active generation owns succession or after that successor has already
+  published; if the last active flow exits in `loading`/`transitioning`, the
+  controller publishes `ZBUGS_SESSION_FLOW_ABANDONED` as a terminal error
+  instead of leaving "Just a moment…" indefinitely.
+- The Lane 6a window identity previously covered query/args/order/bounds but
+  omitted LLP 0183's authority axis, and its imperative first page could start
+  while browser custody was transitioning. A refusal was terminal, and an
+  anonymous/predecessor empty answer had no authenticated identity change that
+  forced another request. List and comment window identities now carry the
+  settled session phase, principal, stream incarnation, authority instance,
+  and session generation. Demand is disabled during loading/transition/error;
+  transition-time work is synchronously aborted and its generation retired;
+  the anonymous/authenticated successor constructs an already-blank authority
+  identity and requests its first window again.
+- Deterministic pure witnesses now cover a StrictMode-style
+  construct/mount/unmount/remount plus an interleaved newer refresh (one
+  `authExchange`, shared controller, terminal `authenticated`) and a refused
+  transition-time window followed by generation retirement and a successful
+  second request. The existing predecessor-publication fencing tests remain.
+
+This closes the identified race mechanisms in the control arm without making
+a new live claim. The exact Lane 6b Chrome command above remains the completion
+gate. The post-fix in-sandbox rerun passed generation (20 tables, 53
+operations, 176 files, only the two existing fixture-introspection warnings),
+TypeScript, the 655-module Vite production build, all 49 + 2 pure tests, scoped
+`git diff --check`, and repository-root `ref-check` (188 LLP documents, 4,449
+references, zero errors/unchecked).
+
+### Lane 6b live continuation: authenticated reload custody
+
+The next supervising run passed login handoff, authenticated list window,
+filters/sort/scroll, issue detail, permalink, composer, and internal-not-found,
+then exposed a real control bug at the pre-logout full navigation: two
+successful `GET /__snapback/auth/session` responses were followed by
+`data-session-phase="anonymous"`. The session controller was not the source of
+the downgrade. With no one-use login bootstrap artifact,
+`SessionController.bootstrap()` already calls `authSession({force: true})` and,
+for an authenticated handshake, queries `gatewayIdentitySelf` before
+publishing the user. `SnapbackClient.authSession` in turn synchronizes the
+coordinator, adopts its durable record, and handshakes with that record's
+bearer.
+
+The fault was the browser construction in `src/data/snapback.ts`: it injected
+`createMemoryAuthCustodyStorage`, so `authExchange` correctly advanced only a
+document-lifetime custody record. Reload constructed an empty coordinator and
+truthfully handshook as anonymous. The control now injects the shipped
+`createIndexedDbAuthCustodyStorage()` adapter exported by
+`@expo/snapback-contract`. It stores the LLP 0059 custody record in IndexedDB,
+uses Web Locks where present (with the adapter's transactionally fenced lease
+fallback), and lets a fresh module-level coordinator adopt the exact session
+before the controller publishes `authenticated`. This is an existing supported
+local browser-session surface, so no product GAP or new capability fact is
+invented. The `auth.sessions`/runtime `authCoordinator` facts remain the
+governing capability; only the control's carrier configuration was wrong.
+
+File-drop is useful evidence for the same-origin Vite relay, email-code
+exchange, generated upload reference, and session-authenticated asset path, but
+it is not a reload-persistence witness: both its browser acceptance and current
+demo boot explicitly use memory custody and never reconstruct the page. The
+control therefore does not borrow a stronger claim from that example.
+
+The live harness now gives restoration its own twelfth check. After the
+ordinary actor's internal-not-found result, `Page.navigate` reconstructs the
+SPA at `/p/zero`; the check waits for both
+`data-session-phase="authenticated"` and `.logout-button`, then reasserts the
+ordinary actor's non-leaking count before logout. Logout remains a client
+action after that proof, and the crew successor must render its own 517 count
+before the internal detail. The supervisor corrections are retained and
+tightened: click synthesis is primary `mousedown` → `mouseup` → `click` (the
+pinned Button acts on the first event), the ordinary count is 516 while the
+crew path proves 517, CDP evaluation awaits promise-valued expressions before
+JSON-safe by-value coercion, and diagnostics capture only the closed login and
+Snapback auth route families rather than source-module traffic. A pure fake-
+client witness constructs with a persisted authenticated handshake, returns no
+login bootstrap, observes one forced session read and zero exchanges, and
+settles the fresh controller at `authenticated`.
+
+### Guide gaps found during Lane 6b
+
+1. The session guide explains browser custody and transition barriers, but the
+   published `SnapbackClient` TypeScript class surface does not declare the
+   runtime-shipped `authSession`, `authExchange`, and `authLogout` methods
+   consumed by the browser session controller. The boot therefore needs a
+   narrow type-only cast despite using the shipped methods. A guide example
+   and declaration repair should cover the supported composition-OAuth →
+   one-time email challenge → coordinator `authExchange` path through the
+   same-origin Vite relay; `replaceBearerToken` remains specific to the
+   separately typed external-bearer acceptance helper, not browser custody.
+2. The Vite guide covers attach/external dev relay modes but does not give one
+   end-to-end acceptance recipe combining a fresh startup-artifact server,
+   external relay, separately owned composition gateway proxies, `vite build`,
+   and a Chrome process/profile cleanup receipt. The Lane 6b harness is a local
+   witness, not a replacement for that guide recipe.
+3. The sessions/headless guide pages say browser sessions use durable
+   `AuthCoordinator` custody but do not show the shipped
+   `createIndexedDbAuthCustodyStorage` construction or distinguish it from the
+   volatile memory adapter used by many tests. File-drop is especially easy to
+   overread: its browser acceptance proves relay/exchange/assets, but its source
+   uses memory custody and has no reload witness. The package export and client
+   README expose the supported adapter; the guide should teach the carrier
+   choice and a full-page restoration check directly.
+
+Repository rules normally require filesystem `guide-gap` tickets and a demo
+diary entry for these findings. This job is expressly limited to
+`demos/zerobugs/control/`, so both out-of-directory artifacts remain deferred
+rather than silently widening scope.
+
+### Lane 6b live status — BLOCKED on a shipped-client auth defect
+
+Run repeatedly on 2026-08-06 by the supervising session in real headless
+Chrome. **Sequencing row 6 is NOT complete: no Lane 6b live PASS is claimed.**
+
+What the browser proved works (observed live, not claimed as gates):
+
+- the ported UI renders the pinned 517-issue fixture — nav, filters, labels,
+  relative dates, virtualized list — served by Snapback through the Vite relay;
+- the anonymous list boots with honest completeness state;
+- the gateway OAuth-shaped login round-trip completes and, when the auth race
+  below does not fire, the SPA reaches `data-session-phase="authenticated"`
+  and the authenticated window renders.
+
+Why the suite cannot pass yet:
+
+1. **Shipped-client deadlock (root cause).** `AuthCoordinator.transition`
+   held the exclusive custody Web Lock across its participant barrier while a
+   participant ack path called `synchronize()` on the same lock. Captured with
+   Web-Lock instrumentation: `acq:<transition>` with no matching `rel`, every
+   later request queued forever, `authExchange` never settling, UI stuck in
+   `transitioning`. Ticket:
+   `issues/20260806-authexchange-deadlocks-on-concurrent-authsession.md`.
+2. A second defect on the same path: external `synchronize()` hot-retried on
+   `CLEARING` instead of awaiting barrier settlement (bounded-attempt spin
+   regression reproduces it).
+3. Fixes for both exist with green unit suites (full `snapback-contract`, nine
+   auth client files, new queued-lock/spin/interleaving regressions) but are
+   **deliberately not on main**: after them the Chrome run wedges its CDP
+   session (`Runtime.evaluate` times out) in a way a `Debugger.pause` probe
+   shows is NOT application spinning — the paused stack carries no app frames.
+   That interaction is unexplained, so the auth-custody change is parked on
+   branch `fix/auth-custody-barrier-deadlock` for focused browser verification
+   rather than landed unproven.
+
+Also recorded: the ordinary actor's project count is 516, not 517 — the
+crew-only internal policy-extension issue must not appear in count-like UI
+(ZB4 existence-oracle protection); the pinned `Button` acts on primary
+mousedown, so synthetic clicks must dispatch the full sequence; CDP
+`returnByValue` needs a JSON-safe wrapper for DOM/React values; and Chrome's
+IndexedDB backing store fails to open under the kit's default profile
+location on this host (`issues/20260806-chrome-indexeddb-profile-macos-tmpdir.md`).
+
+Next for this lane: verify the parked auth fix in a browser (or explain the
+CDP wedge), land it, then rerun the 12-check suite for a real receipt.

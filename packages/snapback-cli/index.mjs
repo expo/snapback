@@ -74,7 +74,9 @@ import {
 import {
   digestRuntimeArtifacts,
   issueRuntimeReadinessReceipt,
+  packagedRuntimeArtifactCandidates,
   verifyRuntimeReadinessReceipt,
+  verifyRuntimePackageSeal,
 } from './runtime-readiness.mjs';
 import {
   loadComparatorProfile,
@@ -235,14 +237,30 @@ export function resolveRuntimeBinary(options = {}) {
       binary,
     });
   }
+  const runtimeRoot = dirname(manifestPath);
+  const [runtimePlatform, runtimeArchitecture] = platform.split('-');
+  // @ref LLP 0123#package-seal-landing-2026-08-06 — never return a package
+  // binary until its production qualification/digest binding reopens.
+  const seal = verifyRuntimePackageSeal({
+    root: runtimeRoot,
+    binaryPath: binary,
+    packageName,
+    platform: runtimePlatform,
+    architecture: runtimeArchitecture,
+  });
+  if (!seal.ok) {
+    throw diagnosticError(
+      seal.diagnostic.code,
+      `runtime package ${packageName} failed its package-production seal: ${seal.diagnostic.message}`,
+      { package: packageName, binary, reason: seal.reason, seal: seal.diagnostic.details },
+    );
+  }
   return { binary, source: packageName, platform };
 }
 
 function packagedRuntimeArtifacts(binary) {
   const runtimeRoot = dirname(dirname(resolve(binary)));
-  const candidates = process.platform === 'darwin'
-    ? [join(runtimeRoot, 'Frameworks', 'hermesvm.framework', 'hermesvm')]
-    : [join(runtimeRoot, 'lib', 'libhermesvm.so')];
+  const candidates = packagedRuntimeArtifactCandidates(runtimeRoot);
   return digestRuntimeArtifacts(runtimeRoot, { candidates });
 }
 

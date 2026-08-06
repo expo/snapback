@@ -69,13 +69,22 @@ const gatewayInventory = readJson(join(ROOT, 'cloudflare/gateway-paths.inventory
 // serves, not a transcription of it. Module-level code in mcp-control.mjs
 // has no side effects (spawning only happens inside McpControlServer
 // methods, never at import time), so a plain dynamic import is safe here.
-const { CONTROL_TOOLS: controlTools } = await import(
+const {
+  CONTROL_TOOLS: controlTools,
+  CONTROL_RESOURCES: controlResources,
+} = await import(
   join(ROOT, 'packages/snapback-cli/mcp-control.mjs')
 );
 if (!Array.isArray(controlTools) || controlTools.length === 0) {
   fail('mcp-control.mjs CONTROL_TOOLS imported empty/non-array; extraction is broken');
 }
 const controlToolsByOperation = new Map(controlTools.map((tool) => [tool.operation, tool]));
+if (!Array.isArray(controlResources) || controlResources.length === 0) {
+  fail('mcp-control.mjs CONTROL_RESOURCES imported empty/non-array; extraction is broken');
+}
+const controlResourcesByOperation = new Map(
+  controlResources.map((resource) => [resource.operation, resource]),
+);
 
 // A small hand-authored CLI-command projection lookup for host-op identities
 // with a direct CLI command today. This is NOT a second authority: every
@@ -101,6 +110,8 @@ const CLI_PROJECTIONS = {
   'errors.issues': 'snapback errors issues',
   'errors.issue': 'snapback errors issue',
   'errors.transition': 'snapback errors transition',
+  'data.patch.preview': 'snapback data patch --preview --input <file|->',
+  'data.patch.apply': 'snapback data patch --apply --input <file|->',
   'asset.put': 'snapback assets put',
   'asset.inspect': 'snapback assets inspect',
   'asset.list': 'snapback assets list',
@@ -133,6 +144,9 @@ const CLI_PROJECTIONS = {
   'cron.runOne': 'snapback cron run',
   'jobs.drain': 'snapback jobs drain',
   'connection.disconnect': 'snapback connections disconnect',
+  'control.catalog.read': 'snapback controls list',
+  'control.catalog.describe': 'snapback controls describe <operation>',
+  'ephemeral.operatorDelete': 'snapback ephemeral operator-delete',
 };
 
 const GUIDE_ANCHORS = {
@@ -151,6 +165,12 @@ const GUIDE_ANCHORS = {
   'config.status': 'operating/secrets-and-config.md#cli-and-mcp-projections-for-statusplanverify',
   'config.plan': 'operating/secrets-and-config.md#cli-and-mcp-projections-for-statusplanverify',
   'config.verify': 'operating/secrets-and-config.md#cli-and-mcp-projections-for-statusplanverify',
+  'control.catalog.read': 'operating/agent-controls.md#search-the-build-catalog',
+  'control.catalog.describe': 'operating/agent-controls.md#describe-one-operation',
+  'control.catalog.instance.read': 'operating/agent-controls.md#build-versus-instance-identity',
+  'data.patch.preview': 'operating/data-patch.md#preview',
+  'data.patch.apply': 'operating/data-patch.md#apply',
+  'ephemeral.operatorDelete': 'realtime/ephemeral-state.md#delete-one-entry-as-an-operator',
 };
 
 // --- Build domain fact index -------------------------------------------
@@ -196,10 +216,15 @@ function policyFromOperation(op) {
 function applyOverride(entry, override) {
   if (!override) return entry;
   if (override.operability) entry.operability = override.operability;
+  if (override.availability) entry.availability = override.availability;
   if (override.surfaceAccessOverride) entry.surfaceAccess = override.surfaceAccessOverride;
   if (override.mcpDeferralReason) entry.mcpDeferralReason = override.mcpDeferralReason;
   if (override.cliDeferralReason) entry.cliDeferralReason = override.cliDeferralReason;
   if (override.composedFrom) entry.composedFrom = override.composedFrom;
+  if (override.availability) entry.availability = override.availability;
+  if (override.behavior) entry.behavior = { ...entry.behavior, ...override.behavior };
+  if (override.authorities) entry.authorities = override.authorities;
+  if (override.sources) entry.sources = override.sources;
   if (override.unavailableReason) entry.unavailableReason = override.unavailableReason;
   if (override.internalReason) entry.internalReason = override.internalReason;
   if (override.projectionCredentials) {
@@ -220,6 +245,16 @@ for (const name of hostOpsIdentities) {
   const cli = CLI_PROJECTIONS[name] ?? null;
   const isUnbuilt = registryExport.hostOpsIdentities.pinnedUnbuilt.includes(name);
   const isCliOnlyPinned = registryExport.hostOpsIdentities.cliOnly.includes(name);
+  const hostOpsDisposition = isUnbuilt
+    ? 'pinnedUnbuilt'
+    : isCliOnlyPinned
+      ? 'cliOnly'
+      : 'served';
+  const registeredOperations = registryExport.operations
+    .filter((operation) =>
+      operation.operation === `host_ops.${name}`
+        || operation.operation.startsWith(`host_ops.${name}.`))
+    .map((operation) => operation.operation);
 
   let surfaceAccess;
   if (tool && cli) surfaceAccess = 'native';
@@ -233,6 +268,8 @@ for (const name of hostOpsIdentities) {
     intents: [],
     status: isUnbuilt ? 'unbuilt' : 'shipped',
     domain: 'hostOps',
+    hostOpsDisposition,
+    registeredOperations,
     surfaceAccess,
     operability: 'unavailable',
     unavailableReason: DEFAULT_UNCLASSIFIED_REASON,
@@ -408,6 +445,9 @@ if (mailboxRoute) {
 // any route not listed derives a stable id mechanically from its path so no
 // SystemApi route can silently fall outside the domain.
 const ROUTE_OPERATION_NAMES = {
+  'GET /_snapback/api/control-catalog': 'control.catalog.read',
+  'GET /_snapback/api/control-catalog/instance': 'control.catalog.instance.read',
+  'GET /_snapback/api/control-catalog/operations/{operation}': 'control.catalog.describe',
   'GET /_snapback/api/config/status': 'config.status',
   'GET /_snapback/api/config/plan': 'config.plan',
   'POST /_snapback/api/config/set': 'config.set',
@@ -423,6 +463,7 @@ const ROUTE_OPERATION_NAMES = {
   'GET /_snapback/api/jobs': 'jobs.list',
   'GET /_snapback/api/jobs/{id}': 'jobs.show',
   'POST /_snapback/api/ephemeral/cleanup': 'ephemeral.cleanup',
+  'POST /_snapback/api/ephemeral/operator/delete': 'ephemeral.operatorDelete',
   'POST /_snapback/api/connections/{connection_id}/disconnect': 'connection.disconnect',
   'GET /_snapback/api/data/{table}': 'data.scan',
   'POST /_snapback/api/admin-secret-read/mint': 'secretRead.mint',
@@ -481,14 +522,16 @@ for (const route of registryExport.routes) {
   // existed and left surfaceAccess/projections.mcp permanently stale at
   // cliOnly/null.
   const tool = controlToolsByOperation.get(operationName);
+  const resource = controlResourcesByOperation.get(operationName);
+  const mcpProjection = tool?.name ?? resource?.uri ?? resource?.uriTemplate ?? null;
   let surfaceAccess;
-  if (tool && cli) surfaceAccess = 'native';
-  else if (tool && !cli) surfaceAccess = 'mcpOnly';
-  else if (!tool && cli) surfaceAccess = 'cliOnly';
+  if (mcpProjection && cli) surfaceAccess = 'native';
+  else if (mcpProjection && !cli) surfaceAccess = 'mcpOnly';
+  else if (!mcpProjection && cli) surfaceAccess = 'cliOnly';
   else surfaceAccess = 'apiOnly';
   const entry = {
     operation: operationName,
-    title: tool?.title ?? operationName,
+    title: tool?.title ?? resource?.title ?? operationName,
     intents: [],
     status: 'shipped',
     domain: 'systemApi',
@@ -516,7 +559,7 @@ for (const route of registryExport.routes) {
     },
     projections: {
       cli,
-      mcp: tool?.name ?? null,
+      mcp: mcpProjection,
       hostOps: null,
       http: `${route.method} ${route.path}`,
       adminClient: null,
@@ -596,6 +639,15 @@ for (const tool of controlTools) {
   if (!known) {
     completenessErrors.push(
       `MCP tool ${tool.name} declares operation '${tool.operation}' with no matching catalog row.`,
+    );
+  }
+}
+for (const resource of controlResources) {
+  const known = entries.some((entry) => entry.operation === resource.operation);
+  if (!known) {
+    completenessErrors.push(
+      `MCP resource ${resource.uri ?? resource.uriTemplate} declares operation ` +
+        `'${resource.operation}' with no matching catalog row.`,
     );
   }
 }
@@ -741,6 +793,112 @@ const catalog = {
   entries: normalized,
 };
 
+// --- Generated Guide projections (rule 9) ---------------------------------
+
+const GUIDE_BLOCKS = {
+  hostOpsServed: {
+    path: 'guide/operating/host-ops.md',
+    name: 'HOST OPS SERVED',
+  },
+  hostOpsRegistered: {
+    path: 'guide/operating/host-ops.md',
+    name: 'HOST OPS REGISTERED',
+  },
+  catalogInventory: {
+    path: 'guide/operating/agent-controls.md',
+    name: 'CONTROL CATALOG INVENTORY',
+  },
+};
+
+function markdownCell(value) {
+  if (value === null || value === undefined || value === '') return '—';
+  return String(value).replaceAll('|', '\\|').replaceAll('\n', ' ');
+}
+
+function renderedGuideBlocks() {
+  const hostOps = catalog.entries.filter((entry) => entry.domain === 'hostOps');
+  const served = hostOps.filter((entry) => entry.hostOpsDisposition === 'served');
+  const registered = hostOps.flatMap((entry) => entry.registeredOperations ?? []);
+  if (served.length === 0 || registered.length === 0) {
+    completenessErrors.push(
+      'generated Guide host-op projection is vacuous; hostOpsDisposition/registeredOperations facts are missing',
+    );
+  }
+  const servedBody = [
+    `The endpoint serves **${served.length} request spellings**. This count and table are generated from the build catalog's LLP 0024 allowlist projection:`,
+    '',
+    '| Request operation | Purpose |',
+    '| --- | --- |',
+    ...served.map((entry) =>
+      `| \`${markdownCell(entry.operation)}\` | ${markdownCell(entry.title)} |`),
+  ].join('\n');
+
+  const registeredBody = [
+    `The request spellings above expand into **${registered.length} registered operation identities**. This inventory is generated from each catalog row's LLP 0031 registry projection:`,
+    '',
+    ...registered.map((operation, index) => `${index + 1}. \`${operation}\``),
+  ].join('\n');
+
+  const countBy = (field) => {
+    const counts = new Map();
+    for (const entry of catalog.entries) {
+      counts.set(entry[field], (counts.get(entry[field]) ?? 0) + 1);
+    }
+    return [...counts].sort(([left], [right]) => left.localeCompare(right));
+  };
+  const surfaceCounts = countBy('surfaceAccess');
+  const operabilityCounts = countBy('operability');
+  const inventoryBody = [
+    `The embedded build catalog contains **${catalog.entries.length} operations** at digest \`${catalog.catalogDigest}\`. The counts and inventory below are generated; do not edit them by hand.`,
+    '',
+    '| Axis | Value | Count |',
+    '| --- | --- | ---: |',
+    ...surfaceCounts.map(([value, count]) => `| surfaceAccess | \`${value}\` | ${count} |`),
+    ...operabilityCounts.map(([value, count]) => `| operability | \`${value}\` | ${count} |`),
+    '',
+    '| Operation | Surface | Operability | Status | CLI | MCP | Guide |',
+    '| --- | --- | --- | --- | --- | --- | --- |',
+    ...catalog.entries.map((entry) =>
+      `| \`${markdownCell(entry.operation)}\` | \`${entry.surfaceAccess}\` | \`${entry.operability}\` | \`${entry.status}\` | ${markdownCell(entry.projections?.cli)} | ${markdownCell(entry.projections?.mcp)} | ${markdownCell(entry.guide)} |`),
+  ].join('\n');
+
+  return new Map([
+    [GUIDE_BLOCKS.hostOpsServed, servedBody],
+    [GUIDE_BLOCKS.hostOpsRegistered, registeredBody],
+    [GUIDE_BLOCKS.catalogInventory, inventoryBody],
+  ]);
+}
+
+function projectGuideBlocks() {
+  for (const [block, body] of renderedGuideBlocks()) {
+    const path = join(ROOT, block.path);
+    if (!existsSync(path)) {
+      completenessErrors.push(`${block.path}: missing generated Guide projection target (rule 9)`);
+      continue;
+    }
+    const begin = `<!-- BEGIN GENERATED CONTROL CATALOG: ${block.name} -->`;
+    const end = `<!-- END GENERATED CONTROL CATALOG: ${block.name} -->`;
+    const text = readFileSync(path, 'utf8');
+    const beginAt = text.indexOf(begin);
+    const endAt = text.indexOf(end);
+    if (beginAt === -1 || endAt === -1 || endAt < beginAt) {
+      completenessErrors.push(`${block.path}: missing ${block.name} generated block markers (rule 9)`);
+      continue;
+    }
+    const replacement = `${begin}\n${body}\n${end}`;
+    const projected = `${text.slice(0, beginAt)}${replacement}${text.slice(endAt + end.length)}`;
+    if (CHECK_ONLY) {
+      if (projected !== text) {
+        completenessErrors.push(
+          `${block.path}: generated ${block.name} table/count is stale; run node scripts/generate-control-catalog.mjs (rule 9)`,
+        );
+      }
+    } else if (projected !== text) {
+      writeFileSync(path, projected);
+    }
+  }
+}
+
 if (domainErrors.length > 0) fail(domainErrors);
 if (completenessErrors.length > 0) {
   console.error(`[control-catalog] ${completenessErrors.length} completeness error(s):`);
@@ -755,6 +913,15 @@ if (!validateCatalog(catalog)) {
     `catalog failed schemas/control-catalog.v1.schema.json validation:`,
     ajv.errorsText(validateCatalog.errors, { separator: '\n  ' }),
   ]);
+}
+
+// Only project checked documentation after every semantic and schema gate
+// has accepted the catalog. A failed generation must not partially rewrite
+// Guide claims from an invalid artifact.
+projectGuideBlocks();
+if (completenessErrors.length > 0) {
+  console.error(`[control-catalog] ${completenessErrors.length} completeness error(s):`);
+  fail(completenessErrors);
 }
 
 const outText = `${JSON.stringify(catalog, null, 2)}\n`;

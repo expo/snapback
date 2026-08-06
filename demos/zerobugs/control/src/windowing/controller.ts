@@ -117,6 +117,7 @@ export function windowIdentity(input: Readonly<{
   query: string;
   args: unknown;
   order: unknown;
+  authority: unknown;
   bounds?: unknown;
 }>): string {
   return `zerobugs.window.v1:${stableValue(input)}`;
@@ -259,6 +260,18 @@ export class WindowController<Row, Cursor> {
     this.#abortRequests();
     this.#heights.clear();
     this.#state = this.#emptyState(identity, this.#state.generation + 1, estimatedTotal);
+    this.#emit();
+  }
+
+  /** Retire transition-time work and leave an already-blank request generation. */
+  suspend(): void {
+    this.#abortRequests();
+    this.#heights.clear();
+    this.#state = this.#emptyState(
+      this.#state.identity,
+      this.#state.generation + 1,
+      this.#state.estimatedTotal,
+    );
     this.#emit();
   }
 

@@ -2315,6 +2315,17 @@ impl EphemeralApi {
         self.store.disconnect(connection_id, now_ms);
     }
 
+    pub fn operator_delete(
+        &self,
+        request: crate::ephemeral::OperatorDeleteRequest,
+        now_ms: u64,
+    ) -> Result<crate::ephemeral::EphemeralMessage, crate::ephemeral::EphemeralError> {
+        crate::exec_guard::debug_assert_local_snapback_write_scope_inactive(
+            "EphemeralApi::operator_delete",
+        );
+        self.store.operator_delete(request, now_ms)
+    }
+
     /// Whole-ID cleanup for a registry-retired grant whose removal already
     /// enabled mint-only containment. This preserves any exact typed terminal
     /// notifier event and emits no disconnected-resync wake.
@@ -6284,6 +6295,189 @@ impl LocalSnapback {
 
     pub fn loaded_bundle_hash(&self) -> Option<String> {
         self.functions.bundle_hash.clone()
+    }
+
+    /// Validate one existing-row patch by executing the ordinary buffered
+    /// writer in rollback mode. The returned row image therefore reflects
+    /// storage normalization, relation stamps, uniqueness checks, and every
+    /// other invariant the real commit path applies.
+    ///
+    /// @ref LLP 0184#a-bounded-direct-row-patch--add-now — preview and apply
+    ///   reuse the normal changeset path; no raw SQL or insert/delete branch
+    ///   exists here.
+    pub(crate) fn preview_direct_data_patch(
+        &mut self,
+        input: &crate::data_patch::DataPatchPreviewInputV1,
+    ) -> SnapbackResult<crate::data_patch::ValidatedDataPatchV1> {
+        if input.patch.is_empty() {
+            return Err(SnapbackError::error(
+                "SNAPBACK_DATA_PATCH_VALIDATION_FAILED",
+                "data-patch",
+                "a direct row patch must contain at least one field",
+            ));
+        }
+        let before = self
+            .db
+            .get(&input.table, &input.row_id)
+            .map_err(crate::data_patch::map_storage_error)?
+            .ok_or_else(crate::data_patch::row_not_found)?;
+        let actual_version = before
+            .get("_version")
+            .and_then(Value::as_u64)
+            .ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_DATA_PATCH_VALIDATION_FAILED",
+                    "data-patch",
+                    "the target row has no valid per-row version",
+                )
+            })?;
+        if actual_version != input.expected_version {
+            return Err(crate::data_patch::stale_version(
+                input.expected_version,
+                actual_version,
+            ));
+        }
+        let dependency = CapturedReadDependency {
+            kind: CapturedReadKind::Row,
+            table: Some(input.table.clone()),
+            id: Some(input.row_id.clone()),
+            version: Some(input.expected_version),
+            predicate: None,
+            rows: Vec::new(),
+            field: None,
+            value: None,
+            order: None,
+            limit: None,
+            result_count: None,
+            boundary: None,
+        };
+        let commit = self
+            .db
+            .dry_run_buffered_writes(
+                &input.authority.handler_input(),
+                vec![crate::storage::BufferedWrite::Patch {
+                    table: input.table.clone(),
+                    id: input.row_id.clone(),
+                    values: input.patch.clone(),
+                }],
+                Vec::new(),
+                Vec::new(),
+                vec![dependency],
+                Value::Null,
+                CtxAnswerLedger::default(),
+                Vec::new(),
+            )
+            .map_err(crate::data_patch::map_storage_error)?;
+        let after = commit
+            .changes
+            .first()
+            .and_then(|change| change.row.clone())
+            .unwrap_or_else(|| before.clone());
+        let mut fields = input.patch.keys().cloned().collect::<Vec<_>>();
+        fields.sort();
+        let before_fields = fields
+            .iter()
+            .filter_map(|field| {
+                before
+                    .get(field)
+                    .cloned()
+                    .map(|value| (field.clone(), value))
+            })
+            .collect::<BTreeMap<_, _>>();
+        let after_fields = fields
+            .iter()
+            .filter_map(|field| {
+                after
+                    .get(field)
+                    .cloned()
+                    .map(|value| (field.clone(), value))
+            })
+            .collect::<BTreeMap<_, _>>();
+        let live_functions = self
+            .functions
+            .functions
+            .iter()
+            .filter(|function| function.kind == FunctionKind::LiveQuery)
+            .filter(|function| {
+                self.function_declared_read_tables(&function.name)
+                    .iter()
+                    .any(|table| table == &input.table)
+            })
+            .map(|function| function.name.clone())
+            .collect::<Vec<_>>();
+        Ok(crate::data_patch::ValidatedDataPatchV1 {
+            table: input.table.clone(),
+            row_id: input.row_id.clone(),
+            expected_version: input.expected_version,
+            normalized_patch: after_fields.clone(),
+            diff: crate::data_patch::DataPatchDiffV1 {
+                fields,
+                before: before_fields,
+                after: after_fields,
+            },
+            affected_live_query_classes: vec![crate::data_patch::AffectedLiveQueryClassV1 {
+                class: "durableTable".to_owned(),
+                table: input.table.clone(),
+                live_functions,
+            }],
+        })
+    }
+
+    /// Commit a token-owned normalized patch through the same storage writer
+    /// as an app mutation, then fan its ChangedRows through the normal live
+    /// notifier.
+    pub(crate) fn apply_direct_data_patch(
+        &mut self,
+        binding: &crate::data_patch::DataPatchTokenBindingV1,
+    ) -> SnapbackResult<crate::storage::MutationCommit> {
+        // The host compares process context before consuming the token. Check
+        // the mutable app/schema identity again under the same Local lock as
+        // the commit so a concurrent artifact load cannot create a gap
+        // between that comparison and storage validation.
+        //
+        // @ref LLP 0184#a-bounded-direct-row-patch--add-now — catalog/schema
+        //   identity is part of the exact token binding, including at commit.
+        if self.loaded_app_id() != binding.target.app_id
+            || self.loaded_schema_hash() != binding.schema_identity
+        {
+            return Err(crate::data_patch::apply_context_mismatch());
+        }
+        let dependency = CapturedReadDependency {
+            kind: CapturedReadKind::Row,
+            table: Some(binding.table.clone()),
+            id: Some(binding.row_id.clone()),
+            version: Some(binding.expected_version),
+            predicate: None,
+            rows: Vec::new(),
+            field: None,
+            value: None,
+            order: None,
+            limit: None,
+            result_count: None,
+            boundary: None,
+        };
+        // @ref LLP 0184#a-bounded-direct-row-patch--add-now — the per-row
+        //   dependency is the CAS; a global database-version precondition
+        //   would spuriously reject unrelated concurrent writes.
+        let commit = self
+            .db
+            .commit_buffered_writes(
+                &binding.authority.handler_input(),
+                vec![crate::storage::BufferedWrite::Patch {
+                    table: binding.table.clone(),
+                    id: binding.row_id.clone(),
+                    values: binding
+                        .normalized_patch
+                        .clone()
+                        .into_iter()
+                        .collect::<Map<_, _>>(),
+                }],
+                vec![dependency],
+                Value::Null,
+            )
+            .map_err(crate::data_patch::map_storage_error)?;
+        self.notify_live_subscriptions(&commit.changes);
+        Ok(commit)
     }
 
     #[cfg(test)]

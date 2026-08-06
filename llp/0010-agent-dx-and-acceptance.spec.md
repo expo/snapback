@@ -9,7 +9,12 @@
 classified by a checked path authority; docs/guide can remain fast, affected
 code retains Contract/Exact and admin behavior plus prerequisite closure, and
 unknown/shared inputs fail broad. Push/PR receipts bind the selection while a
-six-hour/manual lane retains the complete inventory). 2026-08-05 (generated
+six-hour/manual lane retains the complete inventory). 2026-08-06 (runtime
+package seal: package production now refuses with
+`SNAPBACK_RUNTIME_PACKAGE_QUALIFICATION_FAILED` unless the assembled
+binary/Hermes pair passes CV-2; the package-owned readiness receipt binds the
+verdict and native digests, and packaged resolution re-verifies it before
+returning the binary.) 2026-08-05 (generated
 starter acceptance correction: todo and
 React default `test` commands now own an isolated real target, execute a query
 and mutation, bind loaded artifact identity, reject short/vacuous runs, and
@@ -286,6 +291,11 @@ The remaining (non-submodule) bootstrap failure paths carry codes too
   carries the qualification verdict beside the framework digests
   (`producerInputs.nativeArtifacts`) and the binary's build identity, so an
   artifact/link-ordering incoherence is diagnosable from the record alone.
+- `SNAPBACK_RUNTIME_PACKAGE_QUALIFICATION_FAILED` — runtime package production
+  assembled the final loader-relative binary/Hermes layout, but its
+  short-lived `runtime-qualify` process could not create the restricted
+  handler VM. No package seal is issued. Cross-host Linux assembly may consume
+  only a byte-bound successful verdict produced on the native Linux builder.
 - `SNAPBACK_IBEX_RUNTIME_RECEIPT_INVALID` — the persisted runtime readiness
   receipt (`<binary>.runtime-readiness.json`,
   `snapback.runtime-readiness.v1`) for the selected binary is absent, stale,

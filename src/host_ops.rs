@@ -40,7 +40,7 @@ pub const TELEMETRY_EXPORT_HOST_ENVELOPE_ALLOWANCE: usize = 64 * 1024;
 /// These groups are fully served today; they belong here so
 /// `host_op_diagnostic` recognizes their spelling instead of rewriting it to
 /// `"unrecognized"` in diagnostics.
-pub const SERVED_HOST_OPS: [&str; 36] = [
+pub const SERVED_HOST_OPS: [&str; 38] = [
     "app.inspect",
     "app.reset",
     "app.seed.ensure.v1",
@@ -59,6 +59,8 @@ pub const SERVED_HOST_OPS: [&str; 36] = [
     "errors.issues",
     "errors.issue",
     "errors.transition",
+    "data.patch.preview",
+    "data.patch.apply",
     "branch.create.v1",
     "branch.execute.v1",
     "branch.list.v1",
@@ -903,6 +905,56 @@ pub(crate) fn network_profile_result(
             profile,
             false,
             authority,
+            Value::Object(Default::default()),
+            vec![error.diagnostic],
+        ),
+    }
+}
+
+/// Project the server-owned data-patch core through the shared LLP 0024
+/// envelope. Token comparison/consumption and target classification happen
+/// before this presentation helper.
+pub(crate) fn data_patch_result(
+    snapback: &LocalSnapback,
+    request: &HostOpsRequest,
+    server_url: Option<String>,
+    profile: crate::admin::ServerProfile,
+    authority: Option<crate::data_patch::DataPatchAuthorityV1>,
+    outcome: Result<Value, SnapbackError>,
+) -> HostOpsResult {
+    let request_id = request.request_id.clone().unwrap_or_else(new_request_id);
+    let operation = request.operation.clone();
+    let envelope_authority = authority.map(|authority| HostOpsAuthority {
+        mode: authority.mode,
+        actor_principal: authority.actor_principal,
+        effective_principal: authority
+            .effective_principal
+            .and_then(|principal| serde_json::to_value(principal).ok()),
+        local_dev_only: authority.local_dev_only,
+        admin_bypass: authority.admin_bypass,
+        scope: authority.scope,
+        reason: authority.reason,
+    });
+    match outcome {
+        Ok(data) => host_ops_result(
+            snapback,
+            request_id,
+            operation,
+            server_url,
+            profile,
+            true,
+            envelope_authority,
+            data,
+            Vec::new(),
+        ),
+        Err(error) => host_ops_result(
+            snapback,
+            request_id,
+            operation,
+            server_url,
+            profile,
+            false,
+            envelope_authority,
             Value::Object(Default::default()),
             vec![error.diagnostic],
         ),

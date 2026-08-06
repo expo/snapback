@@ -71,6 +71,119 @@ async fn response_json(response: axum::response::Response) -> Value {
     .expect("host-ops response JSON")
 }
 
+fn admin_get(path: &str, token: Option<&str>) -> Request<Body> {
+    let mut request = Request::builder().method("GET").uri(path);
+    if let Some(token) = token {
+        request = request.header("x-snapback-admin-token", token);
+    }
+    request.body(Body::empty()).unwrap()
+}
+
+#[tokio::test]
+async fn build_and_instance_control_catalogs_are_admin_read_gated_and_identity_bound() {
+    let catalog_routes = snapback::server::route_registry()
+        .into_iter()
+        .filter(|route| route.path.starts_with("/_snapback/api/control-catalog"))
+        .collect::<Vec<_>>();
+    assert_eq!(catalog_routes.len(), 3);
+    assert!(catalog_routes.iter().all(|route| {
+        route.class == snapback::server::RouteClass::SystemApi
+            && route.path_policy == snapback::server::RoutePolicy::AdminRead
+            && route.credential_resolution
+                == snapback::server::CredentialResolution::AdminCredential
+            && route.invocation_authority == snapback::server::InvocationAuthority::Operator
+            && route.response_sensitivity == snapback::server::ResponseSensitivity::OperatorMetadata
+    }));
+
+    // A non-loopback-bound context disables the local read bypass, proving
+    // the declared AdminRead credential floor rather than only inspecting it.
+    let listener = std::net::TcpListener::bind("0.0.0.0:0").unwrap();
+    let mut context = ServerContext::from_bound_listener(&listener).unwrap();
+    context.profile = ServerProfile::Test;
+    context.admin_token = Some("catalog-admin".to_owned());
+    let state = AppState::from_snapback(LocalSnapback::memory().expect("catalog fixture"), context)
+        .with_server_startup_nonce("catalog-startup-nonce")
+        .unwrap();
+    let test_app = snapback::server::app(state);
+
+    let refused = test_app
+        .clone()
+        .oneshot(admin_get("/_snapback/api/control-catalog", None))
+        .await
+        .unwrap();
+    assert!(
+        matches!(
+            refused.status(),
+            StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN
+        ),
+        "an exposed catalog route must refuse without administrator authority"
+    );
+
+    let build = test_app
+        .clone()
+        .oneshot(admin_get(
+            "/_snapback/api/control-catalog",
+            Some("catalog-admin"),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(build.status(), StatusCode::OK);
+    let header_digest = build
+        .headers()
+        .get(snapback::control_catalog::CATALOG_DIGEST_HEADER)
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .to_owned();
+    let build_bytes = to_bytes(build.into_body(), usize::MAX).await.unwrap();
+    assert_eq!(
+        build_bytes.as_ref(),
+        snapback::control_catalog::BUILD_CATALOG_BYTES,
+        "the HTTP build catalog must be the exact bytes embedded in the binary"
+    );
+    let build_json: Value = serde_json::from_slice(&build_bytes).unwrap();
+    assert_eq!(build_json["catalogDigest"], header_digest);
+
+    let instance = test_app
+        .clone()
+        .oneshot(admin_get(
+            "/_snapback/api/control-catalog/instance",
+            Some("catalog-admin"),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(instance.status(), StatusCode::OK);
+    let instance = response_json(instance).await;
+    assert_eq!(
+        instance["schemaVersion"],
+        "snapback.control-catalog-instance.v1"
+    );
+    assert_eq!(instance["catalogDigest"], build_json["catalogDigest"]);
+    assert_eq!(instance["startupNonce"], "catalog-startup-nonce");
+    assert_eq!(instance["target"], "local");
+    assert_eq!(instance["profile"], "test");
+    assert!(
+        instance["enabledCapabilities"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|operation| operation == "debug.networkProfileGet")
+    );
+    snapback::control_catalog::require_matching_identity(&build_json, &instance).unwrap();
+
+    let described = test_app
+        .oneshot(admin_get(
+            "/_snapback/api/control-catalog/operations/debug.networkProfileSet",
+            Some("catalog-admin"),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(described.status(), StatusCode::OK);
+    let described = response_json(described).await;
+    assert_eq!(described["catalogDigest"], build_json["catalogDigest"]);
+    assert_eq!(described["entry"]["operation"], "debug.networkProfileSet");
+}
+
 #[tokio::test]
 async fn network_profile_ops_share_the_activation_gate_and_standard_envelope() {
     let mut test_context = ServerContext::detached();

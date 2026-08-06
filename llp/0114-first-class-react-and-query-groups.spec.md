@@ -5,7 +5,12 @@
 **Systems:** React, React/Expo, Client integration, Live Queries, Ephemeral state, Code generation, Sync, Auth, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-27
-**Revised:** 2026-08-06 (named-projection amendment, author-accepted with
+**Revised:** 2026-08-06 (descriptor-mode cold retained boot: the existing
+binding receipt now carries a compact admitted deployment projection for an
+exact AppDescriptor, so descriptor preparation reuses the same process-cold
+receipt/RQS machinery and same typed mismatch refusal; no surface cache,
+receipt format, or React state owner was added — see §Offline binding
+receipt); 2026-08-06 (named-projection amendment, author-accepted with
 LLPs 0179/0180: `useSurface` and `useSnapbackCommand` are named projections
 over this Spec's canonical stores — see §Named projections from accepted
 RFCs; no React state rule changes); 2026-08-06 (IndexedDB binding-receipt commits now defer through
@@ -1413,10 +1418,11 @@ digest, and registered-bundle availability that admission computed. When a
 later preparation's inspect/session fetch fails with a transport-provenance
 connectivity error (and ONLY then — a server-answered refusal is never
 masked), the client re-runs the complete admission against the persisted
-identity: digest equality proves the presented generated manifest is
-byte-identical to the one the online admission proved equal to the deployed
-manifest, so the deployed view IS the generated manifest and every per-item
-check re-runs unchanged. The prepared binding names its provenance:
+identity: digest equality proves the presented generated input is
+byte-identical to the one online admission proved. In legacy manifest mode
+the deployed view is that manifest; AppDescriptor mode uses the compact
+admitted projection specified below. In both cases every per-item check
+re-runs in the same owner. The prepared binding names its provenance:
 `binding.source` is `'deployment' | 'persisted-receipt'`.
 
 The receipt digest reuses the getter-free canonical JSON implementation but
@@ -1431,12 +1437,35 @@ instead of silently producing an unbound offline receipt.
 
 The asynchronous-admission rule of this spec is unchanged: admission
 completes (against the persisted identity) before a synchronous provider is
-constructed. A drifted generated manifest never adopts the receipt (digest
-mismatch falls through to the original connectivity error), and the
-user-switch custody wipe drops the receipt with the rest of the store.
-Regression witness: `packages/snapback-react/cold-boot-binding.test.mjs`
-(real client over a scripted wire; warmed store; cold offline process
-reaches a ready provider rendering `freshness: 'retained'` rows).
+constructed. A drifted generated manifest never adopts the receipt. Once a
+well-formed same-app receipt is found, digest/generation mismatch uses the
+existing typed `SNAPBACK_REACT_BINDING_MISMATCH` refusal rather than exposing
+the incidental connectivity error; a missing, foreign, unreadable, or
+unknown-version receipt still leaves the original connectivity failure
+unmasked. The user-switch custody wipe drops the receipt with the rest of the
+store. Regression witness:
+`packages/snapback-react/cold-boot-binding.test.mjs` (real client over a
+scripted wire; warmed store; cold offline process reaches a ready provider
+rendering `freshness: 'retained'` rows).
+
+**Dated implementation amendment (2026-08-06, AppDescriptor projection).**
+LLP 0179's portable AppDescriptor intentionally does not duplicate the
+server-owned function manifest or ephemeral policy interiors, so the original
+digest-only receipt could prove descriptor identity but could not reconstruct
+the admitted RQS/presence view. Descriptor-mode online preparation now adds a
+compact projection to the same `snapback` React binding receipt: each admitted
+function's server-derived query-artifact hash and authority-independent fact,
+the admitted ephemeral collection definitions, descriptor identity, and the
+existing registered/mixed capability facts. The application supplies the
+byte-identical descriptor again; neither the descriptor nor retained rows are
+copied into the receipt. Cold preparation reconstructs the inspection input
+and re-runs the existing per-function, result-contract, schema/ephemeral,
+surface, and capability admission in this owner before provider construction.
+An exact descriptor can therefore render the existing RQS rows through
+`useSurface`; a descriptor/generation drift remains the typed binding
+mismatch. Regression witnesses:
+`packages/snapback-react/cold-boot-binding.test.mjs` and
+`demos/expo-golden-path-fixture/tests/g2-falsification.mjs`.
 
 **Dated implementation amendment (2026-08-06).** The IndexedDB arm's
 boot-time Web Locks election race silently dropped the receipt commit

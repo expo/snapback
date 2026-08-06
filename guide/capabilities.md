@@ -17,15 +17,9 @@ reviewed-commit: 850427c31b9a668d55b46995e08389cd13a2c9b6
 
 <!-- @ref LLP 0061#2-the-capability-index-registry-lite-with-witnesses — witnesses, GAP rows, and the joined surfaces -->
 
-Every author-facing capability Snapback has. **GAP** rows make missing coverage
-explicit and owned. Shipped rows carry a code **witness**. The
-[surface map](./surface-map.md)
-classifies the machine-enumerable route and host-op registries;
-`scripts/check-guide.mjs` joins it to code so shipped surfaces cannot silently
-disappear.
-
-`ccheever` owns this guide. Track gaps in Exact Linear issues labeled `Snapback`
-and `guide-gap`.
+All author-facing capabilities. **GAP** rows are owned; shipped rows need a
+**witness**. The [surface map](./surface-map.md) is checked against route and
+host-op registries. Owner: `ccheever`; label gaps `guide-gap`.
 
 ## Capabilities
 
@@ -100,6 +94,8 @@ and `guide-gap`.
 | operating.admin-console | Shipped browser debugger for Data, Functions, Realtime, Errors, Logs, capabilities, and guide docs, with master-derived fragment, device approval, and one-time operator claim-link handoffs | console, dashboard, admin link, claim link, remote browser, table inspection, browse table, table scan, inspect rows, see backend, debug backend, inspect function, inspect realtime, Expo debugging, React debugging | local | shipped | route /_snapback/admin | llp/0017 | operating/admin-console.md |
 | operating.network-profiles | Named network condition profiles: server-side egress latency injection (mutation ack, live delta, query response lanes) with fail-closed local-only activation, startup-env and admin-API toggles, per-frame socket/poll markers, surface/principal activation provenance, and coalesced live deadlines | latency, slow network, network profile, delay, jitter, local-first testing | local | shipped | route /_snapback/api/debug/network-profile + host_ops.debug.networkProfileSet + demos/zero-bakeoff/protocol/environment.v2.json | llp/0167 | operating/network-profiles.md |
 | operating.host-ops | Host operations over CLI/HTTP | cli, ops, host operations | local | shipped | route /_snapback/api/host-ops | llp/0024 | operating/host-ops.md |
+| operating.agent-controls | Build/instance control discovery | controls list, controls describe, catalog | local | shipped | route /_snapback/api/control-catalog | llp/0184 | operating/agent-controls.md |
+| operating.data-patch | Preview/apply one validated existing-row correction with per-row CAS, a single-use token, normal live notification, and explicit dev authority | data patch, direct edit, patch row, correct row, expected version, row version, apply token, devUser, devAdminBypass | local | shipped | tests/data_patch_v1.rs | llp/0184, llp/0024, llp/0017 | operating/data-patch.md |
 | operating.diagnostics | Stable SNAPBACK_* codes; exact current-checkout link/launch diagnosis with one binary-selection recovery record; installed disposable vertical-slice doctor | diagnostics, errors, doctor, linker, missing symbols, stale binary, runtime recovery | all | shipped | `runRuntimeLinkProbe` in scripts/runtime-link-smoke.mjs | llp/0010, llp/0031, llp/0041, llp/0074 | operating/diagnostics.md |
 | operating.declaration-conformance | Per-invocation declared-vs-captured read/write report and local strict opt-in, plus `snapback verify` aggregation over explicitly registered acceptance paths: authoritative under-declarations and missing reports fail, universally extra declarations warn, and observed incomplete/unsupported provenance stays an explicit partial rather than a verdict. The Cloudflare target refuses `strictDeclarations: true` at compiled-schema load and `/app/ensure` with `SNAPBACK_STRICT_DECLARATIONS_TARGET_UNSUPPORTED`; it never admits the flag unenforced. Automatic discovery of every repository acceptance path, app-data-plane ring wiring, complete mutation-envelope provenance, and authoritative Cloudflare capture/reporting remain GAPs | declaration drift, undeclared read, undeclared write, strict declarations, conformance, coverage, missingReads, read set, write set | local | partial | `aggregateConformance` in packages/snapback-cli/verify.mjs | llp/0146, llp/0127, llp/0010 | GAP (guide page for the conformance report and strict opt-in; owner: ccheever, review: 2026-08-31) |
 | operating.verify | Five-stage CLI done-oracle with source-regenerated artifact identity, digest-bound runtime readiness, local admission plus registered-path D1 aggregation, generated capability resolution, registered acceptance execution, identity/test-byte-bound receipt, ordered next actions, and mechanically unique recommendation. Live-target admission, automatic acceptance-path discovery, `acceptance.run`, product-completeness claims, and CV-14 semantic-review custody are explicit nonclaims | verify, done oracle, receipt, recommended next, test bytes, readiness | local | partial | `runVerify` in packages/snapback-cli/verify.mjs | llp/0146, llp/0010 | testing/verify.md |

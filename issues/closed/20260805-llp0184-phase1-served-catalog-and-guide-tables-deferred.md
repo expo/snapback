@@ -1,6 +1,6 @@
 # LLP 0184 Phase 1 items 4 and 5 deferred: served catalog endpoint and generated Guide tables
 
-**Status:** Open
+**Status:** Closed
 
 LLP 0184 Phase 1 (`llp/0184-agent-accessible-control-plane.rfc.md`, "### Phase 1
 — catalog and parity gate") lists six items. Items 1-3 and 6 landed on main
@@ -38,3 +38,18 @@ strictly require the served endpoint or generated tables to start, but LLP
 Implemented. Pick this up either as part of a Phase 1 follow-up pass or
 folded into Phase 2's tooling work — whichever lands first should close this
 ticket.
+
+## Resolution — 2026-08-06
+
+Implemented by commit `2715951cf` (`feat(control-plane): serve and discover
+the control catalog`); the issue move is recorded by the follow-up
+`docs(issues): close LLP 0184 catalog discovery deferral` commit.
+
+The native binary now embeds and serves the exact 109-entry build catalog,
+serves a digest-bound instance snapshot through `AdminRead` SystemApi routes,
+and supports offline `controls list`/`controls describe`. `mcp-control`
+re-serves catalog and Guide resources by invoking the co-installed native
+binary, reports explicit unavailability when that binary is missing, and
+refuses a build/instance digest mismatch. Guide host-operation counts and the
+full control inventory are generated from the catalog; catalog generation and
+`scripts/check-guide.mjs` fail when those blocks drift.

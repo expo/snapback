@@ -66,6 +66,7 @@ here (or listed here but gone from the code).
 | /_snapback/api/cron/{name}/run | backend.cron |
 | /_snapback/api/data/{table} | operating.admin-console |
 | /_snapback/api/ephemeral/cleanup | notAuthorFacing (operator maintenance) |
+| /_snapback/api/ephemeral/operator/delete | notAuthorFacing (local operator repair, LLP 0184 §C) |
 | /_snapback/api/errors/issue | backend.error-tracking-v1 |
 | /_snapback/api/errors/issues | backend.error-tracking-v1 |
 | /_snapback/api/errors/transition | backend.error-tracking-v1 |
@@ -73,6 +74,9 @@ here (or listed here but gone from the code).
 | /_snapback/api/functions/{name}/run | testing.acceptance |
 | /_snapback/api/health | operating.inspect |
 | /_snapback/api/host-ops | operating.host-ops |
+| /_snapback/api/control-catalog | operating.agent-controls |
+| /_snapback/api/control-catalog/instance | operating.agent-controls |
+| /_snapback/api/control-catalog/operations/{operation} | operating.agent-controls |
 | /_snapback/api/inspect | operating.inspect |
 | /_snapback/api/jobs | backend.jobs-one-off |
 | /_snapback/api/jobs/drain | backend.jobs-one-off |
@@ -163,6 +167,10 @@ here (or listed here but gone from the code).
 | host_ops.asset.importCut | notAuthorFacing (operator consistent-cut restore) |
 | host_ops.auth.mintSession | operating.host-ops |
 | host_ops.auth.rescueCollidingTable | operating.host-ops |
+| host_ops.data.patch.preview | operating.data-patch |
+| host_ops.data.patch.preview.impersonated | operating.data-patch |
+| host_ops.data.patch.apply | operating.data-patch |
+| host_ops.data.patch.apply.impersonated | operating.data-patch |
 | host_ops.errors.issue | backend.error-tracking-v1 |
 | host_ops.errors.issues | backend.error-tracking-v1 |
 | host_ops.errors.transition | backend.error-tracking-v1 |

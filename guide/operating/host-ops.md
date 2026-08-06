@@ -50,47 +50,50 @@ carries the storage diagnostic; tooling must not substitute zero.
 
 ## Served request operations
 
-The endpoint serves thirty-six request spellings (`SERVED_HOST_OPS` in
-`src/host_ops.rs`):
+<!-- BEGIN GENERATED CONTROL CATALOG: HOST OPS SERVED -->
+The endpoint serves **38 request spellings**. This count and table are generated from the build catalog's LLP 0024 allowlist projection:
 
 | Request operation | Purpose |
 | --- | --- |
-| `app.inspect` | Full runtime/artifact/capability projection. |
-| `app.reset` | Coordinated destructive reset, optionally with seed. |
-| `app.seed.ensure.v1` | Install a generated versioned seed or observe its current match. |
-| `app.seed.preview.v1` | Classify a versioned install/reset/clear without writing. |
-| `app.seed.reset-install.v1` | Coordinated destructive reset plus versioned install. |
-| `app.seed.clear.v1` | Coordinated destructive clear with an idempotent receipt. |
-| `schema.load` | Load a generated schema manifest. |
-| `functions.load` | Load a generated function/config/cron manifest. |
-| `function.run` | Run a query/live query, mutation, or action with its kind-specific gate. |
-| `function.explain` | Explain a supported kind; currently `mutationDryRun` is implemented. |
-| `auth.mintSession` | Dev/test session mint requiring the process-bound impersonation capability. |
-| `auth.rescueCollidingTable` | Operator-only pre-auth catalog collision recovery. |
-| `branch.create.v1` | Create a managed operator in-app branch (allowed functions, TTL, egress policy). |
-| `branch.execute.v1` | Execute an allowed function inside a branch under a caller-retained replay-stable request id. |
-| `branch.list.v1` | List managed branches. |
-| `branch.reap.v1` | Reap expired managed branches. |
-| `branch.inspect.v1` | Inspect one managed branch. |
-| `branch.drop.v1` | Drop one managed branch. |
-| `asset.put` | Put asset bytes/metadata through the same machinery as the asset routes. |
-| `asset.ensureSeedFixture` | Install or observe a deterministic seed-fixture asset. |
-| `asset.inspect` | Inspect one asset record. |
-| `asset.list` | List asset records. |
-| `asset.retry` | Retry a failed asset processing step. |
-| `asset.gcSweep` | Deterministic receipted GC sweep with an injected clock. |
-| `asset.delete` | Delete one asset through the authorized deletion path. |
-| `asset.rotateSigningKey` | Rotate the delivery signing key, invalidating outstanding signed URLs. |
-| `asset.exportCut` | Export a consistent asset cut to an absolute directory. |
-| `asset.importCut` | Import a previously exported consistent asset cut. |
-| `telemetry.stats` | Aggregated telemetry statistics (structural metadata). |
-| `telemetry.events` | Bounded filtered raw telemetry events (secret-read lease). |
-| `telemetry.export` | Bounded NDJSON telemetry export (secret-read lease). |
-| `errors.issues` | Structural error-issue listing. |
-| `errors.issue` | Raw detail for one error issue (secret-read lease). |
-| `errors.transition` | Resolve/ignore state transition for one issue. |
-| `debug.networkProfileGet` | Return the active network condition profile and its activation provenance. |
-| `debug.networkProfileSet` | Activate a built-in named profile or an inline profile through the shared activation gate. |
+| `app.inspect` | Inspect the running app |
+| `app.reset` | Reset local app state |
+| `app.seed.clear.v1` | app.seed.clear.v1 |
+| `app.seed.ensure.v1` | app.seed.ensure.v1 |
+| `app.seed.preview.v1` | app.seed.preview.v1 |
+| `app.seed.reset-install.v1` | app.seed.reset-install.v1 |
+| `asset.delete` | Delete one asset |
+| `asset.ensureSeedFixture` | asset.ensureSeedFixture |
+| `asset.exportCut` | Export a consistent asset cut |
+| `asset.gcSweep` | Run asset reclamation and publication maintenance |
+| `asset.importCut` | Validate or apply an exported asset cut |
+| `asset.inspect` | Inspect one asset |
+| `asset.list` | List assets by availability state |
+| `asset.put` | asset.put |
+| `asset.retry` | Re-drive pending asset work |
+| `asset.rotateSigningKey` | Rotate the asset delivery signing key |
+| `auth.mintSession` | auth.mintSession |
+| `auth.rescueCollidingTable` | auth.rescueCollidingTable |
+| `branch.create.v1` | branch.create.v1 |
+| `branch.drop.v1` | branch.drop.v1 |
+| `branch.execute.v1` | branch.execute.v1 |
+| `branch.inspect.v1` | branch.inspect.v1 |
+| `branch.list.v1` | branch.list.v1 |
+| `branch.reap.v1` | branch.reap.v1 |
+| `data.patch.apply` | Apply one previewed bounded direct row patch |
+| `data.patch.preview` | Preview one bounded direct row patch |
+| `debug.networkProfileGet` | Read the active network condition profile |
+| `debug.networkProfileSet` | Set the active network condition profile |
+| `errors.issue` | Inspect one error issue |
+| `errors.issues` | List error issues |
+| `errors.transition` | Transition error issue state |
+| `function.explain` | function.explain |
+| `function.run` | Run one generated function |
+| `functions.load` | Load the generated function manifest |
+| `schema.load` | Load the generated schema manifest |
+| `telemetry.events` | Read a bounded telemetry event page |
+| `telemetry.export` | Export one bounded telemetry page |
+| `telemetry.stats` | Read aggregate telemetry health |
+<!-- END GENERATED CONTROL CATALOG: HOST OPS SERVED -->
 
 `snapback session mint --email <address> --ready-file <path>` projects
 `auth.mintSession` through the same target and authority handling and prints only
@@ -123,69 +126,63 @@ unbuilt and fail as `SNAPBACK_HOST_OP_UNIMPLEMENTED`. All three families are
 registered at AdminWrite so an authenticated request reaches that structured
 envelope; unknown names stay unregistered and fail closed before dispatch.
 
-## The exact 47 registry identities
+## Registered operation identities
 
-The HTTP request names above expand into these 47 audited operation
-identities (the last six are the registered CLI-only and pinned-unbuilt
-verbs):
+<!-- BEGIN GENERATED CONTROL CATALOG: HOST OPS REGISTERED -->
+The request spellings above expand into **51 registered operation identities**. This inventory is generated from each catalog row's LLP 0031 registry projection:
 
-1. `host_ops.app.inspect`
-2. `host_ops.function.explain`
-3. `host_ops.function.explain.impersonated`
-4. `host_ops.app.reset`
+1. `host_ops.acceptance.run`
+2. `host_ops.app.inspect`
+3. `host_ops.app.reset`
+4. `host_ops.app.seed.clear.v1`
 5. `host_ops.app.seed.ensure.v1`
 6. `host_ops.app.seed.preview.v1`
 7. `host_ops.app.seed.reset-install.v1`
-8. `host_ops.app.seed.clear.v1`
-9. `host_ops.schema.load`
-10. `host_ops.functions.load`
-11. `host_ops.branch.create.v1`
-12. `host_ops.branch.execute.v1`
-13. `host_ops.branch.list.v1`
-14. `host_ops.branch.reap.v1`
-15. `host_ops.branch.inspect.v1`
-16. `host_ops.branch.drop.v1`
-17. `host_ops.auth.mintSession`
-18. `host_ops.auth.rescueCollidingTable`
-19. `host_ops.function.run.query`
-20. `host_ops.function.run.mutation`
-21. `host_ops.function.run.action`
-22. `host_ops.function.run.unknown`
-23. `host_ops.function.run.impersonated`
-24. `host_ops.asset.put`
-25. `host_ops.asset.ensureSeedFixture`
-26. `host_ops.asset.inspect`
-27. `host_ops.asset.list`
-28. `host_ops.asset.retry`
-29. `host_ops.asset.gcSweep`
-30. `host_ops.asset.delete`
-31. `host_ops.asset.rotateSigningKey`
-32. `host_ops.asset.exportCut`
-33. `host_ops.asset.importCut`
-34. `host_ops.telemetry.stats`
-35. `host_ops.telemetry.events`
-36. `host_ops.telemetry.export`
-37. `host_ops.errors.issues`
-38. `host_ops.errors.issue`
-39. `host_ops.errors.transition`
-40. `host_ops.debug.networkProfileGet`
-41. `host_ops.debug.networkProfileSet`
-42. `host_ops.schema.reload`
+8. `host_ops.asset.delete`
+9. `host_ops.asset.ensureSeedFixture`
+10. `host_ops.asset.exportCut`
+11. `host_ops.asset.gcSweep`
+12. `host_ops.asset.importCut`
+13. `host_ops.asset.inspect`
+14. `host_ops.asset.list`
+15. `host_ops.asset.put`
+16. `host_ops.asset.retry`
+17. `host_ops.asset.rotateSigningKey`
+18. `host_ops.auth.mintSession`
+19. `host_ops.auth.rescueCollidingTable`
+20. `host_ops.branch.create.v1`
+21. `host_ops.branch.drop.v1`
+22. `host_ops.branch.execute.v1`
+23. `host_ops.branch.inspect.v1`
+24. `host_ops.branch.list.v1`
+25. `host_ops.branch.reap.v1`
+26. `host_ops.data.patch.apply`
+27. `host_ops.data.patch.apply.impersonated`
+28. `host_ops.data.patch.preview`
+29. `host_ops.data.patch.preview.impersonated`
+30. `host_ops.debug.networkProfileGet`
+31. `host_ops.debug.networkProfileSet`
+32. `host_ops.errors.issue`
+33. `host_ops.errors.issues`
+34. `host_ops.errors.transition`
+35. `host_ops.function.explain`
+36. `host_ops.function.explain.impersonated`
+37. `host_ops.function.run.query`
+38. `host_ops.function.run.mutation`
+39. `host_ops.function.run.action`
+40. `host_ops.function.run.unknown`
+41. `host_ops.function.run.impersonated`
+42. `host_ops.functions.load`
 43. `host_ops.functions.reload`
-44. `host_ops.acceptance.run`
+44. `host_ops.host.restart`
 45. `host_ops.host.start`
 46. `host_ops.host.stop`
-47. `host_ops.host.restart`
-
-> **Hand-count drift note (2026-08-06).** These counts are hand-maintained
-> and have now drifted twice (28/39 → corrected to 30/41; then the six
-> `branch.*.v1` operations landed while the page still said thirty/41).
-> This correction to 36/47 is the second repair; the structural fix is
-> generating these tables from the control catalog (LLP 0184 Phase 1 items
-> 4–5, tracked in
-> `issues/20260805-llp0184-phase1-served-catalog-and-guide-tables-deferred.md`).
-> If you find these counts disagreeing with `SERVED_HOST_OPS` in
-> `src/host_ops.rs` again, fix the generator ticket, not just the numbers.
+47. `host_ops.schema.load`
+48. `host_ops.schema.reload`
+49. `host_ops.telemetry.events`
+50. `host_ops.telemetry.export`
+51. `host_ops.telemetry.stats`
+<!-- END GENERATED CONTROL CATALOG: HOST OPS REGISTERED -->
 
 Query/explain reads, durable writes, credential-producing operations, and
 dev impersonation therefore keep distinct `RoutePolicy`, authority, effect,

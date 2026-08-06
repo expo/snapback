@@ -5,7 +5,7 @@ order: 1
 audience: agent-first
 capabilities: [backend.single-table-v1, sync.offline, sync.offline-js-arm, sync.local-persistent-store]
 authorities: [llp/0043-offline-replay-retention.rfc.md, llp/0052-contract-update-economy-and-host-state.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0090-resumable-query-snapshots.rfc.md, llp/0110-bounded-children-and-activity-patterns.spec.md, llp/0129-local-first-program.plan.md, llp/0133-local-settlement.spec.md, llp/0135-sequence-allocation-and-snapshot-batch.spec.md, llp/0157-composition-algebra-and-completeness.spec.md, llp/0166-local-persistent-store.spec.md, src/local-persistent-store-publication.v1.json, packages/snapback-codegen/index.mjs, packages/snapback-client/local-read-admission.mjs, packages/snapback-client/materialization-bridge.mjs, tests/acceptance/local-store-carrier-exit-v1.mjs, packages/snapback-contract/index.mjs, packages/snapback-contract/offline-replay.test.mjs, packages/snapback-client/index.mjs, packages/snapback-client/external-store.mjs, packages/snapback-client/external-store.test.mjs, packages/snapback-client/outbox-store.test.mjs, packages/snapback-react/index.mjs, demos/warble/snapback/functions.mjs, demos/warble/tests/acceptance/offline-local-first.mjs]
-examples: [demos/triage-graph, demos/card-game, demos/todo-v2/surfaces/contract, demos/public-dashboard, demos/warble, packages/snapback-contract/agent-authority-contract.test.mjs, packages/snapback-react/offline.test.mjs]
+examples: [demos/triage-graph, demos/card-game, demos/todo-v2/surfaces/contract, demos/public-dashboard, demos/warble, packages/snapback-contract/agent-authority-contract.test.mjs, packages/snapback-react/offline.test.mjs, tests/acceptance/desktop-sidecar-v1.mjs]
 status: current
 targets: [local]
 maturity: partial
@@ -116,6 +116,35 @@ witness proves:
   const queued = await client.mutate('createThing', { args: { title: 'offline' } });
   assert.equal(queued.queued, true);
 ```
+
+## Preserve pending work across a desktop sidecar swap
+
+The desktop sidecar is the explicit exception to default per-origin store
+selection. Because each candidate starts on a new ephemeral port, an ordinary
+fresh client would resolve another default file-store blob. The embedding app
+instead owns one durable file store for the canonical sidecar database domain
+and injects that same store into predecessor, candidate, and rollback clients.
+Do not generalize this to arbitrary servers: the default isolation rule is a
+safety boundary.
+
+After candidate nonce attestation, construct the fresh client with the
+candidate URL and shared store, complete an application-owned full-snapshot
+barrier, then call `adoptQueuedMutations`. The checked API requires the captured
+`clientStoreId` and exact artifact generation; it also checks writer custody,
+candidate `/inspect`, and every pending record generation before replay. Its
+receipt reports authoritative before/after dispositions and terminal deltas.
+The sidecar commits only at zero remaining, no stop, and no new failed,
+quarantined, or result-gone record.
+
+Replay keeps the original `clientMutationId`; the candidate client's `baseUrl`
+supplies the new origin. The shared SQLite `_snapback_client_mutations` row is
+the exactly-once authority, so a predecessor commit whose response was lost is
+republished rather than applied twice. Startup nonce, port, and pid are
+attachment evidence, not duplicate identity.
+
+This is a pending-work-preserving stop/start swap. The predecessor is stopped
+before the candidate starts, so it does not provide zero-request-downtime. A
+stable front door or overlapping runtime ownership is separate work.
 
 ```js source=packages/snapback-client/outbox-store.test.mjs
   const outcome = await client.replayQueuedMutations();

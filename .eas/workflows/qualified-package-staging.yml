@@ -69,12 +69,15 @@ jobs:
           node scripts/snapback-create-runtime-artifact-attestation.mjs \
             --binary packages/snapback-runtime-linux-x64/bin/snapback \
             --hermes packages/snapback-runtime-linux-x64/lib/libhermesvm.so \
+            --hermes-header packages/snapback-runtime-linux-x64/include/hermes/hermes.h.artifact \
             --identity "$HOME/snapback-linux-build-identity.json" \
             --source-revision "$source_revision" \
             --out "$artifact_root/build-attestation.json"
           cp packages/snapback-runtime-linux-x64/bin/snapback "$artifact_root/snapback"
           cp packages/snapback-runtime-linux-x64/lib/libhermesvm.so \
             "$artifact_root/libhermesvm.so"
+          cp packages/snapback-runtime-linux-x64/include/hermes/hermes.h.artifact \
+            "$artifact_root/hermes.h.artifact"
           mkdir -p "$HOME/.cache/exact/hermes-linux"
           mkdir -p .eas-artifacts
           tar -czf .eas-artifacts/snapback-linux-runtime.tar.gz \
@@ -130,7 +133,8 @@ jobs:
           test -z "$(git status --porcelain --untracked-files=all)"
           mkdir -p .eas-artifacts
           tar -czf .eas-artifacts/snapback-darwin-runtime.tar.gz \
-            -C packages/snapback-runtime-darwin-arm64 bin Frameworks
+            -C packages/snapback-runtime-darwin-arm64 \
+            bin Frameworks include runtime-readiness.json
 
       - uses: eas/save_cache
         with:
@@ -203,8 +207,10 @@ jobs:
           export SNAPBACK_PACKAGE_OUT="$HOME/snapback-qualified"
           export SNAPBACK_RUNTIME_SOURCE_BINARY="$artifact_root/darwin/bin/snapback"
           export SNAPBACK_RUNTIME_HERMES_FRAMEWORK="$artifact_root/darwin/Frameworks/hermesvm.framework"
+          export SNAPBACK_RUNTIME_HERMES_HEADER="$artifact_root/darwin/include/hermes/hermes.h.artifact"
           export SNAPBACK_RUNTIME_LINUX_X64_SOURCE_BINARY="$artifact_root/linux/snapback"
           export SNAPBACK_RUNTIME_LINUX_X64_HERMES_LIBRARY="$artifact_root/linux/libhermesvm.so"
+          export SNAPBACK_RUNTIME_LINUX_X64_HERMES_HEADER="$artifact_root/linux/hermes.h.artifact"
           export SNAPBACK_RUNTIME_LINUX_X64_BUILD_ATTESTATION="$artifact_root/linux/build-attestation.json"
           export SNAPBACK_RUNTIME_LINUX_X64_SOURCE_REVISION="$source_revision"
           node scripts/snapback-publish.mjs \

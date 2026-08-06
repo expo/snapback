@@ -6,7 +6,12 @@
 Auth, Assets, Offline, Testing, Hosted environments, Code generation
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-05
-**Revised:** 2026-08-06 (g) — The real Android-emulator G1 receipt exposed
+**Revised:** 2026-08-06 (h) — Provider boot-state clarification from the G2
+surface checkpoint: with ordinary authority already available, an exact
+AppDescriptor may reach `ready` from LLP 0114's persisted binding receipt
+while its query/connection projections truthfully remain retained/stale. The
+provider does not require live transport to call retained state ready, and it
+does not turn missing authority into that state. Earlier same day (g) — The real Android-emulator G1 receipt exposed
 ordinary host/device clock lag at immediate cold launch. Supervised
 `local-supervised-ipc` admission now tolerates at most 60 seconds on the
 `issuedAt` lower bound only; expiry stays strict, release admission is
@@ -385,6 +390,16 @@ type ExpoBootState =
   | { status: "unsupported" | "error"; diagnostic: SnapbackDiagnostic;
       remediations: readonly TypedRemediation[] }
 ```
+
+`ready` means descriptor/binding admission, ordinary authority adoption, and
+client/provider construction have completed; it does not assert that the
+transport is currently live or that retained rows are current. If live
+inspection is unreachable but LLP 0114 admits the exact persisted binding
+receipt, the provider may be `ready` while `useSurface` reports
+`freshness: 'retained'`, `status: 'refreshing'`, and a stale/offline
+connection fact. Authority remains a separate prerequisite: without an
+adoptable ordinary session the state is `authority-required`, never a
+receipt-backed anonymous success.
 
 The provider does not turn missing authority into anonymous success. For the
 development golden path, the supervisor supplies an ordinary bounded session
