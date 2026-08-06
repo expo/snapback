@@ -142,9 +142,9 @@ assert.throws(
     'declared writes to permission-backing tables derive the consent marker',
   );
 
-  // Contract is bound to the exact paired schema/function identity and moves
-  // with it. The Rust-declared capability and legacy artifact index retain
-  // their own v0 schema until their independent formats migrate.
+  // Contract and the codegen-owned review index are bound to the exact paired
+  // schema/function identity and move with it. The Rust-owned capability keeps
+  // its independent v0 format.
   assert.equal(capabilities.schemaVersion, 'snapback.v0');
   assert.deepEqual(capabilities.hostedAuth, {
     authenticationThrottle: 'processLocal',
@@ -154,7 +154,7 @@ assert.throws(
     sessionInvalidation: 'singleProcess',
   });
   assert.equal(contract.schemaVersion, 'snapback.v1');
-  assert.equal(artifacts.schemaVersion, 'snapback.v0');
+  assert.equal(artifacts.schemaVersion, 'snapback.v1');
 }
 
 {

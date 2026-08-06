@@ -9,6 +9,10 @@
     "provider-bindings.json",
     "provider-bindings.d.ts",
     "contract-data.manifest.json",
+    "app.descriptor.json",
+    "app.binding.mjs",
+    "app.mjs",
+    "app.d.ts",
     "api.mjs",
     "api.d.ts",
     "api-envelope.members.json",
@@ -50,7 +54,7 @@
   "cronJobs": [],
   "custody": {
     "consumer-committed": 0,
-    "regenerable-cache": 37,
+    "regenerable-cache": 41,
     "review-manifest": 1
   },
   "ephemeralCollections": [
@@ -70,7 +74,7 @@
       "sha256": "sha256:a0c5af620d86497f8e09663078228bdfa5a8635f50ebba5e50d4352b707312dc"
     },
     {
-      "bytes": 16687,
+      "bytes": 17269,
       "consumer": "client-bundler",
       "custody": "regenerable-cache",
       "logicalKind": "typed-api",
@@ -79,10 +83,10 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:9c8cb3f6b164de0417b86f4cbb077ee2e37386661e6d17edeb7072ddd9a573ec"
+      "sha256": "sha256:a8ef79dc81f82dfe943185af5001f4d3cc1aa968530bd0580ae8f76274de5851"
     },
     {
-      "bytes": 8843,
+      "bytes": 1371,
       "consumer": "client-bundler",
       "custody": "regenerable-cache",
       "logicalKind": "typed-api",
@@ -91,7 +95,55 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:e038acdddd53971120c19cac79ba7fb5f2e963df90f360171d2819d3b76694be"
+      "sha256": "sha256:a4a61c1abc0e43f1fdb33f6418dce090b161c2167dd6b4c88c499ed3beae7b08"
+    },
+    {
+      "bytes": 1424,
+      "consumer": "client-bundler",
+      "custody": "regenerable-cache",
+      "logicalKind": "typed-app-descriptor",
+      "path": "app.binding.mjs",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:e937a86df63d9c57fbbb597e461163a28048c5f96724fe74c452cf1329087350"
+    },
+    {
+      "bytes": 2138,
+      "consumer": "client-bundler",
+      "custody": "regenerable-cache",
+      "logicalKind": "typed-app-descriptor",
+      "path": "app.d.ts",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:30242b2e01b136529cf23ef9ca26850d9f916f4a99adec018ef0b55b31f22624"
+    },
+    {
+      "bytes": 9401,
+      "consumer": "inspection",
+      "custody": "regenerable-cache",
+      "logicalKind": "app-descriptor",
+      "path": "app.descriptor.json",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:29bc9c2854362f79996532038b77adf1462de14b6f32ccf37525960bb3dc3350"
+    },
+    {
+      "bytes": 419,
+      "consumer": "client-bundler",
+      "custody": "regenerable-cache",
+      "logicalKind": "typed-app-descriptor",
+      "path": "app.mjs",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:fb142341faa9a5a4e700393ddc5e20a17594b83a4ab8899cca28b828272caafd"
     },
     {
       "bytes": 14904,
@@ -442,7 +494,7 @@
       "sha256": "sha256:559d5c4eeefc521ed1e3983174cac2925e2cff48011029e91e39412a79b6b99d"
     },
     {
-      "bytes": 523,
+      "bytes": 651,
       "consumer": "client-bundler",
       "custody": "regenerable-cache",
       "logicalKind": "package-metadata",
@@ -451,7 +503,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:4e9e54445ac075f17e8326b895e5e62cdd263f48c7bbed8cd45dc1537a2ac981"
+      "sha256": "sha256:4d53c3382f31bc3e38160f8b2a89be94b59c13ca99881dfdac1ae6aa02a2af32"
     },
     {
       "bytes": 2301,
@@ -554,9 +606,9 @@
     "counts": {
       "custody": {
         "consumerCommitted": 0,
-        "regenerableCache": 37,
+        "regenerableCache": 41,
         "reviewManifest": 1,
-        "total": 38
+        "total": 42
       },
       "degradedResults": 3,
       "ephemeralCollections": 1,

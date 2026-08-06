@@ -210,6 +210,7 @@ const inventories = [
     scriptNames: ['pretest', 'test'],
     expectedFiles: [
       'api-envelope-members.test.mjs',
+      'app-descriptor.test.mjs',
       'args-contract-goldens.test.mjs',
       'asset-thumbhash-vector.test.mjs',
       'asset-upload-authoring.test.mjs',
@@ -567,7 +568,9 @@ const total = results.reduce((sum, result) => sum + result.count, 0);
 // hmr-generation-handoff.test.mjs (landed 8ce5ca33e with its test-script
 // entry) is registered here — that landing added the file without updating
 // this canonical inventory; caught while landing the G0 A2 lane.
-assert.equal(total, 206, 'reviewed package/admin test count changed');
+// 206 -> 207 (2026-08-05, LLP 0179 S0): @expo/snapback-codegen gains the
+// generated descriptor identity, inspection, aliasing, and refusal suite.
+assert.equal(total, 207, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }

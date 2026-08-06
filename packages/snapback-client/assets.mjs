@@ -19,13 +19,14 @@
 // create, TUS transfer, finalize, metadata, delivery-adjacent reads —
 // carries `authorization: Bearer` exactly like the client's own request
 // lane, and the asset route family's `OptionalSessionBearer` overlay
-// resolves the caller. Without a credential the dev-lane header is sent;
-// note the dev-mode HTTP body-authority gap recorded by the conformance
-// suite (asset request DTOs carry no dev auth member, so dev-lane HTTP
-// requests resolve anonymous server-side today). The reserved record
-// projection rides `SnapbackClient.subscribeLive`, whose custody the parent
-// client owns; sessions-mode establishment of that projection is refused
-// server-side until its LLP 0053 classification lands (W2e).
+// resolves the caller. Declared anonymous-public custody carries the same
+// auth-client protocol offer without a credential. A bare no-custody client
+// retains the empty dev-lane fallback; asset request DTOs carry no dev auth
+// member, so those HTTP requests resolve anonymous server-side today. The
+// reserved record projection rides `SnapbackClient.subscribeLive`, whose
+// custody the parent client owns; sessions-mode establishment of that
+// projection is refused server-side until its LLP 0053 classification lands
+// (W2e).
 
 // Digest custody: node:crypto streams when the runtime provides it; browser
 // bundles (the first real Vite build of a demo surface caught this — diary
@@ -347,11 +348,22 @@ export class SnapbackAssetClient {
    * overrides a real credential.
    */
   #custodyHeaders(userId) {
+    // @ref LLP 0096#2-per-profile-contract — the parent client's auth/rr
+    // offer repeats on every asset boundary; the offer is not a credential.
+    const authClientProtocol = this.#client.authProtocols?.authClient ?? null;
+    const protocolHeaders = authClientProtocol === null
+      ? {}
+      : { 'x-snapback-auth-client-protocol': String(authClientProtocol) };
+
     // A sessions request must offer the exact auth-client protocol beside
-    // its credential (the server refuses a bare bearer).
+    // its credential (the server refuses a bare bearer). The v1 fallback
+    // preserves the existing shallow-adapter behavior; SnapbackClient owns
+    // and exposes the protocol projection used by normal parent clients.
     const bearerHeaders = (bearer) => ({
       authorization: `Bearer ${bearer}`,
-      'x-snapback-auth-client-protocol': '1',
+      ...(authClientProtocol === null
+        ? { 'x-snapback-auth-client-protocol': '1' }
+        : protocolHeaders),
     });
     const fence = this.#client.authorityFence;
     if (fence) {
@@ -365,6 +377,12 @@ export class SnapbackAssetClient {
     const external = this.#client.bearerToken;
     if (typeof external === 'string' && external.length > 0) {
       return bearerHeaders(external);
+    }
+    // @ref LLP 0176#one-owner-many-projections — anonymous-public is the
+    // parent's declared credential-free auth/rr projection, not an asset-only
+    // identity. Bare clients below must remain the offerless dev fallback.
+    if (this.#client.custody === 'anonymous-public') {
+      return protocolHeaders;
     }
     // Dev-lane HTTP asset requests resolve anonymously today: no server
     // route reads a dev identity header, and TUS PATCH bodies are raw bytes
@@ -527,7 +545,11 @@ export class SnapbackAssetClient {
             },
           },
         );
-        if (!head.ok) throw new Error(`resume HEAD failed: ${head.status}`);
+        if (!head.ok) {
+          throw Object.assign(new Error(`resume HEAD failed: ${head.status}`), {
+            diagnostic: { code: 'SNAPBACK_ASSET_TRANSFER_FAILED', status: head.status },
+          });
+        }
         state.offset = Number(head.headers.get('upload-offset') ?? '0');
         state.wholeHash = createHash('sha256');
         if (state.offset > 0) {
