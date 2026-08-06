@@ -65,3 +65,15 @@ ticket; the delta session will rebase around whatever has landed.
 Close when S1 + delta are on main with all four package suites green from a
 fresh checkout, `check-generated-artifacts` green, and the budget refusal
 implemented with a fixture. Move to `issues/closed/` with landing SHAs.
+
+## Addendum 2026-08-06 (llp0187-finish run): all three wedged activations enumerated
+
+The `TRUSTED_COMPOSITION_ACTIVATION_INVALID` refusal noted above for
+`demos/latency-kanban` also affects `demos/triage-graph` and
+`demos/zero-bakeoff/apps/contention-calendar` — verified failing identically
+on pristine `origin/main` (b0332f82b), so `check-generated-artifacts` and the
+review-surface index check cannot run green from any fresh checkout until all
+three activations are rebound. The llp0187-finish artifact-rotation commit
+excluded these three backends and verified the review surface over the
+remaining roots; whoever performs the rebind should re-run the full
+unexcluded gate.
