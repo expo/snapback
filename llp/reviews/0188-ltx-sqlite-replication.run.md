@@ -284,3 +284,23 @@ per LLP 0010 §2 this residue is disclosed as self-attested.
   close-out notes disclose. Six rounds and seven revisions total; both
   budgets (original + extension) exhausted; disposition and
   recommendation with the author.
+
+## Author disposition — 2026-08-06: ACCEPTED
+
+- The author (Charlie Cheever) directed "flip to acceptance" in-session.
+  Status Review → **Accepted** applied by the orchestrator on the
+  author's explicit instruction (the author, not the loop, accepts).
+  Accepted revision sha256/16 `4baee93955f2820c` (r7 plus the
+  acceptance sweep). The acceptance ratifies §5's keyring-encryption
+  rule (former OQ2) and OQ4's delegation of epoch representation to the
+  LLP 0072 amendment.
+- Sweep applied with the flip: the four dated amendments (0057, 0072,
+  0099, 0111) were worded as "prerequisites of accepting this RFC,"
+  which the author's acceptance would self-contradict; per the ruling
+  they are recorded as hard prerequisites of the lanes/claims/gates
+  that name them (hosted continuous lane, 0057-contract restore claim,
+  0099 checkpoint substitution, G3). Capability claims remain gated on
+  the §7 corpus, unchanged.
+- Standing honest-record note: the accepted text's formal verdicts bind
+  to r6, both NOT READY, with the terminal analysis above; acceptance
+  is the author's prerogative under LLP 0005 and is recorded as such.

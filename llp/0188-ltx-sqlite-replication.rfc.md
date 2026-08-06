@@ -1,11 +1,22 @@
 # LLP 0188 — Continuous SQLite replication via a vendored LTX replicator
 
 **Type:** RFC
-**Status:** Review
+**Status:** Accepted
 **Systems:** Storage, Backup and restore, Deployment, Control plane, CLI, Testing
 **Author:** Claude (Fable 5), directed by Charlie Cheever
 **Date:** 2026-08-06
-**Revised:** 2026-08-06 (r7, post-extension close-out applying the
+**Revised:** 2026-08-06 (Review → **Accepted** by the author, Charlie
+Cheever, at r7 — after the six-round dual-family super-refine loop
+(formal verdicts bind to r6; r7 applied the final ledger, unreviewed;
+full record in `llp/reviews/0188-*`). The acceptance ratifies §5's
+unconditional keyring-snapshot encryption rule (former OQ2) and OQ4's
+delegation of epoch representation to the LLP 0072 amendment. The four
+dated amendments (LLP 0057, 0072, 0099, 0111) are hard prerequisites of
+the lanes, claims, and gates that name them — the hosted continuous
+lane, the 0057-contract restore claim, the 0099 checkpoint substitution
+and G3 — not of this document's status; wording swept accordingly at
+acceptance. No capability manifest claims replication until the §7
+corpus passes, unchanged.) 2026-08-06 (r7, post-extension close-out applying the
 round-6 ledger — **unreviewed by the formal loop**: chain-validation
 invariants generation-scoped with masked-effective selection and
 at-or-beyond masking (succession never self-refuses); chain metadata
@@ -412,8 +423,8 @@ decrypt and restore — applies to it. Two rules, one unconditional:
   segments, so a single bucket-credential compromise would enable
   offline recovery of live low-entropy codes — defeating LLP 0057's
   boundary 2 outright. No "recorded weaker posture" is available for
-  key material. (This resolves former OQ2; as a security-posture rule
-  it is subject to author ratification at acceptance.)
+  key material. (This resolves former OQ2; the author ratified the
+  rule at acceptance, 2026-08-06.)
 - **Segments** are client-side encrypted before upload with keys
   custodied per LLP 0072 on hosted targets; because encryption executes
   inside the application process, the scheme must be asymmetric-capable
@@ -474,7 +485,8 @@ proposed here is a **role split with enforced immutability**:
 **Acceptance dependency:** this role split diverges from LLP 0111's
 supervisor-mediated byte path, so dated LLP 0072 and LLP 0111
 amendments admitting it (and specifying §4's epoch-handover protocol
-and representation) are prerequisites of accepting this RFC, exactly as
+and representation) are hard prerequisites of the hosted continuous
+lane this section defines, exactly as
 the LLP 0057 amendment is in §6, and as the dated LLP 0099 amendment of
 §7 is for the checkpoint substitution. Until the 0072/0111 amendments
 land, the hosted lane has **no continuous replication** — the interim
@@ -523,7 +535,7 @@ not exemption: an LTX restore materializes a transactionally exact
 commit boundary (unlike a fuzzy file copy), and §2's ordering invariant
 guarantees the governing keyring is at least as fresh as any key a
 restorable position's rows can reference, with the `key_id` check
-failing closed on any gap. Accepting this RFC therefore **requires a
+failing closed on any gap. This composition therefore **requires a
 dated LLP 0057 amendment** recognizing "retained LTX boundary within
 the restorable frontier + governing keyring snapshot" as a second
 admissible physical-capture discipline; until that amendment lands,
@@ -546,7 +558,7 @@ enters LLP 0134's registry experimental-first with a
 §5/§6 set: LLP 0099's resolved pre-apply decision names "the existing
 streaming SQLite backup" as the qualifying checkpoint artifact, so a
 **dated LLP 0099 amendment** admitting a §3 proof as that artifact is
-an acceptance dependency and a G3 prerequisite. Sketch of the gates:
+a hard prerequisite of the substitution and of G3. Sketch of the gates:
 
 - **G1 (provenance + format conformance):** §1's license/notice and
   test-vector provenance verification at the pinned commit; upstream
@@ -627,7 +639,9 @@ durability lane behind an architecture debate.
    replication epoch (mirroring LLP 0099's barrier-lease epochs) or the
    existing deployment fence is bound as-is — plus the amendment-owned
    barrier and window-reconciliation protocol. Owned by the dated LLP
-   0072 amendment §5 names as an acceptance dependency.
+   0072 amendment §5 names as a hard prerequisite of the hosted
+   continuous lane (delegation ratified by the author at acceptance,
+   2026-08-06).
 5. **Local operator surface.** What does the self-hosted operator
    configure — bucket URL + credentials in instance config — and does
    `snapback doctor`-style diagnosis gain replication-lag and
