@@ -830,3 +830,47 @@ The idle interval observed zero storage mutations, zero read bytes, zero write
 bytes, 4/10 allowed CPU ticks (40/100 ms), and zero RSS-page growth. This is
 proof-carrier and declaration drift, not a correctness failure in the actively
 owned PUSH-01 seam or F0a fork code.
+
+### LLP 0184 landing race and final batched carriers — 2026-08-05
+
+Main proof run `31060914481` at `bc65b59006140016131764c4b9650942c6bdd7d7`
+retained four roots: the three pre-merge sidecar roots above plus
+`package-test-inventory`. LLP 0184 Phase 0 landing
+`753191e4601bcba257a9fb5350ba8085d5cd1292` added the packaged
+`agent-setup.test.mjs` acceptance suite and selected it in the CLI package
+script, but omitted it from the canonical package inventory. The real CLI
+package suite passed that test in the same KEEP-GOING proof. The inventory now
+registers 205 package/admin test files.
+
+While the first replacement receipt was building, LLP 0184 Phase 1 landed on
+main. Its source changed the telemetry closure and its
+`14e4548fd873f00c0beebc4cd5978be5ec52d294` landing added five negative
+ControlCatalog completeness fixtures without selecting them in local-proof.
+The stale in-flight producer was stopped rather than retained. The final source
+candidate selects those fixtures as `control-catalog-fixtures`; all five pass.
+The 97-entry ControlCatalog carrier is regenerated once for the combined
+candidate `9986c733b1c3d9f929b276ade935ddf026c4bb42`, retaining catalog digest
+`sha256:919b2ba9fea2c3edb02f8311352a2d61c9e2ef07240a9b19b66947735b5a6736`.
+
+The final EPYC producer measured a fresh clean clone at that exact source
+candidate. It used the existing user-owned Node 24.18.0 and Bun 1.3.12
+toolchain, installed the frozen lockfile, and invoked unchanged
+`scripts/verify-telemetry-phase1-proof --full`. The coded bootstrap initialized
+Ibex pin `4c34c831aa087d6783b0d68f281cdb374ed7fc89`, copied compatible prepared
+Hermes artifacts through supported `SNAPBACK_IBEX_CHECKOUT`, and exact
+link/launch/handler-VM-qualified both debug and release identities without an
+administrator change or loader bypass.
+
+The retained receipt has SHA-256
+`e2bcc6e629763ddb3859384d401b4a53ab1cb86383545510412e87de47584d9c`
+and covers 441 proof-source files with digest
+`54440a5795747c51b88872903cfad19f233b2e3ac7fad33f347a1e716c11b5f2`.
+The 1,201-line transcript at
+`/var/cache/expose-build/snapback-telemetry-998.iahL4R/telemetry-full.log`
+has SHA-256
+`36e1a55ad13422499cab3ea4f75a7ceb71b4e1e3dc97318a90e2b202acaef7da`.
+The 120-second idle interval observed zero storage mutations, zero read bytes,
+zero write bytes, 4/10 allowed CPU ticks (40/100 ms), and zero RSS-page growth.
+These are package inventory, proof-suite selection, deployment-identity, and
+telemetry-carrier drift attributable to the LLP 0184 landings, not a
+correctness failure in the actively owned PUSH-01 seam or F0a fork code.
