@@ -2,27 +2,27 @@
   "format": "snapback.trusted-composition-activation.v1",
   "activation": {
     "format": "snapback.composition-activation.v1",
-    "databaseId": "019fd149-833c-7792-a7b2-c3929a64dab0",
+    "databaseId": "019fd193-36c0-7332-a19a-6c524d99e4e4",
     "deploymentId": "triage-graph-p3-controlled-run",
     "targetProfileId": "local-dev-sqlite-ibex",
     "authMode": "sessions",
     "expectedGeneration": {
       "schemaVersion": "snapback.v1",
       "appId": "triage-graph",
-      "schemaHash": "snapback.v1:sessions:schema:sha256:1be6d0624b1f069c6d347ef0732a9002fba8c5b585c0df806afc627484a5757f",
-      "bundleHash": "snapback.v1:sessions:function:sha256:b7223d2edcad8fd4b7a8ed7264db50ea5d64834c0d623c324b3b60427fd0a341",
-      "inputsHash": "snapback.v1:sessions:inputs:sha256:04b99f51af8c01de3baa2d71ad136852524f9d5a77cec15fcb4a6ad2bf655710"
+      "schemaHash": "snapback.v1:sessions:schema:sha256:c19cf0793b4c457f5ea4a66b2be35f0d56ec27db1f3b1562c76c21c4f0a6c245",
+      "bundleHash": "snapback.v1:sessions:function:sha256:f714fa5ee7ef641c7fc0c95bb41e75f951a6c741fdc40f6a95b27ceace015d13",
+      "inputsHash": "snapback.v1:sessions:inputs:sha256:8732f9cd3f9029a1198992bfb689054c40f0d3db7658092ec6c42684ebe225c9"
     },
-    "proofKeyManifestDigest": "sha256:bf7bc40576cc72ecd0e919b8fa5b8e921fbff39fe68b837e83ad3d6d64682daa"
+    "proofKeyManifestDigest": "sha256:9f9757792cf90d28fbb4493c2a43a3031f43c41b90473bedbacb9cd2a18f542f"
   },
-  "activationHash": "sha256:c2f7a345c4e561b8f94bafb1bd0ab450fa9568e7f14290ca7f3118694be7403d",
+  "activationHash": "sha256:13c4711abb9bc0f4a78410902865a7e3ff75dafb7d6b21a52ef2e74c8b9c3410",
   "proofKeys": {
     "format": "snapback.completeness-proof-keys.v1",
     "keys": [
       {
-        "proofKeyId": "sbpk1.25yU9P6meMHurPII55NMug",
+        "proofKeyId": "sbpk1.6ajTWXcOOhTyIngKbrpMsg",
         "algorithm": "Ed25519",
-        "publicKeyBase64url": "Rpkaqqrh_D00-tfMWBfvDs0CFn7IqWk7ibSa7T-wukg"
+        "publicKeyBase64url": "dR9GFSWpvSbcPoKd5MJbFGVZO4TnDEJ4awnOHhgnL1o"
       }
     ]
   }

@@ -104,6 +104,40 @@ test('a committed carrier remains fresh after its source commit', () => {
   }
 });
 
+test('check preserves the valid generation snapshot while recomputing catalog content', () => {
+  const dir = scratchRepo();
+  try {
+    const generated = runCompiler(dir);
+    assert.equal(generated.ok, true, `expected clean compile, got:\n${generated.output}`);
+
+    const outputPath = join(dir, 'control-catalog/generated/control-catalog.v1.json');
+    const output = JSON.parse(readFileSync(outputPath, 'utf8'));
+    output.buildIdentity = {
+      sourceCommit: '0123456789abcdef0123456789abcdef01234567',
+      dirty: false,
+    };
+    output.generatedAtCommit = output.buildIdentity.sourceCommit;
+    writeFileSync(outputPath, `${JSON.stringify(output, null, 2)}\n`);
+
+    const checked = runCompiler(dir, ['--check']);
+    assert.equal(
+      checked.ok,
+      true,
+      `a later clean commit must not make its checked-in generation snapshot stale:\n${checked.output}`,
+    );
+
+    const manifestPath = join(dir, 'control-catalog/cli-only-operations.json');
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+    manifest.entries[0].intents.push('semantic drift after generation');
+    writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
+    const stale = runCompiler(dir, ['--check']);
+    assert.equal(stale.ok, false, 'the informational snapshot exception must not hide content drift');
+    assert.match(stale.output, /control-catalog\/generated\/control-catalog\.v1\.json is stale/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('rule 8 fails when a destructive CLI-only row loses its approvalPosture', () => {
   const dir = scratchRepo();
   try {

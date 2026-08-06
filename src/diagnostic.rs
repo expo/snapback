@@ -291,19 +291,24 @@ mod tests {
             "runtime",
             "JavaScript handler failed",
         );
-        let carried = public.clone().with_private_failure_context(PrivateFailureContextV1 {
-            carriers: vec![FailureCarrierV1 {
-                error_class: "TypeError".to_owned(),
-                message: Some("raw private message".to_owned()),
-                stack: Some("raw private stack".to_owned()),
-                message_extraction_truncated: false,
-                stack_extraction_truncated: true,
-            }],
-            app_refusal_tracking: None,
-        });
+        let carried = public
+            .clone()
+            .with_private_failure_context(PrivateFailureContextV1 {
+                carriers: vec![FailureCarrierV1 {
+                    error_class: "TypeError".to_owned(),
+                    message: Some("raw private message".to_owned()),
+                    stack: Some("raw private stack".to_owned()),
+                    message_extraction_truncated: false,
+                    stack_extraction_truncated: true,
+                }],
+                app_refusal_tracking: None,
+            });
 
         assert_eq!(carried.diagnostic, public.diagnostic);
-        assert_eq!(carried.clone().private_failure_context(), carried.private_failure_context());
+        assert_eq!(
+            carried.clone().private_failure_context(),
+            carried.private_failure_context()
+        );
         let public_json = serde_json::to_value(&public).expect("serialize public error");
         let carried_json = serde_json::to_value(&carried).expect("serialize carried error");
         assert_eq!(carried_json, public_json);

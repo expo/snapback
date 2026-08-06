@@ -787,6 +787,9 @@ export interface OutboxStatus {
   readonly supported: boolean;
   readonly pending: number;
   readonly failed: number;
+  /** Outcome-known operations whose retained result payload is gone. These
+   * are not replayable failures and keep ordered successors fenced. */
+  readonly resultGone: number;
   readonly replaying: boolean;
 }
 

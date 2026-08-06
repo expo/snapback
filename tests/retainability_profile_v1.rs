@@ -64,10 +64,9 @@ fn validate(function: FunctionDefinition) -> Result<(), Box<snapback::diagnostic
 }
 
 fn owner_visible_relational_query() -> FunctionDefinition {
-    let corpus: serde_json::Value = serde_json::from_str(include_str!(
-        "conformance/relational/corpus.v1.json"
-    ))
-    .expect("relational corpus JSON");
+    let corpus: serde_json::Value =
+        serde_json::from_str(include_str!("conformance/relational/corpus.v1.json"))
+            .expect("relational corpus JSON");
     let plan: RelationalQueryPlan = serde_json::from_value(corpus["cases"][0]["plan"].clone())
         .expect("owner-visible relational plan");
     let mut function = FunctionDefinition::new(
@@ -190,7 +189,10 @@ fn relational_owner_reclassification_rotates_identity_without_mutating_the_old_c
     let mut forged = opaque;
     forged.retention_class = Some("future-class".to_owned());
     let error = validate(forged).unwrap_err();
-    assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_UNDECLARABLE_RETENTION");
+    assert_eq!(
+        error.diagnostic.code,
+        "SNAPBACK_AUTH_UNDECLARABLE_RETENTION"
+    );
     assert_eq!(error.diagnostic.details["reason"], "unknownRetentionClass");
 }
 

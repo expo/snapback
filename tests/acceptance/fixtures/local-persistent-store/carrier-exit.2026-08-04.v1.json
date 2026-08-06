@@ -6,32 +6,137 @@
     "LLP 0166#executable-acceptance",
     "LLP 0166#d9--carriers-storage-profiles-arms-and-the-bundle"
   ],
-  "startedAt": "2026-08-05T08:05:11.421Z",
-  "completedAt": "2026-08-05T08:09:30.235Z",
+  "startedAt": "2026-08-05T11:05:03.857Z",
+  "completedAt": "2026-08-05T11:07:21.254Z",
   "runtime": {
-    "node": "v24.18.0",
+    "node": "v25.9.0",
     "platform": "darwin",
     "arch": "arm64",
     "hostnameClass": "local-evidence-machine"
   },
   "source": {
-    "revision": "779c4f16985d375d66a6a52b2a9932cfb8386de7",
+    "revision": "236037bf3328d4edcb0b2e5b6ce7d17f35391c0a",
     "dirty": true,
     "dirtyPaths": [
+      "demos/access-desk/snapback/generated/artifacts.json",
+      "demos/all-aboard/snapback/generated/artifacts.json",
+      "demos/all-aboard/tests/egress-probe/generated/artifacts.json",
+      "demos/campfire/snapback/generated/artifacts.json",
+      "demos/card-game/snapback/generated/artifacts.json",
+      "demos/catalog-lens/snapback/generated/artifacts.json",
+      "demos/chirp/snapback/generated/artifacts.json",
+      "demos/competitive-checkpoint/snapback/generated/api.mjs",
+      "demos/competitive-checkpoint/snapback/generated/artifacts.json",
+      "demos/cursors-web/snapback/generated/artifacts.json",
+      "demos/dispatch-board/snapback/generated/artifacts.json",
+      "demos/file-drop/snapback/generated/artifacts.json",
+      "demos/graffiti/snapback/generated/artifacts.json",
       "demos/latency-kanban/snapback/generated/artifacts.json",
       "demos/latency-kanban/snapback/trusted-composition-activation.json",
+      "demos/partiful-matrix/snapback/generated/api.mjs",
+      "demos/partiful-matrix/snapback/generated/artifacts.json",
+      "demos/party-wall/snapback/generated/artifacts.json",
+      "demos/public-dashboard/snapback/generated/artifacts.json",
+      "demos/pulse-monitor/snapback/generated/artifacts.json",
+      "demos/rbac/snapback/generated/artifacts.json",
+      "demos/shindig/snapback/generated/artifacts.json",
+      "demos/signal-desk/snapback/generated/artifacts.json",
+      "demos/team-chat/snapback/generated/api.mjs",
+      "demos/team-chat/snapback/generated/artifacts.json",
+      "demos/team-chat/snapback/generated/contract-data.manifest.json",
+      "demos/team-chat/snapback/generated/functions.manifest.json",
+      "demos/team-chat/snapback/generated/provider-bindings.json",
+      "demos/team-chat/snapback/generated/provider-introspection.json",
+      "demos/team-chat/snapback/generated/schema.manifest.json",
+      "demos/todo-v2/snapback/generated-remote-service/artifacts.json",
+      "demos/todo-v2/snapback/generated/artifacts.json",
+      "demos/todo/snapback/generated/artifacts.json",
       "demos/triage-graph/snapback/generated/artifacts.json",
       "demos/triage-graph/snapback/trusted-composition-activation.json",
+      "guide/backend/mutations.md",
+      "guide/backend/text-search.md",
+      "guide/backend/vector-search.md",
+      "guide/getting-started/the-authoring-loop.md",
+      "guide/guide-flat.generated.md",
+      "guide/guide-manifest.generated.json",
+      "guide/operating/diagnostics.md",
+      "guide/testing/acceptance.md",
+      "issues/20260804-app-cli-stdin-eof-false-success.md",
+      "issues/20260804-guide-gap-generated-acceptance-default-is-static.md",
+      "issues/20260805-function-auth-omission-default.md",
+      "issues/20260805-static-capability-composition.md",
+      "issues/closed/20260804-app-cli-stdin-eof-false-success.md",
+      "issues/20260804-authoring-omission-defaults-widen-effects.md -> issues/closed/20260804-authoring-omission-defaults-widen-effects.md",
+      "issues/20260804-cli-root-help-omits-wrapper-verbs.md -> issues/closed/20260804-cli-root-help-omits-wrapper-verbs.md",
+      "issues/20260804-detached-start-ready-file-refusal-is-uncoded.md -> issues/closed/20260804-detached-start-ready-file-refusal-is-uncoded.md",
+      "issues/closed/20260804-guide-gap-generated-acceptance-default-is-static.md",
+      "issues/closed/20260804-telemetry-receipt-linux-remint.md",
+      "issues/closed/20260805-snapback-dev-stdin-eof-silent-stop.md",
+      "llp/0010-agent-dx-and-acceptance.spec.md",
+      "llp/0041-packaged-dev-loop.rfc.md",
+      "llp/0051-language-neutral-data-tier.rfc.md",
+      "llp/0062-generated-app-cli-and-code-mode.rfc.md",
+      "llp/0073-portable-full-text-search.rfc.md",
+      "llp/0132-vector-search.spec.md",
+      "packages/snapback-app-cli/cli.mjs",
+      "packages/snapback-app-cli/cli.test.mjs",
+      "packages/snapback-app-cli/result-core.mjs",
+      "packages/snapback-app-cli/result-core.test.mjs",
+      "packages/snapback-cli/cli-help.test.mjs",
+      "packages/snapback-cli/dev-cli-diagnostics.test.mjs",
+      "packages/snapback-cli/dev-loop.test.mjs",
+      "packages/snapback-cli/fixtures/comparator/app/snapback/generated/api.mjs",
+      "packages/snapback-cli/fixtures/comparator/app/snapback/generated/artifacts.json",
+      "packages/snapback-cli/fixtures/comparator/app/snapback/generated/contract-data.manifest.json",
+      "packages/snapback-cli/fixtures/comparator/app/snapback/generated/functions.manifest.json",
+      "packages/snapback-cli/fixtures/comparator/app/snapback/generated/provider-bindings.json",
+      "packages/snapback-cli/fixtures/comparator/app/snapback/generated/provider-introspection.json",
+      "packages/snapback-cli/fixtures/comparator/app/snapback/generated/schema.manifest.json",
+      "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/api.mjs",
+      "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/artifacts.json",
+      "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/contract-data.manifest.json",
+      "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/functions.manifest.json",
+      "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/provider-bindings.json",
+      "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/provider-introspection.json",
+      "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/schema.manifest.json",
+      "packages/snapback-cli/index.mjs",
+      "packages/snapback-cli/package.json",
+      "packages/snapback-cli/package.test.mjs",
+      "packages/snapback-cli/templates/react/acceptance.live.mjs",
+      "packages/snapback-cli/templates/react/acceptance.mjs",
+      "packages/snapback-cli/templates/react/acceptance.static.mjs",
+      "packages/snapback-cli/templates/react/package.json",
+      "packages/snapback-cli/templates/todo-contract/acceptance.live.mjs",
+      "packages/snapback-cli/templates/todo-contract/acceptance.mjs",
+      "packages/snapback-cli/templates/todo-contract/acceptance.static.mjs",
+      "packages/snapback-cli/templates/todo-contract/package.json",
+      "packages/snapback-client/assets.mjs",
+      "packages/snapback-client/search-contract-pin.mjs",
+      "packages/snapback-codegen/authoring-validation.test.mjs",
+      "packages/snapback-codegen/data-tier-corpus.mjs",
+      "packages/snapback-codegen/define.d.ts",
+      "packages/snapback-codegen/define.mjs",
+      "packages/snapback-codegen/index.mjs",
+      "packages/snapback-codegen/omission-defaults.test.mjs",
+      "packages/snapback-codegen/package.json",
+      "packages/snapback-codegen/vector-authoring-types.fixture.ts",
+      "packages/snapback-codegen/vector-authoring.test.mjs",
+      "scripts/check-package-test-inventory.mjs",
+      "scripts/snapback-package-cold-install.mjs",
+      "src/cli.rs",
+      "src/main.rs",
       "tests/acceptance/fixtures/latency-kanban/move3-exit.2026-08-04.r2.v1.json",
       "tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-04.v1.json",
       "tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-04.v1.json",
       "tests/acceptance/latency-kanban-move3-v1-evidence.md",
-      "tests/acceptance/triage-graph-move1-v1-evidence.md"
+      "tests/acceptance/telemetry-phase1-evidence.v1.json",
+      "tests/acceptance/triage-graph-move1-v1-evidence.md",
+      "tests/fixtures/client-bundle-metrology/current.v1.json"
     ],
     "files": [
       {
         "path": "tests/acceptance/local-store-carrier-exit-v1.mjs",
-        "sha256": "51ebd449aa5bc8c0475669ad2379de71ad030103b2c00077d3949071ee01e172"
+        "sha256": "3fb7a447d8e865cc36d4550842056bb859c6bdef21c584eeb2a42d1af672af09"
       },
       {
         "path": "packages/snapback-client/materialization-store.mjs",
@@ -83,15 +188,15 @@
       },
       {
         "path": "packages/snapback-client/index.mjs",
-        "sha256": "6acd1442fcf0e3dd5de640c92e83097957f18491517b6e12a83045e481ac17f0"
+        "sha256": "432c51b87d3a61d0407ab05b2b2286b5277228050d835b3d120df075e69af0fa"
       },
       {
         "path": "packages/snapback-client/rqs-store.mjs",
-        "sha256": "5fba579c021d37d214e210ebe83c1306700e44c3a6073910317dd9ddda9abedf"
+        "sha256": "2871afe64c6b9cbfb920625f49fd9591a51cd85c4231f3c65a1b6b8b51fc475c"
       },
       {
         "path": "packages/snapback-client/rqs-store-file.mjs",
-        "sha256": "d42f53ecb01ffc7251d328f09f82b7b730d23f46761ca367f8e6988694248fcd"
+        "sha256": "0c8dae3e1f339444f640ab78f299a20ff03888e43ffe850f8061506c8bf97831"
       },
       {
         "path": "packages/snapback-contract/auth-coordinator.mjs",
@@ -119,11 +224,11 @@
       },
       {
         "path": "tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-04.v1.json",
-        "sha256": "8461e55974de124eb4aa792d3ec05c3757fe41fa8975c131fc16e2ff6002e565"
+        "sha256": "5a3d98aa38663bfcdff531082d5891078b755af63b13418e54a407e3d0b7565c"
       },
       {
         "path": "tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-04.v1.json",
-        "sha256": "185204266b382d1234a5465773a1c8a805dc048f07ec025009def7895e3faac0"
+        "sha256": "bf77e3baa1107d7137da436e292fcaaee9d4d98fb80b98413621e8a4d449bf28"
       }
     ]
   },
@@ -273,7 +378,7 @@
           2,
           3
         ],
-        "relaunchToReadableMs": 2545.851,
+        "relaunchToReadableMs": 1868.821,
         "browser": {
           "executable": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
           "version": "Google Chrome 150.0.7871.187",
@@ -286,12 +391,12 @@
         },
         "cleanup": {
           "firstBrowser": {
-            "pid": 6410,
+            "pid": 55555,
             "requestedSignal": "SIGKILL",
             "processTreeExitAttested": true
           },
           "finalBrowser": {
-            "pid": 6687,
+            "pid": 55746,
             "requestedSignal": "SIGTERM",
             "processTreeExitAttested": true
           },
@@ -389,7 +494,7 @@
           {
             "type": "boundary",
             "boundary": "before-rename",
-            "pid": 81301,
+            "pid": 25903,
             "exit": {
               "code": null,
               "signal": "SIGKILL"
@@ -400,7 +505,7 @@
           {
             "type": "boundary",
             "boundary": "after-rename-before-directory-sync",
-            "pid": 81368,
+            "pid": 25991,
             "exit": {
               "code": null,
               "signal": "SIGKILL"
@@ -424,7 +529,7 @@
           ],
           "nextAllocatedQueryInstanceId": 3
         },
-        "physicalBlobBytes": 1989
+        "physicalBlobBytes": 2140
       }
     },
     {
@@ -433,12 +538,12 @@
       "status": "PASS",
       "evidence": {
         "serverBinary": "target/debug/snapback",
-        "serverBinarySha256": "b0a216c9a81baeffca4362df6c6ebcc48c62926cca8c0aeef1ea59dc10fc7307",
+        "serverBinarySha256": "814dbb584f504c94aed827d1da4b4afacec6de2f3825ffd8246461a63eaf3a86",
         "launchRung": "configured",
         "backendStoppedBeforeRelaunch": true,
         "activationPreparation": {
           "format": "snapback.composition-activation-preparation.v1",
-          "activationHash": "sha256:32f7b0fbbc92307a1a7bff7e9264c54c0161b4812dbc68559730e19535b5e990",
+          "activationHash": "sha256:ce899ddb72da5ba4378770ecbe1c0fc3d7aa9c236e17e15c6ddaab2eb1c38651",
           "sourceClass": "temporary-backend-source",
           "next": "rerun Snapback codegen for this backend"
         },
@@ -480,7 +585,7 @@
         },
         "materialization": {
           "records": 1,
-          "qmk1": "qmk1.r4Hq_dOLQ2UND_oA_bjo2c5aGP7d43Hf6eDdGAUrEUg",
+          "qmk1": "qmk1.pni_M0v11K-NFomvd6Pm1J6ZYUZNXucKqV2HIizJT5U",
           "freshness": "retained",
           "fragments": 1,
           "leaseCustody": 1
@@ -621,8 +726,8 @@
         "recordCapRefusal": "SNAPBACK_MATERIALIZATION_BUDGET_EXCEEDED",
         "logicalBytesBefore": 38804851,
         "logicalBytesAfter": 32506933,
-        "physicalBytesBefore": 52174492,
-        "physicalBytesAfter": 43906944,
+        "physicalBytesBefore": 52174521,
+        "physicalBytesAfter": 43906973,
         "compactedAddressKeys": [
           "qmk1.CysAIfWyF3jTx0wqKc4pYMwIlIjX44GpNadmi3iUe3A",
           "qmk1.Jk32Yja9SmdgljkWdOmeZfMA5vz5sbyHRurF7ezyeNs",
@@ -649,7 +754,7 @@
           "version": 7,
           "token": "sbrt1.carrier-exit.7"
         },
-        "maintenanceMs": 210316.76
+        "maintenanceMs": 102661.113
       }
     },
     {
@@ -724,14 +829,14 @@
           "hydrationAttempts": 1,
           "hydrationRows": 100,
           "hydrationPayloadBytes": 14981,
-          "hydrationElapsedMs": 439.261,
+          "hydrationElapsedMs": 196.068,
           "hydrationCeilingMs": 1000
         },
         "receipts": {
           "budgetFreeze": "tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-04.v1.json",
-          "budgetFreezeSha256": "8461e55974de124eb4aa792d3ec05c3757fe41fa8975c131fc16e2ff6002e565",
+          "budgetFreezeSha256": "5a3d98aa38663bfcdff531082d5891078b755af63b13418e54a407e3d0b7565c",
           "move1Exit": "tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-04.v1.json",
-          "move1ExitSha256": "185204266b382d1234a5465773a1c8a805dc048f07ec025009def7895e3faac0"
+          "move1ExitSha256": "bf77e3baa1107d7137da436e292fcaaee9d4d98fb80b98413621e8a4d449bf28"
         }
       }
     },
@@ -752,7 +857,7 @@
       "status": "PASS",
       "evidence": {
         "artifact": "tests/acceptance/fixtures/local-persistent-store/bundle-attribution.2026-08-04.v1.json",
-        "minifiedBytes": 624160,
+        "minifiedBytes": 635944,
         "measuredModuleOwnBytes": 112221,
         "modules": 9,
         "browserClosureQualification": {

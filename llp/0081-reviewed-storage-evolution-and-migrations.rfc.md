@@ -5,7 +5,14 @@
 **Systems:** Schema evolution, Migrations, Storage portability, Deployment, Backup and restore, Code generation, CLI, Diagnostics, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-20
-**Revised:** 2026-08-05 (desktop-sidecar boundary note: LLP 0129 Phase 2b's
+**Revised:** 2026-08-05 (post-implementation fail-closed correction: the local
+v1 in-place `BackfillField`/`CopyField` proof domain is new destinations only,
+matching the implemented rollback and content-digest oracle; `AddField` must
+name both a manifest-new and physically fresh column on fresh admission,
+requiredness follows the sealed Add/write/validate/make order with no later
+write, and only the exact staged or optional-to-required target receives the
+typed NonNull validation path; existing nullable destinations require fresh
+successor storage or a future value-preserving profile.) 2026-08-05 (desktop-sidecar boundary note: LLP 0129 Phase 2b's
 updater swap now exposes `onUpgradeRequired` with the application-owned
 outbox snapshot after quiescence. This is the attachment point for this RFC's
 incompatible-client disposition, not an implementation of quarantine,
@@ -308,7 +315,7 @@ V1 admits only closed steps whose portable semantics Snapback owns:
 
 - `CreateTable` and `CreateIndex`;
 - `AddField` with a portable literal or closed backfill expression;
-- `BackfillField` into a new or nullable destination;
+- `BackfillField` into a new destination;
 - `ValidateRequired` followed by `MakeRequired`;
 - `ValidateUnique` followed by `CreateUniqueIndex`;
 - `CopyField` and `CopyTable` into successor storage;
@@ -316,6 +323,23 @@ V1 admits only closed steps whose portable semantics Snapback owns:
 - `RebuildMaintainedProjection` under LLP 0080; and
 - `RetireField`, `RetireTable`, or `RetireGeneration` as logical retirement,
   with physical cleanup separately fenced after the rollback window.
+
+**Local v1 destination-lifecycle correction (2026-08-05):** “new” is a
+closed proof, not manifest shorthand. `AddField` must name a field absent from
+the predecessor manifest, declared with the same type in the successor, and
+absent from the physical table at fresh admission; logical retirement's
+retained column therefore cannot be silently re-adopted. The same operation's
+resume may observe the column created by its already-committed `AddField` step.
+An in-place `BackfillField` or `CopyField` may write only that prior staged
+destination and must precede `ValidateRequired`. A field that is required in
+the successor follows `ValidateRequired` then `MakeRequired`, with no later
+write; `ValidateRequired` may name only that staged field or an existing
+optional predecessor field whose successor declaration becomes required.
+Existing nullable destinations otherwise require a staged successor
+generation or a future profile that preserves their predecessor values and
+defines rollback/proof semantics. This narrows the earlier “new or nullable”
+phrase to the local executor's implemented content-digest and fast-rollback
+proof domain; it does not broaden a capability claim.
 
 Backfill expressions use the closed LLP 0051 value vocabulary over the source
 row plus the plan's explicit migration constants. They cannot call application

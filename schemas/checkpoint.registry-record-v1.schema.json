@@ -194,6 +194,11 @@
     "openErasureObligation": {
       "type": "boolean"
     },
+    "producerActive": {
+      "default": false,
+      "description": "True from durable intent admission until publication, ordinary abort,\nor a stale-generation producer's durable cleanup acknowledgement.",
+      "type": "boolean"
+    },
     "receipt": {
       "$ref": "#/$defs/NamedCheckpointReceiptV1"
     },

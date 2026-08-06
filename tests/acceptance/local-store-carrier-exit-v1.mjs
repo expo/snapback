@@ -2558,7 +2558,7 @@ module-own minified bytes.
   hydration measurements. Fleet remains GAP exactly as LLP 0157's commission
   crosswalk says and still waits on LLP 0135 OQ5's relational-node successor.
 
-Machine receipt: \`tests/acceptance/fixtures/local-persistent-store/carrier-exit.${DATE}.v1.json\`  
+Machine receipt: \`tests/acceptance/fixtures/local-persistent-store/carrier-exit.${DATE}.v1.json\`
 Bundle receipt: \`tests/acceptance/fixtures/local-persistent-store/bundle-attribution.${DATE}.v1.json\`
 `;
 }

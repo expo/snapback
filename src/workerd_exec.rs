@@ -607,18 +607,16 @@ pub(crate) fn run_handler_workerd(
     // number and the TOCTOU window is just the spawn handoff.
     #[cfg(not(unix))]
     drop(worker_listener);
-    let child = command
-        .spawn()
-        .map_err(|error| {
-            runner_error(
-                "SNAPBACK_V8_RUNNER_START_FAILED",
-                "could not spawn workerd",
-                json!({
-                    "error": error.to_string(),
-                    "workerd": workerd.file_name().and_then(|name| name.to_str()).unwrap_or("workerd"),
-                }),
-            )
-        })?;
+    let child = command.spawn().map_err(|error| {
+        runner_error(
+            "SNAPBACK_V8_RUNNER_START_FAILED",
+            "could not spawn workerd",
+            json!({
+                "error": error.to_string(),
+                "workerd": workerd.file_name().and_then(|name| name.to_str()).unwrap_or("workerd"),
+            }),
+        )
+    })?;
     let mut child = ChildGuard(child);
     // The child's inherited descriptor now owns the socket; release the
     // parent's copy so the port dies with the invocation process.

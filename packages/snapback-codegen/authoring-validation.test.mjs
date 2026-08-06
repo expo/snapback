@@ -1423,6 +1423,63 @@ export const pageTodos = defineJsQuery({
   });
 }
 
+// LLP 0162 row 11: history is an exact per-table schema declaration with two
+// finite axes. The generated manifest, not a runtime side command, is storage
+// policy authority.
+{
+  const result = await validCase({
+    schema: `
+import { defineSchema, defineTable, v } from '${defineUrl}';
+export default defineSchema({
+  todos: defineTable({ title: v.string() })
+    .history({ retainMs: 60000, maxVersionsPerRecord: 12 }),
+});
+`,
+    functions: 'export const nothing = 0;\n',
+  });
+  const manifest = JSON.parse(readFileSync(join(result.outDir, 'schema.manifest.json'), 'utf8'));
+  assert.deepEqual(manifest.tables[0].history, {
+    retainMs: 60_000,
+    maxVersionsPerRecord: 12,
+  });
+
+  const typesFixture = fileURLToPath(
+    new URL('./history-authoring-types.fixture.ts', import.meta.url),
+  );
+  const typecheck = spawnSync(
+    fileURLToPath(new URL('../../node_modules/.bin/tsc', import.meta.url)),
+    [
+      '--noEmit',
+      '--strict',
+      '--target', 'es2022',
+      '--module', 'esnext',
+      '--moduleResolution', 'bundler',
+      typesFixture,
+    ],
+    { encoding: 'utf8' },
+  );
+  assert.equal(
+    typecheck.status,
+    0,
+    `history declarations failed strict typecheck\n${typecheck.stdout}\n${typecheck.stderr}`,
+  );
+
+  const diagnostics = await invalidCase({
+    schema: `
+import { defineSchema, defineTable, v } from '${defineUrl}';
+export default defineSchema({
+  todos: defineTable({ title: v.string() })
+    .history({ retainMs: 0, maxVersionsPerRecord: 12 }),
+});
+`,
+    functions: 'export const nothing = 0;\n',
+  });
+  assert(
+    diagnostics.some((diagnostic) => /history\(\) retainMs must be an integer/u.test(diagnostic.message)),
+    `expected finite history refusal, got ${JSON.stringify(diagnostics)}`,
+  );
+}
+
 for (const dir of dirs) rmSync(dir, { recursive: true, force: true });
 
 console.log('authoring-validation.test.mjs: all cases passed');

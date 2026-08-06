@@ -52,6 +52,7 @@ serde_json = "1.0"
 serde_path_to_error = "0.1"
 sha2 = "0.10"
 subtle = "2"
+tempfile = "3.23"
 tokio = { version = "1.48", features = ["full"] }
 tower-service = "0.3"
 tower = { version = "0.5", features = ["util"], optional = true }
@@ -60,6 +61,20 @@ unicode-segmentation = "1.12"
 ureq = { version = "2", features = ["json"] }
 uuid = { version = "1.23.4", features = ["v4", "v7", "serde"] }
 zeroize = "1.8"
+
+[build-dependencies]
+sha2 = "0.10"
+
+# The production release links as one full optimization graph. Beyond
+# throughput, this keeps infrequently used storage/proof code from fragmenting
+# or duplicating the hot executable pages retained by an otherwise-idle local
+# instance.
+#
+# @ref LLP 0162#measurement-gate — the active covered profile must stay within
+#   the dated resident-memory equivalence bound in the shipped release shape.
+[profile.release]
+lto = "fat"
+codegen-units = 1
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.61.2", features = [
@@ -76,7 +91,6 @@ windows-sys = { version = "0.61.2", features = [
 # in-memory schema, so only the dependency-free resolve-file is kept.
 jsonschema = { version = "0.46.8", default-features = false, features = ["resolve-file"] }
 syn = { version = "2.0", features = ["full", "visit"] }
-tempfile = "3.23"
 # test-util enables tokio's paused clock so the admitted-body ingest deadline
 # (LLP 0058#admitted-body-ingestion) is testable without a 20-second wait.
 tokio = { version = "1.48", features = ["full", "test-util"] }

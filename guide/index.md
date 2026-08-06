@@ -217,6 +217,9 @@ you never build around a feature because you didn't know it existed.
   identity-bound partial done-oracle receipt.
 
 ### Operating
+- [Local instance forks](./operating/instance-forks.md) — give each worktree a
+  finite-TTL, quarantined copy of realistic local state; run fork-aware
+  acceptance and retain bounded app-row diff receipts (partial/unpublished).
 - [Secrets and deployment config](./operating/secrets-and-config.md) —
   declare, set, verify, grant, and consume write-only values.
 - [Host operations](./operating/host-ops.md) — the complete CLI/HTTP

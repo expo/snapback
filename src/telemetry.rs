@@ -378,9 +378,7 @@ pub(crate) struct ErrorTransitionHistoryFloor {
     pub history_truncated: bool,
 }
 
-fn project_error_issue_state(
-    state: ErrorIssueState,
-) -> crate::errors_query::ErrorsIssueStateV1 {
+fn project_error_issue_state(state: ErrorIssueState) -> crate::errors_query::ErrorsIssueStateV1 {
     match state {
         ErrorIssueState::Open => crate::errors_query::ErrorsIssueStateV1::Open,
         ErrorIssueState::Resolved => crate::errors_query::ErrorsIssueStateV1::Resolved,
@@ -1985,7 +1983,11 @@ impl Telemetry {
                 (
                     Some(result.release),
                     result.activation_seq,
-                    result.rows.into_iter().map(project_transition_result).collect(),
+                    result
+                        .rows
+                        .into_iter()
+                        .map(project_transition_result)
+                        .collect(),
                 )
             }
             _ => {
@@ -10458,11 +10460,12 @@ mod tests {
         let bulk = telemetry
             .transition_errors(&crate::errors_query::ErrorsTransitionRequestV1::Bulk(
                 crate::errors_query::ErrorsBulkTransitionRequestV1 {
-                selector: crate::errors_query::ErrorsTransitionSelectorV1 {
-                    open_before: "release-errors-api".to_owned(),
+                    selector: crate::errors_query::ErrorsTransitionSelectorV1 {
+                        open_before: "release-errors-api".to_owned(),
+                    },
+                    to: crate::errors_query::ErrorsIssueStateV1::Resolved,
                 },
-                to: crate::errors_query::ErrorsIssueStateV1::Resolved,
-            }))
+            ))
             .unwrap();
         assert_eq!(bulk.activation_seq, Some(4));
         assert_eq!(bulk.rows.len(), 1);

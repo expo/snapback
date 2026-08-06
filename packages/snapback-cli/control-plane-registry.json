@@ -93,6 +93,16 @@
     },
     {
       "method": "POST",
+      "path": "/_snapback/api/operations/explain",
+      "class": "SystemApi",
+      "pathPolicy": "AdminRead",
+      "credentialResolution": "AdminCredential",
+      "invocationAuthority": "Operator",
+      "effectPolicy": "None",
+      "responseSensitivity": "SensitiveApplicationData"
+    },
+    {
+      "method": "POST",
       "path": "/_snapback/api/host-ops",
       "class": "SystemApi",
       "pathPolicy": "AdminRead",
@@ -410,6 +420,26 @@
       "invocationAuthority": "Operator",
       "effectPolicy": "None",
       "responseSensitivity": "SensitiveApplicationData"
+    },
+    {
+      "method": "POST",
+      "path": "/_snapback/api/storage/protected-erasure",
+      "class": "SystemApi",
+      "pathPolicy": "AdminWrite",
+      "credentialResolution": "AdminCredential",
+      "invocationAuthority": "Operator",
+      "effectPolicy": "None",
+      "responseSensitivity": "SensitiveApplicationData"
+    },
+    {
+      "method": "POST",
+      "path": "/_snapback/api/storage/operation-coverage/activate",
+      "class": "SystemApi",
+      "pathPolicy": "AdminWrite",
+      "credentialResolution": "AdminCredential",
+      "invocationAuthority": "Operator",
+      "effectPolicy": "None",
+      "responseSensitivity": "OperatorMetadata"
     },
     {
       "method": "POST",
@@ -857,6 +887,72 @@
       "responseSensitivity": "SensitiveApplicationData"
     },
     {
+      "operation": "host_ops.branch.create.v1",
+      "parentPath": "/_snapback/api/host-ops",
+      "transport": "HostOps",
+      "class": "SystemApi",
+      "pathPolicy": "AdminWrite",
+      "credentialResolution": "AdminCredential",
+      "invocationAuthority": "Operator",
+      "effectPolicy": "None",
+      "responseSensitivity": "OperatorMetadata"
+    },
+    {
+      "operation": "host_ops.branch.execute.v1",
+      "parentPath": "/_snapback/api/host-ops",
+      "transport": "HostOps",
+      "class": "SystemApi",
+      "pathPolicy": "AdminWrite",
+      "credentialResolution": "AdminCredential",
+      "invocationAuthority": "Operator",
+      "effectPolicy": "None",
+      "responseSensitivity": "OperatorMetadata"
+    },
+    {
+      "operation": "host_ops.branch.list.v1",
+      "parentPath": "/_snapback/api/host-ops",
+      "transport": "HostOps",
+      "class": "SystemApi",
+      "pathPolicy": "AdminWrite",
+      "credentialResolution": "AdminCredential",
+      "invocationAuthority": "Operator",
+      "effectPolicy": "None",
+      "responseSensitivity": "OperatorMetadata"
+    },
+    {
+      "operation": "host_ops.branch.reap.v1",
+      "parentPath": "/_snapback/api/host-ops",
+      "transport": "HostOps",
+      "class": "SystemApi",
+      "pathPolicy": "AdminWrite",
+      "credentialResolution": "AdminCredential",
+      "invocationAuthority": "Operator",
+      "effectPolicy": "None",
+      "responseSensitivity": "OperatorMetadata"
+    },
+    {
+      "operation": "host_ops.branch.inspect.v1",
+      "parentPath": "/_snapback/api/host-ops",
+      "transport": "HostOps",
+      "class": "SystemApi",
+      "pathPolicy": "AdminWrite",
+      "credentialResolution": "AdminCredential",
+      "invocationAuthority": "Operator",
+      "effectPolicy": "None",
+      "responseSensitivity": "OperatorMetadata"
+    },
+    {
+      "operation": "host_ops.branch.drop.v1",
+      "parentPath": "/_snapback/api/host-ops",
+      "transport": "HostOps",
+      "class": "SystemApi",
+      "pathPolicy": "AdminWrite",
+      "credentialResolution": "AdminCredential",
+      "invocationAuthority": "Operator",
+      "effectPolicy": "None",
+      "responseSensitivity": "OperatorMetadata"
+    },
+    {
       "operation": "host_ops.schema.reload",
       "parentPath": "/_snapback/api/host-ops",
       "transport": "HostOps",
@@ -1020,6 +1116,12 @@
       "errors.issues",
       "errors.issue",
       "errors.transition",
+      "branch.create.v1",
+      "branch.execute.v1",
+      "branch.list.v1",
+      "branch.reap.v1",
+      "branch.inspect.v1",
+      "branch.drop.v1",
       "asset.put",
       "asset.ensureSeedFixture",
       "asset.inspect",

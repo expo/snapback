@@ -27,13 +27,13 @@
       "durableRegistrations": 1,
       "registrationBytes": 1459,
       "leaseRecords": 1,
-      "physicalCarrierBytes": 74821
+      "physicalCarrierBytes": 74850
     },
     "hydration": {
       "attempts": 1,
       "rowsInstalled": 100,
       "payloadBytes": 14981,
-      "elapsedMs": 439.261
+      "elapsedMs": 196.068
     }
   },
   "frozenCeilings": {

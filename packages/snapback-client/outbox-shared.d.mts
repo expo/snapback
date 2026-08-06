@@ -46,6 +46,10 @@ export interface OutboxState {
   sequence: number;
   records: Record<string, StoredOutboxRecord>;
   acks: string[];
+  operationIdentityRanges: Record<string, Readonly<{
+    range: Record<string, unknown>;
+    nextCounter: number;
+  }>>;
 }
 
 export declare const emptyOutboxState: () => OutboxState;

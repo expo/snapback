@@ -109,6 +109,12 @@ run package-test-inventory -- node scripts/check-package-test-inventory.mjs
 # transition pin are checked before generated artifacts or native builds.
 run capability-maturity-fixtures -- node tests/capability-maturity.test.mjs
 run capability-maturity -- node scripts/check-capability-maturity.mjs
+# @ref LLP 0162#8-capability-honesty — the agent-safe publication transition
+# is valid only when its P-vs-C path history, implementation-tree digest, and
+# exact evidence bytes pass the source-owned checker. Keep both the checker's
+# adversarial self-tests and the live records in the canonical proof.
+run agent-safe-publication-fixtures -- node --test tests/agent_safe_publication_checker_v1.mjs
+run agent-safe-publication -- node scripts/check-agent-safe-publication.mjs
 # @ref LLP 0145#phase-a--establish-a-size-ratchet — reproduce every shipped
 # client profile/subpath closure and fail on growth beyond the frozen first run.
 run client-bundle-metrology -- node scripts/client-bundle-metrology.mjs --check

@@ -94,6 +94,7 @@ fn schema() -> SchemaManifest {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                history: None,
             },
             TableManifest {
                 name: "texts".to_owned(),
@@ -111,6 +112,7 @@ fn schema() -> SchemaManifest {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                history: None,
             },
         ],
         ..SchemaManifest::default()

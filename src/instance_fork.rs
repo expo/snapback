@@ -177,12 +177,28 @@ pub const TABLE_CUSTODY: &[CustodyRule] = &[
         disposition: CustodyDisposition::Copy,
     },
     CustodyRule {
+        name: "_snapback_history_policies_v2",
+        disposition: CustodyDisposition::Copy,
+    },
+    CustodyRule {
         name: "_snapback_record_history_v1",
         disposition: CustodyDisposition::Copy,
     },
     CustodyRule {
         name: "_snapback_checkpoint_registry_v1",
         disposition: CustodyDisposition::Scrub,
+    },
+    CustodyRule {
+        name: "_snapback_protected_checkpoint_erasure_v1",
+        disposition: CustodyDisposition::Scrub,
+    },
+    CustodyRule {
+        name: "_snapback_protected_record_erasure_v1",
+        disposition: CustodyDisposition::Scrub,
+    },
+    CustodyRule {
+        name: "_snapback_protected_erasure_generation_v1",
+        disposition: CustodyDisposition::Rotate,
     },
     // LLP 0163 identities and receipts belong to the parent stream. A derived
     // deployment mints a new stream/authority and must never replay inherited
@@ -196,7 +212,23 @@ pub const TABLE_CUSTODY: &[CustodyRule] = &[
         disposition: CustodyDisposition::Scrub,
     },
     CustodyRule {
+        name: "_snapback_operation_protected_detail_v1",
+        disposition: CustodyDisposition::Scrub,
+    },
+    CustodyRule {
         name: "_snapback_operation_floors_v1",
+        disposition: CustodyDisposition::Scrub,
+    },
+    CustodyRule {
+        name: "_snapback_operation_pending_v1",
+        disposition: CustodyDisposition::Scrub,
+    },
+    CustodyRule {
+        name: "_snapback_operation_purges_v1",
+        disposition: CustodyDisposition::Scrub,
+    },
+    CustodyRule {
+        name: "_snapback_operation_terminal_supplements_v1",
         disposition: CustodyDisposition::Scrub,
     },
     CustodyRule {
@@ -227,11 +259,23 @@ pub const TABLE_CUSTODY: &[CustodyRule] = &[
         disposition: CustodyDisposition::Scrub,
     },
     CustodyRule {
+        name: "_snapback_in_app_branch_custody_v1",
+        disposition: CustodyDisposition::Scrub,
+    },
+    CustodyRule {
         name: "_snapback_branch_operations",
         disposition: CustodyDisposition::Scrub,
     },
     CustodyRule {
+        name: "_snapback_branch_operation_reservations",
+        disposition: CustodyDisposition::Scrub,
+    },
+    CustodyRule {
         name: "_snapback_branch_egress_attempts",
+        disposition: CustodyDisposition::Scrub,
+    },
+    CustodyRule {
+        name: "_snapback_branch_effect_intents_v1",
         disposition: CustodyDisposition::Scrub,
     },
     CustodyRule {
@@ -248,6 +292,14 @@ pub const TABLE_CUSTODY: &[CustodyRule] = &[
     },
     CustodyRule {
         name: "_snapback_promotion_envelopes",
+        disposition: CustodyDisposition::Scrub,
+    },
+    CustodyRule {
+        name: "_snapback_promotion_effect_intents_v1",
+        disposition: CustodyDisposition::Scrub,
+    },
+    CustodyRule {
+        name: "_snapback_promotion_provisional_dependencies_v1",
         disposition: CustodyDisposition::Scrub,
     },
     CustodyRule {
@@ -560,6 +612,10 @@ pub const SIDECAR_CUSTODY: &[CustodyRule] = &[
         disposition: CustodyDisposition::Rotate,
     },
     CustodyRule {
+        name: "*.operation-detail-keyring.json",
+        disposition: CustodyDisposition::Rotate,
+    },
+    CustodyRule {
         name: "ready files and siblings",
         disposition: CustodyDisposition::Scrub,
     },
@@ -799,6 +855,18 @@ fn delete_table(tx: &Transaction<'_>, name: &str) -> SnapbackResult<()> {
     Ok(())
 }
 
+fn rotate_protected_erasure_generation(tx: &Transaction<'_>) -> SnapbackResult<()> {
+    const TABLE: &str = "_snapback_protected_erasure_generation_v1";
+    if table_exists(tx, TABLE)? {
+        delete_table(tx, TABLE)?;
+        tx.execute(
+            "INSERT INTO _snapback_protected_erasure_generation_v1(id,generation) VALUES(1,0)",
+            [],
+        )?;
+    }
+    Ok(())
+}
+
 fn write_json_sync(path: &Path, value: &impl Serialize) -> SnapbackResult<()> {
     let bytes = serde_json::to_vec(value).map_err(|error| {
         fork_error(
@@ -938,7 +1006,12 @@ fn scrub_and_mint_with_cut(
     let admin_path = crate::admin::admin_token_sibling(database_path);
     let auth_keyring_path = crate::auth::keyring::AuthKeyringStore::keyring_path(database_path);
     let resume_path = database_path.with_file_name(crate::rqs::RESUME_KEYRING_FILE_NAME);
-    if admin_path.exists() || auth_keyring_path.exists() || resume_path.exists() {
+    let operation_detail_path = crate::operation_detail::keyring_path(database_path);
+    if admin_path.exists()
+        || auth_keyring_path.exists()
+        || resume_path.exists()
+        || operation_detail_path.exists()
+    {
         return Err(fork_error(
             "SNAPBACK_FORK_SIDECAR_COLLISION",
             "fork replacement sidecars must be minted into an empty staging namespace",
@@ -963,6 +1036,8 @@ fn scrub_and_mint_with_cut(
     }
     sync_file(&resume_path, "sync fork resume keyring")?;
     maybe_cut(cut_at, PublicationCut::AfterResumeSidecar)?;
+    crate::operation_detail::mint_new_sidecar(database_path)?;
+    sync_file(&operation_detail_path, "sync fork operation detail keyring")?;
 
     let mut custody = classified.into_iter().collect::<BTreeMap<_, _>>();
     custody.extend(
@@ -985,6 +1060,10 @@ fn scrub_and_mint_with_cut(
             delete_table(&tx, rule.name)?;
         }
     }
+    // @ref LLP 0165#open-items — a fork cannot inherit the parent's active
+    // protected-erasure fence generation, but the required singleton remains
+    // present as fresh child authority.
+    rotate_protected_erasure_generation(&tx)?;
     // History post-images remain useful copied application evidence, but an
     // inherited operation id would falsely name parent-stream provenance after
     // its operation ledger, envelope, and suppression records were scrubbed.
@@ -1041,6 +1120,37 @@ fn scrub_and_mint_with_cut(
     maybe_cut(cut_at, PublicationCut::AfterSqliteSync)?;
     sync_directory(database_path.parent().unwrap_or_else(|| Path::new(".")))?;
     Ok(receipt)
+}
+
+/// Remove every copied bearer, grant, retry, operation-identity, and other
+/// closed `Scrub` table from an in-app branch head without minting a second
+/// deployment identity or any replacement credential. The immutable base is
+/// left byte-exact for diff proof; only the writable head is executable.
+///
+/// @ref LLP 0162#acceptance — canonical credentials are not branch authority;
+///   branch execution is admitted only through its stored scoped grant.
+pub(crate) fn scrub_copied_authority_for_in_app_branch(
+    conn: &mut Connection,
+) -> SnapbackResult<()> {
+    let tx = conn.transaction()?;
+    for rule in TABLE_CUSTODY {
+        if rule.disposition == CustodyDisposition::Scrub && table_exists(&tx, rule.name)? {
+            delete_table(&tx, rule.name)?;
+        }
+    }
+    rotate_protected_erasure_generation(&tx)?;
+    if table_exists(&tx, "_snapback_record_history_v1")? {
+        tx.execute(
+            "UPDATE _snapback_record_history_v1 SET operation_id=NULL
+              WHERE operation_id IS NOT NULL",
+            [],
+        )?;
+    }
+    crate::storage::auth_stream::rotate_authorization_version_in(&tx)?;
+    crate::storage::auth_invalidation::clear_retry_episodes_in(&tx)?;
+    crate::storage::auth_invalidation::rotate_data_version_stream_in(&tx)?;
+    tx.commit()?;
+    Ok(())
 }
 
 pub fn inspect_boot(database_path: &Path) -> SnapbackResult<Option<DerivedForkRuntime>> {
@@ -1229,6 +1339,15 @@ fn validate_minted_sidecars(database_path: &Path) -> SnapbackResult<()> {
         )
         .with_details(json!({ "sidecar": "resume-keyring" })));
     }
+    let operation_detail_path = crate::operation_detail::keyring_path(database_path);
+    require_regular(&operation_detail_path, "operation-detail-keyring")?;
+    if !crate::operation_detail::persisted_file_has_key(database_path) {
+        return Err(fork_error(
+            "SNAPBACK_FORK_SIDECAR_MALFORMED",
+            "minted operation-detail-keyring sidecar has no valid key",
+        )
+        .with_details(json!({ "sidecar": "operation-detail-keyring" })));
+    }
     Ok(())
 }
 
@@ -1250,6 +1369,21 @@ pub enum EgressFamily {
 }
 
 impl EgressFamily {
+    pub const ALL: [Self; 12] = [
+        Self::Fetch,
+        Self::PushSend,
+        Self::PushReceipt,
+        Self::StreamOpen,
+        Self::StreamRead,
+        Self::StreamCancel,
+        Self::JobsEnqueue,
+        Self::JobsDrain,
+        Self::CronTick,
+        Self::AssetProvider,
+        Self::TelemetryExport,
+        Self::UnclassifiedHostOperation,
+    ];
+
     pub fn as_str(self) -> &'static str {
         match self {
             Self::Fetch => "fetch",
@@ -3121,7 +3255,15 @@ mod tests {
             TABLE_CUSTODY.len(),
             "table custody entries are unique"
         );
-        assert_eq!(SIDECAR_CUSTODY.len(), 9);
+        assert_eq!(
+            SIDECAR_CUSTODY.len(),
+            10,
+            "the Phase 5 asset tree and LLP 0163 operation-detail keyring are both classified"
+        );
+        assert!(SIDECAR_CUSTODY.iter().any(|rule| {
+            rule.name == "*.operation-detail-keyring.json"
+                && rule.disposition == CustodyDisposition::Rotate
+        }));
         assert_eq!(
             SIDECAR_CUSTODY
                 .iter()
@@ -3259,6 +3401,41 @@ mod tests {
     fn scrub_mints_non_promotable_identity_and_payload_free_marker() {
         let directory = tempfile::tempdir().unwrap();
         let source = source_database(directory.path());
+        let mut parent = Connection::open(&source).unwrap();
+        crate::proof_checkpoint::ensure_checkpoint_erasure_infra(&parent)
+            .expect("initialize exercised checkpoint/erasure custody");
+        crate::operation_detail::install(&parent, Some(&source))
+            .expect("install parent operation detail custody");
+        let tx = parent.transaction().unwrap();
+        crate::operation_detail::seal_in(
+            &tx,
+            "operation-detail:test:fork-parent",
+            &format!("sha256:{}", "a".repeat(64)),
+            &json!({ "secret": "parent-only" }),
+        )
+        .expect("seal parent protected detail");
+        tx.execute_batch(
+            "INSERT INTO _snapback_operation_pending_v1(
+               stream_id,originator_class,operation_id,lane,audience,epoch_id,lifecycle_json
+             ) VALUES('parent-stream','host','parent-op','migration','parent-audience','parent-epoch','{}');
+             INSERT INTO _snapback_operation_terminal_supplements_v1(
+               stream_id,originator_class,operation_id,lane,audience,epoch_id,
+               terminal_at_ms,supplement_json
+             ) VALUES('parent-stream','host','parent-op','migration','parent-audience','parent-epoch',1,'{}');
+             INSERT INTO _snapback_operation_purges_v1(
+               purge_id,selector_class,selector_digest,settlement_count,operation_count,
+               operation_keys_digest,recorded_at_ms
+             ) VALUES('parent-purge','all','parent-selector',1,1,'parent-operations',1);
+             INSERT INTO _snapback_protected_record_erasure_v1(
+               erasure_id,operation_id,qualified_table,row_id,state,receipt_json,updated_at_ms
+             ) VALUES('parent-erasure','parent-erasure-op','notes','row-a','complete','{}',1);
+             UPDATE _snapback_protected_erasure_generation_v1 SET generation=7 WHERE id=1;",
+        )
+        .unwrap();
+        tx.commit().unwrap();
+        drop(parent);
+        let parent_operation_detail_key = fs::read(crate::operation_detail::keyring_path(&source))
+            .expect("parent operation detail key");
         let destination = directory.path().join("fork");
         let receipt = publish(&source, &destination, "app-a", "parent-a", 42, None).unwrap();
         assert!(!receipt.lineage.promotable);
@@ -3268,11 +3445,68 @@ mod tests {
                 rule.disposition
             );
         }
+        for (table, disposition) in [
+            ("_snapback_operation_pending_v1", CustodyDisposition::Scrub),
+            ("_snapback_operation_purges_v1", CustodyDisposition::Scrub),
+            (
+                "_snapback_operation_terminal_supplements_v1",
+                CustodyDisposition::Scrub,
+            ),
+            (
+                "_snapback_protected_record_erasure_v1",
+                CustodyDisposition::Scrub,
+            ),
+            (
+                "_snapback_protected_erasure_generation_v1",
+                CustodyDisposition::Rotate,
+            ),
+        ] {
+            assert_eq!(receipt.custody[table], disposition, "{table}");
+        }
         let database = destination.join("app.sqlite3");
+        let child_operation_detail_key = fs::read(crate::operation_detail::keyring_path(&database))
+            .expect("child operation detail key");
+        assert_ne!(
+            parent_operation_detail_key, child_operation_detail_key,
+            "derived forks rotate protected-detail custody rather than copying the parent key"
+        );
         let runtime = inspect_boot(&database).unwrap().unwrap();
         let error = runtime.deny(EgressFamily::Fetch, 43);
         assert_eq!(error.diagnostic.code, "SNAPBACK_FORK_EGRESS_DENIED");
         let conn = Connection::open(&database).unwrap();
+        assert_eq!(
+            conn.query_row(
+                "SELECT COUNT(*) FROM _snapback_operation_protected_detail_v1",
+                [],
+                |row| row.get::<_, u64>(0),
+            )
+            .unwrap(),
+            0,
+            "parent ciphertext is scrubbed before the derived fork becomes bootable"
+        );
+        for table in [
+            "_snapback_operation_pending_v1",
+            "_snapback_operation_purges_v1",
+            "_snapback_operation_terminal_supplements_v1",
+            "_snapback_protected_record_erasure_v1",
+        ] {
+            let count = conn
+                .query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |row| {
+                    row.get::<_, u64>(0)
+                })
+                .unwrap();
+            assert_eq!(count, 0, "parent authority survived in {table}");
+        }
+        assert_eq!(
+            conn.query_row(
+                "SELECT generation FROM _snapback_protected_erasure_generation_v1 WHERE id=1",
+                [],
+                |row| row.get::<_, u64>(0),
+            )
+            .unwrap(),
+            0,
+            "the child must start with a fresh protected-erasure fence generation"
+        );
         let row: (String, u64) = conn
             .query_row(
                 "SELECT family,attempts FROM _snapback_fork_egress_attempts_v1",
@@ -3315,6 +3549,86 @@ mod tests {
                 .diagnostic
                 .code,
             "SNAPBACK_FORK_EGRESS_DENIED"
+        );
+        let parent = Connection::open(&source).unwrap();
+        for table in [
+            "_snapback_operation_pending_v1",
+            "_snapback_operation_purges_v1",
+            "_snapback_operation_terminal_supplements_v1",
+            "_snapback_protected_record_erasure_v1",
+            "_snapback_operation_protected_detail_v1",
+        ] {
+            let count = parent
+                .query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |row| {
+                    row.get::<_, u64>(0)
+                })
+                .unwrap();
+            assert_eq!(count, 1, "fork publication mutated parent table {table}");
+        }
+        assert_eq!(
+            parent
+                .query_row(
+                    "SELECT generation FROM _snapback_protected_erasure_generation_v1 WHERE id=1",
+                    [],
+                    |row| row.get::<_, u64>(0),
+                )
+                .unwrap(),
+            7,
+            "fork publication mutated the parent erasure generation"
+        );
+    }
+
+    #[test]
+    fn derived_fork_keeps_its_pinned_copy_when_parent_writes_after_publication() {
+        let directory = tempfile::tempdir().unwrap();
+        let source = source_database(directory.path());
+        let parent = Connection::open(&source).unwrap();
+        parent
+            .execute_batch(
+                "CREATE TABLE notes(id TEXT PRIMARY KEY, body TEXT NOT NULL);
+                 INSERT INTO notes(id,body) VALUES('before','fork point');",
+            )
+            .unwrap();
+
+        let destination = directory.path().join("fork");
+        publish(&source, &destination, "app-a", "parent-a", 42, None).unwrap();
+
+        parent
+            .execute(
+                "UPDATE notes SET body='parent advanced' WHERE id='before'",
+                [],
+            )
+            .unwrap();
+        parent
+            .execute(
+                "INSERT INTO notes(id,body) VALUES('after','parent only')",
+                [],
+            )
+            .unwrap();
+
+        let fork = Connection::open(destination.join("app.sqlite3")).unwrap();
+        assert_eq!(
+            fork.query_row("SELECT body FROM notes WHERE id='before'", [], |row| {
+                row.get::<_, String>(0)
+            })
+            .unwrap(),
+            "fork point"
+        );
+        assert_eq!(
+            fork.query_row("SELECT COUNT(*) FROM notes WHERE id='after'", [], |row| {
+                row.get::<_, u64>(0)
+            })
+            .unwrap(),
+            0,
+            "a derived deployment is a copied instance, not a view of parent head"
+        );
+        assert_eq!(
+            parent
+                .query_row("SELECT body FROM notes WHERE id='before'", [], |row| {
+                    row.get::<_, String>(0)
+                })
+                .unwrap(),
+            "parent advanced"
         );
     }
 
@@ -3681,20 +3995,7 @@ mod tests {
         let runtime = inspect_boot(&destination.join("app.sqlite3"))
             .unwrap()
             .unwrap();
-        let families = [
-            EgressFamily::Fetch,
-            EgressFamily::PushSend,
-            EgressFamily::PushReceipt,
-            EgressFamily::StreamOpen,
-            EgressFamily::StreamRead,
-            EgressFamily::StreamCancel,
-            EgressFamily::JobsEnqueue,
-            EgressFamily::JobsDrain,
-            EgressFamily::CronTick,
-            EgressFamily::AssetProvider,
-            EgressFamily::TelemetryExport,
-            EgressFamily::UnclassifiedHostOperation,
-        ];
+        let families = EgressFamily::ALL;
         for family in families {
             assert_eq!(
                 runtime.deny(family, 43).diagnostic.code,
@@ -3877,7 +4178,7 @@ mod tests {
 
     #[test]
     fn boot_refuses_each_missing_minted_sidecar() {
-        for sidecar in ["admin", "auth", "resume"] {
+        for sidecar in ["admin", "auth", "resume", "operation-detail"] {
             let directory = tempfile::tempdir().unwrap();
             let source = source_database(directory.path());
             let destination = directory.path().join("fork");
@@ -3887,6 +4188,7 @@ mod tests {
                 "admin" => crate::admin::admin_token_sibling(&database),
                 "auth" => crate::auth::keyring::AuthKeyringStore::keyring_path(&database),
                 "resume" => destination.join(crate::rqs::RESUME_KEYRING_FILE_NAME),
+                "operation-detail" => crate::operation_detail::keyring_path(&database),
                 _ => unreachable!(),
             };
             fs::remove_file(path).unwrap();

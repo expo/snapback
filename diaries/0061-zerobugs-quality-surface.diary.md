@@ -181,3 +181,9 @@ custody deliberately skips. Sessions servers refused every anonymous public
 query. One-line client fix + regression; the control's actor matrix caught
 it because it exercises anonymous alongside five bound actors on every
 protected surface.
+
+The post-merge own-correctness rerun caught one evidence-only contradiction:
+the Lane 3 amendment and runtime result removed `snapback/routes.mjs`, but the
+new pure test and earlier plan rows still required its generated manifest.
+Those witnesses now match the actual refusal-first outcome, and codegen's
+tracked artifact index is regenerated from the route-free source.

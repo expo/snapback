@@ -634,7 +634,7 @@
         },
         {
           "additionalProperties": false,
-          "description": "Backfill into a new or nullable destination from the closed\nexpression vocabulary over the source row plus plan constants.",
+          "description": "Backfill into a new destination from the closed expression vocabulary\nover the source row plus plan constants. The local v1 proof/rollback\nprofile refuses predecessor columns, including nullable ones.",
           "properties": {
             "BackfillField": {
               "properties": {

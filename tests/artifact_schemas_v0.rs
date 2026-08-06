@@ -29,6 +29,10 @@ use snapback::auth::deployment::{
     HostedAdmission, HostedAuthCapabilities, HostedOperatorSurface, SessionInvalidation,
     SharedAuthenticationThrottleConfig,
 };
+use snapback::commit_envelope::{
+    OperationIdentityTombstoneV1, OperationKeyV1, OperationOriginatorClassV1,
+    OperationTerminalOutcomeV1,
+};
 use snapback::cron::{CronInspectState, CronRunOutcome, CronRunRecord, CronRunTrigger};
 use snapback::data_tier::{
     DATA_TIER_CORPUS_FORMAT_VERSION, DATA_TIER_CORPUS_NAME, DATA_TIER_PROFILE_FILE,
@@ -74,9 +78,6 @@ use snapback::manifest::{
     MutationRequest, REPLAY_OPAQUE_ID_MAX_BYTES, REPLAY_OPAQUE_ID_PATTERN, SNAPBACK_SCHEMA_VERSION,
     SchemaManifest, SettlementLane, SourceSpan, TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX,
 };
-use snapback::runtime::{
-    CapabilityState, IbexCliCapability, IbexSubmoduleCapability, RuntimeCapabilities,
-};
 use snapback::result_transform::{
     RESULT_TRANSFORM_V1_CASE_SCHEMA_FILE, RESULT_TRANSFORM_V1_CORPUS,
     RESULT_TRANSFORM_V1_CORPUS_FORMAT_VERSION, RESULT_TRANSFORM_V1_CORPUS_SCHEMA_FILE,
@@ -85,7 +86,12 @@ use snapback::result_transform::{
     ResultTransformCorpusExpectationV1, ResultTransformCorpusManifestV1,
     ResultTransformEvaluatorIdentitiesV1,
 };
-use snapback::schema_export::{SchemaArtifact, artifact_instances, artifact_schemas};
+use snapback::runtime::{
+    CapabilityState, IbexCliCapability, IbexSubmoduleCapability, RuntimeCapabilities,
+};
+use snapback::schema_export::{
+    EXTERNALLY_MANAGED_SCHEMA_ARTIFACTS, SchemaArtifact, artifact_instances, artifact_schemas,
+};
 use snapback::service_profile::{
     PublishedArtifactRef, RemoteAuthCapabilityManifest, RemoteCredentialPolicy,
     RemoteDataCapabilityManifest, RemoteEndpointPolicy, RemoteServiceDataTierIdentity,
@@ -560,6 +566,7 @@ fn mutation_replay_bounds_match_the_public_data_tier_profile() {
         settlement: Default::default(),
         expected_generation: None,
         client_mutation_id: Some("cm_valid".to_owned()),
+        operation_issuance: None,
         authority_descriptor: Some(AuthorityDescriptor {
             descriptor_version: 1,
             authority_instance_id: "018f0d90-7b24-7a22-8c33-445566778899".to_owned(),
@@ -624,6 +631,38 @@ fn dk7_committed_public_instances_match_rust_types() {
             "{file} drifted from the Rust authority; regenerate with `cargo run --bin snapback-schemagen`"
         );
     }
+}
+
+#[test]
+fn operation_identity_tombstone_schema_accepts_required_nullable_host_counter() {
+    let tombstone = OperationIdentityTombstoneV1 {
+        schema_version: 1,
+        key: OperationKeyV1 {
+            stream_id: "stream-1".to_owned(),
+            originator_class: OperationOriginatorClassV1::Host,
+            operation_id: "host-operation-1".to_owned(),
+        },
+        identity_digest: format!("sha256:{}", "a".repeat(64)),
+        auth_facts_digest: format!("sha256:{}", "b".repeat(64)),
+        audience: "host-audience-1".to_owned(),
+        epoch_id: "host-epoch-1".to_owned(),
+        counter: None,
+        terminal_outcome: OperationTerminalOutcomeV1::Committed,
+        receipt_digest: format!("sha256:{}", "c".repeat(64)),
+        retained_at_ms: 10,
+    };
+    let value = serde_json::to_value(tombstone).expect("host tombstone serializes");
+    assert_eq!(value.get("counter"), Some(&Value::Null));
+    assert_validates("operation.identity-tombstone-v1.schema.json", &value);
+    let mut missing_counter = value;
+    missing_counter
+        .as_object_mut()
+        .expect("tombstone object")
+        .remove("counter");
+    assert!(
+        serde_json::from_value::<OperationIdentityTombstoneV1>(missing_counter).is_err(),
+        "Rust decoding and the committed schema both require the nullable counter key"
+    );
 }
 
 #[test]
@@ -720,10 +759,22 @@ fn telemetry_agent_export_fixtures_match_the_pinned_carrier_schemas() {
 #[test]
 fn errors_operation_fixtures_match_the_pinned_authority_split_schemas() {
     let corpus = committed("errors.query-fixtures-v1.json");
-    assert_validates("errors.issues.request.schema.json", &corpus["issues"]["request"]);
-    assert_validates("errors.issues.response.schema.json", &corpus["issues"]["response"]);
-    assert_validates("errors.issue.request.schema.json", &corpus["issue"]["request"]);
-    assert_validates("errors.issue.response.schema.json", &corpus["issue"]["response"]);
+    assert_validates(
+        "errors.issues.request.schema.json",
+        &corpus["issues"]["request"],
+    );
+    assert_validates(
+        "errors.issues.response.schema.json",
+        &corpus["issues"]["response"],
+    );
+    assert_validates(
+        "errors.issue.request.schema.json",
+        &corpus["issue"]["request"],
+    );
+    assert_validates(
+        "errors.issue.response.schema.json",
+        &corpus["issue"]["response"],
+    );
     assert_validates(
         "errors.transition.request.schema.json",
         &corpus["transition"]["singleRequest"],
@@ -855,10 +906,9 @@ fn auth_v1_wire_schemas_accept_exact_objects_and_reject_extensions() {
             "authorizedLease": oversized_lease_query_instance
         }),
     );
-    let completeness_fixture: Value = serde_json::from_str(include_str!(
-        "conformance/completeness-proof-v1.json"
-    ))
-    .expect("parse completeness proof fixture");
+    let completeness_fixture: Value =
+        serde_json::from_str(include_str!("conformance/completeness-proof-v1.json"))
+            .expect("parse completeness proof fixture");
     assert_validates(
         "authorized-lease.query.output.schema.json",
         &json!({
@@ -1455,6 +1505,11 @@ fn dk7_every_artifact_has_a_committed_schema_file() {
     let generated: std::collections::BTreeSet<String> = artifact_schemas()
         .into_iter()
         .map(|a| a.file.to_owned())
+        .chain(
+            EXTERNALLY_MANAGED_SCHEMA_ARTIFACTS
+                .iter()
+                .map(|file| (*file).to_owned()),
+        )
         .collect();
     let committed: std::collections::BTreeSet<String> = fs::read_dir(schemas_dir())
         .expect("read schemas/ dir")
@@ -3144,6 +3199,7 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
             settlement: Default::default(),
             expected_generation: None,
             client_mutation_id: Some("cm_schema_roundtrip".to_owned()),
+            operation_issuance: None,
             authority_descriptor: Some(AuthorityDescriptor {
                 descriptor_version: 1,
                 authority_instance_id: "018f0d90-7b24-7a22-8c33-445566778899".to_owned(),
@@ -3221,6 +3277,29 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
         })
         .unwrap(),
     );
+}
+
+#[test]
+fn agent_safe_capability_schema_rejects_axis_and_extension_tampering() {
+    let mut manifest =
+        serde_json::to_value(CapabilityManifest::local_v0_declared()).expect("manifest JSON");
+    assert_validates("capability.manifest.schema.json", &manifest);
+
+    manifest["agentSafe"]["target"]["forks"]["inApp"]["egress"] = json!({
+        "DenyAll": true,
+        "CaptureOnly": true,
+    });
+    assert_rejects("capability.manifest.schema.json", &manifest);
+
+    let mut unknown =
+        serde_json::to_value(CapabilityManifest::local_v0_declared()).expect("manifest JSON");
+    unknown["agentSafe"]["target"]["aggregate"]["inventedTier"] = json!("Supported");
+    assert_rejects("capability.manifest.schema.json", &unknown);
+
+    let mut version =
+        serde_json::to_value(CapabilityManifest::local_v0_declared()).expect("manifest JSON");
+    version["agentSafe"]["schemaVersion"] = json!("agentSafe.v2");
+    assert_rejects("capability.manifest.schema.json", &version);
 }
 
 const GENERATED_BACKENDS: [&str; 7] = [
@@ -3609,10 +3688,9 @@ fn gap_row_schemas_accept_representative_values() {
         "dryRun": false
     });
     assert_validates("query.output.schema.json", &attributed);
-    let completeness_fixture: Value = serde_json::from_str(include_str!(
-        "conformance/completeness-proof-v1.json"
-    ))
-    .expect("parse completeness proof fixture");
+    let completeness_fixture: Value =
+        serde_json::from_str(include_str!("conformance/completeness-proof-v1.json"))
+            .expect("parse completeness proof fixture");
     let finite_carrier = json!({
         "version": 43,
         "rows": [{ "_id": "r1", "n": 1 }],
@@ -3657,9 +3735,11 @@ fn gap_row_schemas_accept_representative_values() {
         writes: vec!["notes".to_owned()],
         captured_reads: vec![],
         captured_writes: vec![],
-        conformance: Some(snapback::conformance::DeclarationConformance::without_capture(
-            snapback::conformance::DependencyProvenance::Unsupported,
-        )),
+        conformance: Some(
+            snapback::conformance::DeclarationConformance::without_capture(
+                snapback::conformance::DependencyProvenance::Unsupported,
+            ),
+        ),
         admin_bypass: false,
         elapsed_ms: 12,
         version: Some(7),

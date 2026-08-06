@@ -1834,10 +1834,9 @@ pub async fn run_from_env() -> anyhow::Result<()> {
         Some(HostCommand::Telemetry { command }) => telemetry_command(command),
         Some(HostCommand::Errors { command }) => errors_command(command),
         Some(HostCommand::NetworkProfile { command }) => match command {
-            NetworkProfileCommand::Get { target } => host_op_via_http(
-                &target,
-                json!({ "operation": "debug.networkProfileGet" }),
-            ),
+            NetworkProfileCommand::Get { target } => {
+                host_op_via_http(&target, json!({ "operation": "debug.networkProfileGet" }))
+            }
             NetworkProfileCommand::Set { target, profile } => host_op_via_http(
                 &target,
                 json!({
@@ -3334,7 +3333,10 @@ fn parse_run_args(args: Option<String>) -> anyhow::Result<Value> {
 
 fn parse_network_profile_selection(raw: &str) -> anyhow::Result<Value> {
     let trimmed = raw.trim();
-    anyhow::ensure!(!trimmed.is_empty(), "network profile selection must not be empty");
+    anyhow::ensure!(
+        !trimmed.is_empty(),
+        "network profile selection must not be empty"
+    );
     if trimmed.starts_with('{') || trimmed.starts_with('"') {
         serde_json::from_str(trimmed).context("network profile selection is not valid JSON")
     } else {
@@ -3972,7 +3974,12 @@ fn errors_command(command: ErrorsCommand) -> anyhow::Result<()> {
             }
             query.push((
                 "order",
-                if order == "last-seen" { "lastSeen" } else { "count" }.to_owned(),
+                if order == "last-seen" {
+                    "lastSeen"
+                } else {
+                    "count"
+                }
+                .to_owned(),
             ));
             query.push(("limit", limit.to_string()));
 
@@ -3996,12 +4003,8 @@ fn errors_command(command: ErrorsCommand) -> anyhow::Result<()> {
             if let Some(since) = since {
                 query.push(("since", since));
             }
-            let response = telemetry_json_get(
-                &target,
-                "/_snapback/api/errors/issues",
-                query,
-                None,
-            )?;
+            let response =
+                telemetry_json_get(&target, "/_snapback/api/errors/issues", query, None)?;
             println!("{}", serde_json::to_string_pretty(&response)?);
             Ok(())
         }
@@ -4166,9 +4169,8 @@ async fn admin_claim_link(request: AdminClaimLinkRequest) -> anyhow::Result<()> 
     } = request;
     let url_base = url_base.as_deref();
     let lan = lan.as_deref();
-    let selector_count = usize::from(url_base.is_some())
-        + usize::from(tailscale)
-        + usize::from(lan.is_some());
+    let selector_count =
+        usize::from(url_base.is_some()) + usize::from(tailscale) + usize::from(lan.is_some());
     anyhow::ensure!(
         selector_count <= 1,
         "SNAPBACK_ADMIN_LINK_ORIGIN_CONFLICT: --url-base, --tailscale, and --lan are mutually exclusive"
@@ -4490,15 +4492,15 @@ impl ManagedAdminLink {
         if let Some(front) = self.front.take() {
             let result = match front {
                 AdminLinkFront::Lan(relay) => relay.close().await,
-                AdminLinkFront::Tailscale(guard) => {
-                    tokio::task::spawn_blocking(move || guard.close())
-                        .await
-                        .map_err(|error| {
-                            anyhow::anyhow!(
-                                "SNAPBACK_ADMIN_TAILSCALE_CLEANUP_FAILED: lifecycle task failed: {error}"
-                            )
-                        })?
-                }
+                AdminLinkFront::Tailscale(guard) => tokio::task::spawn_blocking(move || {
+                    guard.close()
+                })
+                .await
+                .map_err(|error| {
+                    anyhow::anyhow!(
+                        "SNAPBACK_ADMIN_TAILSCALE_CLEANUP_FAILED: lifecycle task failed: {error}"
+                    )
+                })?,
             };
             if let Err(error) = result {
                 first_error = Some(error);
@@ -4563,7 +4565,9 @@ fn drop_console_reachability(
 }
 
 async fn next_relay_observation(
-    receiver: &mut Option<tokio::sync::mpsc::UnboundedReceiver<crate::admin_link::RelayObservation>>,
+    receiver: &mut Option<
+        tokio::sync::mpsc::UnboundedReceiver<crate::admin_link::RelayObservation>,
+    >,
 ) -> Option<crate::admin_link::RelayObservation> {
     match receiver {
         Some(receiver) => receiver.recv().await,
@@ -8103,7 +8107,10 @@ mod tests {
         assert!(matches!(
             status.command,
             Some(HostCommand::Admin(AdminArgs {
-                command: Some(AdminCommand::Link { status: Some(_), .. }),
+                command: Some(AdminCommand::Link {
+                    status: Some(_),
+                    ..
+                }),
                 ..
             }))
         ));
@@ -8441,10 +8448,7 @@ mod tests {
     #[test]
     fn detached_start_refusal_has_stable_code_and_repair() {
         let error = super::ready_descriptor_required_error();
-        assert_eq!(
-            error.diagnostic.code,
-            "SNAPBACK_READY_DESCRIPTOR_REQUIRED"
-        );
+        assert_eq!(error.diagnostic.code, "SNAPBACK_READY_DESCRIPTOR_REQUIRED");
         assert_eq!(
             error.diagnostic.details["next"][0]["command"],
             "snapback start --ready-file <owner-only-path> ..."
@@ -11272,6 +11276,7 @@ mod tests {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                history: None,
             }],
             ..SchemaManifest::default()
         };
@@ -11651,8 +11656,8 @@ pub(crate) fn migrate_command(command: MigrateCommand, json_only: bool) -> anyho
                 // Moment 3's estimate line is sourced only from the separately
                 // digested, snapshot-pinned observation; it adds no plan
                 // authority and is omitted when no step declares a read table.
-                let (head, precondition_rows) = snapback
-                    .migrate_preview_observation_facts(&steps, max_affected_rows)?;
+                let (head, precondition_rows) =
+                    snapback.migrate_preview_observation_facts(&steps, max_affected_rows)?;
                 let body = crate::migration::MigrationPlanBody {
                     schema_version: crate::migration::MIGRATION_PLAN_SCHEMA_VERSION.to_owned(),
                     app: snapback.migrate_app_id(),

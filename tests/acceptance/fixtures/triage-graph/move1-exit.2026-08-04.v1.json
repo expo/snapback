@@ -8,7 +8,7 @@
     "LLP 0166#d4--completeness-honest-local-answers"
   ],
   "source": {
-    "revision": "779c4f16985d375d66a6a52b2a9932cfb8386de7",
+    "revision": "236037bf3328d4edcb0b2e5b6ce7d17f35391c0a",
     "dirty": true,
     "files": [
       {
@@ -25,11 +25,11 @@
       },
       {
         "path": "demos/triage-graph/snapback/trusted-composition-activation.json",
-        "sha256": "38e635b424656921b2de7dba4cf535e2367b6b1f93dae83546fd705a80eeb0d0"
+        "sha256": "f2d6aeb2e05c10107bf32259d8845b28d20e965f61ddd53daf2e19c4e35f6727"
       },
       {
         "path": "demos/triage-graph/snapback/generated/artifacts.json",
-        "sha256": "260dab4b9c74a1bf65c3cddce10787d27da9ad020f3ef7e681fbfe8116ad5c67"
+        "sha256": "6d6ba5946ab05878caca1d96d61ea04092be85146eed14ea374137e161ac3b8f"
       },
       {
         "path": "demos/triage-graph/demo.snapback.json",
@@ -45,7 +45,7 @@
       },
       {
         "path": "packages/snapback-client/index.mjs",
-        "sha256": "6acd1442fcf0e3dd5de640c92e83097957f18491517b6e12a83045e481ac17f0"
+        "sha256": "432c51b87d3a61d0407ab05b2b2286b5277228050d835b3d120df075e69af0fa"
       },
       {
         "path": "packages/snapback-client/materialization-store.mjs",
@@ -77,13 +77,13 @@
     "status": "PASS",
     "runtime": {
       "serverBinary": "target/debug/snapback",
-      "serverBinarySha256": "b0a216c9a81baeffca4362df6c6ebcc48c62926cca8c0aeef1ea59dc10fc7307",
+      "serverBinarySha256": "516af27516e91c1b0f5bfc1bf3dc363b3ba9b4f9e5de36b7017e0ff231fc74c5",
       "launchRung": "configured",
       "backendStoppedBeforeRelaunch": true
     },
     "activation": {
       "format": "snapback.composition-activation-preparation.v1",
-      "activationHash": "sha256:b91c2c9478f9a190f0042e61d00b4f0242b12f4f3d9a0d30915e2b53514cefac",
+      "activationHash": "sha256:13c4711abb9bc0f4a78410902865a7e3ff75dafb7d6b21a52ef2e74c8b9c3410",
       "deploymentId": "triage-graph-p3-controlled-run"
     }
   },
@@ -117,13 +117,13 @@
         "durableRegistrations": 1,
         "registrationBytes": 1459,
         "leaseRecords": 1,
-        "physicalCarrierBytes": 74821
+        "physicalCarrierBytes": 74850
       },
       "hydration": {
         "attempts": 1,
         "rowsInstalled": 100,
         "payloadBytes": 14981,
-        "elapsedMs": 439.261
+        "elapsedMs": 196.068
       }
     },
     "frozenCeilings": {
@@ -183,31 +183,31 @@
         "releasedVolatilePayloadRecords": 0,
         "retainingSets": {
           "registrations": [
-            "qmk1.qnkTJfLPF5KhMqXeM7LzvN0zpgux5nYccAnB5LvRCNQ"
+            "qmk1.Mio5pw0_1D2LXv7vDoiS8xWFt1NgPtE6qqpmQf4hs-k"
           ],
           "releaseGrace": [],
           "safetyBlockers": [],
           "instanceBookkeepingStubs": [
-            "qmk1.-UP4WgoR2zlDQt0qvfQZAyX5xaV2glTw5aCHOJXVAvs",
-            "qmk1.-gZKg7QHAyiiqT0-P-BVGlXPJo-zfzoQK0lUUJad8Fk",
-            "qmk1.08ddO-HQl9pFwtca-_3sj_Wu397aHVZ_hM3cc-tj8PM",
-            "qmk1.9ArnFTIen9bHJUjDueAXJd1aUdl9RcQFqnOhyXQiH0I",
-            "qmk1.9CyM1Y304VD6kr3kePuvp36nb-66xFd7bzUV-rco_7U",
-            "qmk1.CmPGvAaRO0c7NUpZ0IZqdjuaAlAridgYoTdyYqViCQw",
-            "qmk1.NBPq9nYefCV_Mv9eA2MHI1mKiI6ersxc33-qyrFjVow",
-            "qmk1.O5PyBWaMN2MUV7wejqYEAmqLCBpEZRoaChmCXOyvIAQ",
-            "qmk1.Xdb3WzDnWDyII8apvZg6OrAybM6_NvzPqMWgWUgoHpY",
-            "qmk1.YHJq5_UNKZdvOAVa9RHYVByG4JkIiBp9UiktH3onJnA",
-            "qmk1.Yx9GmPhvnpALsppRWvZJTtHYzz1qn4r8nJMp7QkozEE",
-            "qmk1.f96VkzK5urzfCRnO-uZao2MYe6HyG1irrmmHWPumJJY",
-            "qmk1.fKMzaw91ji7-8B1n7HOzpZX3_g1Her4_DBNFIM8Jwuo",
-            "qmk1.hCxQNTLtwGceLsa37ktk8yhWwpDJqEPeEfv8Ff2bMmU",
-            "qmk1.iLlDWo_hPUKfsFv0QHCv8XZ6BDu5n3eV7GGdIF2n5iY",
-            "qmk1.mQriRVduX_KpxfLwFXk0NA1bDBO7CS7zUbl7tTPEWtI",
-            "qmk1.nfjkjNtBQaK_R3HBRoDVjMnT1q0PIA5feMos2ewiGo0",
-            "qmk1.vJN9MhHTaYduDlSCmXH08HsUN0OcvymXv-v1iUVpkvo",
-            "qmk1.wfnB3dp_SKETd2S5DMUaiFhefQmK7wC9ig5mkw-LTSc",
-            "qmk1.xxaSGcGdq8khv-Y_B8EAAEuzW2NOEy1pe-iiSZHIWBc"
+            "qmk1.-d27tv1wy4fVWAEoU-UwQHQJFmwzFRgb0nUqlpIAI1c",
+            "qmk1.-idJWC3SELJwVAy4dlOptXYoAc5gHx40_4ypef5iwG8",
+            "qmk1.351URr_x6LC1vkrI8S13dBM8R9vHyHHc1uJzXPUBARg",
+            "qmk1.7lEPnA9lXRWhak2jrkL5CvLtctJ-txTRUSQjldnFnOQ",
+            "qmk1.AV_1ouuQaKYz2YkET65evY7xIe8BpoDzNG7chACTF4g",
+            "qmk1.D-_pfHZ7MUFXYAaVosr5YENR2EgpSvhzZUncSUNnkEY",
+            "qmk1.FGmAJl3-dixQxS4gz3FnHdbLWddphxH40m4JriJOJrA",
+            "qmk1.KpWxBbpWU7JzNtfE5pc_gItKAZYPk-FLXe7WWIYDziM",
+            "qmk1.QjjN_4c7Pj4Ueli9Zarsh0k-Fgqz0mX4QC-NMMYqmIg",
+            "qmk1.Ub1JBudreOdFvzl5lcW5IWU1Ha40fDxhCS6nwOtNaMU",
+            "qmk1.aM5FmMbNLz_0p6XUqC282tCtKtPiDaIGBL7ZMczk9NY",
+            "qmk1.i-mSk4kYIVS9JiA3D9jpp26HGeM76MgLhwmxba8esbY",
+            "qmk1.khQKZpJQjtRVrwnH9CX1ybFHw_uPs-b7xbXiB2iDhvQ",
+            "qmk1.lc2yYbWz6nj6jo-SLb-sC5wuC8S8FnmMvKvxaLlQmFs",
+            "qmk1.nPONthrntC556tg4TnHSQxyDRo-YGx_oe8xEcR8Th00",
+            "qmk1.ooBWzYZa7OFvl0VwiDUKz_LEqlKMMbBZjLgET2keBNY",
+            "qmk1.qNq3hUQUrO05Nr1fuaT_qNVxUX_EtbWusoxEnRj_-Og",
+            "qmk1.qdRj4nYyg_GS1zmTLJbSlursD49SYXN0Hr9bQXQ7r5w",
+            "qmk1.tYoMpOOJMt_5P51QpNhgdudTSyAgwpTO3tjvCeUC25k",
+            "qmk1.vm5jqmC6YMnGnJExANlss3VAbktywrOjPz_OaeHw3OU"
           ]
         },
         "fragments": 1,
@@ -215,7 +215,7 @@
         "authoritativeRetainedRowsExplained": 100,
         "durableRegistrations": 1,
         "leaseRecords": 1,
-        "addressKey": "qmk1.qnkTJfLPF5KhMqXeM7LzvN0zpgux5nYccAnB5LvRCNQ",
+        "addressKey": "qmk1.Mio5pw0_1D2LXv7vDoiS8xWFt1NgPtE6qqpmQf4hs-k",
         "currentTransition": {
           "answerClass": "authoritative",
           "freshness": "current"
@@ -308,31 +308,31 @@
         "releasedVolatilePayloadRecords": 0,
         "retainingSets": {
           "registrations": [
-            "qmk1.qnkTJfLPF5KhMqXeM7LzvN0zpgux5nYccAnB5LvRCNQ"
+            "qmk1.Mio5pw0_1D2LXv7vDoiS8xWFt1NgPtE6qqpmQf4hs-k"
           ],
           "releaseGrace": [],
           "safetyBlockers": [],
           "instanceBookkeepingStubs": [
-            "qmk1.-UP4WgoR2zlDQt0qvfQZAyX5xaV2glTw5aCHOJXVAvs",
-            "qmk1.-gZKg7QHAyiiqT0-P-BVGlXPJo-zfzoQK0lUUJad8Fk",
-            "qmk1.08ddO-HQl9pFwtca-_3sj_Wu397aHVZ_hM3cc-tj8PM",
-            "qmk1.9ArnFTIen9bHJUjDueAXJd1aUdl9RcQFqnOhyXQiH0I",
-            "qmk1.9CyM1Y304VD6kr3kePuvp36nb-66xFd7bzUV-rco_7U",
-            "qmk1.CmPGvAaRO0c7NUpZ0IZqdjuaAlAridgYoTdyYqViCQw",
-            "qmk1.NBPq9nYefCV_Mv9eA2MHI1mKiI6ersxc33-qyrFjVow",
-            "qmk1.O5PyBWaMN2MUV7wejqYEAmqLCBpEZRoaChmCXOyvIAQ",
-            "qmk1.Xdb3WzDnWDyII8apvZg6OrAybM6_NvzPqMWgWUgoHpY",
-            "qmk1.YHJq5_UNKZdvOAVa9RHYVByG4JkIiBp9UiktH3onJnA",
-            "qmk1.Yx9GmPhvnpALsppRWvZJTtHYzz1qn4r8nJMp7QkozEE",
-            "qmk1.f96VkzK5urzfCRnO-uZao2MYe6HyG1irrmmHWPumJJY",
-            "qmk1.fKMzaw91ji7-8B1n7HOzpZX3_g1Her4_DBNFIM8Jwuo",
-            "qmk1.hCxQNTLtwGceLsa37ktk8yhWwpDJqEPeEfv8Ff2bMmU",
-            "qmk1.iLlDWo_hPUKfsFv0QHCv8XZ6BDu5n3eV7GGdIF2n5iY",
-            "qmk1.mQriRVduX_KpxfLwFXk0NA1bDBO7CS7zUbl7tTPEWtI",
-            "qmk1.nfjkjNtBQaK_R3HBRoDVjMnT1q0PIA5feMos2ewiGo0",
-            "qmk1.vJN9MhHTaYduDlSCmXH08HsUN0OcvymXv-v1iUVpkvo",
-            "qmk1.wfnB3dp_SKETd2S5DMUaiFhefQmK7wC9ig5mkw-LTSc",
-            "qmk1.xxaSGcGdq8khv-Y_B8EAAEuzW2NOEy1pe-iiSZHIWBc"
+            "qmk1.-d27tv1wy4fVWAEoU-UwQHQJFmwzFRgb0nUqlpIAI1c",
+            "qmk1.-idJWC3SELJwVAy4dlOptXYoAc5gHx40_4ypef5iwG8",
+            "qmk1.351URr_x6LC1vkrI8S13dBM8R9vHyHHc1uJzXPUBARg",
+            "qmk1.7lEPnA9lXRWhak2jrkL5CvLtctJ-txTRUSQjldnFnOQ",
+            "qmk1.AV_1ouuQaKYz2YkET65evY7xIe8BpoDzNG7chACTF4g",
+            "qmk1.D-_pfHZ7MUFXYAaVosr5YENR2EgpSvhzZUncSUNnkEY",
+            "qmk1.FGmAJl3-dixQxS4gz3FnHdbLWddphxH40m4JriJOJrA",
+            "qmk1.KpWxBbpWU7JzNtfE5pc_gItKAZYPk-FLXe7WWIYDziM",
+            "qmk1.QjjN_4c7Pj4Ueli9Zarsh0k-Fgqz0mX4QC-NMMYqmIg",
+            "qmk1.Ub1JBudreOdFvzl5lcW5IWU1Ha40fDxhCS6nwOtNaMU",
+            "qmk1.aM5FmMbNLz_0p6XUqC282tCtKtPiDaIGBL7ZMczk9NY",
+            "qmk1.i-mSk4kYIVS9JiA3D9jpp26HGeM76MgLhwmxba8esbY",
+            "qmk1.khQKZpJQjtRVrwnH9CX1ybFHw_uPs-b7xbXiB2iDhvQ",
+            "qmk1.lc2yYbWz6nj6jo-SLb-sC5wuC8S8FnmMvKvxaLlQmFs",
+            "qmk1.nPONthrntC556tg4TnHSQxyDRo-YGx_oe8xEcR8Th00",
+            "qmk1.ooBWzYZa7OFvl0VwiDUKz_LEqlKMMbBZjLgET2keBNY",
+            "qmk1.qNq3hUQUrO05Nr1fuaT_qNVxUX_EtbWusoxEnRj_-Og",
+            "qmk1.qdRj4nYyg_GS1zmTLJbSlursD49SYXN0Hr9bQXQ7r5w",
+            "qmk1.tYoMpOOJMt_5P51QpNhgdudTSyAgwpTO3tjvCeUC25k",
+            "qmk1.vm5jqmC6YMnGnJExANlss3VAbktywrOjPz_OaeHw3OU"
           ]
         },
         "fragments": 1,
@@ -340,7 +340,7 @@
         "authoritativeRetainedRowsExplained": 100,
         "durableRegistrations": 1,
         "leaseRecords": 1,
-        "addressKey": "qmk1.qnkTJfLPF5KhMqXeM7LzvN0zpgux5nYccAnB5LvRCNQ",
+        "addressKey": "qmk1.Mio5pw0_1D2LXv7vDoiS8xWFt1NgPtE6qqpmQf4hs-k",
         "currentTransition": {
           "answerClass": "authoritative",
           "freshness": "current"

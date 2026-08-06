@@ -402,6 +402,40 @@ impl MaterializedBase {
         })
     }
 
+    /// Reopen a file-backed workspace previously produced by
+    /// [`Self::materialize`]. Both files are required: silently rebuilding the
+    /// immutable comparison base from the writable head would bless branch
+    /// writes as pre-fork state and make an exact diff impossible.
+    ///
+    /// @ref LLP 0162#acceptance — the DenyAll marker and immutable base must
+    ///   survive process crash/reopen without weakening sibling or canonical
+    ///   isolation.
+    pub fn reopen(path: &Path) -> SnapbackResult<Self> {
+        let mut immutable_base_path = path.as_os_str().to_os_string();
+        immutable_base_path.push(".immutable-base");
+        let immutable_base_path = PathBuf::from(immutable_base_path);
+        let real_file = |candidate: &Path| {
+            std::fs::symlink_metadata(candidate)
+                .is_ok_and(|metadata| metadata.is_file() && !metadata.file_type().is_symlink())
+        };
+        if !real_file(path) || !real_file(&immutable_base_path) {
+            return Err(invalid(
+                "a managed branch workspace requires real, non-symlink writable-head and immutable-base files",
+            ));
+        }
+        let conn = Connection::open(path)?;
+        let immutable_base = Connection::open(&immutable_base_path)?;
+        let base_version = crate::storage::current_version_on(&immutable_base)?;
+        immutable_base.execute_batch("PRAGMA query_only = ON;")?;
+        Ok(Self {
+            conn,
+            immutable_base,
+            base_version,
+            path: Some(path.to_path_buf()),
+            immutable_base_path: Some(immutable_base_path),
+        })
+    }
+
     /// The retained comparison base. SQLite enforces query-only access.
     pub fn immutable_base(&self) -> &Connection {
         &self.immutable_base
@@ -410,16 +444,34 @@ impl MaterializedBase {
     /// Tear down the base: drop the connection and delete the backing file (if
     /// any). Idempotent — a missing file is not an error.
     pub fn teardown(self) -> SnapbackResult<()> {
-        let paths = [self.path.clone(), self.immutable_base_path.clone()];
+        let operation_detail_sidecar = self
+            .path
+            .as_deref()
+            .map(crate::operation_detail::keyring_path);
+        let primary = [self.path.clone(), self.immutable_base_path.clone()];
+        let mut paths = primary
+            .iter()
+            .flatten()
+            .flat_map(|path| {
+                ["", "-wal", "-shm"].map(|suffix| {
+                    let mut value = path.as_os_str().to_os_string();
+                    value.push(suffix);
+                    PathBuf::from(value)
+                })
+            })
+            .collect::<Vec<_>>();
+        paths.extend(operation_detail_sidecar);
         drop(self); // close the connection before unlinking
-        for p in paths.into_iter().flatten() {
+        for p in paths {
             match std::fs::remove_file(&p) {
                 Ok(()) => {}
                 Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
-                Err(e) => return Err(invalid(format!(
-                    "failed to delete branch base {:?}: {e}",
-                    p
-                ))),
+                Err(e) => {
+                    return Err(invalid(format!(
+                        "failed to delete branch base {:?}: {e}",
+                        p
+                    )));
+                }
             }
         }
         Ok(())

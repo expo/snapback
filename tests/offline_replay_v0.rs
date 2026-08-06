@@ -201,6 +201,7 @@ async fn synthetic_lane_l_wire_submission_rederives_before_commit() {
         },
         expected_generation: None,
         client_mutation_id: Some("cm_llp0133_wire_lane_l".to_owned()),
+        operation_issuance: None,
         authority_descriptor: None,
         acknowledged_client_mutation_ids: Vec::new(),
     };
@@ -422,6 +423,7 @@ async fn current_mutation_id_cannot_be_acknowledged_by_its_own_request() {
         settlement: Default::default(),
         expected_generation: None,
         client_mutation_id: Some(mutation_id.clone()),
+        operation_issuance: None,
         authority_descriptor: None,
         acknowledged_client_mutation_ids,
     };
@@ -476,6 +478,7 @@ async fn standalone_ack_reclaims_a_final_result_and_is_auth_bound() {
         settlement: Default::default(),
         expected_generation: None,
         client_mutation_id: Some(mutation_id.clone()),
+        operation_issuance: None,
         authority_descriptor: None,
         acknowledged_client_mutation_ids: Vec::new(),
     };
@@ -559,6 +562,7 @@ async fn admin_purge_is_gated_explicit_and_auth_selective() {
         settlement: Default::default(),
         expected_generation: None,
         client_mutation_id: Some(user_id.clone()),
+        operation_issuance: None,
         authority_descriptor: None,
         acknowledged_client_mutation_ids: Vec::new(),
     };
@@ -567,6 +571,7 @@ async fn admin_purge_is_gated_explicit_and_auth_selective() {
         settlement: Default::default(),
         expected_generation: None,
         client_mutation_id: Some(other_id),
+        operation_issuance: None,
         authority_descriptor: None,
         acknowledged_client_mutation_ids: Vec::new(),
     };

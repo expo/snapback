@@ -72,7 +72,8 @@ fn build_export() -> Value {
     let operations: Vec<Value> = operation_registry()
         .into_iter()
         .filter(|operation| {
-            operation.class == RouteClass::SystemApi || operation.operation == "app.ensure.provision"
+            operation.class == RouteClass::SystemApi
+                || operation.operation == "app.ensure.provision"
         })
         .map(|operation| operation_json(&operation))
         .collect();
@@ -135,9 +136,7 @@ fn domain_boundary_excludes_system_static_and_ordinary_app_data() {
     let operations = export["operations"].as_array().unwrap();
 
     assert!(
-        routes
-            .iter()
-            .all(|route| route["class"] == "SystemApi"),
+        routes.iter().all(|route| route["class"] == "SystemApi"),
         "every exported route must be RouteClass::SystemApi"
     );
     assert!(

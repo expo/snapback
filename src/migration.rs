@@ -81,8 +81,9 @@ pub enum MigrationStep {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         backfill: Option<ValueExpr>,
     },
-    /// Backfill into a new or nullable destination from the closed
-    /// expression vocabulary over the source row plus plan constants.
+    /// Backfill into a new destination from the closed expression vocabulary
+    /// over the source row plus plan constants. The local v1 proof/rollback
+    /// profile refuses predecessor columns, including nullable ones.
     BackfillField {
         table: String,
         field: String,
@@ -1569,11 +1570,7 @@ fn authority_bearing(schema: &SchemaManifest, table: &str) -> bool {
 /// pinned order's ordinals, the closed backfill vocabulary against the
 /// explicit constants, boundary references, posture admission, and the
 /// authority-bearing-table refusal against both schema generations.
-pub fn validate_plan_artifact(
-    artifact: &MigrationPlanArtifactV1,
-    predecessor_schema: &SchemaManifest,
-    successor_schema: &SchemaManifest,
-) -> SnapbackResult<()> {
+pub fn validate_plan_artifact_seal(artifact: &MigrationPlanArtifactV1) -> SnapbackResult<()> {
     let body = &artifact.body;
     if body.schema_version != MIGRATION_PLAN_SCHEMA_VERSION {
         return Err(plan_invalid(format!(
@@ -1590,6 +1587,16 @@ pub fn validate_plan_artifact(
     if artifact.plan_id != plan_id(&recomputed) {
         return Err(plan_invalid("planId does not match the plan digest"));
     }
+    Ok(())
+}
+
+pub fn validate_plan_artifact(
+    artifact: &MigrationPlanArtifactV1,
+    predecessor_schema: &SchemaManifest,
+    successor_schema: &SchemaManifest,
+) -> SnapbackResult<()> {
+    let body = &artifact.body;
+    validate_plan_artifact_seal(artifact)?;
     if body.constants.publication_timestamp_ms >= MIGRATION_TIMESTAMP_MAX_EXCLUSIVE {
         return Err(plan_invalid(
             "publicationTimestamp is outside the 48-bit UUIDv7 millisecond range",
@@ -1626,6 +1633,20 @@ pub fn validate_plan_artifact(
     if step_ids.len() != body.steps.len() {
         return Err(plan_invalid("step IDs must be unique"));
     }
+    // In-place backfill/copy is deliberately limited to columns introduced
+    // earlier by this exact plan. Without this admission proof the executor's
+    // closed-barrier NULL exception could hide corruption in an existing
+    // required field. Requiredness is an ordered state machine: validation
+    // closes the destination to later writes, and MakeRequired must consume
+    // that exact validation before publication. The sets are
+    // approval-relevant because step order is already canonical and
+    // digest-sealed.
+    //
+    // @ref LLP 0081#3-typed-migration-steps — AddField establishes the only
+    //   nullable staging destination that a later backfill/copy may consume.
+    let mut staged_fields: BTreeSet<(String, String)> = BTreeSet::new();
+    let mut validated_required_fields: BTreeSet<(String, String)> = BTreeSet::new();
+    let mut made_required_fields: BTreeSet<(String, String)> = BTreeSet::new();
     for (index, record) in body.steps.iter().enumerate() {
         let expected = canonical_step_id(index + 1, &record.step);
         if record.id != expected {
@@ -1634,6 +1655,116 @@ pub fn validate_plan_artifact(
                 index + 1,
                 record.id
             )));
+        }
+        match &record.step {
+            MigrationStep::AddField {
+                table,
+                field,
+                field_type,
+                ..
+            } => {
+                if predecessor_schema
+                    .table(table)
+                    .and_then(|manifest| manifest.field(field))
+                    .is_some()
+                {
+                    return Err(plan_invalid(format!(
+                        "step {} cannot stage existing predecessor field {table}.{field}",
+                        record.id
+                    )));
+                }
+                let successor_field = successor_schema
+                    .table(table)
+                    .and_then(|manifest| manifest.field(field))
+                    .ok_or_else(|| {
+                        plan_invalid(format!(
+                            "step {} stages field {table}.{field} absent from the successor",
+                            record.id
+                        ))
+                    })?;
+                if successor_field.field_type != *field_type {
+                    return Err(plan_invalid(format!(
+                        "step {} type for staged field {table}.{field} disagrees with the successor",
+                        record.id
+                    )));
+                }
+                if !staged_fields.insert((table.clone(), field.clone())) {
+                    return Err(plan_invalid(format!(
+                        "step {} stages field {table}.{field} more than once",
+                        record.id
+                    )));
+                }
+            }
+            MigrationStep::BackfillField { table, field, .. }
+            | MigrationStep::CopyField { table, field, .. } => {
+                let target = (table.clone(), field.clone());
+                if !staged_fields.contains(&target) {
+                    return Err(plan_invalid(format!(
+                        "step {} may write only a field staged earlier by AddField; {table}.{field} is not staged",
+                        record.id
+                    )));
+                }
+                if validated_required_fields.contains(&target)
+                    || made_required_fields.contains(&target)
+                {
+                    return Err(plan_invalid(format!(
+                        "step {} writes {table}.{field} after its requiredness validation closed; backfill/copy must precede ValidateRequired",
+                        record.id
+                    )));
+                }
+            }
+            MigrationStep::ValidateRequired { table, field } => {
+                let target = (table.clone(), field.clone());
+                let successor_field = successor_schema
+                    .table(table)
+                    .and_then(|manifest| manifest.field(field))
+                    .ok_or_else(|| {
+                        plan_invalid(format!(
+                            "step {} validates requiredness for absent successor field {table}.{field}",
+                            record.id
+                        ))
+                    })?;
+                if successor_field.optional {
+                    return Err(plan_invalid(format!(
+                        "step {} validates requiredness for optional successor field {table}.{field}",
+                        record.id
+                    )));
+                }
+                let tightens_predecessor = predecessor_schema
+                    .table(table)
+                    .and_then(|manifest| manifest.field(field))
+                    .is_some_and(|field| field.optional);
+                if !staged_fields.contains(&target) && !tightens_predecessor {
+                    return Err(plan_invalid(format!(
+                        "step {} may validate only a field staged earlier by AddField or an optional predecessor field becoming required; {table}.{field} has neither lifecycle",
+                        record.id
+                    )));
+                }
+                if made_required_fields.contains(&target)
+                    || !validated_required_fields.insert(target)
+                {
+                    return Err(plan_invalid(format!(
+                        "step {} repeats or follows completed requiredness validation for {table}.{field}",
+                        record.id
+                    )));
+                }
+            }
+            MigrationStep::MakeRequired { table, field } => {
+                let target = (table.clone(), field.clone());
+                if !validated_required_fields.remove(&target) {
+                    return Err(plan_invalid(format!(
+                        "step {} makes {table}.{field} required without an unmatched prior ValidateRequired",
+                        record.id
+                    )));
+                }
+                if !made_required_fields.insert(target) {
+                    return Err(plan_invalid(format!(
+                        "step {} makes {table}.{field} required more than once",
+                        record.id
+                    )));
+                }
+            }
+            _ => {}
         }
         for expr in record.step.backfill_exprs() {
             validate_backfill_expr(expr, &body.constants, &record.id)?;
@@ -1647,6 +1778,44 @@ pub fn validate_plan_artifact(
                      permission-backing declarations are owned by their subsystem \
                      writers, never a generic migration step",
                     record.id
+                )));
+            }
+        }
+    }
+    if let Some((table, field)) = validated_required_fields.iter().next() {
+        return Err(plan_invalid(format!(
+            "requiredness validation for {table}.{field} is not followed by MakeRequired"
+        )));
+    }
+    for (table, field) in &staged_fields {
+        let successor_required = successor_schema
+            .table(table)
+            .and_then(|manifest| manifest.field(field))
+            .is_some_and(|field| !field.optional);
+        if successor_required && !made_required_fields.contains(&(table.clone(), field.clone())) {
+            return Err(plan_invalid(format!(
+                "required staged field {table}.{field} lacks ValidateRequired followed by MakeRequired"
+            )));
+        }
+    }
+    for predecessor_table in &predecessor_schema.tables {
+        let Some(successor_table) = successor_schema.table(&predecessor_table.name) else {
+            continue;
+        };
+        for predecessor_field in &predecessor_table.fields {
+            let tightens_requiredness = predecessor_field.optional
+                && successor_table
+                    .field(&predecessor_field.name)
+                    .is_some_and(|field| !field.optional);
+            if tightens_requiredness
+                && !made_required_fields.contains(&(
+                    predecessor_table.name.clone(),
+                    predecessor_field.name.clone(),
+                ))
+            {
+                return Err(plan_invalid(format!(
+                    "optional predecessor field {}.{} becomes required without ValidateRequired followed by MakeRequired",
+                    predecessor_table.name, predecessor_field.name
                 )));
             }
         }
@@ -1696,6 +1865,7 @@ pub fn migration_vector_fixture() -> SnapbackResult<(
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
+            history: None,
         };
     let string_field = |name: &str, optional: bool| FieldManifest {
         name: name.to_owned(),
@@ -1926,6 +2096,7 @@ mod tests {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                history: None,
             }
         };
         let predecessor = crate::manifest::SchemaManifest {
@@ -2075,13 +2246,15 @@ mod tests {
     }
 
     fn schemas() -> (SchemaManifest, SchemaManifest) {
-        // The fixture's predecessor equals its successor minus the added
-        // fields; for validation both only matter for authority-bearing
-        // checks, so reuse the successor shape.
-        let (artifact, ..) = fixture();
-        let _ = artifact;
         let successor = fixture_successor();
-        (successor.clone(), successor)
+        let mut predecessor = successor.clone();
+        predecessor.tables[0]
+            .fields
+            .retain(|field| field.name == "name");
+        predecessor.tables[1]
+            .fields
+            .retain(|field| field.name == "email");
+        (predecessor, successor)
     }
 
     fn fixture_successor() -> SchemaManifest {
@@ -2116,6 +2289,7 @@ mod tests {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    history: None,
                 },
                 TableManifest {
                     name: "users".to_owned(),
@@ -2144,6 +2318,7 @@ mod tests {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    history: None,
                 },
             ],
             ..SchemaManifest::default()
@@ -2302,6 +2477,48 @@ mod tests {
         let error = validate_plan_artifact(&artifact, &predecessor, &authority_schema)
             .expect_err("authority-bearing write must refuse");
         assert!(error.diagnostic.message.contains("authority-bearing"));
+
+        // A resealed artifact cannot turn the migration decoder's staged-NULL
+        // allowance into a waiver for an existing required field.
+        let existing_required = reseal(&|body: &mut MigrationPlanBody| {
+            let record = &mut body.steps[1];
+            if let MigrationStep::BackfillField { field, .. } = &mut record.step {
+                *field = "name".to_owned();
+            }
+            record.id = canonical_step_id(2, &record.step);
+        });
+        let error = validate_plan_artifact(&existing_required, &predecessor, &successor)
+            .expect_err("an existing required destination is not a staged field");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_MIGRATION_PLAN_INVALID");
+        assert!(error.diagnostic.message.contains("is not staged"));
+
+        let validates_existing_required = reseal(&|body: &mut MigrationPlanBody| {
+            let record = &mut body.steps[2];
+            if let MigrationStep::ValidateRequired { field, .. } = &mut record.step {
+                *field = "name".to_owned();
+            }
+            record.id = canonical_step_id(3, &record.step);
+        });
+        let error = validate_plan_artifact(&validates_existing_required, &predecessor, &successor)
+            .expect_err("an existing required field has no staged requiredness lifecycle");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_MIGRATION_PLAN_INVALID");
+        assert!(error.diagnostic.message.contains("has neither lifecycle"));
+
+        let writes_after_validation = reseal(&|body: &mut MigrationPlanBody| {
+            body.steps[1..4].rotate_left(1);
+            for (index, record) in body.steps.iter_mut().enumerate() {
+                record.id = canonical_step_id(index + 1, &record.step);
+            }
+        });
+        let error = validate_plan_artifact(&writes_after_validation, &predecessor, &successor)
+            .expect_err("a backfill cannot invalidate a consumed requiredness proof");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_MIGRATION_PLAN_INVALID");
+        assert!(
+            error
+                .diagnostic
+                .message
+                .contains("after its requiredness validation closed")
+        );
 
         // Transformed retained work is typed but unsupported.
         let transformed = reseal(&|body: &mut MigrationPlanBody| {

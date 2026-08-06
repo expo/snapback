@@ -1797,12 +1797,22 @@ direction is ruled, while reviewed `snapshot-batch.v2` registration,
 implementation, and a fresh Fleet witness remain absent.
 
 The code-owned target registry may derive positive local support only when the
-embedded carrier parses, its compiled digest and every bound evidence/source
-digest match, the dedicated class registration is true, and the existing
+source-owned published anchor names exactly `single_table_v1`, its
+`carrierSha256` matches the raw embedded carrier, the carrier parses, every
+bound evidence/source digest matches, the dedicated class registration is
+true, and the existing
 `live_subscriptions` plus host-plan/runtime dependencies are supported by that
 same target. Static experimental maturity remains independent and still
 requires artifact acknowledgment. A generated artifact cannot supply,
 replace, or broaden the carrier.
+
+The anchor and carrier are publication-plane records rather than executable
+implementation. A later evidence refresh may rotate only the three receipt
+digests in the carrier and the resulting carrier digest in the anchor; the
+agent-safe history checker derives those exact bytes from qualification C and
+rejects source-map, class, target, maturity, distribution, formatting, or
+shape drift. Rust and conformance-test bytes remain frozen implementation
+inputs across that publication cycle.
 
 Contributor source remains the only admitted distribution. Public packages
 continue to require the release-key-verified

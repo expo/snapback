@@ -1524,7 +1524,9 @@ fn session_expired(reason: RevocationReason) -> SnapbackError {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::admin::ServerProfile;
     use crate::auth::crypto::{CryptoError, RandomSource};
+    use crate::auth::invocation::{InvocationGate, InvocationSource, WireAuthorityFields};
     use crate::auth::provider::PlannedTokenSource;
     use crate::auth::session_projection::{
         AuthorizationStreamIncarnation, AuthorizationStreamRecord, ProjectedSessionInsert,
@@ -1532,6 +1534,7 @@ mod tests {
         RevocationReason,
     };
     use crate::local::LocalSnapback;
+    use crate::manifest::AuthMode;
     use crate::server::{SharedSnapback, spawn_owned_auth_transaction, with_snapback};
     use std::sync::Arc;
     use std::time::Duration;
@@ -2450,6 +2453,43 @@ mod tests {
                 .code,
             "SNAPBACK_AUTH_REQUIRED"
         );
+    }
+
+    #[tokio::test]
+    async fn protected_erasure_admin_publication_refuses_predecessor_stream_after_reset() {
+        let fixture = fixture();
+        let publication = fixture
+            .coordinator
+            .prepare_anonymous_publication()
+            .expect("prepare admin-bypass publication fence");
+        let prepared = InvocationGate::prepare_authority(
+            InvocationSource::ProtectedRecordErasure,
+            AuthMode::Sessions,
+            ServerProfile::Test,
+            1,
+            1,
+            &WireAuthorityFields::default(),
+            ResolvedAppAuthority::AdminBypass {
+                reason: "protected erasure test".to_owned(),
+            },
+        )
+        .expect("prepare protected-erasure authority")
+        .with_fenced_publication(publication);
+        let reset = fixture
+            .coordinator
+            .premark_stream_reset()
+            .await
+            .expect("premark authorization-stream reset");
+        fixture
+            .coordinator
+            .finish_stream_reset(reset, AuthTransactionAttempt::Committed(()))
+            .expect("commit authorization-stream reset");
+        let outcome = prepared
+            .try_fenced_publication(200, fixture.monotonic_start, || -> SnapbackResult<()> {
+                panic!("stale protected-erasure publication must not run")
+            })
+            .expect("closed fence returns a refusal disposition");
+        assert!(outcome.is_none());
     }
 
     #[tokio::test]

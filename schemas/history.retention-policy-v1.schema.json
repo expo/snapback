@@ -4,13 +4,16 @@
   "additionalProperties": false,
   "properties": {
     "maxRows": {
+      "description": "Legacy v1 table-wide row bound. Schema-declared per-record retention is\nprojected into the distinct durable v2 policy table and never changes\nthis committed `maxRows` meaning.",
       "format": "uint64",
-      "minimum": 0,
+      "maximum": 100000,
+      "minimum": 1,
       "type": "integer"
     },
     "retainMs": {
       "format": "uint64",
-      "minimum": 0,
+      "maximum": 2592000000,
+      "minimum": 1,
       "type": "integer"
     },
     "table": {

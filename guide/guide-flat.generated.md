@@ -97,7 +97,8 @@ and `guide-gap`.
 | clients.react | Prepared React provider over one headless store/transport seam: exact generated single/grouped live queries, capability-gated all-live and mixed-route references with one-commit register-mode adoption, explicit per-child registered-live/read-only boot provenance, honest weakest aggregate connection state, explicit live fallback, attach-deadline recovery, sessions authorization adoption, result-validated optimistic mutation rebase/rollback, local managed connection-keyed presence, per-query `freshness`/`retention` offline facts with the `useSnapbackOutbox` queued-intent projection, Strict Mode/HMR sharing, complete cleanup, and retained Signal Desk receipts | react, hooks, useSyncExternalStore, result inference, typed mutation, optimistic rollback, replay advisory, projectRecordFields, optimistic toggle helper, presence, ephemeral hook, useSnapbackPresence, typing indicator, query groups, mixed route, read-only snapshot, bundle prime, registered bundle, hmr, offline freshness, outbox badge | local | shipped | `useSnapbackPresence` in packages/snapback-react/index.d.mts | llp/0012, llp/0064, llp/0074, llp/0090, llp/0101, llp/0114, llp/0106, llp/0107, llp/0129, llp/0157 | clients/react.md |
 | clients.react-expo | React Expo Online surface; independent Android and iOS implementation evidence, with the shipped asset and admin-console paths cross-indexed from the carrier guide | react native, expo, android, ios, mobile, Expo asset upload, Expo ImagePicker, Expo debugging, admin console | local | shipped | `profileId` in demos/partiful-matrix/tests/acceptance/native-react-expo.mjs | llp/0012, llp/0064 | clients/react-expo.md |
 | operating.server-lifecycle | Start/reuse/stop servers safely; ports; provenance; crash detection | run server, ports, bindPortExactly, lifecycle, watchdog, crash, prebuilt binary, seed reset | local | shipped | `startServer` in demos/_kit/server-process.mjs | llp/0010, llp/0030 | testing/acceptance.md |
-| operating.instance-forks | Experimental source-only finite-TTL derived-instance CLI with automatic expiry enforcement, bounded renewal, resource-limit admission, recovery, bounded inspection, scalar projections, diff, concurrency-safe cleanup, and exact drop; LLP 0158 is Accepted (2026-08-06) as the contract, but implementation evidence is not a capability claim until LLP 0185 Phase 6's publication gates pass | fork, derived instance, inspect, status, recover, renew, diff, automatic reap, resource limits | none | partial | `ForkCommand` in src/cli.rs + tests/instance_fork_cli_v1.rs + instance_fork unit matrices (parent-write invisibility, renewal crash cuts, concurrency, egress/credential) + tests/acceptance/instance-fork-fleet-dogfood.2026-08-03.v1.json (source proof only) | llp/0158, llp/0185 | GAP (publication, exact-diff validation, independent review, and hosted-target work remain; owner: Charlie, review: 2026-08-31; see operating/instance-forks.md) |
+| operating.instance-forks | Experimental source-only finite-TTL derived-instance CLI with expiry enforcement, bounded renewal, resource-limit admission, recovery, bounded inspection, scalar projections, diff, concurrency-safe cleanup, fork-per-worktree and parallel-suite guidance, and exact drop; LLP 0158 is Accepted as the local contract, but the separate derived capability remains unsupported and this source evidence is not a claim | fork, derived instance, fork per worktree, parallel suite, inspect, status, recover, renew, diff, automatic reap, resource limits | none | partial | `ForkCommand` in src/cli.rs + tests/instance_fork_cli_v1.rs + instance_fork unit matrices (parent-write invisibility, renewal crash cuts, concurrency, disk pressure, egress/credential) + tests/acceptance/instance-fork-fleet-dogfood.2026-08-03.v1.json + demos/todo/tests/acceptance/fork-parallel-dispositions.mjs (source proof only; public tuple Missing) | llp/0158, llp/0185 | GAP (derived-capability qualification/publication, exact-diff validation, and hosted-target work remain; owner: Charlie, review: 2026-08-31; see operating/instance-forks.md) |
+| operating.agent-safe-storage | Registered Experimental `agent_safe_storage_v1` identity for the `agentSafe.v1` extension/component-fact vocabulary; it is not the `AgentSafeV1` core aggregate and no target currently supports it | operation envelope, explanation, agent-safe storage, capability facts | none | partial | `AgentSafeCapabilityExtensionV1` in src/manifest.rs (Missing-only public projection) | llp/0162 | GAP (acceptance corpus, review, acceptance, and publication gates; all projections remain Missing; owner: Charlie, review: 2026-08-31) |
 | operating.packaged-dev-loop | Install a native runtime; scaffold, generate, doctor, and watch/load through one CLI. The current packed React/Vite starter and inferred sessions startup pass locally, but the expanded React closure is not yet the byte-verified public `0.1.0` closure. | install, new app, react starter, vite, dev, one command, watch, sessions startup, packaged runtime | local | partial | `runDev` in packages/snapback-cli/index.mjs | llp/0041, llp/0058, llp/0114, llp/0103 | getting-started/the-authoring-loop.md |
 | operating.inspect | Health and inspect projections | inspect, status, debug | local | shipped | route /inspect | llp/0017, llp/0031 | getting-started/the-authoring-loop.md |
 | operating.secrets-config | App secrets/config: declare, set, verify — write-only | secrets, config, api keys, config verification, verify config, config verify | local | shipped | route /_snapback/api/config/status | llp/0036 | operating/secrets-and-config.md |
@@ -342,6 +343,9 @@ you never build around a feature because you didn't know it existed.
   identity-bound partial done-oracle receipt.
 
 ### Operating
+- [Local instance forks](./operating/instance-forks.md) — give each worktree a
+  finite-TTL, quarantined copy of realistic local state; run fork-aware
+  acceptance and retain bounded app-row diff receipts (partial/unpublished).
 - [Secrets and deployment config](./operating/secrets-and-config.md) —
   declare, set, verify, grant, and consume write-only values.
 - [Host operations](./operating/host-ops.md) — the complete CLI/HTTP
@@ -485,9 +489,12 @@ here (or listed here but gone from the code).
 | /_snapback/api/jobs | backend.jobs-one-off |
 | /_snapback/api/jobs/drain | backend.jobs-one-off |
 | /_snapback/api/jobs/{id} | backend.jobs-one-off |
+| /_snapback/api/operations/explain | notAuthorFacing (unpublished LLP 0163 acceptance substrate) |
 | /_snapback/api/push/maintenance | backend.expo-push-seam |
 | /_snapback/api/receipts | notAuthorFacing (operator projection) |
 | /_snapback/api/schema/load | backend.schema |
+| /_snapback/api/storage/operation-coverage/activate | notAuthorFacing (unpublished LLP 0163 coverage-publication substrate) |
+| /_snapback/api/storage/protected-erasure | notAuthorFacing (unpublished LLP 0165 protected-erasure acceptance substrate) |
 | /_snapback/api/telemetry/events | backend.observability-v1 |
 | /_snapback/api/telemetry/export | backend.observability-v1 |
 | /_snapback/api/telemetry/stats | backend.observability-v1 |
@@ -528,6 +535,7 @@ here (or listed here but gone from the code).
 | /auth/session | auth.sessions |
 | /auth/step-up/request | auth.sessions |
 | /client-mutations/acknowledge | sync.offline |
+| /client-mutations/identity-range | sync.offline |
 | /connection/open | realtime.durable-push |
 | /ephemeral/collections/ensure | realtime.ephemeral |
 | /ephemeral/delete | realtime.ephemeral |
@@ -542,6 +550,7 @@ here (or listed here but gone from the code).
 | /live/{name}/subscribe | realtime.live-queries |
 | /live/{name}/unsubscribe | realtime.live-queries |
 | /mutation/{name} | backend.functions |
+| /operations/explain | notAuthorFacing (unpublished LLP 0163 acceptance substrate) |
 | /outbox/{connection_id} | sync.offline |
 | /query/{name} | backend.functions |
 | /query/{name}/authorized-lease | auth.authorized-leases |
@@ -6547,6 +6556,10 @@ additional exports are required.
     authInvalidationProtocol = null,
     authorityDescriptorProtocol = 1,
     authorizedLeaseProtocol = null,
+    // LLP 0163 pre-publication carrier. Explicit opt-in only while the Spec
+    // and capability rows remain Draft/Missing; v1 requires a durable outbox
+    // so range, next counter, and intent share one restart-safe transition.
+    operationIdentityProtocol = null,
     // Set only after capability preflight advertises the hosted ephemeral
     // authority offer. Old servers therefore never see an unknown member.
     ephemeralAuthorityProtocol = null,
@@ -11227,11 +11240,13 @@ schema- or function-divergent development against realistic rows. The fork has
 the same logical `appId`, but fresh instance, authorization-stream,
 data-stream, admin-token, and resume-keyring identities.
 
-This is a **partial, unpublished surface**:
-[LLP 0158](repo:llp/0158-instance-forking.rfc.md) is Accepted (2026-08-06)
-as the local contract, but the capability is not yet published. The guide
-teaches the implemented source workflow; it does not claim a packaged,
-hosted, promotable, or process-sandboxed capability.
+This is a **partial, unpublished surface**. The local design in
+[LLP 0158](repo:llp/0158-instance-forking.rfc.md) was Accepted on 2026-08-06,
+but the separate
+`agent_safe_derived_deployment_fork_v1` qualification and publication gates
+remain unsatisfied and its public tuple remains wholly `Missing`. The guide
+teaches the implemented source workflow; it does not claim a packaged, hosted,
+promotable, or process-sandboxed capability.
 
 ## Give a worktree its own backend
 

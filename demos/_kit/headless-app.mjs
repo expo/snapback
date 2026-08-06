@@ -110,6 +110,7 @@ export async function openHeadlessApp(metaUrl, {
     backendDir,
     client,
     generated,
+    fork: server.fork ?? null,
     provisioned,
     repoRoot,
     server,

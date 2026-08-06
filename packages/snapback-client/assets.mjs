@@ -189,7 +189,7 @@ function intentIdentity(upload) {
     // the generated reference carries the required policy and implementation
     // identities.
     throw new TypeError(
-      `start requires the generated upload reference (api.${upload}), not the intent name string — the reference carries the policy and implementation identity the server admits against`,
+      `start requires the generated upload reference (api.${upload}), not its name string; it carries policy/implementation identity`,
     );
   }
   if (

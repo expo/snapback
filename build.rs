@@ -12,6 +12,7 @@
 // tree. snapback owns the final binary, so the rpath has to be emitted here,
 // where `rustc-link-arg` actually applies to its bins, tests, and benches.
 
+use sha2::{Digest, Sha256};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::{fs, io::Write};
@@ -257,6 +258,46 @@ fn emit_build_identity() {
     println!("cargo:rerun-if-changed=Cargo.toml");
     println!("cargo:rerun-if-changed=Cargo.lock");
     println!("cargo:rerun-if-changed=src");
+    println!("cargo:rerun-if-changed=packages/snapback-codegen");
+    println!("cargo:rerun-if-changed=packages/snapback-contract");
+    println!("cargo:rerun-if-changed=tests");
+    println!("cargo:rerun-if-changed=scripts/check-agent-safe-publication.mjs");
+    println!("cargo:rerun-if-changed=scripts/generated-artifact-policy.mjs");
+    println!("cargo:rerun-if-changed=.gitmodules");
+    // The agent-safe digest binds vendored Ibex source and submodule state,
+    // so Snapback's build script must rerun whenever Cargo may rebuild that
+    // path dependency. Tracking only the parent gitlink is insufficient for
+    // an incremental build whose checked-out submodule changes in place.
+    if manifest_dir.join("vendor/ibex").exists() {
+        // Cargo scans directory inputs recursively. Ibex's build consumes
+        // build_support, capsec, schemas, native tests, public headers, and
+        // vendored-generated inputs in addition to its Rust source.
+        println!("cargo:rerun-if-changed=vendor/ibex");
+    }
+    let ibex_dir = manifest_dir.join("vendor/ibex");
+    if let Some(ibex_git_dir) = resolve_git_dir(&ibex_dir) {
+        for relative in ["HEAD", "index", "commondir"] {
+            let path = ibex_git_dir.join(relative);
+            if path.exists() {
+                println!("cargo:rerun-if-changed={}", path.display());
+            }
+        }
+        let ibex_common_dir = resolve_common_dir(&ibex_git_dir);
+        for relative in ["HEAD", "packed-refs", "refs"] {
+            let path = ibex_common_dir.join(relative);
+            if path.exists() {
+                println!("cargo:rerun-if-changed={}", path.display());
+            }
+        }
+    }
+
+    // @ref LLP 0162#8-capability-honesty — the two agent-safe publication
+    // carriers bind one canonical implementation-tree digest. The source-owned
+    // anchor/carrier bytes are deliberately outside that tree, breaking the
+    // publication cycle without letting the receipt omit implementation code.
+    if let Some(digest) = agent_safe_implementation_tree_sha256(&manifest_dir) {
+        println!("cargo:rustc-env=SNAPBACK_AGENT_SAFE_IMPLEMENTATION_SHA256={digest}");
+    }
     // The dirty probe below is scoped by this shared definition; a changed
     // definition must re-run the probe.
     println!("cargo:rerun-if-changed=scripts/runtime-build-inputs.txt");
@@ -343,6 +384,105 @@ fn emit_build_identity() {
     println!("cargo:rustc-env=SNAPBACK_BUILD_DISTRIBUTION={distribution}");
 }
 
+fn agent_safe_implementation_tree_sha256(manifest_dir: &Path) -> Option<String> {
+    // This authority is stricter than the general diagnostic build identity:
+    // callers may override SNAPBACK_BUILD_GIT_DIRTY for deterministic build
+    // stamping, but they may not override the bytes that authorize a public
+    // capability. Untracked source can participate in Rust module resolution,
+    // so require the complete contributor worktree to be clean.
+    if !git_output(
+        manifest_dir,
+        &["status", "--porcelain", "--untracked-files=all"],
+    )?
+    .is_empty()
+    {
+        return None;
+    }
+    let ibex_dir = manifest_dir.join("vendor/ibex");
+    let parent_ibex_gitlink = git(manifest_dir, &["rev-parse", "HEAD:vendor/ibex"])?;
+    let checked_out_ibex_head = git_output(&ibex_dir, &["rev-parse", "HEAD"])?;
+    if checked_out_ibex_head != parent_ibex_gitlink
+        || !git_output(
+            &ibex_dir,
+            &["status", "--porcelain", "--untracked-files=all"],
+        )?
+        .is_empty()
+    {
+        return None;
+    }
+
+    let listed = git_output(
+        manifest_dir,
+        &[
+            "ls-files",
+            "-z",
+            "--",
+            "Cargo.toml",
+            "Cargo.lock",
+            "build.rs",
+            ".gitmodules",
+            "src",
+            "packages/snapback-codegen",
+            "packages/snapback-contract",
+            "tests",
+            "scripts/check-agent-safe-publication.mjs",
+            "scripts/generated-artifact-policy.mjs",
+        ],
+    )?;
+    let mut paths = listed
+        .split('\0')
+        .filter(|path| !path.is_empty())
+        .filter(|path| !agent_safe_publication_cycle_path(path))
+        .collect::<Vec<_>>();
+    paths.sort_unstable();
+    if paths.is_empty() {
+        return None;
+    }
+
+    let mut digest = Sha256::new();
+    digest.update(b"snapback:agent-safe-implementation-tree:v1\n");
+    for relative in paths {
+        let bytes = fs::read(manifest_dir.join(relative)).ok()?;
+        digest.update(relative.as_bytes());
+        digest.update([0]);
+        digest.update((bytes.len() as u64).to_be_bytes());
+        digest.update(bytes);
+    }
+    digest.update(b"vendor/ibex");
+    digest.update([0]);
+    digest.update((parent_ibex_gitlink.len() as u64).to_be_bytes());
+    digest.update(parent_ibex_gitlink.as_bytes());
+    Some(format!("sha256:{:x}", digest.finalize()))
+}
+
+fn agent_safe_publication_cycle_path(path: &str) -> bool {
+    matches!(
+        path,
+        "src/local-agent-safe-storage-publication.anchor.json"
+            | "src/local-agent-safe-storage-publication.carrier.json"
+            | "src/local-agent-safe-derived-deployment-fork-publication.anchor.json"
+            | "src/local-agent-safe-derived-deployment-fork-publication.carrier.json"
+            | "tests/acceptance/receipts/agent-safe-storage-publication.2026-08-04.v1.json"
+            | "tests/acceptance/receipts/agent-safe-derived-deployment-fork-publication.2026-08-04.v1.json"
+            | "tests/acceptance/fixtures/agent-safe-storage/acceptance-corpus.2026-08-04.v1.json"
+            | "tests/acceptance/fixtures/agent-safe-storage/agent-safe-active-covered-paired.2026-08-04.v1.json"
+            | "tests/acceptance/fixtures/agent-safe-storage/fork-promotion-performance.2026-08-04.v1.json"
+            | "tests/acceptance/fixtures/agent-safe-storage/author-acceptance.2026-08-04.v1.json"
+            | "tests/acceptance/fixtures/latency-kanban/move3-exit.2026-08-04.r2.v1.json"
+            | "tests/acceptance/latency-kanban-move3-v1-evidence.md"
+            | "tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-04.v1.json"
+            | "tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-04.v1.json"
+            | "tests/acceptance/triage-graph-move1-v1-evidence.md"
+            | "tests/acceptance/fixtures/contention-calendar/rung2-exit.2026-08-04.r1.v1.json"
+            | "tests/acceptance/contention-calendar-rung2-v1-evidence.md"
+            | "tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-04.v1.json"
+            | "tests/acceptance/fixtures/local-persistent-store/bundle-attribution.2026-08-04.v1.json"
+            | "tests/acceptance/local-store-carrier-exit-v1-evidence.md"
+            | "src/local-persistent-store-publication.anchor.v1.json"
+            | "src/local-persistent-store-publication.v1.json"
+    )
+}
+
 fn env_nonempty(name: &str) -> Option<String> {
     std::env::var(name).ok().filter(|v| !v.is_empty())
 }
@@ -420,7 +560,12 @@ fn resolve_git_dir(manifest_dir: &Path) -> Option<PathBuf> {
     let path = content
         .lines()
         .find_map(|line| line.strip_prefix("gitdir:"))?;
-    Some(PathBuf::from(path.trim()))
+    let pointed = PathBuf::from(path.trim());
+    Some(if pointed.is_absolute() {
+        pointed
+    } else {
+        manifest_dir.join(pointed)
+    })
 }
 
 fn framework_present(dir: &Path) -> bool {

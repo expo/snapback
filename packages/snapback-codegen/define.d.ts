@@ -499,6 +499,13 @@ export type AssetSharingSpec<Fields extends Record<string, Validator> = Record<s
   | { kind: 'owner'; field: keyof Fields & string }
   | { kind: 'membership'; membership: string; roles?: readonly string[] };
 
+/** Finite schema authority for retained record history. Runtime validation
+ * enforces retainMs in 1..2,592,000,000 and maxVersionsPerRecord in 1..1,000. */
+export interface HistoryRetentionSpec {
+  readonly retainMs: number;
+  readonly maxVersionsPerRecord: number;
+}
+
 export interface TableBuilder<Fields extends Record<string, Validator> = Record<string, Validator>> {
   index(name: string, fields: Array<keyof Fields & string>, options?: { unique?: boolean }): TableBuilder<Fields>;
   searchIndex(name: string, spec: SearchIndexSpec<Fields>): TableBuilder<Fields>;
@@ -512,6 +519,8 @@ export interface TableBuilder<Fields extends Record<string, Validator> = Record<
    * 2026-07-31). Without it a typed reference confers no via-references
    * read authority. */
   assetSharing(spec: AssetSharingSpec<Fields>): TableBuilder<Fields>;
+  /** Opt into bounded per-record history for this table. */
+  history(spec: HistoryRetentionSpec): TableBuilder<Fields>;
 }
 
 export type SearchFieldClassification = 'public' | 'private' | 'sensitive' | 'forbidden';

@@ -748,6 +748,20 @@ impl From<SchemaManifest> for PublicSchemaManifest {
     }
 }
 
+/// Finite product-history retention declared beside the table it governs.
+/// This is authoring authority; storage projects it into the durable policy
+/// table in the same transaction that publishes the schema manifest.
+// @ref LLP 0162#6-bounded-history-and-named-checkpoints — history is opt-in,
+// per-table, finite on both age and versions-per-record axes, and manifest-visible.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct HistoryRetentionManifestV1 {
+    #[schemars(range(min = 1_u64, max = 2_592_000_000_u64))]
+    pub retain_ms: u64,
+    #[schemars(range(min = 1_u64, max = 1_000_u64))]
+    pub max_versions_per_record: u64,
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct TableManifest {
@@ -845,6 +859,10 @@ pub struct TableManifest {
         skip_serializing_if = "Option::is_none"
     )]
     pub asset_sharing: Option<AssetSharingManifest>,
+    /// Optional bounded record-history policy. Absence disables product
+    /// history for this table; v1 deliberately has no unbounded spelling.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub history: Option<HistoryRetentionManifestV1>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
@@ -1697,8 +1715,8 @@ impl FunctionManifest {
                         "SNAPBACK_SNAPSHOT_BATCH_PLAN_INVALID",
                         "query",
                         "snapshot batch emitted identity does not match the host reconstruction",
-                ));
-            }
+                    ));
+                }
             }
             for declaration in &function.sequences {
                 match sequence_declarations.get(&declaration.name) {
@@ -4887,12 +4905,12 @@ pub fn single_node_identity_v1(
             FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(plan)) => (
                 "relational_query_v1",
                 serde_json::to_value(plan).map_err(|_| {
-                SnapbackError::error(
-                    "SNAPBACK_COMPOSITION_PLAN_INVALID",
-                    "query",
-                    "relational plan does not serialize",
-                )
-            })?,
+                    SnapbackError::error(
+                        "SNAPBACK_COMPOSITION_PLAN_INVALID",
+                        "query",
+                        "relational plan does not serialize",
+                    )
+                })?,
                 function.effective_retention_class(),
                 "live_replace",
                 "table-granular-resnapshot",
@@ -4900,11 +4918,11 @@ pub fn single_node_identity_v1(
             ),
             FunctionRuntime::HostPlan(HandlerPlan::BoundedChildrenQuery(plan)) => (
                 "bounded_children_v1",
-            serde_json::to_value(plan).map_err(|_| {
-                SnapbackError::error(
-                    "SNAPBACK_COMPOSITION_PLAN_INVALID",
-                    "query",
-                    "bounded-children plan does not serialize",
+                serde_json::to_value(plan).map_err(|_| {
+                    SnapbackError::error(
+                        "SNAPBACK_COMPOSITION_PLAN_INVALID",
+                        "query",
+                        "bounded-children plan does not serialize",
                     )
                 })?,
                 "none",
@@ -7598,9 +7616,9 @@ impl<'de> Deserialize<'de> for SingleTablePlanV1 {
             && raw.query.membership_filters.is_empty()
             && raw.query.limit.is_none_or(|limit| limit <= QUERY_MAX_LIMIT)
             && raw.query.order.iter().all(|order| {
-                order.max_encoded_bytes.is_none_or(|bound| {
-                    (1..=9_007_199_254_740_991).contains(&bound)
-                })
+                order
+                    .max_encoded_bytes
+                    .is_none_or(|bound| (1..=9_007_199_254_740_991).contains(&bound))
             })
             && raw
                 .query
@@ -8495,6 +8513,15 @@ pub struct MutationRequest {
         pattern(REPLAY_OPAQUE_ID_PATTERN)
     )]
     pub client_mutation_id: Option<String>,
+    /// Authenticated finite-range allocation for this exact operation id.
+    /// This extends `clientMutationId`; it is not a second retry identity.
+    #[serde(
+        default,
+        rename = "operationIssuance",
+        alias = "operation_issuance",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub operation_issuance: Option<crate::commit_envelope::OperationIssuanceV1>,
     /// Required whenever `clientMutationId` is present after authority
     /// descriptor protocol v1 is negotiated. It is intentionally outside the
     /// flattened HandlerInput/ctx ledger so client-supplied replay answers can
@@ -9017,10 +9044,19 @@ pub enum TargetCapabilityId {
     AssetReferenceGcV1,
     #[serde(rename = "asset_video_finalization_v1")]
     AssetVideoFinalizationV1,
+    /// Registry identity for the LLP 0162 `agentSafe.v1` extension/component
+    /// fact vocabulary. It does not name the `AgentSafeV1` core aggregate and
+    /// registration does not imply that any target has passed the corpus.
+    #[serde(rename = "agent_safe_storage_v1")]
+    AgentSafeStorageV1,
+    /// Additive LLP 0158 derived-deployment fork tuple. This identity remains
+    /// independent from both the storage extension and in-app branch facts.
+    #[serde(rename = "agent_safe_derived_deployment_fork_v1")]
+    AgentSafeDerivedDeploymentForkV1,
 }
 
 impl TargetCapabilityId {
-    pub const ALL: [Self; 34] = [
+    pub const ALL: [Self; 36] = [
         Self::AuthSessionsV1,
         Self::BoundedResponseStreamV1,
         Self::BoundedChildrenV1,
@@ -9055,6 +9091,8 @@ impl TargetCapabilityId {
         Self::AssetImagePipelineV1,
         Self::AssetReferenceGcV1,
         Self::AssetVideoFinalizationV1,
+        Self::AgentSafeStorageV1,
+        Self::AgentSafeDerivedDeploymentForkV1,
     ];
 
     pub const fn as_str(self) -> &'static str {
@@ -9093,6 +9131,8 @@ impl TargetCapabilityId {
             Self::AssetVideoFinalizationV1 => "asset_video_finalization_v1",
             Self::AssetImagePipelineV1 => "asset_image_pipeline_v1",
             Self::AssetReferenceGcV1 => "asset_reference_gc_v1",
+            Self::AgentSafeStorageV1 => "agent_safe_storage_v1",
+            Self::AgentSafeDerivedDeploymentForkV1 => "agent_safe_derived_deployment_fork_v1",
         }
     }
 
@@ -9143,7 +9183,9 @@ impl TargetCapabilityId {
             | Self::AssetImageFinalizationV1
             | Self::AssetVideoFinalizationV1
             | Self::AssetImagePipelineV1
-            | Self::AssetReferenceGcV1 => CapabilityMaturity::Experimental,
+            | Self::AssetReferenceGcV1
+            | Self::AgentSafeStorageV1
+            | Self::AgentSafeDerivedDeploymentForkV1 => CapabilityMaturity::Experimental,
             Self::AuthSessionsV1
             | Self::BoundedResponseStreamV1
             | Self::Cron
@@ -9457,6 +9499,18 @@ impl TargetCapabilityId {
                         .as_ref()
                         .is_some_and(|assets| assets.reference_gc.is_some())
             }
+            // @ref LLP 0162#8-capability-honesty — these two component facts
+            // have independent source-owned carriers. Neither implies the
+            // other or any aggregate, and only the exact local profile may
+            // consume them.
+            Self::AgentSafeStorageV1 => {
+                facts.local_agent_safe_storage_publication_v1_verified
+                    && manifest.target_profile_id == TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX
+            }
+            Self::AgentSafeDerivedDeploymentForkV1 => {
+                facts.local_agent_safe_derived_fork_publication_v1_verified
+                    && manifest.target_profile_id == TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX
+            }
         }
     }
 }
@@ -9517,27 +9571,26 @@ impl CapabilityMaturity {
 const LOCAL_RELATION_ACTIVITY_PUBLICATION_BYTES: &[u8] =
     include_bytes!("local-relation-activity-publication.v1.json");
 const LOCAL_RELATION_ACTIVITY_PUBLICATION_SHA256: &str =
-    "sha256:1408dc59ddbd13c1efbacf49b482417c87be22d9d81c98987b5b0d1d0490fe3d";
+    "sha256:846bdd8210243302cc43532499188ae3b8c8212de78c922a31a17a57f6ebf356";
 const LOCAL_RELATION_ACTIVITY_QUALIFICATION_RECEIPT_BYTES: &[u8] =
     include_bytes!("../tests/conformance/relation-activity-publication-v1.receipt.json");
 const LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_BYTES: &[u8] =
     include_bytes!("local-sequence-allocation-publication.v1.json");
 const LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_SHA256: &str =
-    "sha256:1f20457232f41176429197ae5ee522256b705e2f7a7b59a6e60a1d175cafbb95";
+    "sha256:9a26bfcb506e1073f6306b3e3f5be59a726baa2aba2bf00aba0e3ca9b1c51291";
 const LOCAL_SEQUENCE_ALLOCATION_QUALIFICATION_RECEIPT_BYTES: &[u8] =
     include_bytes!("../tests/conformance/sequence-allocation-publication-v1.receipt.json");
 const LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES: &[u8] =
     include_bytes!("local-persistent-store-publication.v1.json");
-const LOCAL_PERSISTENT_STORE_PUBLICATION_SHA256: &str =
-    "sha256:701a8337c30635826ea3b119f71bb3f04d4403dcae0c47cee0cb363148afc16f";
+const LOCAL_PERSISTENT_STORE_PUBLICATION_ANCHOR_BYTES: &[u8] =
+    include_bytes!("local-persistent-store-publication.anchor.v1.json");
 const LOCAL_PERSISTENT_STORE_CARRIER_EXIT_RECEIPT_BYTES: &[u8] = include_bytes!(
     "../tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-04.v1.json"
 );
 const LOCAL_PERSISTENT_STORE_TRIAGE_MOVE1_RECEIPT_BYTES: &[u8] =
     include_bytes!("../tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-04.v1.json");
-const LOCAL_PERSISTENT_STORE_TRIAGE_BUDGET_RECEIPT_BYTES: &[u8] = include_bytes!(
-    "../tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-04.v1.json"
-);
+const LOCAL_PERSISTENT_STORE_TRIAGE_BUDGET_RECEIPT_BYTES: &[u8] =
+    include_bytes!("../tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-04.v1.json");
 
 #[derive(Debug, Deserialize, Eq, PartialEq)]
 #[serde(deny_unknown_fields)]
@@ -9610,6 +9663,18 @@ struct LocalPersistentStorePublicationV1 {
     build_provenance_requirement: String,
 }
 
+#[derive(Debug, Deserialize, Eq, PartialEq)]
+#[serde(deny_unknown_fields)]
+struct LocalPersistentStorePublicationAnchorV1 {
+    #[serde(rename = "schemaVersion")]
+    schema_version: String,
+    #[serde(rename = "capabilityId")]
+    capability_id: String,
+    state: String,
+    #[serde(rename = "carrierSha256")]
+    carrier_sha256: String,
+}
+
 fn sha256_prefixed(bytes: &[u8]) -> String {
     format!("sha256:{:x}", Sha256::digest(bytes))
 }
@@ -9655,19 +9720,19 @@ fn local_relation_activity_publication_verified_for(
             == BTreeMap::from([
                 (
                     "src/local.rs".to_owned(),
-                    "sha256:fad6987719dfb41f1a7f61ed4d822b4b5084076302515827faf11cfc2f322dae"
+                    "sha256:f36edb87093ecc251117a27c64c8c734b59ba092bfe5424b8637544630fbf3b4"
                         .to_owned(),
                 ),
                 (
                     "src/storage.rs".to_owned(),
-                    "sha256:046f2a9e2274825b7c85ded21dd6cad9c0d0f67e77dd2105efd2cec5f2d3fd63"
+                    "sha256:f038509c531e5c82c61dade9e87f41b3f95bee9204f0571d3013758879725987"
                         .to_owned(),
                 ),
             ])
         && carrier.schema_source_sha256
             == BTreeMap::from([(
                 "packages/snapback-codegen/define.mjs".to_owned(),
-                "sha256:ab810609fa833f5fed96016f6eb9300a7c0d8793b348c3ff076fd443743faecd"
+                "sha256:016c8f0c22efcaa896363677360a2d5563063f422d821fac20f2f6f2ce301080"
                     .to_owned(),
             )])
         && carrier.package_closure_sha256.is_none()
@@ -9718,19 +9783,19 @@ fn local_sequence_allocation_publication_verified_for(
             == BTreeMap::from([
                 (
                     "src/runtime.rs".to_owned(),
-                    "sha256:a4e56138992a39a677c971fa6724910c3a736561f5ecf1b16934fb149915b620"
+                    "sha256:5aa6d1ff7b6bfe72def0ec164fa603971bb2209b865f7782ec5d0344409070d0"
                         .to_owned(),
                 ),
                 (
                     "src/storage.rs".to_owned(),
-                    "sha256:046f2a9e2274825b7c85ded21dd6cad9c0d0f67e77dd2105efd2cec5f2d3fd63"
+                    "sha256:f038509c531e5c82c61dade9e87f41b3f95bee9204f0571d3013758879725987"
                         .to_owned(),
                 ),
             ])
         && carrier.schema_source_sha256
             == BTreeMap::from([(
                 "packages/snapback-codegen/define.mjs".to_owned(),
-                "sha256:ab810609fa833f5fed96016f6eb9300a7c0d8793b348c3ff076fd443743faecd"
+                "sha256:016c8f0c22efcaa896363677360a2d5563063f422d821fac20f2f6f2ce301080"
                     .to_owned(),
             )])
         && carrier.client_source_sha256
@@ -9773,7 +9838,7 @@ fn local_sequence_allocation_publication_verified() -> bool {
 fn local_persistent_store_publication_verified_for(
     build_distribution: &str,
     carrier_bytes: &[u8],
-    expected_carrier_sha256: &str,
+    anchor_bytes: &[u8],
     carrier_exit_receipt_bytes: &[u8],
     triage_move1_receipt_bytes: &[u8],
     triage_budget_receipt_bytes: &[u8],
@@ -9781,7 +9846,16 @@ fn local_persistent_store_publication_verified_for(
     if build_distribution != crate::identity::BUILD_DISTRIBUTION_CONTRIBUTOR_SOURCE {
         return false;
     }
-    if sha256_prefixed(carrier_bytes) != expected_carrier_sha256 {
+    let Ok(anchor) =
+        serde_json::from_slice::<LocalPersistentStorePublicationAnchorV1>(anchor_bytes)
+    else {
+        return false;
+    };
+    if anchor.schema_version != "snapback.local-capability-publication-anchor.v1"
+        || anchor.capability_id != "single_table_v1"
+        || anchor.state != "published"
+        || sha256_prefixed(carrier_bytes) != anchor.carrier_sha256
+    {
         return false;
     }
     let Ok(carrier) = serde_json::from_slice::<LocalPersistentStorePublicationV1>(carrier_bytes)
@@ -9812,19 +9886,19 @@ fn local_persistent_store_publication_verified_for(
             == BTreeMap::from([
                 (
                     "src/local.rs".to_owned(),
-                    "sha256:fad6987719dfb41f1a7f61ed4d822b4b5084076302515827faf11cfc2f322dae"
+                    "sha256:f36edb87093ecc251117a27c64c8c734b59ba092bfe5424b8637544630fbf3b4"
                         .to_owned(),
                 ),
                 (
                     "src/storage.rs".to_owned(),
-                    "sha256:046f2a9e2274825b7c85ded21dd6cad9c0d0f67e77dd2105efd2cec5f2d3fd63"
+                    "sha256:f038509c531e5c82c61dade9e87f41b3f95bee9204f0571d3013758879725987"
                         .to_owned(),
                 ),
             ])
         && carrier.schema_source_sha256
             == BTreeMap::from([(
                 "packages/snapback-codegen/index.mjs".to_owned(),
-                "sha256:a8589be96b603a92c74b90a7bbc651717509620e52f20b7abfb35c176dd64792"
+                "sha256:372758c16b31ff1fd4c77be74acfa572da9ac3eb9ad595df6f6575bd7a112312"
                     .to_owned(),
             )])
         && carrier.client_source_sha256
@@ -9903,7 +9977,7 @@ fn local_persistent_store_publication_verified() -> bool {
     local_persistent_store_publication_verified_for(
         crate::identity::build_distribution(),
         LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES,
-        LOCAL_PERSISTENT_STORE_PUBLICATION_SHA256,
+        LOCAL_PERSISTENT_STORE_PUBLICATION_ANCHOR_BYTES,
         LOCAL_PERSISTENT_STORE_CARRIER_EXIT_RECEIPT_BYTES,
         LOCAL_PERSISTENT_STORE_TRIAGE_MOVE1_RECEIPT_BYTES,
         LOCAL_PERSISTENT_STORE_TRIAGE_BUDGET_RECEIPT_BYTES,
@@ -9945,6 +10019,8 @@ pub struct TargetCapabilityFacts {
     write_activity_v1_registered: bool,
     local_relation_activity_publication_v1_verified: bool,
     local_sequence_allocation_publication_v1_verified: bool,
+    local_agent_safe_storage_publication_v1_verified: bool,
+    local_agent_safe_derived_fork_publication_v1_verified: bool,
     local_persistent_store_publication_v1_verified: bool,
     asset_lifecycle_local_fs_registered: bool,
     asset_image_finalization_registered: bool,
@@ -9972,11 +10048,19 @@ impl TargetCapabilityFacts {
                 LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_SHA256,
                 LOCAL_SEQUENCE_ALLOCATION_QUALIFICATION_RECEIPT_BYTES,
             );
+        let local_agent_safe_storage_publication_v1_verified =
+            crate::agent_safe_publication::storage_publication_verified_for_distribution(
+                build_distribution,
+            );
+        let local_agent_safe_derived_fork_publication_v1_verified =
+            crate::agent_safe_publication::derived_fork_publication_verified_for_distribution(
+                build_distribution,
+            );
         let local_persistent_store_publication_v1_verified =
             local_persistent_store_publication_verified_for(
                 build_distribution,
                 LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES,
-                LOCAL_PERSISTENT_STORE_PUBLICATION_SHA256,
+                LOCAL_PERSISTENT_STORE_PUBLICATION_ANCHOR_BYTES,
                 LOCAL_PERSISTENT_STORE_CARRIER_EXIT_RECEIPT_BYTES,
                 LOCAL_PERSISTENT_STORE_TRIAGE_MOVE1_RECEIPT_BYTES,
                 LOCAL_PERSISTENT_STORE_TRIAGE_BUDGET_RECEIPT_BYTES,
@@ -10047,6 +10131,8 @@ impl TargetCapabilityFacts {
             write_activity_v1_registered: true,
             local_relation_activity_publication_v1_verified,
             local_sequence_allocation_publication_v1_verified,
+            local_agent_safe_storage_publication_v1_verified,
+            local_agent_safe_derived_fork_publication_v1_verified,
             local_persistent_store_publication_v1_verified,
         }
     }
@@ -10067,6 +10153,8 @@ impl TargetCapabilityFacts {
             write_activity_v1_registered: false,
             local_relation_activity_publication_v1_verified: false,
             local_sequence_allocation_publication_v1_verified: false,
+            local_agent_safe_storage_publication_v1_verified: false,
+            local_agent_safe_derived_fork_publication_v1_verified: false,
             local_persistent_store_publication_v1_verified: false,
             ..Self::local_auth_aware()
         }
@@ -10083,6 +10171,12 @@ impl TargetCapabilityFacts {
     fn with_local_persistent_store_publication_withheld(mut self) -> Self {
         self.single_table_v1_registered = false;
         self.local_persistent_store_publication_v1_verified = false;
+        self
+    }
+
+    fn with_agent_safe_publication_withheld(mut self) -> Self {
+        self.local_agent_safe_storage_publication_v1_verified = false;
+        self.local_agent_safe_derived_fork_publication_v1_verified = false;
         self
     }
 
@@ -10112,6 +10206,528 @@ impl AuthProtocols {
         staged_mode: 1,
         bootstrap: 1,
     };
+}
+
+/// Version discriminator for the orthogonal agent-safe storage fact block.
+/// This is intentionally independent of [`TargetCapabilityId`]: class facts
+/// are multi-valued observations, not boolean support-registry membership.
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum AgentSafeCapabilitySchemaVersion {
+    #[serde(rename = "agentSafe.v1")]
+    V1,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum AgentSafeEnvelopeCoverageV1 {
+    Missing,
+    Covered,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum AgentSafeExplanationDetailV1 {
+    Missing,
+    DigestOnly,
+    BoundedFacts,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum AgentSafeExplanationRetentionV1 {
+    Missing,
+    EnvelopeBounded,
+    PolicyBounded,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum AgentSafeForkEgressV1 {
+    Missing,
+    DenyAll,
+    CaptureOnly,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum AgentSafeForkPromotionV1 {
+    Missing,
+    NotPromotable,
+    Promotable,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum AgentSafeForkBaseV1 {
+    Missing,
+    #[serde(rename = "currentHead")]
+    CurrentHead,
+    #[serde(rename = "namedCheckpoint")]
+    NamedCheckpoint,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum AgentSafeForkIsolationV1 {
+    Missing,
+    #[serde(rename = "hostMediated")]
+    HostMediated,
+    #[serde(rename = "endToEnd")]
+    EndToEnd,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum AgentSafeDiffCoverageV1 {
+    Missing,
+    Exact,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum AgentSafeHistoryClassV1 {
+    Missing,
+    BoundedChanges,
+    NamedCheckpoints,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum AgentSafeProofClassV1 {
+    Missing,
+    RecordedInventory,
+    #[serde(rename = "verifiedCopyFidelity")]
+    VerifiedCopyFidelity,
+    IndependentBoundaryProof,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum AgentSafeHandlerReplayClassV1 {
+    Missing,
+    Deterministic,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum AgentSafeActionReplayClassV1 {
+    Missing,
+    Nondeterministic,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum AgentSafeSchemaEvolutionClassV1 {
+    Missing,
+    ProofsWithoutLens,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum AgentSafeResourceBoundClassV1 {
+    Missing,
+    AdmissionAndResourceBounds,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum AgentSafeAggregateStateV1 {
+    Missing,
+    Supported,
+}
+
+/// Fixed durable-lane inventory. Specialized lanes remain first-class facts
+/// even though their absence does not block the v1 core aggregate.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AgentSafeEnvelopeCoverageByAdapterV1 {
+    pub host_plan: AgentSafeEnvelopeCoverageV1,
+    pub ibex_buffered: AgentSafeEnvelopeCoverageV1,
+}
+
+/// Exact logical-lane x physical-adapter coverage. The ordinary and Host
+/// namespaces each have both execution adapters; collapsing either axis would
+/// let one green writer silently stand in for another.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AgentSafeEnvelopeCoverageByScopeV1 {
+    pub ordinary_mutation: AgentSafeEnvelopeCoverageByAdapterV1,
+    pub host_child_mutation: AgentSafeEnvelopeCoverageByAdapterV1,
+    pub migration: AgentSafeEnvelopeCoverageV1,
+    pub durable_background_work: AgentSafeEnvelopeCoverageV1,
+    pub push: AgentSafeEnvelopeCoverageV1,
+    pub auth: AgentSafeEnvelopeCoverageV1,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AgentSafeExplanationClassV1 {
+    pub detail: AgentSafeExplanationDetailV1,
+    pub retention: AgentSafeExplanationRetentionV1,
+}
+
+#[derive(
+    Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize, schemars::JsonSchema,
+)]
+#[serde(rename_all = "camelCase")]
+pub enum AgentSafeExplanationLogicalLaneV1 {
+    OrdinaryMutation,
+    HostChildMutation,
+}
+
+#[derive(
+    Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize, schemars::JsonSchema,
+)]
+#[serde(rename_all = "camelCase")]
+pub enum AgentSafeExplanationAdapterV1 {
+    HostPlan,
+    IbexBuffered,
+}
+
+#[derive(
+    Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize, schemars::JsonSchema,
+)]
+#[serde(rename_all = "camelCase")]
+pub enum AgentSafeExplanationAccessV1 {
+    PublicCurrentPolicy,
+    Administrative,
+}
+
+#[derive(
+    Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize, schemars::JsonSchema,
+)]
+#[serde(rename_all = "camelCase")]
+pub enum AgentSafeExplanationProfileV1 {
+    GeneratedOwnedCrudOwnerCreateV1,
+    GeneratedOwnedCrudOwnerUpdateV1,
+}
+
+#[derive(
+    Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize, schemars::JsonSchema,
+)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AgentSafeExplanationScopeV1 {
+    pub logical_lane: AgentSafeExplanationLogicalLaneV1,
+    pub adapter: AgentSafeExplanationAdapterV1,
+    pub access: AgentSafeExplanationAccessV1,
+    pub profile: AgentSafeExplanationProfileV1,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AgentSafeScopedExplanationFactV1 {
+    pub scope: AgentSafeExplanationScopeV1,
+    pub class: AgentSafeExplanationClassV1,
+}
+
+/// Canonical sparse projection of explanation support. An empty list is the
+/// complete Missing projection. Positive entries are strictly scope-sorted,
+/// unique, and use only the closed profile/access/execution vocabulary above.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AgentSafeExplanationFactsV1 {
+    pub scoped_facts: Vec<AgentSafeScopedExplanationFactV1>,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AgentSafeForkAxesV1 {
+    pub egress: AgentSafeForkEgressV1,
+    pub promotion: AgentSafeForkPromotionV1,
+    pub base: AgentSafeForkBaseV1,
+    pub isolation: AgentSafeForkIsolationV1,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AgentSafeForkFactsV1 {
+    pub in_app: AgentSafeForkAxesV1,
+    pub derived_deployment: AgentSafeForkAxesV1,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AgentSafeDiffFactsV1 {
+    pub data: AgentSafeDiffCoverageV1,
+    pub effects: AgentSafeDiffCoverageV1,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AgentSafeReplayFactsV1 {
+    pub handlers: AgentSafeHandlerReplayClassV1,
+    pub actions: AgentSafeActionReplayClassV1,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AgentSafeAggregateFactsV1 {
+    pub core: AgentSafeAggregateStateV1,
+    pub history: AgentSafeAggregateStateV1,
+}
+
+/// One projection of the component and aggregate facts. The target projection
+/// reports installed and qualified machinery; `appEffective` separately
+/// reports what the current app actually exercises.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AgentSafeCapabilityFactsV1 {
+    pub envelope: AgentSafeEnvelopeCoverageByScopeV1,
+    pub explanation: AgentSafeExplanationFactsV1,
+    pub forks: AgentSafeForkFactsV1,
+    pub diff: AgentSafeDiffFactsV1,
+    pub history: AgentSafeHistoryClassV1,
+    pub proof: AgentSafeProofClassV1,
+    pub replay: AgentSafeReplayFactsV1,
+    pub schema_evolution: AgentSafeSchemaEvolutionClassV1,
+    pub resource_bounds: AgentSafeResourceBoundClassV1,
+    pub aggregate: AgentSafeAggregateFactsV1,
+}
+
+/// Rust-owned LLP 0162 §8 capability extension. Its public constructors are
+/// deliberately Missing-only until a later digest-bound publication carrier
+/// supplies a validated candidate for one named target.
+///
+/// @ref LLP 0162#8-capability-honesty — target support and app-effective
+/// coverage are separate, every class is closed, and specialized lane gaps
+/// remain visible without silently widening the core aggregate.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AgentSafeCapabilityExtensionV1 {
+    pub schema_version: AgentSafeCapabilitySchemaVersion,
+    pub target: AgentSafeCapabilityFactsV1,
+    pub app_effective: AgentSafeCapabilityFactsV1,
+}
+
+impl<'de> Deserialize<'de> for AgentSafeCapabilityExtensionV1 {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        #[serde(rename_all = "camelCase", deny_unknown_fields)]
+        struct Wire {
+            schema_version: AgentSafeCapabilitySchemaVersion,
+            target: AgentSafeCapabilityFactsV1,
+            app_effective: AgentSafeCapabilityFactsV1,
+        }
+
+        let wire = Wire::deserialize(deserializer)?;
+        let extension = Self {
+            schema_version: wire.schema_version,
+            target: wire.target,
+            app_effective: wire.app_effective,
+        };
+        extension.validate().map_err(serde::de::Error::custom)?;
+        Ok(extension)
+    }
+}
+
+impl Default for AgentSafeCapabilityExtensionV1 {
+    fn default() -> Self {
+        Self::missing()
+    }
+}
+
+impl AgentSafeCapabilityExtensionV1 {
+    pub fn missing() -> Self {
+        Self {
+            schema_version: AgentSafeCapabilitySchemaVersion::V1,
+            target: AgentSafeCapabilityFactsV1::missing(),
+            app_effective: AgentSafeCapabilityFactsV1::missing(),
+        }
+    }
+
+    fn validate(&self) -> Result<(), &'static str> {
+        self.target.validate_projection()?;
+        self.app_effective.validate_projection()?;
+        if !self.app_effective.is_subset_of(&self.target) {
+            return Err("appEffective facts exceed target support");
+        }
+        if self.app_effective.aggregate.core == AgentSafeAggregateStateV1::Supported
+            && self.target.aggregate.core != AgentSafeAggregateStateV1::Supported
+        {
+            return Err("appEffective core aggregate exceeds target support");
+        }
+        if self.app_effective.aggregate.history == AgentSafeAggregateStateV1::Supported
+            && self.target.aggregate.history != AgentSafeAggregateStateV1::Supported
+        {
+            return Err("appEffective history aggregate exceeds target support");
+        }
+        Ok(())
+    }
+}
+
+impl AgentSafeCapabilityFactsV1 {
+    pub(crate) fn missing() -> Self {
+        let fork = || AgentSafeForkAxesV1 {
+            egress: AgentSafeForkEgressV1::Missing,
+            promotion: AgentSafeForkPromotionV1::Missing,
+            base: AgentSafeForkBaseV1::Missing,
+            isolation: AgentSafeForkIsolationV1::Missing,
+        };
+        Self {
+            envelope: AgentSafeEnvelopeCoverageByScopeV1 {
+                ordinary_mutation: AgentSafeEnvelopeCoverageByAdapterV1 {
+                    host_plan: AgentSafeEnvelopeCoverageV1::Missing,
+                    ibex_buffered: AgentSafeEnvelopeCoverageV1::Missing,
+                },
+                host_child_mutation: AgentSafeEnvelopeCoverageByAdapterV1 {
+                    host_plan: AgentSafeEnvelopeCoverageV1::Missing,
+                    ibex_buffered: AgentSafeEnvelopeCoverageV1::Missing,
+                },
+                migration: AgentSafeEnvelopeCoverageV1::Missing,
+                durable_background_work: AgentSafeEnvelopeCoverageV1::Missing,
+                push: AgentSafeEnvelopeCoverageV1::Missing,
+                auth: AgentSafeEnvelopeCoverageV1::Missing,
+            },
+            explanation: AgentSafeExplanationFactsV1 {
+                scoped_facts: Vec::new(),
+            },
+            forks: AgentSafeForkFactsV1 {
+                in_app: fork(),
+                derived_deployment: fork(),
+            },
+            diff: AgentSafeDiffFactsV1 {
+                data: AgentSafeDiffCoverageV1::Missing,
+                effects: AgentSafeDiffCoverageV1::Missing,
+            },
+            history: AgentSafeHistoryClassV1::Missing,
+            proof: AgentSafeProofClassV1::Missing,
+            replay: AgentSafeReplayFactsV1 {
+                handlers: AgentSafeHandlerReplayClassV1::Missing,
+                actions: AgentSafeActionReplayClassV1::Missing,
+            },
+            schema_evolution: AgentSafeSchemaEvolutionClassV1::Missing,
+            resource_bounds: AgentSafeResourceBoundClassV1::Missing,
+            aggregate: AgentSafeAggregateFactsV1 {
+                core: AgentSafeAggregateStateV1::Missing,
+                history: AgentSafeAggregateStateV1::Missing,
+            },
+        }
+    }
+
+    fn validate_projection(&self) -> Result<(), &'static str> {
+        let mut prior_scope = None;
+        for fact in &self.explanation.scoped_facts {
+            if prior_scope.is_some_and(|prior| prior >= fact.scope) {
+                return Err("explanation facts must be strictly scope-sorted and unique");
+            }
+            if fact.class.detail == AgentSafeExplanationDetailV1::Missing
+                || fact.class.retention == AgentSafeExplanationRetentionV1::Missing
+            {
+                return Err("scoped explanation facts must carry positive detail and retention");
+            }
+            if fact.scope.logical_lane != AgentSafeExplanationLogicalLaneV1::OrdinaryMutation
+                || fact.scope.adapter != AgentSafeExplanationAdapterV1::HostPlan
+            {
+                return Err(
+                    "generated owner explanation profiles require ordinaryMutation HostPlan",
+                );
+            }
+            prior_scope = Some(fact.scope);
+        }
+        for fork in [&self.forks.in_app, &self.forks.derived_deployment] {
+            let missing = fork.egress == AgentSafeForkEgressV1::Missing
+                && fork.promotion == AgentSafeForkPromotionV1::Missing
+                && fork.base == AgentSafeForkBaseV1::Missing
+                && fork.isolation == AgentSafeForkIsolationV1::Missing;
+            let complete = fork.egress != AgentSafeForkEgressV1::Missing
+                && fork.promotion != AgentSafeForkPromotionV1::Missing
+                && fork.base != AgentSafeForkBaseV1::Missing
+                && fork.isolation != AgentSafeForkIsolationV1::Missing;
+            if !missing && !complete {
+                return Err("fork facts must be wholly Missing or declare every axis");
+            }
+            if fork.promotion == AgentSafeForkPromotionV1::Promotable
+                && fork.base != AgentSafeForkBaseV1::CurrentHead
+            {
+                return Err("Promotable forks require currentHead base");
+            }
+            if fork.promotion == AgentSafeForkPromotionV1::Promotable
+                && fork.egress == AgentSafeForkEgressV1::Missing
+            {
+                return Err("Promotable forks require a declared egress policy");
+            }
+        }
+        if self.aggregate.core == AgentSafeAggregateStateV1::Supported
+            || self.aggregate.history == AgentSafeAggregateStateV1::Supported
+        {
+            return Err("agent-safe aggregates require a separately verified publication carrier");
+        }
+        Ok(())
+    }
+
+    fn is_subset_of(&self, target: &Self) -> bool {
+        fn class<T: Copy + PartialEq>(effective: T, target: T, missing: T) -> bool {
+            effective == missing || effective == target
+        }
+        let fork = |effective: &AgentSafeForkAxesV1, target: &AgentSafeForkAxesV1| {
+            let missing = effective.egress == AgentSafeForkEgressV1::Missing
+                && effective.promotion == AgentSafeForkPromotionV1::Missing
+                && effective.base == AgentSafeForkBaseV1::Missing
+                && effective.isolation == AgentSafeForkIsolationV1::Missing;
+            missing || effective == target
+        };
+        let envelope = |effective: AgentSafeEnvelopeCoverageV1,
+                        target: AgentSafeEnvelopeCoverageV1| {
+            class(effective, target, AgentSafeEnvelopeCoverageV1::Missing)
+        };
+
+        envelope(
+            self.envelope.ordinary_mutation.host_plan,
+            target.envelope.ordinary_mutation.host_plan,
+        ) && envelope(
+            self.envelope.ordinary_mutation.ibex_buffered,
+            target.envelope.ordinary_mutation.ibex_buffered,
+        ) && envelope(
+            self.envelope.host_child_mutation.host_plan,
+            target.envelope.host_child_mutation.host_plan,
+        ) && envelope(
+            self.envelope.host_child_mutation.ibex_buffered,
+            target.envelope.host_child_mutation.ibex_buffered,
+        ) && envelope(self.envelope.migration, target.envelope.migration)
+            && envelope(
+                self.envelope.durable_background_work,
+                target.envelope.durable_background_work,
+            )
+            && envelope(self.envelope.push, target.envelope.push)
+            && envelope(self.envelope.auth, target.envelope.auth)
+            && self.explanation.scoped_facts.iter().all(|fact| {
+                target
+                    .explanation
+                    .scoped_facts
+                    .binary_search_by_key(&fact.scope, |candidate| candidate.scope)
+                    .ok()
+                    .is_some_and(|index| &target.explanation.scoped_facts[index] == fact)
+            })
+            && fork(&self.forks.in_app, &target.forks.in_app)
+            && fork(
+                &self.forks.derived_deployment,
+                &target.forks.derived_deployment,
+            )
+            && class(
+                self.diff.data,
+                target.diff.data,
+                AgentSafeDiffCoverageV1::Missing,
+            )
+            && class(
+                self.diff.effects,
+                target.diff.effects,
+                AgentSafeDiffCoverageV1::Missing,
+            )
+            && class(
+                self.history,
+                target.history,
+                AgentSafeHistoryClassV1::Missing,
+            )
+            && class(self.proof, target.proof, AgentSafeProofClassV1::Missing)
+            && class(
+                self.replay.handlers,
+                target.replay.handlers,
+                AgentSafeHandlerReplayClassV1::Missing,
+            )
+            && class(
+                self.replay.actions,
+                target.replay.actions,
+                AgentSafeActionReplayClassV1::Missing,
+            )
+            && class(
+                self.schema_evolution,
+                target.schema_evolution,
+                AgentSafeSchemaEvolutionClassV1::Missing,
+            )
+            && class(
+                self.resource_bounds,
+                target.resource_bounds,
+                AgentSafeResourceBoundClassV1::Missing,
+            )
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
@@ -10164,6 +10780,11 @@ pub struct CapabilityManifest {
         skip_serializing_if = "BTreeMap::is_empty"
     )]
     pub capability_maturity: BTreeMap<TargetCapabilityId, CapabilityMaturity>,
+    /// Versioned LLP 0162 fact projection. This remains present and wholly
+    /// `Missing` until a named target passes its component corpus and a later
+    /// publication carrier validates and installs the candidate facts.
+    #[serde(default, rename = "agentSafe", alias = "agent_safe")]
+    pub agent_safe: AgentSafeCapabilityExtensionV1,
     #[serde(
         default,
         rename = "authProtocols",
@@ -10692,6 +11313,8 @@ pub fn local_v0_default_capability_gaps() -> Vec<String> {
         "ephemeral_multi_instance_sticky_routing".to_owned(),
         "write_activity_v1".to_owned(),
         "sequence_allocation_v1".to_owned(),
+        "agent_safe_storage_v1".to_owned(),
+        "agent_safe_derived_deployment_fork_v1".to_owned(),
     ]
 }
 
@@ -10726,6 +11349,25 @@ fn ensure_mixed_bundle_capability_gap(gaps: &mut Vec<String>) {
     }
 }
 
+fn ensure_agent_safe_capability_gaps(gaps: &mut Vec<String>) {
+    let insertion_index = gaps
+        .iter()
+        .position(|gap| {
+            gap == "agent_safe_storage_v1" || gap == "agent_safe_derived_deployment_fork_v1"
+        })
+        .unwrap_or(gaps.len());
+    gaps.retain(|gap| {
+        gap != "agent_safe_storage_v1" && gap != "agent_safe_derived_deployment_fork_v1"
+    });
+    gaps.splice(
+        insertion_index..insertion_index,
+        [
+            "agent_safe_storage_v1".to_owned(),
+            "agent_safe_derived_deployment_fork_v1".to_owned(),
+        ],
+    );
+}
+
 impl CapabilityManifest {
     /// The declared capability manifest of the local v0 target: what an agent
     /// may assume from the committed artifact alone. Instance-live facts
@@ -10742,6 +11384,7 @@ impl CapabilityManifest {
         mut capability_gaps: Vec<String>,
         capability_facts: TargetCapabilityFacts,
     ) -> Self {
+        ensure_agent_safe_capability_gaps(&mut capability_gaps);
         if capability_facts.local_relation_activity_publication_v1_verified {
             capability_gaps
                 .retain(|gap| gap != "bounded_children_v1" && gap != "write_activity_v1");
@@ -10771,6 +11414,7 @@ impl CapabilityManifest {
             ],
             supported_capabilities: Vec::new(),
             capability_maturity: BTreeMap::new(),
+            agent_safe: AgentSafeCapabilityExtensionV1::missing(),
             auth_protocols: Some(AuthProtocols::V1),
             hosted_auth: crate::auth::deployment::HostedAuthCapabilities::local_target(),
             storage_engine: "sqlite".to_owned(),
@@ -10910,6 +11554,19 @@ impl CapabilityManifest {
             vm_lifecycle: vm_lifecycle_fresh(),
             runtime_facts: None,
         };
+        // @ref LLP 0162#8-capability-honesty — target component facts are
+        // reconstructed by exact Rust builders only after their independent
+        // source-owned chains verify. App-effective remains Missing until the
+        // exact loaded app and active writer manifest are intersected in Local.
+        if capability_facts.local_agent_safe_storage_publication_v1_verified {
+            manifest.agent_safe.target = crate::agent_safe_publication::storage_target_candidate();
+        }
+        if capability_facts.local_agent_safe_derived_fork_publication_v1_verified {
+            manifest.agent_safe.target.forks.derived_deployment =
+                crate::agent_safe_publication::derived_fork_target_candidate()
+                    .forks
+                    .derived_deployment;
+        }
         manifest.refresh_supported_capabilities(capability_facts);
         manifest
     }
@@ -10953,6 +11610,9 @@ impl CapabilityManifest {
     pub fn remote_service_sqlite_ibex_declared() -> Self {
         let mut manifest = Self::local_v0_declared();
         manifest.target_profile_id = TARGET_PROFILE_REMOTE_SERVICE_SQLITE_IBEX.to_owned();
+        // Target support never inherits across projections. A future local
+        // publication must not silently widen this independently managed arm.
+        manifest.agent_safe = AgentSafeCapabilityExtensionV1::missing();
         manifest.local_server_lifecycle = false;
         manifest.full_text_search = None;
         manifest.vector_search = None;
@@ -10974,7 +11634,10 @@ impl CapabilityManifest {
         ensure_relation_activity_capability_gaps(&mut manifest.capability_gaps);
         let mut facts = TargetCapabilityFacts::local_auth_aware()
             .with_relation_activity_publication_withheld()
-            .with_local_persistent_store_publication_withheld();
+            .with_local_persistent_store_publication_withheld()
+            // @ref LLP 0162#8-capability-honesty — a local publication may
+            // not become evidence for this independently qualified target.
+            .with_agent_safe_publication_withheld();
         facts.full_text_search_v1_registered = false;
         facts.vector_search_v1_registered = false;
         facts.asset_lifecycle_local_fs_registered = false;
@@ -10994,6 +11657,7 @@ impl CapabilityManifest {
     pub fn conformance_workerd_v8(runtime_facts: Value) -> Self {
         let mut manifest = Self::local_v0(local_v0_default_capability_gaps());
         manifest.target_profile_id = TARGET_PROFILE_LOCAL_CONFORMANCE_SQLITE_WORKERD_V8.to_owned();
+        manifest.agent_safe = AgentSafeCapabilityExtensionV1::missing();
         manifest.runtime_engine = "workerd-v8".to_owned();
         manifest.full_text_search = None;
         manifest.vector_search = None;
@@ -11073,6 +11737,7 @@ impl CapabilityManifest {
     pub fn cloudflare_do_sqlite_v8(runtime_facts: Value) -> Self {
         let mut manifest = Self::local_v0(local_v0_default_capability_gaps());
         manifest.target_profile_id = TARGET_PROFILE_CLOUDFLARE_DO_SQLITE_V8.to_owned();
+        manifest.agent_safe = AgentSafeCapabilityExtensionV1::missing();
         manifest.full_text_search = None;
         manifest.vector_search = None;
         // No asset subsystem on the DO target: bytes, staging, and strict
@@ -11166,6 +11831,8 @@ impl CapabilityManifest {
             "retained_version_resume".to_owned(),
             "write_activity_v1".to_owned(),
             "sequence_allocation_v1".to_owned(),
+            "agent_safe_storage_v1".to_owned(),
+            "agent_safe_derived_deployment_fork_v1".to_owned(),
         ];
         manifest.resource_limits = vec![
             // V8 wall-clock is enforced by the platform (the object/request is
@@ -11234,8 +11901,7 @@ impl CapabilityManifest {
             .supported_capabilities
             .contains(&TargetCapabilityId::SingleTableV1)
         {
-            self.capability_gaps
-                .retain(|gap| gap != "single_table_v1");
+            self.capability_gaps.retain(|gap| gap != "single_table_v1");
         } else {
             ensure_single_table_capability_gap(&mut self.capability_gaps);
         }
@@ -11280,6 +11946,22 @@ impl CapabilityManifest {
             {
                 self.capability_gaps
                     .push(crate::vector::VECTOR_CAPABILITY.to_owned());
+            }
+        }
+        // Re-establish the closed pair at its original position before
+        // support removes either member. Derived targets can inherit a local
+        // declaration where storage was published and therefore absent from
+        // the GAP list; appending it at the tail would make their committed
+        // projection order depend on a sibling target's publication state.
+        ensure_agent_safe_capability_gaps(&mut self.capability_gaps);
+        for id in [
+            TargetCapabilityId::AgentSafeStorageV1,
+            TargetCapabilityId::AgentSafeDerivedDeploymentForkV1,
+        ] {
+            if self.supported_capabilities.contains(&id) {
+                self.capability_gaps.retain(|gap| gap != id.as_str());
+            } else if !self.capability_gaps.iter().any(|gap| gap == id.as_str()) {
+                self.capability_gaps.push(id.as_str().to_owned());
             }
         }
         // @ref LLP 0058#capability-maturity — the maturity map annotates
@@ -11374,6 +12056,284 @@ impl CapabilityManifest {
             .into_iter()
             .filter_map(|capability| capability.parse::<TargetCapabilityId>().ok())
             .collect()
+    }
+}
+
+#[cfg(test)]
+mod agent_safe_capability_tests {
+    use super::*;
+    use serde_json::json;
+
+    fn owner_fact(profile: AgentSafeExplanationProfileV1) -> AgentSafeScopedExplanationFactV1 {
+        AgentSafeScopedExplanationFactV1 {
+            scope: AgentSafeExplanationScopeV1 {
+                logical_lane: AgentSafeExplanationLogicalLaneV1::OrdinaryMutation,
+                adapter: AgentSafeExplanationAdapterV1::HostPlan,
+                access: AgentSafeExplanationAccessV1::PublicCurrentPolicy,
+                profile,
+            },
+            class: AgentSafeExplanationClassV1 {
+                detail: AgentSafeExplanationDetailV1::BoundedFacts,
+                retention: AgentSafeExplanationRetentionV1::PolicyBounded,
+            },
+        }
+    }
+
+    #[test]
+    fn agent_safe_registry_ids_are_experimental_and_independently_published() {
+        for (wire, id) in [
+            (
+                "agent_safe_storage_v1",
+                TargetCapabilityId::AgentSafeStorageV1,
+            ),
+            (
+                "agent_safe_derived_deployment_fork_v1",
+                TargetCapabilityId::AgentSafeDerivedDeploymentForkV1,
+            ),
+        ] {
+            assert_eq!(wire.parse::<TargetCapabilityId>(), Ok(id));
+            assert_eq!(id.maturity(), CapabilityMaturity::Experimental);
+            let local = CapabilityManifest::local_v0_declared();
+            let expected_local = match id {
+                TargetCapabilityId::AgentSafeStorageV1 => {
+                    crate::agent_safe_publication::storage_publication_verified()
+                }
+                TargetCapabilityId::AgentSafeDerivedDeploymentForkV1 => {
+                    crate::agent_safe_publication::derived_fork_publication_verified()
+                }
+                _ => unreachable!(),
+            };
+            assert_eq!(
+                id.is_supported_by(&local, TargetCapabilityFacts::local_auth_aware()),
+                expected_local,
+            );
+            assert_eq!(local.supported_capabilities.contains(&id), expected_local);
+
+            for manifest in [
+                CapabilityManifest::remote_service_sqlite_ibex_declared(),
+                CapabilityManifest::cloudflare_do_sqlite_v8(json!({})),
+            ] {
+                assert!(!id.is_supported_by(&manifest, TargetCapabilityFacts::local_auth_aware()));
+                assert!(!manifest.supported_capabilities.contains(&id));
+            }
+        }
+    }
+
+    #[test]
+    fn remote_projection_withholds_even_verified_local_agent_safe_publications() {
+        let local_published = TargetCapabilityFacts {
+            local_agent_safe_storage_publication_v1_verified: true,
+            local_agent_safe_derived_fork_publication_v1_verified: true,
+            ..TargetCapabilityFacts::local_auth_aware()
+        };
+        let remote = local_published.with_agent_safe_publication_withheld();
+
+        assert!(!remote.local_agent_safe_storage_publication_v1_verified);
+        assert!(!remote.local_agent_safe_derived_fork_publication_v1_verified);
+
+        let mut inherited_gaps = vec![
+            "before".to_owned(),
+            "agent_safe_derived_deployment_fork_v1".to_owned(),
+            "after".to_owned(),
+        ];
+        ensure_agent_safe_capability_gaps(&mut inherited_gaps);
+        assert_eq!(
+            inherited_gaps,
+            [
+                "before",
+                "agent_safe_storage_v1",
+                "agent_safe_derived_deployment_fork_v1",
+                "after",
+            ]
+        );
+    }
+
+    #[test]
+    fn agent_safe_public_projections_are_present_closed_and_target_scoped() {
+        for manifest in [
+            CapabilityManifest::local_v0_declared(),
+            CapabilityManifest::remote_service_sqlite_ibex_declared(),
+            CapabilityManifest::conformance_workerd_v8(json!({})),
+            CapabilityManifest::cloudflare_do_sqlite_v8(json!({})),
+        ] {
+            let is_local = manifest.target_profile_id == TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX;
+            let storage_published =
+                is_local && crate::agent_safe_publication::storage_publication_verified();
+            let expected_target = if storage_published {
+                crate::agent_safe_publication::storage_target_candidate()
+            } else {
+                AgentSafeCapabilityFactsV1::missing()
+            };
+            assert_eq!(manifest.agent_safe.target, expected_target);
+            assert_eq!(
+                manifest.agent_safe.app_effective,
+                AgentSafeCapabilityFactsV1::missing(),
+                "the static target declaration never invents app-effective coverage",
+            );
+            assert_eq!(
+                manifest
+                    .capability_gaps
+                    .iter()
+                    .any(|gap| gap == "agent_safe_storage_v1"),
+                !storage_published,
+                "{} storage GAP disagrees with its exact publication chain",
+                manifest.target_profile_id,
+            );
+            assert!(
+                manifest
+                    .capability_gaps
+                    .iter()
+                    .any(|gap| gap == "agent_safe_derived_deployment_fork_v1"),
+                "{} must expose the additive fork GAP",
+                manifest.target_profile_id,
+            );
+            assert_eq!(
+                manifest
+                    .supported_capabilities
+                    .contains(&TargetCapabilityId::AgentSafeStorageV1),
+                storage_published,
+                "only the exact local storage chain may publish",
+            );
+            assert!(
+                !manifest
+                    .supported_capabilities
+                    .contains(&TargetCapabilityId::AgentSafeDerivedDeploymentForkV1)
+            );
+        }
+    }
+
+    #[test]
+    fn agent_safe_target_and_app_effective_are_independent_fail_closed_facts() {
+        let mut candidate = AgentSafeCapabilityExtensionV1::missing();
+        candidate.app_effective.envelope.ordinary_mutation.host_plan =
+            AgentSafeEnvelopeCoverageV1::Covered;
+        assert_eq!(
+            candidate.validate(),
+            Err("appEffective facts exceed target support"),
+            "app-effective coverage cannot mint target support",
+        );
+
+        let create = owner_fact(AgentSafeExplanationProfileV1::GeneratedOwnedCrudOwnerCreateV1);
+        let update = owner_fact(AgentSafeExplanationProfileV1::GeneratedOwnedCrudOwnerUpdateV1);
+        let mut scoped = AgentSafeCapabilityExtensionV1::missing();
+        scoped.target.explanation.scoped_facts = vec![create.clone(), update];
+        scoped.app_effective.explanation.scoped_facts = vec![create];
+        assert_eq!(
+            scoped.validate(),
+            Ok(()),
+            "appEffective may honestly select a strict subset of target explanation profiles",
+        );
+    }
+
+    #[test]
+    fn agent_safe_fork_axes_and_aggregate_requirements_are_exact() {
+        let mut partial = AgentSafeCapabilityExtensionV1::missing();
+        partial.target.forks.derived_deployment.egress = AgentSafeForkEgressV1::DenyAll;
+        assert_eq!(
+            partial.validate(),
+            Err("fork facts must be wholly Missing or declare every axis")
+        );
+
+        let mut bad_fork = AgentSafeCapabilityExtensionV1::missing();
+        bad_fork.target.forks.in_app = AgentSafeForkAxesV1 {
+            egress: AgentSafeForkEgressV1::DenyAll,
+            promotion: AgentSafeForkPromotionV1::Promotable,
+            base: AgentSafeForkBaseV1::NamedCheckpoint,
+            isolation: AgentSafeForkIsolationV1::HostMediated,
+        };
+        assert_eq!(
+            bad_fork.validate(),
+            Err("Promotable forks require currentHead base")
+        );
+
+        let mut exact_derived = AgentSafeCapabilityExtensionV1::missing();
+        exact_derived.target.forks.derived_deployment = AgentSafeForkAxesV1 {
+            egress: AgentSafeForkEgressV1::DenyAll,
+            promotion: AgentSafeForkPromotionV1::NotPromotable,
+            base: AgentSafeForkBaseV1::CurrentHead,
+            isolation: AgentSafeForkIsolationV1::HostMediated,
+        };
+        assert_eq!(exact_derived.validate(), Ok(()));
+
+        let mut aggregate = AgentSafeCapabilityExtensionV1::missing();
+        aggregate.target.aggregate.core = AgentSafeAggregateStateV1::Supported;
+        assert_eq!(
+            aggregate.validate(),
+            Err("agent-safe aggregates require a separately verified publication carrier")
+        );
+    }
+
+    #[test]
+    fn agent_safe_explanation_scopes_are_closed_sorted_and_unique() {
+        let create = owner_fact(AgentSafeExplanationProfileV1::GeneratedOwnedCrudOwnerCreateV1);
+        let update = owner_fact(AgentSafeExplanationProfileV1::GeneratedOwnedCrudOwnerUpdateV1);
+
+        let mut reversed = AgentSafeCapabilityExtensionV1::missing();
+        reversed.target.explanation.scoped_facts = vec![update.clone(), create.clone()];
+        assert_eq!(
+            reversed.validate(),
+            Err("explanation facts must be strictly scope-sorted and unique")
+        );
+
+        let mut duplicate = AgentSafeCapabilityExtensionV1::missing();
+        duplicate.target.explanation.scoped_facts = vec![create.clone(), create.clone()];
+        assert_eq!(
+            duplicate.validate(),
+            Err("explanation facts must be strictly scope-sorted and unique")
+        );
+
+        let mut wrong_adapter = create;
+        wrong_adapter.scope.adapter = AgentSafeExplanationAdapterV1::IbexBuffered;
+        let mut incompatible = AgentSafeCapabilityExtensionV1::missing();
+        incompatible.target.explanation.scoped_facts = vec![wrong_adapter];
+        assert_eq!(
+            incompatible.validate(),
+            Err("generated owner explanation profiles require ordinaryMutation HostPlan")
+        );
+    }
+
+    #[test]
+    fn agent_safe_wire_tampering_is_rejected() {
+        let encoded = serde_json::to_value(AgentSafeCapabilityExtensionV1::missing())
+            .expect("serialize Missing extension");
+
+        let mut wrong_version = encoded.clone();
+        wrong_version["schemaVersion"] = json!("agentSafe.v2");
+        assert!(serde_json::from_value::<AgentSafeCapabilityExtensionV1>(wrong_version).is_err());
+
+        let mut conflicting_axis = encoded.clone();
+        conflicting_axis["target"]["forks"]["inApp"]["egress"] = json!({
+            "DenyAll": true,
+            "CaptureOnly": true
+        });
+        assert!(
+            serde_json::from_value::<AgentSafeCapabilityExtensionV1>(conflicting_axis).is_err(),
+            "one scalar closed enum makes fork-axis alternatives mutually exclusive",
+        );
+
+        let mut injected = encoded.clone();
+        injected["target"]["aggregate"]["agentSafeV2"] = json!("Supported");
+        assert!(
+            serde_json::from_value::<AgentSafeCapabilityExtensionV1>(injected).is_err(),
+            "unknown extension members fail closed",
+        );
+
+        let mut unknown_adapter = encoded.clone();
+        unknown_adapter["target"]["envelope"]["ordinaryMutation"]["rawSql"] = json!("Covered");
+        assert!(
+            serde_json::from_value::<AgentSafeCapabilityExtensionV1>(unknown_adapter).is_err(),
+            "unknown physical adapters fail closed",
+        );
+
+        let create = owner_fact(AgentSafeExplanationProfileV1::GeneratedOwnedCrudOwnerCreateV1);
+        let update = owner_fact(AgentSafeExplanationProfileV1::GeneratedOwnedCrudOwnerUpdateV1);
+        let mut unsorted = encoded;
+        unsorted["target"]["explanation"]["scopedFacts"] =
+            serde_json::to_value([update, create]).expect("facts serialize");
+        assert!(
+            serde_json::from_value::<AgentSafeCapabilityExtensionV1>(unsorted).is_err(),
+            "non-canonical scoped facts fail during wire decoding",
+        );
     }
 }
 
@@ -11667,6 +12627,7 @@ mod membership_manifest_grammar_tests {
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
+            history: None,
         };
         let index = VectorIndexManifestV1 {
             format_version: 1,
@@ -12644,10 +13605,9 @@ mod membership_manifest_grammar_tests {
             ),
             "the exact embedded carrier chain publishes iff its receipts qualify",
         );
-        let mut qualified_exit: Value = serde_json::from_slice(
-            LOCAL_PERSISTENT_STORE_CARRIER_EXIT_RECEIPT_BYTES,
-        )
-        .expect("carrier exit fixture parses");
+        let mut qualified_exit: Value =
+            serde_json::from_slice(LOCAL_PERSISTENT_STORE_CARRIER_EXIT_RECEIPT_BYTES)
+                .expect("carrier exit fixture parses");
         qualified_exit["summary"]["pass"] = json!(16);
         qualified_exit["summary"]["gap"] = json!(1);
         let triage = qualified_exit["legs"]
@@ -12678,7 +13638,10 @@ mod membership_manifest_grammar_tests {
                 published,
             );
             assert_eq!(
-                manifest.capability_gaps.iter().any(|gap| gap == "single_table_v1"),
+                manifest
+                    .capability_gaps
+                    .iter()
+                    .any(|gap| gap == "single_table_v1"),
                 !published,
             );
         }
@@ -12694,7 +13657,12 @@ mod membership_manifest_grammar_tests {
                 "{} must not inherit contributor-source publication",
                 manifest.target_profile_id,
             );
-            assert!(manifest.capability_gaps.iter().any(|gap| gap == "single_table_v1"));
+            assert!(
+                manifest
+                    .capability_gaps
+                    .iter()
+                    .any(|gap| gap == "single_table_v1")
+            );
         }
     }
 
@@ -12705,15 +13673,47 @@ mod membership_manifest_grammar_tests {
         assert!(!local_persistent_store_publication_verified_for(
             crate::identity::BUILD_DISTRIBUTION_CONTRIBUTOR_SOURCE,
             &tampered_carrier,
-            LOCAL_PERSISTENT_STORE_PUBLICATION_SHA256,
+            LOCAL_PERSISTENT_STORE_PUBLICATION_ANCHOR_BYTES,
             LOCAL_PERSISTENT_STORE_CARRIER_EXIT_RECEIPT_BYTES,
             LOCAL_PERSISTENT_STORE_TRIAGE_MOVE1_RECEIPT_BYTES,
             LOCAL_PERSISTENT_STORE_TRIAGE_BUDGET_RECEIPT_BYTES,
         ));
+        let mut tampered_anchor = LOCAL_PERSISTENT_STORE_PUBLICATION_ANCHOR_BYTES.to_vec();
+        tampered_anchor[0] ^= 1;
+        assert!(!local_persistent_store_publication_verified_for(
+            crate::identity::BUILD_DISTRIBUTION_CONTRIBUTOR_SOURCE,
+            LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES,
+            &tampered_anchor,
+            LOCAL_PERSISTENT_STORE_CARRIER_EXIT_RECEIPT_BYTES,
+            LOCAL_PERSISTENT_STORE_TRIAGE_MOVE1_RECEIPT_BYTES,
+            LOCAL_PERSISTENT_STORE_TRIAGE_BUDGET_RECEIPT_BYTES,
+        ));
+        let anchor_mutations: [fn(&mut Value); 4] = [
+            |anchor: &mut Value| anchor["state"] = json!("withheld"),
+            |anchor: &mut Value| anchor["capabilityId"] = json!("bounded_children_v1"),
+            |anchor: &mut Value| {
+                anchor["carrierSha256"] = json!(format!("sha256:{}", "0".repeat(64)))
+            },
+            |anchor: &mut Value| anchor["unexpected"] = json!(true),
+        ];
+        for mutate in anchor_mutations {
+            let mut anchor: Value =
+                serde_json::from_slice(LOCAL_PERSISTENT_STORE_PUBLICATION_ANCHOR_BYTES)
+                    .expect("persistent-store publication anchor parses");
+            mutate(&mut anchor);
+            assert!(!local_persistent_store_publication_verified_for(
+                crate::identity::BUILD_DISTRIBUTION_CONTRIBUTOR_SOURCE,
+                LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES,
+                &serde_json::to_vec(&anchor).expect("tampered anchor serializes"),
+                LOCAL_PERSISTENT_STORE_CARRIER_EXIT_RECEIPT_BYTES,
+                LOCAL_PERSISTENT_STORE_TRIAGE_MOVE1_RECEIPT_BYTES,
+                LOCAL_PERSISTENT_STORE_TRIAGE_BUDGET_RECEIPT_BYTES,
+            ));
+        }
         assert!(!local_persistent_store_publication_verified_for(
             crate::identity::BUILD_DISTRIBUTION_PUBLIC_PACKAGE,
             LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES,
-            LOCAL_PERSISTENT_STORE_PUBLICATION_SHA256,
+            LOCAL_PERSISTENT_STORE_PUBLICATION_ANCHOR_BYTES,
             LOCAL_PERSISTENT_STORE_CARRIER_EXIT_RECEIPT_BYTES,
             LOCAL_PERSISTENT_STORE_TRIAGE_MOVE1_RECEIPT_BYTES,
             LOCAL_PERSISTENT_STORE_TRIAGE_BUDGET_RECEIPT_BYTES,
@@ -12728,7 +13728,12 @@ mod membership_manifest_grammar_tests {
                 .supported_capabilities
                 .contains(&TargetCapabilityId::SingleTableV1)
         );
-        assert!(withheld.capability_gaps.iter().any(|gap| gap == "single_table_v1"));
+        assert!(
+            withheld
+                .capability_gaps
+                .iter()
+                .any(|gap| gap == "single_table_v1")
+        );
     }
 
     #[test]

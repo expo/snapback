@@ -43,6 +43,8 @@ export interface FunctionReference<Name extends string, Kind extends FunctionKin
   argsContractHash: string;
   resultContractHash: string;
   expectedGeneration: Readonly<{ schemaVersion: SchemaVersion; appId: string; schemaHash: string; bundleHash: string; inputsHash: string }>;
+  sourceSpan?: Readonly<{ file: string; line?: number; column?: number }>;
+  resultContract?: Readonly<Record<string, unknown>>;
   mutationIr?: GeneratedMutationIrV1;
   composition?: Readonly<{ normalizedCompositePlan: Readonly<Record<string, unknown>>; planHash: `sha256:${string}`; resultContract: Readonly<Record<string, unknown>> }>;
   readonly artifacts?: GeneratedArtifacts;
@@ -123,8 +125,11 @@ export interface EphemeralCollectionReference<Name extends string, Scope, Value,
   appId: string;
   id: string;
   name: Name;
+  sourceSpan: Readonly<{ file: string; line?: number; column?: number }>;
   keyMode: KeyMode;
   scopeFields: readonly string[];
+  scopeContract: Readonly<Record<string, unknown>>;
+  valueContract: Readonly<Record<string, unknown>>;
   routingFields: readonly string[];
   defaultTtlMs: number;
   maxTtlMs: number;
@@ -216,4 +221,6 @@ export interface GeneratedAssetUploadDefaults {
 }
 export declare const defaults: GeneratedAssetUploadDefaults;
 export declare const api: GeneratedApi;
+export { app, clearReservations, reservationsForSlot, reserve, resourceList, schedule } from './app';
+export type { AppDescriptorV1, CapabilityRequirement, CommandDescriptor, GeneratedAppDescriptorV1, SurfaceDescriptor } from './app';
 export default api;

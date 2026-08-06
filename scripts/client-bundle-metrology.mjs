@@ -403,6 +403,14 @@ const POST_FFEE_ROLLOVER_PROFILE_IDS = Object.freeze([
   ...POST_FFEE_FINITE_PREDECESSOR_PROFILE_IDS,
   ...POST_FFEE_PRIMARY_PREDECESSOR_PROFILE_IDS,
 ].toSorted());
+const OPERATION_IDENTITY_CARRIER_ROLLOVER_PROFILE_IDS = Object.freeze([
+  'public-subpath-outbox-shared',
+  'public-subpath-rqs-registered',
+  'public-subpath-rqs-store',
+  'public-subpath-rqs-store-default',
+  'public-subpath-rqs-store-expo',
+  'public-subpath-rqs-store-file',
+]);
 const ROLLOVER_LEDGER_SPECS = Object.freeze([
   Object.freeze({
     filename: 'baseline.local-persistent-store.v1.json',
@@ -681,6 +689,44 @@ const ROLLOVER_LEDGER_SPECS = Object.freeze([
       ['node', ['packages/snapback-client/mixed-route-v2.test.mjs']],
       ['node', ['packages/snapback-client/logout-v3-bridge.test.mjs']],
       ['node', ['packages/snapback-client/demand-broker.test.mjs']],
+    ]),
+  }),
+  Object.freeze({
+    filename: 'baseline.operation-identity-carrier.v1.json',
+    profileFilename: 'operation-identity-carrier-profiles.v1.json',
+    workloadVersion: 'llp-0163-operation-identity-carrier.v1',
+    profileIds: OPERATION_IDENTITY_CARRIER_ROLLOVER_PROFILE_IDS,
+    predecessors: Object.freeze([
+      Object.freeze({
+        filename: 'baseline.move3-single-table-lifecycle.v1.json',
+        profileIds: Object.freeze([
+          'public-subpath-outbox-shared',
+          'public-subpath-rqs-store',
+          'public-subpath-rqs-store-default',
+          'public-subpath-rqs-store-expo',
+          'public-subpath-rqs-store-file',
+        ]),
+      }),
+      Object.freeze({
+        filename: 'baseline.result-transform.v1.json',
+        profileIds: Object.freeze(['public-subpath-rqs-registered']),
+      }),
+    ]),
+    authorities: Object.freeze([
+      'LLP 0063#workstream-8--performance-and-packaging-budgets',
+      'LLP 0145#phase-a--establish-a-size-ratchet',
+      'LLP 0163#implementation-record--2026-08-04-lifecycle-and-atomic-envelope-tail',
+    ]),
+    rationale: Object.freeze({
+      date: '2026-08-05',
+      summary: 'LLP 0163 deliberately adds authenticated finite-range custody and durable result-gone settlement to the shared outbox and all persistent-store arms. The rollover advances only the six measured closures whose valid ceilings the combined implementation exceeds; every predecessor receipt remains immutable.',
+    }),
+    beforeAfterProfileIds: OPERATION_IDENTITY_CARRIER_ROLLOVER_PROFILE_IDS,
+    behaviorCommands: Object.freeze([
+      ['node', ['packages/snapback-client/package.test.mjs']],
+      ['node', ['packages/snapback-client/browser-closure.test.mjs']],
+      ['node', ['packages/snapback-client/outbox-store.test.mjs']],
+      ['node', ['packages/snapback-client/rqs-store-file.test.mjs']],
     ]),
   }),
 ]);

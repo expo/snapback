@@ -7,6 +7,8 @@
 //! for LLP 0030 attach. The mutationDryRun explain kind has its own suite in
 //! `tests/dry_run_v0.rs`.
 
+use axum::body::{Body, to_bytes};
+use axum::http::{Request, StatusCode, header};
 use serde_json::{Value, json};
 use snapback::admin::{AppState, ServerContext, ServerProfile};
 use snapback::admin_impersonation::{
@@ -17,8 +19,6 @@ use snapback::host_ops::{HostOpsRequest, HostReadyDescriptor, execute_host_op};
 use snapback::local::LocalSnapback;
 use std::fs;
 use std::path::PathBuf;
-use axum::body::{Body, to_bytes};
-use axum::http::{Request, StatusCode, header};
 use tower::ServiceExt as _;
 
 fn generated(file: &str) -> Value {
@@ -124,7 +124,9 @@ async fn network_profile_ops_share_the_activation_gate_and_standard_envelope() {
     assert_eq!(set["data"]["profile"]["name"], "optimistic");
     assert_eq!(set["data"]["provenance"]["source"], "host-ops");
     assert_ne!(
-        set["diagnostics"].get(0).and_then(|entry| entry.get("code")),
+        set["diagnostics"]
+            .get(0)
+            .and_then(|entry| entry.get("code")),
         Some(&json!("SNAPBACK_HOST_OP_UNIMPLEMENTED"))
     );
 
@@ -191,9 +193,11 @@ async fn network_profile_ops_share_the_activation_gate_and_standard_envelope() {
 
 #[tokio::test]
 async fn principal_bearing_mcp_profile_set_records_authenticated_provenance() {
-    let (registry, operator) =
-        ImpersonationCapabilityRegistry::generate("host-ops-network-principal".to_owned(), &OsRandom)
-            .expect("generate process-bound impersonation capability");
+    let (registry, operator) = ImpersonationCapabilityRegistry::generate(
+        "host-ops-network-principal".to_owned(),
+        &OsRandom,
+    )
+    .expect("generate process-bound impersonation capability");
     let mut capability = None;
     operator
         .emit_once_to_terminal(|value| {

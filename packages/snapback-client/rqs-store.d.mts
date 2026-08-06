@@ -155,6 +155,19 @@ export interface RqsResumeStore {
   isWriter(): boolean;
   whenLockSettled(): Promise<void>;
   outboxEmpty(): Promise<boolean>;
+  outboxEnqueueWithOperationIdentity?(
+    record: Readonly<Record<string, unknown>>,
+    authorityCohortKey: string,
+    range?: Readonly<Record<string, unknown>> | null,
+  ): Promise<Readonly<Record<string, unknown>>>;
+  outboxAssignOperationIdentity?(
+    id: string,
+    authorityCohortKey: string,
+    range?: Readonly<Record<string, unknown>> | null,
+  ): Promise<Readonly<Record<string, unknown>> | false | null>;
+  outboxOperationIdentityRange?(
+    authorityCohortKey: string,
+  ): Promise<Readonly<Record<string, unknown>> | null>;
   /** Optional metadata slot used to prepare React bindings while offline. */
   loadReactBindingReceipt?(): Promise<Readonly<Record<string, unknown>> | null>;
   /** Writer-gated replacement of the optional React binding receipt. */

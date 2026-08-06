@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "c9a4b747c3aa255e47c9497771d7a23ca7d6813b"
+    "commit": "be6326956117517d4aa506b8ec2cb44699766248"
   },
   "nav": {
     ".": [
@@ -1479,7 +1479,7 @@
       "examples": [],
       "reviewed": "2026-08-05",
       "reviewedCommit": "f3c7d9fbb394a413370a9264f22e72b6f151a25e",
-      "sha256": "bdb1df42f7855150b3b6d8c3dae7eabd4ef4bd92e672c93a05f1f24aff217ea9",
+      "sha256": "58c6429173a09184b1cd815117abc27b38563c3c0a1c9242f957ac4e910aa3e6",
       "snippets": []
     },
     "clients.app-cli": {
@@ -1672,7 +1672,7 @@
       ],
       "reviewed": "2026-08-03",
       "reviewedCommit": "c442237dedd412d1fe66a85c7a0ed463eba1e013",
-      "sha256": "e986f68a06746c0536492392e69f3f184c8d5095cdef72497aa680d59b917ae0",
+      "sha256": "bb2f86339e7725946128c26fc03dfed4def9759065271ab101cff805b2eaef91",
       "snippets": [
         {
           "lang": "js",
@@ -2170,7 +2170,7 @@
       ],
       "reviewed": "2026-08-05",
       "reviewedCommit": "f3c7d9fbb394a413370a9264f22e72b6f151a25e",
-      "sha256": "1f2c90c03b1bbff7b0f4ee53b646e3505822bfa22e1d8868c3e9ee2dadfbf647",
+      "sha256": "bf2e2a49e951f5f3c6db419d6d571f5300a55e03dca1c29c79ca16570d6967d7",
       "snippets": [
         {
           "lang": "json",
@@ -2346,7 +2346,7 @@
       ],
       "reviewed": "2026-08-05",
       "reviewedCommit": "HEAD",
-      "sha256": "a4aa69efa60de19ed9d7d7c74c8f8bd0081309a0d835b0349a1a02c5239f32b3",
+      "sha256": "63910d0a894950d5772e9264fbb09c1dbdead28afb897100baf824b34f8f5ff8",
       "snippets": [
         {
           "lang": "js",
@@ -2862,7 +2862,7 @@
       "examples": [],
       "reviewed": "2026-08-03",
       "reviewedCommit": "7b467cf16",
-      "sha256": "033b7ee51fa0cae413ec5b7d4c5050e6e68a12b0d89b6136361c0212e928c82b",
+      "sha256": "2cd61aae00ec61ae7c7a8e1b61c4a701f6ba57987b49fde59401ae7c1cd25e83",
       "snippets": []
     },
     "sync.offline-and-retention": {
@@ -3147,6 +3147,7 @@
       "backend.write-activity-v1",
       "clients.non-js",
       "clients.poll-hosted",
+      "operating.agent-safe-storage",
       "operating.declaration-conformance",
       "operating.instance-forks",
       "sync.local-persistent-store",
@@ -3156,8 +3157,8 @@
     ]
   },
   "surfaces": {
-    "routes": 111,
+    "routes": 116,
     "hostOps": 37
   },
-  "contentHash": "a532919bbefc129e066a228b1519893462842053fd748ffe5ed2dce2cea853d6"
+  "contentHash": "9185d948aece571ba5f36f221386a67cfb9e05124649cf515cc29db3d6d699c1"
 }

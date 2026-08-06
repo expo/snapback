@@ -6,19 +6,25 @@
 //! inside one hidden canonical transaction; no API accepts an `OverlayWrite`
 //! or other branch post-image as a promotion input.
 //!
-//! The first shipped slice is deliberately `DenyAll`/`Promotable(noEffects)`.
-//! `CaptureOnly` remains a separately disclosed residual and is rejected at
-//! profile creation, sealing, and promotion.
+//! `DenyAll` records bounded payload-free refusal markers. `CaptureOnly`
+//! records ordered payload-free intents and promotes them into a canonical
+//! pending-settlement ledger; neither policy initiates real egress in a fork.
 //!
 //! @ref LLP 0164#contract-summary-normative-details-per-llp-0162-3-5 — the
 //!   in-app branch, diff, sealed request, strict-CAS replay, and contention
 //!   contracts implemented here.
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::fs;
+use std::io::{self, Write};
+use std::path::{Path, PathBuf};
 use std::time::Instant;
 
 use rusqlite::types::{Value as SqlValue, ValueRef};
-use rusqlite::{Connection, OptionalExtension, Transaction, params, params_from_iter};
+use rusqlite::{
+    Connection, OpenFlags, OptionalExtension, Transaction, TransactionBehavior, params,
+    params_from_iter,
+};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -29,9 +35,10 @@ use crate::branches::{
     child_current_version, create_branch, ensure_branch_registry, get_branch,
 };
 use crate::commit_envelope::{
-    CommitEnvelopeV1, EffectEgressFamilyV1, EnvelopeAuthorityFactsV1, EnvelopeCoverageV1,
-    EnvelopeEffectFactsV1, EnvelopeFactSetV1, FactProvenanceV1, LaneFactV1, OperationIdentityV1,
-    OperationOriginatorClassV1, OperationReceiptStateV1, OperationReceiptV1,
+    CommitEnvelopeV1, EffectEgressFamilyV1,
+    EffectSettlementCapabilityV1 as EnvelopeEffectSettlementCapabilityV1, EnvelopeAuthorityFactsV1,
+    EnvelopeCoverageV1, EnvelopeEffectFactsV1, EnvelopeFactSetV1, FactProvenanceV1, LaneFactV1,
+    OperationIdentityV1, OperationOriginatorClassV1, OperationReceiptStateV1, OperationReceiptV1,
     RetainedEnvelopeDetailV1, SnapshotAssociationKindV1, StreamQualifiedVersionV1,
 };
 use crate::diagnostic::{Diagnostic, SnapbackError, SnapbackResult};
@@ -43,6 +50,56 @@ use crate::proof_checkpoint::{
 const SHA256_PATTERN: &str = "^sha256:[0-9a-f]{64}$";
 const PROMOTION_WRITER_LANE_V1: &str = "ordinaryMutation";
 const PROMOTION_COVERAGE_GAP_V1: &str = "promotionCoverageManifest";
+/// A legacy branch receipt that predates explicit digest-work accounting is
+/// admitted only under this finite ceiling. New issuers always serialize the
+/// caller's explicit value, and no v1 request may exceed this hard cap.
+pub const BRANCH_MAX_DIGEST_WORK_BYTES_V1: u64 = 64 * 1024 * 1024;
+
+fn legacy_branch_max_digest_work_bytes_v1() -> u64 {
+    BRANCH_MAX_DIGEST_WORK_BYTES_V1
+}
+
+#[cfg(test)]
+thread_local! {
+    static MANAGED_CREATE_AFTER_PROFILE_HOOK: std::cell::RefCell<Option<Box<dyn FnOnce()>>> =
+        const { std::cell::RefCell::new(None) };
+    static MANAGED_REAP_AFTER_TRANSITION_HOOK: std::cell::RefCell<Option<Box<dyn FnOnce()>>> =
+        const { std::cell::RefCell::new(None) };
+}
+
+#[cfg(test)]
+fn install_managed_create_after_profile_hook(hook: impl FnOnce() + 'static) {
+    MANAGED_CREATE_AFTER_PROFILE_HOOK.with(|slot| {
+        assert!(slot.borrow().is_none(), "managed create hook is one-shot");
+        *slot.borrow_mut() = Some(Box::new(hook));
+    });
+}
+
+#[cfg(test)]
+fn install_managed_reap_after_transition_hook(hook: impl FnOnce() + 'static) {
+    MANAGED_REAP_AFTER_TRANSITION_HOOK.with(|slot| {
+        assert!(slot.borrow().is_none(), "managed reap hook is one-shot");
+        *slot.borrow_mut() = Some(Box::new(hook));
+    });
+}
+
+fn run_managed_create_after_profile_hook() {
+    #[cfg(test)]
+    MANAGED_CREATE_AFTER_PROFILE_HOOK.with(|slot| {
+        if let Some(hook) = slot.borrow_mut().take() {
+            hook();
+        }
+    });
+}
+
+fn run_managed_reap_after_transition_hook() {
+    #[cfg(test)]
+    MANAGED_REAP_AFTER_TRANSITION_HOOK.with(|slot| {
+        if let Some(hook) = slot.borrow_mut().take() {
+            hook();
+        }
+    });
+}
 
 fn error(code: &'static str, message: impl Into<String>) -> SnapbackError {
     SnapbackError::new(Diagnostic::error(code, "storage", message))
@@ -61,6 +118,47 @@ fn json_bytes<T: Serialize>(value: &T, what: &str) -> SnapbackResult<Vec<u8>> {
             format!("encode {what}: {cause}"),
         )
     })
+}
+
+struct DigestWorkCounter {
+    limit: u64,
+    written: u64,
+    exceeded: bool,
+}
+
+impl Write for DigestWorkCounter {
+    fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
+        let next = self.written.checked_add(bytes.len() as u64);
+        if next.is_none_or(|next| next > self.limit) {
+            self.exceeded = true;
+            return Err(io::Error::other("fork diff digest-work limit exceeded"));
+        }
+        self.written = next.expect("checked above");
+        Ok(bytes.len())
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
+}
+
+fn bounded_digest_work_bytes<T: Serialize>(value: &T, limit: u64) -> SnapbackResult<u64> {
+    let mut counter = DigestWorkCounter {
+        limit,
+        written: 0,
+        exceeded: false,
+    };
+    match serde_json::to_writer(&mut counter, value) {
+        Ok(()) => Ok(counter.written),
+        Err(_) if counter.exceeded => Err(error(
+            "SNAPBACK_BRANCH_DIGEST_WORK_LIMIT_EXCEEDED",
+            "exact diff exceeds the branch's declared digest-work byte bound",
+        )),
+        Err(cause) => Err(error(
+            "SNAPBACK_BRANCH_ARTIFACT_INVALID",
+            format!("serialize exact fork diff work set: {cause}"),
+        )),
+    }
 }
 
 fn decode_json<T: for<'de> Deserialize<'de>>(bytes: &[u8], what: &str) -> SnapbackResult<T> {
@@ -148,6 +246,12 @@ pub enum ForkEgressPolicyV1 {
     CaptureOnly,
 }
 
+impl Default for ForkEgressPolicyV1 {
+    fn default() -> Self {
+        Self::DenyAll
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct BranchGrantV1 {
@@ -163,6 +267,37 @@ pub struct BranchGrantV1 {
     pub expires_at_ms: i64,
 }
 
+/// Derive the compared authority fact stored in a branch-scoped grant. The
+/// caller supplies only server-resolved identities; no bearer or token bytes
+/// enter the digest preimage or branch database.
+pub fn derive_branch_authority_fingerprint(
+    principal_id: &str,
+    grant_id: &str,
+    audience: &str,
+) -> SnapbackResult<String> {
+    digest_json(
+        b"branch-scoped-authority",
+        &(principal_id, grant_id, audience),
+    )
+}
+
+pub fn derive_branch_principal_fingerprint(principal_id: &str) -> SnapbackResult<String> {
+    digest_json(
+        b"managed-branch-principal-v1",
+        &json!({"principalId": principal_id}),
+    )
+}
+
+pub fn derive_branch_input_fingerprint(
+    function: &str,
+    arguments: &Value,
+) -> SnapbackResult<String> {
+    digest_json(
+        b"managed-branch-operation-input-v1",
+        &json!({"function": function, "args": arguments}),
+    )
+}
+
 #[derive(Clone, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct BranchLimitsV1 {
@@ -171,6 +306,12 @@ pub struct BranchLimitsV1 {
     pub max_operations: u64,
     pub max_retained_bytes: u64,
     pub max_diff_rows: u64,
+    /// Maximum canonical JSON bytes admitted to one exact-diff derivation.
+    /// This bounds the base/head oracle, retained journal, attribution, and
+    /// net-diff inputs before the receipt digest is computed.
+    #[serde(default = "legacy_branch_max_digest_work_bytes_v1")]
+    #[schemars(range(min = 1, max = 67108864))]
+    pub max_digest_work_bytes: u64,
     pub ttl_ms: i64,
 }
 
@@ -181,11 +322,13 @@ impl BranchLimitsV1 {
             || self.max_operations == 0
             || self.max_retained_bytes == 0
             || self.max_diff_rows == 0
+            || self.max_digest_work_bytes == 0
+            || self.max_digest_work_bytes > BRANCH_MAX_DIGEST_WORK_BYTES_V1
             || self.ttl_ms <= 0
         {
             return Err(error(
                 "SNAPBACK_BRANCH_LIMIT_INVALID",
-                "branch operation, byte, diff-row, and TTL limits must be positive",
+                "branch operation, retained-byte, diff-row, digest-work, and TTL limits must be positive and digest work must fit the v1 hard ceiling",
             ));
         }
         Ok(())
@@ -217,6 +360,31 @@ impl ForkCoverageV1 {
     }
 }
 
+/// Exact parent artifacts frozen when a managed in-app branch is created.
+/// The writable database copy already pins the schema bytes; this binding also
+/// prevents a later parent function/schema reload from silently changing the
+/// handler generation used by an existing branch.
+#[derive(Clone, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct BranchArtifactBindingV1 {
+    #[schemars(pattern(SHA256_PATTERN))]
+    pub schema_hash: String,
+    #[schemars(pattern(SHA256_PATTERN))]
+    pub function_bundle_hash: String,
+}
+
+impl BranchArtifactBindingV1 {
+    fn validate(&self) -> SnapbackResult<()> {
+        if !is_sha256_digest(&self.schema_hash) || !is_sha256_digest(&self.function_bundle_hash) {
+            return Err(error(
+                "SNAPBACK_BRANCH_ARTIFACT_IDENTITY_MISSING",
+                "managed branch creation requires canonical sha256 schema and function bundle identities",
+            ));
+        }
+        Ok(())
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct InAppBranchCreateV1 {
@@ -226,6 +394,7 @@ pub struct InAppBranchCreateV1 {
     pub child_stream_id: ChildStreamId,
     pub base_stream: String,
     pub base_version: u64,
+    pub artifact_binding: BranchArtifactBindingV1,
     pub grant: BranchGrantV1,
     pub limits: BranchLimitsV1,
     pub coverage: ForkCoverageV1,
@@ -239,6 +408,7 @@ pub struct InAppBranchReceiptV1 {
     #[schemars(range(min = 1, max = 1))]
     pub schema_version: u32,
     pub branch: BranchRecord,
+    pub artifact_binding: BranchArtifactBindingV1,
     pub grant: BranchGrantV1,
     pub limits: BranchLimitsV1,
     pub coverage: ForkCoverageV1,
@@ -281,6 +451,13 @@ pub fn ensure_in_app_branch_tables(conn: &Connection) -> SnapbackResult<()> {
          );
          CREATE INDEX IF NOT EXISTS _snapback_branch_operations_by_branch_version
            ON _snapback_branch_operations(branch_id, child_version);
+         CREATE TABLE IF NOT EXISTS _snapback_branch_operation_reservations (
+            branch_id      TEXT NOT NULL,
+            operation_id   TEXT NOT NULL,
+            draft_json     BLOB NOT NULL,
+            reserved_at_ms INTEGER NOT NULL,
+            PRIMARY KEY(branch_id, operation_id)
+         );
          CREATE TABLE IF NOT EXISTS _snapback_branch_egress_attempts (
             marker_id      TEXT PRIMARY KEY,
             branch_id      TEXT NOT NULL,
@@ -289,14 +466,32 @@ pub fn ensure_in_app_branch_tables(conn: &Connection) -> SnapbackResult<()> {
             attempted_at_ms INTEGER NOT NULL
          );
          CREATE INDEX IF NOT EXISTS _snapback_branch_egress_by_branch
-           ON _snapback_branch_egress_attempts(branch_id, attempted_at_ms);",
+           ON _snapback_branch_egress_attempts(branch_id, attempted_at_ms);
+         CREATE TABLE IF NOT EXISTS _snapback_branch_effect_intents_v1 (
+            intent_id              TEXT PRIMARY KEY,
+            branch_id              TEXT NOT NULL,
+            operation_id           TEXT NOT NULL,
+            effect_ordinal         INTEGER NOT NULL,
+            child_version          INTEGER,
+            egress_class           TEXT NOT NULL,
+            settlement_capability  TEXT NOT NULL,
+            idempotency_key        TEXT NOT NULL,
+            principal_id           TEXT NOT NULL,
+            grant_id               TEXT NOT NULL,
+            authority_fingerprint  TEXT NOT NULL,
+            state                  TEXT NOT NULL,
+            captured_at_ms         INTEGER NOT NULL,
+            UNIQUE(branch_id, operation_id, effect_ordinal)
+         );
+         CREATE INDEX IF NOT EXISTS _snapback_branch_effect_intents_by_branch
+           ON _snapback_branch_effect_intents_v1(branch_id, child_version);",
     )?;
     Ok(())
 }
 
-/// Create the only promotable fork class: a current-head, in-app, bounded,
-/// branch-scoped `DenyAll` fork. CaptureOnly is refused until its ledger and
-/// settlement corpus land.
+/// Create a current-head, bounded, branch-scoped in-app fork. Both policies
+/// remain publication-gated; accepting CaptureOnly here activates only its
+/// durable internal carrier and does not advertise a capability.
 pub fn create_in_app_branch(
     conn: &mut Connection,
     request: &InAppBranchCreateV1,
@@ -307,13 +502,8 @@ pub fn create_in_app_branch(
             "in-app branch request schemaVersion must be 1",
         ));
     }
+    request.artifact_binding.validate()?;
     request.limits.validate()?;
-    if request.egress_policy != ForkEgressPolicyV1::DenyAll {
-        return Err(error(
-            "SNAPBACK_BRANCH_CAPTURE_ONLY_MISSING",
-            "CaptureOnly remains Missing; in-app promotable v1 accepts DenyAll only",
-        ));
-    }
     if request.grant.expires_at_ms <= request.created_at_ms {
         return Err(error(
             "SNAPBACK_BRANCH_GRANT_STALE",
@@ -379,6 +569,7 @@ pub fn create_in_app_branch(
     Ok(InAppBranchReceiptV1 {
         schema_version: 1,
         branch,
+        artifact_binding: request.artifact_binding.clone(),
         grant: request.grant.clone(),
         limits: request.limits.clone(),
         coverage: request.coverage.clone().normalized(),
@@ -435,6 +626,7 @@ fn branch_profile(
         InAppBranchReceiptV1 {
             schema_version: 1,
             branch,
+            artifact_binding: profile.artifact_binding.clone(),
             grant: profile.grant,
             limits: profile.limits,
             coverage: profile.coverage.normalized(),
@@ -453,6 +645,813 @@ pub fn inspect_in_app_branch(
     branch_id: &BranchId,
 ) -> SnapbackResult<InAppBranchReceiptV1> {
     branch_profile(conn, branch_id).map(|(_, receipt)| receipt)
+}
+
+/// Canonical custody state for an on-disk in-app branch workspace. This is
+/// deliberately separate from the branch-local state machine: canonical owns
+/// enumeration and teardown, while the isolated head owns branch operations,
+/// egress markers, and the child stream.
+#[derive(Clone, Copy, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ManagedBranchStateV1 {
+    Creating,
+    Active,
+    TearingDown,
+    Dropped,
+}
+
+impl ManagedBranchStateV1 {
+    fn parse(value: &str) -> SnapbackResult<Self> {
+        match value {
+            "creating" => Ok(Self::Creating),
+            "active" => Ok(Self::Active),
+            "tearing_down" => Ok(Self::TearingDown),
+            "dropped" => Ok(Self::Dropped),
+            _ => Err(error(
+                "SNAPBACK_BRANCH_CUSTODY_INVALID",
+                "managed branch custody contains an unknown state",
+            )),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ManagedInAppBranchReceiptV1 {
+    #[schemars(range(min = 1, max = 1))]
+    pub schema_version: u32,
+    pub branch: InAppBranchReceiptV1,
+    pub custody_state: ManagedBranchStateV1,
+}
+
+fn ensure_managed_branch_custody(conn: &Connection) -> SnapbackResult<()> {
+    conn.execute_batch(
+        "CREATE TABLE IF NOT EXISTS _snapback_in_app_branch_custody_v1 (
+           branch_id          TEXT PRIMARY KEY,
+           owner_principal_id TEXT NOT NULL,
+           audience           TEXT NOT NULL,
+           workspace_name     TEXT NOT NULL UNIQUE,
+           profile_json       BLOB NOT NULL,
+           state              TEXT NOT NULL,
+           created_at_ms      INTEGER NOT NULL,
+           dropped_at_ms      INTEGER
+         );
+         CREATE INDEX IF NOT EXISTS _snapback_in_app_branch_custody_owner
+           ON _snapback_in_app_branch_custody_v1(owner_principal_id, state);
+         CREATE INDEX IF NOT EXISTS _snapback_in_app_branch_custody_audience
+           ON _snapback_in_app_branch_custody_v1(audience, state);",
+    )?;
+    Ok(())
+}
+
+fn require_canonical_path_binding(
+    canonical: &Connection,
+    supplied_path: &Path,
+) -> SnapbackResult<PathBuf> {
+    if fs::symlink_metadata(supplied_path)
+        .map(|metadata| metadata.file_type().is_symlink())
+        .unwrap_or(false)
+    {
+        return Err(error(
+            "SNAPBACK_BRANCH_CUSTODY_PATH_MISMATCH",
+            "canonical database custody refuses a symlink path",
+        ));
+    }
+    let sqlite_path: String = canonical.query_row(
+        "SELECT file FROM pragma_database_list WHERE name = 'main'",
+        [],
+        |row| row.get(0),
+    )?;
+    if sqlite_path.is_empty() {
+        return Err(error(
+            "SNAPBACK_BRANCH_FILE_CUSTODY_REQUIRED",
+            "managed in-app branches require a file-backed canonical database",
+        ));
+    }
+    let supplied = supplied_path.canonicalize().map_err(|cause| {
+        error(
+            "SNAPBACK_BRANCH_CUSTODY_PATH_MISMATCH",
+            format!("canonicalize supplied database path: {cause}"),
+        )
+    })?;
+    let sqlite = Path::new(&sqlite_path).canonicalize().map_err(|cause| {
+        error(
+            "SNAPBACK_BRANCH_CUSTODY_PATH_MISMATCH",
+            format!("canonicalize SQLite main database path: {cause}"),
+        )
+    })?;
+    if supplied != sqlite {
+        return Err(error(
+            "SNAPBACK_BRANCH_CUSTODY_PATH_MISMATCH",
+            "supplied custody path is not SQLite's open main database",
+        ));
+    }
+    Ok(sqlite)
+}
+
+fn managed_branch_root(canonical_path: &Path) -> SnapbackResult<PathBuf> {
+    let file_name = canonical_path.file_name().ok_or_else(|| {
+        error(
+            "SNAPBACK_BRANCH_CUSTODY_INVALID",
+            "canonical database path has no file name",
+        )
+    })?;
+    let parent = canonical_path.parent().ok_or_else(|| {
+        error(
+            "SNAPBACK_BRANCH_CUSTODY_INVALID",
+            "canonical database path has no parent directory",
+        )
+    })?;
+    let root = parent.join(format!(
+        ".{}.in-app-branches-v1",
+        file_name.to_string_lossy()
+    ));
+    match fs::symlink_metadata(&root) {
+        Ok(metadata) if metadata.file_type().is_symlink() || !metadata.is_dir() => {
+            return Err(error(
+                "SNAPBACK_BRANCH_CUSTODY_INVALID",
+                "managed branch root must be a real directory, not a symlink or non-directory",
+            ));
+        }
+        Ok(_) => {}
+        Err(cause) if cause.kind() == std::io::ErrorKind::NotFound => {
+            fs::create_dir(&root).map_err(|cause| {
+                error(
+                    "SNAPBACK_BRANCH_CUSTODY_FAILED",
+                    format!("create managed branch root: {cause}"),
+                )
+            })?;
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                fs::set_permissions(&root, fs::Permissions::from_mode(0o700)).map_err(|cause| {
+                    error(
+                        "SNAPBACK_BRANCH_CUSTODY_FAILED",
+                        format!("protect managed branch root: {cause}"),
+                    )
+                })?;
+            }
+        }
+        Err(cause) => {
+            return Err(error(
+                "SNAPBACK_BRANCH_CUSTODY_FAILED",
+                format!("inspect managed branch root: {cause}"),
+            ));
+        }
+    }
+    Ok(root)
+}
+
+fn managed_workspace_name(branch_id: &BranchId) -> String {
+    let digest = digest_bytes(b"managed-branch-workspace-name", branch_id.0.as_bytes());
+    format!("branch-{}.sqlite", digest.trim_start_matches("sha256:"))
+}
+
+fn managed_workspace_path(canonical_path: &Path, branch_id: &BranchId) -> SnapbackResult<PathBuf> {
+    Ok(managed_branch_root(canonical_path)?.join(managed_workspace_name(branch_id)))
+}
+
+/// Return the server-derived writable-head path only after the canonical
+/// custody row, local profile, immutable base, state, and expiry have all
+/// re-bound successfully.
+pub(crate) fn managed_in_app_branch_path(
+    canonical: &Connection,
+    canonical_path: &Path,
+    branch_id: &BranchId,
+    now_ms: i64,
+) -> SnapbackResult<PathBuf> {
+    let workspace = open_managed_in_app_branch(canonical, canonical_path, branch_id, now_ms)?;
+    drop(workspace);
+    managed_workspace_path(canonical_path, branch_id)
+}
+
+fn managed_workspace_files(path: &Path) -> Vec<PathBuf> {
+    let append = |suffix: &str| {
+        let mut value = path.as_os_str().to_os_string();
+        value.push(suffix);
+        PathBuf::from(value)
+    };
+    vec![
+        path.to_path_buf(),
+        append("-wal"),
+        append("-shm"),
+        append(".immutable-base"),
+        append(".immutable-base-wal"),
+        append(".immutable-base-shm"),
+        crate::operation_detail::keyring_path(path),
+    ]
+}
+
+fn remove_managed_workspace_files(path: &Path) -> SnapbackResult<()> {
+    for file in managed_workspace_files(path) {
+        match fs::remove_file(&file) {
+            Ok(()) => {}
+            Err(cause) if cause.kind() == std::io::ErrorKind::NotFound => {}
+            Err(cause) => {
+                return Err(error(
+                    "SNAPBACK_BRANCH_CUSTODY_FAILED",
+                    format!("remove managed workspace file {file:?}: {cause}"),
+                ));
+            }
+        }
+    }
+    Ok(())
+}
+
+fn reconcile_incomplete_managed_branches(
+    canonical: &mut Connection,
+    canonical_path: &Path,
+) -> SnapbackResult<()> {
+    ensure_managed_branch_custody(canonical)?;
+    let mut statement = canonical.prepare(
+        "SELECT branch_id, state FROM _snapback_in_app_branch_custody_v1
+          WHERE state IN ('creating', 'tearing_down') ORDER BY branch_id",
+    )?;
+    let ids = statement
+        .query_map([], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        })?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    drop(statement);
+    for (id, state) in ids {
+        let branch_id = BranchId(id);
+        let path = managed_workspace_path(canonical_path, &branch_id)?;
+        // A creating row was never published, and a tearing-down row already
+        // stopped admitting work. Exact-file teardown is safe whether the
+        // crash occurred before materialization, after profile commit, or
+        // after the durable expiry transition but before file deletion.
+        remove_managed_workspace_files(&path)?;
+        canonical.execute(
+            "UPDATE _snapback_in_app_branch_custody_v1 SET state = 'dropped'
+              WHERE branch_id = ?1 AND state = ?2",
+            params![branch_id.0, state],
+        )?;
+    }
+    Ok(())
+}
+
+fn managed_branch_expiry(profile: &InAppBranchCreateV1) -> SnapbackResult<i64> {
+    let ttl_expiry = profile
+        .created_at_ms
+        .checked_add(profile.limits.ttl_ms)
+        .ok_or_else(|| error("SNAPBACK_BRANCH_LIMIT_INVALID", "branch TTL overflow"))?;
+    Ok(ttl_expiry.min(profile.grant.expires_at_ms))
+}
+
+fn dropped_managed_receipt(profile: InAppBranchCreateV1) -> ManagedInAppBranchReceiptV1 {
+    ManagedInAppBranchReceiptV1 {
+        schema_version: 1,
+        branch: InAppBranchReceiptV1 {
+            schema_version: 1,
+            branch: BranchRecord {
+                branch_id: profile.branch_id,
+                child_stream_id: profile.child_stream_id,
+                base_version: profile.base_version,
+                base_stream: profile.base_stream,
+                state: BranchState::TearingDown,
+                created_at_ms: profile.created_at_ms,
+                ttl_ms: Some(profile.limits.ttl_ms),
+            },
+            artifact_binding: profile.artifact_binding,
+            grant: profile.grant,
+            limits: profile.limits,
+            coverage: profile.coverage.normalized(),
+            egress_policy: profile.egress_policy,
+            promotable: false,
+            foreclosed_by_operation_id: None,
+            retained_operation_count: 0,
+            retained_operation_bytes: 0,
+            deny_all_attempt_count: 0,
+        },
+        custody_state: ManagedBranchStateV1::Dropped,
+    }
+}
+
+fn reap_expired_managed_branches_bound(
+    canonical: &mut Connection,
+    canonical_path: &Path,
+    now_ms: i64,
+) -> SnapbackResult<Vec<ManagedInAppBranchReceiptV1>> {
+    reconcile_incomplete_managed_branches(canonical, canonical_path)?;
+    let mut statement = canonical.prepare(
+        "SELECT branch_id, profile_json FROM _snapback_in_app_branch_custody_v1
+          WHERE state = 'active' ORDER BY created_at_ms, branch_id",
+    )?;
+    let rows = statement
+        .query_map([], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, Vec<u8>>(1)?))
+        })?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    drop(statement);
+
+    let mut reaped = Vec::new();
+    for (id, bytes) in rows {
+        let profile: InAppBranchCreateV1 = decode_json(&bytes, "managed branch custody profile")?;
+        if profile.branch_id.0 != id || now_ms < managed_branch_expiry(&profile)? {
+            continue;
+        }
+        let path = managed_workspace_path(canonical_path, &profile.branch_id)?;
+        let workspace = MaterializedBase::reopen(&path)?;
+        let branch = inspect_in_app_branch(&workspace.conn, &profile.branch_id)?;
+        drop(workspace);
+        let changed = canonical.execute(
+            "UPDATE _snapback_in_app_branch_custody_v1 SET state = 'tearing_down'
+              WHERE branch_id = ?1 AND state = 'active'",
+            params![id],
+        )?;
+        if changed != 1 {
+            return Err(error(
+                "SNAPBACK_BRANCH_CUSTODY_INVALID",
+                "expired managed branch lost its active custody transition",
+            ));
+        }
+        run_managed_reap_after_transition_hook();
+        remove_managed_workspace_files(&path)?;
+        canonical.execute(
+            "UPDATE _snapback_in_app_branch_custody_v1
+                SET state = 'dropped', dropped_at_ms = ?2
+              WHERE branch_id = ?1 AND state = 'tearing_down'",
+            params![id, now_ms],
+        )?;
+        reaped.push(ManagedInAppBranchReceiptV1 {
+            schema_version: 1,
+            branch: InAppBranchReceiptV1 {
+                branch: BranchRecord {
+                    state: BranchState::TearingDown,
+                    ..branch.branch
+                },
+                promotable: false,
+                ..branch
+            },
+            custody_state: ManagedBranchStateV1::Dropped,
+        });
+    }
+    Ok(reaped)
+}
+
+/// Reconcile interrupted custody, then deterministically reap every branch
+/// whose TTL or branch-scoped grant expires at or before `now_ms`.
+pub fn reap_expired_managed_in_app_branches(
+    canonical: &mut Connection,
+    canonical_path: &Path,
+    now_ms: i64,
+) -> SnapbackResult<Vec<ManagedInAppBranchReceiptV1>> {
+    let canonical_path = require_canonical_path_binding(canonical, canonical_path)?;
+    ensure_managed_branch_custody(canonical)?;
+    reap_expired_managed_branches_bound(canonical, &canonical_path, now_ms)
+}
+
+fn managed_custody_profile(
+    canonical: &Connection,
+    branch_id: &BranchId,
+) -> SnapbackResult<(InAppBranchCreateV1, ManagedBranchStateV1, String)> {
+    ensure_managed_branch_custody(canonical)?;
+    let row: Option<(Vec<u8>, String, String)> = canonical
+        .query_row(
+            "SELECT profile_json, state, workspace_name
+               FROM _snapback_in_app_branch_custody_v1 WHERE branch_id = ?1",
+            params![branch_id.0],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        )
+        .optional()?;
+    let (profile, state, workspace_name) = row.ok_or_else(|| {
+        error(
+            "SNAPBACK_BRANCH_NOT_FOUND",
+            "managed in-app branch has no canonical custody record",
+        )
+    })?;
+    Ok((
+        decode_json(&profile, "managed branch custody profile")?,
+        ManagedBranchStateV1::parse(&state)?,
+        workspace_name,
+    ))
+}
+
+/// Materialize and register one server-named on-disk branch. The canonical
+/// custody row enters `creating` before either file is materialized, then
+/// becomes `active` only after the branch-local profile is durable. A crash at
+/// any intermediate cut therefore leaves an enumerable cleanup obligation,
+/// never an unowned workspace or a false active receipt.
+///
+/// @ref LLP 0162#3-safe-current-head-forks — production custody preserves the
+///   exact current-head snapshot and never accepts a caller-chosen path.
+pub fn create_managed_in_app_branch(
+    canonical: &mut Connection,
+    canonical_path: &Path,
+    request: &InAppBranchCreateV1,
+) -> SnapbackResult<ManagedInAppBranchReceiptV1> {
+    request.limits.validate()?;
+    let canonical_path = require_canonical_path_binding(canonical, canonical_path)?;
+    ensure_managed_branch_custody(canonical)?;
+    reap_expired_managed_branches_bound(canonical, &canonical_path, request.created_at_ms)?;
+    let principal_count: i64 = canonical.query_row(
+        "SELECT COUNT(*) FROM _snapback_in_app_branch_custody_v1
+          WHERE owner_principal_id = ?1 AND state = 'active'",
+        params![request.grant.principal_id],
+        |row| row.get(0),
+    )?;
+    let app_count: i64 = canonical.query_row(
+        "SELECT COUNT(*) FROM _snapback_in_app_branch_custody_v1
+          WHERE audience = ?1 AND state = 'active'",
+        params![request.grant.audience],
+        |row| row.get(0),
+    )?;
+    if principal_count.max(0) as u64 >= request.limits.max_live_branches_per_principal
+        || app_count.max(0) as u64 >= request.limits.max_live_branches_per_app
+    {
+        return Err(error(
+            "SNAPBACK_BRANCH_LIVE_LIMIT_EXCEEDED",
+            "canonical custody reached the per-principal or per-app live branch limit",
+        ));
+    }
+    let current = crate::storage::current_version_on(canonical)?;
+    if request.base_version != current {
+        return Err(error(
+            "SNAPBACK_BRANCH_BASE_NOT_CURRENT",
+            "managed branch creation requires the exact current canonical head",
+        ));
+    }
+    let path = managed_workspace_path(&canonical_path, &request.branch_id)?;
+    if managed_workspace_files(&path)
+        .iter()
+        .any(|candidate| candidate.exists())
+    {
+        return Err(error(
+            "SNAPBACK_BRANCH_CUSTODY_COLLISION",
+            "server-derived managed branch workspace already exists",
+        ));
+    }
+    let profile_json = json_bytes(request, "managed branch custody profile")?;
+    canonical.execute(
+        "INSERT INTO _snapback_in_app_branch_custody_v1
+           (branch_id, owner_principal_id, audience, workspace_name,
+            profile_json, state, created_at_ms)
+         VALUES (?1, ?2, ?3, ?4, ?5, 'creating', ?6)",
+        params![
+            request.branch_id.0,
+            request.grant.principal_id,
+            request.grant.audience,
+            managed_workspace_name(&request.branch_id),
+            profile_json,
+            request.created_at_ms,
+        ],
+    )?;
+    let mut workspace = match MaterializedBase::materialize(canonical, Some(&path)) {
+        Ok(workspace) => workspace,
+        Err(cause) => {
+            let _ = remove_managed_workspace_files(&path);
+            let _ = canonical.execute(
+                "UPDATE _snapback_in_app_branch_custody_v1 SET state = 'dropped'
+                  WHERE branch_id = ?1 AND state = 'creating'",
+                params![request.branch_id.0],
+            );
+            return Err(cause);
+        }
+    };
+    if let Err(cause) =
+        crate::instance_fork::scrub_copied_authority_for_in_app_branch(&mut workspace.conn)
+    {
+        let _ = workspace.teardown();
+        let _ = canonical.execute(
+            "UPDATE _snapback_in_app_branch_custody_v1 SET state = 'dropped'
+              WHERE branch_id = ?1 AND state = 'creating'",
+            params![request.branch_id.0],
+        );
+        return Err(cause);
+    }
+    if let Err(cause) = crate::operation_detail::mint_new_sidecar(&path)
+        .and_then(|()| crate::operation_detail::install(&workspace.conn, Some(&path)))
+    {
+        let _ = workspace.teardown();
+        let _ = canonical.execute(
+            "UPDATE _snapback_in_app_branch_custody_v1 SET state = 'dropped'
+              WHERE branch_id = ?1 AND state = 'creating'",
+            params![request.branch_id.0],
+        );
+        return Err(cause);
+    }
+    let branch = match create_in_app_branch(&mut workspace.conn, request) {
+        Ok(receipt) => receipt,
+        Err(cause) => {
+            let _ = workspace.teardown();
+            let _ = canonical.execute(
+                "UPDATE _snapback_in_app_branch_custody_v1 SET state = 'dropped'
+                  WHERE branch_id = ?1 AND state = 'creating'",
+                params![request.branch_id.0],
+            );
+            return Err(cause);
+        }
+    };
+    run_managed_create_after_profile_hook();
+    let activated = canonical.execute(
+        "UPDATE _snapback_in_app_branch_custody_v1 SET state = 'active'
+          WHERE branch_id = ?1 AND state = 'creating'",
+        params![request.branch_id.0],
+    )?;
+    if activated != 1 {
+        let _ = workspace.teardown();
+        return Err(error(
+            "SNAPBACK_BRANCH_CUSTODY_INVALID",
+            "managed branch lost its creating custody row before activation",
+        ));
+    }
+    drop(workspace);
+    Ok(ManagedInAppBranchReceiptV1 {
+        schema_version: 1,
+        branch,
+        custody_state: ManagedBranchStateV1::Active,
+    })
+}
+
+/// Open a canonically enumerated branch and cross-check both its server-derived
+/// path and branch-local profile before returning either SQLite handle.
+pub fn open_managed_in_app_branch(
+    canonical: &Connection,
+    canonical_path: &Path,
+    branch_id: &BranchId,
+    now_ms: i64,
+) -> SnapbackResult<MaterializedBase> {
+    let canonical_path = require_canonical_path_binding(canonical, canonical_path)?;
+    let (profile, state, workspace_name) = managed_custody_profile(canonical, branch_id)?;
+    if state != ManagedBranchStateV1::Active {
+        return Err(error(
+            "SNAPBACK_BRANCH_NOT_ACTIVE",
+            "managed branch custody is not active",
+        ));
+    }
+    if now_ms >= managed_branch_expiry(&profile)? {
+        return Err(error(
+            "SNAPBACK_BRANCH_EXPIRED",
+            "managed branch expired and requires canonical reaping",
+        ));
+    }
+    let expected_name = managed_workspace_name(branch_id);
+    if workspace_name != expected_name || profile.branch_id != *branch_id {
+        return Err(error(
+            "SNAPBACK_BRANCH_CUSTODY_INVALID",
+            "managed branch custody does not match its server-derived identity",
+        ));
+    }
+    let path = managed_workspace_path(&canonical_path, branch_id)?;
+    let workspace = MaterializedBase::reopen(&path)?;
+    let (stored, receipt) = branch_profile(&workspace.conn, branch_id)?;
+    if stored != profile
+        || receipt.branch.base_version != workspace.base_version
+        || receipt.branch.child_stream_id != profile.child_stream_id
+    {
+        return Err(error(
+            "SNAPBACK_BRANCH_CUSTODY_INVALID",
+            "branch-local profile or immutable base diverges from canonical custody",
+        ));
+    }
+    Ok(workspace)
+}
+
+pub fn inspect_managed_in_app_branch(
+    canonical: &Connection,
+    canonical_path: &Path,
+    branch_id: &BranchId,
+    now_ms: i64,
+) -> SnapbackResult<ManagedInAppBranchReceiptV1> {
+    let workspace = open_managed_in_app_branch(canonical, canonical_path, branch_id, now_ms)?;
+    let branch = inspect_in_app_branch(&workspace.conn, branch_id)?;
+    Ok(ManagedInAppBranchReceiptV1 {
+        schema_version: 1,
+        branch,
+        custody_state: ManagedBranchStateV1::Active,
+    })
+}
+
+pub fn list_managed_in_app_branches(
+    canonical: &Connection,
+    canonical_path: &Path,
+    now_ms: i64,
+) -> SnapbackResult<Vec<ManagedInAppBranchReceiptV1>> {
+    let canonical_path = require_canonical_path_binding(canonical, canonical_path)?;
+    ensure_managed_branch_custody(canonical)?;
+    let incomplete: i64 = canonical.query_row(
+        "SELECT COUNT(*) FROM _snapback_in_app_branch_custody_v1
+          WHERE state IN ('creating', 'tearing_down')",
+        [],
+        |row| row.get(0),
+    )?;
+    if incomplete != 0 {
+        return Err(error(
+            "SNAPBACK_BRANCH_CUSTODY_RECOVERY_REQUIRED",
+            "managed branch creation was interrupted; a mutable owner must reconcile custody",
+        ));
+    }
+    let mut expiry_statement = canonical.prepare(
+        "SELECT profile_json FROM _snapback_in_app_branch_custody_v1
+          WHERE state = 'active' ORDER BY created_at_ms, branch_id",
+    )?;
+    let profiles = expiry_statement
+        .query_map([], |row| row.get::<_, Vec<u8>>(0))?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    drop(expiry_statement);
+    for bytes in profiles {
+        let profile: InAppBranchCreateV1 = decode_json(&bytes, "managed branch custody profile")?;
+        if now_ms >= managed_branch_expiry(&profile)? {
+            return Err(error(
+                "SNAPBACK_BRANCH_EXPIRY_REAP_REQUIRED",
+                "one or more managed branches expired; a mutable owner must reap custody",
+            ));
+        }
+    }
+    let mut statement = canonical.prepare(
+        "SELECT branch_id FROM _snapback_in_app_branch_custody_v1
+          WHERE state = 'active' ORDER BY created_at_ms, branch_id",
+    )?;
+    let ids = statement
+        .query_map([], |row| row.get::<_, String>(0))?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    drop(statement);
+    ids.into_iter()
+        .map(|id| inspect_managed_in_app_branch(canonical, &canonical_path, &BranchId(id), now_ms))
+        .collect()
+}
+
+/// Tear down exactly the server-derived workspace named by canonical custody.
+/// The intermediate state is durable so a crash can never make a partially
+/// deleted branch look active again.
+pub fn drop_managed_in_app_branch(
+    canonical: &mut Connection,
+    canonical_path: &Path,
+    branch_id: &BranchId,
+    now_ms: i64,
+) -> SnapbackResult<ManagedInAppBranchReceiptV1> {
+    let canonical_path = require_canonical_path_binding(canonical, canonical_path)?;
+    let (_, state, _) = managed_custody_profile(canonical, branch_id)?;
+    if state == ManagedBranchStateV1::Dropped {
+        return Err(error(
+            "SNAPBACK_BRANCH_NOT_ACTIVE",
+            "managed branch was already dropped",
+        ));
+    }
+    let receipt = if state == ManagedBranchStateV1::Active {
+        let workspace = open_managed_in_app_branch(canonical, &canonical_path, branch_id, now_ms)?;
+        let branch = inspect_in_app_branch(&workspace.conn, branch_id)?;
+        canonical.execute(
+            "UPDATE _snapback_in_app_branch_custody_v1 SET state = 'tearing_down'
+              WHERE branch_id = ?1 AND state = 'active'",
+            params![branch_id.0],
+        )?;
+        workspace.teardown()?;
+        branch
+    } else {
+        let path = managed_workspace_path(&canonical_path, branch_id)?;
+        remove_managed_workspace_files(&path)?;
+        let (profile, _, _) = managed_custody_profile(canonical, branch_id)?;
+        dropped_managed_receipt(profile).branch
+    };
+    canonical.execute(
+        "UPDATE _snapback_in_app_branch_custody_v1
+            SET state = 'dropped', dropped_at_ms = ?2 WHERE branch_id = ?1",
+        params![branch_id.0, now_ms],
+    )?;
+    Ok(ManagedInAppBranchReceiptV1 {
+        schema_version: 1,
+        branch: InAppBranchReceiptV1 {
+            branch: BranchRecord {
+                state: BranchState::TearingDown,
+                ..receipt.branch
+            },
+            promotable: false,
+            ..receipt
+        },
+        custody_state: ManagedBranchStateV1::Dropped,
+    })
+}
+
+/// Boot-time identity for a writable in-app branch head. It is inferred only
+/// from the exact branch/profile tables inside that database; zero profiles is
+/// canonical, while multiple active profiles is corruption and refuses boot.
+#[derive(Clone, Debug)]
+pub(crate) struct InAppBranchRuntime {
+    database_path: PathBuf,
+    branch_id: BranchId,
+    egress_policy: ForkEgressPolicyV1,
+}
+
+pub(crate) fn inspect_in_app_branch_boot(
+    database_path: &Path,
+) -> SnapbackResult<Option<InAppBranchRuntime>> {
+    if !database_path.exists() {
+        return Ok(None);
+    }
+    let conn = Connection::open_with_flags(database_path, OpenFlags::SQLITE_OPEN_READ_ONLY)?;
+    let has_profiles: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM sqlite_schema
+          WHERE type = 'table' AND name = '_snapback_in_app_branch_profiles'",
+        [],
+        |row| row.get(0),
+    )?;
+    if has_profiles == 0 {
+        return Ok(None);
+    }
+    let mut statement = conn.prepare(
+        "SELECT p.branch_id, p.profile_json
+           FROM _snapback_in_app_branch_profiles p
+           JOIN _snapback_branches b ON b.branch_id = p.branch_id
+          WHERE b.state = 'active' ORDER BY p.branch_id",
+    )?;
+    let rows = statement
+        .query_map([], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, Vec<u8>>(1)?))
+        })?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    match rows.as_slice() {
+        [] => Ok(None),
+        [(branch_id, bytes)] => {
+            let profile: InAppBranchCreateV1 = decode_json(bytes, "branch boot profile")?;
+            if profile.branch_id.0 != *branch_id {
+                return Err(error(
+                    "SNAPBACK_BRANCH_CUSTODY_INVALID",
+                    "branch boot profile does not identify its active head",
+                ));
+            }
+            Ok(Some(InAppBranchRuntime {
+                database_path: database_path.to_path_buf(),
+                branch_id: profile.branch_id,
+                egress_policy: profile.egress_policy,
+            }))
+        }
+        _ => Err(error(
+            "SNAPBACK_BRANCH_CUSTODY_INVALID",
+            "one database contains multiple active in-app branch profiles",
+        )),
+    }
+}
+
+impl InAppBranchRuntime {
+    /// Route the exhaustive product egress inventory through the branch-local
+    /// policy. Neither arm accepts a target, body, token, or credential:
+    /// DenyAll records a marker and CaptureOnly records a replay intent, then
+    /// both stop the real host operation before initiation.
+    pub(crate) fn mediate(
+        &self,
+        family: crate::instance_fork::EgressFamily,
+        now_ms: u64,
+    ) -> SnapbackError {
+        match self.egress_policy {
+            ForkEgressPolicyV1::DenyAll => {
+                let operation_id = next_active_branch_effect_context(&self.branch_id)
+                    .map(|(context, _)| context.draft.identity.key.operation_id);
+                let result = (|| -> SnapbackResult<()> {
+                    let mut conn = Connection::open(&self.database_path)?;
+                    deny_egress_attempt(
+                        &mut conn,
+                        &self.branch_id,
+                        operation_id.as_deref(),
+                        family.as_str(),
+                        now_ms.min(i64::MAX as u64) as i64,
+                    )
+                })();
+                match result {
+                    Err(error) if error.diagnostic.code == "SNAPBACK_BRANCH_EGRESS_DENIED" => error,
+                    _ => error(
+                        "SNAPBACK_BRANCH_EGRESS_MARKER_FAILED",
+                        "in-app branch egress was refused but its durable marker could not be recorded",
+                    )
+                    .with_details(json!({ "family": family.as_str() })),
+                }
+            }
+            ForkEgressPolicyV1::CaptureOnly => {
+                let Some((context, effect_ordinal)) =
+                    next_active_branch_effect_context(&self.branch_id)
+                else {
+                    return error(
+                        "SNAPBACK_BRANCH_EFFECT_CONTEXT_MISSING",
+                        "CaptureOnly refused an unowned host egress initiation",
+                    )
+                    .with_details(json!({ "family": family.as_str() }));
+                };
+                let result = (|| -> SnapbackResult<CapturedEffectIntentV1> {
+                    let mut conn = Connection::open(&self.database_path)?;
+                    capture_effect_intent(&mut conn, &context, family.as_str(), effect_ordinal)
+                })();
+                match result {
+                    Ok(intent) => error(
+                        "SNAPBACK_BRANCH_EFFECT_CAPTURED",
+                        "CaptureOnly retained a payload-free effect intent and did not initiate egress",
+                    )
+                    .with_details(json!({
+                        "family": family.as_str(),
+                        "intentId": intent.intent_id,
+                        "effectOrdinal": intent.effect_ordinal,
+                    })),
+                    Err(cause) => error(
+                        "SNAPBACK_BRANCH_EFFECT_CAPTURE_FAILED",
+                        "CaptureOnly refused egress because its durable intent could not be recorded",
+                    )
+                    .with_details(json!({
+                        "family": family.as_str(),
+                        "causeCode": cause.diagnostic.code,
+                    })),
+                }
+            }
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
@@ -529,6 +1528,18 @@ pub struct BranchOperationV1 {
     pub recorded_at_ms: i64,
 }
 
+/// Server-owned context carried from the closed branch host operation into
+/// the ordinary application mutation transaction. The caller never supplies
+/// the resulting facts: storage derives them from the exact commit it is
+/// about to publish and records the branch operation before that transaction
+/// commits.
+#[derive(Clone, Debug)]
+pub struct BranchMutationCommitV1 {
+    pub branch_id: BranchId,
+    pub draft: BranchOperationDraftV1,
+    pub recorded_at_ms: i64,
+}
+
 fn validate_operation_draft(
     profile: &InAppBranchCreateV1,
     branch: &BranchRecord,
@@ -581,6 +1592,43 @@ fn validate_operation_draft(
     Ok(())
 }
 
+fn validate_public_carrier_draft(
+    profile: &InAppBranchCreateV1,
+    draft: &BranchOperationDraftV1,
+) -> SnapbackResult<()> {
+    let expected_authority_fingerprint = derive_branch_authority_fingerprint(
+        &profile.grant.principal_id,
+        &profile.grant.grant_id,
+        &profile.grant.audience,
+    )?;
+    let expected_principal_fingerprint =
+        derive_branch_principal_fingerprint(&profile.grant.principal_id)?;
+    let expected_input_fingerprint =
+        derive_branch_input_fingerprint(&draft.function_or_command, &draft.canonical_arguments)?;
+    let issuance_matches_grant = matches!(
+        &draft.identity.issuance,
+        crate::commit_envelope::OperationIssuanceV1::HostIncarnation {
+            epoch_id,
+            authority_authenticator_digest,
+            ..
+        } if epoch_id == &profile.grant.grant_id
+            && authority_authenticator_digest == &profile.grant.authority_fingerprint
+    );
+    if profile.grant.authority_fingerprint != expected_authority_fingerprint
+        || draft.identity.bound_facts.principal_fingerprint != expected_principal_fingerprint
+        || draft.identity.bound_facts.authority_instance_id != profile.grant.authority_fingerprint
+        || draft.identity.bound_facts.function_or_command != draft.function_or_command
+        || draft.identity.bound_facts.input_fingerprint != expected_input_fingerprint
+        || !issuance_matches_grant
+    {
+        return Err(error(
+            "SNAPBACK_BRANCH_AUTHORITY_DENIED",
+            "public branch carrier facts are not bound to the live branch grant and input",
+        ));
+    }
+    Ok(())
+}
+
 /// Execute a branch command and retain its replay inputs and observed facts in
 /// the same child-stream transaction as its physical branch writes.
 pub fn execute_branch_operation<F>(
@@ -605,8 +1653,59 @@ where
         ));
     }
     let tx = conn.transaction()?;
-    let child_version = allocate_child_version(&tx, branch_id)?;
     let approved_facts = execute(&tx, draft)?;
+    let operation = record_branch_operation_in(
+        &tx,
+        branch_id,
+        draft,
+        now_ms,
+        &profile,
+        &receipt,
+        approved_facts,
+    )?;
+    tx.commit()?;
+    Ok(operation)
+}
+
+pub(crate) fn execute_receipt_only_branch_operation(
+    conn: &mut Connection,
+    branch_id: &BranchId,
+    draft: &BranchOperationDraftV1,
+    result: Value,
+    now_ms: i64,
+) -> SnapbackResult<BranchOperationV1> {
+    let (profile, _) = branch_profile(conn, branch_id)?;
+    execute_branch_operation(conn, branch_id, draft, now_ms, |_tx, draft| {
+        Ok(ApprovedOperationFactsV1 {
+            read_facts: draft.read_baseline.clone(),
+            ctx_answers: Value::Null,
+            decision: json!({
+                "carrier": "managed-branch-host-op-v1",
+                "receiptOnly": true,
+            }),
+            result,
+            writes: Vec::new(),
+            effects: Vec::new(),
+            coverage: profile.coverage.clone(),
+        })
+    })
+}
+
+fn record_branch_operation_in(
+    tx: &Transaction<'_>,
+    branch_id: &BranchId,
+    draft: &BranchOperationDraftV1,
+    now_ms: i64,
+    profile: &InAppBranchCreateV1,
+    receipt: &InAppBranchReceiptV1,
+    approved_facts: ApprovedOperationFactsV1,
+) -> SnapbackResult<BranchOperationV1> {
+    if receipt.retained_operation_count >= profile.limits.max_operations {
+        return Err(error(
+            "SNAPBACK_BRANCH_OPERATION_LIMIT_EXCEEDED",
+            "branch operation limit reached",
+        ));
+    }
     if approved_facts.coverage.clone().normalized() != profile.coverage.clone().normalized() {
         return Err(error(
             "SNAPBACK_PROMOTION_WRITE_COVERAGE_INCOMPLETE",
@@ -625,6 +1724,7 @@ where
             "operation produced facts outside the branch grant's lane allowlist",
         ));
     }
+    let child_version = allocate_child_version(tx, branch_id)?;
     let approved_facts_digest = digest_json(b"approved-operation-facts", &approved_facts)?;
     let operation = BranchOperationV1 {
         schema_version: 1,
@@ -694,8 +1794,542 @@ where
             operation.identity.key.operation_id,
         ],
     )?;
-    tx.commit()?;
     Ok(operation)
+}
+
+/// Record the exact mutation facts in the same SQLite transaction as the app
+/// rows, change journal, and storage-version update. Any error rolls all four
+/// surfaces back together; after commit an exact retry can recover the full
+/// operation without executing another handler byte.
+///
+/// @ref LLP 0162#acceptance — row 10 requires a branch-local operation to be
+///   retained atomically with the commit that it makes promotable.
+pub(crate) fn record_branch_mutation_in(
+    tx: &Transaction<'_>,
+    context: &BranchMutationCommitV1,
+    committed_version: u64,
+    changes: &[crate::storage::ChangedRow],
+    output: &crate::manifest::MutationOutput,
+) -> SnapbackResult<BranchOperationV1> {
+    let (profile, receipt) = branch_profile(tx, &context.branch_id)?;
+    validate_operation_draft(
+        &profile,
+        &receipt.branch,
+        &context.draft,
+        context.recorded_at_ms,
+    )?;
+    validate_public_carrier_draft(&profile, &context.draft)?;
+    let writes = changes
+        .iter()
+        .map(|change| LogicalWriteFactV1 {
+            table_name: change.table.clone(),
+            row_id: change.id.clone(),
+            after: if change.op == crate::storage::ChangeOp::Delete {
+                None
+            } else {
+                change.row.clone()
+            },
+        })
+        .collect();
+    let ctx_answers = serde_json::to_value(&output.ctx_ledger).map_err(|cause| {
+        error(
+            "SNAPBACK_BRANCH_ARTIFACT_INVALID",
+            format!("serialize committed branch ctx answers: {cause}"),
+        )
+    })?;
+    let intents = captured_effect_intents_for_operation(
+        tx,
+        &context.branch_id,
+        &context.draft.identity.key.operation_id,
+    )?;
+    let effects = intents.iter().map(captured_effect_fact).collect::<Vec<_>>();
+    let operation = record_branch_operation_in(
+        tx,
+        &context.branch_id,
+        &context.draft,
+        context.recorded_at_ms,
+        &profile,
+        &receipt,
+        ApprovedOperationFactsV1 {
+            read_facts: context.draft.read_baseline.clone(),
+            ctx_answers,
+            decision: json!({
+                "carrier": "managed-branch-host-op-v1",
+                "canonicalCommitVersion": committed_version,
+                "atomicWithAppCommit": true,
+                "capturedEffectCount": effects.len(),
+            }),
+            result: output.result.clone(),
+            writes,
+            effects,
+            coverage: profile.coverage.clone(),
+        },
+    )?;
+    tx.execute(
+        "UPDATE _snapback_branch_effect_intents_v1
+            SET child_version=?3
+          WHERE branch_id=?1 AND operation_id=?2 AND child_version IS NULL",
+        params![
+            context.branch_id.0,
+            context.draft.identity.key.operation_id,
+            operation.child_version as i64,
+        ],
+    )?;
+    Ok(operation)
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum EffectSettlementCapabilityV1 {
+    ProviderIdempotent,
+    ProviderQueryable,
+    InherentlyAmbiguous,
+}
+
+impl EffectSettlementCapabilityV1 {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::ProviderIdempotent => "providerIdempotent",
+            Self::ProviderQueryable => "providerQueryable",
+            Self::InherentlyAmbiguous => "inherentlyAmbiguous",
+        }
+    }
+
+    fn parse(value: &str) -> SnapbackResult<Self> {
+        match value {
+            "providerIdempotent" => Ok(Self::ProviderIdempotent),
+            "providerQueryable" => Ok(Self::ProviderQueryable),
+            "inherentlyAmbiguous" => Ok(Self::InherentlyAmbiguous),
+            _ => Err(error(
+                "SNAPBACK_BRANCH_EFFECT_LEDGER_INVALID",
+                "captured effect has an unknown settlement capability",
+            )),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum CapturedEffectStateV1 {
+    Captured,
+    CanonicalPending,
+    Initiated,
+    Succeeded,
+    Rejected,
+    AmbiguousExternalEffect,
+    AuthorityRefused,
+}
+
+impl CapturedEffectStateV1 {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Captured => "captured",
+            Self::CanonicalPending => "canonicalPending",
+            Self::Initiated => "initiated",
+            Self::Succeeded => "succeeded",
+            Self::Rejected => "rejected",
+            Self::AmbiguousExternalEffect => "ambiguousExternalEffect",
+            Self::AuthorityRefused => "authorityRefused",
+        }
+    }
+
+    fn parse(value: &str) -> SnapbackResult<Self> {
+        match value {
+            "captured" => Ok(Self::Captured),
+            "canonicalPending" => Ok(Self::CanonicalPending),
+            "initiated" => Ok(Self::Initiated),
+            "succeeded" => Ok(Self::Succeeded),
+            "rejected" => Ok(Self::Rejected),
+            "ambiguousExternalEffect" => Ok(Self::AmbiguousExternalEffect),
+            "authorityRefused" => Ok(Self::AuthorityRefused),
+            _ => Err(error(
+                "SNAPBACK_BRANCH_EFFECT_LEDGER_INVALID",
+                "captured effect has an unknown settlement state",
+            )),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct CapturedEffectIntentV1 {
+    #[schemars(range(min = 1, max = 1))]
+    pub schema_version: u32,
+    pub intent_id: String,
+    pub branch_id: BranchId,
+    pub operation_id: String,
+    pub effect_ordinal: u64,
+    pub child_version: Option<u64>,
+    pub egress_class: String,
+    pub settlement_capability: EffectSettlementCapabilityV1,
+    #[schemars(pattern(SHA256_PATTERN))]
+    pub idempotency_key: String,
+    pub principal_id: String,
+    pub grant_id: String,
+    #[schemars(pattern(SHA256_PATTERN))]
+    pub authority_fingerprint: String,
+    pub state: CapturedEffectStateV1,
+    pub captured_at_ms: i64,
+}
+
+#[derive(Clone)]
+pub(crate) struct BranchEffectExecutionContextV1 {
+    pub branch_id: BranchId,
+    pub draft: BranchOperationDraftV1,
+    pub now_ms: i64,
+    next_effect_ordinal: std::rc::Rc<std::cell::Cell<u64>>,
+}
+
+impl BranchEffectExecutionContextV1 {
+    pub(crate) fn new(branch_id: BranchId, draft: BranchOperationDraftV1, now_ms: i64) -> Self {
+        Self {
+            branch_id,
+            draft,
+            now_ms,
+            next_effect_ordinal: std::rc::Rc::new(std::cell::Cell::new(0)),
+        }
+    }
+}
+
+thread_local! {
+    static ACTIVE_BRANCH_EFFECT_CONTEXT:
+        std::cell::RefCell<Vec<BranchEffectExecutionContextV1>> =
+        const { std::cell::RefCell::new(Vec::new()) };
+}
+
+pub(crate) fn with_branch_effect_execution_context<T>(
+    context: BranchEffectExecutionContextV1,
+    execute: impl FnOnce() -> T,
+) -> T {
+    ACTIVE_BRANCH_EFFECT_CONTEXT.with(|slot| slot.borrow_mut().push(context));
+    struct PopContext;
+    impl Drop for PopContext {
+        fn drop(&mut self) {
+            ACTIVE_BRANCH_EFFECT_CONTEXT.with(|slot| {
+                slot.borrow_mut().pop();
+            });
+        }
+    }
+    let _pop = PopContext;
+    execute()
+}
+
+fn next_active_branch_effect_context(
+    branch_id: &BranchId,
+) -> Option<(BranchEffectExecutionContextV1, u64)> {
+    ACTIVE_BRANCH_EFFECT_CONTEXT.with(|slot| {
+        let context = slot
+            .borrow()
+            .iter()
+            .rev()
+            .find(|context| context.branch_id == *branch_id)
+            .cloned()?;
+        let ordinal = context.next_effect_ordinal.get();
+        context.next_effect_ordinal.set(ordinal.saturating_add(1));
+        Some((context, ordinal))
+    })
+}
+
+fn settlement_capability_for_egress(egress_class: &str) -> EffectSettlementCapabilityV1 {
+    match egress_class {
+        "push_send" | "push_receipt" | "jobs_enqueue" | "jobs_drain" => {
+            EffectSettlementCapabilityV1::ProviderIdempotent
+        }
+        "fetch" | "stream_open" | "stream_read" | "stream_cancel" => {
+            EffectSettlementCapabilityV1::ProviderQueryable
+        }
+        _ => EffectSettlementCapabilityV1::InherentlyAmbiguous,
+    }
+}
+
+fn decode_captured_effect_row(
+    row: &rusqlite::Row<'_>,
+) -> rusqlite::Result<(
+    String,
+    String,
+    i64,
+    Option<i64>,
+    String,
+    String,
+    String,
+    String,
+    String,
+    String,
+    String,
+    i64,
+)> {
+    Ok((
+        row.get(0)?,
+        row.get(1)?,
+        row.get(2)?,
+        row.get(3)?,
+        row.get(4)?,
+        row.get(5)?,
+        row.get(6)?,
+        row.get(7)?,
+        row.get(8)?,
+        row.get(9)?,
+        row.get(10)?,
+        row.get(11)?,
+    ))
+}
+
+fn captured_effect_from_raw(
+    branch_id: &BranchId,
+    raw: (
+        String,
+        String,
+        i64,
+        Option<i64>,
+        String,
+        String,
+        String,
+        String,
+        String,
+        String,
+        String,
+        i64,
+    ),
+) -> SnapbackResult<CapturedEffectIntentV1> {
+    let (
+        intent_id,
+        operation_id,
+        effect_ordinal,
+        child_version,
+        egress_class,
+        capability,
+        idempotency_key,
+        principal_id,
+        grant_id,
+        authority_fingerprint,
+        state,
+        captured_at_ms,
+    ) = raw;
+    Ok(CapturedEffectIntentV1 {
+        schema_version: 1,
+        intent_id,
+        branch_id: branch_id.clone(),
+        operation_id,
+        effect_ordinal: effect_ordinal.max(0) as u64,
+        child_version: child_version.map(|value| value.max(0) as u64),
+        egress_class,
+        settlement_capability: EffectSettlementCapabilityV1::parse(&capability)?,
+        idempotency_key,
+        principal_id,
+        grant_id,
+        authority_fingerprint,
+        state: CapturedEffectStateV1::parse(&state)?,
+        captured_at_ms,
+    })
+}
+
+pub fn captured_effect_intents(
+    conn: &Connection,
+    branch_id: &BranchId,
+) -> SnapbackResult<Vec<CapturedEffectIntentV1>> {
+    ensure_in_app_branch_tables(conn)?;
+    let mut statement = conn.prepare(
+        "SELECT intent_id,operation_id,effect_ordinal,child_version,egress_class,
+                settlement_capability,idempotency_key,principal_id,grant_id,
+                authority_fingerprint,state,captured_at_ms
+           FROM _snapback_branch_effect_intents_v1
+          WHERE branch_id=?1 ORDER BY operation_id,effect_ordinal,intent_id",
+    )?;
+    let rows = statement.query_map(params![branch_id.0], |row| decode_captured_effect_row(row))?;
+    rows.map(|row| captured_effect_from_raw(branch_id, row?))
+        .collect()
+}
+
+fn capture_effect_intent(
+    conn: &mut Connection,
+    context: &BranchEffectExecutionContextV1,
+    egress_class: &str,
+    effect_ordinal: u64,
+) -> SnapbackResult<CapturedEffectIntentV1> {
+    let (profile, receipt) = branch_profile(conn, &context.branch_id)?;
+    if profile.egress_policy != ForkEgressPolicyV1::CaptureOnly {
+        return Err(error(
+            "SNAPBACK_BRANCH_EFFECT_POLICY_INVALID",
+            "effect capture requires a CaptureOnly branch",
+        ));
+    }
+    validate_operation_draft(&profile, &receipt.branch, &context.draft, context.now_ms)?;
+    validate_public_carrier_draft(&profile, &context.draft)?;
+    if branch_operation_retry(conn, &context.branch_id, &context.draft)?.is_some() {
+        return Err(error(
+            "SNAPBACK_BRANCH_EFFECT_LEDGER_INVALID",
+            "a terminal branch operation cannot append another effect intent",
+        ));
+    }
+    let existing_intents = captured_effect_intents(conn, &context.branch_id)?;
+    if let Some(existing) = existing_intents.iter().find(|intent| {
+        intent.operation_id == context.draft.identity.key.operation_id
+            && intent.effect_ordinal == effect_ordinal
+    }) {
+        if existing.egress_class == egress_class {
+            return Ok(existing.clone());
+        }
+        return Err(error(
+            "SNAPBACK_BRANCH_EFFECT_ORDINAL_REUSED",
+            "one branch operation reused an effect ordinal for a different egress family",
+        ));
+    }
+    let intent_count = existing_intents
+        .iter()
+        .filter(|intent| intent.operation_id == context.draft.identity.key.operation_id)
+        .count() as u64;
+    if receipt.retained_operation_count >= profile.limits.max_operations
+        || intent_count >= profile.limits.max_operations
+    {
+        return Err(error(
+            "SNAPBACK_BRANCH_OPERATION_LIMIT_EXCEEDED",
+            "captured effect intent limit reached",
+        ));
+    }
+    let operation_id = context.draft.identity.key.operation_id.clone();
+    let intent_id = digest_json(
+        b"captured-effect-intent-v1",
+        &(
+            &context.branch_id,
+            &operation_id,
+            effect_ordinal,
+            egress_class,
+        ),
+    )?;
+    let idempotency_key = digest_json(
+        b"captured-effect-idempotency-v1",
+        &(&profile.branch_id, &intent_id),
+    )?;
+    let capability = settlement_capability_for_egress(egress_class);
+    let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
+    tx.execute(
+        "INSERT INTO _snapback_branch_effect_intents_v1(
+           intent_id,branch_id,operation_id,effect_ordinal,child_version,egress_class,
+           settlement_capability,idempotency_key,principal_id,grant_id,
+           authority_fingerprint,state,captured_at_ms
+         ) VALUES(?1,?2,?3,?4,NULL,?5,?6,?7,?8,?9,?10,'captured',?11)",
+        params![
+            intent_id,
+            context.branch_id.0,
+            operation_id,
+            effect_ordinal as i64,
+            egress_class,
+            capability.as_str(),
+            idempotency_key,
+            profile.grant.principal_id,
+            profile.grant.grant_id,
+            profile.grant.authority_fingerprint,
+            context.now_ms,
+        ],
+    )?;
+    let foreclosed = tx.execute(
+        "UPDATE _snapback_in_app_branch_profiles
+            SET promotable=0,
+                foreclosed_by_operation_id=COALESCE(foreclosed_by_operation_id,?2)
+          WHERE branch_id=?1",
+        params![context.branch_id.0, operation_id],
+    )?;
+    if foreclosed != 1 {
+        return Err(error(
+            "SNAPBACK_BRANCH_PROFILE_MISSING",
+            "captured effect intent lost its branch promotion fence",
+        ));
+    }
+    tx.commit()?;
+    Ok(CapturedEffectIntentV1 {
+        schema_version: 1,
+        intent_id,
+        branch_id: context.branch_id.clone(),
+        operation_id,
+        effect_ordinal,
+        child_version: None,
+        egress_class: egress_class.to_owned(),
+        settlement_capability: capability,
+        idempotency_key,
+        principal_id: profile.grant.principal_id,
+        grant_id: profile.grant.grant_id,
+        authority_fingerprint: profile.grant.authority_fingerprint,
+        state: CapturedEffectStateV1::Captured,
+        captured_at_ms: context.now_ms,
+    })
+}
+
+fn captured_effect_intents_for_operation(
+    conn: &Connection,
+    branch_id: &BranchId,
+    operation_id: &str,
+) -> SnapbackResult<Vec<CapturedEffectIntentV1>> {
+    Ok(captured_effect_intents(conn, branch_id)?
+        .into_iter()
+        .filter(|intent| intent.operation_id == operation_id)
+        .collect())
+}
+
+fn captured_effect_fact(intent: &CapturedEffectIntentV1) -> Value {
+    json!({
+        "schemaVersion": 1,
+        "intentId": intent.intent_id,
+        "effectOrdinal": intent.effect_ordinal,
+        "egressClass": intent.egress_class,
+        "settlementCapability": intent.settlement_capability,
+        "idempotencyKey": intent.idempotency_key,
+        "payloadRetained": false,
+    })
+}
+
+pub(crate) fn finalize_captured_effect_operation(
+    conn: &mut Connection,
+    context: &BranchEffectExecutionContextV1,
+    result: Value,
+    diagnostic_code: Option<&str>,
+) -> SnapbackResult<Option<BranchOperationV1>> {
+    if let Some(retained) = branch_operation_retry(conn, &context.branch_id, &context.draft)? {
+        return Ok(Some(retained));
+    }
+    let intents = captured_effect_intents_for_operation(
+        conn,
+        &context.branch_id,
+        &context.draft.identity.key.operation_id,
+    )?;
+    if intents.is_empty() {
+        return Ok(None);
+    }
+    let (profile, receipt) = branch_profile(conn, &context.branch_id)?;
+    let effects = intents.iter().map(captured_effect_fact).collect();
+    let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
+    let operation = record_branch_operation_in(
+        &tx,
+        &context.branch_id,
+        &context.draft,
+        context.now_ms,
+        &profile,
+        &receipt,
+        ApprovedOperationFactsV1 {
+            read_facts: context.draft.read_baseline.clone(),
+            ctx_answers: Value::Null,
+            decision: json!({
+                "carrier": "managed-branch-capture-only-v1",
+                "effectDisposition": "capturedNotFired",
+                "handlerDiagnosticCode": diagnostic_code,
+            }),
+            result,
+            writes: Vec::new(),
+            effects,
+            coverage: profile.coverage.clone(),
+        },
+    )?;
+    tx.execute(
+        "UPDATE _snapback_branch_effect_intents_v1
+            SET child_version=?3
+          WHERE branch_id=?1 AND operation_id=?2 AND child_version IS NULL",
+        params![
+            context.branch_id.0,
+            context.draft.identity.key.operation_id,
+            operation.child_version as i64,
+        ],
+    )?;
+    tx.commit()?;
+    Ok(Some(operation))
 }
 
 pub fn branch_operation_log(
@@ -713,6 +2347,228 @@ pub fn branch_operation_log(
         operations.push(decode_json(&row?, "branch operation")?);
     }
     Ok(operations)
+}
+
+/// Resolve an exact public-carrier retry before any handler byte runs. A
+/// physical-key collision with different branch facts is a refusal, never a
+/// second execution under the reused host request identity.
+pub fn branch_operation_retry(
+    conn: &Connection,
+    branch_id: &BranchId,
+    draft: &BranchOperationDraftV1,
+) -> SnapbackResult<Option<BranchOperationV1>> {
+    ensure_in_app_branch_tables(conn)?;
+    let body: Option<Vec<u8>> = conn
+        .query_row(
+            "SELECT record_json FROM _snapback_branch_operations
+              WHERE branch_id=?1 AND operation_id=?2",
+            params![branch_id.0, draft.identity.key.operation_id],
+            |row| row.get(0),
+        )
+        .optional()?;
+    let Some(body) = body else { return Ok(None) };
+    let retained: BranchOperationV1 = decode_json(&body, "branch operation")?;
+    if retained.identity != draft.identity
+        || retained.artifact_identity != draft.artifact_identity
+        || retained.function_or_command != draft.function_or_command
+        || retained.canonical_arguments != draft.canonical_arguments
+        || retained.principal_id != draft.principal_id
+        || retained.grant_id != draft.grant_id
+        || retained.read_baseline != draft.read_baseline
+        || retained.replay_inputs != draft.replay_inputs
+        || retained.causal_predecessors != draft.causal_predecessors
+    {
+        return Err(error(
+            "SNAPBACK_BRANCH_OPERATION_ID_REUSED",
+            "branch operation identity collides with divergent execution facts",
+        ));
+    }
+    Ok(Some(retained))
+}
+
+/// Fail-safe reservation for the current non-atomic public execution carrier.
+/// The exact draft and foreclosure are committed together before handler
+/// execution. A process death after the app commit but before fact retention
+/// therefore leaves a durable outcome-unknown refusal instead of permitting a
+/// duplicate retry. Row 10 remains Partial until recording moves into the app
+/// commit transaction.
+pub fn foreclose_branch_operation_admission(
+    conn: &mut Connection,
+    branch_id: &BranchId,
+    draft: &BranchOperationDraftV1,
+    now_ms: i64,
+) -> SnapbackResult<()> {
+    let (profile, receipt) = branch_profile(conn, branch_id)?;
+    validate_operation_draft(&profile, &receipt.branch, draft, now_ms)?;
+    validate_public_carrier_draft(&profile, draft)?;
+    if receipt.retained_operation_count >= profile.limits.max_operations {
+        return Err(error(
+            "SNAPBACK_BRANCH_OPERATION_LIMIT_EXCEEDED",
+            "branch operation limit reached",
+        ));
+    }
+    if let Some(foreclosed_by) = receipt.foreclosed_by_operation_id.as_deref() {
+        if foreclosed_by != draft.identity.key.operation_id {
+            return Err(error(
+                "SNAPBACK_BRANCH_FORECLOSED",
+                "the non-atomic v1 carrier admits no second operation after branch foreclosure",
+            ));
+        }
+        let reserved: Option<Vec<u8>> = conn
+            .query_row(
+                "SELECT draft_json FROM _snapback_branch_operation_reservations
+                  WHERE branch_id=?1 AND operation_id=?2",
+                params![branch_id.0, draft.identity.key.operation_id],
+                |row| row.get(0),
+            )
+            .optional()?;
+        let Some(reserved) = reserved else {
+            return Err(error(
+                "SNAPBACK_BRANCH_CUSTODY_INVALID",
+                "branch foreclosure is missing its durable operation reservation",
+            ));
+        };
+        let reserved: BranchOperationDraftV1 =
+            decode_json(&reserved, "branch operation reservation")?;
+        if reserved != *draft {
+            return Err(error(
+                "SNAPBACK_BRANCH_OPERATION_ID_REUSED",
+                "branch operation reservation collides with divergent execution facts",
+            ));
+        }
+        return Err(error(
+            "SNAPBACK_BRANCH_OPERATION_OUTCOME_UNKNOWN",
+            "the reserved operation has no terminal record and cannot be executed again",
+        ));
+    }
+
+    let draft_bytes = json_bytes(draft, "branch operation reservation")?;
+    let tx = conn.transaction()?;
+    tx.execute(
+        "INSERT INTO _snapback_branch_operation_reservations
+           (branch_id, operation_id, draft_json, reserved_at_ms)
+         VALUES (?1, ?2, ?3, ?4)",
+        params![
+            branch_id.0,
+            draft.identity.key.operation_id,
+            draft_bytes,
+            now_ms
+        ],
+    )?;
+    let changed = tx.execute(
+        "UPDATE _snapback_in_app_branch_profiles
+            SET promotable=0,
+                foreclosed_by_operation_id=?2
+          WHERE branch_id=?1 AND foreclosed_by_operation_id IS NULL",
+        params![branch_id.0, draft.identity.key.operation_id],
+    )?;
+    if changed != 1 {
+        return Err(error(
+            "SNAPBACK_BRANCH_CUSTODY_INVALID",
+            "branch foreclosure raced another operation admission",
+        ));
+    }
+    tx.commit()?;
+    Ok(())
+}
+
+/// Retain the observable facts of a mutation that ran through the real branch
+/// handler path. The ordinary app journal is the source of write facts. This
+/// is intentionally separate from the pre-execution foreclosure above: a
+/// crash in between is safe but makes the branch non-promotable and its exact
+/// diff fail closed, which is the honest current Partial posture.
+pub fn retain_committed_branch_mutation(
+    conn: &mut Connection,
+    branch_id: &BranchId,
+    draft: &BranchOperationDraftV1,
+    committed_version: u64,
+    result: Value,
+    ctx_answers: Value,
+    now_ms: i64,
+) -> SnapbackResult<BranchOperationV1> {
+    let (profile, _) = branch_profile(conn, branch_id)?;
+    validate_public_carrier_draft(&profile, draft)?;
+    let reserved: Option<Vec<u8>> = conn
+        .query_row(
+            "SELECT draft_json FROM _snapback_branch_operation_reservations
+              WHERE branch_id=?1 AND operation_id=?2",
+            params![branch_id.0, draft.identity.key.operation_id],
+            |row| row.get(0),
+        )
+        .optional()?;
+    let reserved = reserved.ok_or_else(|| {
+        error(
+            "SNAPBACK_BRANCH_OPERATION_RESERVATION_MISSING",
+            "committed branch mutation has no durable pre-execution reservation",
+        )
+    })?;
+    if decode_json::<BranchOperationDraftV1>(&reserved, "branch operation reservation")? != *draft {
+        return Err(error(
+            "SNAPBACK_BRANCH_OPERATION_ID_REUSED",
+            "committed mutation facts diverge from their operation reservation",
+        ));
+    }
+    let committed_version = i64::try_from(committed_version).map_err(|_| {
+        error(
+            "SNAPBACK_BRANCH_OPERATION_JOURNAL_INCOMPLETE",
+            "committed branch version exceeds the portable storage range",
+        )
+    })?;
+    let mut statement = conn.prepare(
+        "SELECT table_name,row_id,op,row_json FROM _snapback_changes
+          WHERE version=?1 ORDER BY id",
+    )?;
+    let rows = statement.query_map(params![committed_version], |row| {
+        Ok((
+            row.get::<_, String>(0)?,
+            row.get::<_, String>(1)?,
+            row.get::<_, String>(2)?,
+            row.get::<_, Option<String>>(3)?,
+        ))
+    })?;
+    let mut writes = Vec::new();
+    for row in rows {
+        let (table_name, row_id, op, body) = row?;
+        let after = if op == "delete" {
+            None
+        } else {
+            Some(
+                serde_json::from_str(body.as_deref().ok_or_else(|| {
+                    error(
+                        "SNAPBACK_BRANCH_OPERATION_JOURNAL_INCOMPLETE",
+                        "committed branch change is missing its post-image",
+                    )
+                })?)
+                .map_err(|_| {
+                    error(
+                        "SNAPBACK_BRANCH_OPERATION_JOURNAL_INCOMPLETE",
+                        "committed branch change has malformed JSON",
+                    )
+                })?,
+            )
+        };
+        writes.push(LogicalWriteFactV1 {
+            table_name,
+            row_id,
+            after,
+        });
+    }
+    drop(statement);
+    execute_branch_operation(conn, branch_id, draft, now_ms, |_tx, _draft| {
+        Ok(ApprovedOperationFactsV1 {
+            read_facts: draft.read_baseline.clone(),
+            ctx_answers,
+            decision: json!({
+                "carrier": "managed-branch-host-op-v1",
+            "canonicalCommitVersion": committed_version,
+                "atomicWithAppCommit": false,
+            }),
+            result,
+            writes,
+            effects: Vec::new(),
+            coverage: profile.coverage.clone(),
+        })
+    })
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
@@ -740,8 +2596,8 @@ pub fn deny_egress_attempt(
     let (profile, receipt) = branch_profile(conn, branch_id)?;
     if profile.egress_policy != ForkEgressPolicyV1::DenyAll {
         return Err(error(
-            "SNAPBACK_BRANCH_CAPTURE_ONLY_MISSING",
-            "CaptureOnly mediation is not implemented by this lane",
+            "SNAPBACK_BRANCH_EFFECT_POLICY_INVALID",
+            "DenyAll attempt recording requires a DenyAll branch",
         ));
     }
     let marker_id = digest_json(
@@ -834,7 +2690,11 @@ pub struct AttributedChangeV1 {
 #[derive(Clone, Copy, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum NetDiffSubstrateV1 {
+    /// Legacy pre-accounting receipt value. It remains decode/schema-visible
+    /// for v1 compatibility but is never emitted by `exact_fork_diff` and is
+    /// not admissible for strict promotion.
     ImmutableMaterializedBase,
+    JournalDerivedWithIndependentOracle,
 }
 
 #[derive(Clone, Debug, Deserialize, JsonSchema, PartialEq, Serialize)]
@@ -851,6 +2711,11 @@ pub struct ForkDiffReceiptV1 {
     pub coverage: ForkCoverageV1,
     pub attributed_changes: Vec<AttributedChangeV1>,
     pub net_diff: Vec<NetDiffRowV1>,
+    /// Zero is reserved for decoded legacy receipts whose work was not
+    /// accounted. New exact diffs always emit a positive admitted byte count.
+    #[serde(default)]
+    #[schemars(range(min = 0, max = 67108864))]
+    pub digest_work_bytes: u64,
     #[schemars(pattern(SHA256_PATTERN))]
     pub diff_digest: String,
 }
@@ -872,9 +2737,13 @@ fn keyed_rows(rows: Vec<SnapshotRowV1>) -> SnapbackResult<BTreeMap<(String, Stri
     Ok(keyed)
 }
 
-/// Compute the net diff by independently scanning the retained immutable base
-/// and writable head. The operation log supplies attribution only; it is not
-/// trusted to derive net state.
+/// Derive the net diff from the retained operation journal, then independently
+/// compare that derivation with scans of the immutable base and writable head.
+/// A missing or divergent journal fact refuses rather than publishing a
+/// partial diff as complete.
+// @ref LLP 0162#4-journal-diff-instead-of-maintained-merkle-state — the
+// runtime result is journal-derived; the base/head scan is an independent
+// completeness oracle and declared digest work is bounded before hashing.
 pub fn exact_fork_diff<F>(
     workspace: &MaterializedBase,
     branch_id: &BranchId,
@@ -884,13 +2753,62 @@ where
     F: Fn(&Connection) -> SnapbackResult<Vec<SnapshotRowV1>>,
 {
     let (_, receipt) = branch_profile(&workspace.conn, branch_id)?;
-    let base = keyed_rows(scan(workspace.immutable_base())?)?;
-    let head = keyed_rows(scan(&workspace.conn)?)?;
-    let keys: BTreeSet<_> = base.keys().chain(head.keys()).cloned().collect();
+    let base_scan = scan(workspace.immutable_base())?;
+    let head_scan = scan(&workspace.conn)?;
+    let base = keyed_rows(base_scan.clone())?;
+    let head_oracle = keyed_rows(head_scan.clone())?;
+    let operations = branch_operation_log(&workspace.conn, branch_id)?;
+    let coverage = receipt.coverage.clone().normalized();
+    let mut journal_head = base.clone();
+    let mut attributed_changes = Vec::new();
+    for operation in &operations {
+        if operation.approved_facts.coverage.clone().normalized() != coverage {
+            return Err(error(
+                "SNAPBACK_BRANCH_DIFF_JOURNAL_INCOMPLETE",
+                "operation journal coverage diverges from the branch coverage manifest",
+            ));
+        }
+        for (ordinal, write) in operation.approved_facts.writes.iter().enumerate() {
+            if write.table_name.trim().is_empty() || write.row_id.trim().is_empty() {
+                return Err(error(
+                    "SNAPBACK_BRANCH_DIFF_JOURNAL_INCOMPLETE",
+                    "operation journal contains an unclassifiable write identity",
+                ));
+            }
+            let key = (write.table_name.clone(), write.row_id.clone());
+            match &write.after {
+                Some(after) => {
+                    journal_head.insert(key, canonicalize_json(after.clone()));
+                }
+                None => {
+                    if journal_head.remove(&key).is_none() {
+                        return Err(error(
+                            "SNAPBACK_BRANCH_DIFF_JOURNAL_INCOMPLETE",
+                            "operation journal records deletion of an absent row",
+                        ));
+                    }
+                }
+            }
+            attributed_changes.push(AttributedChangeV1 {
+                child_version: operation.child_version,
+                operation_identity: operation.identity.clone(),
+                principal_id: operation.principal_id.clone(),
+                write_ordinal: ordinal as u64,
+                write: write.clone(),
+            });
+        }
+    }
+    if journal_head != head_oracle {
+        return Err(error(
+            "SNAPBACK_BRANCH_DIFF_JOURNAL_INCOMPLETE",
+            "journal-derived head diverges from the independent writable-head scan",
+        ));
+    }
+    let keys: BTreeSet<_> = base.keys().chain(journal_head.keys()).cloned().collect();
     let mut net_diff = Vec::new();
     for (table_name, row_id) in keys {
         let before = base.get(&(table_name.clone(), row_id.clone()));
-        let after = head.get(&(table_name.clone(), row_id.clone()));
+        let after = journal_head.get(&(table_name.clone(), row_id.clone()));
         let disposition = match (before, after) {
             (None, Some(_)) => Some(NetDiffDispositionV1::Added),
             (Some(_), None) => Some(NetDiffDispositionV1::Deleted),
@@ -913,31 +2831,22 @@ where
             "exact diff exceeds the branch's declared row bound",
         ));
     }
-    let operations = branch_operation_log(&workspace.conn, branch_id)?;
-    let attributed_changes = operations
-        .iter()
-        .flat_map(|operation| {
-            operation
-                .approved_facts
-                .writes
-                .iter()
-                .enumerate()
-                .map(move |(ordinal, write)| AttributedChangeV1 {
-                    child_version: operation.child_version,
-                    operation_identity: operation.identity.clone(),
-                    principal_id: operation.principal_id.clone(),
-                    write_ordinal: ordinal as u64,
-                    write: write.clone(),
-                })
-        })
-        .collect::<Vec<_>>();
+    let digest_work_bytes = bounded_digest_work_bytes(
+        &(
+            &base_scan,
+            &head_scan,
+            &operations,
+            &attributed_changes,
+            &net_diff,
+        ),
+        receipt.limits.max_digest_work_bytes,
+    )?;
     let child_head = child_current_version(&workspace.conn, branch_id)?.ok_or_else(|| {
         error(
             "SNAPBACK_BRANCH_STREAM_MISSING",
             "branch child stream disappeared before diff",
         )
     })?;
-    let coverage = receipt.coverage.clone().normalized();
     let digest_input = (
         &receipt.branch.base_stream,
         receipt.branch.base_version,
@@ -946,6 +2855,7 @@ where
         &coverage,
         &attributed_changes,
         &net_diff,
+        digest_work_bytes,
     );
     let diff_digest = digest_json(b"exact-fork-diff", &digest_input)?;
     Ok(ForkDiffReceiptV1 {
@@ -955,10 +2865,11 @@ where
         base_version: receipt.branch.base_version,
         child_stream_id: receipt.branch.child_stream_id,
         child_head,
-        substrate: NetDiffSubstrateV1::ImmutableMaterializedBase,
+        substrate: NetDiffSubstrateV1::JournalDerivedWithIndependentOracle,
         coverage,
         attributed_changes,
         net_diff,
+        digest_work_bytes,
         diff_digest,
     })
 }
@@ -979,23 +2890,43 @@ pub fn sibling_diffs_share_base(
 #[derive(Clone, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct PromotionContentionPolicyV1 {
+    #[schemars(range(min = 2, max = 2))]
     pub reservation_after_losses: u64,
+    #[schemars(range(min = 1000, max = 1000))]
     pub reservation_interval_ms: u64,
+    #[schemars(range(min = 1, max = 1))]
     pub reservation_quota: u64,
+    #[schemars(range(min = 500, max = 500))]
     pub maximum_commit_duration_ms: u64,
+}
+
+/// Frozen conservative v1 contention terms. These values are part of the
+/// admission wire contract rather than caller-tunable hints: every durable
+/// ticket binds the same loss threshold, reservation window/quota, and maximum
+/// commit duration.
+///
+/// @ref LLP 0162#5-promotion-stays-strict-and-merge-free — conditional progress is meaningful only
+/// when its numeric fairness terms are stable and inspectable.
+pub const PRODUCTION_PROMOTION_CONTENTION_POLICY_V1: PromotionContentionPolicyV1 =
+    PromotionContentionPolicyV1 {
+        reservation_after_losses: 2,
+        reservation_interval_ms: 1_000,
+        reservation_quota: 1,
+        maximum_commit_duration_ms: 500,
+    };
+
+impl Default for PromotionContentionPolicyV1 {
+    fn default() -> Self {
+        PRODUCTION_PROMOTION_CONTENTION_POLICY_V1
+    }
 }
 
 impl PromotionContentionPolicyV1 {
     fn validate(&self) -> SnapbackResult<()> {
-        if self.reservation_after_losses == 0
-            || self.reservation_interval_ms == 0
-            || self.reservation_quota == 0
-            || self.maximum_commit_duration_ms == 0
-            || self.maximum_commit_duration_ms > self.reservation_interval_ms
-        {
+        if self != &PRODUCTION_PROMOTION_CONTENTION_POLICY_V1 {
             return Err(error(
                 "SNAPBACK_PROMOTION_CONTENTION_POLICY_INVALID",
-                "contention terms must be positive and commit duration must fit the reservation",
+                "contention terms must equal the frozen production v1 policy",
             ));
         }
         Ok(())
@@ -1107,6 +3038,10 @@ fn approved_facts_digest(operations: &[BranchOperationV1]) -> SnapbackResult<Str
 }
 
 pub fn ensure_promotion_tables(conn: &Connection) -> SnapbackResult<()> {
+    // Promotion may be invoked on a pre-v2 store through the lower-level Rust
+    // surface. Upgrade the proof/history infrastructure before replay writes
+    // enter storage's central history seam.
+    crate::proof_checkpoint::create_history_infra(conn)?;
     conn.execute_batch(
         "CREATE TABLE IF NOT EXISTS _snapback_promotion_admission (
             canonical_stream_id TEXT NOT NULL,
@@ -1116,6 +3051,7 @@ pub fn ensure_promotion_tables(conn: &Connection) -> SnapbackResult<()> {
             ticket_json        BLOB NOT NULL,
             state              TEXT NOT NULL,
             losses             INTEGER NOT NULL DEFAULT 0,
+            reservation_loss_floor INTEGER NOT NULL DEFAULT 0,
             reserved_until_ms  INTEGER,
             completed_at_ms    INTEGER
          );
@@ -1138,6 +3074,32 @@ pub fn ensure_promotion_tables(conn: &Connection) -> SnapbackResult<()> {
          CREATE TABLE IF NOT EXISTS _snapback_promotion_envelopes (
             ticket_id          TEXT PRIMARY KEY,
             envelope_json      BLOB NOT NULL
+         );
+         CREATE TABLE IF NOT EXISTS _snapback_promotion_effect_intents_v1 (
+            ticket_id              TEXT NOT NULL,
+            intent_id              TEXT PRIMARY KEY,
+            branch_id              TEXT NOT NULL,
+            source_operation_id    TEXT NOT NULL,
+            effect_ordinal         INTEGER NOT NULL,
+            egress_class           TEXT NOT NULL,
+            settlement_capability  TEXT NOT NULL,
+            idempotency_key        TEXT NOT NULL,
+            principal_id           TEXT NOT NULL,
+            grant_id               TEXT NOT NULL,
+            authority_fingerprint  TEXT NOT NULL,
+            state                  TEXT NOT NULL,
+            captured_at_ms         INTEGER NOT NULL,
+            initiated_at_ms        INTEGER,
+            settled_at_ms          INTEGER,
+            terminal_fact_digest   TEXT
+         );
+         CREATE INDEX IF NOT EXISTS _snapback_promotion_effects_by_ticket
+           ON _snapback_promotion_effect_intents_v1(ticket_id,intent_id);
+         CREATE TABLE IF NOT EXISTS _snapback_promotion_provisional_dependencies_v1 (
+            ticket_id              TEXT NOT NULL,
+            source_operation_id    TEXT NOT NULL,
+            predecessor_version    INTEGER NOT NULL,
+            PRIMARY KEY(ticket_id,source_operation_id,predecessor_version)
          );",
     )?;
     let has_request_digest: i64 = conn.query_row(
@@ -1152,12 +3114,382 @@ pub fn ensure_promotion_tables(conn: &Connection) -> SnapbackResult<()> {
             [],
         )?;
     }
+    let has_reservation_loss_floor: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM pragma_table_info('_snapback_promotion_admission')
+          WHERE name = 'reservation_loss_floor'",
+        [],
+        |row| row.get(0),
+    )?;
+    if has_reservation_loss_floor == 0 {
+        conn.execute(
+            "ALTER TABLE _snapback_promotion_admission
+               ADD COLUMN reservation_loss_floor INTEGER NOT NULL DEFAULT 0",
+            [],
+        )?;
+    }
     Ok(())
 }
 
+#[cfg(test)]
+#[derive(Clone, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct EffectSettlementAuthorityV1 {
+    pub principal_id: String,
+    pub grant_id: String,
+    #[schemars(pattern(SHA256_PATTERN))]
+    pub authority_fingerprint: String,
+    pub expires_at_ms: i64,
+    pub revoked: bool,
+}
+
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum EffectSettlementOutcomeV1 {
+    Succeeded,
+    Rejected,
+    AmbiguousExternalEffect,
+}
+
+#[cfg(test)]
+impl EffectSettlementOutcomeV1 {
+    fn state(self) -> CapturedEffectStateV1 {
+        match self {
+            Self::Succeeded => CapturedEffectStateV1::Succeeded,
+            Self::Rejected => CapturedEffectStateV1::Rejected,
+            Self::AmbiguousExternalEffect => CapturedEffectStateV1::AmbiguousExternalEffect,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PromotedEffectIntentV1 {
+    #[schemars(range(min = 1, max = 1))]
+    pub schema_version: u32,
+    pub ticket_id: String,
+    pub intent_id: String,
+    pub branch_id: BranchId,
+    pub source_operation_id: String,
+    pub effect_ordinal: u64,
+    pub egress_class: String,
+    pub settlement_capability: EffectSettlementCapabilityV1,
+    #[schemars(pattern(SHA256_PATTERN))]
+    pub idempotency_key: String,
+    pub principal_id: String,
+    pub grant_id: String,
+    #[schemars(pattern(SHA256_PATTERN))]
+    pub authority_fingerprint: String,
+    pub state: CapturedEffectStateV1,
+    pub captured_at_ms: i64,
+    pub initiated_at_ms: Option<i64>,
+    pub settled_at_ms: Option<i64>,
+    #[schemars(pattern(SHA256_PATTERN))]
+    pub terminal_fact_digest: Option<String>,
+}
+
+#[cfg(test)]
+#[derive(Clone, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct EffectInitiationV1 {
+    pub intent: PromotedEffectIntentV1,
+    pub already_initiated: bool,
+}
+
+fn promoted_effect_from_row(
+    row: &rusqlite::Row<'_>,
+) -> rusqlite::Result<(
+    String,
+    String,
+    String,
+    String,
+    i64,
+    String,
+    String,
+    String,
+    String,
+    String,
+    String,
+    String,
+    i64,
+    Option<i64>,
+    Option<i64>,
+    Option<String>,
+)> {
+    Ok((
+        row.get(0)?,
+        row.get(1)?,
+        row.get(2)?,
+        row.get(3)?,
+        row.get(4)?,
+        row.get(5)?,
+        row.get(6)?,
+        row.get(7)?,
+        row.get(8)?,
+        row.get(9)?,
+        row.get(10)?,
+        row.get(11)?,
+        row.get(12)?,
+        row.get(13)?,
+        row.get(14)?,
+        row.get(15)?,
+    ))
+}
+
+fn decode_promoted_effect(
+    raw: (
+        String,
+        String,
+        String,
+        String,
+        i64,
+        String,
+        String,
+        String,
+        String,
+        String,
+        String,
+        String,
+        i64,
+        Option<i64>,
+        Option<i64>,
+        Option<String>,
+    ),
+) -> SnapbackResult<PromotedEffectIntentV1> {
+    let (
+        ticket_id,
+        intent_id,
+        branch_id,
+        operation_id,
+        effect_ordinal,
+        egress_class,
+        capability,
+        idempotency_key,
+        principal_id,
+        grant_id,
+        authority_fingerprint,
+        state,
+        captured_at_ms,
+        initiated_at_ms,
+        settled_at_ms,
+        terminal_fact_digest,
+    ) = raw;
+    Ok(PromotedEffectIntentV1 {
+        schema_version: 1,
+        ticket_id,
+        intent_id,
+        branch_id: BranchId(branch_id),
+        source_operation_id: operation_id,
+        effect_ordinal: effect_ordinal.max(0) as u64,
+        egress_class,
+        settlement_capability: EffectSettlementCapabilityV1::parse(&capability)?,
+        idempotency_key,
+        principal_id,
+        grant_id,
+        authority_fingerprint,
+        state: CapturedEffectStateV1::parse(&state)?,
+        captured_at_ms,
+        initiated_at_ms,
+        settled_at_ms,
+        terminal_fact_digest,
+    })
+}
+
+fn load_promoted_effect(
+    conn: &Connection,
+    ticket_id: &str,
+    intent_id: &str,
+) -> SnapbackResult<PromotedEffectIntentV1> {
+    let raw = conn
+        .query_row(
+            "SELECT ticket_id,intent_id,branch_id,source_operation_id,effect_ordinal,egress_class,
+                    settlement_capability,idempotency_key,principal_id,grant_id,
+                    authority_fingerprint,state,captured_at_ms,initiated_at_ms,
+                    settled_at_ms,terminal_fact_digest
+               FROM _snapback_promotion_effect_intents_v1
+              WHERE ticket_id=?1 AND intent_id=?2",
+            params![ticket_id, intent_id],
+            promoted_effect_from_row,
+        )
+        .optional()?
+        .ok_or_else(|| {
+            error(
+                "SNAPBACK_PROMOTION_EFFECT_INTENT_MISSING",
+                "promotion has no captured effect intent with that identity",
+            )
+        })?;
+    decode_promoted_effect(raw)
+}
+
+pub fn promoted_effect_intents(
+    conn: &Connection,
+    ticket_id: &str,
+) -> SnapbackResult<Vec<PromotedEffectIntentV1>> {
+    ensure_promotion_tables(conn)?;
+    let mut statement = conn.prepare(
+        "SELECT ticket_id,intent_id,branch_id,source_operation_id,effect_ordinal,egress_class,
+                settlement_capability,idempotency_key,principal_id,grant_id,
+                authority_fingerprint,state,captured_at_ms,initiated_at_ms,
+                settled_at_ms,terminal_fact_digest
+           FROM _snapback_promotion_effect_intents_v1
+          WHERE ticket_id=?1 ORDER BY source_operation_id,effect_ordinal,intent_id",
+    )?;
+    let rows = statement.query_map(params![ticket_id], promoted_effect_from_row)?;
+    rows.map(|row| decode_promoted_effect(row?)).collect()
+}
+
+#[cfg(test)]
+fn effect_authority_matches(
+    intent: &PromotedEffectIntentV1,
+    authority: &EffectSettlementAuthorityV1,
+    now_ms: i64,
+) -> bool {
+    !authority.revoked
+        && now_ms < authority.expires_at_ms
+        && authority.principal_id == intent.principal_id
+        && authority.grant_id == intent.grant_id
+        && authority.authority_fingerprint == intent.authority_fingerprint
+}
+
+/// Persist the external-initiation boundary before a provider call is made.
+/// A crash after this returns leaves an Initiated row with the same stable
+/// idempotency key; retry can recover it but cannot report the promotion as a
+/// no-op or launch under different authority.
+#[cfg(test)]
+pub fn begin_promoted_effect_settlement(
+    canonical: &mut Connection,
+    ticket_id: &str,
+    intent_id: &str,
+    authority: &EffectSettlementAuthorityV1,
+    now_ms: i64,
+) -> SnapbackResult<EffectInitiationV1> {
+    ensure_promotion_tables(canonical)?;
+    let tx = canonical.transaction_with_behavior(TransactionBehavior::Immediate)?;
+    let mut intent = load_promoted_effect(&tx, ticket_id, intent_id)?;
+    if !effect_authority_matches(&intent, authority, now_ms) {
+        if intent.state == CapturedEffectStateV1::CanonicalPending {
+            let refusal_digest =
+                digest_json(b"effect-settlement-terminal-fact-v1", &"authority-refused")?;
+            tx.execute(
+                "UPDATE _snapback_promotion_effect_intents_v1
+                    SET state='authorityRefused',settled_at_ms=?3,
+                        terminal_fact_digest=?4
+                  WHERE ticket_id=?1 AND intent_id=?2 AND state='canonicalPending'",
+                params![ticket_id, intent_id, now_ms, refusal_digest],
+            )?;
+            tx.commit()?;
+        }
+        return Err(error(
+            "SNAPBACK_PROMOTION_EFFECT_AUTHORITY_DENIED",
+            "current effect-settlement authority is stale, revoked, or divergent",
+        ));
+    }
+    if intent.state == CapturedEffectStateV1::Initiated {
+        tx.commit()?;
+        return Ok(EffectInitiationV1 {
+            intent,
+            already_initiated: true,
+        });
+    }
+    if intent.state != CapturedEffectStateV1::CanonicalPending {
+        return Err(error(
+            "SNAPBACK_PROMOTION_EFFECT_NOT_PENDING",
+            "only a canonical pending effect may begin external settlement",
+        ));
+    }
+    let changed = tx.execute(
+        "UPDATE _snapback_promotion_effect_intents_v1
+            SET state='initiated',initiated_at_ms=?3
+          WHERE ticket_id=?1 AND intent_id=?2 AND state='canonicalPending'",
+        params![ticket_id, intent_id, now_ms],
+    )?;
+    if changed != 1 {
+        return Err(error(
+            "SNAPBACK_PROMOTION_EFFECT_FENCE_LOST",
+            "effect settlement lost its canonical initiation fence",
+        ));
+    }
+    tx.commit()?;
+    intent.state = CapturedEffectStateV1::Initiated;
+    intent.initiated_at_ms = Some(now_ms);
+    Ok(EffectInitiationV1 {
+        intent,
+        already_initiated: false,
+    })
+}
+
+#[cfg(test)]
+pub fn finish_promoted_effect_settlement(
+    canonical: &mut Connection,
+    ticket_id: &str,
+    intent_id: &str,
+    outcome: EffectSettlementOutcomeV1,
+    terminal_fact_digest: &str,
+    now_ms: i64,
+) -> SnapbackResult<PromotedEffectIntentV1> {
+    if !is_sha256_digest(terminal_fact_digest) {
+        return Err(error(
+            "SNAPBACK_PROMOTION_EFFECT_RESULT_INVALID",
+            "effect settlement accepts only a canonical terminal fact digest",
+        ));
+    }
+    ensure_promotion_tables(canonical)?;
+    let tx = canonical.transaction_with_behavior(TransactionBehavior::Immediate)?;
+    let mut intent = load_promoted_effect(&tx, ticket_id, intent_id)?;
+    let terminal = outcome.state();
+    if matches!(
+        intent.state,
+        CapturedEffectStateV1::Succeeded
+            | CapturedEffectStateV1::Rejected
+            | CapturedEffectStateV1::AmbiguousExternalEffect
+    ) {
+        if intent.state == terminal
+            && intent.terminal_fact_digest.as_deref() == Some(terminal_fact_digest)
+        {
+            tx.commit()?;
+            return Ok(intent);
+        }
+        return Err(error(
+            "SNAPBACK_PROMOTION_EFFECT_RESULT_DIVERGED",
+            "effect settlement retry diverged from its terminal provider fact",
+        ));
+    }
+    if intent.state != CapturedEffectStateV1::Initiated {
+        return Err(error(
+            "SNAPBACK_PROMOTION_EFFECT_NOT_INITIATED",
+            "an external effect cannot settle before its durable initiation boundary",
+        ));
+    }
+    if intent.settlement_capability == EffectSettlementCapabilityV1::InherentlyAmbiguous
+        && outcome != EffectSettlementOutcomeV1::AmbiguousExternalEffect
+    {
+        return Err(error(
+            "SNAPBACK_PROMOTION_EFFECT_AMBIGUOUS",
+            "an inherently ambiguous effect cannot manufacture terminal success or rejection",
+        ));
+    }
+    tx.execute(
+        "UPDATE _snapback_promotion_effect_intents_v1
+            SET state=?3,settled_at_ms=?4,terminal_fact_digest=?5
+          WHERE ticket_id=?1 AND intent_id=?2 AND state='initiated'",
+        params![
+            ticket_id,
+            intent_id,
+            terminal.as_str(),
+            now_ms,
+            terminal_fact_digest
+        ],
+    )?;
+    tx.commit()?;
+    intent.state = terminal;
+    intent.settled_at_ms = Some(now_ms);
+    intent.terminal_fact_digest = Some(terminal_fact_digest.to_owned());
+    Ok(intent)
+}
+
 /// Mint one FIFO ticket. The budget formula is explicit and inspectable:
-/// `max(observedConcurrentForks, queuePosition + R)`. Values remain supplied by
-/// the caller until LLP 0164 freezes production defaults from contention data.
+/// `max(observedConcurrentForks, queuePosition + R)`. The caller-supplied
+/// policy must equal the frozen production v1 constants before admission.
 #[allow(clippy::too_many_arguments)]
 pub fn issue_promotion_ticket(
     canonical: &mut Connection,
@@ -1180,8 +3512,16 @@ pub fn issue_promotion_ticket(
         ));
     }
     ensure_promotion_tables(canonical)?;
-    crate::operation_ledger::authenticate_host_identity(canonical, &ticket_identity)?;
-    if let Some(bytes) = canonical
+    // Ticket identity, idempotent replay, FIFO allocation, and host-lease
+    // custody are one serialized admission decision. A deferred transaction
+    // could let two issuers observe the same MAX(fifo_sequence) and turn fair
+    // admission into a UNIQUE-constraint race.
+    //
+    // @ref LLP 0162#5-promotion-stays-strict-and-merge-free — admission order
+    // is durable FIFO authority, so concurrent issuance itself must serialize.
+    let tx = canonical.transaction_with_behavior(TransactionBehavior::Immediate)?;
+    crate::operation_ledger::authenticate_host_identity(&tx, &ticket_identity)?;
+    if let Some(bytes) = tx
         .query_row(
             "SELECT ticket_json FROM _snapback_promotion_admission WHERE ticket_id = ?1",
             params![ticket_identity.key.operation_id],
@@ -1208,7 +3548,6 @@ pub fn issue_promotion_ticket(
                 "promotion ticket expiry must be a non-negative durable timestamp",
             )
         })?;
-        let tx = canonical.transaction()?;
         crate::operation_ledger::register_host_identity_lease_in(
             &tx,
             &stored.ticket_identity,
@@ -1217,20 +3556,27 @@ pub fn issue_promotion_ticket(
         tx.commit()?;
         return Ok(stored);
     }
-    let tx = canonical.transaction()?;
     let fifo_sequence: i64 = tx.query_row(
         "SELECT COALESCE(MAX(fifo_sequence), 0) + 1
            FROM _snapback_promotion_admission WHERE canonical_stream_id = ?1",
         params![canonical_stream_id],
         |row| row.get(0),
     )?;
-    let initial_queue_position: i64 = tx.query_row(
-        "SELECT COUNT(*) + 1 FROM _snapback_promotion_admission
-          WHERE canonical_stream_id = ?1 AND state = 'queued'",
-        params![canonical_stream_id],
-        |row| row.get(0),
-    )?;
-    let queue = initial_queue_position.max(1) as u64;
+    let live_queue_depth = {
+        let mut statement = tx.prepare(
+            "SELECT ticket_json FROM _snapback_promotion_admission
+              WHERE canonical_stream_id = ?1 AND state = 'queued'
+              ORDER BY fifo_sequence",
+        )?;
+        let queued = statement
+            .query_map(params![canonical_stream_id], |row| row.get::<_, Vec<u8>>(0))?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        queued.into_iter().try_fold(0_u64, |count, bytes| {
+            let queued: PromotionAdmissionTicketV1 = decode_json(&bytes, "promotion ticket")?;
+            Ok::<_, SnapbackError>(count + u64::from(queued.expires_at_ms > now_ms))
+        })?
+    };
+    let queue = live_queue_depth.saturating_add(1);
     let rebase_budget = observed_concurrent_forks
         .max(queue.saturating_add(contention_policy.reservation_after_losses));
     let minimum_lifetime = contention_policy
@@ -1321,6 +3667,14 @@ pub fn seal_promotion_request(
     key: &PromotionSealKey,
     now_ms: i64,
 ) -> SnapbackResult<PromotionRequestV1> {
+    if diff.substrate != NetDiffSubstrateV1::JournalDerivedWithIndependentOracle
+        || diff.digest_work_bytes == 0
+    {
+        return Err(error(
+            "SNAPBACK_BRANCH_DIGEST_WORK_UNACCOUNTED",
+            "strict promotion requires a journal-derived diff with explicit bounded digest-work accounting",
+        ));
+    }
     if !is_sha256_digest(schema_hash) {
         return Err(error(
             "SNAPBACK_PROMOTION_SCHEMA_IDENTITY_MISSING",
@@ -1328,13 +3682,16 @@ pub fn seal_promotion_request(
         ));
     }
     let (_, receipt) = branch_profile(&workspace.conn, &diff.branch_id)?;
-    if receipt.egress_policy != ForkEgressPolicyV1::DenyAll
-        || receipt.deny_all_attempt_count != 0
-        || !receipt.promotable
+    let operations = branch_operation_log(&workspace.conn, &diff.branch_id)?;
+    let captured_intents = captured_effect_intents(&workspace.conn, &diff.branch_id)?;
+    refuse_captured_effect_promotion(&operations, &captured_intents)?;
+    if !receipt.promotable
+        || (receipt.egress_policy == ForkEgressPolicyV1::DenyAll
+            && receipt.deny_all_attempt_count != 0)
     {
         return Err(error(
             "SNAPBACK_BRANCH_NOT_PROMOTABLE",
-            "only a promotable DenyAll branch with zero egress attempts can be sealed",
+            "only a promotable branch with policy-consistent effect custody can be sealed",
         ));
     }
     if now_ms >= approval.expires_at_ms
@@ -1368,7 +3725,6 @@ pub fn seal_promotion_request(
             "branch head advanced after the reviewed diff",
         ));
     }
-    let operations = branch_operation_log(&workspace.conn, &diff.branch_id)?;
     let mut request = PromotionRequestV1 {
         schema_version: 1,
         branch_id: diff.branch_id.clone(),
@@ -1491,28 +3847,92 @@ pub struct PromotionResultV1 {
     pub aggregate_envelope: CommitEnvelopeV1,
 }
 
-fn active_fifo_ticket(canonical: &Connection, stream: &str) -> SnapbackResult<Option<String>> {
-    Ok(canonical
-        .query_row(
-            "SELECT ticket_id FROM _snapback_promotion_admission
-              WHERE canonical_stream_id = ?1 AND state = 'queued'
-              ORDER BY fifo_sequence LIMIT 1",
-            params![stream],
-            |row| row.get(0),
-        )
-        .optional()?)
+fn active_fifo_ticket(
+    canonical: &Connection,
+    stream: &str,
+    now_ms: i64,
+) -> SnapbackResult<Option<String>> {
+    let mut statement = canonical.prepare(
+        "SELECT ticket_id,ticket_json FROM _snapback_promotion_admission
+          WHERE canonical_stream_id = ?1 AND state = 'queued'
+          ORDER BY fifo_sequence",
+    )?;
+    let rows = statement
+        .query_map(params![stream], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, Vec<u8>>(1)?))
+        })?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    for (ticket_id, bytes) in rows {
+        let ticket: PromotionAdmissionTicketV1 = decode_json(&bytes, "promotion ticket")?;
+        if ticket.expires_at_ms > now_ms {
+            return Ok(Some(ticket_id));
+        }
+    }
+    Ok(None)
 }
 
 fn note_ticket_loss(
     canonical: &Connection,
     ticket: &PromotionAdmissionTicketV1,
 ) -> SnapbackResult<()> {
-    canonical.execute(
+    let changed = canonical.execute(
         "UPDATE _snapback_promotion_admission SET losses = losses + 1
           WHERE ticket_id = ?1 AND state = 'queued'",
         params![ticket.ticket_identity.key.operation_id],
     )?;
+    if changed != 1 {
+        return Err(error(
+            "SNAPBACK_PROMOTION_CONTENTION_EXHAUSTED",
+            "only the exact queued durable ticket can record a promotion loss",
+        ));
+    }
     Ok(())
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct PromotionAdmissionStateV1 {
+    losses: u64,
+    reservation_loss_floor: u64,
+    reserved_until_ms: Option<i64>,
+}
+
+fn promotion_admission_state(
+    conn: &Connection,
+    ticket: &PromotionAdmissionTicketV1,
+) -> SnapbackResult<PromotionAdmissionStateV1> {
+    conn.query_row(
+        "SELECT losses,reservation_loss_floor,reserved_until_ms
+           FROM _snapback_promotion_admission
+          WHERE ticket_id = ?1 AND state = 'queued'",
+        params![ticket.ticket_identity.key.operation_id],
+        |row| {
+            let losses = row.get::<_, i64>(0)?.max(0) as u64;
+            let reservation_loss_floor = row.get::<_, i64>(1)?.max(0) as u64;
+            Ok(PromotionAdmissionStateV1 {
+                losses,
+                reservation_loss_floor,
+                reserved_until_ms: row.get(2)?,
+            })
+        },
+    )
+    .optional()?
+    .ok_or_else(|| {
+        error(
+            "SNAPBACK_PROMOTION_CONTENTION_EXHAUSTED",
+            "promotion ticket is no longer queued for admission",
+        )
+    })
+}
+
+fn live_reservation_deadline(
+    state: PromotionAdmissionStateV1,
+    ticket: &PromotionAdmissionTicketV1,
+    now_ms: i64,
+) -> Option<i64> {
+    state
+        .reserved_until_ms
+        .map(|until| until.min(ticket.expires_at_ms))
+        .filter(|until| *until > now_ms)
 }
 
 fn stored_promotion_result(
@@ -1890,7 +4310,141 @@ fn scan_promotion_scope(
     Ok((tables, rows))
 }
 
-fn promotion_scope(operations: &[BranchOperationV1]) -> SnapbackResult<BTreeSet<String>> {
+fn validate_captured_effect_custody(
+    policy: ForkEgressPolicyV1,
+    operations: &[BranchOperationV1],
+    intents: &[CapturedEffectIntentV1],
+) -> SnapbackResult<()> {
+    if policy == ForkEgressPolicyV1::DenyAll {
+        if !intents.is_empty()
+            || operations
+                .iter()
+                .any(|operation| !operation.approved_facts.effects.is_empty())
+        {
+            return Err(error(
+                "SNAPBACK_BRANCH_NOT_PROMOTABLE",
+                "DenyAll promotion cannot retain approved effect facts",
+            ));
+        }
+        return Ok(());
+    }
+    let by_operation = operations
+        .iter()
+        .map(|operation| {
+            (
+                operation.identity.key.operation_id.as_str(),
+                operation.child_version,
+            )
+        })
+        .collect::<BTreeMap<_, _>>();
+    for intent in intents {
+        let child_version = by_operation
+            .get(intent.operation_id.as_str())
+            .ok_or_else(|| {
+                error(
+                    "SNAPBACK_BRANCH_EFFECT_LEDGER_INVALID",
+                    "captured effect intent has no terminal source operation",
+                )
+            })?;
+        if intent.child_version != Some(*child_version)
+            || intent.state != CapturedEffectStateV1::Captured
+        {
+            return Err(error(
+                "SNAPBACK_BRANCH_EFFECT_LEDGER_INVALID",
+                "captured effect intent is orphaned, nonterminal, or version-divergent",
+            ));
+        }
+    }
+    for operation in operations {
+        let expected = intents
+            .iter()
+            .filter(|intent| intent.operation_id == operation.identity.key.operation_id)
+            .map(captured_effect_fact)
+            .collect::<Vec<_>>();
+        if operation.approved_facts.effects != expected {
+            return Err(error(
+                "SNAPBACK_BRANCH_EFFECT_LEDGER_INVALID",
+                "approved effect facts do not exactly match the ordered captured-intent ledger",
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn refuse_captured_effect_promotion(
+    operations: &[BranchOperationV1],
+    intents: &[CapturedEffectIntentV1],
+) -> SnapbackResult<()> {
+    if !intents.is_empty()
+        || operations
+            .iter()
+            .any(|operation| !operation.approved_facts.effects.is_empty())
+    {
+        return Err(error(
+            "SNAPBACK_PROMOTION_CAPTURE_ONLY_UNSUPPORTED",
+            "strict promotion refuses captured effects until product-owned provider custody and ordered settlement exist",
+        ));
+    }
+    Ok(())
+}
+
+pub(crate) fn provisional_effect_dependencies(
+    operations: &[BranchOperationV1],
+) -> SnapbackResult<Vec<(String, u64)>> {
+    let known_versions = operations
+        .iter()
+        .map(|operation| operation.child_version)
+        .collect::<BTreeSet<_>>();
+    let mut inherited_roots = BTreeMap::<u64, BTreeSet<u64>>::new();
+    let mut dependencies = Vec::new();
+    for operation in operations {
+        let mut roots = BTreeSet::new();
+        for predecessor in &operation.causal_predecessors {
+            if *predecessor >= operation.child_version || !known_versions.contains(predecessor) {
+                return Err(error(
+                    "SNAPBACK_BRANCH_CAUSAL_ORDER_INVALID",
+                    "operation causal predecessors must name retained earlier child versions",
+                ));
+            }
+            roots.extend(
+                inherited_roots
+                    .get(predecessor)
+                    .cloned()
+                    .unwrap_or_default(),
+            );
+        }
+        let inherited_effect = !roots.is_empty();
+        if !operation.approved_facts.effects.is_empty() {
+            roots.insert(operation.child_version);
+        }
+        if inherited_effect
+            && (!operation.approved_facts.writes.is_empty()
+                || !operation.approved_facts.effects.is_empty())
+            && operation
+                .approved_facts
+                .decision
+                .get("provisionalRepresentation")
+                != Some(&Value::Bool(true))
+        {
+            return Err(error(
+                "SNAPBACK_PROMOTION_PROVISIONAL_REPRESENTATION_REQUIRED",
+                "a transitive effect-dependent write or effect lacks an explicit provisional representation",
+            ));
+        }
+        for root in &roots {
+            if *root != operation.child_version {
+                dependencies.push((operation.identity.key.operation_id.clone(), *root));
+            }
+        }
+        inherited_roots.insert(operation.child_version, roots);
+    }
+    Ok(dependencies)
+}
+
+fn promotion_scope(
+    operations: &[BranchOperationV1],
+    egress_policy: ForkEgressPolicyV1,
+) -> SnapbackResult<BTreeSet<String>> {
     let mut scope = BTreeSet::new();
     for operation in operations {
         let coverage = operation.approved_facts.coverage.clone().normalized();
@@ -1899,17 +4453,11 @@ fn promotion_scope(operations: &[BranchOperationV1]) -> SnapbackResult<BTreeSet<
             || coverage.schema_covered
             || coverage.system_fields_covered
             || coverage.assets_covered
-            || coverage.effects_covered
+            || coverage.effects_covered != (egress_policy == ForkEgressPolicyV1::CaptureOnly)
         {
             return Err(error(
                 "SNAPBACK_PROMOTION_WRITE_COVERAGE_INCOMPLETE",
                 "v1 promotion covers only the enumerated ordinary-mutation application-row lane",
-            ));
-        }
-        if !operation.approved_facts.effects.is_empty() {
-            return Err(error(
-                "SNAPBACK_BRANCH_NOT_PROMOTABLE",
-                "DenyAll promotion cannot retain approved effect facts",
             ));
         }
         if !operation.approved_facts.writes.is_empty()
@@ -2315,6 +4863,33 @@ fn build_aggregate_envelope(
         .iter()
         .map(|operation| operation.canonical_arguments.clone())
         .collect::<Vec<_>>();
+    let effect_facts = operations
+        .iter()
+        .flat_map(|operation| operation.approved_facts.effects.iter().cloned())
+        .collect::<Vec<_>>();
+    let mut egress_families = Vec::new();
+    let mut settlement_capabilities = Vec::new();
+    for effect in &effect_facts {
+        let family = match effect.get("egressClass").and_then(Value::as_str) {
+            Some("fetch" | "stream_open" | "stream_read" | "stream_cancel") => {
+                EffectEgressFamilyV1::Fetch
+            }
+            Some("push_send" | "push_receipt") => EffectEgressFamilyV1::Notification,
+            Some("jobs_enqueue" | "jobs_drain") => EffectEgressFamilyV1::Outbox,
+            _ => EffectEgressFamilyV1::Uses,
+        };
+        if !egress_families.contains(&family) {
+            egress_families.push(family);
+        }
+        let capability = match effect.get("settlementCapability").and_then(Value::as_str) {
+            Some("providerIdempotent") => EnvelopeEffectSettlementCapabilityV1::ProviderIdempotent,
+            Some("providerQueryable") => EnvelopeEffectSettlementCapabilityV1::ProviderQueryable,
+            _ => EnvelopeEffectSettlementCapabilityV1::InherentlyAmbiguous,
+        };
+        if !settlement_capabilities.contains(&capability) {
+            settlement_capabilities.push(capability);
+        }
+    }
     let envelope = CommitEnvelopeV1 {
         schema_version: 1,
         identity: request.aggregate_identity.clone(),
@@ -2356,15 +4931,20 @@ fn build_aggregate_envelope(
         write_set: aggregate_fact_set(b"promotion-write-facts", writes)?,
         ctx_answers: aggregate_fact_set(b"promotion-ctx-facts", ctx)?,
         effects: EnvelopeEffectFactsV1 {
-            facts: aggregate_fact_set(b"promotion-effect-facts", Vec::new())?,
-            egress_families: Vec::<EffectEgressFamilyV1>::new(),
-            settlement_capabilities: Vec::new(),
+            facts: aggregate_fact_set(b"promotion-effect-facts", effect_facts)?,
+            egress_families,
+            settlement_capabilities,
         },
         receipt: OperationReceiptV1 {
             state: OperationReceiptStateV1::Committed,
             receipt_digest,
             payload: RetainedEnvelopeDetailV1::InlineRedacted {
-                detail: json!({ "canonicalVersion": canonical_version }),
+                detail: json!({
+                    "canonicalVersion": canonical_version,
+                    "capturedEffectCount": operations.iter()
+                        .map(|operation| operation.approved_facts.effects.len() as u64)
+                        .sum::<u64>(),
+                }),
             },
         },
         coverage: EnvelopeCoverageV1 {
@@ -2411,6 +4991,12 @@ where
         &BranchOperationV1,
     ) -> SnapbackResult<ApprovedOperationFactsV1>,
 {
+    // CaptureOnly is intentionally a truthful capture-and-refuse lane. Read
+    // only the branch workspace first so an unsupported effect-bearing
+    // request cannot create or mutate canonical promotion state.
+    let operations = branch_operation_log(&workspace.conn, &request.branch_id)?;
+    let captured_intents = captured_effect_intents(&workspace.conn, &request.branch_id)?;
+    refuse_captured_effect_promotion(&operations, &captured_intents)?;
     ensure_promotion_tables(canonical)?;
     if let Some(stored) = stored_promotion_result(canonical, request)? {
         return Ok(stored);
@@ -2444,12 +5030,12 @@ where
     }
     let (_, branch) = branch_profile(&workspace.conn, &request.branch_id)?;
     if !branch.promotable
-        || branch.egress_policy != ForkEgressPolicyV1::DenyAll
-        || branch.deny_all_attempt_count != 0
+        || (branch.egress_policy == ForkEgressPolicyV1::DenyAll
+            && branch.deny_all_attempt_count != 0)
     {
         return Err(error(
             "SNAPBACK_BRANCH_NOT_PROMOTABLE",
-            "branch is foreclosed, attempted egress, or is not DenyAll",
+            "branch is foreclosed or its egress policy has a disqualifying attempt",
         ));
     }
     let current_child_head = child_current_version(&workspace.conn, &request.branch_id)?
@@ -2462,7 +5048,8 @@ where
             "branch changed after approval; request is invalid",
         ));
     }
-    let operations = branch_operation_log(&workspace.conn, &request.branch_id)?;
+    validate_captured_effect_custody(branch.egress_policy, &operations, &captured_intents)?;
+    let provisional_dependencies = provisional_effect_dependencies(&operations)?;
     if operation_log_digest(&operations)? != request.operation_log_digest
         || approved_facts_digest(&operations)? != request.approved_facts_digest
         || diff.diff_digest != request.diff_digest
@@ -2473,11 +5060,18 @@ where
             "sealed log, diff, manifest, or approved facts no longer match",
         ));
     }
-    let active = active_fifo_ticket(canonical, &request.base_stream)?;
+    let active = active_fifo_ticket(canonical, &request.base_stream, now_ms)?;
     if active.as_deref() != Some(&request.admission_ticket.ticket_identity.key.operation_id) {
         return Err(error(
             "SNAPBACK_PROMOTION_NOT_FIFO_HEAD",
             "promotion admission is serialized in inherited FIFO order",
+        ));
+    }
+    let mut admission_state = promotion_admission_state(canonical, &request.admission_ticket)?;
+    if admission_state.losses >= request.admission_ticket.rebase_budget {
+        return Err(error(
+            "SNAPBACK_PROMOTION_CONTENTION_EXHAUSTED",
+            "promotion exhausted its declared rebase budget",
         ));
     }
     let head = crate::storage::current_version_on(canonical)?;
@@ -2491,16 +5085,27 @@ where
             ),
         ));
     }
-    let stored_losses: i64 = canonical.query_row(
-        "SELECT losses FROM _snapback_promotion_admission WHERE ticket_id = ?1",
-        params![request.admission_ticket.ticket_identity.key.operation_id],
-        |row| row.get(0),
-    )?;
-    if stored_losses.max(0) as u64 >= request.admission_ticket.rebase_budget {
-        return Err(error(
-            "SNAPBACK_PROMOTION_CONTENTION_EXHAUSTED",
-            "promotion exhausted its declared rebase budget",
-        ));
+    let losses_since_reservation = admission_state
+        .losses
+        .saturating_sub(admission_state.reservation_loss_floor);
+    let mut reservation_deadline =
+        live_reservation_deadline(admission_state, &request.admission_ticket, now_ms);
+    if reservation_deadline.is_none()
+        && losses_since_reservation
+            >= request
+                .admission_ticket
+                .contention_policy
+                .reservation_after_losses
+    {
+        // Escalation is an engine action, not caller etiquette. Once the FIFO
+        // head has accumulated the declared new-loss threshold, its next
+        // attempt durably reserves the stream before replay begins.
+        reservation_deadline = Some(request_head_reservation(
+            canonical,
+            &request.admission_ticket,
+            now_ms,
+        )?);
+        admission_state = promotion_admission_state(canonical, &request.admission_ticket)?;
     }
 
     let started = Instant::now();
@@ -2527,20 +5132,48 @@ where
     // expected state is predecessor-derived from the immutable base plus the
     // sealed operation write facts. The reviewed diff is only a separately
     // sealed consistency witness and never supplies proof post-images.
-    let scope = promotion_scope(&operations)?;
+    let scope = promotion_scope(&operations, branch.egress_policy)?;
     let (base_tables, base_rows) = scan_promotion_scope(workspace.immutable_base(), &scope)?;
     let approved_writes = folded_approved_writes(&base_rows, &operations)?;
     validate_diff_against_approved_facts(diff, &base_rows, &operations, &approved_writes)?;
     let expected_boundary =
         derive_promotion_expected_digest(&boundary_header, &base_rows, &approved_writes)?;
     let new_version = crate::storage::next_storage_version(head)?;
-    let tx = canonical.transaction()?;
+    let tx = canonical.transaction_with_behavior(TransactionBehavior::Immediate)?;
+    let transactional_now_ms =
+        now_ms.saturating_add(i64::try_from(started.elapsed().as_millis()).unwrap_or(i64::MAX));
+    if transactional_now_ms >= request.admission_ticket.expires_at_ms {
+        return Err(error(
+            "SNAPBACK_PROMOTION_TICKET_EXPIRED",
+            "promotion ticket expired before transactional admission",
+        ));
+    }
+    if active_fifo_ticket(&tx, &request.base_stream, transactional_now_ms)?.as_deref()
+        != Some(
+            request
+                .admission_ticket
+                .ticket_identity
+                .key
+                .operation_id
+                .as_str(),
+        )
+    {
+        return Err(error(
+            "SNAPBACK_PROMOTION_NOT_FIFO_HEAD",
+            "promotion lost FIFO authority before transactional admission",
+        ));
+    }
     let transactional_head: i64 = tx.query_row(
         "SELECT version FROM _snapback_version WHERE id = 1",
         [],
         |row| row.get(0),
     )?;
     if transactional_head.max(0) as u64 != request.base_version {
+        // The ordinary writer won immediately before our BEGIN IMMEDIATE.
+        // Count that loss durably before returning so the reservation
+        // threshold and rebase budget cannot be bypassed by admission races.
+        note_ticket_loss(&tx, &request.admission_ticket)?;
+        tx.commit()?;
         return Err(error(
             "SNAPBACK_PROMOTION_BASE_ADVANCED",
             "canonical head advanced at transaction admission",
@@ -2623,8 +5256,61 @@ where
             "staged promotion exceeded its declared maximum commit duration",
         ));
     }
+    let elapsed_ms = i64::try_from(started.elapsed().as_millis()).unwrap_or(i64::MAX);
+    let finished_at_ms = now_ms.saturating_add(elapsed_ms);
+    if finished_at_ms >= request.admission_ticket.expires_at_ms {
+        return Err(error(
+            "SNAPBACK_PROMOTION_TICKET_EXPIRED",
+            "promotion ticket expired before its canonical commit",
+        ));
+    }
+    if reservation_deadline.is_some_and(|until| finished_at_ms >= until) {
+        return Err(error(
+            "SNAPBACK_PROMOTION_RESERVATION_EXPIRED",
+            "bounded head reservation expired before canonical commit; ticket remains queued",
+        ));
+    }
+    debug_assert!(
+        admission_state.reservation_loss_floor <= admission_state.losses,
+        "durable reservation loss floor cannot lead recorded losses"
+    );
     let journal_completeness = verify_promotion_journal(&tx, new_version, &expected_journal)?;
     crate::storage::set_promotion_version(&tx, new_version)?;
+    for intent in &captured_intents {
+        tx.execute(
+            "INSERT INTO _snapback_promotion_effect_intents_v1(
+               ticket_id,intent_id,branch_id,source_operation_id,effect_ordinal,
+               egress_class,settlement_capability,idempotency_key,principal_id,
+               grant_id,authority_fingerprint,state,captured_at_ms
+             ) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,'canonicalPending',?12)",
+            params![
+                request.aggregate_identity.key.operation_id,
+                intent.intent_id,
+                intent.branch_id.0,
+                intent.operation_id,
+                intent.effect_ordinal as i64,
+                intent.egress_class,
+                intent.settlement_capability.as_str(),
+                intent.idempotency_key,
+                intent.principal_id,
+                intent.grant_id,
+                intent.authority_fingerprint,
+                intent.captured_at_ms,
+            ],
+        )?;
+    }
+    for (source_operation_id, predecessor_version) in &provisional_dependencies {
+        tx.execute(
+            "INSERT INTO _snapback_promotion_provisional_dependencies_v1(
+               ticket_id,source_operation_id,predecessor_version
+             ) VALUES(?1,?2,?3)",
+            params![
+                request.aggregate_identity.key.operation_id,
+                source_operation_id,
+                *predecessor_version as i64,
+            ],
+        )?;
+    }
     let source_write_fact_count = operations
         .iter()
         .map(|operation| operation.approved_facts.writes.len() as u64)
@@ -2639,7 +5325,11 @@ where
         source_operation_count: operations.len() as u64,
         source_write_fact_count,
         boundary_proof,
-        state: "committedNoEffects".to_owned(),
+        state: if captured_intents.is_empty() {
+            "committedNoEffects".to_owned()
+        } else {
+            "committedEffectsPending".to_owned()
+        },
         committed_at_ms: now_ms,
     };
     let receipt_digest = digest_json(b"promotion-receipt", &receipt)?;
@@ -2725,28 +5415,81 @@ pub enum CanonicalAdmissionV1 {
 }
 
 /// Ordinary canonical writers consult this gate when a losing FIFO ticket has
-/// escalated to its bounded reservation. The production numeric values remain
-/// open; the mechanism is explicit and quota-bounded.
+/// escalated to its bounded reservation. The v1 numeric terms are frozen by
+/// `PRODUCTION_PROMOTION_CONTENTION_POLICY_V1` and the admission validator.
 pub fn canonical_mutation_admission(
     conn: &Connection,
     canonical_stream_id: &str,
     now_ms: i64,
 ) -> SnapbackResult<CanonicalAdmissionV1> {
     ensure_promotion_tables(conn)?;
-    let until: Option<i64> = conn
-        .query_row(
-            "SELECT MAX(reserved_until_ms) FROM _snapback_promotion_admission
-              WHERE canonical_stream_id = ?1 AND state = 'queued'
-                AND reserved_until_ms > ?2",
-            params![canonical_stream_id, now_ms],
-            |row| row.get(0),
-        )
-        .optional()?
-        .flatten();
+    canonical_mutation_admission_if_present(conn, canonical_stream_id, now_ms)
+}
+
+fn canonical_mutation_admission_if_present(
+    conn: &Connection,
+    canonical_stream_id: &str,
+    now_ms: i64,
+) -> SnapbackResult<CanonicalAdmissionV1> {
+    let admission_table: bool = conn.query_row(
+        "SELECT EXISTS(
+           SELECT 1 FROM sqlite_schema
+            WHERE type='table' AND name='_snapback_promotion_admission'
+         )",
+        [],
+        |row| row.get(0),
+    )?;
+    if !admission_table {
+        return Ok(CanonicalAdmissionV1::Admit);
+    }
+    let mut statement = conn.prepare(
+        "SELECT reserved_until_ms,ticket_json FROM _snapback_promotion_admission
+          WHERE canonical_stream_id = ?1 AND state = 'queued'
+            AND reserved_until_ms > ?2",
+    )?;
+    let reservations = statement
+        .query_map(params![canonical_stream_id, now_ms], |row| {
+            Ok((row.get::<_, i64>(0)?, row.get::<_, Vec<u8>>(1)?))
+        })?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    let mut until = None;
+    for (reserved_until_ms, ticket_json) in reservations {
+        let ticket: PromotionAdmissionTicketV1 = decode_json(&ticket_json, "promotion ticket")?;
+        let effective_until = reserved_until_ms.min(ticket.expires_at_ms);
+        if effective_until > now_ms {
+            until = Some(until.map_or(effective_until, |prior: i64| prior.max(effective_until)));
+        }
+    }
     Ok(match until {
         Some(until_ms) => CanonicalAdmissionV1::DeferredByPromotionReservation { until_ms },
         None => CanonicalAdmissionV1::Admit,
     })
+}
+
+/// Enforce the promotion reservation from inside the ordinary writer's
+/// `BEGIN IMMEDIATE` transaction. The shared SQLite writer lock makes the
+/// admission observation and the eventual app commit indivisible with
+/// reservation acquisition; a preflight outside this transaction would leave
+/// a race in which a writer could cross a newly committed reservation.
+///
+/// @ref LLP 0162#5-promotion-stays-strict-and-merge-free — after the declared
+/// loss threshold, the FIFO head receives one bounded interval in which
+/// ordinary canonical mutations are deferred.
+pub(crate) fn enforce_canonical_mutation_admission_in(
+    conn: &Connection,
+    canonical_stream_id: &str,
+    now_ms: i64,
+) -> SnapbackResult<()> {
+    match canonical_mutation_admission_if_present(conn, canonical_stream_id, now_ms)? {
+        CanonicalAdmissionV1::Admit => Ok(()),
+        CanonicalAdmissionV1::DeferredByPromotionReservation { until_ms } => Err(error(
+            "SNAPBACK_PROMOTION_HEAD_RESERVED",
+            format!(
+                "ordinary canonical mutation is deferred by the FIFO promotion head until {until_ms}"
+            ),
+        )
+        .with_details(json!({ "untilMs": until_ms }))),
+    }
 }
 
 pub fn request_head_reservation(
@@ -2755,33 +5498,66 @@ pub fn request_head_reservation(
     now_ms: i64,
 ) -> SnapbackResult<i64> {
     ensure_promotion_tables(conn)?;
-    require_exact_durable_ticket(conn, ticket)?;
-    let losses: i64 = conn.query_row(
-        "SELECT losses FROM _snapback_promotion_admission WHERE ticket_id = ?1",
-        params![ticket.ticket_identity.key.operation_id],
-        |row| row.get(0),
-    )?;
-    if (losses.max(0) as u64) < ticket.contention_policy.reservation_after_losses {
+    let tx = Transaction::new_unchecked(conn, rusqlite::TransactionBehavior::Immediate)?;
+    require_exact_durable_ticket(&tx, ticket)?;
+    if now_ms >= ticket.expires_at_ms {
         return Err(error(
-            "SNAPBACK_PROMOTION_RESERVATION_NOT_ELIGIBLE",
-            "ticket has not reached the declared consecutive-loss threshold",
+            "SNAPBACK_PROMOTION_TICKET_EXPIRED",
+            "expired promotion tickets cannot reserve the canonical head",
         ));
     }
-    let active: i64 = conn.query_row(
+    if active_fifo_ticket(&tx, &ticket.canonical_stream_id, now_ms)?.as_deref()
+        != Some(ticket.ticket_identity.key.operation_id.as_str())
+    {
+        return Err(error(
+            "SNAPBACK_PROMOTION_NOT_FIFO_HEAD",
+            "only the live FIFO head may reserve ordinary canonical writers",
+        ));
+    }
+    let (losses, reservation_loss_floor, existing_reservation): (i64, i64, Option<i64>) = tx
+        .query_row(
+            "SELECT losses,reservation_loss_floor,reserved_until_ms
+           FROM _snapback_promotion_admission WHERE ticket_id = ?1",
+            params![ticket.ticket_identity.key.operation_id],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        )?;
+    if let Some(until) = existing_reservation
+        .map(|until| until.min(ticket.expires_at_ms))
+        .filter(|until| *until > now_ms)
+    {
+        tx.execute(
+            "UPDATE _snapback_promotion_admission SET reserved_until_ms=?2 WHERE ticket_id=?1",
+            params![ticket.ticket_identity.key.operation_id, until],
+        )?;
+        tx.commit()?;
+        return Ok(until);
+    }
+    let new_losses = (losses.max(0) as u64).saturating_sub(reservation_loss_floor.max(0) as u64);
+    if new_losses < ticket.contention_policy.reservation_after_losses {
+        return Err(error(
+            "SNAPBACK_PROMOTION_RESERVATION_NOT_ELIGIBLE",
+            "ticket has not reached the declared new-loss threshold since its prior reservation",
+        ));
+    }
+    let active_reservations: i64 = tx.query_row(
         "SELECT COUNT(*) FROM _snapback_promotion_admission
-          WHERE canonical_stream_id = ?1 AND state = 'queued' AND reserved_until_ms > ?2",
+          WHERE canonical_stream_id = ?1 AND state = 'queued'
+            AND reserved_until_ms > ?2",
         params![ticket.canonical_stream_id, now_ms],
         |row| row.get(0),
     )?;
-    if active.max(0) as u64 >= ticket.contention_policy.reservation_quota {
+    if active_reservations.max(0) as u64 >= ticket.contention_policy.reservation_quota {
         return Err(error(
             "SNAPBACK_PROMOTION_CONTENTION_EXHAUSTED",
             "bounded head-reservation quota is exhausted",
         ));
     }
-    let until = now_ms.saturating_add(ticket.contention_policy.reservation_interval_ms as i64);
-    let changed = conn.execute(
-        "UPDATE _snapback_promotion_admission SET reserved_until_ms = ?2
+    let until = now_ms
+        .saturating_add(ticket.contention_policy.reservation_interval_ms as i64)
+        .min(ticket.expires_at_ms);
+    let changed = tx.execute(
+        "UPDATE _snapback_promotion_admission
+            SET reserved_until_ms = ?2, reservation_loss_floor = losses
           WHERE ticket_id = ?1 AND state = 'queued'",
         params![ticket.ticket_identity.key.operation_id, until],
     )?;
@@ -2791,6 +5567,7 @@ pub fn request_head_reservation(
             "only the exact queued durable ticket can reserve the canonical head",
         ));
     }
+    tx.commit()?;
     Ok(until)
 }
 
@@ -2977,6 +5754,12 @@ mod tests {
                changed_at_ms INTEGER NOT NULL,
                operation_id TEXT
              );
+             CREATE TABLE _snapback_meta (
+               key TEXT PRIMARY KEY,
+               value TEXT NOT NULL
+             );
+             CREATE TABLE _snapback_auth_retry_episodes (id TEXT PRIMARY KEY);
+             CREATE TABLE _snapback_auth_retry_counters (id TEXT PRIMARY KEY);
              CREATE TABLE widgets (id INTEGER PRIMARY KEY, name TEXT NOT NULL);
              INSERT INTO widgets VALUES (1, 'alpha'), (2, 'beta');",
         )
@@ -3006,6 +5789,24 @@ mod tests {
         .expect("host epoch");
         tx.commit().expect("commit host authority");
         conn
+    }
+
+    fn file_source(path: &Path, head: u64) -> Connection {
+        let source = source(head);
+        source
+            .execute_batch(
+                "CREATE TABLE _auth_sessions(id TEXT PRIMARY KEY, token_hash TEXT NOT NULL);
+                 INSERT INTO _auth_sessions VALUES('parent-session', 'parent-token-hash');",
+            )
+            .expect("parent credential fixture");
+        let mut destination = Connection::open(path).expect("file source");
+        {
+            let backup = rusqlite::backup::Backup::new(&source, &mut destination).expect("backup");
+            backup
+                .run_to_completion(128, std::time::Duration::from_millis(1), None)
+                .expect("copy source");
+        }
+        destination
     }
 
     #[test]
@@ -3055,6 +5856,10 @@ mod tests {
             child_stream_id: ChildStreamId(stream.to_owned()),
             base_stream: "canonical".to_owned(),
             base_version: head,
+            artifact_binding: BranchArtifactBindingV1 {
+                schema_hash: sha('1'),
+                function_bundle_hash: sha('2'),
+            },
             grant: BranchGrantV1 {
                 principal_id: "agent-1".to_owned(),
                 grant_id: "grant-1".to_owned(),
@@ -3070,6 +5875,7 @@ mod tests {
                 max_operations: 16,
                 max_retained_bytes: 128 * 1024,
                 max_diff_rows: 32,
+                max_digest_work_bytes: 512 * 1024,
                 ttl_ms: 30_000,
             },
             coverage: ForkCoverageV1 {
@@ -3085,13 +5891,465 @@ mod tests {
         }
     }
 
+    #[test]
+    fn branch_creation_requires_canonical_schema_and_bundle_digests() {
+        for field in ["schema", "bundle"] {
+            let mut canonical = source(1);
+            let mut request = create_request(
+                &format!("invalid-{field}"),
+                &format!("invalid-{field}-stream"),
+                1,
+                100,
+            );
+            if field == "schema" {
+                request.artifact_binding.schema_hash = "not-a-digest".to_owned();
+            } else {
+                request.artifact_binding.function_bundle_hash = "sha256:ABC".to_owned();
+            }
+            assert_eq!(
+                create_in_app_branch(&mut canonical, &request)
+                    .expect_err("managed branch artifact pins are canonical sha256 digests")
+                    .diagnostic
+                    .code,
+                "SNAPBACK_BRANCH_ARTIFACT_IDENTITY_MISSING"
+            );
+        }
+    }
+
+    #[test]
+    fn managed_runtime_proves_isolation_scrubbed_authority_and_exhaustive_egress() {
+        let directory = tempfile::tempdir().expect("tempdir");
+        let canonical_path = directory.path().join("app.sqlite3");
+        let mut canonical = file_source(&canonical_path, 7);
+        crate::operation_detail::install(&canonical, Some(&canonical_path))
+            .expect("parent protected-detail custody");
+        {
+            let tx = canonical.transaction().expect("parent detail transaction");
+            crate::operation_detail::seal_in(
+                &tx,
+                "operation-detail:parent:reads",
+                &sha('9'),
+                &json!({ "private": "parent-only" }),
+            )
+            .expect("parent protected detail");
+            tx.commit().expect("commit parent protected detail");
+        }
+        let parent_detail_key = fs::read(crate::operation_detail::keyring_path(&canonical_path))
+            .expect("parent protected-detail sidecar");
+        let left_request = create_request("left", "left-stream", 7, 100);
+        let right_request = create_request("right", "right-stream", 7, 101);
+        create_managed_in_app_branch(&mut canonical, &canonical_path, &left_request)
+            .expect("left branch");
+        create_managed_in_app_branch(&mut canonical, &canonical_path, &right_request)
+            .expect("right branch");
+
+        let left_path = managed_workspace_path(&canonical_path, &left_request.branch_id).unwrap();
+        let right_path = managed_workspace_path(&canonical_path, &right_request.branch_id).unwrap();
+        for path in [&left_path, &right_path] {
+            let branch_key = fs::read(crate::operation_detail::keyring_path(path))
+                .expect("branch-private protected-detail sidecar exists before publication");
+            assert_ne!(
+                branch_key, parent_detail_key,
+                "managed branches never inherit the parent protected-detail key"
+            );
+        }
+
+        let left =
+            open_managed_in_app_branch(&canonical, &canonical_path, &left_request.branch_id, 200)
+                .expect("open left");
+        let right =
+            open_managed_in_app_branch(&canonical, &canonical_path, &right_request.branch_id, 200)
+                .expect("open right");
+        left.conn
+            .execute("UPDATE widgets SET name='left-only' WHERE id=1", [])
+            .expect("left write");
+        canonical
+            .execute("UPDATE widgets SET name='parent-after-fork' WHERE id=2", [])
+            .expect("parent post-fork write");
+        assert_eq!(
+            canonical
+                .query_row("SELECT name FROM widgets WHERE id=1", [], |row| row
+                    .get::<_, String>(0))
+                .unwrap(),
+            "alpha"
+        );
+        assert_eq!(
+            right
+                .conn
+                .query_row("SELECT name FROM widgets WHERE id=1", [], |row| row
+                    .get::<_, String>(0))
+                .unwrap(),
+            "alpha"
+        );
+        for workspace in [&left, &right] {
+            assert_eq!(
+                workspace
+                    .conn
+                    .query_row(
+                        "SELECT COUNT(*) FROM _snapback_operation_protected_detail_v1",
+                        [],
+                        |row| row.get::<_, u64>(0),
+                    )
+                    .unwrap(),
+                0,
+                "parent protected ciphertext is scrubbed from the executable head"
+            );
+            assert_eq!(
+                workspace
+                    .conn
+                    .query_row("SELECT name FROM widgets WHERE id=2", [], |row| {
+                        row.get::<_, String>(0)
+                    })
+                    .unwrap(),
+                "beta",
+                "parent writes after the fork are invisible"
+            );
+            assert_eq!(
+                workspace
+                    .conn
+                    .query_row("SELECT COUNT(*) FROM _auth_sessions", [], |row| {
+                        row.get::<_, u64>(0)
+                    })
+                    .unwrap(),
+                0,
+                "the executable head contains no copied canonical bearer"
+            );
+            assert_eq!(
+                workspace
+                    .immutable_base()
+                    .query_row("SELECT COUNT(*) FROM _auth_sessions", [], |row| {
+                        row.get::<_, u64>(0)
+                    })
+                    .unwrap(),
+                1,
+                "the proof base remains the byte-exact fork snapshot"
+            );
+        }
+        drop(left);
+        drop(right);
+
+        for family in crate::instance_fork::EgressFamily::ALL {
+            let runtime = inspect_in_app_branch_boot(&left_path)
+                .expect("boot inspection")
+                .expect("branch runtime");
+            assert_eq!(
+                runtime.mediate(family, 200).diagnostic.code,
+                "SNAPBACK_BRANCH_EGRESS_DENIED"
+            );
+        }
+        let mut reopened =
+            open_managed_in_app_branch(&canonical, &canonical_path, &left_request.branch_id, 200)
+                .expect("reopen after deny markers");
+        crate::operation_detail::install(&reopened.conn, Some(&left_path))
+            .expect("branch-private custody reopens");
+        let tx = reopened
+            .conn
+            .transaction()
+            .expect("branch protected detail transaction");
+        crate::operation_detail::seal_in(
+            &tx,
+            "operation-detail:branch:reads",
+            &sha('8'),
+            &json!({ "private": "branch-only" }),
+        )
+        .expect("branch custody seals after reopen");
+        tx.commit().expect("commit branch protected detail");
+        assert_eq!(
+            deny_all_attempt_markers(&reopened.conn, &left_request.branch_id)
+                .unwrap()
+                .len(),
+            crate::instance_fork::EgressFamily::ALL.len()
+        );
+        assert_eq!(
+            inspect_in_app_branch(&reopened.conn, &left_request.branch_id)
+                .unwrap()
+                .deny_all_attempt_count,
+            crate::instance_fork::EgressFamily::ALL.len() as u64
+        );
+        assert_eq!(
+            crate::instance_fork::EgressFamily::for_derived_host_op("future.networkDial"),
+            Some(crate::instance_fork::EgressFamily::UnclassifiedHostOperation)
+        );
+        drop(reopened);
+
+        drop_managed_in_app_branch(
+            &mut canonical,
+            &canonical_path,
+            &left_request.branch_id,
+            300,
+        )
+        .expect("drop left");
+        drop_managed_in_app_branch(
+            &mut canonical,
+            &canonical_path,
+            &right_request.branch_id,
+            300,
+        )
+        .expect("drop right");
+        for path in [&left_path, &right_path] {
+            assert!(
+                managed_workspace_files(path)
+                    .into_iter()
+                    .all(|candidate| !candidate.exists()),
+                "exact drop removes SQLite files and protected-detail sidecar"
+            );
+        }
+    }
+
+    #[test]
+    fn managed_custody_binds_sqlite_path_and_reconciles_profile_commit_crash() {
+        let directory = tempfile::tempdir().expect("tempdir");
+        let canonical_path = directory.path().join("app.sqlite3");
+        let other_path = directory.path().join("other.sqlite3");
+        let mut canonical = file_source(&canonical_path, 7);
+        let _other = file_source(&other_path, 7);
+        let mismatch = create_managed_in_app_branch(
+            &mut canonical,
+            &other_path,
+            &create_request("mismatch", "mismatch-stream", 7, 100),
+        )
+        .expect_err("connection/path substitution");
+        assert_eq!(
+            mismatch.diagnostic.code,
+            "SNAPBACK_BRANCH_CUSTODY_PATH_MISMATCH"
+        );
+
+        let interrupted = create_request("interrupted", "interrupted-stream", 7, 101);
+        install_managed_create_after_profile_hook(|| panic!("simulated process crash"));
+        let crashed = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let _ = create_managed_in_app_branch(&mut canonical, &canonical_path, &interrupted);
+        }));
+        assert!(crashed.is_err());
+        let interrupted_path =
+            managed_workspace_path(&canonical_path, &interrupted.branch_id).unwrap();
+        assert!(interrupted_path.exists());
+        let list_error = list_managed_in_app_branches(&canonical, &canonical_path, 200)
+            .expect_err("read-only list refuses interrupted custody");
+        assert_eq!(
+            list_error.diagnostic.code,
+            "SNAPBACK_BRANCH_CUSTODY_RECOVERY_REQUIRED"
+        );
+
+        let survivor = create_request("survivor", "survivor-stream", 7, 102);
+        create_managed_in_app_branch(&mut canonical, &canonical_path, &survivor)
+            .expect("next mutable create reconciles interrupted custody");
+        assert!(!interrupted_path.exists());
+        let state: String = canonical
+            .query_row(
+                "SELECT state FROM _snapback_in_app_branch_custody_v1 WHERE branch_id=?1",
+                params![interrupted.branch_id.0],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(state, "dropped");
+
+        let survivor_path = managed_workspace_path(&canonical_path, &survivor.branch_id).unwrap();
+        let exact_expiry = survivor.created_at_ms + survivor.limits.ttl_ms;
+        assert_eq!(
+            list_managed_in_app_branches(&canonical, &canonical_path, exact_expiry)
+                .expect_err("expired active branch requires mutable reaping")
+                .diagnostic
+                .code,
+            "SNAPBACK_BRANCH_EXPIRY_REAP_REQUIRED"
+        );
+        install_managed_reap_after_transition_hook(|| {
+            panic!("simulated crash after durable tearing_down transition")
+        });
+        let reap_crash = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let _ =
+                reap_expired_managed_in_app_branches(&mut canonical, &canonical_path, exact_expiry);
+        }));
+        assert!(reap_crash.is_err());
+        assert!(survivor_path.exists());
+        assert_eq!(
+            list_managed_in_app_branches(&canonical, &canonical_path, exact_expiry)
+                .expect_err("tearing-down crash stays enumerated")
+                .diagnostic
+                .code,
+            "SNAPBACK_BRANCH_CUSTODY_RECOVERY_REQUIRED"
+        );
+        assert!(
+            reap_expired_managed_in_app_branches(&mut canonical, &canonical_path, exact_expiry,)
+                .expect("reopen reconciles exact-expiry crash")
+                .is_empty(),
+            "the interrupted tearing-down row is reconciled, not re-reaped"
+        );
+        assert!(
+            managed_workspace_files(&survivor_path)
+                .into_iter()
+                .all(|path| !path.exists())
+        );
+        let survivor_state: String = canonical
+            .query_row(
+                "SELECT state FROM _snapback_in_app_branch_custody_v1 WHERE branch_id=?1",
+                params![survivor.branch_id.0],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(survivor_state, "dropped");
+    }
+
+    #[test]
+    fn managed_branch_ttl_replay_floor_and_compact_envelope_clocks_are_independent() {
+        let directory = tempfile::tempdir().expect("tempdir");
+        let canonical_path = directory.path().join("app.sqlite3");
+        let mut canonical = file_source(&canonical_path, 7);
+        canonical
+            .execute(
+                "INSERT INTO _snapback_meta(key,value) VALUES('retention_floor','3')",
+                [],
+            )
+            .expect("pin replay floor fixture");
+        let identity = host_identity("canonical", "independent-clock", "app-1");
+        let empty_facts = || {
+            aggregate_fact_set(b"independent-clock-empty", Vec::new())
+                .expect("empty retained facts")
+        };
+        let envelope = CommitEnvelopeV1 {
+            schema_version: 1,
+            identity: identity.clone(),
+            snapshot: StreamQualifiedVersionV1 {
+                stream_id: identity.key.stream_id.clone(),
+                version: 7,
+                association: SnapshotAssociationKindV1::ProducedCommit,
+            },
+            principal_session_or_invocation_id: "clock-fixture".to_owned(),
+            authority: EnvelopeAuthorityFactsV1 {
+                audience: identity.bound_facts.audience.clone(),
+                grant_or_policy_identity: LaneFactV1::Defined("grant-1".to_owned()),
+                fencing_token_or_epoch: LaneFactV1::Defined("host-epoch-1".to_owned()),
+            },
+            executable_artifact_digest: LaneFactV1::Defined(sha('1')),
+            argument_digest: sha('2'),
+            plan_digest: LaneFactV1::NotDefinedForLane,
+            base_version: LaneFactV1::NotDefinedForLane,
+            read_set: empty_facts(),
+            write_set: empty_facts(),
+            ctx_answers: empty_facts(),
+            effects: EnvelopeEffectFactsV1 {
+                facts: empty_facts(),
+                egress_families: Vec::new(),
+                settlement_capabilities: Vec::new(),
+            },
+            receipt: OperationReceiptV1 {
+                state: OperationReceiptStateV1::Committed,
+                receipt_digest: sha('3'),
+                payload: RetainedEnvelopeDetailV1::InlineRedacted {
+                    detail: json!({"fixture": "independent-clock"}),
+                },
+            },
+            coverage: EnvelopeCoverageV1 {
+                covered_lanes: vec![PROMOTION_WRITER_LANE_V1.to_owned()],
+                uncovered_lanes: vec![PROMOTION_COVERAGE_GAP_V1.to_owned()],
+                coverage_digest: sha('4'),
+            },
+            recorded_at_ms: 100,
+        };
+        envelope.validate().expect("valid compact-envelope fixture");
+        let envelope_json = serde_json::to_string(&envelope).expect("encode envelope fixture");
+        let insert_envelope = |conn: &Connection| {
+            conn.execute(
+                "INSERT INTO _snapback_commit_envelopes_v1(
+                   stream_id,originator_class,operation_id,audience,epoch_id,
+                   epoch_sequence,principal_fingerprint,principal_session_id,
+                   recorded_at_ms,envelope_json
+                 ) VALUES(?1,'host',?2,'app-1','host-epoch-1',1,?3,'',100,?4)",
+                params![
+                    identity.key.stream_id,
+                    identity.key.operation_id,
+                    identity.bound_facts.principal_fingerprint,
+                    envelope_json,
+                ],
+            )
+            .expect("insert compact-envelope sentinel");
+        };
+        insert_envelope(&canonical);
+        let request = create_request("independent-clock", "independent-stream", 7, 100);
+        create_managed_in_app_branch(&mut canonical, &canonical_path, &request)
+            .expect("create managed branch");
+
+        let tx = canonical.transaction().expect("envelope prune tx");
+        assert!(
+            crate::operation_ledger::prune_compact_envelope_in(&tx, &identity)
+                .expect("prune only compact envelope")
+        );
+        tx.commit().expect("commit compact-envelope prune");
+        assert_eq!(
+            list_managed_in_app_branches(&canonical, &canonical_path, 101)
+                .expect("envelope pruning cannot reap branch")
+                .len(),
+            1
+        );
+        assert_eq!(
+            canonical
+                .query_row(
+                    "SELECT value FROM _snapback_meta WHERE key='retention_floor'",
+                    [],
+                    |row| row.get::<_, String>(0),
+                )
+                .unwrap(),
+            "3"
+        );
+
+        insert_envelope(&canonical);
+        let exact_expiry = request.created_at_ms + request.limits.ttl_ms;
+        assert_eq!(
+            reap_expired_managed_in_app_branches(&mut canonical, &canonical_path, exact_expiry,)
+                .expect("reap exact-expiry branch")
+                .len(),
+            1
+        );
+        assert_eq!(
+            canonical
+                .query_row(
+                    "SELECT COUNT(*) FROM _snapback_commit_envelopes_v1
+                      WHERE stream_id=?1 AND operation_id=?2",
+                    params![identity.key.stream_id, identity.key.operation_id],
+                    |row| row.get::<_, u64>(0),
+                )
+                .unwrap(),
+            1,
+            "branch TTL never prunes the independent compact-envelope clock"
+        );
+        assert_eq!(
+            canonical
+                .query_row(
+                    "SELECT value FROM _snapback_meta WHERE key='retention_floor'",
+                    [],
+                    |row| row.get::<_, String>(0),
+                )
+                .unwrap(),
+            "3",
+            "branch TTL never advances the replay-floor clock"
+        );
+    }
+
     fn draft(stream: &str, id: &str) -> BranchOperationDraftV1 {
+        let canonical_arguments = json!({ "id": 1, "name": "ALPHA" });
+        let mut identity = host_identity(stream, id, "app-1");
+        identity.issuance = OperationIssuanceV1::HostIncarnation {
+            epoch_id: "grant-1".to_owned(),
+            upstream_identity: format!("upstream:{id}"),
+            commit_ordinal: 0,
+            authority_authenticator_digest: derive_branch_authority_fingerprint(
+                "agent-1", "grant-1", "app-1",
+            )
+            .expect("branch authority fingerprint"),
+        };
+        identity.bound_facts.principal_fingerprint =
+            derive_branch_principal_fingerprint("agent-1").expect("principal fingerprint");
+        identity.bound_facts.authority_instance_id =
+            derive_branch_authority_fingerprint("agent-1", "grant-1", "app-1")
+                .expect("branch authority fingerprint");
+        identity.bound_facts.input_fingerprint =
+            derive_branch_input_fingerprint("widgets.rename", &canonical_arguments)
+                .expect("branch input fingerprint");
         BranchOperationDraftV1 {
             schema_version: 1,
-            identity: host_identity(stream, id, "app-1"),
+            identity,
             artifact_identity: sha('e'),
             function_or_command: "widgets.rename".to_owned(),
-            canonical_arguments: json!({ "id": 1, "name": "ALPHA" }),
+            canonical_arguments,
             principal_id: "agent-1".to_owned(),
             grant_id: "grant-1".to_owned(),
             read_baseline: json!({ "widgets/1": "alpha" }),
@@ -3102,6 +6360,77 @@ mod tests {
             }],
             causal_predecessors: Vec::new(),
         }
+    }
+
+    fn public_draft_for_create(create: &InAppBranchCreateV1, id: &str) -> BranchOperationDraftV1 {
+        let mut operation = draft(&create.child_stream_id.0, id);
+        operation.identity.issuance = OperationIssuanceV1::HostIncarnation {
+            epoch_id: create.grant.grant_id.clone(),
+            upstream_identity: format!("upstream:{id}"),
+            commit_ordinal: 0,
+            authority_authenticator_digest: create.grant.authority_fingerprint.clone(),
+        };
+        operation.identity.bound_facts.authority_instance_id =
+            create.grant.authority_fingerprint.clone();
+        operation
+    }
+
+    #[test]
+    fn public_carrier_reservation_crash_cut_refuses_duplicate_and_second_operation() {
+        let mut branch = source(5);
+        let mut request = create_request("reservation-crash", "reservation-stream", 5, 1_000);
+        request.grant.authority_fingerprint = derive_branch_authority_fingerprint(
+            &request.grant.principal_id,
+            &request.grant.grant_id,
+            &request.grant.audience,
+        )
+        .expect("production-shaped branch authority fingerprint");
+        create_in_app_branch(&mut branch, &request).expect("create branch");
+        let exact = draft("reservation-stream", "reserved-request");
+
+        foreclose_branch_operation_admission(&mut branch, &request.branch_id, &exact, 1_001)
+            .expect("durably reserve before handler execution");
+        assert!(
+            branch_operation_retry(&branch, &request.branch_id, &exact)
+                .expect("no terminal operation after simulated crash")
+                .is_none()
+        );
+        assert_eq!(
+            foreclose_branch_operation_admission(&mut branch, &request.branch_id, &exact, 1_002)
+                .expect_err("exact retry cannot rerun an outcome-unknown operation")
+                .diagnostic
+                .code,
+            "SNAPBACK_BRANCH_OPERATION_OUTCOME_UNKNOWN"
+        );
+
+        let mut divergent = exact.clone();
+        divergent.canonical_arguments = json!({"id": 1, "name": "DIVERGED"});
+        divergent.identity.bound_facts.input_fingerprint = derive_branch_input_fingerprint(
+            &divergent.function_or_command,
+            &divergent.canonical_arguments,
+        )
+        .expect("divergent input fingerprint");
+        assert_eq!(
+            foreclose_branch_operation_admission(
+                &mut branch,
+                &request.branch_id,
+                &divergent,
+                1_003,
+            )
+            .expect_err("reserved identity cannot be rebound")
+            .diagnostic
+            .code,
+            "SNAPBACK_BRANCH_OPERATION_ID_REUSED"
+        );
+
+        let second = draft("reservation-stream", "second-request");
+        assert_eq!(
+            foreclose_branch_operation_admission(&mut branch, &request.branch_id, &second, 1_004)
+                .expect_err("the Partial carrier admits no second operation after foreclosure")
+                .diagnostic
+                .code,
+            "SNAPBACK_BRANCH_FORECLOSED"
+        );
     }
 
     fn facts(name: &str) -> ApprovedOperationFactsV1 {
@@ -3153,6 +6482,345 @@ mod tests {
         .expect("execute");
         let diff = exact_fork_diff(&workspace, &request.branch_id, scan_widgets).expect("diff");
         (canonical, workspace, diff)
+    }
+
+    struct FairPromotionCandidate {
+        workspace: MaterializedBase,
+        diff: ForkDiffReceiptV1,
+        request: PromotionRequestV1,
+    }
+
+    fn fair_facts(name: &str) -> ApprovedOperationFactsV1 {
+        let mut result = facts(name);
+        result.read_facts = json!({});
+        result
+    }
+
+    fn make_fair_candidate(
+        canonical: &mut Connection,
+        key: &PromotionSealKey,
+        index: usize,
+        observed_forks: u64,
+        now_ms: i64,
+    ) -> FairPromotionCandidate {
+        let base_version = crate::storage::current_version_on(canonical).expect("candidate base");
+        let branch_id = format!("fair-branch-{index}");
+        let child_stream = format!("fair-child-{index}");
+        let name = format!("FAIR-{index}");
+        let mut create = create_request(&branch_id, &child_stream, base_version, now_ms);
+        create.limits.max_live_branches_per_principal = 64;
+        create.limits.max_live_branches_per_app = 64;
+        create_in_app_branch(canonical, &create).expect("fair branch");
+        let mut workspace = MaterializedBase::materialize(canonical, None).expect("fair workspace");
+        let mut operation = draft(&child_stream, &format!("fair-operation-{index}"));
+        operation.canonical_arguments["name"] = json!(name);
+        operation.read_baseline = json!({});
+        operation.identity.bound_facts.input_fingerprint =
+            derive_branch_input_fingerprint("widgets.rename", &operation.canonical_arguments)
+                .expect("fair input fingerprint");
+        execute_branch_operation(
+            &mut workspace.conn,
+            &create.branch_id,
+            &operation,
+            now_ms + 1,
+            |tx, draft| {
+                let name = draft.canonical_arguments["name"]
+                    .as_str()
+                    .expect("fair name");
+                tx.execute("UPDATE widgets SET name=?1 WHERE id=1", params![name])?;
+                Ok(fair_facts(name))
+            },
+        )
+        .expect("fair operation");
+        let diff = exact_fork_diff(&workspace, &create.branch_id, scan_widgets).expect("fair diff");
+        let ticket_identity = host_identity("canonical", &format!("fair-ticket-{index}"), "app-1");
+        let ticket = issue_promotion_ticket(
+            canonical,
+            ticket_identity.clone(),
+            &diff.branch_id,
+            "canonical",
+            observed_forks,
+            100_000,
+            now_ms + 2,
+            PromotionContentionPolicyV1::default(),
+        )
+        .expect("fair ticket");
+        let request = seal_promotion_request(
+            &workspace,
+            &diff,
+            PromotionApprovalV1 {
+                approver_principal_id: "agent-1".to_owned(),
+                approver_grant_id: "grant-1".to_owned(),
+                authority_fingerprint: sha('d'),
+                approved_at_ms: now_ms + 3,
+                expires_at_ms: 90_000,
+            },
+            ticket,
+            ticket_identity,
+            &sha('f'),
+            key,
+            now_ms + 3,
+        )
+        .expect("fair approval and seal");
+        FairPromotionCandidate {
+            workspace,
+            diff,
+            request,
+        }
+    }
+
+    fn rebase_fair_candidate(
+        canonical: &mut Connection,
+        key: &PromotionSealKey,
+        candidate: FairPromotionCandidate,
+        rebase_ordinal: usize,
+        now_ms: i64,
+    ) -> FairPromotionCandidate {
+        let base_version = crate::storage::current_version_on(canonical).expect("rebase head");
+        let mut create = create_request(
+            &format!("{}-rebase-{rebase_ordinal}", candidate.request.branch_id.0),
+            &format!(
+                "{}-rebase-{rebase_ordinal}",
+                candidate.request.child_stream_id.0
+            ),
+            base_version,
+            now_ms,
+        );
+        create.limits.max_live_branches_per_principal = 64;
+        create.limits.max_live_branches_per_app = 64;
+        let (workspace, replay) = rebase_by_replay(
+            canonical,
+            &candidate.workspace,
+            &candidate.request.branch_id,
+            &create,
+            now_ms + 1,
+            |tx, operation| {
+                let name = operation.canonical_arguments["name"]
+                    .as_str()
+                    .expect("rebase name");
+                tx.execute("UPDATE widgets SET name=?1 WHERE id=1", params![name])?;
+                Ok(operation.approved_facts.clone())
+            },
+        )
+        .expect("fair rebase");
+        assert!(replay.meaning_preserved);
+        let diff = exact_fork_diff(&workspace, &create.branch_id, scan_widgets)
+            .expect("rebased fair diff");
+        let request = reseal_after_rebase(
+            &candidate.request,
+            &workspace,
+            &diff,
+            "fairness-engine-v1",
+            &sha('f'),
+            key,
+            now_ms + 2,
+        )
+        .expect("inherited ticket and approval reseal");
+        FairPromotionCandidate {
+            workspace,
+            diff,
+            request,
+        }
+    }
+
+    fn ordinary_canonical_write(
+        canonical_path: &Path,
+        row_id: i64,
+        now_ms: i64,
+    ) -> SnapbackResult<()> {
+        let mut conn = Connection::open(canonical_path)?;
+        conn.busy_timeout(std::time::Duration::from_secs(5))?;
+        let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        enforce_canonical_mutation_admission_in(&tx, "canonical", now_ms)?;
+        let head = crate::storage::current_version_on(&tx)?;
+        let version = crate::storage::next_storage_version(head)?;
+        let name = format!("ordinary-{row_id}");
+        let row_json =
+            serde_json::to_string(&json!({ "id": row_id, "name": name })).map_err(|cause| {
+                error(
+                    "SNAPBACK_BRANCH_ARTIFACT_INVALID",
+                    format!("encode ordinary-writer journal row: {cause}"),
+                )
+            })?;
+        tx.execute(
+            "INSERT INTO widgets(id,name) VALUES(?1,?2)",
+            params![row_id, name],
+        )?;
+        tx.execute(
+            "INSERT INTO _snapback_changes(version,table_name,row_id,op,row_json,changed_at_ms)
+             VALUES(?1,'widgets',?2,'insert',?3,?4)",
+            params![version as i64, row_id.to_string(), row_json, now_ms,],
+        )?;
+        crate::storage::set_promotion_version(&tx, version)?;
+        tx.commit()?;
+        Ok(())
+    }
+
+    fn concurrent_fairness_cycle(
+        canonical_path: &Path,
+        key: &PromotionSealKey,
+        candidates: Vec<FairPromotionCandidate>,
+        cycle: usize,
+        now_ms: i64,
+    ) -> (
+        Vec<FairPromotionCandidate>,
+        Vec<PromotionResultV1>,
+        Vec<String>,
+    ) {
+        let candidate_count = candidates.len();
+        let start = std::sync::Arc::new(std::sync::Barrier::new(candidate_count + 1));
+        let (writer_a_start, writer_a_ready) = std::sync::mpsc::channel();
+        let (writer_b_start, writer_b_ready) = std::sync::mpsc::channel();
+        let writer_path_a = canonical_path.to_path_buf();
+        let writer_path_b = canonical_path.to_path_buf();
+        let writer_a = std::thread::spawn(move || {
+            writer_a_ready
+                .recv_timeout(std::time::Duration::from_secs(5))
+                .expect("promotion reached transactional replay for writer A");
+            ordinary_canonical_write(&writer_path_a, 10_000 + (cycle as i64 * 2), now_ms + 1)
+        });
+        let writer_b = std::thread::spawn(move || {
+            writer_b_ready
+                .recv_timeout(std::time::Duration::from_secs(5))
+                .expect("promotion reached transactional replay for writer B");
+            ordinary_canonical_write(&writer_path_b, 10_001 + (cycle as i64 * 2), now_ms + 1)
+        });
+        let threads = candidates
+            .into_iter()
+            .map(|candidate| {
+                let start = start.clone();
+                let path = canonical_path.to_path_buf();
+                let key = key.clone();
+                let writer_a_start = writer_a_start.clone();
+                let writer_b_start = writer_b_start.clone();
+                std::thread::spawn(move || {
+                    let mut conn = Connection::open(path).expect("promotion connection");
+                    conn.busy_timeout(std::time::Duration::from_secs(5))
+                        .expect("promotion busy timeout");
+                    start.wait();
+                    let result = promote_by_reexecution(
+                        &mut conn,
+                        &candidate.workspace,
+                        &candidate.diff,
+                        &candidate.request,
+                        &key,
+                        &PromotionAuthorityDecisionV1::Revalidated {
+                            grant_id: "grant-1".to_owned(),
+                            authority_fingerprint: sha('d'),
+                        },
+                        now_ms,
+                        &sha('f'),
+                        |_, operation| {
+                            writer_a_start.send(()).expect("start ordinary writer A");
+                            writer_b_start.send(()).expect("start ordinary writer B");
+                            std::thread::sleep(std::time::Duration::from_millis(20));
+                            Ok(operation.approved_facts.clone())
+                        },
+                    );
+                    (candidate, result)
+                })
+            })
+            .collect::<Vec<_>>();
+        start.wait();
+        let mut pending = Vec::new();
+        let mut committed = Vec::new();
+        let mut refusals = Vec::new();
+        for thread in threads {
+            let (candidate, result) = thread.join().expect("promotion contender");
+            match result {
+                Ok(result) => committed.push(result),
+                Err(error) => {
+                    refusals.push(error.diagnostic.code.to_owned());
+                    pending.push(candidate);
+                }
+            }
+        }
+        writer_a
+            .join()
+            .expect("ordinary writer A")
+            .expect("ordinary writer A commits through production gate");
+        writer_b
+            .join()
+            .expect("ordinary writer B")
+            .expect("ordinary writer B commits through production gate");
+        pending.sort_by_key(|candidate| candidate.request.admission_ticket.fifo_sequence);
+        (pending, committed, refusals)
+    }
+
+    #[test]
+    fn legacy_v1_branch_receipts_decode_but_cannot_bypass_new_diff_accounting() {
+        let limits: BranchLimitsV1 = serde_json::from_value(json!({
+            "maxLiveBranchesPerPrincipal": 1,
+            "maxLiveBranchesPerApp": 1,
+            "maxOperations": 1,
+            "maxRetainedBytes": 1024,
+            "maxDiffRows": 1,
+            "ttlMs": 1000
+        }))
+        .expect("pre-accounting v1 limits remain decodable");
+        assert_eq!(
+            limits.max_digest_work_bytes,
+            BRANCH_MAX_DIGEST_WORK_BYTES_V1
+        );
+        limits
+            .validate()
+            .expect("legacy default is finite and valid");
+
+        let (mut canonical, workspace, diff) = branch_with_rename();
+        let mut legacy_json = serde_json::to_value(&diff).expect("diff JSON");
+        legacy_json
+            .as_object_mut()
+            .expect("diff object")
+            .remove("digestWorkBytes");
+        legacy_json["substrate"] = json!("immutableMaterializedBase");
+        let legacy: ForkDiffReceiptV1 =
+            serde_json::from_value(legacy_json).expect("legacy v1 diff remains decodable");
+        assert_eq!(legacy.digest_work_bytes, 0);
+        assert_eq!(
+            legacy.substrate,
+            NetDiffSubstrateV1::ImmutableMaterializedBase
+        );
+
+        let key = PromotionSealKey::from_server_secret([9_u8; 32]).expect("key");
+        let ticket_identity = host_identity("canonical", "legacy-diff-ticket", "app-1");
+        let ticket = issue_promotion_ticket(
+            &mut canonical,
+            ticket_identity.clone(),
+            &legacy.branch_id,
+            "canonical",
+            1,
+            60_000,
+            2_000,
+            PromotionContentionPolicyV1 {
+                reservation_after_losses: 2,
+                reservation_interval_ms: 1_000,
+                reservation_quota: 1,
+                maximum_commit_duration_ms: 500,
+            },
+        )
+        .expect("ticket");
+        assert_eq!(
+            seal_promotion_request(
+                &workspace,
+                &legacy,
+                PromotionApprovalV1 {
+                    approver_principal_id: "agent-1".to_owned(),
+                    approver_grant_id: "grant-1".to_owned(),
+                    authority_fingerprint: sha('d'),
+                    approved_at_ms: 2_001,
+                    expires_at_ms: 50_000,
+                },
+                ticket,
+                ticket_identity,
+                &sha('f'),
+                &key,
+                2_001,
+            )
+            .expect_err("legacy unaccounted diff cannot enter strict promotion")
+            .diagnostic
+            .code,
+            "SNAPBACK_BRANCH_DIGEST_WORK_UNACCOUNTED"
+        );
     }
 
     #[test]
@@ -3376,32 +7044,359 @@ mod tests {
     }
 
     #[test]
+    fn capture_only_effects_foreclose_strict_promotion_before_canonical_mutation() {
+        let directory = tempfile::tempdir().expect("tempdir");
+        let canonical_path = directory.path().join("canonical.sqlite3");
+        let mut canonical = file_source(&canonical_path, 5);
+        let mut create = create_request("capture-promote", "capture-child", 5, 1_000);
+        create.egress_policy = ForkEgressPolicyV1::CaptureOnly;
+        create.coverage.effects_covered = true;
+        create.grant.authority_fingerprint = derive_branch_authority_fingerprint(
+            &create.grant.principal_id,
+            &create.grant.grant_id,
+            &create.grant.audience,
+        )
+        .expect("public branch authority fingerprint");
+        create_in_app_branch(&mut canonical, &create).expect("CaptureOnly branch");
+        let mut workspace = MaterializedBase::materialize(&canonical, None).expect("workspace");
+        let operation_draft = public_draft_for_create(&create, "capture-effect-operation");
+        let context =
+            BranchEffectExecutionContextV1::new(create.branch_id.clone(), operation_draft, 1_001);
+        for ordinal in 0..3 {
+            capture_effect_intent(&mut workspace.conn, &context, "fetch", ordinal)
+                .expect("payload-free captured intent");
+        }
+        let operation = finalize_captured_effect_operation(
+            &mut workspace.conn,
+            &context,
+            json!({"caught": 3}),
+            Some("SNAPBACK_BRANCH_EFFECT_CAPTURED"),
+        )
+        .expect("finalize effect operation")
+        .expect("captured operation");
+        assert_eq!(operation.approved_facts.effects.len(), 3);
+        let mut mixed_effect_and_write = operation.clone();
+        mixed_effect_and_write
+            .approved_facts
+            .writes
+            .push(LogicalWriteFactV1 {
+                table_name: "widgets".to_owned(),
+                row_id: "1".to_owned(),
+                after: Some(json!({"id": 1, "name": "must-not-promote"})),
+            });
+        assert_eq!(
+            refuse_captured_effect_promotion(&[mixed_effect_and_write], &[])
+                .expect_err("same-operation effect plus write remains non-promotable")
+                .diagnostic
+                .code,
+            "SNAPBACK_PROMOTION_CAPTURE_ONLY_UNSUPPORTED"
+        );
+        let diff = exact_fork_diff(&workspace, &create.branch_id, scan_widgets)
+            .expect("effect-only exact diff");
+
+        let seal_key = PromotionSealKey::from_server_secret([23_u8; 32]).expect("seal key");
+        let ticket_identity = host_identity("canonical", "capture-promotion-ticket", "app-1");
+        let ticket = issue_promotion_ticket(
+            &mut canonical,
+            ticket_identity.clone(),
+            &create.branch_id,
+            "canonical",
+            1,
+            60_000,
+            2_000,
+            PromotionContentionPolicyV1::default(),
+        )
+        .expect("ticket");
+        let canonical_version_before = crate::storage::current_version_on(&canonical)
+            .expect("canonical version before refusal");
+        let refusal = seal_promotion_request(
+            &workspace,
+            &diff,
+            PromotionApprovalV1 {
+                approver_principal_id: "agent-1".to_owned(),
+                approver_grant_id: "grant-1".to_owned(),
+                authority_fingerprint: create.grant.authority_fingerprint.clone(),
+                approved_at_ms: 2_001,
+                expires_at_ms: 50_000,
+            },
+            ticket,
+            ticket_identity,
+            &sha('f'),
+            &seal_key,
+            2_001,
+        )
+        .expect_err("CaptureOnly effects remain capture-only and not promotable");
+        assert_eq!(
+            refusal.diagnostic.code,
+            "SNAPBACK_PROMOTION_CAPTURE_ONLY_UNSUPPORTED"
+        );
+        assert_eq!(
+            crate::storage::current_version_on(&canonical)
+                .expect("canonical version after refusal"),
+            canonical_version_before
+        );
+        assert!(
+            !inspect_in_app_branch(&workspace.conn, &create.branch_id)
+                .expect("capture-only receipt")
+                .promotable
+        );
+    }
+
+    #[test]
+    fn captured_intent_after_review_refuses_promotion_entry_before_reexecution() {
+        let mut canonical = source(5);
+        let mut create = create_request("capture-after-review", "capture-reviewed", 5, 1_000);
+        create.egress_policy = ForkEgressPolicyV1::CaptureOnly;
+        create.coverage.effects_covered = true;
+        create.grant.authority_fingerprint = derive_branch_authority_fingerprint(
+            &create.grant.principal_id,
+            &create.grant.grant_id,
+            &create.grant.audience,
+        )
+        .expect("public branch authority fingerprint");
+        create_in_app_branch(&mut canonical, &create).expect("CaptureOnly branch");
+        let mut workspace = MaterializedBase::materialize(&canonical, None).expect("workspace");
+        let reviewed_draft = public_draft_for_create(&create, "reviewed-no-effect-operation");
+        let coverage = create.coverage.clone();
+        execute_branch_operation(
+            &mut workspace.conn,
+            &create.branch_id,
+            &reviewed_draft,
+            1_001,
+            |tx, _draft| {
+                tx.execute("UPDATE widgets SET name='REVIEWED' WHERE id=1", [])?;
+                let mut approved = facts("REVIEWED");
+                approved.coverage = coverage;
+                Ok(approved)
+            },
+        )
+        .expect("reviewable no-effect operation");
+        let diff = exact_fork_diff(&workspace, &create.branch_id, scan_widgets).expect("diff");
+        let seal_key = PromotionSealKey::from_server_secret([24_u8; 32]).expect("seal key");
+        let ticket_identity = host_identity("canonical", "capture-reviewed-ticket", "app-1");
+        let ticket = issue_promotion_ticket(
+            &mut canonical,
+            ticket_identity.clone(),
+            &create.branch_id,
+            "canonical",
+            1,
+            60_000,
+            2_000,
+            PromotionContentionPolicyV1::default(),
+        )
+        .expect("ticket");
+        let request = seal_promotion_request(
+            &workspace,
+            &diff,
+            PromotionApprovalV1 {
+                approver_principal_id: "agent-1".to_owned(),
+                approver_grant_id: "grant-1".to_owned(),
+                authority_fingerprint: create.grant.authority_fingerprint.clone(),
+                approved_at_ms: 2_001,
+                expires_at_ms: 50_000,
+            },
+            ticket,
+            ticket_identity,
+            &sha('f'),
+            &seal_key,
+            2_001,
+        )
+        .expect("seal reviewed no-effect operation");
+
+        let late_context = BranchEffectExecutionContextV1::new(
+            create.branch_id.clone(),
+            public_draft_for_create(&create, "late-captured-effect"),
+            2_002,
+        );
+        capture_effect_intent(&mut workspace.conn, &late_context, "fetch", 0)
+            .expect("durable late capture");
+        let canonical_version_before = crate::storage::current_version_on(&canonical)
+            .expect("canonical version before promotion refusal");
+        let canonical_rows_before =
+            scan_widgets(&canonical).expect("canonical rows before refusal");
+        let reexecuted = std::cell::Cell::new(false);
+        let refusal = promote_by_reexecution(
+            &mut canonical,
+            &workspace,
+            &diff,
+            &request,
+            &seal_key,
+            &PromotionAuthorityDecisionV1::Revalidated {
+                grant_id: "grant-1".to_owned(),
+                authority_fingerprint: create.grant.authority_fingerprint.clone(),
+            },
+            2_003,
+            &sha('f'),
+            |_context, retained| {
+                reexecuted.set(true);
+                Ok(retained.approved_facts.clone())
+            },
+        )
+        .expect_err("captured intent after review refuses at the promotion entry");
+        assert_eq!(
+            refusal.diagnostic.code,
+            "SNAPBACK_PROMOTION_CAPTURE_ONLY_UNSUPPORTED"
+        );
+        assert!(!reexecuted.get(), "no retained handler facts were replayed");
+        assert_eq!(
+            crate::storage::current_version_on(&canonical)
+                .expect("canonical version after promotion refusal"),
+            canonical_version_before
+        );
+        assert_eq!(
+            scan_widgets(&canonical).expect("canonical rows after refusal"),
+            canonical_rows_before
+        );
+    }
+
+    #[test]
+    fn branch_mutation_fact_retention_failure_rolls_back_the_application_write() {
+        let mut canonical = source(5);
+        let mut create = create_request("atomic-retention", "atomic-child", 5, 1_000);
+        create.limits.max_retained_bytes = 1;
+        create.grant.authority_fingerprint = derive_branch_authority_fingerprint(
+            &create.grant.principal_id,
+            &create.grant.grant_id,
+            &create.grant.audience,
+        )
+        .expect("public branch authority fingerprint");
+        create_in_app_branch(&mut canonical, &create).expect("branch");
+        let mut workspace = MaterializedBase::materialize(&canonical, None).expect("workspace");
+        let operation_draft = draft("atomic-child", "atomic-operation");
+        {
+            let tx = workspace
+                .conn
+                .transaction()
+                .expect("application transaction");
+            tx.execute("UPDATE widgets SET name='MUST-ROLL-BACK' WHERE id=1", [])
+                .expect("stage app write");
+            let changed = crate::storage::ChangedRow {
+                table: "widgets".to_owned(),
+                id: "1".to_owned(),
+                op: crate::storage::ChangeOp::Update,
+                row: Some(json!({"id": 1, "name": "MUST-ROLL-BACK"})),
+                changed_fields: vec!["name".to_owned()],
+            };
+            let output = crate::manifest::MutationOutput {
+                version: 6,
+                changed_count: 1,
+                result: json!({"ok": true}),
+                ctx_ledger: None,
+                settlement_mint_observations: Vec::new(),
+                settlement_time_observation: None,
+                settlement_sequence_allocations: Vec::new(),
+            };
+            let error = record_branch_mutation_in(
+                &tx,
+                &BranchMutationCommitV1 {
+                    branch_id: create.branch_id.clone(),
+                    draft: operation_draft,
+                    recorded_at_ms: 1_001,
+                },
+                6,
+                &[changed],
+                &output,
+            )
+            .expect_err("fact-retention limit must abort the shared transaction");
+            assert_eq!(error.diagnostic.code, "SNAPBACK_BRANCH_BYTE_LIMIT_EXCEEDED");
+        }
+        assert_eq!(
+            workspace
+                .conn
+                .query_row("SELECT name FROM widgets WHERE id=1", [], |row| {
+                    row.get::<_, String>(0)
+                })
+                .expect("row after rollback"),
+            "alpha"
+        );
+        assert!(
+            branch_operation_log(&workspace.conn, &create.branch_id)
+                .expect("operation log after rollback")
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn capture_only_intents_obey_operation_and_ttl_limits_before_egress() {
+        let mut canonical = source(1);
+        let mut create = create_request("capture-bounds", "capture-bounds-child", 1, 100);
+        create.egress_policy = ForkEgressPolicyV1::CaptureOnly;
+        create.coverage.effects_covered = true;
+        create.limits.max_operations = 1;
+        create.grant.authority_fingerprint = derive_branch_authority_fingerprint(
+            &create.grant.principal_id,
+            &create.grant.grant_id,
+            &create.grant.audience,
+        )
+        .expect("public branch authority fingerprint");
+        create_in_app_branch(&mut canonical, &create).expect("CaptureOnly branch");
+        let mut workspace = MaterializedBase::materialize(&canonical, None).expect("workspace");
+        let context = BranchEffectExecutionContextV1::new(
+            create.branch_id.clone(),
+            public_draft_for_create(&create, "capture-bounded-operation"),
+            101,
+        );
+        capture_effect_intent(&mut workspace.conn, &context, "fetch", 0)
+            .expect("first intent fits the operation bound");
+        assert_eq!(
+            capture_effect_intent(&mut workspace.conn, &context, "fetch", 1)
+                .expect_err("second intent exceeds the declared bound")
+                .diagnostic
+                .code,
+            "SNAPBACK_BRANCH_OPERATION_LIMIT_EXCEEDED"
+        );
+
+        let expired_context = BranchEffectExecutionContextV1::new(
+            create.branch_id.clone(),
+            public_draft_for_create(&create, "capture-after-expiry"),
+            create.created_at_ms + create.limits.ttl_ms,
+        );
+        assert_eq!(
+            capture_effect_intent(&mut workspace.conn, &expired_context, "fetch", 0)
+                .expect_err("exact TTL boundary refuses before intent custody")
+                .diagnostic
+                .code,
+            "SNAPBACK_BRANCH_EXPIRED"
+        );
+        assert_eq!(
+            captured_effect_intents(&workspace.conn, &create.branch_id)
+                .expect("bounded ledger")
+                .len(),
+            1
+        );
+    }
+
+    #[test]
     fn exact_diff_model_corpus_covers_add_update_delete_and_folding() {
         for seed in 0_u64..32 {
             let mut canonical = source(1);
-            let request = create_request(
+            let mut request = create_request(
                 &format!("diff-model-{seed}"),
                 &format!("child-diff-model-{seed}"),
                 1,
                 100,
             );
+            request.limits.max_operations = 64;
+            request.limits.max_retained_bytes = 512 * 1024;
+            request.limits.max_digest_work_bytes = 2 * 1024 * 1024;
             create_in_app_branch(&mut canonical, &request).expect("branch");
-            let workspace = MaterializedBase::materialize(&canonical, None).expect("workspace");
+            let mut workspace = MaterializedBase::materialize(&canonical, None).expect("workspace");
             let mut expected =
                 BTreeMap::from([(1_i64, "alpha".to_owned()), (2_i64, "beta".to_owned())]);
+            let mut expected_attribution = Vec::new();
             let mut state = seed.wrapping_add(1);
             for step in 0..48_u64 {
                 state = state
                     .wrapping_mul(6_364_136_223_846_793_005)
                     .wrapping_add(1_442_695_040_888_963_407);
                 let id = 1 + ((state >> 17) % 8) as i64;
-                match (state >> 5) % 3 {
+                let mut operation_draft = draft(
+                    &format!("child-diff-model-{seed}"),
+                    &format!("diff-model-{seed}-{step}"),
+                );
+                operation_draft.canonical_arguments = match (state >> 5) % 3 {
                     0 => {
-                        workspace
-                            .conn
-                            .execute("DELETE FROM widgets WHERE id=?1", params![id])
-                            .expect("delete");
-                        expected.remove(&id);
+                        json!({ "kind": "delete", "id": id })
                     }
                     _ => {
                         let name = if step % 11 == 0 && id == 1 {
@@ -3411,16 +7406,67 @@ mod tests {
                         } else {
                             format!("seed-{seed}-step-{step}")
                         };
-                        workspace
-                            .conn
-                            .execute(
-                                "INSERT INTO widgets(id, name) VALUES (?1, ?2)
-                                 ON CONFLICT(id) DO UPDATE SET name=excluded.name",
-                                params![id, name],
-                            )
-                            .expect("upsert");
-                        expected.insert(id, name);
+                        json!({ "kind": "upsert", "id": id, "name": name })
                     }
+                };
+                let arguments = operation_draft.canonical_arguments.clone();
+                let prior = expected.get(&id).cloned();
+                let operation = execute_branch_operation(
+                    &mut workspace.conn,
+                    &request.branch_id,
+                    &operation_draft,
+                    101 + step as i64,
+                    |tx, _| {
+                        let mut observed = facts("journalized");
+                        observed.result = json!({ "step": step });
+                        match arguments["kind"].as_str().expect("kind") {
+                            "delete" => {
+                                tx.execute("DELETE FROM widgets WHERE id=?1", params![id])?;
+                                observed.writes = prior
+                                    .as_ref()
+                                    .map(|_| LogicalWriteFactV1 {
+                                        table_name: "widgets".to_owned(),
+                                        row_id: id.to_string(),
+                                        after: None,
+                                    })
+                                    .into_iter()
+                                    .collect();
+                            }
+                            "upsert" => {
+                                let name = arguments["name"].as_str().expect("name");
+                                tx.execute(
+                                    "INSERT INTO widgets(id, name) VALUES (?1, ?2)
+                                     ON CONFLICT(id) DO UPDATE SET name=excluded.name",
+                                    params![id, name],
+                                )?;
+                                observed.writes = vec![LogicalWriteFactV1 {
+                                    table_name: "widgets".to_owned(),
+                                    row_id: id.to_string(),
+                                    after: Some(json!({ "id": id, "name": name })),
+                                }];
+                            }
+                            _ => unreachable!(),
+                        }
+                        Ok(observed)
+                    },
+                )
+                .expect("journalized mutation");
+                match arguments["kind"].as_str().expect("kind") {
+                    "delete" => {
+                        expected.remove(&id);
+                    }
+                    "upsert" => {
+                        expected.insert(id, arguments["name"].as_str().expect("name").to_owned());
+                    }
+                    _ => unreachable!(),
+                }
+                for (write_ordinal, write) in operation.approved_facts.writes.iter().enumerate() {
+                    expected_attribution.push((
+                        operation.child_version,
+                        operation.identity.key.operation_id.clone(),
+                        write_ordinal as u64,
+                        write.clone(),
+                    ));
                 }
             }
 
@@ -3449,6 +7495,20 @@ mod tests {
                 })
                 .count();
             assert_eq!(receipt.net_diff.len(), expected_changed, "seed {seed}");
+            assert_eq!(
+                receipt
+                    .attributed_changes
+                    .iter()
+                    .map(|change| (
+                        change.child_version,
+                        change.operation_identity.key.operation_id.clone(),
+                        change.write_ordinal,
+                        change.write.clone(),
+                    ))
+                    .collect::<Vec<_>>(),
+                expected_attribution,
+                "attributed sequence must independently match the emitted journal, seed {seed}"
+            );
             for row in &receipt.net_diff {
                 match row.disposition {
                     NetDiffDispositionV1::Added => {
@@ -3463,6 +7523,43 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn exact_diff_refuses_unjournaled_writes_and_exhausted_digest_work() {
+        let mut canonical = source(1);
+        let direct = create_request("direct-bypass", "child-direct", 1, 100);
+        create_in_app_branch(&mut canonical, &direct).expect("branch");
+        let workspace = MaterializedBase::materialize(&canonical, None).expect("workspace");
+        workspace
+            .conn
+            .execute("UPDATE widgets SET name='unjournaled' WHERE id=1", [])
+            .expect("bypass write");
+        assert_eq!(
+            exact_fork_diff(&workspace, &direct.branch_id, scan_widgets)
+                .expect_err("independent oracle catches missing journal fact")
+                .diagnostic
+                .code,
+            "SNAPBACK_BRANCH_DIFF_JOURNAL_INCOMPLETE"
+        );
+
+        let mut canonical = source(1);
+        let mut bounded = create_request("digest-bound", "child-digest-bound", 1, 100);
+        bounded.limits.max_digest_work_bytes = 1;
+        create_in_app_branch(&mut canonical, &bounded).expect("branch");
+        let workspace = MaterializedBase::materialize(&canonical, None).expect("workspace");
+        assert_eq!(
+            exact_fork_diff(&workspace, &bounded.branch_id, scan_widgets)
+                .expect_err("even an empty diff accounts for its oracle and journal inputs")
+                .diagnostic
+                .code,
+            "SNAPBACK_BRANCH_DIGEST_WORK_LIMIT_EXCEEDED"
+        );
+        assert_eq!(
+            crate::storage::current_version_on(&canonical).expect("canonical head"),
+            1,
+            "read-side work refusal cannot mutate canonical state"
+        );
     }
 
     #[test]
@@ -3512,6 +7609,40 @@ mod tests {
         )
         .expect("seal");
         let mut replay_count = 0;
+        for (authority, now_ms) in [
+            (PromotionAuthorityDecisionV1::Denied, 2_002),
+            (
+                PromotionAuthorityDecisionV1::Revalidated {
+                    grant_id: "grant-1".to_owned(),
+                    authority_fingerprint: sha('0'),
+                },
+                2_002,
+            ),
+            (
+                PromotionAuthorityDecisionV1::Revalidated {
+                    grant_id: "grant-1".to_owned(),
+                    authority_fingerprint: sha('d'),
+                },
+                50_000,
+            ),
+        ] {
+            let denied = promote_by_reexecution(
+                &mut canonical,
+                &workspace,
+                &diff,
+                &request,
+                &key,
+                &authority,
+                now_ms,
+                &sha('f'),
+                |_, _| panic!("revoked, divergent, or stale authority must not reexecute"),
+            )
+            .expect_err("current branch authority required");
+            assert_eq!(
+                denied.diagnostic.code,
+                "SNAPBACK_PROMOTION_AUTHORITY_DENIED"
+            );
+        }
         let mut forged_ticket_request = request.clone();
         forged_ticket_request.admission_ticket.rebase_budget += 1;
         forged_ticket_request.seal =
@@ -3843,7 +7974,7 @@ mod tests {
         let mut mislabeled = operations.clone();
         mislabeled[0].approved_facts.coverage.covered_lanes = vec!["unrelatedLane".to_owned()];
         assert_eq!(
-            promotion_scope(&mislabeled)
+            promotion_scope(&mislabeled, ForkEgressPolicyV1::DenyAll)
                 .expect_err("unrelated coverage lane cannot label a complete promotion")
                 .diagnostic
                 .code,
@@ -3852,7 +7983,7 @@ mod tests {
         let mut effectful = operations.clone();
         effectful[0].approved_facts.effects = vec![json!({ "network": "simulated" })];
         assert_eq!(
-            promotion_scope(&effectful)
+            validate_captured_effect_custody(ForkEgressPolicyV1::DenyAll, &effectful, &[],)
                 .expect_err("DenyAll promotion cannot silently drop approved effect facts")
                 .diagnostic
                 .code,
@@ -4119,6 +8250,755 @@ mod tests {
     }
 
     #[test]
+    fn production_contention_terms_bound_reservation_quota_and_writer_admission() {
+        assert_eq!(
+            PromotionContentionPolicyV1::default(),
+            PRODUCTION_PROMOTION_CONTENTION_POLICY_V1
+        );
+        let mut canonical = source(1);
+        let mut drifted = PromotionContentionPolicyV1::default();
+        drifted.reservation_interval_ms += 1;
+        assert_eq!(
+            issue_promotion_ticket(
+                &mut canonical,
+                host_identity("canonical", "ticket-drifted-policy", "app-1"),
+                &BranchId("branch-drifted-policy".to_owned()),
+                "canonical",
+                2,
+                60_000,
+                2_000,
+                drifted,
+            )
+            .expect_err("production admission refuses drifted contention terms")
+            .diagnostic
+            .code,
+            "SNAPBACK_PROMOTION_CONTENTION_POLICY_INVALID"
+        );
+
+        let first = issue_promotion_ticket(
+            &mut canonical,
+            host_identity("canonical", "ticket-reservation-first", "app-1"),
+            &BranchId("branch-reservation-first".to_owned()),
+            "canonical",
+            2,
+            60_000,
+            2_000,
+            PromotionContentionPolicyV1::default(),
+        )
+        .expect("first ticket");
+        let second = issue_promotion_ticket(
+            &mut canonical,
+            host_identity("canonical", "ticket-reservation-second", "app-1"),
+            &BranchId("branch-reservation-second".to_owned()),
+            "canonical",
+            2,
+            60_000,
+            2_000,
+            PromotionContentionPolicyV1::default(),
+        )
+        .expect("second ticket");
+        assert!(first.fifo_sequence < second.fifo_sequence);
+        assert_eq!(
+            request_head_reservation(&canonical, &first, 2_500)
+                .expect_err("loss threshold is mandatory")
+                .diagnostic
+                .code,
+            "SNAPBACK_PROMOTION_RESERVATION_NOT_ELIGIBLE"
+        );
+        for _ in 0..PRODUCTION_PROMOTION_CONTENTION_POLICY_V1.reservation_after_losses {
+            note_ticket_loss(&canonical, &first).expect("record first loss");
+            note_ticket_loss(&canonical, &second).expect("record second loss");
+        }
+        let until = request_head_reservation(&canonical, &first, 3_000)
+            .expect("eligible FIFO head reserves once");
+        assert_eq!(until, 4_000);
+        assert_eq!(
+            canonical_mutation_admission(&canonical, "canonical", 3_001).expect("writer admission"),
+            CanonicalAdmissionV1::DeferredByPromotionReservation { until_ms: 4_000 }
+        );
+        assert_eq!(
+            request_head_reservation(&canonical, &second, 3_001)
+                .expect_err("only the live FIFO head may reserve")
+                .diagnostic
+                .code,
+            "SNAPBACK_PROMOTION_NOT_FIFO_HEAD"
+        );
+        assert_eq!(
+            request_head_reservation(&canonical, &first, 3_001)
+                .expect("the exact head retry observes its durable interval"),
+            4_000
+        );
+        assert_eq!(
+            canonical_mutation_admission(&canonical, "canonical", 4_000)
+                .expect("expired reservation releases ordinary writer"),
+            CanonicalAdmissionV1::Admit
+        );
+    }
+
+    #[test]
+    fn concurrent_reservation_is_fifo_singleton_and_survives_writer_process_death() {
+        let directory = tempfile::tempdir().expect("tempdir");
+        let canonical_path = directory.path().join("canonical.sqlite3");
+        let mut canonical = file_source(&canonical_path, 1);
+        let first = issue_promotion_ticket(
+            &mut canonical,
+            host_identity("canonical", "concurrent-reservation-first", "app-1"),
+            &BranchId("concurrent-reservation-first".to_owned()),
+            "canonical",
+            2,
+            60_000,
+            2_000,
+            PromotionContentionPolicyV1::default(),
+        )
+        .expect("first ticket");
+        let second = issue_promotion_ticket(
+            &mut canonical,
+            host_identity("canonical", "concurrent-reservation-second", "app-1"),
+            &BranchId("concurrent-reservation-second".to_owned()),
+            "canonical",
+            2,
+            60_000,
+            2_000,
+            PromotionContentionPolicyV1::default(),
+        )
+        .expect("second ticket");
+        for _ in 0..PRODUCTION_PROMOTION_CONTENTION_POLICY_V1.reservation_after_losses {
+            note_ticket_loss(&canonical, &first).expect("record first loss");
+            note_ticket_loss(&canonical, &second).expect("record second loss");
+        }
+        drop(canonical);
+
+        let gate = std::sync::Arc::new(std::sync::Barrier::new(3));
+        let first_thread = {
+            let gate = gate.clone();
+            let path = canonical_path.clone();
+            let ticket = first.clone();
+            std::thread::spawn(move || {
+                let conn = Connection::open(path).expect("first connection");
+                conn.busy_timeout(std::time::Duration::from_secs(2))
+                    .expect("first busy timeout");
+                gate.wait();
+                request_head_reservation(&conn, &ticket, 3_000)
+            })
+        };
+        let second_thread = {
+            let gate = gate.clone();
+            let path = canonical_path.clone();
+            let ticket = second.clone();
+            std::thread::spawn(move || {
+                let conn = Connection::open(path).expect("second connection");
+                conn.busy_timeout(std::time::Duration::from_secs(2))
+                    .expect("second busy timeout");
+                gate.wait();
+                request_head_reservation(&conn, &ticket, 3_000)
+            })
+        };
+        gate.wait();
+        let first_result = first_thread.join().expect("first thread");
+        let second_result = second_thread.join().expect("second thread");
+        assert_eq!(first_result.expect("FIFO head reserves"), 4_000);
+        assert_eq!(
+            second_result
+                .expect_err("concurrent non-head never consumes the singleton quota")
+                .diagnostic
+                .code,
+            "SNAPBACK_PROMOTION_NOT_FIFO_HEAD"
+        );
+
+        // Both reservation callers are gone here. Reopening a third connection
+        // models host-process death without weakening the durable writer gate.
+        let reopened = Connection::open(&canonical_path).expect("reopen after process death");
+        assert_eq!(
+            canonical_mutation_admission(&reopened, "canonical", 3_001)
+                .expect("durable admission after reopen"),
+            CanonicalAdmissionV1::DeferredByPromotionReservation { until_ms: 4_000 }
+        );
+        assert_eq!(
+            reopened
+                .query_row(
+                    "SELECT COUNT(*) FROM _snapback_promotion_admission
+                      WHERE canonical_stream_id='canonical' AND reserved_until_ms > 3001",
+                    [],
+                    |row| row.get::<_, i64>(0),
+                )
+                .expect("singleton reservation count"),
+            1
+        );
+        assert_eq!(
+            canonical_mutation_admission(&reopened, "canonical", 4_000)
+                .expect("bounded interval expires after reopen"),
+            CanonicalAdmissionV1::Admit
+        );
+    }
+
+    #[test]
+    fn concurrent_ticket_issuance_serializes_into_one_durable_fifo() {
+        const FORKS: usize = 4;
+        let directory = tempfile::tempdir().expect("tempdir");
+        let canonical_path = directory.path().join("canonical.sqlite3");
+        let canonical = file_source(&canonical_path, 1);
+        ensure_promotion_tables(&canonical).expect("promotion tables before concurrent issue");
+        drop(canonical);
+
+        let gate = std::sync::Arc::new(std::sync::Barrier::new(FORKS + 1));
+        let threads = (0..FORKS)
+            .map(|index| {
+                let gate = gate.clone();
+                let path = canonical_path.clone();
+                std::thread::spawn(move || {
+                    let mut conn = Connection::open(path).expect("ticket issuer connection");
+                    conn.busy_timeout(std::time::Duration::from_secs(5))
+                        .expect("ticket issuer busy timeout");
+                    let identity =
+                        host_identity("canonical", &format!("concurrent-ticket-{index}"), "app-1");
+                    let branch_id = BranchId(format!("concurrent-branch-{index}"));
+                    gate.wait();
+                    issue_promotion_ticket(
+                        &mut conn,
+                        identity,
+                        &branch_id,
+                        "canonical",
+                        FORKS as u64,
+                        60_000,
+                        2_000,
+                        PromotionContentionPolicyV1::default(),
+                    )
+                })
+            })
+            .collect::<Vec<_>>();
+        gate.wait();
+        let mut tickets = threads
+            .into_iter()
+            .map(|thread| {
+                thread
+                    .join()
+                    .expect("ticket issuer")
+                    .expect("durable ticket")
+            })
+            .collect::<Vec<_>>();
+        tickets.sort_by_key(|ticket| ticket.fifo_sequence);
+        assert_eq!(
+            tickets
+                .iter()
+                .map(|ticket| ticket.fifo_sequence)
+                .collect::<Vec<_>>(),
+            vec![1, 2, 3, 4]
+        );
+        assert!(tickets.iter().all(|ticket| {
+            ticket.initial_queue_position == ticket.fifo_sequence
+                && ticket.observed_concurrent_forks == FORKS as u64
+                && ticket.rebase_budget >= FORKS as u64
+        }));
+
+        let reopened = Connection::open(&canonical_path).expect("reopen issued FIFO");
+        assert_eq!(
+            reopened
+                .query_row(
+                    "SELECT COUNT(*) FROM _snapback_promotion_admission
+                      WHERE canonical_stream_id='canonical' AND state='queued'",
+                    [],
+                    |row| row.get::<_, i64>(0),
+                )
+                .expect("durable queue count"),
+            FORKS as i64
+        );
+        assert_eq!(
+            active_fifo_ticket(&reopened, "canonical", 2_001).expect("FIFO head"),
+            Some(tickets[0].ticket_identity.key.operation_id.clone())
+        );
+    }
+
+    #[test]
+    fn expired_reservation_needs_fresh_losses_before_the_ticket_can_defer_again() {
+        let mut canonical = source(1);
+        let ticket = issue_promotion_ticket(
+            &mut canonical,
+            host_identity("canonical", "reservation-loss-floor", "app-1"),
+            &BranchId("reservation-loss-floor".to_owned()),
+            "canonical",
+            1,
+            60_000,
+            2_000,
+            PromotionContentionPolicyV1::default(),
+        )
+        .expect("ticket");
+        for _ in 0..PRODUCTION_PROMOTION_CONTENTION_POLICY_V1.reservation_after_losses {
+            note_ticket_loss(&canonical, &ticket).expect("first loss group");
+        }
+        assert_eq!(
+            request_head_reservation(&canonical, &ticket, 3_000).expect("first reservation"),
+            4_000
+        );
+        assert_eq!(
+            request_head_reservation(&canonical, &ticket, 4_000)
+                .expect_err("expiry alone cannot mint another deferral")
+                .diagnostic
+                .code,
+            "SNAPBACK_PROMOTION_RESERVATION_NOT_ELIGIBLE"
+        );
+        for _ in 0..PRODUCTION_PROMOTION_CONTENTION_POLICY_V1.reservation_after_losses {
+            note_ticket_loss(&canonical, &ticket).expect("fresh loss group");
+        }
+        assert_eq!(
+            request_head_reservation(&canonical, &ticket, 4_000)
+                .expect("fresh losses restore bounded eligibility"),
+            5_000
+        );
+    }
+
+    #[test]
+    fn promotion_crash_reopen_matrix_retains_admission_then_replays_committed_release() {
+        let directory = tempfile::tempdir().expect("tempdir");
+        let canonical_path = directory.path().join("canonical.sqlite3");
+        let mut canonical = file_source(&canonical_path, 5);
+        let create = create_request("crash-matrix", "crash-matrix-child", 5, 1_000);
+        create_in_app_branch(&mut canonical, &create).expect("branch");
+        let mut workspace = MaterializedBase::materialize(&canonical, None).expect("workspace");
+        execute_branch_operation(
+            &mut workspace.conn,
+            &create.branch_id,
+            &draft("crash-matrix-child", "crash-matrix-operation"),
+            1_001,
+            |tx, _| {
+                tx.execute(
+                    "UPDATE widgets SET name='CRASHED-THEN-COMMITTED' WHERE id=1",
+                    [],
+                )?;
+                Ok(facts("CRASHED-THEN-COMMITTED"))
+            },
+        )
+        .expect("branch operation");
+        let diff = exact_fork_diff(&workspace, &create.branch_id, scan_widgets).expect("diff");
+        let key = PromotionSealKey::from_server_secret([19_u8; 32]).expect("key");
+        let ticket_identity = host_identity("canonical", "crash-matrix-ticket", "app-1");
+        let ticket = issue_promotion_ticket(
+            &mut canonical,
+            ticket_identity.clone(),
+            &diff.branch_id,
+            "canonical",
+            1,
+            60_000,
+            2_000,
+            PromotionContentionPolicyV1::default(),
+        )
+        .expect("ticket");
+        let request = seal_promotion_request(
+            &workspace,
+            &diff,
+            PromotionApprovalV1 {
+                approver_principal_id: "agent-1".to_owned(),
+                approver_grant_id: "grant-1".to_owned(),
+                authority_fingerprint: sha('d'),
+                approved_at_ms: 2_001,
+                expires_at_ms: 50_000,
+            },
+            ticket.clone(),
+            ticket_identity,
+            &sha('f'),
+            &key,
+            2_001,
+        )
+        .expect("seal");
+        for _ in 0..PRODUCTION_PROMOTION_CONTENTION_POLICY_V1.reservation_after_losses {
+            note_ticket_loss(&canonical, &ticket).expect("eligible loss");
+        }
+        assert_eq!(
+            request_head_reservation(&canonical, &ticket, 3_000).expect("reservation cut"),
+            4_000
+        );
+        drop(canonical);
+
+        let mut admitted = Connection::open(&canonical_path).expect("reopen reservation cut");
+        admitted
+            .busy_timeout(std::time::Duration::from_secs(5))
+            .expect("busy timeout");
+        assert_eq!(
+            canonical_mutation_admission(&admitted, "canonical", 3_001)
+                .expect("durable reservation"),
+            CanonicalAdmissionV1::DeferredByPromotionReservation { until_ms: 4_000 }
+        );
+        let crashed = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let _ = promote_by_reexecution(
+                &mut admitted,
+                &workspace,
+                &diff,
+                &request,
+                &key,
+                &PromotionAuthorityDecisionV1::Revalidated {
+                    grant_id: "grant-1".to_owned(),
+                    authority_fingerprint: sha('d'),
+                },
+                3_001,
+                &sha('f'),
+                |_, _| panic!("simulated process death after promotion admission"),
+            );
+        }));
+        assert!(crashed.is_err());
+        drop(admitted);
+
+        let mut reopened = Connection::open(&canonical_path).expect("reopen admission cut");
+        assert_eq!(
+            crate::storage::current_version_on(&reopened).expect("head after admission crash"),
+            5
+        );
+        assert_eq!(
+            reopened
+                .query_row(
+                    "SELECT state FROM _snapback_promotion_admission WHERE ticket_id=?1",
+                    params![request.aggregate_identity.key.operation_id],
+                    |row| row.get::<_, String>(0),
+                )
+                .expect("queued ticket after admission crash"),
+            "queued"
+        );
+        let committed = promote_by_reexecution(
+            &mut reopened,
+            &workspace,
+            &diff,
+            &request,
+            &key,
+            &PromotionAuthorityDecisionV1::Revalidated {
+                grant_id: "grant-1".to_owned(),
+                authority_fingerprint: sha('d'),
+            },
+            3_002,
+            &sha('f'),
+            |_, operation| Ok(operation.approved_facts.clone()),
+        )
+        .expect("retry after admission crash commits once");
+        assert_eq!(committed.receipt.canonical_version, 6);
+        drop(reopened);
+
+        // Model process death after SQLite commit but before the response was
+        // observed. The exact request reopens from its atomic receipt and the
+        // completed queue row releases ordinary writers in the same commit.
+        let mut released = Connection::open(&canonical_path).expect("reopen commit cut");
+        let retry = promote_by_reexecution(
+            &mut released,
+            &workspace,
+            &diff,
+            &request,
+            &key,
+            &PromotionAuthorityDecisionV1::Denied,
+            3_003,
+            &sha('f'),
+            |_, _| panic!("committed retry must not reexecute"),
+        )
+        .expect("committed receipt retry");
+        assert_eq!(retry, committed);
+        assert_eq!(
+            canonical_mutation_admission(&released, "canonical", 3_003)
+                .expect("completed promotion releases writer admission"),
+            CanonicalAdmissionV1::Admit
+        );
+        assert_eq!(
+            released
+                .query_row(
+                    "SELECT state FROM _snapback_promotion_admission WHERE ticket_id=?1",
+                    params![request.aggregate_identity.key.operation_id],
+                    |row| row.get::<_, String>(0),
+                )
+                .expect("completed queue state"),
+            "completed"
+        );
+    }
+
+    #[test]
+    fn reservation_expiry_mid_attempt_rolls_back_and_retains_the_fifo_ticket() {
+        let (mut canonical, workspace, diff) = branch_with_rename();
+        let key = PromotionSealKey::from_server_secret([20_u8; 32]).expect("key");
+        let ticket_identity = host_identity("canonical", "reservation-expiry", "app-1");
+        let ticket = issue_promotion_ticket(
+            &mut canonical,
+            ticket_identity.clone(),
+            &diff.branch_id,
+            "canonical",
+            1,
+            60_000,
+            2_000,
+            PromotionContentionPolicyV1::default(),
+        )
+        .expect("ticket");
+        let request = seal_promotion_request(
+            &workspace,
+            &diff,
+            PromotionApprovalV1 {
+                approver_principal_id: "agent-1".to_owned(),
+                approver_grant_id: "grant-1".to_owned(),
+                authority_fingerprint: sha('d'),
+                approved_at_ms: 2_001,
+                expires_at_ms: 50_000,
+            },
+            ticket.clone(),
+            ticket_identity,
+            &sha('f'),
+            &key,
+            2_001,
+        )
+        .expect("seal");
+        for _ in 0..PRODUCTION_PROMOTION_CONTENTION_POLICY_V1.reservation_after_losses {
+            note_ticket_loss(&canonical, &ticket).expect("eligible loss");
+        }
+        assert_eq!(
+            request_head_reservation(&canonical, &ticket, 3_000).expect("reservation"),
+            4_000
+        );
+        let before = scan_widgets(&canonical).expect("before");
+        assert_eq!(
+            promote_by_reexecution(
+                &mut canonical,
+                &workspace,
+                &diff,
+                &request,
+                &key,
+                &PromotionAuthorityDecisionV1::Revalidated {
+                    grant_id: "grant-1".to_owned(),
+                    authority_fingerprint: sha('d'),
+                },
+                3_999,
+                &sha('f'),
+                |_, operation| {
+                    std::thread::sleep(std::time::Duration::from_millis(5));
+                    Ok(operation.approved_facts.clone())
+                },
+            )
+            .expect_err("reservation expires before commit")
+            .diagnostic
+            .code,
+            "SNAPBACK_PROMOTION_RESERVATION_EXPIRED"
+        );
+        assert_eq!(scan_widgets(&canonical).expect("after rollback"), before);
+        assert_eq!(
+            crate::storage::current_version_on(&canonical).expect("head after rollback"),
+            5
+        );
+        assert_eq!(
+            promotion_admission_state(&canonical, &ticket)
+                .expect("retained queued ticket")
+                .losses,
+            2
+        );
+    }
+
+    fn assert_concurrent_reviewed_forks_make_bounded_fifo_progress(forks: usize) {
+        let directory = tempfile::tempdir().expect("tempdir");
+        let canonical_path = directory.path().join("canonical.sqlite3");
+        let mut canonical = file_source(&canonical_path, 5);
+        let key = PromotionSealKey::from_server_secret([21_u8; 32]).expect("key");
+        let mut pending = (0..forks)
+            .map(|index| make_fair_candidate(&mut canonical, &key, index, forks as u64, 1_000))
+            .collect::<Vec<_>>();
+        assert!(pending.windows(2).all(|pair| {
+            pair[0].request.admission_ticket.fifo_sequence
+                < pair[1].request.admission_ticket.fifo_sequence
+        }));
+        assert!(pending.iter().all(|candidate| {
+            candidate.request.approval.approved_at_ms > 0
+                && candidate.request.admission_ticket.rebase_budget >= forks as u64
+        }));
+        drop(canonical);
+
+        let mut completed_fifo = Vec::new();
+        let mut rebase_ordinal = 0;
+        let mut cycle = 0;
+        while !pending.is_empty() {
+            let expected_head_fifo = pending[0].request.admission_ticket.fifo_sequence;
+            if cycle > 0 {
+                let mut conn = Connection::open(&canonical_path).expect("loss-loop connection");
+                let ticket = pending[0].request.admission_ticket.clone();
+                loop {
+                    let state = promotion_admission_state(&conn, &ticket).expect("loss state");
+                    if state.losses >= ticket.contention_policy.reservation_after_losses {
+                        break;
+                    }
+                    let candidate = pending.remove(0);
+                    rebase_ordinal += 1;
+                    let candidate = rebase_fair_candidate(
+                        &mut conn,
+                        &key,
+                        candidate,
+                        rebase_ordinal,
+                        4_000 + rebase_ordinal as i64 * 10,
+                    );
+                    ordinary_canonical_write(
+                        &canonical_path,
+                        20_000 + rebase_ordinal as i64,
+                        4_005 + rebase_ordinal as i64 * 10,
+                    )
+                    .expect("ordinary writer wins one declared loss cycle");
+                    let refusal = promote_by_reexecution(
+                        &mut conn,
+                        &candidate.workspace,
+                        &candidate.diff,
+                        &candidate.request,
+                        &key,
+                        &PromotionAuthorityDecisionV1::Revalidated {
+                            grant_id: "grant-1".to_owned(),
+                            authority_fingerprint: sha('d'),
+                        },
+                        4_006 + rebase_ordinal as i64 * 10,
+                        &sha('f'),
+                        |_, _| panic!("advanced-head loss refuses before replay"),
+                    )
+                    .expect_err("ordinary head advance is one deterministic loss");
+                    assert_eq!(refusal.diagnostic.code, "SNAPBACK_PROMOTION_BASE_ADVANCED");
+                    pending.insert(0, candidate);
+                }
+                let candidate = pending.remove(0);
+                rebase_ordinal += 1;
+                let candidate = rebase_fair_candidate(
+                    &mut conn,
+                    &key,
+                    candidate,
+                    rebase_ordinal,
+                    5_000 + rebase_ordinal as i64 * 10,
+                );
+                pending.insert(0, candidate);
+            }
+
+            let (next_pending, committed, refusals) = concurrent_fairness_cycle(
+                &canonical_path,
+                &key,
+                pending,
+                cycle,
+                6_000 + cycle as i64 * 100,
+            );
+            assert_eq!(
+                committed.len(),
+                1,
+                "one and only one reviewed fork commits in each admission cycle"
+            );
+            assert_eq!(
+                committed[0].receipt.aggregate_identity.key.operation_id,
+                committed[0].aggregate_envelope.identity.key.operation_id
+            );
+            assert!(refusals.iter().all(|code| {
+                code == "SNAPBACK_PROMOTION_NOT_FIFO_HEAD"
+                    || code == "SNAPBACK_PROMOTION_BASE_ADVANCED"
+            }));
+            completed_fifo.push(expected_head_fifo);
+
+            let reopened = Connection::open(&canonical_path).expect("cycle reopen");
+            let (state, reservation_loss_floor): (String, i64) = reopened
+                .query_row(
+                    "SELECT state,reservation_loss_floor
+                       FROM _snapback_promotion_admission WHERE fifo_sequence=?1",
+                    params![expected_head_fifo as i64],
+                    |row| Ok((row.get(0)?, row.get(1)?)),
+                )
+                .expect("completed cycle admission row");
+            assert_eq!(state, "completed");
+            if cycle > 0 {
+                assert!(
+                    reservation_loss_floor >= 2,
+                    "the FIFO head automatically consumed its bounded reservation after R losses"
+                );
+            }
+            pending = next_pending;
+            cycle += 1;
+            assert!(
+                cycle <= forks,
+                "all-k progress is bounded by k success cycles"
+            );
+        }
+        assert_eq!(completed_fifo, (1..=forks as u64).collect::<Vec<_>>());
+        let reopened = Connection::open(&canonical_path).expect("final reopen");
+        assert_eq!(
+            reopened
+                .query_row(
+                    "SELECT COUNT(*) FROM _snapback_promotion_admission WHERE state='completed'",
+                    [],
+                    |row| row.get::<_, i64>(0),
+                )
+                .expect("completed queue"),
+            forks as i64
+        );
+        assert_eq!(
+            canonical_mutation_admission(&reopened, "canonical", 99_999)
+                .expect("all completed tickets release ordinary writers"),
+            CanonicalAdmissionV1::Admit
+        );
+    }
+
+    #[test]
+    fn concurrent_reviewed_forks_make_bounded_fifo_progress_with_ordinary_writers() {
+        for forks in 2..=4 {
+            assert_concurrent_reviewed_forks_make_bounded_fifo_progress(forks);
+        }
+    }
+
+    #[test]
+    fn expired_tickets_do_not_block_fifo_service_or_inflate_new_queue_position() {
+        let mut canonical = source(1);
+        let first = issue_promotion_ticket(
+            &mut canonical,
+            host_identity("canonical", "expired-fifo-first", "app-1"),
+            &BranchId("expired-fifo-first".to_owned()),
+            "canonical",
+            2,
+            3_000,
+            2_000,
+            PromotionContentionPolicyV1::default(),
+        )
+        .expect("short-lived head");
+        let second = issue_promotion_ticket(
+            &mut canonical,
+            host_identity("canonical", "live-fifo-second", "app-1"),
+            &BranchId("live-fifo-second".to_owned()),
+            "canonical",
+            2,
+            20_000,
+            2_000,
+            PromotionContentionPolicyV1::default(),
+        )
+        .expect("live second ticket");
+        for _ in 0..PRODUCTION_PROMOTION_CONTENTION_POLICY_V1.reservation_after_losses {
+            note_ticket_loss(&canonical, &first).expect("record first loss");
+            note_ticket_loss(&canonical, &second).expect("record second loss");
+        }
+        assert_eq!(
+            request_head_reservation(&canonical, &first, 2_750)
+                .expect("near-expiry head receives only its remaining lifetime"),
+            3_000
+        );
+        assert_eq!(
+            canonical_mutation_admission(&canonical, "canonical", 2_999)
+                .expect("reservation remains live before ticket expiry"),
+            CanonicalAdmissionV1::DeferredByPromotionReservation { until_ms: 3_000 }
+        );
+        assert_eq!(
+            canonical_mutation_admission(&canonical, "canonical", 3_000)
+                .expect("reservation authority ends exactly with the ticket"),
+            CanonicalAdmissionV1::Admit
+        );
+        assert_eq!(
+            request_head_reservation(&canonical, &first, 3_000)
+                .expect_err("expired ticket has no reservation authority")
+                .diagnostic
+                .code,
+            "SNAPBACK_PROMOTION_TICKET_EXPIRED"
+        );
+        assert_eq!(
+            request_head_reservation(&canonical, &second, 3_000)
+                .expect("next live ticket becomes FIFO head"),
+            4_000
+        );
+
+        let third = issue_promotion_ticket(
+            &mut canonical,
+            host_identity("canonical", "live-fifo-third", "app-1"),
+            &BranchId("live-fifo-third".to_owned()),
+            "canonical",
+            2,
+            20_000,
+            3_001,
+            PromotionContentionPolicyV1::default(),
+        )
+        .expect("new ticket ignores expired queue entries");
+        assert_eq!(third.initial_queue_position, 2);
+    }
+
+    #[test]
     fn rebase_reexecutes_into_fresh_branch_and_reseals_only_equal_facts() {
         let (mut canonical, workspace, diff) = branch_with_rename();
         let key = PromotionSealKey::from_server_secret([10_u8; 32]).expect("key");
@@ -4159,6 +9039,59 @@ mod tests {
         canonical
             .execute("UPDATE _snapback_version SET version=6 WHERE id=1", [])
             .expect("advance unrelated head");
+
+        for divergent_fact in ["read", "result"] {
+            let branch_id = format!("branch-rebased-{divergent_fact}-divergent");
+            let child_stream = format!("child-rebased-{divergent_fact}-divergent");
+            let divergent_create = create_request(&branch_id, &child_stream, 6, 2_500);
+            let (divergent_workspace, divergent_replay) = rebase_by_replay(
+                &mut canonical,
+                &workspace,
+                &diff.branch_id,
+                &divergent_create,
+                2_501,
+                |tx, operation| {
+                    let id = operation.canonical_arguments["id"].as_i64().expect("id");
+                    let name = operation.canonical_arguments["name"]
+                        .as_str()
+                        .expect("name");
+                    tx.execute("UPDATE widgets SET name=?2 WHERE id=?1", params![id, name])?;
+                    let mut replayed = facts(name);
+                    match divergent_fact {
+                        "read" => replayed.read_facts = json!({ "widgets/1": "changed-read" }),
+                        "result" => replayed.result = json!({ "ok": true, "changed": true }),
+                        _ => unreachable!(),
+                    }
+                    Ok(replayed)
+                },
+            )
+            .expect("divergent rebase executes identical write");
+            assert!(!divergent_replay.meaning_preserved);
+            assert_eq!(divergent_replay.divergent_operation_ids.len(), 1);
+            let divergent_diff = exact_fork_diff(
+                &divergent_workspace,
+                &divergent_create.branch_id,
+                scan_widgets,
+            )
+            .expect("divergent diff");
+            assert_eq!(
+                reseal_after_rebase(
+                    &prior,
+                    &divergent_workspace,
+                    &divergent_diff,
+                    "promotion-engine-1",
+                    &sha('f'),
+                    &key,
+                    2_502,
+                )
+                .expect_err("identical writes cannot mask divergent approved facts")
+                .diagnostic
+                .code,
+                "SNAPBACK_PROMOTION_REBASE_DIVERGED",
+                "{divergent_fact} divergence"
+            );
+        }
+
         let rebased_create = create_request("branch-rebased", "child-rebased", 6, 3_000);
         let (rebased, replay) = rebase_by_replay(
             &mut canonical,
@@ -4207,6 +9140,74 @@ mod tests {
         assert_eq!(resealed.aggregate_identity, prior.aggregate_identity);
         assert_eq!(resealed.approval, prior.approval);
         assert!(resealed.rebase_attestation.is_some());
+    }
+
+    #[test]
+    fn exhausted_rebase_budget_refuses_before_canonical_mutation() {
+        let (mut canonical, workspace, diff) = branch_with_rename();
+        let key = PromotionSealKey::from_server_secret([11_u8; 32]).expect("key");
+        let ticket_identity = host_identity("canonical", "ticket-exhausted", "app-1");
+        let ticket = issue_promotion_ticket(
+            &mut canonical,
+            ticket_identity.clone(),
+            &diff.branch_id,
+            "canonical",
+            1,
+            80_000,
+            2_000,
+            PromotionContentionPolicyV1::default(),
+        )
+        .expect("ticket");
+        let request = seal_promotion_request(
+            &workspace,
+            &diff,
+            PromotionApprovalV1 {
+                approver_principal_id: "agent-1".to_owned(),
+                approver_grant_id: "grant-1".to_owned(),
+                authority_fingerprint: sha('d'),
+                approved_at_ms: 2_001,
+                expires_at_ms: 70_000,
+            },
+            ticket.clone(),
+            ticket_identity,
+            &sha('f'),
+            &key,
+            2_001,
+        )
+        .expect("seal");
+        for _ in 0..ticket.rebase_budget {
+            note_ticket_loss(&canonical, &ticket).expect("record bounded loss");
+        }
+        let before = scan_widgets(&canonical).expect("canonical before refusal");
+        let before_version = crate::storage::current_version_on(&canonical).expect("version");
+        assert_eq!(
+            promote_by_reexecution(
+                &mut canonical,
+                &workspace,
+                &diff,
+                &request,
+                &key,
+                &PromotionAuthorityDecisionV1::Revalidated {
+                    grant_id: "grant-1".to_owned(),
+                    authority_fingerprint: sha('d'),
+                },
+                2_002,
+                &sha('f'),
+                |_, _| unreachable!(),
+            )
+            .expect_err("exhausted budget refuses")
+            .diagnostic
+            .code,
+            "SNAPBACK_PROMOTION_CONTENTION_EXHAUSTED"
+        );
+        assert_eq!(
+            scan_widgets(&canonical).expect("canonical after refusal"),
+            before
+        );
+        assert_eq!(
+            crate::storage::current_version_on(&canonical).expect("version"),
+            before_version
+        );
     }
 
     #[test]
@@ -4261,6 +9262,34 @@ mod tests {
             scan_widgets(&workspace.conn).expect("rows")[0].row["name"],
             "one"
         );
+
+        let mut byte_canonical = source(1);
+        let mut byte_limited = create_request("byte-bounded", "byte-bounded-child", 1, 100);
+        byte_limited.limits.max_retained_bytes = 1;
+        create_in_app_branch(&mut byte_canonical, &byte_limited).expect("byte-limited branch");
+        let mut byte_workspace =
+            MaterializedBase::materialize(&byte_canonical, None).expect("byte workspace");
+        let error = execute_branch_operation(
+            &mut byte_workspace.conn,
+            &byte_limited.branch_id,
+            &draft("byte-bounded-child", "byte-bounded-operation"),
+            101,
+            |tx, _| {
+                tx.execute("UPDATE widgets SET name='must-rollback' WHERE id=1", [])?;
+                Ok(facts("must-rollback"))
+            },
+        )
+        .expect_err("retained-byte limit refuses the operation and its writes");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_BRANCH_BYTE_LIMIT_EXCEEDED");
+        assert_eq!(
+            scan_widgets(&byte_workspace.conn).expect("rolled-back rows")[0].row["name"],
+            "alpha"
+        );
+        assert!(
+            branch_operation_log(&byte_workspace.conn, &byte_limited.branch_id)
+                .expect("no retained operation")
+                .is_empty()
+        );
     }
 
     #[test]
@@ -4305,19 +9334,20 @@ mod tests {
         let legacy = include_str!("branches.rs");
         assert!(legacy.contains("#[cfg(any())]\npub fn promote<F>("));
         let replacement = include_str!("fork_promotion.rs");
-        assert!(replacement.contains("pub fn promote_by_reexecution<F>("));
+        assert!(replacement.contains("pub fn promote_by_reexecution"));
         let product_source = replacement
-            .split("#[cfg(test)]")
+            .split("\n#[cfg(test)]\nmod tests {")
             .next()
             .expect("product source");
         assert!(!product_source.contains("apply_write"));
-        let promotion_surface = product_source
-            .split("pub fn promote_by_reexecution<F>(")
-            .nth(1)
-            .expect("promotion implementation")
-            .split("pub enum CanonicalAdmissionV1")
-            .next()
+        let implementation_start = product_source
+            .find("pub fn promote_by_reexecution")
+            .expect("promotion implementation");
+        let implementation_end = product_source[implementation_start..]
+            .find("pub enum CanonicalAdmissionV1")
+            .map(|offset| implementation_start + offset)
             .expect("promotion implementation boundary");
+        let promotion_surface = &product_source[implementation_start..implementation_end];
         assert!(promotion_surface.contains("PromotionReplayContextV1"));
         assert!(!promotion_surface.contains("scan_boundary"));
         assert!(!promotion_surface.contains("FnMut(&Transaction"));

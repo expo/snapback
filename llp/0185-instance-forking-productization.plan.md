@@ -7,7 +7,7 @@ experience, Developer experience, CLI, MCP, Documentation, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-05
 **Revised:** 2026-08-05 (Phase 0 items 2/6 closed by author ruling: LLP
-0158 is in Review and its acceptance loop is running; the Phase 6
+0158's local design is Accepted after its independent review; the Phase 6
 publication mechanism is the LLP 0061 guide capability-index claim, so
 Phase 6 item 1's gate set binds to the capability-index row rather than an
 LLP 0113 manifest, and LLP 0134's registration act is not required for the
@@ -26,7 +26,10 @@ authorizer-backed completeness upgrade. Phase 6 waits on its item-0
 governance gate (LLP 0158/0163/0164/0165 acceptance, LLP 0162 rows incl.
 row 13, independent review); Phase 7 waits on Phase 6; Phase 8 stays
 demand-gated. OQ1 and OQ3 remain open pending Phase 2b fleet observation.);
-2026-08-05 (initial draft — turns the remaining LLP 0158 F1/F2
+2026-08-05 (LLP 0158 status reconciliation — its local design is now Accepted,
+so Phase 0 preserves that settled contract rather than instructing a
+Draft-to-Review transition; derived-capability qualification/publication
+remains separate and Missing); 2026-08-05 (initial draft — turns the remaining LLP 0158 F1/F2
 work and the agent-safe-storage acceptance tail into an ordered program without
 reopening the implemented F0a/F0b safety and local CLI contracts; entered the
 LLP 0010 super-refine loop, Draft → Review; round 1 revision — added LLP 0024
@@ -198,8 +201,9 @@ The Plan begins from the following implemented LLP 0158 F0a/F0b baseline:
 - dated fleet evidence for two simultaneous function-divergent worktrees.
 
 This baseline is source-level implementation evidence, not a published
-capability. LLP 0158 remains Draft and the capability index intentionally has
-target `none`.
+capability. LLP 0158 is Accepted, while the independently qualified derived-
+deployment capability remains wholly `Missing` and the capability index
+therefore intentionally has target `none`.
 
 ## Program
 
@@ -208,12 +212,13 @@ target `none`.
 Before adding ergonomics, make the implemented contract easy to review and
 stable enough for downstream automation.
 
-1. Reconcile LLP 0158 against the current implementation and dated evidence.
-   Preserve the distinction between implemented F0a/F0b and open F1/F2.
-2. Decide, through the vendored LLP 0005 RFC-process path
-   (`vendor/llp/llp/0005-rfc-process.guide.md`) and LLP 0010 §2, whether LLP
-   0158 should move from Draft to Review. This Plan does not make that
-   transition itself.
+1. Preserve LLP 0158's accepted local contract against the current
+   implementation and dated evidence, keeping implemented F0a/F0b distinct
+   from open F1/F2 productization work.
+2. Route any material change to that accepted contract through the vendored
+   LLP 0005 RFC-process path (`vendor/llp/llp/0005-rfc-process.guide.md`) and
+   LLP 0010 §2. This Plan sequences downstream work; it does not reopen or
+   silently widen LLP 0158.
 3. Inventory and version the automation-facing artifacts:
    - CLI JSON envelopes (the fork-specific fields carried inside LLP 0024's
      envelope, not the envelope contract itself);

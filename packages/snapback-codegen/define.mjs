@@ -1061,6 +1061,30 @@ class TableBuilder {
     return this;
   }
 
+  /** Declare finite retained record history for this table. The declaration
+   * is projected into storage atomically with schema publication; there is no
+   * unbounded v1 spelling.
+   * @ref LLP 0162#6-bounded-history-and-named-checkpoints */
+  history(spec) {
+    assert(this.historyDeclaration === undefined, 'history() may be declared only once per table');
+    exactObject(spec, 'history()', new Set(['retainMs', 'maxVersionsPerRecord']));
+    assert(
+      Number.isSafeInteger(spec.retainMs) && spec.retainMs >= 1 && spec.retainMs <= 2_592_000_000,
+      'history() retainMs must be an integer in 1..2592000000',
+    );
+    assert(
+      Number.isSafeInteger(spec.maxVersionsPerRecord)
+        && spec.maxVersionsPerRecord >= 1
+        && spec.maxVersionsPerRecord <= 1_000,
+      'history() maxVersionsPerRecord must be an integer in 1..1000',
+    );
+    this.historyDeclaration = {
+      retainMs: spec.retainMs,
+      maxVersionsPerRecord: spec.maxVersionsPerRecord,
+    };
+    return this;
+  }
+
   /** Declare that this table contains authorization-granting facts. An
    * optional field list narrows only known updates; insert/delete and unknown
    * changed-field sets remain conservative.

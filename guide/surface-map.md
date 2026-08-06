@@ -76,9 +76,12 @@ here (or listed here but gone from the code).
 | /_snapback/api/jobs | backend.jobs-one-off |
 | /_snapback/api/jobs/drain | backend.jobs-one-off |
 | /_snapback/api/jobs/{id} | backend.jobs-one-off |
+| /_snapback/api/operations/explain | notAuthorFacing (unpublished LLP 0163 acceptance substrate) |
 | /_snapback/api/push/maintenance | backend.expo-push-seam |
 | /_snapback/api/receipts | notAuthorFacing (operator projection) |
 | /_snapback/api/schema/load | backend.schema |
+| /_snapback/api/storage/operation-coverage/activate | notAuthorFacing (unpublished LLP 0163 coverage-publication substrate) |
+| /_snapback/api/storage/protected-erasure | notAuthorFacing (unpublished LLP 0165 protected-erasure acceptance substrate) |
 | /_snapback/api/telemetry/events | backend.observability-v1 |
 | /_snapback/api/telemetry/export | backend.observability-v1 |
 | /_snapback/api/telemetry/stats | backend.observability-v1 |
@@ -119,6 +122,7 @@ here (or listed here but gone from the code).
 | /auth/session | auth.sessions |
 | /auth/step-up/request | auth.sessions |
 | /client-mutations/acknowledge | sync.offline |
+| /client-mutations/identity-range | sync.offline |
 | /connection/open | realtime.durable-push |
 | /ephemeral/collections/ensure | realtime.ephemeral |
 | /ephemeral/delete | realtime.ephemeral |
@@ -133,6 +137,7 @@ here (or listed here but gone from the code).
 | /live/{name}/subscribe | realtime.live-queries |
 | /live/{name}/unsubscribe | realtime.live-queries |
 | /mutation/{name} | backend.functions |
+| /operations/explain | notAuthorFacing (unpublished LLP 0163 acceptance substrate) |
 | /outbox/{connection_id} | sync.offline |
 | /query/{name} | backend.functions |
 | /query/{name}/authorized-lease | auth.authorized-leases |

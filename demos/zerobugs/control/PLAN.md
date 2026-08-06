@@ -19,8 +19,8 @@ all remain in scope.
 The current state provides the plan, ten source tables plus support schema,
 deterministic normal/policy fixture compiler, bounded authenticated loader,
 five-actor local identity binding, principal-derived role/ownership helpers,
-all 19 frozen typed live-query names, generated list/detail route-group
-identities, independent query-oracle tests, generated-artifact inputs, and a
+all 19 frozen typed live-query names, independent query-oracle tests,
+generated-artifact inputs, and a
 minimal React boot. It does **not** claim the 16-mutator product corpus,
 composition gateway, pinned UI, or ZB gate lanes are implemented. Lane 3's
 fresh-server parity gate remains awaiting an outside-sandbox run. This control
@@ -72,7 +72,7 @@ explicitly authorizes evidence emission to `demos/zerobugs/evidence/`.
 
 | Area | Concrete files |
 | --- | --- |
-| Snapback definition | `snapback/schema.mjs`, `snapback/functions.mjs`, `snapback/routes.mjs`; no `snapback/seed.json` for the 3,758-row acceptance fixture |
+| Snapback definition | `snapback/schema.mjs`, `snapback/functions.mjs`; no route manifest after the measured JS-query route-cut refusal, and no `snapback/seed.json` for the 3,758-row acceptance fixture |
 | Fixture compiler | `fixtures/normal-seed-v1/`, `fixtures/policy-extension-v1.json`, `scripts/build-fixture.mts`, `tests/fixtures/fixture-digests.json` |
 | Generated boundary | `snapback/generated/*` (generated and ignored; never hand-edited) |
 | Typed data adapter | `src/data/snapback.ts`, `src/data/types.ts`, `src/data/queries.ts`, `src/data/mutations.ts`, `src/data/completeness.ts` |
@@ -97,9 +97,10 @@ explicitly authorizes evidence emission to `demos/zerobugs/evidence/`.
 4. Define the 19 exact exported query names. Every collect has an admitted
    positive ceiling at or below 1,024; results larger than a page use stable
    `(ordered fields, id)` cursors.
-5. Declare route bundles in `snapback/routes.mjs` for initial list and issue
-   detail cuts. Use generated query-group references and
-   `prepareQueryGroup`; do not issue ad hoc client query ASTs.
+5. Attempt route bundles for initial list and issue detail cuts. If the
+   generated query-group boundary refuses these JS-query argument contracts,
+   record the limitation and keep the typed server handler instead of issuing
+   ad hoc client query ASTs.
 6. Assemble source-shaped graphs in `src/data/queries.ts`. The adapter exposes
    explicit `pending`, `refreshing`, `complete`, `incomplete`, `retained`,
    `current`, `not-found`, and error states. It never presents a truncated
@@ -108,8 +109,8 @@ explicitly authorizes evidence emission to `demos/zerobugs/evidence/`.
 The current relational surface is a bounded two-source equi-join/projection
 surface, not the pinned 22-relation graph. Two-source maintained projections
 are used where they fit. Wider shapes were predeclared as registered query
-groups plus a counted client merge; Lane 3's route-argument probe instead
-required generated route identities around a counted typed server merge, as
+groups plus a counted client merge; Lane 3's route-argument probe refused the
+JS-query route cut, so the counted typed server merge remains ungrouped as
 recorded under `W-QGROUP`/`W-MANUALSET`. List membership/order uses declared
 read models. Search
 was planned to use shipped `backend.text-search` over `issueSearchDocument`.
@@ -392,7 +393,7 @@ attempt. Using a row before that update fails ZB0.
 
 | ID / class | Reason and owner | Planned files / lines | Status and lifecycle | Security boundary | Removed by |
 | --- | --- | --- | --- | --- | --- |
-| `W-QGROUP` / manual query-group graph join | Current relational capability is bounded two-source, while issue/list shapes span up to 22 relations. Owner: control data lane. | Generated initial-list/detail identities `snapback/routes.mjs:1-30`; parent-authorized bounded graph loaders and manual projection assembly `snapback/functions.mjs:815-941,1497-1581,1789-1878`; group/contract witness `tests/lane3-list-engine.test.mts:153-179` | Implemented as two generated register-eligible route identities around the already parent-authorized assembled live-query projection. Current route argument lowering admits primitive route parameters but rejected the nested/union/null list-context mappings needed for a wider multi-child group, so the Lane 3 graph merge remains in the typed server handler. Retained through control and explicitly re-evaluated in Lane 6. | Every child query starts only after parent authorization; a bounded child contributes its own completeness fact and no merge infers completeness. | D2 graph/query workstream. |
+| `W-QGROUP` / manual query-group graph join | Current relational capability is bounded two-source, while issue/list shapes span up to 22 relations. Owner: control data lane. | Parent-authorized bounded graph loaders and manual projection assembly `snapback/functions.mjs:815-941,1497-1581,1789-1878`; generated contract witness `tests/lane3-list-engine.test.mts:152-166`; refusal record below | Current route argument lowering rejected the nested/union/null list context, while the remaining primitive wrapper still failed runtime admission because JS live queries have no schema-derived argument contract. The route manifest was removed and the typed server graph merge retained without a false route-group claim; re-evaluate in Lane 6. | Every child query starts only after parent authorization; a bounded child contributes its own completeness fact and no merge infers completeness. | D2 graph/query workstream. |
 | `W-READMODEL` / denormalized projection | All-label membership, project-user existence, wide list order, and comment-derived search do not fit one current live query. Owner: control server lane. | `snapback/schema.mjs:158-233`; `scripts/build-fixture.mts:511-643`; generated rows in `fixtures/normal-seed-v1/{projectUserRead,issueListRead,issueLabelRead,issueSearchDocument}.json` (complete files); shared read-model predicate and graph hydration `snapback/functions.mjs:837-1220,1497-2203`; independent raw-source oracle `tests/lane3-oracle.mts:1-164`; generated-handler witness `tests/lane3-list-engine.test.mts:1-358`; live parity harness `tests/acceptance/lane3-live.mts:1-780` | Implemented for Lane 3 as bounded, rebuildable maintained projections plus source-row hydration. Every exact-bound hit refuses or returns no plausible prefix; query result contracts remain source-shaped. Retained through control. | Visibility is applied before releasing `examined`/`total`; all-label membership is intersection; private rows resolve through the Lane 2 principal binding; digest audit covers the projections. | D2 and D6. |
 | `W-MANUALSET` / app join/filter/sort | Adapter intersects bounded list/search/label ids and assembles rich rows. Owner: control data lane. | Bounded joins/comparators/cursors `snapback/functions.mjs:747-941`; set intersection and shared list engine `snapback/functions.mjs:973-1220`; all 19 typed entry points `snapback/functions.mjs:1258-2203`; independent oracle/cursor witnesses `tests/lane3-oracle.mts:1-164`, `tests/lane3-list-engine.test.mts:1-358`; live source-parity witness `tests/acceptance/lane3-live.mts:1-780` | Implemented as typed server-side manual merge for Lane 3; never broad/unbounded, and retained through control. The route-argument limitation recorded under `W-QGROUP` prevented moving the rich merge into a multi-child generated group without changing the frozen query arguments. | Inputs are role-partitioned before counts or joins; protected child roots prove the parent first; no protected key or partial prefix crosses the actor boundary. | D2/D3/D6. |
 | `W-SEARCH-EPOCH` / manual invalidation | Shipped text search is not live, and current opaque handlers cannot invoke/compose a search plan. Owner: control search lane. | `snapback/schema.mjs:235-245`; `scripts/build-fixture.mts:625-635`; generated rows in `fixtures/normal-seed-v1/searchEpoch.json:1-14`; role-partitioned maintained-document scan and epoch facts `snapback/functions.mjs:1003-1048`; shared consumers `snapback/functions.mjs:1050-1220,1892-1969,2068-2141`; independent raw title/description/comment oracle `tests/lane3-oracle.mts:91-149`; pure/live search checks `tests/lane3-list-engine.test.mts:180-262`, `tests/acceptance/lane3-live.mts:359-422` | Implemented exact-corpus workaround: consult the epoch, scan only admitted visibility partitions, and return `refreshing` with no rows when any partition reaches 1,024. This is not advertised as shipped live search. Retained through control pending D6. | Epoch reveals no query text/result membership; documents are partitioned by public/internal; non-crew never query the internal partition; no boundary prefix is released. | D6 derived search. |
@@ -491,11 +492,11 @@ artifact freshness into a live-load claim.
   that route lowering rejects a route parameter nested in an object and cannot
   express the null/union literal members required by the frozen list context.
   Lane 3's attempted rich list/detail bundle failed generation with
-  `ROUTES_ARGS_INVALID`. It retained generated register-eligible list/detail
-  identities using primitive wrapper arguments and kept the bounded graph
-  merge inside the typed live handler. This limitation and the resulting
-  single-child groups are counted under `W-QGROUP`/`W-MANUALSET` rather than
-  presented as the planned multi-child merge.
+  `ROUTES_ARGS_INVALID`; primitive wrappers then failed runtime admission
+  because JS live queries have no schema-derived argument contract. The route
+  manifest was removed and the bounded graph merge stayed inside the typed
+  live handler. This limitation is counted under `W-QGROUP`/`W-MANUALSET`
+  rather than presented as the planned multi-child merge.
 
 ## Lane 1 validation
 
@@ -647,8 +648,8 @@ session. No live result is claimed below.
 
 | Command | Result |
 | --- | --- |
-| `bun run generate` | PASS, exit 0: 16 tables and 27 operations (five Lane 1/2 queries, 20 live queries comprising the 19 frozen names plus the primitive-argument detail route wrapper, and two mutations), 99 generated files. Both routes are `registerGroupEligible`. The only two warnings are the pre-existing `W-FIXTURE` dynamic-table `v.json()`/unknown shapes; all 19 Lane 3 results generate precise record contracts. |
-| `bun run test:lane3` | PASS, exit 0: generation plus 13 Bun tests across the Lane 1 loader, Lane 2 identity/guards, and Lane 3 query corpus. Lane 3 executes the generated handler against compiled fixture tables while its expected membership comes independently from raw source issue/comment/label/user rows. It proves all filter classes (including all-label intersection and three search sources), all four sort modes, full forward/backward walks without skips/duplicates, deprecated neighbor parity, protected counts, exact route-group identities, nullable-limit refusal, and explicit small-window incompleteness. |
+| `bun run generate` | PASS, exit 0: 16 tables and 27 operations across the Lane 1/2 helpers and 19 frozen Lane 3 query names, with no routes manifest after the measured JS-query route-cut refusal. The two warnings are the pre-existing `W-FIXTURE` dynamic-table `v.json()`/unknown shapes; all 19 Lane 3 results generate precise record contracts. |
+| `bun run test:lane3` | PASS, exit 0 after the 2026-08-06 post-merge test correction: generation plus the Lane 1 loader, Lane 2 identity/guards, and Lane 3 query corpus. Lane 3 executes the generated handler against compiled fixture tables while its expected membership comes independently from raw source issue/comment/label/user rows. It proves all filter classes (including all-label intersection and three search sources), all four sort modes, full forward/backward walks without skips/duplicates, deprecated neighbor parity, protected counts, nullable-limit refusal, and explicit small-window incompleteness without claiming the intentionally removed routes manifest. |
 | `bun run typecheck` | PASS, exit 0. |
 | `bun run build` | PASS, exit 0; Vite 8 built the client. Output contained the upstream `optimizeDeps.rollupOptions` deprecation and the existing chunk-size advisory only. |
 | `bun build tests/acceptance/lane3-live.mts --target=bun --outfile=/private/tmp/zerobugs-lane3-live-check.mjs` | PASS, exit 0: the live parity harness and its 52-module dependency graph parse and bundle for Bun. |

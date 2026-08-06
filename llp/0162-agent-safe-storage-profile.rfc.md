@@ -5,14 +5,648 @@
 **Systems:** Storage, Runtime, Sync, Auth, Effects, Migrations, Agent experience, Diagnostics, Testing, Performance
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-03
-**Revised:** 2026-08-03 (v0.11 — sequencing gates recorded: the dated step-0 pre-profile baseline fixes hardware, fixtures, warm-up, run count, median/MAD, formulas, and bounds; OQ13's reproducible spike proves a held source snapshot but no intrinsic database-size WAL bound, narrowing LLP 0165 to budgeted pin or stable refusal; capability rows remain `Missing`); 2026-08-03 (v0.10 — post-acceptance scoped-review repairs from the combined light round (artifacts `llp/reviews/0163-0165-extraction.{fable,codex}.md`): host-originator reclamation predicate added (terminal-receipt-plus-declared-window; range-less host epochs close on incarnation rotation) with an Acceptance 14 leg; §8 provenance table rebuilt contiguous with Accepted/Draft ownership split; reservation-quota sufficiency added to the declared fairness terms; the legacy 0097 projection made total; protected-lane custody assigned to LLP 0163; tombstone bound recorded); 2026-08-03 (v0.9 — **Accepted by Charlie** after the seven-round super-refine loop (see `llp/reviews/0162-agent-safe-storage-profile.super-refine.md`), with three author decisions applied: OQ11 decided — an agent principal holding an LLP 0055 scoped grant may approve a `PromotionRequestV1`; OQ14 executed — the identity/envelope, fork/promotion, and proof/checkpoint contracts are extracted to LLP 0163/0164/0165 with this RFC as the profile umbrella; the commissioned dated amendments landed in LLP 0097, 0133, 0043, 0012, and 0095. Acceptance changes the document's status only: every capability remains `Missing` until the acceptance corpus passes (§Summary claim boundary), and the step-0 baseline artifact, the OQ13 snapshot-pinning spike, and LLP 0163-0165's own acceptance still gate advertisement); 2026-08-03 (v0.8 — final targeted repair from the seventh, delta-scoped cross-family round (repairs unreviewed; the loop closed at the declared stopping rule): re-seal widened to the full approved-facts digest (reads, ctx answers, decision/result facts, writes, effects, coverage) with the original approval preserved and re-seal as a separately identified engine attestation; identity tombstones retained until the epoch floor passes, closing the two-identity/same-epoch hole, with `result-expired`-before-`identity-horizon-passed` lookup precedence; journal completeness re-founded on an enforceable write-authority choke point (generated transaction API + SQLite authorizer) with an honest enumerated-fixture fallback class; post-expiry aggregate explanation gets `authorization-unprovable` fail-closed; promotion durably copies replay-log envelope facts into canonical; the aggregate promotion identity pinned to the rebase-invariant admission ticket; head reservation quotaed with a p99 contention metric and TTL-sufficiency condition; 0158 sentinel + intra-state crash matrix imported into Acceptance 12 with the registry-authority deviation declared; effect facts split into egress-family and 0066 settlement-capability axes; offline range exhaustion dispositioned; `verifiedCopyFidelity` named as its own proof class; per-component performance gating clarified; legacy `Missing` projection rationale recorded); 2026-08-03 (v0.7 — sixth cross-family review round applied: `PromotionRequestV1` re-seals automatically across rebase when re-execution reproduces the approved facts; promotion's admissible identity unified on the aggregate (per-source identities demoted to non-admissible write-fact-granularity provenance joins, Acceptance 3 carved); liveness weakened to declared conditional fairness with a bounded head-reservation escalation and ticket-lifetime/budget terms; offline minting closed via server-preallocated authenticated finite identity ranges; epoch closure defined on acknowledgement with the crashed-client wedge stated; the `result-expired` middle-regime disposition named and amended; checkpoint claims re-scoped to verified copy fidelity with 0158's publication state machine imported and the snapshot-pinning spike named; journal completeness given a closed write-path-registry derivation; the non-row authorization rule owned here; derived-deployment fork support moved out of core into a 0158-gated additive capability; `Promotable(noEffects)` named as a strictly narrower claim with a conservative legacy projection; index costs split; OQ4 authority corrected); 2026-08-03 (v0.6 — fifth cross-family review round applied: identity keyspace partitioned by originator class with server-authenticated host derivations (squatting foreclosed); envelope compact identity given a bounded retention clock independent of the resume floor and journal prune, with asymmetric-join dispositions; non-row authorization dropped to LLP 0088's current-policy rule with the residual named; `DenyAll` records a bounded payload-free attempt marker so no-egress promotion is provable; `PromotionRequestV1` seals the reviewed branch head and promotion commits one canonical transaction with an aggregate envelope; epoch issuance server-recorded so closure sees minted-not-just-admitted identities; §8 provenance claim replaced by a per-component owner/status table and the 0097 amendment scope widened to every touched section; FIFO admission tickets held across rebase with a concurrency-scaled budget and progress fixture; pins made finite renewable leases; exception authority corrected to dated author ratification with a hard ceiling; bounded envelope enumeration added; per-class credential acceptance; sequencing step-3(a)/5(a) duplication fixed); 2026-08-03 (v0.5 — fourth cross-family review round applied: audience decided to be a bound compared fact, not a key component (LLP 0133's collision rule preserved; key = stream-qualified operation identity, promotion identities derived from the globally non-reusable `childStreamId`); the epoch floor given an issuer/closure/advancement protocol that cannot strand in-flight identities; a dated proposed-normative amendment to LLP 0097 §Capability classes declared for the axis split and `DenyAll`; promotion contention answered with serialized admission and a bounded rebase budget; checkpoint dual-path proof pinned to one source snapshot; non-row fact authorization made current-plus-captured; the core tier's per-version rule owned by this RFC; aggregate membership and performance thresholds closed with LLP 0130 as exception authority; sequencing gains a baseline step 0 and splits mediation from capture-ledger work); 2026-08-03 (v0.4 — third cross-family review round applied: envelope/suppression identity stream-qualified with branch-local namespaces and deterministic promotion re-mint; suppression reclamation restricted to acknowledged receipts plus an epoch-bearing anti-replay floor, `identity-horizon-passed` reclassified as outcome-unknown; per-fact-class authorization for non-row explanation facts; fork capability split into orthogonal axes (egress/promotion/base/isolation) with no-egress `DenyAll` branches promotable; `AgentSafeV1` layered into a core aggregate, an app-effective conformance fact, and a history tier gated on LLP 0088; checkpoint dual-path proof derivation and erasure/custody protocol; measurement gate scoped per component against the dated baseline; rebase-by-replay affordance; uncovered-lane co-writes make a branch non-promotable); 2026-08-03 (v0.3 — second cross-family review round applied: `operationId` defined as the shipped `ClientMutationIdentity` widened (LLP 0133's extend-don't-ride-beside discipline) with per-originator identity sources and a bounded suppression lifecycle after LLP 0043's settlement pattern; LLP 0088 §6's per-post-image authorization rule imported verbatim with elision fixtures; the diff surface split into attributed change sequence versus net state diff with first-write-preimage/immutable-base requirement and canonical folding; deny-all egress renamed `DenyAll` (CaptureOnly reserved for 0097's ledger-backed meaning); "covered" given a definition; §8 given a base-class axis, a manifest-extension relationship to LLP 0134, and a closed v1 aggregate matrix; performance gate re-founded on a dated statistically controlled baseline artifact; `branches::promote` reframed as a deviation from Accepted LLP 0097 and ticketed there); 2026-08-03 (v0.2 — first cross-family review round applied: envelope keyed by operation identity with the commit version demoted to a stream-qualified snapshot association; the promotable fork class pinned to LLP 0097's in-app branch, with LLP 0158 derived-deployment forks capture-only; named checkpoints split into materialized and receipt-only substrate classes; per-fact read-set provenance discriminators per LLP 0007/0133/0146; LLP 0088's history invariants imported normatively; replay-sufficient promotion record required and the landed post-image `branches::promote` path marked superseded; capability claims routed through LLP 0134; commissioning authorities and amendment ownership named)
+**Revised:** 2026-08-05 (v0.35 — exact C30 stopped before performance after one NOT READY review found moved Host-lease and pending-capacity projections; prospective C31 validates both globally and also closes the same client-suppression closure asymmetry while every capability remains Missing); 2026-08-05 (v0.34 — exact C29 stopped before performance after fresh review; prospective C30 closes terminal-supplement retention coherence, automatic sessions ACK custody, the public explanation oracle, direct Host terminal/pending rollback proof, and Accepted-0158 documentation drift while every capability remains Missing); 2026-08-05 (v0.33 — exact merged C28 failed fresh review before performance on automatic sessions range custody, required-null host tombstone schema, retention-time SQL/JSON coherence, and pending-writer rollback proof; prospective C29 repairs all four while every capability remains Missing); 2026-08-05 (v0.32 — exact C27 was abandoned pre-result after four identity-lifecycle defects; prospective C28 adds comparison-complete tombstones, contiguous floors, a 1,024-identity epoch cap, and transaction-side writer guards; no artifact or capability claim changes); 2026-08-05 (v0.31 — C25 was abandoned before any performance artifact after review found that strict decoding preempted ValidateRequired violation facts and the backfill exception lacked a staged-destination proof; C26 makes NonNull targets exact and rejects backfill/copy destinations not introduced by earlier AddField, with no measurement or capability claim change); 2026-08-05 (v0.30 — C21 passed exact performance but did not publish after a later target-projection/order defect; C24 validly failed only point-read p95 on the faster-side interval, the absolute gate was not run, and a prospective C25 repair now enforces LLP 0007's exact portable physical representation on every application-visible decoded row without changing the measurement contract or any capability claim); 2026-08-05 (v0.29 — prospective pre-C21 production release-layout repair recorded: the exact C20 binary's 2,359,296-byte `__TEXT` excess closely matched its RSS gap, so the shipped release profile now uses full LTO and one codegen unit to reduce cross-module duplication and fragmentation; no source route, benchmark, threshold, protocol, estimator, exception, or capability claim changes, and all capabilities remain Missing pending a new exact clean candidate); 2026-08-05 (v0.28 — C20 valid paired failure recorded: eight of nine read/write comparisons plus idle CPU and disk passed, but point-read p95 crossed the unchanged two-sided 5% equivalence edge on the faster side and idle RSS's confidence interval crossed the upper edge; the absolute gate was not run and every capability remains Missing pending a genuine prospective product repair and a new exact clean candidate); 2026-08-05 (v0.27 — C18/C19 pre-result abandonments and pre-C20 transport repair recorded: own-correctness first repaired a stale TableManifest test initializer, then the row-14 audit found that two intended public identity protocol refusals projected as HTTP 500 and lacked served-route negatives; their stable codes are now deliberately classified as 400 and the exact transport refusals are exercised before handler execution. No performance artifact or capability claim was produced, and every capability remains Missing pending a new exact clean candidate); 2026-08-05 (v0.26 — C17 valid paired failure recorded: thin LTO cleared the unchanged idle CPU, disk, and RSS gates, eight of nine read/write comparisons passed, point-read p95 alone exceeded the unchanged 5% equivalence interval, the absolute gate was not run, and every capability remains Missing pending a new exact post-mainline candidate); 2026-08-05 (v0.25 — C16 pre-result abandonment after the required post-commit fetch found newer origin/main; the additive demo-only mainline was merged normally, no performance artifact was produced, and every capability remains Missing pending a new exact candidate); 2026-08-05 (v0.24 — C15 valid paired failure and prospective pre-C16 production release-layout correction recorded in the dated body; all nine read/write comparisons plus idle CPU and disk passed, idle RSS alone exceeded the unchanged 5% interval edge, the absolute gate was not run, and every capability remains Missing); 2026-08-05 (v0.23 — C14 valid paired failure and prospective pre-C15 pay-for-play checkpoint/erasure infrastructure correction recorded in the dated body; all nine read/write comparisons plus idle CPU and disk passed, idle RSS alone exceeded the unchanged 5% interval edge, the absolute gate was not run, and every capability remains Missing); 2026-08-05 (v0.22 — C11/C12 pre-result abandonments, C13 valid paired failure, and prospective pre-C14 production query/custody correction recorded in the dated body; every capability remains Missing and a new exact clean candidate must rerun the unchanged gates); 2026-08-04 (v0.21 — seventh fixed-Air candidate failure and prospective pre-C10 precision/product-memory repair: exact candidate `eae262bd91fee6bfed6ae77ddd40af22dd10c8b6` failed point-read p95, query-plan p50/p95, and RSS under the unchanged v2 gate; artifact and exact metrics are recorded in the dated body, and the absolute gate was not run. The v3 recorder retains three mirrored, time-local subpairs inside each of the unchanged 11 outer pairs, reduces each outer metric by the median of its three raw paired regressions, and applies the same 20,000-sample bootstrap only to those 11 outer values; thresholds, baseline, and effective sample count stay unchanged, while all raw observations remain independently checkable and idle CPU/disk remain conservative over every raw candidate. Empty databases defer protected-detail key minting until first use while retained ciphertext still authenticates at boot. No result, exception, or capability claim is made before a new exact candidate reruns every gate); 2026-08-04 (v0.20 — sixth fixed-Air candidate failure and pre-C9 repair: exact candidate `f34fdb41ef603d07f6720685728a28a1b18d3fa7` passed eight of nine read/write comparisons plus idle CPU and disk, but point-read p95's two-sided interval was 0.805 percentage points beyond the unchanged lower equivalence edge and RSS's interval was 0.160 percentage points beyond its upper edge; see the dated body record. Point hits now fail closed unless the decoded opaque string id exactly equals the requested id. No benchmark, threshold, protocol, estimator, exception, or claim changed); 2026-08-04 (v0.19 — fifth fixed-Air candidate failure and pre-C8 repair: see the dated body record for the exact commit, artifact, and metrics; read caching is narrowed and TEMP-table custody is replaced by direct-only in-connection crypto whose zeroizing root key never crosses SQL; thresholds, protocol, and claims remain unchanged); 2026-08-04 (v0.18 — fourth fixed-Air measurement repair: clean candidate `ba00491f29c6db76f6fb0a2b1723b7bc44bcdf44` produced a preserved failed paired record, SHA-256 `debd40d041d853e869faeb09823e092f9561ccd610ed76f43b0dab905360e20c`. Seven of nine read/write comparisons plus idle CPU and disk passed; point-read p95 failed the unchanged 5% equivalence band at median 2.4291% with bootstrap interval -1.1443–8.0552%, query-plan-read p95 failed at median 1.9324% with interval 0.1568–5.1517%, and RSS failed at median 5.3365% with interval 4.8413–5.6836%. No exception is ratified and the absolute gate was not run. The production current-read hot paths now use the existing connection statement cache while armed writer connections retain capacity zero and therefore re-run the fail-closed authorizer on every prepare. The rare real manifest-activation cut now asks the macOS allocator to return unused setup pages after SQLite cache relief without dropping the live manifest, issued range, connection, or authorizer. Direct Host-incarnation crash/reopen and served explanation/projection fixtures close two compositional proof gaps. No threshold, protocol, estimator, or capability claim changed; a new exact clean candidate must rerun every original gate); 2026-08-04 (v0.17 — third failed-candidate product-memory repair: clean fixed-Air candidate `1364781e48c35686eb0c89b543a7ab9287de2f01` passed all nine read/write comparisons plus idle CPU and disk, but preserved record SHA-256 `2856a1eb3fd2081d49f551e8458a687146f365eece521a835656620190ca9abd` honestly failed the unchanged 5% RSS bound at median 5.2108% and bootstrap interval 4.9324–5.8917%; no exception is ratified. The shared production manifest-arming seam now requests SQLite to release unused connection memory after the rare activation/validation transaction and before installing the same connection-local fail-closed authorizer; only a new fixed-Air run can establish its RSS effect; the durable manifest, same armed connection, and issued range remain live. No threshold, protocol, estimator, or claim changed. A new exact clean candidate must rerun every original gate); 2026-08-04 (v0.16 — second failed-candidate repair: clean fixed-Air candidate `949db8be40e43cdbd7449a58b70550f6e18d2098` passed all nine read/write comparisons plus idle CPU and disk, but its preserved paired record, SHA-256 `29be1887ef5d5a85d14c909f8e68b6686e132907a818b1f2a217174d4ee86032`, honestly failed the unchanged 5% RSS equivalence bound (median 5.88%, bootstrap 5.41–6.40%). The paired candidate worker now measures active read/write costs in its parent and active idle state in a fresh child process whose preceding allocation/code footprint is the dormant comparator workload; the child then activates and retains the real armed storage connection and issued range across the window. This per-metric fixture separation removes transient active-write setup from the otherwise-idle RSS metric without changing any bound, estimator, product behavior, or claim. A third exact clean candidate must rerun every original gate); 2026-08-04 (v0.15 — post-failure measurement repair: fixed-Air candidate `e6412b9b24887322d0fdb07bdd65b8e8bd86edbf` produced and preserves a failed paired record, SHA-256 `24ff252962d3f12b17c8dbb883c2a9f9052ea2b6d0413b5573681e2d8917798a`; no bound, exception, or claim changed. The candidate idle fixture now consumes the real activated carrier into its same armed `LocalDatabase`, dropping and joining unrelated telemetry setup before the five-second window while retaining the durable coverage manifest and server-issued range. The dormant SQLite writer authorizer is installed only at activation/reopen of an active manifest, removing its pre-capability statement-prepare tax without weakening the active cut. The paired semantic checker now maps camelCase comparison identities to Rust's snake_case raw report keys. A new exact clean candidate must pass every original gate before publication); 2026-08-04 (v0.14 — pre-freeze publication-authority repair: the canonical proof now runs the P-vs-C history checker and its adversarial suite; published evidence is parsed semantically for the exact clean candidate, passed paired/absolute thresholds, Acceptance rows 1–4/13/14, two distinct `READY` review families, named-author acceptance, and explicit broader/derived `Missing` scope. Contributor-source authority independently requires a clean root, the exact checked-out clean `vendor/ibex` gitlink, and the implementation digest, regardless of general build-identity overrides. The derived-deployment chain is structurally non-publishable until a distinct end-to-end F0b performance contract lands. Every anchor remains withheld before results); 2026-08-04 (v0.13 — **contention bound corrected and ratified by Charlie before the final fixed-Air run**, under the user's explicit acceptance instruction: the production v1 policy is precisely a 1,000-ms head-reservation interval and a separate 500-ms maximum promotion-commit duration, not a 500-ms reservation. The fixed 128-sample/eight-writer active-carrier request-to-COMMIT p99 ceiling is therefore 1,250,000 µs. This pre-result correction preserves the reviewed production policy, permits 250 ms beyond its intentional reservation interval for the real envelope-bearing writer and SQLite commit tail, supersedes v0.12's mistaken 500-ms/750,000-µs pairing, and leaves every capability `Missing` until the actual run and applicable correctness gates pass); 2026-08-04 (v0.12 — **absolute performance bounds ratified by Charlie** before the final Track B fixed-Air run: on the recorded 512-row/one-change fixture, median ceilings are 1,000 µs fork creation, 2,500 µs exact diff, 7,500 µs strict promotion, and 250 µs TTL reap; ordinary-writer request-to-COMMIT p99 behind the frozen 500-ms production reservation is at most 750,000 µs. These fail-closed ceilings are informed by the preserved 2026-08-03 integrated record but fixed independently of the final candidate result; capability state remains `Missing` until every applicable gate passes); 2026-08-03 (v0.11 — sequencing gates recorded: the dated step-0 pre-profile baseline fixes hardware, fixtures, warm-up, run count, median/MAD, formulas, and bounds; OQ13's reproducible spike proves a held source snapshot but no intrinsic database-size WAL bound, narrowing LLP 0165 to budgeted pin or stable refusal; capability rows remain `Missing`); 2026-08-03 (v0.10 — post-acceptance scoped-review repairs from the combined light round (artifacts `llp/reviews/0163-0165-extraction.{fable,codex}.md`): host-originator reclamation predicate added (terminal-receipt-plus-declared-window; range-less host epochs close on incarnation rotation) with an Acceptance 14 leg; §8 provenance table rebuilt contiguous with Accepted/Draft ownership split; reservation-quota sufficiency added to the declared fairness terms; the legacy 0097 projection made total; protected-lane custody assigned to LLP 0163; tombstone bound recorded); 2026-08-03 (v0.9 — **Accepted by Charlie** after the seven-round super-refine loop (see `llp/reviews/0162-agent-safe-storage-profile.super-refine.md`), with three author decisions applied: OQ11 decided — an agent principal holding an LLP 0055 scoped grant may approve a `PromotionRequestV1`; OQ14 executed — the identity/envelope, fork/promotion, and proof/checkpoint contracts are extracted to LLP 0163/0164/0165 with this RFC as the profile umbrella; the commissioned dated amendments landed in LLP 0097, 0133, 0043, 0012, and 0095. Acceptance changes the document's status only: every capability remains `Missing` until the acceptance corpus passes (§Summary claim boundary), and the step-0 baseline artifact, the OQ13 snapshot-pinning spike, and LLP 0163-0165's own acceptance still gate advertisement); 2026-08-03 (v0.8 — final targeted repair from the seventh, delta-scoped cross-family round (repairs unreviewed; the loop closed at the declared stopping rule): re-seal widened to the full approved-facts digest (reads, ctx answers, decision/result facts, writes, effects, coverage) with the original approval preserved and re-seal as a separately identified engine attestation; identity tombstones retained until the epoch floor passes, closing the two-identity/same-epoch hole, with `result-expired`-before-`identity-horizon-passed` lookup precedence; journal completeness re-founded on an enforceable write-authority choke point (generated transaction API + SQLite authorizer) with an honest enumerated-fixture fallback class; post-expiry aggregate explanation gets `authorization-unprovable` fail-closed; promotion durably copies replay-log envelope facts into canonical; the aggregate promotion identity pinned to the rebase-invariant admission ticket; head reservation quotaed with a p99 contention metric and TTL-sufficiency condition; 0158 sentinel + intra-state crash matrix imported into Acceptance 12 with the registry-authority deviation declared; effect facts split into egress-family and 0066 settlement-capability axes; offline range exhaustion dispositioned; `verifiedCopyFidelity` named as its own proof class; per-component performance gating clarified; legacy `Missing` projection rationale recorded); 2026-08-03 (v0.7 — sixth cross-family review round applied: `PromotionRequestV1` re-seals automatically across rebase when re-execution reproduces the approved facts; promotion's admissible identity unified on the aggregate (per-source identities demoted to non-admissible write-fact-granularity provenance joins, Acceptance 3 carved); liveness weakened to declared conditional fairness with a bounded head-reservation escalation and ticket-lifetime/budget terms; offline minting closed via server-preallocated authenticated finite identity ranges; epoch closure defined on acknowledgement with the crashed-client wedge stated; the `result-expired` middle-regime disposition named and amended; checkpoint claims re-scoped to verified copy fidelity with 0158's publication state machine imported and the snapshot-pinning spike named; journal completeness given a closed write-path-registry derivation; the non-row authorization rule owned here; derived-deployment fork support moved out of core into a 0158-gated additive capability; `Promotable(noEffects)` named as a strictly narrower claim with a conservative legacy projection; index costs split; OQ4 authority corrected); 2026-08-03 (v0.6 — fifth cross-family review round applied: identity keyspace partitioned by originator class with server-authenticated host derivations (squatting foreclosed); envelope compact identity given a bounded retention clock independent of the resume floor and journal prune, with asymmetric-join dispositions; non-row authorization dropped to LLP 0088's current-policy rule with the residual named; `DenyAll` records a bounded payload-free attempt marker so no-egress promotion is provable; `PromotionRequestV1` seals the reviewed branch head and promotion commits one canonical transaction with an aggregate envelope; epoch issuance server-recorded so closure sees minted-not-just-admitted identities; §8 provenance claim replaced by a per-component owner/status table and the 0097 amendment scope widened to every touched section; FIFO admission tickets held across rebase with a concurrency-scaled budget and progress fixture; pins made finite renewable leases; exception authority corrected to dated author ratification with a hard ceiling; bounded envelope enumeration added; per-class credential acceptance; sequencing step-3(a)/5(a) duplication fixed); 2026-08-03 (v0.5 — fourth cross-family review round applied: audience decided to be a bound compared fact, not a key component (LLP 0133's collision rule preserved; key = stream-qualified operation identity, promotion identities derived from the globally non-reusable `childStreamId`); the epoch floor given an issuer/closure/advancement protocol that cannot strand in-flight identities; a dated proposed-normative amendment to LLP 0097 §Capability classes declared for the axis split and `DenyAll`; promotion contention answered with serialized admission and a bounded rebase budget; checkpoint dual-path proof pinned to one source snapshot; non-row fact authorization made current-plus-captured; the core tier's per-version rule owned by this RFC; aggregate membership and performance thresholds closed with LLP 0130 as exception authority; sequencing gains a baseline step 0 and splits mediation from capture-ledger work); 2026-08-03 (v0.4 — third cross-family review round applied: envelope/suppression identity stream-qualified with branch-local namespaces and deterministic promotion re-mint; suppression reclamation restricted to acknowledged receipts plus an epoch-bearing anti-replay floor, `identity-horizon-passed` reclassified as outcome-unknown; per-fact-class authorization for non-row explanation facts; fork capability split into orthogonal axes (egress/promotion/base/isolation) with no-egress `DenyAll` branches promotable; `AgentSafeV1` layered into a core aggregate, an app-effective conformance fact, and a history tier gated on LLP 0088; checkpoint dual-path proof derivation and erasure/custody protocol; measurement gate scoped per component against the dated baseline; rebase-by-replay affordance; uncovered-lane co-writes make a branch non-promotable); 2026-08-03 (v0.3 — second cross-family review round applied: `operationId` defined as the shipped `ClientMutationIdentity` widened (LLP 0133's extend-don't-ride-beside discipline) with per-originator identity sources and a bounded suppression lifecycle after LLP 0043's settlement pattern; LLP 0088 §6's per-post-image authorization rule imported verbatim with elision fixtures; the diff surface split into attributed change sequence versus net state diff with first-write-preimage/immutable-base requirement and canonical folding; deny-all egress renamed `DenyAll` (CaptureOnly reserved for 0097's ledger-backed meaning); "covered" given a definition; §8 given a base-class axis, a manifest-extension relationship to LLP 0134, and a closed v1 aggregate matrix; performance gate re-founded on a dated statistically controlled baseline artifact; `branches::promote` reframed as a deviation from Accepted LLP 0097 and ticketed there); 2026-08-03 (v0.2 — first cross-family review round applied: envelope keyed by operation identity with the commit version demoted to a stream-qualified snapshot association; the promotable fork class pinned to LLP 0097's in-app branch, with LLP 0158 derived-deployment forks capture-only; named checkpoints split into materialized and receipt-only substrate classes; per-fact read-set provenance discriminators per LLP 0007/0133/0146; LLP 0088's history invariants imported normatively; replay-sufficient promotion record required and the landed post-image `branches::promote` path marked superseded; capability claims routed through LLP 0134; commissioning authorities and amendment ownership named)
+**Qualification amendment (2026-08-05, v0.22):** The C11 and C12
+pre-result abandonments and C13's valid failed paired result are recorded
+below. Generic current-query execution returns to ordinary per-call
+preparation, and empty stores retain no protected-detail function or custody
+mutex until their first real protected seal. No benchmark, baseline, bound,
+protocol, estimator, exception, or capability claim changes.
+
+**Qualification amendment (2026-08-05, v0.36):** Exact clean C31 was
+abandoned before review results or performance when the mandatory fetch found
+newer main. C32 retains the repair after a normal, regenerated merge; every
+capability remains `Missing` pending fresh exact review and the unchanged
+performance/publication gates.
+
+**Qualification amendment (2026-08-05, v0.37):** C32 was abandoned before a
+qualifying dual review completed and before performance when the mandatory
+remote-tip check found two newer mainline cuts. Both were merged normally as
+`cc5d6bce64550210d7b55b929841a8f9af8f2f68` and
+`211f85714cdac7abdf4022b77cb08bce4419a35c`; the combined guide/generated
+closures were regenerated, the C-frozen generated-leaf checker was corrected
+from 208 to the actual 224 leaves, and C33 is the next prospective exact clean
+candidate. No C32 review artifact or performance result qualifies publication,
+and every capability remains `Missing`.
+
+**Qualification amendment (2026-08-06, v0.38):** Exact clean C33 commit
+`60637db377a681ff1f22cbe19f7b49b96b20ab9f`, implementation digest
+`sha256:40789d24edf34b3a9cb9544e94e47337d5beb35ef065d290e19bcc67e610010d`,
+and Ibex gitlink `4c34c831aa087d6783b0d68f281cdb374ed7fc89` received two fresh,
+mutually blind `READY` verdicts. The 2026-08-06 author ruling in
+`issues/20260803-0163-public-operation-identity-carrier.md` supersedes the
+earlier HEAD-chasing interpretation: newer mainline cuts are normal
+conflict-resolving merges that preserve C33's review authority, not review
+invalidation and not new C-numbers. The merged tree lands first, receives
+proportional build/test verification, and then runs the unchanged paired and
+conditional absolute row-13 protocol against the landed commit. Every
+capability remains `Missing` until that post-landing result and all other
+named gates pass.
+
+**Qualification amendment (2026-08-05, v0.23):** C14's valid failed paired
+result and the prospective pre-C15 production correction are recorded below.
+Ordinary storage keeps history infrastructure eager but pays for the separate
+checkpoint/erasure authority family only at its first owning operation. No
+benchmark, baseline, bound, protocol, estimator, exception, or capability
+claim changes.
+
+**Qualification amendment (2026-08-05, v0.24):** C15's valid failed paired
+result and the prospective pre-C16 production release-layout correction are
+recorded below. Release binaries use thin LTO across the production dependency
+graph; the measurement worker, baseline, bound, protocol, estimator, and
+bootstrap population do not change. No exception or capability claim is made.
+
+**Qualification amendment (2026-08-05, v0.25):** C16's pre-result
+abandonment is recorded below. The required post-commit fetch found a newer
+`origin/main`; its additive demo/diary/ticket changes were merged normally and
+without conflict. No performance artifact, exception, or capability claim was
+made for C16. A new exact post-merge candidate must rerun every unchanged gate.
+
+**Qualification amendment (2026-08-05, v0.26):** C17's valid failed paired
+result is recorded below. Thin LTO cleared the unchanged idle CPU, disk, and
+RSS gates. Eight of nine read/write comparisons passed; point-read p95 alone
+missed the unchanged two-sided 5% equivalence interval. No benchmark,
+baseline, bound, protocol, estimator, exception, or capability claim changes.
+The absolute recorder was not run. A newer additive `origin/main` found after
+the run must be merged before another exact candidate reruns every unchanged
+gate.
+
+**Qualification amendment (2026-08-05, v0.27):** C18 and C19's pre-result
+own-correctness abandonments and the prospective pre-C20 transport repair are
+recorded below. The two client mutation identity-shape refusals now have a
+deliberate HTTP 400 classification and a served-route negative fixture. No
+benchmark, baseline, bound, protocol, estimator, exception, or capability
+claim changes. No performance artifact was produced for either abandoned
+candidate. A new exact clean candidate must rerun every unchanged gate.
+
+**Qualification amendment (2026-08-05, v0.28):** C20's valid failed paired
+record is preserved below. Eight of nine read/write comparisons and the idle
+CPU and disk gates passed. Point-read p95 crossed the unchanged two-sided
+equivalence interval on the faster side, while idle RSS's interval crossed the
+upper edge. The absolute recorder was not run. No bound, protocol, estimator,
+exception, or capability claim changes; a genuine prospective product repair
+and a new exact clean candidate must rerun every unchanged gate.
+
+**Qualification amendment (2026-08-05, v0.29):** The prospective pre-C21
+production repair changes the repository's shipped release layout from thin
+LTO to full LTO with one codegen unit. This targets the measured executable-page
+excess without changing source behavior, the measurement worker, baseline,
+bound, protocol, estimator, bootstrap population, exception posture, or any
+capability claim. A new exact clean candidate must rerun every unchanged gate.
+
+**Qualification amendment (2026-08-05, v0.30):** C21's exact paired and
+absolute performance records passed, but its later publication replay exposed
+a target-projection/order defect and therefore did not authorize publication.
+C24's newer exact candidate passed own-correctness and eight of nine paired
+comparisons plus every idle gate, but validly failed point-read p95 on the
+faster side; the absolute recorder was not run. A post-result source and binary
+audit found no point-read regression or supported slowdown. The prospective
+pre-C25 repair instead closes an independently demonstrated LLP 0007 reader
+contract hole: every application-visible row actually decoded now refuses a
+declared portable field whose SQLite storage class, domain, or UTF-8
+representation is not the one asserted by the writer. The migration executor's
+closed-barrier backfill may still decode `NULL` for its one exact newly added
+required destination field before publication; every other field remains
+strict. The repair changes no benchmark, baseline, bound, protocol, estimator,
+bootstrap population, exception posture, or capability claim. A new exact
+clean candidate must rerun every unchanged gate.
+
+**Qualification amendment (2026-08-05, v0.31):** C25 was abandoned before a
+performance artifact was produced after the post-commit review found five
+connected closed-barrier lifecycle defects: `ValidateRequired` could no longer
+count and report its exact target `NULL` values; a resealed plan could aim the
+backfill decoder exception at an existing required field; a plan could write
+again after consuming the requiredness proof; and manifest absence could
+re-adopt a logically retired physical column's old bytes. A follow-up resume
+audit also found that terminal replay adopted caller-supplied successor schema
+bytes before checking their plan identity. The prospective C26
+repair makes NonNull validation observe only its admitted target NULLs while
+every unrelated field remains strict, makes requiredness a sealed ordered
+state machine, limits in-place backfill/copy to a prior `AddField`, and refuses
+a physically pre-existing AddField destination on fresh admission while
+requiring an exact committed AddField journal proof on resume; every terminal
+replay verifies the successor identity before adoption. No benchmark, baseline,
+bound, protocol, estimator, bootstrap population, exception posture, or
+capability claim changes. Every capability remains `Missing`; a new exact
+clean candidate must rerun every unchanged own-correctness and performance
+gate.
+
+**Pre-qualification repair (2026-08-04):** Candidate
+`e12e2f9f94e84bed71b9b5630f5ce56e9544de90` was frozen but deliberately not
+performance-qualified after the canonical proof audit found that its
+adversarial fixtures copied the live publication records. That would make the
+proof self-contradictory after an honest P transition: tests intended to inspect
+frozen-C withheld records would instead inspect P's published bytes. The
+fixtures now read both records from the storage carrier's immutable
+qualification commit (or `HEAD` while still at C), the live checker independently
+validates the checked-out P state, and a published storage record must name a
+strictly earlier C. No performance artifact was created for the abandoned
+candidate; no threshold, protocol, estimator, or claim changed. A new exact
+clean candidate must rerun every original gate.
+
+Candidate `86a43eacc6aaaf4b7af23d619eaf6b52dbbda138` contained that
+repair and passed the clean withheld-state checker, but it likewise produced no
+performance artifact: the immediately preceding fetch found newer
+`origin/main` that was not its ancestor. The lane therefore integrates and
+reconciles that mainline before freezing the next candidate, so no post-C source
+merge can evade the publication history guard.
+
+**Fifth fixed-Air failed candidate and product repair — 2026-08-04:** Clean
+candidate `3ea2fdc6c4e8a29b6424e7821a9391b8668fbeb0` produced a preserved failed
+paired record with SHA-256
+`50b31b07abf9ef9f2e176df65970e7795341af5428e0e8abafc81082aaa5b79c`.
+All mutation comparisons plus idle CPU and disk passed, but the five newly
+cached read statements made point reads about 52% faster and pushed range/query
+intervals outside the unchanged two-sided 5% equivalence band; idle RSS
+independently failed at median 5.3280% with interval 4.8413–5.8566%. No
+exception is ratified and the absolute gate was not run. The shared version
+read, point read, and range count return to their pre-profile preparation
+behavior while only the bounded range-page and generated-query shapes retain
+caching. The operation-detail key leaves its one-row SQLite TEMP database for
+an equally connection-local direct-only crypto function whose captured root
+key zeroizes on connection drop and never crosses SQL, removing a live pager
+without changing
+sidecar validation, ciphertext, transactionality, the active manifest, or
+custody access. No threshold, protocol, estimator, or capability claim changed;
+a new exact clean candidate must rerun every original gate.
+
+**Sixth fixed-Air failed candidate and product repair — 2026-08-04:** Clean
+candidate `f34fdb41ef603d07f6720685728a28a1b18d3fa7` produced a preserved failed
+paired record with SHA-256
+`7e8c7c8f6dd8d8400dbc507a269b56d000c4857ac41144e73bb3eefc6ea0b487`.
+Eight of nine read/write comparisons plus idle CPU, output-block, and
+database-family-byte gates passed. Point-read p95 missed the unchanged
+two-sided 5% equivalence band: paired median -2.4002%, deterministic-bootstrap
+90% interval -5.8052–1.1575%, or 0.8052 percentage points beyond the lower
+edge. Idle RSS independently missed the same unchanged equivalence band at
+median 4.4497% and interval 2.5662–5.1600%, or 0.1600 percentage points beyond
+the upper edge. Neither marginal miss is an authorized exception. The absolute
+recorder was therefore not run.
+
+The pre-profile source, this candidate, and an earlier read-passing candidate
+have the same uncached point-read and version-read implementation. The repaired
+product boundary adds one fail-closed invariant: a point hit returns only when
+its decoded `_id` is a string exactly equal to the requested opaque id. This
+implements LLP 0007's representation/equality rule at the point-read boundary;
+it is not benchmark-only work. No benchmark source, bound, estimator, protocol,
+exception, or capability claim changes. A new exact clean candidate must rerun
+every original paired and absolute gate.
+
+**Seventh fixed-Air failed candidate and prospective v3 repair — 2026-08-04:**
+Clean candidate `eae262bd91fee6bfed6ae77ddd40af22dd10c8b6` produced a preserved
+failed paired record with SHA-256
+`aafbfbbac1e15a18c3cf318611d346ad06bd61f65415347d52f8c365ed04bcea`.
+Point-read p95 failed at median 1.2588% with interval -1.1857–8.7609%; two of
+the 11 candidate p95 observations were isolated 21.57% and 55.17% paired
+outliers. Query-plan p50 failed at median -4.0758% and interval
+-5.6804–-2.9851%, and query-plan p95 failed at median -4.4992% and interval
+-7.4237–-0.0039%. Idle RSS independently failed at median 5.1970% and interval
+4.7977–5.4553%. Mutation, point p50, range, idle CPU, output-block, and
+database-family-byte gates passed. No exception is ratified and the absolute
+recorder was not run.
+
+The C8/C9 raw observations show that one 60-operation worker report per outer
+pair is too quantized and scheduler-sensitive for the registered microsecond
+read equivalence claim. Before any new result, paired schema v3 therefore keeps
+the same 11 independent outer pairs, thresholds, baseline bytes, 20,000-sample
+deterministic bootstrap, and effective sample count, but retains three full
+time-local subpairs inside each outer pair. Even pairs use `AB, BA, AB`; odd
+pairs use `BA, AB, BA`. Each outer threshold value is the median of its three
+raw paired regressions, and only those 11 values enter the unchanged outer
+bootstrap. The checker independently recomputes both levels from all retained
+raw reports. Idle CPU and disk remain conservative over every raw candidate
+observation, so the inner median cannot hide background work or a write.
+
+This prospective precision repair cannot excuse C9's narrow but repeated
+~2-MiB RSS excess. Empty databases also stop eagerly minting and touching a
+protected-detail root key/sidecar: the direct-only connection function remains
+the custody boundary, first protected use atomically publishes and
+directory-syncs its zeroizing-key sidecar before ciphertext may commit, and
+retained ciphertext still requires and authenticates its sidecar at boot. This
+is a production lifecycle/memory repair, not an idle-fixture reset. A new exact
+clean candidate must rerun the complete paired and absolute protocols, and all
+capabilities remain `Missing` until it passes.
+
+**Eighth fixed-Air failed candidate and prospective pre-C14 product repair —
+2026-08-05:** Candidate
+`ced86eff72fb2d406d9aa0bafdbe3a9b1aaf8bf3` (C11) was abandoned before a
+result after own-correctness found incomplete derived-fork custody for
+operation-authority tables. Its paired process was terminated and produced no
+output artifact, so C11 is not a performance failure. Candidate
+`b9a6630d37ea87f642a630f0a4cff1dcd5f464ae` (C12) contained that custody
+repair but was superseded before qualification when a fetch found newer
+`origin/main`; it also produced no measurement artifact.
+
+Exact clean candidate `0e4968ea54f00f111c55cc3a434d5e465dcb463e`
+(C13) produced the valid paired-v3 artifact whose frozen identity and internal
+date remain `agent-safe-active-covered-paired-2026-08-04` and `2026-08-04`.
+The run completed at 2026-08-05 05:35 local time. The artifact SHA-256 is
+`75246591a2da266d20a2bd4ffb05599451b1fc67b2062e625db34daee4ed99dd` and
+the candidate executable SHA-256 is
+`3238f8cbf90633de97d4acc87b621699732bebdfd24bbce5f7a4e2e8a9e043e2`.
+Seven of nine read/write comparisons passed. Query-plan p50 failed at median
+-4.2859% with deterministic-bootstrap 90% interval -5.0093%–-3.6138%, and
+query-plan p95 failed at median -4.3549% with interval
+-5.5492%–-3.4036%. Idle RSS independently failed at median 4.9881% with
+interval 4.6172%–5.1984%. Idle CPU and disk passed. The absolute recorder was
+not run. C13 therefore does not pass Acceptance 13, authorize acceptance of
+LLP 0163–0165, or advertise any capability. The repeated query/RSS shape was
+already present in C9, and the C12-to-C13 mainline merge changed neither
+`src/bench.rs` nor `src/storage.rs`, so the evidence does not attribute the
+failure to newer mainline.
+
+The prospective production correction returns generic current-query execution
+from connection-retained prepared statements to ordinary per-call preparation,
+matching the pre-profile lifecycle. Empty stores retain no protected-detail
+function or custody mutex; the first real protected seal installs the same
+connection-local `DIRECTONLY` carrier, while existing ciphertext still
+requires, authenticates, and installs its sidecar at boot. These are
+production-wide lifecycle and memory corrections, not evidence-fixture
+switches. No bound, protocol, estimator, bootstrap population, exception, or
+capability claim changed. A new exact clean candidate must rerun every original
+gate.
+
+**Ninth fixed-Air failed candidate and prospective pre-C15 product repair —
+2026-08-05:** Exact clean candidate
+`1162b7846aa1d3e693711665074e2421f4b7f146` (C14) produced the valid
+paired-v3 artifact whose frozen identity and internal date remain
+`agent-safe-active-covered-paired-2026-08-04` and `2026-08-04`. The run
+completed at 2026-08-05 06:41 local time. The artifact SHA-256 is
+`4fb1d3be0102afffb567c74ab5462fc613b37a46ef362c4f84a358885cbbe904`
+and the candidate executable SHA-256 is
+`587c07c5ae0bf9118f47ab3bd4f4bd3bc71f976107e07daf0e7a29094e369e61`.
+All nine registered read/write comparisons passed. Idle CPU passed with a
+maximum observation of 36 microseconds against the 5,000-microsecond ceiling,
+and all 33 idle output-block counts and database-family byte deltas were zero.
+
+Idle RSS alone failed the unchanged two-sided 5% equivalence gate. The baseline
+median was 40,272 KiB, the candidate median was 42,224 KiB, and the paired
+median regression was 4.820717%. Its deterministic-bootstrap 90% interval was
+4.244347%–5.148515%, exceeding the unchanged upper edge by 0.148515
+percentage points. No exception is ratified. The absolute recorder was
+therefore not run, C14 does not pass Acceptance 13, and it authorizes no LLP
+acceptance or capability publication.
+
+The prospective production correction removes no durable fact and changes no
+ordinary mutation contract. History policy and row-history tables remain eager
+because every central application write enters that seam. The distinct named
+checkpoint and protected-erasure authority family—four tables, their six
+implicit primary/unique indexes, and the generation singleton—is initialized
+atomically only by the first checkpoint or erasure operation. Existing or
+partial families are completed on open without losing retained authority;
+absent inspect, erase, and recover calls keep their stable not-found result
+without creating state; first-use races serialize; and derived-fork custody
+continues to classify, scrub, and rotate only authority that actually exists.
+This is a production-wide pay-for-play lifecycle boundary for an optional
+feature, not allocator cleanup or fixture shaping. A new exact clean candidate
+must rerun every original gate, and every capability remains `Missing` until it
+passes.
+
+**Tenth fixed-Air failed candidate and prospective pre-C16 release repair —
+2026-08-05:** Exact clean candidate
+`a0a45bcae90d92293d7953f997b929669804a760` (C15) produced the valid
+paired-v3 artifact whose frozen identity and internal date remain
+`agent-safe-active-covered-paired-2026-08-04` and `2026-08-04`. The run
+completed at 2026-08-05 07:54 local time. The artifact SHA-256 is
+`ab32a2a1d111f14ca13f8d3c8f79f2dcba3c608726fc4dee943e1c2a454aba4d`
+and the candidate executable SHA-256 is
+`38e7b75d10d9cd2a9e47cf4f156ad58b0d786ac9456110ea54e543597f659791`.
+All nine registered read/write comparisons passed. Idle CPU passed with a
+maximum observation of 39 microseconds against the 5,000-microsecond ceiling,
+and all 33 idle output-block counts and database-family byte deltas were zero.
+
+Idle RSS alone failed the unchanged two-sided 5% equivalence gate. The baseline
+median was 40,352 KiB, the candidate median was 42,304 KiB, and the paired
+median regression was 4.926500%. Its deterministic-bootstrap 90% interval was
+4.529342%–5.263158%, exceeding the unchanged upper edge by 0.263158
+percentage points. No exception is ratified. The absolute recorder was
+therefore not run, C15 does not pass Acceptance 13, and it authorizes no LLP
+acceptance or capability publication.
+
+C14 and C15 retained the same 1,952-KiB median candidate-minus-baseline gap
+despite C15 removing the unused checkpoint/erasure schema family from fresh
+ordinary stores. A post-result binary audit found that the candidate recorder's
+release `__TEXT` segment is about 2.26 MiB larger than the pinned external
+baseline worker, making release code layout and touched executable pages the
+credible production-level target rather than another small durable-schema
+change. The prospective correction enables thin link-time optimization for
+the repository's release profile. This is a shipped release build property,
+not a worker-only flag: it changes no source route, live state, benchmark,
+bound, estimator, exception, or capability claim. Exploratory runs made with
+an environment override are diagnosis only and are not qualification evidence.
+A new exact clean candidate with the profile committed must rerun every
+original paired and absolute gate, and every capability remains `Missing`
+until it passes.
+
+Candidate `c68e2e3025da8f939b4c0e4e19c2024502c7a4ce` (C16) committed that
+release-profile correction locally before fetching, but was deliberately not
+measured: the required fetch then found `origin/main` at
+`33c486ebff17007ccf6b6d55a51b1081e817f431`, which was not C16's ancestor.
+That mainline delta adds only messaging demos, their diaries, and a guide-gap
+ticket; it changes no Track B implementation, recorder, threshold, or
+publication path. The lane merged it normally and without conflict. C16 has no
+performance artifact and authorizes no claim; a new exact clean post-merge
+candidate must run every unchanged gate.
+
+**Eleventh fixed-Air failed candidate — 2026-08-05:** Exact clean candidate
+`561b80c64fe040a2ca0d6f6ba269e9b7dcdb3467` (C17) produced the valid
+paired-v3 artifact whose frozen identity and internal date remain
+`agent-safe-active-covered-paired-2026-08-04` and `2026-08-04`. The artifact
+SHA-256 is
+`aed3ab1583b3a1c2ee8f7dc02cb057d3e8004f80b685eaa00c837baa83de38c6`
+and the candidate executable SHA-256 is
+`3070779a3a334daf6820785b25b3c0112a827516f1eaba61d70e3dc09c456fc7`.
+Eight of nine registered read/write comparisons passed. Point-read p95 alone
+failed the unchanged two-sided 5% equivalence gate: its paired median was
+-1.131034%, but its deterministic-bootstrap 90% interval was
+-5.646481%–8.651852%. No exception is ratified.
+
+Thin LTO did clear every idle gate. The baseline RSS median was 38,288 KiB,
+the candidate median was 40,064 KiB, and the paired median regression was
+4.532102% with a deterministic-bootstrap 90% interval of
+4.211843%–4.799666%. Candidate idle CPU peaked at 24 microseconds against the
+5,000-microsecond ceiling, and all 33 idle output-block counts and
+database-family byte deltas were zero. Because the read-tail interval failed,
+the absolute recorder was not run, C17 does not pass Acceptance 13, and it
+authorizes no LLP acceptance or capability publication. After the run,
+`origin/main` advanced to `97e8ae9e9e6564877057a00e97a18f735fe79381`
+with two additive issue files and no Track B implementation, recorder,
+threshold, or publication change. That commit must be merged normally before
+a new exact clean candidate reruns every unchanged gate. Every capability
+remains `Missing`.
+
+Candidate `1e826e1d8f26f889df7da82b94ba324582342370` (C18) contained the
+new mainline merge but was abandoned before performance when proportional
+own-correctness found a stale `TableManifest` initializer in
+`tests/network_profile_v1.rs`. The fixture was completed with the existing
+`history: None` posture and passed its focused test; no product behavior or
+performance surface changed.
+
+Exact clean candidate `e35af16ec949b8bea185160a85002f7f5a24ae1c` (C19)
+then passed the focused operation-ledger, fork/promotion, proof/checkpoint,
+instance-fork, capability, network-profile, guide, reference, generated-
+artifact, and withheld-publication checks. Its paired process began on the
+fixed Air but was deliberately interrupted before completion and produced no
+output artifact after the final row-14 test inventory found that public
+mutation transport's two intended identity-shape refusals had no served-route
+negative. The new fixture immediately exposed a real response-classification
+defect: `SNAPBACK_OPERATION_IDENTITY_REQUIRES_CLIENT_MUTATION_ID` and
+`SNAPBACK_OPERATION_HOST_IDENTITY_FORBIDDEN` both returned HTTP 500 even
+though each is a caller-fixable protocol refusal checked before handler
+execution.
+
+The prospective correction deliberately adds those two stable codes to the
+server's conservative client-fault allowlist as HTTP 400 and exercises both
+through the real generated mutation route before a valid mutation. The
+storage-level host-authentication, derivation, squatting, later-host-operation,
+lease, and rotation corpus remains unchanged. This is production transport
+correctness required by Acceptance 14, not a benchmark or threshold change.
+C18 and C19 authorize no LLP acceptance or capability publication; every
+capability remains `Missing` until a new exact clean candidate passes all
+unchanged gates.
+
+Exact clean candidate `c00b77dc82c60492663175a5dcfe4035396803fe` (C20),
+implementation-tree SHA-256
+`70e313107fea370c98f29aba445cc226fda172e4c99ea3f9b516e7f204facb9c`,
+ran the one unchanged paired recorder on the fixed Air. Candidate executable
+SHA-256 was
+`2f7afc5b8f0727983eab6b78445be8b0d55111a023519746e0a91a27cb884e80`;
+the preserved record SHA-256 is
+`f46156651c8f9a6977050088b765b5604dec606673cd2c78a5c6770a181d44d5`.
+Eight of nine read/write comparisons passed. Point-read p95 alone failed the
+unchanged two-sided 5% equivalence gate on the faster side: median -2.4002%,
+90% bootstrap interval -5.9006% to -1.1714%. Idle CPU passed at a 33 µs
+candidate maximum against the conservative 5,000 µs resolution, and every
+output-block/database-family byte delta remained zero. Idle RSS failed narrowly:
+baseline median 40,192 KiB, candidate median 42,096 KiB, paired median +4.7391%,
+90% bootstrap interval +4.6844% to +5.2632%. The artifact therefore records
+`measuredComparativeThresholdsPassed: false`; the absolute recorder was not
+run. C20 authorizes no LLP acceptance or capability publication, and every
+capability remains `Missing`.
+
+A post-result binary audit found that C20's release `__TEXT` segment was
+46,841,856 bytes versus 44,482,560 bytes for the fixed external baseline
+worker, an excess of 2,359,296 bytes that closely tracks the 1,904-KiB median
+candidate-minus-baseline RSS gap. C17 through C20 did not change the current
+point-read implementation or recorder; C20's current reads all shifted faster,
+and the point-read p95 observations are quantized around 3.3–3.7 microseconds,
+where one approximately 42-nanosecond bucket can move a paired ratio across a
+percentage edge. There is no product regression to mask and no source-path
+slowdown is authorized.
+
+The prospective pre-C21 correction instead makes the existing production
+release-layout optimization complete: release builds use full LTO with one
+codegen unit, letting the compiler optimize the shipped dependency graph as one
+unit and reduce cross-module code duplication and executable-page
+fragmentation. This is a repository-wide production profile, not a recorder
+flag. It changes no route, live state, benchmark, bound, protocol, estimator,
+exception, or capability claim. The exact committed candidate must show a
+smaller release segment before it is allowed to run the one unchanged paired
+protocol; every capability remains `Missing` meanwhile.
+
+Exact clean candidate `85dcbd3ab941ccc1efcab7a99862e0baa7899f07` (C21)
+passed the unchanged paired and absolute performance gates on the fixed Air.
+It did not authorize publication: the later publication replay found that the
+target projection was being constructed in the wrong order, and the repaired
+remote-target semantics required a newer exact qualification source. The C22
+and C23 publication/identity attempts were superseded before final
+qualification and made no capability claim.
+
+Exact clean candidate `f222877df22b2d7a58064884e43d29e3ff8ef0a5` (C24),
+implementation-tree SHA-256
+`0b6d046fe44c66db011b85b9bda9688e35f05a5bf33f796579619e74b17df927`,
+ran the one unchanged paired recorder on the fixed Air. Candidate executable
+SHA-256 was
+`57727c6b1c111d810380827aee22ea868eb2e18363487824cdd57cfc4fc4d0ff`;
+the preserved record SHA-256 is
+`355d74d24b104477ba8000e1d0c055d6fe5c96625241f25a9cf3fb68211c970a`.
+Eight of nine read/write comparisons passed, as did every idle gate. Point-read
+p95 alone failed the unchanged two-sided five-percent equivalence gate on the
+faster side: median -2.263430597%, 90% bootstrap interval -5.609492988% to
++1.186105620%. Idle RSS had median +0.63517% and interval -0.87246% to
++2.48139%; idle CPU peaked at 22 microseconds, and every recorded disk delta
+was zero. The absolute recorder was not run. C24 therefore authorizes no
+publication, and every capability remains `Missing`.
+
+An independent raw-sample, source, build, and disassembly audit reproduced the
+C24 statistics exactly. C21 and C24 use identical point-read source, benchmark,
+recorder, and release profile; in both, the pooled candidate p95 is exactly 83
+nanoseconds faster than the fixed baseline. The different pass/fail outcome is
+consistent with the approximately 42-nanosecond timing quantization moving one
+outer-pair statistic across the unchanged lower edge. No artificial slowdown,
+benchmark change, protocol change, threshold change, or rerun-until-green is
+authorized.
+
+A separate LLP 0007 audit found a reachable product defect independent of the
+performance result. SQLite's permissive affinity permits pre-activation raw
+DML, brownfield files, or corruption to store a physical representation that
+the portable writer would refuse; the reader previously accepted such values,
+including Boolean INTEGER values other than zero or one and lossy invalid
+UTF-8. The prospective C25 implementation makes the shared row decoder assert
+the declared storage class, portable numeric/timestamp domain, exact UTF-8,
+JSON validity, and required-versus-optional nullability for every row it
+returns. Existing preserved physical columns without a current declaration
+retain their legacy scalar projection, and no unbounded open-time or full-table
+preflight is added. The only internal staging exception is LLP 0081's
+closed-barrier backfill window: its exact newly added required destination may
+remain `NULL` until the backfill step, but all other fields are decoded
+strictly and publication follows verification. A new clean candidate must pass
+all own-correctness and performance gates before any capability can leave
+`Missing`.
+
+Exact clean candidate `95e844d6c8a9c71e4be66c4f0ecb5f9dc30d00bc` (C25)
+was stopped before producing a performance artifact. A post-commit read-only
+audit found that the strict decoder ran ahead of LLP 0081's typed validation:
+the effective successor schema made the `ValidateRequired` target required, so
+its expected staged `NULL` values failed decoding before the validator could
+emit bounded violation facts and its stable step-failed result. The same audit
+showed that the backfill decoder exception was selected by destination name
+without independently proving that the plan had staged that destination.
+
+The prospective C26 repair retains strict application reads and narrows the
+privileged behavior to mechanically checked cases. A NonNull migration scan
+may decode `NULL` only for the exact fields it is validating; sealed-plan
+admission permits that requiredness lifecycle only for a field staged earlier
+by `AddField` or an optional predecessor field whose successor becomes
+required. Any unrelated required `NULL` still refuses as storage corruption.
+In-place `BackfillField` or `CopyField` may target only a prior `AddField` and
+must precede `ValidateRequired`; the validation must be consumed by
+`MakeRequired`, after which later writes refuse. `AddField` itself refuses an
+existing predecessor field, a missing successor declaration, type drift,
+duplicate staging, and—on fresh target admission—a manifest-hidden physical
+column retained by logical retirement. The same exact operation's resume may
+observe its own already-created column only when that AddField's atomic journal
+entry proves it; a fence/operation row alone is insufficient. Published-held
+and terminal replay recompute the artifact seal against the stored binding and
+verify the supplied successor manifest before adopting it, while
+pre-publication resumes re-run the full predecessor-relative semantics. LLP
+0081's earlier “new or nullable”
+phrase is narrowed to this local v1 new-destination proof domain. Focused tests
+preserve the typed step-failure facts, reject existing-required and late-write
+plans, and refuse retained-byte re-adoption. C25 authorizes no result or
+publication, and every capability remains `Missing`.
+
+Exact clean candidate `cf56fd38229cebe3616f18c5f51e48c295f15d7c`
+(C27), implementation-tree digest
+`sha256:f85812a14f2255f444bced135b0b3dc52d04656a5bdbc0199f764967020991ac`,
+was abandoned before a performance result. One paired process started on the
+fixed Air and was deliberately terminated pre-result after an independent
+review found four correctness defects: payload-free tombstones could not
+distinguish exact, authorization-stale, and other identity collisions; closing
+a later epoch could leap the floor over an earlier open epoch; repeated
+same-epoch successor ranges made the epoch bound unbounded; and the atomic
+writer insertion seam rechecked only live suppression, allowing a key to be
+reinserted after ACK plus compact-envelope pruning. No paired artifact was
+produced, the absolute recorder was not run, and no capability claim changed.
+
+Prospective C28 retains separate domain-separated full-identity and
+authorization-facts digests in each payload-free tombstone, advances floors
+only over the contiguous closed prefix, caps each client epoch at 1,024
+identities (four contiguous 256-counter ranges, aligned with the existing
+client outbox and per-auth settlement bounds), and reclassifies retained state
+inside every terminal or pending writer transaction before publication. Exact
+loss-response range re-service remains available; a fifth range refuses with
+`SNAPBACK_OPERATION_RANGE_EXHAUSTED` and requires a fresh authenticated epoch.
+An identity-null intent may bind that successor only after durable
+same-principal comparison; missing or different principal custody leaves it
+pending rather than failed or cross-authority-submitted. Suppression and
+tombstone epoch/counter corruption also refuse rather than replaying a
+mismatched record. C28 must pass fresh correctness, performance, review, and
+author-acceptance gates; every related capability remains `Missing`.
+
+Exact merged C28 commit `e60473b41159d639bb35ac926564ae49b64f9f51`
+passed 2,127 Rust library tests and the withheld-publication checks, but fresh
+mutually blind Codex and Fable review stopped it before performance. The
+reviews found that ordinary sessions-mode callers did not automatically carry
+the current authority descriptor into range issuance; the generated tombstone
+schema rejected the required `counter: null` emitted for Host identities;
+Host closure trusted an SQL terminal-time projection without comparing it to
+the retained JSON record; and the pending-writer tombstone test did not stage
+and roll back application/journal writes. No C28 performance process began and
+no performance artifact exists.
+
+Prospective C29 installs current session authority and principal custody before
+durable range assignment, injects the same descriptor defensively at the range
+transport boundary, generates a required-but-nullable Host counter schema with
+a representative round trip, validates suppression terminal/acknowledgement
+SQL projections before lookup or Host retention decisions, and proves the
+pending writer refuses and rolls back staged application, journal, envelope,
+and lifecycle rows. The merged mainline's two externally managed control-
+catalog schemas are also preserved by the canonical Rust schemagen without
+claiming Rust ownership. These are prospective correctness repairs only;
+every capability remains `Missing` until a new exact candidate passes fresh
+review, the unchanged one-shot performance gates, and publication acceptance.
+
+Exact clean C29 commit `3f5c587fbe58533a6d471b0e13f238e6baabf774`
+and implementation digest
+`sha256:58dcf92bad47ae5327a5b8459b5ba5666ddfa467ee31a27266497ba4c9226ad9`
+received fresh Codex and Fable `NOT READY` verdicts before performance. Both
+found that the sibling pending-terminal table still exposed an unchecked SQL
+retention-time projection. The reviews also found automatic sessions authority
+installed after ACK selection, a foreign-key public explanation oracle, a
+non-discriminating Host rollback matrix, and stale Draft wording for Accepted
+LLP 0158. No C29 performance process ran.
+
+Prospective C30 globally validates Host primary-key, lane, audience, epoch,
+terminal-time, acknowledgement, and retained-JSON coherence before closure;
+foreign or moved projections cannot hide a young ordinary or pending-terminal
+receipt. Automatic sessions resolve authority before ACK selection. Foreign
+and absent public explanation keys return one metadata-free
+`authorization-unprovable` response, while the admin lane retains exact
+divergence diagnostics. Direct Host terminal and pending writer negatives
+observe staged caller app/journal writes before rollback, prove no lifecycle
+or lease write crossed the retained-state guard, and prove rollback clears the
+publication set while retaining the tombstone. Rust decoding now requires the
+nullable tombstone counter key, and current docs record LLP 0158 as Accepted
+without publishing its distinct derived capability. These are prospective
+correctness repairs only; every capability remains `Missing` pending fresh
+exact review, performance, and publication acceptance.
+
+Exact merged C30 commit `365a3f21117cbaecdf80b8e5bff7debea47fc2d0`
+and implementation digest
+`sha256:8c7b73ad43ef59555562f3dbfd852c0c2b398ae14613af9e5d49c3f220b8d635`
+received a Fable `READY` and Codex `NOT READY` verdict before performance.
+Codex found that Host closure still trusted lease audience/epoch projections,
+and pending-capacity admission still trusted lifecycle lane/audience
+projections. Fable independently noted the same-class client-suppression
+closure asymmetry as a low-priority follow-up. No C30 performance process ran.
+
+Prospective C31 enumerates leases and pending lifecycles globally, validates
+physical keys plus every duplicated SQL/JSON projection, and derives live
+lease and outcome-pending counts only from validated identities. Register,
+complete, replay, capacity, and close seams share the same fail-closed checks.
+Client closure now uses the global suppression comparison pass as well, so a
+moved unacknowledged receipt cannot disappear from its epoch. Direct
+corruption fixtures cover lease audience/epoch, pending lane/audience/epoch,
+and client suppression audience moves. These remain prospective correctness
+repairs: every capability stays `Missing` pending a fresh exact candidate,
+dual review, the unchanged one-shot performance gates, and publication
+acceptance.
+
+Exact clean C31 commit `58ec598c38b3f8077682266727dbe3e0dc574b1d`
+was abandoned before either fresh review returned when the required fetch
+found newer `origin/main` at `2bb84423b59e81e4afa865339765142ad2769bc2`.
+No review artifact or performance result was accepted for C31. The three
+upstream commits were merged normally as
+`1eaa30b7f4e810476c556c3c4206b3deb6597849`; its AppDescriptor and
+artifact-index changes were regenerated from the combined source while the
+C31 custody repairs and all `Missing` capability projections were retained.
+C32 was subsequently abandoned before a qualifying dual review completed and
+before performance after the required remote-tip check found newer main at
+`2b5da1ff6a31f7a8240c7d72af26967b6c34022b` and then
+`9d7f81a4095799c49f8bb27006e1d597f80f84cb`. The two normal merge commits
+above preserve the Track B repairs and regenerate the combined closures. C33
+is the next prospective exact candidate and must rerun fresh dual review and
+both unchanged one-shot performance gates.
+
 **Implementation evidence:** 2026-08-03 (dated candidate evidence recorded:
 the comparable read/write/idle observations are within threshold on the step-0
 machine, but the historical runs were ordinal-zipped rather than experimentally
 paired. A post-run audit records the committed baseline digest but cannot make
 the observations measurement-time-bound experimental pairs; the public covered
 lane was not activated. A separate integrated-revision fork/promotion absolute
-record now covers the final hardening, but author-ratified bounds, p99 evidence,
+record now covers the final hardening. The v0.13 absolute and active-carrier
+p99 bounds are author-ratified before results, but the exact fixed-Air records
 and the applicable correctness gates remain open, so
 Acceptance 13 and every capability remain
 unpassed/`Missing`)
@@ -287,6 +921,12 @@ suppression record, and initial receipt state commit in the same physical
 transaction. A commit version is not visible until all of those facts are
 visible. A crash may leave none of them or all of them; it may not leave a data
 change whose covered commit envelope is absent.
+The terminal and pending writer insertion seams independently reclassify the
+operation identity inside that same transaction before publication, in
+suppression, compact/tombstone, then floor order. Exact retained state refuses
+reinsertion, divergent state returns the stable mismatch, and below-floor state
+returns `identity-horizon-passed`; a pre-handler lookup is never insertion
+authority, and any refusal rolls back the application and journal writes too.
 
 Identity source is defined per originator class. Client-originated operations
 carry a client-minted `operationId` before the first attempt, reused across
@@ -320,15 +960,23 @@ session incarnation, so a client that loses its local store obtains a new
 session and therefore a new epoch — client-local state never fabricates
 monotonicity. Offline minting is closed by construction: at session open the
 server preallocates an authenticated **finite identity range** (epoch plus
-counter range) that the client persists atomically before use; offline
+counter range) of at most 256 counters that the client persists atomically
+before use; offline
 mints draw from the persisted range, so the server knows the last-issuable
 bound at preallocation and closure can conservatively bound every
 minted-but-never-delivered identity by the range without a mint-time
-round trip. A client that exhausts its range while offline queues further
-intents locally as uncovered and refreshes the range at reconnect before
-admission — a stable, disclosed degradation, with the range size and window
-owned by the dated LLP 0043/0012/0095 amendments. A client that loses its
-store obtains a new session and range.
+round trip. An authenticated client epoch may own at most four contiguous
+ranges, or 1,024 identities in aggregate, matching the existing client outbox
+and per-auth settlement bounds. Exact response-loss recovery re-serves the
+already committed successor before any of its counters is admitted. A client
+that exhausts its current range while offline queues further intents locally
+as uncovered and refreshes at reconnect; a fifth same-epoch range refuses
+`SNAPBACK_OPERATION_RANGE_EXHAUSTED`, so continued admission requires a fresh
+authenticated session/epoch and range. An uncovered identity-null intent may
+atomically adopt that successor descriptor/range only if its durable principal
+id matches the newly authenticated principal; otherwise it remains pending
+with `uncovered-reauth-required`. These are stable, disclosed
+degradations owned by the dated LLP 0043/0012/0095 amendments.
 An epoch **closes** only when both hold: its issuer is
 terminated or revoked, so no new first attempts can be minted under it, and
 every identity in its preallocated ranges is admitted-and-**acknowledged**
@@ -350,8 +998,10 @@ incarnation has rotated and every identity minted under it has a terminal
 receipt older than that window or is purged (decided 2026-08-03 by dated
 revision after the post-acceptance scoped review; the fixture leg lands in
 Acceptance 14). The
-per-audience minimum accepted epoch advances only past closed epochs, which
-makes stranding impossible by construction: an in-flight first attempt under
+per-audience minimum accepted epoch advances only over the contiguous closed
+prefix: closing sequence N cannot advance past any lower nonclosed sequence,
+and tombstones are deleted only below that recomputed floor. This makes
+stranding impossible by construction: an in-flight first attempt under
 an open epoch is always admissible, and a single unacknowledged identity
 holds its epoch open (bounded by the refuse-at-capacity rule, not by
 eviction). A retry bearing an epoch below the floor refuses with a stable
@@ -371,15 +1021,20 @@ LLP 0043's republish-the-stored-result rule and lands in the same dated LLP
 0043/0012/0095 amendments as `identity-horizon-passed`. The floor is not the
 only guard: when an identity's last durable record would otherwise be
 reclaimed while its epoch is still open, a payload-free **identity
-tombstone** (identity digest plus terminal outcome class) is retained until
+tombstone** (a domain-separated full-identity digest, a separately
+domain-separated authorization-facts digest, its counter projection, and
+terminal outcome class) is retained until
 the audience floor has advanced past the epoch — so a reclaimed identity in
 an open epoch can never re-execute as novel. Lookup precedence is defined:
 suppression record, then compact envelope or tombstone (`result-expired`),
 then the epoch floor (`identity-horizon-passed`). Host-originated epochs
 follow the host reclamation predicate above, not the client
-acknowledgement rules. P8 is advertised with these bounds, never as an
-unbounded promise; tombstone growth inside an open client epoch is bounded
-by the preallocated range size.
+acknowledgement rules. An exact digest match returns `result-expired`;
+authorization-facts divergence returns `SNAPBACK_AUTH_STALE_RESULT`; and any
+other identity divergence returns `SNAPBACK_CLIENT_MUTATION_ID_REUSED`. P8 is
+advertised with these bounds, never as an unbounded promise; tombstone growth
+inside an open client epoch is bounded by the 1,024-identity aggregate epoch
+capacity.
 
 The compact envelope identity has its own bounded retention clock — the
 profile's third, and it is declared like the other two: a per-audience
@@ -928,7 +1583,7 @@ blanket status claim:
 | Envelope, explanation | this RFC (umbrella) / LLP 0163 (contracts, schemas) | Accepted / Draft | decided here |
 | Diff surfaces | this RFC (umbrella) / LLP 0164 (contracts, schemas) | Accepted / Draft | decided here |
 | Promotion proof domain | LLP 0165 | Draft | named prerequisite |
-| Derived-deployment forks | LLP 0158 | Draft | **not core** — additive capability |
+| Derived-deployment forks | LLP 0158 | Accepted | **not core** — additive capability; distinct qualification and publication remain `Missing` |
 | Host-plan lane contract | LLP 0007 | Draft (shipped; Option A unratified) | provenance labeled `clientSuppliedValidated` until ratified |
 | Identity/settlement widening | LLP 0133 / 0043 amendments | Spec Accepted / RFC Draft (shipped) | decided contract, dated amendments pending |
 | Client conformance | LLP 0012 / 0095 amendments | Draft (shipped) | decided contract, dated amendments pending |
@@ -1098,6 +1753,88 @@ This record completes sequencing step 0. It did **not** pass Acceptance 13 by
 itself: the profile-bearing candidate comparison had not yet run, and every
 capability remained `Missing`.
 
+#### Fixed-Air failed candidate and protocol repair — 2026-08-04
+
+Clean candidate `e6412b9b24887322d0fdb07bdd65b8e8bd86edbf` produced a paired
+record with SHA-256
+`24ff252962d3f12b17c8dbb883c2a9f9052ea2b6d0413b5573681e2d8917798a`.
+It failed the registered point-read p50/p95, idle CPU, and idle RSS gates and
+therefore authorized no status or capability change. Review traced the point
+cost to a dormant mutex-backed SQLite authorizer callback and the idle cost to
+the candidate retaining a full `LocalSnapback`: its queued lifecycle telemetry
+flushed three seconds into a window whose contract says setup is outside the
+measurement.
+
+The repaired protocol changes no bound or estimator. Dormant databases install
+no writer authorizer until a manifest is activated; active and reopened
+connections retain the fail-closed authorizer and zero statement cache. The
+candidate performs real range issuance and durable coverage activation, then
+consumes the carrier into that same armed `LocalDatabase` before sampling.
+Dropping and joining unrelated runtime services outside the window gives the
+candidate and baseline the same retained storage object while the issued range
+and active coverage state remain live. The failed record remains evidence, not
+a result that may be overwritten or reclassified; a new clean revision must
+rerun every original paired and absolute gate.
+
+The next clean candidate, `949db8be40e43cdbd7449a58b70550f6e18d2098`,
+passed every read/write comparison plus idle CPU and disk. Its preserved record
+(SHA-256
+`29be1887ef5d5a85d14c909f8e68b6686e132907a818b1f2a217174d4ee86032`)
+still failed the unchanged RSS bound: median 5.88%, deterministic-bootstrap
+90% interval 5.41–6.40%. That run exposed a second harness asymmetry. Baseline
+idle followed the dormant report workload, while candidate idle followed the
+extra active envelope/write fixtures as well, so their transient allocation
+and code-page footprints were being counted as idle resident state.
+
+The candidate worker therefore records active read/write metrics in its parent
+process and delegates idle to a fresh child of the same release executable.
+The child first runs the dormant comparator workload, then activates and holds
+the real storage manifest/range fixture for five seconds. This separates the
+registered per-metric fixtures while retaining the active product state under
+test; it does not discard active storage, change the RSS formula, or introduce
+an exception. The second failed record also remains evidence, and a new exact
+clean revision must rerun the complete paired and absolute protocols.
+
+The next clean candidate, `1364781e48c35686eb0c89b543a7ab9287de2f01`,
+again passed every read/write comparison plus idle CPU and disk. Its preserved
+record (SHA-256
+`2856a1eb3fd2081d49f551e8458a687146f365eece521a835656620190ca9abd`)
+honestly failed the unchanged RSS bound at median 5.2108%, with a
+deterministic-bootstrap 90% interval of 4.9324–5.8917%. No exception is
+ratified. The result remains failed evidence and cannot qualify publication.
+
+The near-bound result makes unused connection-local SQLite pages touched by the
+rare manifest publication and validation transaction a plausible target, not a
+proven cause. The shared production `WriterAuthorityV1::arm_manifest` seam now
+issues SQLite's advisory `shrink_memory` request after disabling statement
+caching and installing the in-memory manifest, then installs the
+connection-local authorizer before returning. This preserves the same
+connection, durable manifest, finite issued range, and fail-closed authorizer.
+The request is shared by authenticated local-target activation and the evidence
+fixture; it is not a candidate-only fixture reset, and only a new fixed-Air run
+can establish whether it changes RSS. No threshold, protocol, estimator, or
+claim changes. A new exact clean revision must rerun the complete paired and
+absolute protocols, and every capability remains `Missing` until it passes.
+
+#### Absolute-operation bound ratification — 2026-08-04
+
+Charlie ratifies the following hard ceilings before the final Track B
+fixed-Air measurement. On the recorder's fixed 512-logical-row,
+one-changed-row, one-operation fixture, the medians must be at most 1,000 µs
+for fork creation, 2,500 µs for exact diff, 7,500 µs for strict promotion,
+and 250 µs for TTL reap. Across the fixed 128 samples and eight file-backed,
+active issuance-bearing ordinary-mutation carriers whose first requests are
+held behind the production 1,000-ms promotion reservation, request-to-COMMIT
+p99 must be at most 1,250,000 µs. The policy's separate maximum
+promotion-commit duration remains 500 ms.
+
+The preserved 2026-08-03 integrated observation informed these ceilings, but
+the final candidate result did not: the limits are registered here first and
+the final recorder fails closed instead of writing a passing artifact when any
+ceiling is exceeded. They are absolute safety/performance guardrails for the
+named fixture, not estimates of user-visible end-to-end latency and not an
+exception to any comparable-path threshold above.
+
 #### Candidate and absolute-operation records — 2026-08-03
 
 The comparable candidate artifact is
@@ -1195,7 +1932,10 @@ component and tier individually; the complete metric set gates only the
 aggregate:
 
 1. **Atomic envelope:** crash cuts around a covered mutation reveal either no
-   data/journal/envelope/receipt change or the complete committed set.
+   data/journal/envelope/receipt change or the complete committed set. Direct
+   invocation of either writer seam after ACK and compact-envelope pruning
+   reclassifies the tombstone transactionally and rolls back every staged app
+   and journal write rather than republishing the identity.
 2. **Retry settlement:** identical retries return the stored receipt without a
    second write — including a host-initiated retry after a crash; identity
    reuse with any divergence in the bound identity facts refuses stably,
@@ -1209,11 +1949,15 @@ aggregate:
    range preallocation and client range persistence preserve exactly-once; a
    retry answered from a surviving compact envelope receives the stable
    `result-expired` outcome-known disposition; the epoch-closure predicate
-   cannot advance a floor past a live unacknowledged receipt; with two
+   cannot advance a floor past a live unacknowledged receipt, including when a
+   later ready epoch closes before an earlier open epoch; with two
    identities in one open epoch, reclaiming the acknowledged one leaves a
    tombstone so its retry answers `result-expired` rather than executing as
-   novel; an offline client that exhausts its preallocated range degrades to
-   the disclosed uncovered queueing disposition; receipt-only
+   novel, and tombstone reuse separates authorization-fact divergence from
+   other identity divergence without retaining the underlying facts; exact
+   response-loss re-service preserves custody through four bounded ranges, a
+   fifth same-epoch range refuses atomically, and offline exhaustion degrades
+   to the disclosed uncovered queueing disposition; receipt-only
    operations sharing one snapshot version keep distinct
    envelopes keyed by operation identity; and after every envelope and
    suppression record for an identity has been reclaimed, a retry bearing a
@@ -1467,6 +2211,89 @@ recording an observation is semantically sufficient.
     schemas under LLP 0037's generated-schema pattern, which also settles
     OQ5's ownership half; this RFC remains the profile umbrella and the
     acceptance corpus's home.)*
+
+## Capability registry record
+
+On 2026-08-04, `agent_safe_storage_v1` entered the closed target-capability
+registry at `Experimental` maturity. The id names this RFC's versioned
+`agentSafe.v1` extension and component-fact vocabulary; it deliberately does
+**not** mean that the `AgentSafeV1` core aggregate is supported. Every target's
+positive predicate remains false, every public projection remains `Missing`,
+and the guide retains the GAP until the applicable corpus, review, acceptance,
+and publication gates pass.
+
+## Source-owned publication carrier amendment — 2026-08-04
+
+Two independent local publication chains now exist:
+`agent_safe_storage_v1` and
+`agent_safe_derived_deployment_fork_v1`. Each is a tracked
+anchor → carrier → dated receipt chain. At frozen C both anchors are valid
+`withheld` records, so this amendment and its implementation advertise
+nothing.
+
+A future storage `published` anchor is accepted only by a known, clean
+`contributor-source` build whose canonical implementation-tree digest matches
+the carrier. The build independently verifies a clean root and an exact,
+clean checked-out `vendor/ibex` gitlink regardless of general build-identity
+environment overrides. The implementation tree includes Cargo/build inputs,
+Rust implementation, codegen and contract packages, the publication checker,
+recorders, and the `vendor/ibex` gitlink identity. Incremental builds track
+the vendored source directories plus the resolved submodule worktree and
+common-git metadata, so an in-place Ibex source, index, HEAD, or ref change
+cannot retain a cached clean digest. The two anchors, carriers,
+receipts, and closed dated evidence outputs are cycle exclusions. Publishing
+the local manifest also refreshes the pre-existing signed codegen closures for
+Latency Kanban, Triage Graph, and Contention Calendar. Because Triage evidence
+is itself an input to the local persistent-store publication carrier, its three
+dated evidence outputs plus that carrier and its source-owned anchor are a
+second, closed transitive cycle exclusion. The checker derives the exact
+receipt substitutions and resulting anchor digest from C; source maps and all
+other carrier/anchor bytes are immutable. Rust and conformance-test bytes stay
+inside the implementation digest and cannot change at P. The history-aware
+checker, now in the canonical local proof, proves the
+qualification commit C
+is an ancestor of publication commit P and that the implementation tree is
+identical at C and P; the carrier binds the receipt, which in turn binds the
+acceptance record, paired and absolute performance records, two independent
+reviews, and author acceptance by path and SHA-256. It also parses those
+artifacts semantically for exact clean candidate/hardware/protocol identity.
+It recomputes every paired regression, bootstrap interval, idle gate,
+absolute median/MAD/range, and contention percentile from the retained raw
+observations before accepting the reported passed paired and absolute gates,
+Acceptance rows 1–4/13/14, distinct Fable
+and Codex `READY` verdicts, Charlie's scoped acceptance, and every wider fact
+remaining `Missing`.
+
+Generated publication projections are fail-closed too. One implementation-
+digest-bound registry covers every backend in the canonical artifact ledger.
+At C the checker freezes the exact regular-blob leaves: each review manifest,
+only its tracked `consumer-committed` projections, and the pre-existing leaves
+of the explicitly fully committed and admin-generated roots. P may modify
+those leaves without changing their modes, but may not add, delete, rename,
+retag, or widen them from a mutable P manifest. Source inputs, regenerable
+caches, unmanaged roots, and every new executable path remain forbidden.
+
+The storage candidate is reconstructed in Rust and is exactly six facts: the
+ordinary-mutation and host-child-mutation lanes across HostPlan and
+IbexBuffered adapters, plus public-current-policy bounded explanation for the
+generated `owned-crud.v1` / `owner.v1` create and update HostPlan profiles.
+Performance is evidence gating those facts, not a seventh fact. Specialized
+lanes, aggregate facts, wider explanation/diff/history/proof/replay/resource
+classes, non-local targets, and public packages remain `Missing`. Its
+app-effective projection additionally intersects the exact active two-lane,
+four-adapter coverage record with the current function artifact's adapter and
+host-child call reachability; marker-only owner metadata is insufficient.
+
+The derived-deployment candidate vocabulary is independently and exactly
+`DenyAll` / `NotPromotable` / `currentHead` / `HostMediated`. It never mints
+derived app-effective support. The current implementation structurally returns
+unsupported regardless of the derived JSON anchor: the storage absolute
+recorder measures in-app `MaterializedBase`, not LLP 0158's end-to-end F0b
+lifecycle. A later derived publication requires a code change with a distinct
+performance/evidence contract and review. The carrier receipt records
+Cloudflare, remote-service, and `public-package` negatives explicitly. LLPs
+0158 and 0163–0165 keep their current statuses; their review and author-
+acceptance gates are evidence inputs, not consequences of this machinery.
 
 ## Status
 
