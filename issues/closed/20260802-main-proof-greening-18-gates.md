@@ -1381,3 +1381,11 @@ producer passed 5/5 on configured binary SHA-256
 `c3385f3b6fa00066568c17540693c8ba8f849129ed6112efdd43a19985a7907d`
 and replaced the stale-main activation that had failed the `dac1ea722` fast
 proof. No capability-admission bypass was used.
+
+The same final G2 client-entry change invalidated Contention only at its
+retained source digest. Its exact real producer on qualified source
+`568b3964acffd138f6ae80325fa3d028560cdad8` passed 8/8, including all seven
+frozen checks, on configured binary SHA-256
+`534db5affed2a25515edcf7fcfab9ccab9e45292eafd90115843b35918d771f8`.
+The rotated activation and generated binding closure are retained with that
+receipt; no widened effect ceiling or correctness edit occurred.

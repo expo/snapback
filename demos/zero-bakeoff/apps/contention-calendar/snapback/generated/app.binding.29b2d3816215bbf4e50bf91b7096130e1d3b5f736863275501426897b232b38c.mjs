@@ -6,7 +6,7 @@ export const artifacts = deepFreeze({
   "trustedCompositionActivation": {
     "activation": {
       "authMode": "dev",
-      "databaseId": "019fd70e-22ac-7b70-9387-b753f231b60f",
+      "databaseId": "019fd751-c900-71c3-b268-5e3ba94dc136",
       "deploymentId": "contention-calendar-rung2-exit",
       "expectedGeneration": {
         "appId": "contention-calendar",
@@ -16,18 +16,18 @@ export const artifacts = deepFreeze({
         "schemaVersion": "snapback.v0"
       },
       "format": "snapback.composition-activation.v1",
-      "proofKeyManifestDigest": "sha256:b08aed2091eabc45d12db35d472d0c139502fd5ac810db4a25d17f9a01509114",
+      "proofKeyManifestDigest": "sha256:bcc5088bff9121e389174dfd34e995c581841eae5ef6f892a281e032c3ba7253",
       "targetProfileId": "local-dev-sqlite-ibex"
     },
-    "activationHash": "sha256:c7c1eb160eeebd6ed0bcf6b503455905a939adc6642fa1a0a1608b220dfd1272",
+    "activationHash": "sha256:9c7c34a23eb6df6df470d27564bd4aa7a50c6cb4e9862a2104d1692f298b4b72",
     "format": "snapback.trusted-composition-activation.v1",
     "proofKeys": {
       "format": "snapback.completeness-proof-keys.v1",
       "keys": [
         {
           "algorithm": "Ed25519",
-          "proofKeyId": "sbpk1.uE9kJUd5N4tY-pBclP0hAw",
-          "publicKeyBase64url": "pgdu_-uy_zy7Lrw3B2sSgSscgVfDuFWUlKzU8VQxl60"
+          "proofKeyId": "sbpk1.8951cyCYwQOYfAnbT6Fc3A",
+          "publicKeyBase64url": "stlZ2oEv_mATWlx5IxhLvb5DkM7oCEMCBbNn9zCVatM"
         }
       ]
     }
