@@ -1210,3 +1210,37 @@ bytes, zero process write bytes, 3/10 allowed CPU ticks, and zero RSS-page
 growth. Package export typing remains green across 92 subpaths and 12
 packages; the reconciled inventory now selects 215 tests. This fresh carrier,
 not either superseded predecessor, is the evidence for the combined landing.
+
+Main advanced once more before the batch could close, through the served
+`/llms.txt` surface (`593857df5`), anonymous asset-reservation refusal
+(`ddf7ae909`), optional-argument projection (`fd5fb6578`), and their remote
+verification fixes (`50c1434ed`). Those source changes made the `26698baf7`
+carrier honest evidence for its own candidate but not for the final named
+batch. It was therefore superseded, not rebound.
+
+### Exact named-batch Linux telemetry carrier — 2026-08-06
+
+The closing EPYC producer measured exact source
+`90e3157c2e2b66f7b5b80f5244f744b5907d87e8`, the named combined batch after
+those last source landings. The host was re-inspected before the run. An
+unrelated release job was allowed to finish; this producer began only after
+the host was idle. The read-only doctor and the repository's coded bootstrap
+then rebuilt, launched, and restricted-VM-qualified the exact candidate using
+the supported prepared Ibex checkout. No administrator change, manual machine
+repair, loader bypass, or source substitution was used.
+
+The locked Rust smoke selected and passed its one telemetry test (2,156 were
+filtered out). The exact release build, runtime-readiness issuance, full
+benchmark, and 120-second idle witness all passed. The retained receipt has
+SHA-256
+`1acfb605152fea23380336fba902d22f7a52c91783e4e0916fba9058d6654675`
+and covers 474 proof-source files with digest
+`22d1bfc20fce8343d392fdfafbb258108c423038b6367a5cf4c2795894cfc08f`.
+The 675-line transcript at
+`/var/cache/expose-build/snapback-telemetry-90e.aZzhxY/telemetry-full.log`
+has SHA-256
+`97f83244fcb27bc86fbeb8564929dea0aaba15a043f4b4c4e1584cdc2debfa63`.
+The idle interval observed zero storage mutations, zero process read bytes,
+zero process write bytes, 3/10 allowed CPU ticks, and zero RSS-page growth
+against an eight-page ceiling. This new measurement is the retained evidence
+for the exact final wave-drift batch.
