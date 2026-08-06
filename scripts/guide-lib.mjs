@@ -12,6 +12,7 @@ export const FLAT_PATH = join(GUIDE_DIR, 'guide-flat.generated.md');
 export const CAPABILITIES_PATH = join(GUIDE_DIR, 'capabilities.md');
 export const SURFACE_MAP_PATH = join(GUIDE_DIR, 'surface-map.md');
 export const INDEX_PATH = join(GUIDE_DIR, 'index.md');
+export const PUBLISHED_CLOSURE_PATH = join(GUIDE_DIR, 'published-closure.json');
 export const GUIDE_MCP_MANIFEST_URI = 'snapback-guide://manifest';
 export const GUIDE_MCP_FLAT_URI = 'snapback-guide://flat';
 export const GUIDE_MCP_PAGE_URI_PREFIX = 'snapback-guide://page/';
@@ -139,6 +140,8 @@ export function validateFrontmatter(fm, path, errors) {
   check('audience', fm.audience === 'agent-first', "must be 'agent-first'");
   check('status', ['draft', 'current', 'deprecated'].includes(fm.status), 'must be draft|current|deprecated');
   check('maturity', Object.hasOwn(MATURITY_RANK, fm.maturity ?? ''), 'must be shipped|partial|design-only');
+  check('since', /^\d+\.\d+\.\d+$/.test(fm.since ?? ''), 'must be a three-component version (X.Y.Z)');
+  check('unreleased', fm.unreleased === 'true', "must be the boolean true");
   check('reviewed', /^\d{4}-\d{2}-\d{2}$/.test(fm.reviewed ?? ''), 'must be YYYY-MM-DD');
   check('reviewed-commit', /^([0-9a-f]{7,40}|HEAD)$/.test(fm['reviewed-commit'] ?? ''), "must be a commit sha or 'HEAD'");
   if (Array.isArray(fm.targets)) {
@@ -151,6 +154,148 @@ export function validateFrontmatter(fm, path, errors) {
   }
   for (const field of ['capabilities', 'authorities', 'examples']) {
     if (fm[field] !== undefined && !Array.isArray(fm[field])) errors.push(`${path}: '${field}' must be an array`);
+  }
+}
+
+const THREE_COMPONENT_VERSION = /^\d+\.\d+\.\d+$/;
+const SECTION_SINCE_MARKER = /^<!--\s*since:\s*(\d+\.\d+\.\d+)(\s+unreleased)?\s*-->$/;
+
+export function compareVersions(left, right) {
+  const leftParts = left.split('.').map(Number);
+  const rightParts = right.split('.').map(Number);
+  for (let i = 0; i < 3; i += 1) {
+    if (leftParts[i] !== rightParts[i]) return leftParts[i] - rightParts[i];
+  }
+  return 0;
+}
+
+function loadPublishedClosure(root, errors) {
+  const path = join(root, PUBLISHED_CLOSURE_PATH);
+  if (!existsSync(path)) {
+    errors.push(`${PUBLISHED_CLOSURE_PATH}: missing published-closure record`);
+    return null;
+  }
+  let record;
+  try {
+    record = JSON.parse(readFileSync(path, 'utf8'));
+  } catch (error) {
+    errors.push(`${PUBLISHED_CLOSURE_PATH}: malformed JSON (${error.message})`);
+    return null;
+  }
+  let valid = true;
+  if (record?.schemaVersion !== 'snapback-published-closure.v1') {
+    errors.push(`${PUBLISHED_CLOSURE_PATH}: schemaVersion must be 'snapback-published-closure.v1'`);
+    valid = false;
+  }
+  if (!THREE_COMPONENT_VERSION.test(record?.newestPublished ?? '')) {
+    errors.push(`${PUBLISHED_CLOSURE_PATH}: newestPublished must be a three-component version (X.Y.Z)`);
+    valid = false;
+  }
+  return valid ? record : null;
+}
+
+function blockquoteAt(lines, start, newestPublished) {
+  if (start >= lines.length || !lines[start].startsWith('> **Unreleased.**')) return false;
+  const blockquote = [];
+  for (let i = start; i < lines.length && lines[i].startsWith('>'); i += 1) {
+    blockquote.push(lines[i]);
+  }
+  return blockquote.join('\n').includes(newestPublished);
+}
+
+function hasPageUnreleasedBanner(lines, newestPublished) {
+  const firstH2 = lines.findIndex((line) => line.startsWith('## '));
+  const end = firstH2 === -1 ? lines.length : firstH2;
+  for (let i = 0; i < end; i += 1) {
+    if (blockquoteAt(lines, i, newestPublished)) return true;
+  }
+  return false;
+}
+
+// @ref LLP 0061#3-verification-snippets-that-ran — guide-consistency joins
+// authored availability claims to the checked-in published package closure.
+export function checkPublishedClosure(root, pageInfo, pageBodies, errors) {
+  const publishedClosure = loadPublishedClosure(root, errors);
+  if (!publishedClosure) return;
+  const { newestPublished } = publishedClosure;
+
+  for (const [path, info] of pageInfo) {
+    const fm = info.frontmatter ?? {};
+    const since = fm.since;
+    const unreleased = fm.unreleased === 'true';
+    const validSince = since === undefined || THREE_COMPONENT_VERSION.test(since);
+    if (!validSince) continue; // validateFrontmatter owns the malformed-field diagnostic.
+
+    if (
+      since !== undefined &&
+      fm.maturity === 'shipped' &&
+      compareVersions(since, newestPublished) > 0 &&
+      !unreleased
+    ) {
+      errors.push(
+        `${path}: page claims a surface the newest published closure (${newestPublished}) does not contain; ` +
+        `declare 'unreleased: true' with the rendered banner, or correct 'since'`,
+      );
+    }
+
+    if (unreleased) {
+      if (since === undefined) {
+        errors.push(`${path}: 'unreleased: true' requires 'since: X.Y.Z'`);
+      } else if (compareVersions(since, newestPublished) <= 0) {
+        errors.push(
+          `${path}: stale unreleased fence: the published closure now contains this surface — ` +
+          `remove the fence (or bump since:)`,
+        );
+      }
+      const lines = (pageBodies.get(path) ?? '').split('\n');
+      if (!hasPageUnreleasedBanner(lines, newestPublished)) {
+        errors.push(
+          `${path}: unreleased page requires a rendered banner blockquote starting '> **Unreleased.**' ` +
+          `before the first ## heading and containing ${newestPublished}`,
+        );
+      }
+    }
+  }
+
+  for (const [path, body] of pageBodies) {
+    const lines = body.split('\n');
+    for (let i = 0; i < lines.length; i += 1) {
+      const trimmed = lines[i].trim();
+      if (!/^<!--\s*since:/.test(trimmed)) continue;
+      const marker = SECTION_SINCE_MARKER.exec(trimmed);
+      if (!marker) {
+        errors.push(
+          `${path}:${i + 1}: invalid since marker; expected '<!-- since: X.Y.Z -->' or ` +
+          `'<!-- since: X.Y.Z unreleased -->' on a line by itself`,
+        );
+        continue;
+      }
+      const version = marker[1];
+      const isUnreleased = marker[2] !== undefined;
+      const comparison = compareVersions(version, newestPublished);
+      if (!isUnreleased && comparison > 0) {
+        errors.push(
+          `${path}:${i + 1}: section since ${version} is newer than published closure ${newestPublished}; ` +
+          `declare the marker unreleased and add the rendered banner`,
+        );
+      }
+      if (isUnreleased && comparison <= 0) {
+        errors.push(
+          `${path}:${i + 1}: stale unreleased fence: the published closure now contains this surface — ` +
+          `remove the marker + banner or bump the version`,
+        );
+      }
+      if (isUnreleased) {
+        let next = i + 1;
+        while (next < lines.length && lines[next].trim() === '') next += 1;
+        if (!blockquoteAt(lines, next, newestPublished)) {
+          errors.push(
+            `${path}:${i + 1}: unreleased section marker must be immediately followed by a rendered ` +
+            `banner blockquote starting '> **Unreleased.**' and containing ${newestPublished}`,
+          );
+        }
+      }
+    }
   }
 }
 
@@ -473,6 +618,7 @@ export function checkFreshness(root, pageInfo, warnings, infos) {
 }
 
 export function buildManifest(root, pageInfo, snippetRecords, index, surfaces) {
+  const publishedClosureRecord = loadPublishedClosure(root, []);
   const pages = {};
   const nav = new Map();
   for (const [path, info] of [...pageInfo.entries()].sort()) {
@@ -484,6 +630,8 @@ export function buildManifest(root, pageInfo, snippetRecords, index, surfaces) {
       status: fm.status,
       targets: fm.targets,
       maturity: fm.maturity,
+      since: fm.since,
+      unreleased: fm.unreleased === 'true' ? true : undefined,
       capabilities: fm.capabilities,
       authorities: fm.authorities,
       examples: fm.examples,
@@ -512,6 +660,10 @@ export function buildManifest(root, pageInfo, snippetRecords, index, surfaces) {
     schemaVersion: 'snapback-guide.v1',
     generatedBy: 'scripts/generate-guide-manifest.mjs',
     buildIdentity: { commit },
+    publishedClosure: {
+      scope: publishedClosureRecord?.scope,
+      newestPublished: publishedClosureRecord?.newestPublished,
+    },
     nav: Object.fromEntries([...nav.entries()].sort()),
     pages,
     capabilities: { covered: covered.sort(), gaps: gaps.sort() },

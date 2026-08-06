@@ -1,6 +1,6 @@
 # Guide gap: pages teach primitives the published closure does not contain
 
-**Status:** Open
+**Status:** Closed
 **Impact:** 5
 **Urgency:** 4
 **Ease:** 4
@@ -86,3 +86,14 @@ guide asserting availability, not about promoting anything.
 - `~/projects/chess-bakeoff/implementations/snapback/conformance.mjs` —
   `refusalCodeOf()`, and the raw-`fetch` leaderboard read
 - LLP 0171 §A — the same finding argued as the highest-leverage authoring repair
+
+## Resolution (2026-08-06)
+
+1. Added the checked-in newest-published record at
+   `guide/published-closure.json`.
+2. Added optional page and section `since` / `unreleased` conventions, schema
+   validation, the repository-only consistency join, and manifest projection.
+3. Added explicit 0.1.9 unreleased banners around the `ctx.refuse` and
+   `anonymous-public` sections that are absent from 0.1.8.
+4. Documented and proof-registered the mechanism with direct test fixtures, updated
+   LLP 0061 and the authoring-loop narrative, and regenerated the guide corpus.

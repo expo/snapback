@@ -1,29 +1,41 @@
 # LLP 0187: Agent discoverability — routing over coverage
 
 **Type:** RFC
-**Status:** Draft
+**Status:** Review
 **Systems:** Guide, Developer experience, CLI, Packaging, Code generation,
 Diagnostics
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-05
+**Revised:** 2026-08-06 (b — round-1 dual-family review reconciliation)
 **Related:** LLP 0016, LLP 0061, LLP 0146, LLP 0176, LLP 0177, LLP 0178, LLP
 0179, LLP 0184, LLP 0186
 
 ## Summary
 
-The 2026-08-05 messaging bakeoffs (diaries 0057–0060) produced an unusually
-clean measurement of why Snapback loses head-to-head comparisons against
-Convex and Supabase: **the measured losses are almost entirely
-discoverability and packaging, not capability.** Three isolated, concurrent
-agent arms each independently failed to find features that exist, work, and
-are documented — and then either hand-rolled worse replacements or recorded
-confident, wrong claims that the capability does not exist.
+The 2026-08-04/05 bakeoffs (diaries 0057–0060: one chess-backend arm
+consuming the published npm packages, and three messaging arms working
+in-repo, benchmarked against Convex) produced an unusually clean
+measurement of why Snapback loses head-to-head comparisons: **the measured
+losses are almost entirely discoverability and packaging, not
+capability.** Three concurrent in-repo agent arms each independently
+failed to find features that exist, work, and are documented — and then
+either hand-rolled worse replacements or recorded confident, wrong claims
+that the capability does not exist.
 
 The diagnosis this RFC defends: these are **routing failures, not coverage
 failures**. Every replicated miss happened with the maximum possible
 documentation surface available — inside the repo, with the full guide, the
 capability index, and the LLP corpus greppable. Writing more pages will not
 fix a failure mode in which existing, accurate pages are never reached.
+
+**Dating note (2026-08-06 reconciliation):** hours after the bakeoffs, the
+2026-08-05 guide sweep (`213607235`) landed the concrete cross-links and
+aliases T1 below derives from these misses, closing the three
+discoverability tickets. The evidence sections therefore describe the
+corpus *as the arms found it*; per-item current state is noted inline.
+What remains live in this RFC is the diagnosis, the conventions that make
+such fixes mandatory and regression-proof, and the techniques not yet
+built.
 
 The proposal is a ranked program of routing techniques — facts placed at the
 decision point, diagnostics that teach, forced capability lookups, an
@@ -48,10 +60,13 @@ regression-proof for every future miss.
 
 ## Motivation: the evidence
 
-The three 2026-08-05 arms (Relay Room, Tandem, messaging-snapback) ran in
-isolated worktrees, concurrently and without communication (diary 0060), so
-misses that replicated across all three are structural, not one agent having
-a bad day.
+The three messaging arms (Relay Room, Tandem, messaging-snapback) ran
+concurrently in separate worktrees without inter-agent communication —
+diary 0060, which orchestrated the messaging-snapback/Convex pair, records
+discovering the other two as unrelated concurrent sessions mid-run, so the
+isolation was observed rather than protocolized — and misses that
+replicated across all three are structural, not one agent having a bad
+day.
 
 ### What was missed
 
@@ -62,8 +77,10 @@ a bad day.
   `admin console:` banner) — at least one arm had that line on screen via an
   `stdio: 'inherit'` launcher and still never used it
   (`issues/closed/20260805-admin-console-undiscovered-by-expo-bakeoffs.md`).
-  `guide/clients/react-expo.md` — the page these arms actually lived in —
-  contains zero mentions of the console.
+  At bakeoff time `guide/clients/react-expo.md` — the page these arms
+  actually lived in — contained zero mentions of the console. (Landed
+  since: the sweep added a "when something breaks" console pointer to that
+  page.)
 - **`defineRelationalQuery` — missed 3/3.** All three arms needed plain
   joins (conversation membership, message ⋈ sender) and all three dropped
   straight to `defineJsLiveQuery` with hand-written joins. One diary recorded
@@ -72,15 +89,20 @@ a bad day.
   for plain joins
   (`issues/closed/20260805-relational-query-undiscovered-by-messaging-bakeoffs.md`).
   A bakeoff artifact now asserts a capability gap that does not exist.
+  (Landed since: `guide/backend/queries.md` routes plain joins to
+  `defineRelationalQuery` before the first `defineJsLiveQuery` example.)
 - **`useSnapbackPresence` — missed 1/3, via a vocabulary split.** Two arms
   found the hook and praised it; the third grepped `useSnapbackEphemeral`
   and `subscribeEphemeral` — the schema-side vocabulary — found only the raw
   client method, concluded "there is no React hook (confirmed by grep, not
-  assumption)," and hand-wired the raw subscription. The hook appears in
-  `guide/clients/react.md` and never in `guide/realtime/ephemeral-state.md`
+  assumption)," and hand-wired the raw subscription. At bakeoff time the
+  hook appeared in `guide/clients/react.md` and never in
+  `guide/realtime/ephemeral-state.md`
   (`issues/closed/20260805-guide-gap-ephemeral-presence-hook-naming.md`). The agent
-  did the right thing methodologically and still got a wrong answer, because
-  the corpus's two vocabularies never bridge.
+  did the right thing methodologically and still got a wrong answer,
+  because the corpus's two vocabularies never bridged. (Landed since: the
+  ephemeral page now names the hook and the wrong-but-reasonable grep
+  target.)
 - **Expo asset upload — correct facts in the wrong places, 3/3.** The
   authorization rule and the native URI→body recipe were each individually
   documented, but never together at the point a public-upload Expo author
@@ -88,6 +110,8 @@ a bad day.
   built three different workarounds
   (`issues/20260805-expo-asset-upload-guide-gap.md`,
   `issues/closed/20260805-guide-gap-dev-mode-asset-upload-anonymous-caller.md`).
+  (Landed since: the sweep shipped a unified Expo asset recipe; the
+  still-open guide-gap ticket tracks the residue.)
 - **Published-closure drift (external arm).** The one arm outside the repo
   (Chessfield, diary 0057, npm `0.1.8`) authored against `ctx.refuse` and
   `custody: 'anonymous-public'` — both marked shipped and current, both
@@ -132,8 +156,10 @@ currently the whole gap.
 1. **Routing, not coverage.** The replicated misses all had accurate pages
    and accurate capability-index rows. The failure is that nothing on the
    path the agent actually walked pointed at them.
-2. **Surface-area tax.** Relay Room named the mechanism: an agent holding
-   ten subsystems will not exhaustively search an eleventh. Snapback's
+2. **Surface-area tax.** Relay Room's diary describes the mechanism (the
+   ten-subsystems formulation here is this RFC's gloss, not a quotation):
+   an agent already holding many subsystems will not exhaustively search
+   one more. Snapback's
    vocabulary richness (declarative / JS / relational / ephemeral / assets)
    converts to discoverability debt at a roughly linear rate — Convex needs
    fewer discoveries because it has one primitive. Therefore *facts at the
@@ -148,8 +174,11 @@ currently the whole gap.
    engineered like one.
 5. **The out-of-repo funnel is nearly empty, and every in-repo failure is
    its best case.** `@expo/snapback-cli` ships no README and no docs
-   subcommand; CLI help never mentions documentation; `snapback new` emits
-   22 files with zero orientation; package-README guide references are
+   subcommand; CLI help surfaces the guide only through the `mcp`
+   subcommand's one-line description, with no top-level documentation
+   pointer; `snapback new` scaffolds a template (8–14 files, depending on
+   template) containing zero orientation markdown; package-README guide
+   references are
    repo-relative paths that do not resolve outside a checkout. The retrieval
    eval (`guide/retrieval-eval.md`) has only ever run from inside a
    checkout. External users get a strictly worse surface than the one that
@@ -159,11 +188,14 @@ currently the whole gap.
 
 ### T1 — Cross-link at the moment of wrong choice; engineer grep targets
 
-*Owner: guide corpus (LLP 0061 conventions). Cost: hours. Fixes: the 3/3
-misses directly.*
+*Owner: guide corpus (LLP 0061 conventions). Status: the one-time sweep
+below LANDED 2026-08-05 (`213607235`, closing the three discoverability
+tickets); the live T1 work is the conventions amendment that makes the
+pattern mandatory for every future page.*
 
 Rule: **every "hard way" the guide teaches must name its paved
-alternative at the point of choice.** Concretely:
+alternative at the point of choice.** Concretely (all landed by the
+sweep; retained as the worked examples the convention generalizes):
 
 - The `defineJsLiveQuery` teaching content states, before the first worked
   example: "if this handler is a plain join, `defineRelationalQuery`
@@ -188,10 +220,12 @@ fix: add the string. (Competitor-vocabulary aliases — "Convex `useQuery` →
 aimed outward; LLP 0186 W2 owns shipping those rows. This RFC's rule covers
 Snapback's *own* vocabulary splits, which no rosetta table catches.)
 
-This technique is proposed as a **conventions amendment** to LLP 0061
-(anti-pattern sections gain a required "paved alternative" link; the alias
-column's charter expands to grep vocabulary) plus a one-time sweep of the
-pages named above.
+With the sweep landed, T1's proposal reduces to the **conventions
+amendment** to LLP 0061: anti-pattern sections gain a required "paved
+alternative" link, the alias column's charter expands to grep vocabulary,
+and a vocabulary split between a feature's schema side and client side is
+classified as a guide defect. Without the amendment, the sweep is a
+one-off that the next feature quietly fails to repeat.
 
 ### T2 — Diagnostics as the router (delegated to LLP 0178)
 
@@ -220,21 +254,27 @@ guide tables replacing hand counts — which have already drifted, 28/39 vs
 
 ### T4 — Build the out-of-repo funnel before it is tested for real
 
-*Owner: split — the CLI/package documentation surface is owned here; the
-published skill, `/llms.txt`, and scaffold template are owned by LLP 0186
-W2; the external eval is already specified by LLP 0184 Phase 5 and LLP 0176
-G4.*
+*Owner: split — LLP 0061 owns guide distribution (it already names the
+packaged CLI and a `snapback guide` command as the future carrier), so
+the funnel items below are proposed as scoped amendments to 0061's
+distribution section, with this RFC contributing the evidence and
+priority; the published skill, `/llms.txt`, and scaffold template are
+owned by LLP 0186 W2; the external eval is already specified by LLP 0184
+Phase 5 and LLP 0176 G4.*
 
-Owned by this RFC:
+Proposed into LLP 0061's distribution section:
 
 - READMEs on every published `@expo/snapback-*` package — orientation, not
   export inventories — whose documentation links resolve outside a checkout
   (served-guide URL shape + `snapback mcp`), starting with
   `@expo/snapback-cli`, which today has none.
-- A `snapback docs <query>` subcommand grepping the embedded guide (the
-  bytes already ship in the runtime binary via `build.rs`), and CLI `help`
-  output that names the documentation channels. Today no CLI surface
-  mentions docs at all.
+- The `snapback guide` subcommand 0061 already names as the carrier,
+  extended with query support against the embedded guide (the bytes
+  already ship in the runtime binary via `build.rs`), and CLI `help`
+  output that names the documentation channels. (This RFC previously
+  floated `snapback docs` as a name; 0061's `snapback guide` wins — one
+  owner, one name.) Today the only help-surface mention of the guide is
+  the `mcp` subcommand's description.
 - `snapback new` scaffold output gains a consumer-facing AGENTS.md carrying
   the entry steering ("check the capability index first") and next-steps
   text. Scaffold-time is the one moment Snapback controls what lands in a
@@ -254,12 +294,15 @@ Delegated:
 
 ### T5 — Guide truthfulness against the published closure
 
-*Owner: guide checker. Small, mechanical.*
+*Owner: LLP 0061 — this is an amendment to its frontmatter contract and
+checker, proposed here. Small, mechanical.*
 
 `since:` (or `unreleased: true`) frontmatter on guide content, joined by
 `scripts/check-guide.mjs` against the published package closure, rendering a
 banner when a page teaches primitives the installable artifact lacks. This
-is the Chessfield failure class; the checker machinery exists.
+is the Chessfield failure class; the checker machinery exists. (Because
+this touches the frontmatter contract 0061 owns, it lands as a 0061
+amendment, not as a convention this RFC holds — see Non-goals.)
 
 ### T6 — Shrink the number of discovery events (delegated to LLP 0176/0179)
 
@@ -272,8 +315,9 @@ discoverability framing to their motivation; their design stands on its own.
 ### T7 — Every replicated miss becomes a retrieval-eval seed intent
 
 *Owner: this RFC owns the standing rule; the initial cases below are the
-same ones LLP 0186 W2 seeds and land once, under whichever document ships
-first.*
+same ones LLP 0186 W2 seeds, and they land once, under 0186 W2 — the
+single landing owner — while the rule that every future replicated miss
+must produce such a case lives here.*
 
 The diary → guide-gap ticket loop (LLP 0016, LLP 0061 §5) produced this
 document's evidence and is working. Close the loop: when a miss is fixed,
@@ -295,22 +339,27 @@ Once T4's external fixture exists, each seed runs in both fixtures
 
 ## Sequencing and priority
 
-1. **T1** (guide sweep + conventions amendment) and **T7** (eval seeds) —
-   cheapest, attack the 3/3-replicated misses, no design risk.
+1. **T1** (the conventions amendment — the one-time sweep landed
+   2026-08-05) and **T7** (eval seeds, landing under 0186 W2) — cheapest,
+   lock in the replicated-miss fixes against regression, no design risk.
 2. **T2/T3** — accept LLP 0178; finish LLP 0184 Phase 1 items 4–5 and
    Phases 2–5. Most of this is already specified; this RFC only ranks it.
 3. **T4** — strategically most urgent: the bakeoffs measured the best case,
    and LLP 0176 G4 will fail without it. Should land alongside the first
-   npm `latest` promotion
-   (`issues/20260803-first-npm-latest-promotion.md`) and LLP 0186's W2
-   wave, which carries the delegated half.
+   *qualified, source-current* npm promotion
+   (`issues/20260803-first-npm-latest-promotion.md` — `0.1.8` has been on
+   `latest` since 2026-08-01 via the fast path; the open work is the
+   qualified promotion of the current surface) and LLP 0186's W2 wave,
+   which carries the delegated half.
 4. **T5** — small and mechanical; land with T4.
 5. **T6** — proceeds on LLP 0176's own schedule.
 
 ## Non-goals
 
-- Redesigning the guide's structure, frontmatter contract, or the capability
-  index (LLP 0061 owns these; T1 amends conventions only).
+- Owning any of the guide's structure, frontmatter contract, distribution
+  carriers, or the capability index — LLP 0061 owns these. Where this RFC
+  touches them (T1 conventions, T4 funnel, T5 closure fence), the change
+  is proposed as a scoped 0061 amendment, not held here.
 - Specifying diagnostic taxonomy or remediation shapes (LLP 0178 owns).
 - Specifying the control catalog, entry ritual, or MCP surfaces (LLP 0184
   owns).
@@ -335,11 +384,15 @@ Once T4's external fixture exists, each seed runs in both fixtures
    the "this JS handler is a plain join" heuristic be before it ships as an
    advisory? (LLP 0178's lanes bound the blast radius — advisories never
    change admission — but a noisy advisory burns trust.)
-4. **Does `guide-flat.generated.md` need a diet or a tier?** It has grown to
-   ~648 KB / ~12,900 lines against LLP 0061's stated ~130 KB embedding
-   budget, which quietly breaks the "read the whole surface in one request"
-   channel for context-limited agents. Split projection (index + per-section
-   flats)? Ticket regardless of this RFC's fate.
+4. **Does `guide-flat.generated.md` need a diet or a tier?** It measures
+   718,436 bytes / 13,948 lines (2026-08-06) against the ~130 KB corpus
+   size LLP 0061 cited — a then-current fact rather than a formal budget;
+   0061's enforced budgets are 40 KiB (capability index) and 16 KiB
+   (surface map). At 5.5x the premise, the "read the whole surface in one
+   request" channel is quietly broken for context-limited agents. Split
+   projection (index + per-section flats)? Ticketed per this OQ's own
+   disposition: `issues/20260806-guide-flat-projection-oversize.md`,
+   design owned by 0061; LLP 0186 W2's `/llms.txt` consumes the result.
 5. **Is a passive-channel audit worth it?** The admin-console banner
    evidence suggests auditing other print-and-hope channels (boot output,
    scaffold success payloads) and either upgrading them to interrupting

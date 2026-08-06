@@ -1,6 +1,6 @@
 # Zerobugs Stage 0.5 current-surface control plan
 
-Status: Lanes 1–3 complete and live-verified; Lane 4 authoritative corpus implemented with in-sandbox validation passing and its fresh-server live gate awaiting the supervising session
+Status: Lanes 1–4 complete and live-verified; Lane 5 versioned composition implemented with in-sandbox validation passing and its fresh-server live gate awaiting the supervising session
 Governing contract: `demos/zerobugs/manifest/acceptance.v1.md`  
 Source inventory: `demos/zerobugs/stage0/inventory.v1.md`  
 Source pin: `rocicorp/mono@25c2c7308d3eb674d2d895022c9da11ef0c742fb`, `apps/zbugs`  
@@ -63,7 +63,8 @@ in receipts rather than silently changing the comparator.
 - Later control-only support tables remain visibly separate from the ten
   source tables: `identityBinding`, `projectUserRead`, `issueListRead`,
   `issueLabelRead`, `issueSearchDocument`, `searchEpoch`,
-  `notificationIntent`, `notificationAttempt`, and `assetAttachment`. Their
+  `notificationIntent`, `notificationAttempt`, `unsubscribeTokenUse`, and
+  `assetAttachment`. Their
   schemas, writers, rebuilds, and custody are provider-specific code counted
   under manifest §9.
 
@@ -285,7 +286,7 @@ the exact Snapback release it fronts. All bespoke lines count.
 | Four Zero data aliases | Gateway exposes `POST /api/push`, `/api/mutate`, `/api/get-queries`, and `/api/query` as frozen-envelope compatibility adapters to generated Snapback refs/native protocol. **Bespoke versioned D7 adapter.** The ported SPA uses native refs; gates still exercise all aliases. | Closed allowlist of 19 queries/16 mutators, strict envelope/arg/result validation, session custody, invalid bearer 401, no arbitrary function or auth fields. |
 | Machine Markdown | Gateway implements `GET /p/:projectName/issue/:id.md` over one parent-gated Snapback query. **Bespoke versioned D7 adapter.** | Numeric/string id, 308 canonical redirect, Markdown errors, max 1,000 comments, internal crew gate, authenticated `no-store`, no child oracle. |
 | Safe unsubscribe | `GET /api/unsubscribe` is read-only confirmation; a separate `POST /api/unsubscribe` consumes a signed, purpose/user/issue-bound expiring token and idempotently sets false. **Intentional improvement and bespoke D7 adapter.** | No email+short-id mutation, no existence oracle, key rotation/expiry/replay tests, CSRF-safe POST. |
-| Notification delivery | The authoritative mutation writes `notificationIntent` and enqueues an experimental one-off job in the same transaction. A declared action uses `ctx.fetch` to deterministic local capture or pinned sandbox email/webhook adapters; attempts have stable idempotency, fenced retries, terminal/ambiguous receipts. **App ledger over shipped actions + local experimental jobs; `backend.notifications` remains GAP.** | Never before commit, no lost intent, no claimed duplicate, internal recipient policy, eight triggers/non-trigger corpus, fault-before/after-send tests. Hosted durable-background support remains ZB7 GAP. |
+| Notification delivery | The authoritative mutation writes `notificationIntent` in the source transaction. A bounded per-tick companion worker leases app-owned attempts, and a declared action uses host-mediated `ctx.fetch` to deterministic local Loops/Discord capture adapters; attempts have the gateway's exact `clientID:mutationID:email` identity, fenced retries, and terminal/ambiguous receipts. **App ledger plus shipped actions and a versioned companion worker; `backend.notifications` and native durable background work remain GAP.** The experimental one-off-job slice was evaluated and rejected for this control because its current contract does not reconcile the required explicit ambiguous terminal/domain state. | Never before commit, no lost intent, no claimed duplicate, internal recipient policy, eight triggers/non-trigger corpus, fault-before/after-send tests. Hosted durable-background support remains ZB7 GAP. |
 | Image upload | Use shipped local Snapback assets with a typed `v.assetRef`, stock Vite relay, private upload intent, and declared public-immutable delivery. Gateway keeps the source-shaped `POST /api/upload/presigned-url` response adapter. **Local partial; hosted object policy GAP.** | Five MIME types, server-enforced 10 MiB bound, checksum/finalize, PUT result checked, owned `assetAttachment`, Markdown URL projection, CORS/delivery declaration, GC/cleanup, no secret logging. |
 
 The composition never proxies `/_snapback/*` as an arbitrary public surface.
@@ -407,9 +408,9 @@ attempt. Using a row before that update fails ZB0.
 | `W-PENDING` / server-only pending | Hidden branch/subscription/effect state is not safely locally evaluable. Owner: Lane 6 control UI lane. | Lane 4 settlement facts: `snapback/functions.mjs:840-1672`, `tests/acceptance/lane4-live.mts:1-588`; client target `src/data/mutations.ts`, UI pending components / TBD-before-use in Lane 6 | **Not used in Lane 4 UI because that UI has not landed.** The authoritative result and replay surface are implemented; honest client pending presentation lands in Lane 6 and must replace its TBD span before use. | No speculative protected fact or false settlement. | D5. |
 | `W-WINDOW` / app-owned window controller | No current source-equivalent `useZeroVirtualizer` primitive. Owner: control UI lane. | `src/windowing/*`, list/comments pages / TBD-before-use | Bespoke controller over supported bounded queries; retained through control. | Generation-fenced requests; parent policy on comments; honest completeness. | D4 window workstream. |
 | `W-IDENTITY` / identity binding table | Snapback principals and frozen source user ids are distinct namespaces. Owner: auth composition. | `snapback/schema.mjs:144-156`; closed actor map and reusable guards `snapback/functions.mjs:56-152`; loaded-fixture proof and acceptance surfaces `snapback/functions.mjs:212-440`; receipt harness `scripts/bind-actors.mts:9-235`; runtime-independent witnesses `tests/lane2-functions.test.mts:123-254`; live seven-actor/transition gate `tests/acceptance/lane2-live.mts:46-222`; actor metadata in `fixtures/normal-seed-v1/fixture.json:7-33` and `tests/fixtures/fixture-digests.json:20-46` | Implemented as an acceptance-only, frozen-five, one-to-one binding bootstrap over supported dev sessions. Rebinding, unknown source users, role mismatches, sixth actors, and binding after closure refuse. `fixtureInspectTable` closes after the first binding. Retained through control; live gate awaits the supervising session. The adopted-bearer harness ends the server session through the shipped `/auth/logout` route (`authLogout` correctly refuses without browser `AuthCoordinator` custody); external user switch uses `replaceBearerToken`, which blanks predecessor state before refetch. | The stored principal is always `ctx.auth.userId`; every private helper resolves principal → binding → source row and accepts no caller user id. The acceptance actor selector is trusted only inside this fixture-gated bootstrap: current handler auth does not expose the verified mint email, so the mutation additionally requires the complete frozen fixture, exact actor/source/role map, one-to-one rows, five-row closure, and gateway omission. | D7 auth profile. |
-| `C-GATEWAY` / versioned composition gateway | Native Snapback does not own all nine frozen arbitrary routes or GitHub OAuth. Owner: composition lane. | `composition/zerobugs-control-composition.v1.json`, `composition/server.mts`, `composition/routes/*` / TBD-before-use | Formally versioned bespoke D7 companion; local supported control component; no native claim. | Narrow route/function allowlist, session custody, redirect/token/secret policy, owned cleanup. | D7 routes/auth. |
-| `C-NOTIFY` / durable app ledger and worker | `backend.notifications` is an explicit GAP; current jobs are local experimental. Owner: effect composition. | Intent/attempt schema `snapback/schema.mjs:247-291`; snapshot/idempotency helpers and eight trigger writers `snapback/functions.mjs:449-839,882-1050,1172-1251,1296-1405,1422-1509`; independent oracle/pure/live witnesses `tests/lane4-oracle.mts:1-722`, `tests/lane4-domain.test.mts:1-125`, `tests/acceptance/lane4-live.mts:1-588`; Lane 5 worker target `composition/effects/*` (span assigned before Lane 5 use) | Lane 4 local partial implemented: every trigger commits exactly one pending intent with payload/recipient snapshots in the source mutation transaction; every non-trigger and refusal commits none; replay settles without duplication. `notificationAttempt` is declared but deliberately empty. Delivery, retries, fencing, ambiguity, and capture remain Lane 5, and hosted remains GAP. | Mutation transaction owns intent; protocol settlement plus replay-stable runtime id owns logical idempotency; no provider call or secret use occurs in Lane 4. | D7 effects; first-class notification capability. |
-| `C-ASSET` / source URL adapter and attachment metadata | Native local asset lifecycle differs from S3 presign/Markdown URL source shape. Owner: asset composition. | `snapback/schema.mjs`, `snapback/functions.mjs`, `composition/routes/upload.mts`, `src/assets/upload.ts` / TBD-before-use | Supported local asset capability + bespoke response/Markdown adapter; hosted GAP. | Server MIME/size/checksum, typed attachment, declared delivery/CORS, GC, no credential logging. | D7 assets/routes. |
+| `C-GATEWAY` / versioned composition gateway | Native Snapback does not own all nine frozen arbitrary routes or GitHub OAuth. Owner: composition lane. | Component contract `composition/zerobugs-control-composition.v1.json:1-145`; gateway `composition/server.mts:1-807`; config/identity/unsubscribe functions `snapback/functions.mjs:3776-3865`; exact envelope/token/Markdown helpers `composition/lib/{envelopes,markdown,tokens}.mts` (complete files); pure witnesses `tests/lane5-{envelope,token}.test.mts` (complete files); live route/health/cleanup witness `tests/acceptance/lane5-live.mts:312-511,639-681,812-824` | Implemented as a formally versioned bespoke D7 companion and supported local control component. All nine demands have exact method/path/input/output/auth bounds; GitHub exchange uses the deterministic local identity fixture, while real public-TLS OAuth remains a named ZB7 GAP. No native arbitrary-route or OAuth claim. | Closed 19-query/16-mutator allowlists; session custody; invalid bearer 401; state/PKCE/redirect fence; one-use purpose token; secrets by name; no `/_snapback/*` proxy; startup refuses non-loopback binding or declared/generated release drift; owned process/port/file cleanup. | D7 routes/auth. |
+| `C-NOTIFY` / durable app ledger and worker | `backend.notifications` is an explicit GAP; current jobs are local experimental and do not carry the explicit ambiguity reconciliation this control requires. Owner: effect composition. | Intent/attempt schema `snapback/schema.mjs:247-292`; snapshot/idempotency helpers and eight trigger writers `snapback/functions.mjs:449-849,908-1569`; Lane 5 lease/settle/action surface `snapback/functions.mjs:4065-4295`; worker/renderers `composition/effects/{deliver,payloads}.mts` (complete files); pure payload witness `tests/lane5-payload.test.mts`; live trigger/retry/ambiguity/non-trigger witness `tests/acceptance/lane5-live.mts:512-638,762-811` | Implemented for the supported local control: source mutations atomically commit intent; the bounded companion tick leases per-target attempts; host-mediated action egress reaches only authenticated local capture; delivered and ambiguous attempts fence replay. Gateway mutations preserve exact `clientID:mutationID:email`; native-direct calls retain the Lane 4 replay-stable runtime fallback and make no frozen-key claim. Hosted/native notification capability remains GAP. | Source transaction owns intent; frozen gateway injects only settlement identity, never authority; crew-admin lease/settle guard; intent-indexed attempt reads and per-intent bound; declared secret grants; Loops/Discord path allowlist; internal recipient snapshot is crew-only; definite pre-send failures retry; post-send uncertainty is terminal ambiguous. | D7 effects; first-class notification capability. |
+| `C-ASSET` / source URL adapter and attachment metadata | Native local asset lifecycle differs from S3 presign/Markdown URL source shape. Owner: asset composition. | Typed alias schema `snapback/schema.mjs:306-326`; upload/attach/delivery/cleanup functions `snapback/functions.mjs:3866-4022`; gateway adapter `composition/server.mts:540-671`; five-type/size/MIME/CORS/public-delivery/cleanup witness `tests/acceptance/lane5-live.mts:682-761` | Implemented as supported local Snapback assets plus a bespoke source-shaped key/URL adapter. The native image intent owns four trusted image types; server-validated SVG uses a closed opaque native intent and a sandboxed/nosniff typed delivery alias. Hosted object policy/origin remains GAP. | Authenticated presign; one-hour user/key/MIME/exact-size capability; 10 MiB server ceiling; header and byte-signature/MIME match; native finalize and typed attach before publication; immutable public CORS delivery; cleanup inventory and native reverse-edge/GC ownership; no credential logging. | D7 assets/routes. |
 | `W-FIXTURE` / fixture transformation and bounded loader | Frozen relational source ids must become typed prefixed placeholder references and support read models, while handlers may only create server-owned runtime ids and LLP 0109 caps a seed at 1,024 effects. Owner: fixture lane. | Compiler `scripts/build-fixture.mts:1-1115`; batch planning/id remap/digest verification `scripts/load-fixture.mts:14-342`; closed mutation and inspection allowlists `snapback/functions.mjs:12-274`; runtime-table-selected batch/result `v.json()` carrier `snapback/functions.mjs:239-256`; runtime-table-selected inspector with no expressible single-table document contract `snapback/functions.mjs:258-275`; focused witness `tests/fixture-loader.test.mts:1-153`; generated normalized rows in `fixtures/normal-seed-v1/*.json` (complete files); `fixtures/policy-extension-v1.json:1-162`; `tests/fixtures/fixture-digests.json:1-181` | Bespoke deterministic compiler plus 16 bounded ordinary mutation batches; retained for control reproducibility. No `seed.json` is authored. These two Lane 1 fixture-only dynamic-table boundaries are the only generated unknown shapes; every Lane 3 query uses a precise `results.records(v.object(...))` contract. | Dev-minted ordinary session; empty/in-progress frozen-user gate; final `searchEpoch` sentinel closes ingestion; gateway omission; exact ids/counts/digests after inverse remap. | D8 fixture/import profile may standardize a resumable authenticated bulk loader. |
 | `W-ENUM` / duplicate closed-domain guard | Shipped table field validators do not admit literal unions for the source `role` and `visibility` varchar enums. Owner: schema/mutation lane. | Compiler guards `scripts/build-fixture.mts:190-203,645-742,758-784,811-865`; ingest guard `snapback/functions.mjs:62-90`; authoritative visibility/subscription/intent guards `snapback/functions.mjs:449-481`; guarded writers `snapback/functions.mjs:560-590,600-632,652-666,812-839,882-1541`; source varchar declarations remain `snapback/schema.mjs:16-20,51-54` | Bespoke closed-domain guards cover fixture ingestion and every Lane 4 write that authors or propagates role/visibility/subscription/intent state; schema remains `v.string()`. | Fail closed before storage; query auth never treats an unknown role as crew or visibility as public; no invalid trigger/kind/state pair reaches the ledger. | D5, if generated validation/lowering is extended to portable stored enum domains. |
 | `W-SHORTID` / bounded source identity allocation | The pinned PostgreSQL issue table assigns `shortID` from an identity sequence starting at 3000, while current Snapback tables have no numeric identity/default declaration and the mutation arguments correctly omit that field. Owner: control server lane. | Bounded first-unused allocator and authoritative insert `snapback/functions.mjs:493-509,882-941`; independent oracle `tests/lane4-oracle.mts:131-138,353-361`; production-helper witness `tests/lane4-domain.test.mts:106-125` | Implemented for the admitted <1,024 control corpus. It chooses the first unused integer from 3000, so explicit high policy-fixture values do not advance the emulated sequence, and commits that value with the issue/intent. Refuses at the corpus proof boundary; large/hot qualification remains GAP. | Server-only allocation; caller cannot select a permalink id; the surrounding transaction owns the bounded read and insert. | Portable numeric identity/default support. |
@@ -538,6 +539,31 @@ artifact freshness into a live-load claim.
   admitted control corpus and refuses at 1,024 rather than treating an
   explicit high policy-fixture sentinel as sequence progress. A first-class
   numeric identity/default would remove that scan and its large-corpus GAP.
+
+- **2026-08-06 — provider idempotency identity inside a JS mutation.** The
+  action/outbox guidance correctly requires a stable key, while the client
+  surface exposes `clientMutationId`; the handler surface still exposes no
+  read-only settlement identity. The frozen provider contract specifically
+  needs `clientID:mutationID:email`, not merely any replay-stable UUID. Lane 5's
+  versioned gateway therefore validates the two frozen fields and injects them
+  as optional composition-only arguments into the eight effect-producing
+  generated calls, so the source mutation, intent, and provider key share one
+  atomic identity. Native-direct mutations retain Lane 4's replay-stable
+  `ctx.runtime.id()` fallback and are excluded from the frozen-key claim. A
+  documented read-only settlement identity would remove these extra generated
+  arguments and the composition-specific branch.
+
+- **2026-08-06 — SVG through the typed asset lifecycle.** The assets guide
+  explains trusted finalization, active-content refusal, typed attachment, and
+  public delivery, but it does not give an intent-indexed recipe for an app
+  whose frozen accepted image set includes `image/svg+xml`. The native trusted
+  detector intentionally treats active SVG as opaque, so declaring SVG on the
+  ordinary image intent cannot satisfy this source contract. Lane 5 validates
+  exact SVG MIME/length/signature at the server gateway, uploads it through a
+  separately named opaque native intent, attaches it through a typed
+  `v.assetRef`, and serves the alias with `nosniff` plus a sandbox CSP. That is
+  counted as `C-ASSET`, not described as native image-pipeline support; a guide
+  recipe should either teach this safe adapter or name SVG as an explicit GAP.
 
 ## Lane 1 validation
 
@@ -818,3 +844,80 @@ reserves named prefixes for built-ins like `usr_`), so expectations of
 functions manifest omits the `ir` field rather than carrying `ir: null`.
 Sequencing row 4's completion check is met; Lane 5 (routes/assets/effect
 delivery) is next.
+
+## Lane 5 validation
+
+Run on 2026-08-06 from `demos/zerobugs/control`. The sandbox cannot bind
+loopback, so generation, pure contracts, typechecking, both bundles, and the
+repository reference check run here. The fresh-server harness is deliberately
+left for the supervising session; no live Lane 5 PASS or sequencing-row-5
+completion claim is made before that receipt exists.
+
+| Command | Result |
+| --- | --- |
+| `bun run generate` | PASS, exit 0: 20 tables and 53 operations (nine queries, 20 live queries, 23 mutations, one action), 174 generated files. The only two warnings remain the pre-existing `W-FIXTURE` dynamic-table argument/result degradations. |
+| `bun run test:lane5` | PASS, exit 0: seven pure tests cover exact 19-query/16-mutator envelope allowlists and widening refusal, purpose-bound expiring unsubscribe signing/verification/digest behavior, inventory-shaped Loops/Discord payloads, exact `clientID:mutationID:email`, and internal email-only rendering. |
+| `bun run typecheck` | PASS, exit 0. |
+| `bun run build:composition` | PASS, exit 0: Bun bundled the gateway and one-tick worker (57 modules; 1.32 MB and 1.26 MB development bundles). |
+| `bun build tests/acceptance/lane5-live.mts --outdir .snapback/lane5-live-build --target bun` | PASS, exit 0: the live harness and its 54-module dependency graph parse and bundle for Bun (1.31 MB development bundle). |
+| `bun run build` | PASS, exit 0: Vite 8 built the client. Output contained the upstream `optimizeDeps.rollupOptions` deprecation and existing chunk-size advisory only. |
+| `bun run test:lane4` | PASS, exit 0: generation plus all 17 Lane 1–4 pure fixture, identity, query/read-model, and mutation-domain tests. This regression proves the optional gateway settlement-identity carrier does not change native-direct Lane 4 behavior. |
+| `./ref-check --verbose` (repository root) | PASS, exit 0: 188 LLP documents, 4,330 references in 11,350 files, zero errors and zero unchecked. |
+| `node scripts/check-guide.mjs` (repository root) | **BLOCKED OUTSIDE LANE SCOPE, exit 1:** 57 pages, 178 snippets, 116 routes + 37 host operations, and 46 warnings were inspected. Failures are missing generated example contracts under `demos/competitive-checkpoint` and `demos/todo-v2` plus a stale root `guide/guide-manifest.generated.json`; Lane 5 changes only `demos/zerobugs/control/`, so no out-of-scope repair was attempted. |
+| `git diff --check -- demos/zerobugs/control` | PASS, exit 0. All modified and added paths are under the required deliverable directory. |
+| `SNAPBACK_OUTBOUND_ACTIONS=1 SNAPBACK_READY_FILE=<fresh-server-ready-file> SNAPBACK_RUNTIME_BINARY=/Users/ccheever/projects/snapback/target/debug/snapback bun tests/acceptance/lane5-live.mts` | **AWAITING SUPERVISING LIVE RUN.** Start the fresh sessions server from the generated Lane 5 artifacts with runtime outbound actions enabled. The 16-check harness waits for settled readiness, loads the exact fixture, binds all five actors, sets the three named test deployment secrets without emitting their values, starts the gateway on port 0, and emits one `zerobugs-lane5-live.v1` receipt; any missing or failed check exits nonzero. |
+
+The declared `zerobugs-control-composition.v1` manifest pins Bun 1.3.12, all
+nine demanded routes with their method/input/output/auth bounds, owned secret
+names, gateway health, cleanup ownership, and the exact generated Snapback
+app/schema/input/schema/bundle/target-profile identity. OAuth is explicitly
+LOCAL/DEV partial: state, PKCE-shape, redirect allowlisting, fixture
+`githubID → identityBinding`, and admin-gated server session mint are exercised;
+real GitHub exchange over public TLS remains ZB7 GAP.
+
+The live harness uses the frozen envelopes for all four route aliases and
+checks invalid bearer, caller-selected auth widening, malformed JSON shape,
+and the 1 MiB ceiling. It asserts public Markdown structure and canonical
+redirects plus internal crew-only/no-store behavior; read-only unsubscribe GET
+and one-use POST with equal replay/expiry/forgery refusal; all five image MIME
+types, the 10 MiB + 1 server refusal, MIME mismatch, CORS, public retrieval,
+and cleanup enumeration; all eight effect trigger classes, every non-trigger,
+crew-only internal recipients, exact rendered captures, durable pre-send
+retry, and terminal post-send ambiguity without replay. Its final check sends
+SIGTERM only to the gateway process it spawned, verifies process exit, ready
+file removal and closed port, then removes its uniquely created temporary
+capture directory.
+
+### Lane 5 completion — live gateway/effects harness PASS
+
+Run on 2026-08-06 by the supervising session. All 16 checks executed and
+passed (receipt `zerobugs-lane5-live.v1`): nine route demands with
+positive/negative cases, machine-Markdown public parity and crew gating,
+safe unsubscribe (GET read-only; POST signed purpose-bound token with
+expiry/forgery/replay refusals), five-MIME/10 MiB server-enforced upload
+policy with public delivery and cleanup, exactly-once capture for all eight
+trigger classes with crew-only internal recipients, durable-intent retry
+after fail-before-send, explicit fenced ambiguity after
+fail-after-send-before-receipt, zero delivery for non-triggers, and gateway
+health/identity/shutdown cleanup.
+
+Supervisor corrections during the live run (recorded verbatim for ZB6):
+
+1. **Required config gates app data.** With required config entries missing,
+   the sessions auth-mode transition stays pending and app-data admission
+   refuses (`SNAPBACK_AUTH_MODE_PENDING`). The harness now sets the three
+   named secrets through the admin control plane BEFORE the fixture load.
+2. **Compiled-fixture reference fields carry `_id` placeholders**, not
+   source ids; four harness selection predicates were corrected.
+3. **`ctx.fetch` resolves to the host.fetch JSON result** (`{status, ok,
+   url, bodyText}`), not a WHATWG Response: the delivery action called
+   `.text()` and failed in the VM (`SNAPBACK_HANDLER_FAILED`), which the
+   worker conservatively settled as ambiguous. One-line handler fix.
+4. **The composition manifest pins the generated release identity**, so any
+   regeneration must resync `snapbackRelease` or the gateway correctly
+   refuses startup on declared/generated drift — this behaved as designed.
+5. The live run requires `SNAPBACK_OUTBOUND_ACTIONS=1` on the server and
+   `ZERBUGS_TEST_DEFAULTS=1` for the in-process worker's named test secrets.
+
+Sequencing row 5's completion check is met; Lane 6 (pinned UI + window
+controller) is next.

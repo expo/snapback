@@ -73,7 +73,10 @@ need the proven closure.
 Still do not infer that a published closure contains every surface in the
 current source tree: source lands continuously, and a packaged consumer has
 whatever the newest published version froze. When a page describes a surface
-newer than the newest closure, it says so.
+newer than the newest closure, it says so. This rule is mechanical: pages carry
+`since:` / `unreleased:` fences checked against
+[`published-closure.json`](../published-closure.json) by
+`scripts/check-guide.mjs`.
 
 On each supported tuple the mapped runtime package carries the prebuilt server
 and Hermes runtime. `doctor` first launches that relocated binary with

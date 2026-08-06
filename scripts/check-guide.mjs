@@ -17,6 +17,7 @@ import {
   checkFreshness,
   checkGuideMcpProjection,
   checkLinks,
+  checkPublishedClosure,
   checkReachability,
   checkSnippets,
   loadCorpus,
@@ -41,6 +42,7 @@ if (runAll || flags.has('--consistency')) {
   checkReachability(pagePaths, graph, errors);
   index = parseCapabilityIndex(root, errors);
   surfaces = checkCapabilityIndex(root, index, pageInfo, errors);
+  checkPublishedClosure(root, pageInfo, pageBodies, errors);
   checkFreshness(root, pageInfo, warnings, infos);
 }
 

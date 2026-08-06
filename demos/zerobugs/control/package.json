@@ -4,7 +4,7 @@
   "type": "module",
   "packageManager": "bun@1.3.12",
   "scripts": {
-    "generate": "snapback generate snapback",
+    "generate": "SNAPBACK_OUTBOUND_ACTIONS=1 snapback generate snapback",
     "dev": "snapback dev snapback --client . --client-command vite",
     "client:dev": "vite",
     "bind:actors": "bun scripts/bind-actors.mts",
@@ -15,9 +15,12 @@
     "test:lane3:live": "bun tests/acceptance/lane3-live.mts",
     "test:lane4": "bun run generate && bun test tests/fixture-loader.test.mts && bun test tests/lane2-functions.test.mts && bun test tests/lane3-list-engine.test.mts && bun test tests/lane4-domain.test.mts",
     "test:lane4:live": "bun tests/acceptance/lane4-live.mts",
+    "test:lane5": "bun run generate && bun test tests/lane5-token.test.mts tests/lane5-envelope.test.mts tests/lane5-payload.test.mts",
+    "test:lane5:live": "bun tests/acceptance/lane5-live.mts",
+    "build:composition": "bun build composition/server.mts composition/effects/deliver.mts --outdir .snapback/lane5-build --target bun",
     "typecheck": "tsc --noEmit",
     "build": "vite build",
-    "test:static": "bun run typecheck && bun run build"
+    "test:static": "bun run typecheck && bun run build && bun run build:composition"
   },
   "dependencies": {
     "@expo/snapback-cli": "file:../../../packages/snapback-cli",

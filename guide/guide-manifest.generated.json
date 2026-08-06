@@ -2,7 +2,11 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "be6326956117517d4aa506b8ec2cb44699766248"
+    "commit": "bd89cebabf4932f34060f0a6a6f494a537c0be51"
+  },
+  "publishedClosure": {
+    "scope": "@expo/snapback-*",
+    "newestPublished": "0.1.8"
   },
   "nav": {
     ".": [
@@ -536,7 +540,7 @@
       ],
       "reviewed": "2026-08-03",
       "reviewedCommit": "c442237dedd412d1fe66a85c7a0ed463eba1e013",
-      "sha256": "4f9933cb2cbf37ad1e8ed7698088fb61e5ef7f97db3d0d86aeb2d1e12cfc96dc",
+      "sha256": "b39aa5f9de694190e59e95745e6bb2ffa435e5b43bb1abfd4d09eab063585924",
       "snippets": [
         {
           "lang": "js",
@@ -997,7 +1001,7 @@
       ],
       "reviewed": "2026-08-05",
       "reviewedCommit": "4a6000ac6f17a8c94bc2aecf573c0654e850b758",
-      "sha256": "c4762d69175f4d6148ae7b0fef52c082e3d4a240de24a05a1424396249733ab8",
+      "sha256": "ae8eae8f0a447e0d2175f335a4929faa11250b74766b1bc685647e3ab4034b5f",
       "snippets": [
         {
           "lang": "js",
@@ -1892,7 +1896,7 @@
       "examples": [],
       "reviewed": "2026-08-03",
       "reviewedCommit": "f9ae0083ef41bfc9d07f033da440f96048919613",
-      "sha256": "b805e180deaa21eda00a0dcbfb85dcaf65daedcc5d9b1864900d332029de568f",
+      "sha256": "fd4426e88e9a29fa415bb01e74b3aa1504e92942be12a4f22942c8d2e5ec184c",
       "snippets": []
     },
     "deploying.cloudflare": {
@@ -2045,7 +2049,7 @@
       ],
       "reviewed": "2026-08-05",
       "reviewedCommit": "4a6000ac6f17a8c94bc2aecf573c0654e850b758",
-      "sha256": "6957cc19ecb55b01fbe374820a54c8b7d651e79f2f7556062abe42889bb8cf15",
+      "sha256": "52d065c8229acfe3aea5a2ec91ba3b0b77a00cb5ef1f73f1a796d73eff29f1e8",
       "snippets": []
     },
     "getting-started.your-first-backend": {
@@ -3160,5 +3164,5 @@
     "routes": 116,
     "hostOps": 37
   },
-  "contentHash": "9185d948aece571ba5f36f221386a67cfb9e05124649cf515cc29db3d6d699c1"
+  "contentHash": "40792fd2969c6c44fb0681c5259f21ef44378269df46c4f3a7a2441ed60fff5c"
 }

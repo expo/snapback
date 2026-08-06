@@ -154,6 +154,9 @@ run revision-set-fixtures -- node --test demos/partiful-matrix/tests/acceptance/
 # requires this ordering (LLP 0061 §3); review manifests and policy-required
 # committed projections still fail closed on any diff.
 run generated-artifacts -- scripts/check-generated-artifacts
+# @ref LLP 0061#3-verification-snippets-that-ran — published-closure fixtures
+# keep released, unreleased, stale-fence, banner, and record failures executable.
+run guide-published-closure-fixtures -- node --test scripts/guide-published-closure.test.mjs
 # LLP 0061: guide corpus — snippet transclusion-match, capability-index joins,
 # manifest staleness. Docs-only fast path: node scripts/check-guide.mjs.
 run guide --requires generated-artifacts -- node scripts/check-guide.mjs

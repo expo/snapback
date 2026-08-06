@@ -200,3 +200,19 @@ mint generic `id_` physical ids (no per-table prefix surface; LLP 0148
 reserves named prefixes for built-ins), and the functions manifest omits
 fields rather than nulling them — both caught as harness-expectation bugs,
 not corpus bugs, by the cascade pattern of the failures.
+
+## 2026-08-06 — Lane 5: composition gateway and durable effects
+
+Lane 5 landed (after one interrupted-and-resumed codex run): the versioned
+control composition — all nine pinned routes with the manifest §8 safety
+amendments (signed-token POST unsubscribe, server-enforced upload policy),
+plus durable effect delivery consuming Lane 4's intent rows with
+exactly-once capture, fenced retries, and explicit ambiguity — 16/16 live
+checks PASS. The live run surfaced four instructive integration facts:
+required config entries hold the sessions auth-mode transition pending (so
+app data refuses until secrets are set — right behavior, surprising
+ordering); `ctx.fetch` returns the host JSON result rather than a Response;
+the composition manifest's pinned release identity correctly refuses a
+regenerated-but-unsynced gateway start; and compiled-fixture reference
+fields are `_id` placeholders. None required runtime changes — Lane 5's
+bugs were all in the new lane's own code/harness, a first for this program.

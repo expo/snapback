@@ -1,4 +1,7 @@
 import {
+  defineAction,
+  defineAssetUpload,
+  defineConfig,
   defineJsMutation,
   defineJsQuery,
   defineJsLiveQuery,
@@ -809,7 +812,30 @@ async function notificationRecipientSnapshot(ctx, issue, actor, includeActor) {
   );
 }
 
-async function enqueueNotificationIntent(ctx, trigger, kind, issue, actor, payload, includeActor) {
+function compositionEffectIdentity(args) {
+  const clientID = args.compositionClientID;
+  const mutationID = args.compositionMutationID;
+  if (clientID === undefined && mutationID === undefined) return null;
+  if (
+    typeof clientID !== 'string' || typeof mutationID !== 'string'
+    || clientID.length < 1 || clientID.length > 256
+    || mutationID.length < 1 || mutationID.length > 256
+    || !/^[A-Za-z0-9._:-]+$/.test(clientID)
+    || !/^[A-Za-z0-9._:-]+$/.test(mutationID)
+  ) throw new Error('composition effect identity was refused');
+  return `${clientID}:${mutationID}`;
+}
+
+async function enqueueNotificationIntent(
+  ctx,
+  trigger,
+  kind,
+  issue,
+  actor,
+  payload,
+  includeActor,
+  effectIdentity = null,
+) {
   assertIntentDomain(trigger, kind, 'pending');
   const recipientSnapshot = await notificationRecipientSnapshot(
     ctx,
@@ -821,7 +847,7 @@ async function enqueueNotificationIntent(ctx, trigger, kind, issue, actor, paylo
   // without re-entering this handler. Runtime answers are replay-stable too,
   // so this is one durable logical-effect identity rather than a delivery
   // attempt id or the intent row's physical id.
-  const idempotencyKey = `notification:${trigger}:${ctx.runtime.id()}`;
+  const idempotencyKey = `notification:${trigger}:${effectIdentity ?? ctx.runtime.id()}`;
   const intentID = await ctx.db.insert('notificationIntent', {
     idempotencyKey,
     trigger,
@@ -888,6 +914,8 @@ export const issueCreate = defineJsMutation({
     created: v.number(),
     modified: v.number(),
     projectID: v.optional(v.string()),
+    compositionClientID: v.optional(v.string()),
+    compositionMutationID: v.optional(v.string()),
   },
   reads: [
     'comment', 'identityBinding', 'issue', 'issueListRead',
@@ -935,6 +963,7 @@ export const issueCreate = defineJsMutation({
       actor,
       notificationPayload('create-issue', actor, issue, {}),
       true,
+      compositionEffectIdentity(args),
     );
     return mutationReceipt('issue.create', issue.id, rowID, issue.id, intent, now);
   },
@@ -950,6 +979,8 @@ export const issueUpdate = defineJsMutation({
     assigneeID: v.optional(v.union([v.null(), v.string()])),
     visibility: v.optional(v.string()),
     modified: v.number(),
+    compositionClientID: v.optional(v.string()),
+    compositionMutationID: v.optional(v.string()),
   },
   reads: [
     'comment', 'identityBinding', 'issue', 'issueListRead',
@@ -1044,6 +1075,7 @@ export const issueUpdate = defineJsMutation({
       actor,
       notificationPayload('update-issue', actor, issue, {update: submitted}),
       false,
+      compositionEffectIdentity(args),
     );
     return mutationReceipt('issue.update', issue.id, issue._id, issue.id, intent, now);
   },
@@ -1175,6 +1207,8 @@ export const issueAddLabel = defineJsMutation({
     issueID: v.string(),
     labelID: v.string(),
     projectID: v.optional(v.string()),
+    compositionClientID: v.optional(v.string()),
+    compositionMutationID: v.optional(v.string()),
   },
   reads: [
     'identityBinding', 'issue', 'issueLabel', 'issueLabelRead',
@@ -1207,6 +1241,7 @@ export const issueAddLabel = defineJsMutation({
       actor,
       notificationPayload('update-issue', actor, issue, {update: {id: issue.id}}),
       false,
+      compositionEffectIdentity(args),
     );
     return mutationReceipt('issue.addLabel', label.id, rowID, issue.id, intent, null);
   },
@@ -1214,7 +1249,12 @@ export const issueAddLabel = defineJsMutation({
 
 export const issueRemoveLabel = defineJsMutation({
   auth: 'authenticated',
-  args: {issueID: v.string(), labelID: v.string()},
+  args: {
+    issueID: v.string(),
+    labelID: v.string(),
+    compositionClientID: v.optional(v.string()),
+    compositionMutationID: v.optional(v.string()),
+  },
   reads: [
     'identityBinding', 'issue', 'issueLabel', 'issueLabelRead',
     'issueNotifications', 'label', 'user',
@@ -1245,10 +1285,41 @@ export const issueRemoveLabel = defineJsMutation({
       actor,
       notificationPayload('update-issue', actor, issue, {update: {id: issue.id}}),
       false,
+      compositionEffectIdentity(args),
     );
     return mutationReceipt('issue.removeLabel', label.id, join._id, issue.id, intent, null);
   },
 });
+
+async function updateNotificationSubscription(ctx, actor, issue, command, created) {
+  const subscribed = assertSubscriptionCommand(command) === 'subscribe';
+  const existing = await ctx.db
+    .query('issueNotifications')
+    .withIndex('by_user_issue')
+    .eq('userID', actor._id)
+    .eq('issueID', issue._id)
+    .first();
+  let rowID;
+  if (existing) {
+    rowID = existing._id;
+    await ctx.db.patch('issueNotifications', rowID, {subscribed, created});
+  } else {
+    rowID = await ctx.db.insert('issueNotifications', {
+      userID: actor._id,
+      issueID: issue._id,
+      subscribed,
+      created,
+    });
+  }
+  return mutationReceipt(
+    'notification.update',
+    actor.id,
+    rowID,
+    issue.id,
+    null,
+    created,
+  );
+}
 
 export const notificationUpdate = defineJsMutation({
   auth: 'authenticated',
@@ -1260,34 +1331,11 @@ export const notificationUpdate = defineJsMutation({
   handler: async (ctx, args) => {
     const issue = await sourceRowByID(ctx, 'issue', args.issueID);
     const actor = await requireMutationVisibleIssue(ctx, issue);
-    const subscribed = assertSubscriptionCommand(args.subscribed) === 'subscribe';
-    const existing = await ctx.db
-      .query('issueNotifications')
-      .withIndex('by_user_issue')
-      .eq('userID', actor._id)
-      .eq('issueID', issue._id)
-      .first();
-    let rowID;
-    if (existing) {
-      rowID = existing._id;
-      await ctx.db.patch('issueNotifications', rowID, {
-        subscribed,
-        created: args.created,
-      });
-    } else {
-      rowID = await ctx.db.insert('issueNotifications', {
-        userID: actor._id,
-        issueID: issue._id,
-        subscribed,
-        created: args.created,
-      });
-    }
-    return mutationReceipt(
-      'notification.update',
-      actor.id,
-      rowID,
-      issue.id,
-      null,
+    return await updateNotificationSubscription(
+      ctx,
+      actor,
+      issue,
+      args.subscribed,
       args.created,
     );
   },
@@ -1301,6 +1349,8 @@ export const emojiAddToIssue = defineJsMutation({
     annotation: v.string(),
     subjectID: v.string(),
     created: v.number(),
+    compositionClientID: v.optional(v.string()),
+    compositionMutationID: v.optional(v.string()),
   },
   reads: [
     'identityBinding', 'issue', 'issueListRead', 'issueNotifications', 'user',
@@ -1337,6 +1387,7 @@ export const emojiAddToIssue = defineJsMutation({
         emoji: args.unicode,
       }),
       false,
+      compositionEffectIdentity(args),
     );
     return mutationReceipt(
       'emoji.addToIssue',
@@ -1357,6 +1408,8 @@ export const emojiAddToComment = defineJsMutation({
     annotation: v.string(),
     subjectID: v.string(),
     created: v.number(),
+    compositionClientID: v.optional(v.string()),
+    compositionMutationID: v.optional(v.string()),
   },
   reads: [
     'comment', 'identityBinding', 'issue', 'issueListRead',
@@ -1392,6 +1445,7 @@ export const emojiAddToComment = defineJsMutation({
         comment: {id: comment.id, body: comment.body},
       }),
       false,
+      compositionEffectIdentity(args),
     );
     return mutationReceipt(
       'emoji.addToComment',
@@ -1426,6 +1480,8 @@ export const commentAdd = defineJsMutation({
     issueID: v.string(),
     body: v.string(),
     created: v.number(),
+    compositionClientID: v.optional(v.string()),
+    compositionMutationID: v.optional(v.string()),
   },
   reads: [
     'comment', 'identityBinding', 'issue', 'issueListRead',
@@ -1465,6 +1521,7 @@ export const commentAdd = defineJsMutation({
         comment: {id: args.id, body: args.body},
       }),
       false,
+      compositionEffectIdentity(args),
     );
     return mutationReceipt('comment.add', args.id, rowID, issue.id, intent, now);
   },
@@ -1475,7 +1532,12 @@ export const commentAdd = defineJsMutation({
 // branch keep the complete authoritative program on the JS tier.
 export const commentEdit = defineJsMutation({
   auth: 'authenticated',
-  args: {id: v.string(), body: v.string()},
+  args: {
+    id: v.string(),
+    body: v.string(),
+    compositionClientID: v.optional(v.string()),
+    compositionMutationID: v.optional(v.string()),
+  },
   reads: [
     'comment', 'identityBinding', 'issue', 'issueNotifications',
     'issueSearchDocument', 'searchEpoch', 'user',
@@ -1503,6 +1565,7 @@ export const commentEdit = defineJsMutation({
         comment: {id: comment.id, body: args.body},
       }),
       false,
+      compositionEffectIdentity(args),
     );
     return mutationReceipt('comment.edit', comment.id, comment._id, issue.id, intent, null);
   },
@@ -1745,6 +1808,7 @@ function attemptAuditValidator() {
     started: v.number(),
     finished: v.union([v.null(), v.number()]),
     errorCode: nullableStringValidator(),
+    providerReceiptID: nullableStringValidator(),
     ambiguous: v.boolean(),
   });
 }
@@ -1936,6 +2000,7 @@ export const lane4StateAudit = defineJsQuery({
         started: row.started,
         finished: row.finished ?? null,
         errorCode: row.errorCode ?? null,
+        providerReceiptID: row.providerReceiptID ?? null,
         ambiguous: row.ambiguous,
       })),
     }];
@@ -3701,5 +3766,532 @@ export const userPicker = defineJsLiveQuery({
       ...pageFact(page.hasMore ? 'incomplete' : 'complete', page.hasMore ? 'page-limit' : null, page.hasMore, cursor, examined, items.length),
       items: page.items,
     }];
+  },
+});
+
+// ---------------------------------------------------------------------------
+// Lane 5 declared companion composition
+// ---------------------------------------------------------------------------
+
+export const zerobugsCompositionConfig = defineConfig({
+  loopsApiKey: {
+    description: 'Loops transactional API key',
+    purpose: 'Authorizes Loops-shaped notification delivery',
+    required: true,
+  },
+  discordWebhookToken: {
+    description: 'Discord webhook credential',
+    purpose: 'Authorizes Discord-shaped notification delivery',
+    required: true,
+  },
+  captureAdapterAuth: {
+    description: 'Local deterministic capture-adapter credential',
+    purpose: 'Restricts the Lane 5 local-only effect capture endpoints',
+    required: true,
+  },
+});
+
+export const gatewayIdentitySelf = defineJsQuery({
+  auth: 'authenticated',
+  args: {},
+  reads: ['identityBinding', 'user'],
+  result: results.records(v.object({
+    principal: v.string(),
+    sourceUserID: v.string(),
+    githubID: v.integer(),
+    login: v.string(),
+    role: v.string(),
+  }), {minItems: 1, maxItems: 1}),
+  handler: async (ctx) => {
+    const actor = await requireSourceUser(ctx);
+    return [{
+      principal: ctx.auth.userId,
+      sourceUserID: actor.id,
+      githubID: actor.githubID,
+      login: actor.login,
+      role: actor.role,
+    }];
+  },
+});
+
+// One atomic mutation consumes the capability and reuses the exact Lane 4
+// subscription helper. A crash cannot strand a consumed token before the
+// set-false write, and a replay cannot author a second write.
+export const acceptanceConsumeUnsubscribeToken = defineJsMutation({
+  auth: 'authenticated',
+  args: {
+    tokenDigest: v.string(),
+    sourceUserID: v.string(),
+    issueID: v.string(),
+    usedAt: v.number(),
+  },
+  reads: [
+    'identityBinding', 'issue', 'issueNotifications', 'unsubscribeTokenUse', 'user',
+  ],
+  writes: ['issueNotifications', 'unsubscribeTokenUse'],
+  result: results.value(v.json()),
+  handler: async (ctx, args) => {
+    if (!/^[0-9a-f]{64}$/.test(args.tokenDigest)) {
+      throw new Error('unsubscribe capability was refused');
+    }
+    const actor = await requireSourceUser(ctx);
+    if (actor.id !== args.sourceUserID) {
+      throw new Error('unsubscribe capability was refused');
+    }
+    const existingUse = await ctx.db
+      .query('unsubscribeTokenUse')
+      .withIndex('by_token_digest')
+      .eq('tokenDigest', args.tokenDigest)
+      .first();
+    if (existingUse) throw new Error('unsubscribe capability was refused');
+    const issue = await sourceRowByID(ctx, 'issue', args.issueID);
+    await requireMutationVisibleIssue(ctx, issue);
+    const tokenUseID = await ctx.db.insert('unsubscribeTokenUse', {
+      tokenDigest: args.tokenDigest,
+      userID: actor._id,
+      issueID: issue._id,
+      usedAt: args.usedAt,
+    });
+    const receipt = await updateNotificationSubscription(
+      ctx,
+      actor,
+      issue,
+      'unsubscribe',
+      args.usedAt,
+    );
+    return {tokenUseID, receipt};
+  },
+});
+
+export const zerobugsImageUpload = defineAssetUpload({
+  args: {},
+  auth: 'authenticated',
+  reads: ['identityBinding', 'user'],
+  accept: {
+    mediaTypes: [
+      'image/jpeg',
+      'image/png',
+      'image/gif',
+      'image/webp',
+    ],
+    maxBytes: 10 * 1024 * 1024,
+  },
+  delivery: {kind: 'public-immutable'},
+  access: {read: 'via-references'},
+  image: {location: 'retain'},
+  authorize: async (ctx) => {
+    await requireSourceUser(ctx);
+    return {owner: ctx.auth.userId};
+  },
+});
+
+// Native trusted MIME detection deliberately classifies active SVG as opaque.
+// The gateway admits this intent only after its own exact SVG signature/type/
+// length policy and serves the typed alias with the source MIME.
+export const zerobugsSvgUpload = defineAssetUpload({
+  args: {},
+  auth: 'authenticated',
+  reads: ['identityBinding', 'user'],
+  accept: {mediaTypes: ['application/octet-stream'], maxBytes: 10 * 1024 * 1024},
+  delivery: {kind: 'public-immutable'},
+  access: {read: 'via-references'},
+  authorize: async (ctx) => {
+    await requireSourceUser(ctx);
+    return {owner: ctx.auth.userId};
+  },
+});
+
+function acceptedAssetContentType(contentType) {
+  return [
+    'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml',
+  ].includes(contentType);
+}
+
+export const acceptanceAttachAsset = defineJsMutation({
+  auth: 'authenticated',
+  args: {
+    key: v.string(),
+    assetID: v.string(),
+    contentType: v.string(),
+    uploadKind: v.string(),
+    size: v.integer(),
+    created: v.number(),
+  },
+  reads: ['assetAttachment', 'identityBinding', 'user'],
+  writes: ['assetAttachment'],
+  result: results.value(v.json()),
+  handler: async (ctx, args) => {
+    const actor = await requireSourceUser(ctx);
+    if (!/^zba_[A-Za-z0-9_-]{24,96}$/.test(args.key)) {
+      throw new Error('asset key was refused');
+    }
+    if (!acceptedAssetContentType(args.contentType)) {
+      throw new Error('asset content type was refused');
+    }
+    if (
+      (args.contentType === 'image/svg+xml' && args.uploadKind !== 'svg-opaque')
+      || (args.contentType !== 'image/svg+xml' && args.uploadKind !== 'image')
+    ) throw new Error('asset upload intent was refused');
+    if (!Number.isSafeInteger(args.size) || args.size < 1 || args.size > 10 * 1024 * 1024) {
+      throw new Error('asset size was refused');
+    }
+    const existing = await ctx.db
+      .query('assetAttachment')
+      .withIndex('by_key')
+      .eq('key', args.key)
+      .first();
+    if (existing) {
+      if (existing.owner !== ctx.auth.userId) throw new Error('asset key was refused');
+      return {
+        attachmentID: existing._id,
+        assetID: existing.asset,
+        key: existing.key,
+        deduplicated: true,
+      };
+    }
+    const asset = args.uploadKind === 'svg-opaque'
+      ? await ctx.assets.attach(args.assetID, {upload: 'zerobugsSvgUpload'})
+      : await ctx.assets.attach(args.assetID, {upload: 'zerobugsImageUpload'});
+    const attachmentID = await ctx.db.insert('assetAttachment', {
+      key: args.key,
+      owner: ctx.auth.userId,
+      asset,
+      contentType: args.contentType,
+      size: args.size,
+      created: args.created,
+    });
+    return {attachmentID, assetID: asset, key: args.key, deduplicated: false, actorID: actor.id};
+  },
+});
+
+export const gatewayAssetByKey = defineJsQuery({
+  auth: 'public',
+  args: {key: v.string()},
+  reads: ['assetAttachment'],
+  result: results.records(v.object({
+    key: v.string(),
+    assetID: v.string(),
+    contentType: v.string(),
+    size: v.integer(),
+  }), {minItems: 0, maxItems: 1}),
+  handler: async (ctx, args) => {
+    const row = await ctx.db
+      .query('assetAttachment')
+      .withIndex('by_key')
+      .eq('key', args.key)
+      .first();
+    return row ? [{
+      key: row.key,
+      assetID: row.asset,
+      contentType: row.contentType,
+      size: row.size,
+    }] : [];
+  },
+});
+
+export const acceptanceAssetCleanupInventory = defineJsQuery({
+  auth: 'authenticated',
+  args: {},
+  reads: ['assetAttachment', 'identityBinding', 'user'],
+  result: results.records(v.object({
+    key: v.string(),
+    assetID: v.string(),
+    contentType: v.string(),
+    size: v.integer(),
+    created: v.number(),
+  }), {minItems: 0, maxItems: 1_023}),
+  handler: async (ctx) => {
+    const actor = await requireSourceUser(ctx);
+    const rows = actor.role === 'crew'
+      ? await ctx.db.query('assetAttachment').take(1_024).collect()
+      : await ctx.db
+        .query('assetAttachment')
+        .withIndex('by_owner_created')
+        .eq('owner', ctx.auth.userId)
+        .take(1_024)
+        .collect();
+    if (rows.length === 1_024) throw new Error('asset cleanup inventory exceeded its bound');
+    return rows.map(row => ({
+      key: row.key,
+      assetID: row.asset,
+      contentType: row.contentType,
+      size: row.size,
+      created: row.created,
+    }));
+  },
+});
+
+function effectTargets(intent) {
+  const snapshot = JSON.parse(intent.recipientSnapshot);
+  if (!snapshot || !Array.isArray(snapshot.recipients) || snapshot.recipients.length > 1_023) {
+    throw new Error('notification recipient snapshot is invalid');
+  }
+  const targets = [];
+  for (const recipient of snapshot.recipients) {
+    if (
+      !recipient || typeof recipient.email !== 'string'
+      || typeof recipient.sourceUserID !== 'string'
+    ) throw new Error('notification recipient snapshot is invalid');
+    targets.push({channel: 'email', recipientKey: recipient.email});
+  }
+  if (intent.discordEligible) targets.push({channel: 'discord', recipientKey: 'project-webhook'});
+  return targets;
+}
+
+function latestEffectAttempts(attempts) {
+  const latest = new Map();
+  for (const attempt of attempts) {
+    const key = `${attempt.channel}:${attempt.recipientKey}`;
+    const current = latest.get(key);
+    if (!current || attempt.attempt > current.attempt) latest.set(key, attempt);
+  }
+  return latest;
+}
+
+function stableProviderKey(intent, target) {
+  const prefix = `notification:${intent.trigger}:`;
+  if (!intent.idempotencyKey.startsWith(prefix)) {
+    throw new Error('notification settlement identity is invalid');
+  }
+  const settlementIdentity = intent.idempotencyKey.slice(prefix.length);
+  if (!settlementIdentity || settlementIdentity.length > 768) {
+    throw new Error('notification settlement identity is invalid');
+  }
+  return target.channel === 'email'
+    ? `${settlementIdentity}:${target.recipientKey}`
+    : `${settlementIdentity}:discord`;
+}
+
+// @ref LLP 0045#durable-intent-side-effectful-delivery — a committed intent is leased into a
+// per-recipient attempt before egress; terminal delivered/ambiguous attempts
+// fence every later tick from sending the same logical effect again.
+export const acceptanceLeaseNotificationIntent = defineJsMutation({
+  auth: 'authenticated',
+  args: {now: v.number(), leaseMs: v.integer({min: 1_000, max: 600_000})},
+  reads: ['identityBinding', 'notificationAttempt', 'notificationIntent', 'user'],
+  writes: ['notificationAttempt', 'notificationIntent'],
+  result: results.value(v.json()),
+  handler: async (ctx, args) => {
+    const operator = await requireCrew(ctx);
+    if (operator.id !== '2wKdbVVF7qtnn5bx92sr9') {
+      throw new Error('effect delivery requires the frozen crew administrator');
+    }
+    const pending = await ctx.db
+      .query('notificationIntent')
+      .withIndex('by_state_created')
+      .eq('state', 'pending')
+      .take(128)
+      .collect();
+    const leased = await ctx.db
+      .query('notificationIntent')
+      .withIndex('by_state_created')
+      .eq('state', 'leased')
+      .take(128)
+      .collect();
+    const candidates = [...pending, ...leased]
+      .sort((left, right) => left.created - right.created || (
+        left.idempotencyKey < right.idempotencyKey ? -1 : 1
+      ));
+    for (const intent of candidates) {
+      const prior = await ctx.db
+        .query('notificationAttempt')
+        .withIndex('by_intent_channel_recipient_attempt')
+        .eq('intentID', intent._id)
+        .take(1_024)
+        .collect();
+      const forIntent = prior;
+      if (forIntent.length === 1_024) throw new Error('notification attempt bound exceeded');
+      const active = forIntent.filter(row => row.state === 'leased');
+      if (active.some(row => row.started + args.leaseMs > args.now)) continue;
+      for (const expired of active) {
+        await ctx.db.patch('notificationAttempt', expired._id, {
+          state: 'retryable',
+          finished: args.now,
+          errorCode: 'lease-expired-before-settlement',
+          ambiguous: false,
+        });
+        expired.state = 'retryable';
+      }
+      const targets = effectTargets(intent);
+      const latest = latestEffectAttempts(forIntent);
+      const unresolved = targets.filter(target => {
+        const row = latest.get(`${target.channel}:${target.recipientKey}`);
+        return !row || (row.state !== 'delivered' && row.state !== 'ambiguous');
+      });
+      if (unresolved.length === 0) {
+        const hasAmbiguous = targets.some(target => (
+          latest.get(`${target.channel}:${target.recipientKey}`)?.state === 'ambiguous'
+        ));
+        await ctx.db.patch('notificationIntent', intent._id, {
+          state: hasAmbiguous ? 'ambiguous' : 'delivered',
+        });
+        continue;
+      }
+      const attempts = [];
+      for (const target of unresolved) {
+        const previous = forIntent.filter(row => (
+          row.channel === target.channel && row.recipientKey === target.recipientKey
+        ));
+        const attempt = previous.reduce((maximum, row) => Math.max(maximum, row.attempt), 0) + 1;
+        const providerIdempotencyKey = stableProviderKey(intent, target);
+        const attemptID = await ctx.db.insert('notificationAttempt', {
+          intentID: intent._id,
+          channel: target.channel,
+          recipientKey: target.recipientKey,
+          attempt,
+          state: 'leased',
+          providerIdempotencyKey,
+          started: args.now,
+          ambiguous: false,
+        });
+        attempts.push({attemptID, ...target, attempt, providerIdempotencyKey});
+      }
+      await ctx.db.patch('notificationIntent', intent._id, {state: 'leased'});
+      return {
+        intent: {
+          physicalID: intent._id,
+          idempotencyKey: intent.idempotencyKey,
+          trigger: intent.trigger,
+          kind: intent.kind,
+          issueID: intent.sourceIssueID,
+          created: intent.created,
+          payloadSnapshot: intent.payloadSnapshot,
+          recipientSnapshot: intent.recipientSnapshot,
+          discordEligible: intent.discordEligible,
+        },
+        attempts,
+      };
+    }
+    return null;
+  },
+});
+
+export const acceptanceSettleNotificationAttempt = defineJsMutation({
+  auth: 'authenticated',
+  args: {
+    attemptID: v.id('notificationAttempt'),
+    outcome: v.string(),
+    now: v.number(),
+    providerReceiptID: v.optional(v.string()),
+    errorCode: v.optional(v.string()),
+  },
+  reads: ['identityBinding', 'notificationAttempt', 'notificationIntent', 'user'],
+  writes: ['notificationAttempt', 'notificationIntent'],
+  result: results.value(v.json()),
+  handler: async (ctx, args) => {
+    const operator = await requireCrew(ctx);
+    if (operator.id !== '2wKdbVVF7qtnn5bx92sr9') {
+      throw new Error('effect delivery requires the frozen crew administrator');
+    }
+    if (!['delivered', 'retryable', 'ambiguous'].includes(args.outcome)) {
+      throw new Error('effect settlement outcome was refused');
+    }
+    const attempt = await ctx.db.get('notificationAttempt', args.attemptID);
+    if (!attempt) throw new Error('notification attempt was not found');
+    if (attempt.state !== 'leased') {
+      return {attemptID: attempt._id, state: attempt.state, deduplicated: true};
+    }
+    await ctx.db.patch('notificationAttempt', attempt._id, {
+      state: args.outcome,
+      finished: args.now,
+      ...(args.providerReceiptID ? {providerReceiptID: args.providerReceiptID} : {}),
+      ...(args.errorCode ? {errorCode: args.errorCode} : {}),
+      ambiguous: args.outcome === 'ambiguous',
+    });
+    const intent = await ctx.db.get('notificationIntent', attempt.intentID);
+    if (!intent) throw new Error('notification intent was not found');
+    const rows = await ctx.db
+      .query('notificationAttempt')
+      .withIndex('by_intent_channel_recipient_attempt')
+      .eq('intentID', intent._id)
+      .take(1_024)
+      .collect();
+    if (rows.length === 1_024) throw new Error('notification attempt bound exceeded');
+    const forIntent = rows.map(row => (
+      row._id === attempt._id ? {...row, state: args.outcome} : row
+    ));
+    const latest = latestEffectAttempts(forIntent);
+    const targets = effectTargets(intent);
+    let intentState = 'leased';
+    const terminal = targets.every(target => {
+      const row = latest.get(`${target.channel}:${target.recipientKey}`);
+      return row && (row.state === 'delivered' || row.state === 'ambiguous');
+    });
+    if (terminal) {
+      intentState = targets.some(target => (
+        latest.get(`${target.channel}:${target.recipientKey}`)?.state === 'ambiguous'
+      )) ? 'ambiguous' : 'delivered';
+    } else if (![...latest.values()].some(row => row.state === 'leased')) {
+      intentState = 'pending';
+    }
+    await ctx.db.patch('notificationIntent', intent._id, {state: intentState});
+    return {attemptID: attempt._id, state: args.outcome, intentState, deduplicated: false};
+  },
+});
+
+export const acceptanceAuthorizeEffectDelivery = defineJsMutation({
+  auth: 'authenticated',
+  args: {},
+  reads: ['identityBinding', 'user'],
+  // `ctx.runMutation` is the action-to-Ibex authority bridge; declaring the
+  // intent ledger closes the callable write ceiling even though this guard
+  // performs no data change.
+  writes: ['notificationIntent'],
+  result: results.value(v.boolean()),
+  handler: async (ctx) => {
+    const operator = await requireCrew(ctx);
+    if (operator.id !== '2wKdbVVF7qtnn5bx92sr9') {
+      throw new Error('effect delivery requires the frozen crew administrator');
+    }
+    return true;
+  },
+});
+
+export const acceptanceDeliverNotification = defineAction({
+  auth: 'authenticated',
+  args: {
+    provider: v.string(),
+    url: v.string(),
+    idempotencyKey: v.string(),
+    body: v.string(),
+  },
+  uses: ['loopsApiKey', 'discordWebhookToken', 'captureAdapterAuth'],
+  writes: ['notificationIntent'],
+  result: results.value(v.object({
+    status: v.integer(),
+    ok: v.boolean(),
+    bodyText: v.string(),
+  })),
+  handler: async (ctx, args) => {
+    await ctx.runMutation('acceptanceAuthorizeEffectDelivery', {});
+    if (args.provider !== 'loops' && args.provider !== 'discord') {
+      throw new Error('effect provider was refused');
+    }
+    const expectedPath = args.provider === 'loops'
+      ? '/__capture/loops'
+      : '/__capture/discord';
+    if (!/^http:\/\/(127\.0\.0\.1|localhost):[0-9]{1,5}\//.test(args.url)) {
+      throw new Error('effect delivery URL must be loopback');
+    }
+    const path = args.url.replace(/^http:\/\/[^/]+/, '');
+    if (path !== expectedPath) throw new Error('effect delivery path was refused');
+    const captureAuth = ctx.secrets.get('captureAdapterAuth').expose();
+    const providerToken = ctx.secrets
+      .get(args.provider === 'loops' ? 'loopsApiKey' : 'discordWebhookToken')
+      .expose();
+    const response = await ctx.fetch({
+      url: args.url,
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'idempotency-key': args.idempotencyKey,
+        'x-zerobugs-capture-auth': captureAuth,
+        authorization: `Bearer ${providerToken}`,
+      },
+      body: args.body,
+    });
+    // ctx.fetch resolves to the host.fetch JSON result ({status, ok, url,
+    // bodyText}); it is not a WHATWG Response and has no .text() method.
+    return {status: response.status, ok: response.ok, bodyText: response.bodyText};
   },
 });
