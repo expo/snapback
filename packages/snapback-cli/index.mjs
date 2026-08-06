@@ -2731,8 +2731,8 @@ export const PACKAGED_CLI_COMMANDS = Object.freeze([
     output: 'snapback.verify.v1 receipt', exits: '0 all required stages pass; 1 failed/refused stage', recovery: 'Use the failed stage diagnostics and rerun against the same declared app identity.',
   },
   {
-    name: 'dev', usage: 'snapback dev [<backend-dir>] [--attach] [--no-watch] [--ready-file <path>] [--db <path>] [--client <dir>] [--client-command <cmd>] [--json]',
-    description: 'Generate, start or attach, load, watch, and optionally run a client surface.', lifecycle: 'long-running unless --no-watch',
+    name: 'dev', usage: 'snapback dev [<backend-dir>] [--attach] [--no-watch] [--ready-file <path>] [--db <path>] [--client <dir>] [--client-command <cmd>] [--expo] [--expo-dir <dir>] [--expo-platform ios|android] [--email <address>] [--expo-command <cmd>] [--android-serial <serial>] [--json]',
+    description: 'Generate, start or attach, load, watch, and optionally supervise a web or Expo client surface.', lifecycle: 'long-running unless --no-watch (Expo supervision is always long-running)',
     output: 'snapback.dev.v1 JSON-line events; snapback.dev-command.v1 JSON lines are accepted on non-TTY stdin while it remains open', exits: '0 requested signal/TTY quit or successful --no-watch; 1 startup/watch/server failure',
     recovery: 'Act on the event diagnostic. Non-TTY stdin EOF only closes the optional control channel; use SIGINT/SIGTERM to stop the dev loop.',
   },
@@ -3651,6 +3651,12 @@ export async function runCli(argv, options = {}) {
     const database = takeFlag(args, '--db');
     const clientDirectory = takeFlag(args, '--client');
     const clientCommand = takeFlag(args, '--client-command');
+    const expo = takeBooleanFlag(args, '--expo');
+    const expoDirectory = takeFlag(args, '--expo-dir');
+    const expoPlatform = takeFlag(args, '--expo-platform');
+    const expoEmail = takeFlag(args, '--email');
+    const expoCommand = takeFlag(args, '--expo-command');
+    const androidSerial = takeFlag(args, '--android-serial');
     // A leftover flag-shaped token would silently become the backend
     // directory name (`snapback dev --help` "ran" against a directory named
     // --help and exited 1 with no output — 0137 a4-f2). Reject it loudly.
@@ -3658,15 +3664,108 @@ export async function runCli(argv, options = {}) {
       throw diagnosticError(
         'SNAPBACK_CLI_ARGUMENT_INVALID',
         `unknown dev option ${args[0]}; usage: snapback dev [<backend-dir>] [--attach] [--no-watch] `
-          + '[--ready-file <path>] [--db <path>] [--client <dir>] [--client-command <cmd>] [--json]',
+          + '[--ready-file <path>] [--db <path>] [--client <dir>] [--client-command <cmd>] '
+          + '[--expo] [--expo-dir <dir>] [--expo-platform ios|android] [--email <address>] '
+          + '[--expo-command <cmd>] [--android-serial <serial>] [--json]',
       );
+    }
+    const backendDirectory = args.shift() ?? 'snapback';
+    if (args.length > 0) {
+      throw diagnosticError(
+        'SNAPBACK_CLI_ARGUMENT_INVALID',
+        `unexpected dev arguments: ${args.join(' ')}`,
+        { args },
+      );
+    }
+    if (!expo && [expoDirectory, expoPlatform, expoEmail, expoCommand, androidSerial]
+      .some((value) => value !== null)) {
+      throw diagnosticError(
+        'SNAPBACK_CLI_ARGUMENT_INVALID',
+        '--expo-dir, --expo-platform, --email, --expo-command, and --android-serial require --expo',
+      );
+    }
+    if (expo) {
+      if (noWatch || clientDirectory !== null || clientCommand !== null) {
+        throw diagnosticError(
+          'SNAPBACK_CLI_ARGUMENT_INVALID',
+          'snapback dev --expo is a long-running supervisor and cannot be combined with --no-watch, --client, or --client-command',
+        );
+      }
+      const platform = expoPlatform ?? 'ios';
+      if (!['ios', 'android'].includes(platform)) {
+        throw diagnosticError(
+          'SNAPBACK_CLI_ARGUMENT_INVALID',
+          '--expo-platform must be ios or android',
+          { expoPlatform: platform },
+        );
+      }
+      if (androidSerial !== null && platform !== 'android') {
+        throw diagnosticError(
+          'SNAPBACK_CLI_ARGUMENT_INVALID',
+          '--android-serial requires --expo-platform android',
+        );
+      }
+      const { runExpoDev } = await import('./expo-dev.mjs');
+      let criticalExit = null;
+      let rejectCritical = null;
+      const result = await runExpoDev({
+        backendDirectory,
+        attach,
+        ...(readyFile ? { readyFile } : {}),
+        ...(database ? { database } : {}),
+        ...(expoDirectory ? { expoDirectory } : {}),
+        ...(expoEmail ? { email: expoEmail } : {}),
+        ...(expoCommand ? { metroCommand: expoCommand } : {}),
+        ...(androidSerial ? { androidSerial } : {}),
+        platform,
+        onEvent(event) { console.log(JSON.stringify(event)); },
+        onCriticalExit(error) {
+          criticalExit = error;
+          rejectCritical?.(error);
+        },
+        ...options,
+      });
+      if (result.ok === false) {
+        printResult(result, json);
+        return 1;
+      }
+      await new Promise((resolveStop, rejectStop) => {
+        let stopping = false;
+        let detachInput = () => {};
+        const settle = async (failure = null) => {
+          if (stopping) return;
+          stopping = true;
+          process.off('SIGINT', stop);
+          process.off('SIGTERM', stop);
+          detachInput();
+          try {
+            await result.close();
+            if (failure) rejectStop(failure);
+            else resolveStop();
+          } catch (error) {
+            rejectStop(error);
+          }
+        };
+        function stop() { void settle(); }
+        rejectCritical = (error) => { void settle(error); };
+        process.once('SIGINT', stop);
+        process.once('SIGTERM', stop);
+        detachInput = attachDevControlChannel({
+          verbs: result.verbs,
+          stop,
+          onEvent(event) { result.reportControlEvent(event); },
+          stdin: options.stdin ?? process.stdin,
+        });
+        if (criticalExit) void settle(criticalExit);
+      });
+      return 0;
     }
     // A restart replaces the managed child, so unexpected-exit detection goes
     // through runDev's onServerExit callback instead of a listener pinned to
     // the first child process.
     let onUnexpectedServerExit = null;
     const result = await runDev({
-      backendDirectory: args.shift() ?? 'snapback',
+      backendDirectory,
       attach,
       watch: !noWatch,
       ...(readyFile ? { readyFile } : {}),

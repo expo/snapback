@@ -53,6 +53,7 @@ const inventories = [
       'comparator-profile.test.mjs',
       'dev-cli-diagnostics.test.mjs',
       'dev-loop.test.mjs',
+      'expo-dev-loop.test.mjs',
       'fake-expo-push.test.mjs',
       'hosted-admission-producer.test.mjs',
       'hosted-control.test.mjs',
@@ -194,6 +195,7 @@ const inventories = [
       'package-closure.test.mjs',
       'package.test.mjs',
       'provider.test.mjs',
+      'supervised-environment.test.mjs',
     ],
   },
   {
@@ -587,7 +589,10 @@ const total = results.reduce((sum, result) => sum + result.count, 0);
 // AppBinding union/admission matrix, config-plugin and value-free receipt,
 // provider/boot/lifecycle composition, package surface, and packed nested
 // clean-room closure suites.
-assert.equal(total, 212, 'reviewed package/admin test count changed');
+// 212 -> 214 (2026-08-05, LLP 0181 E1): the Expo package gains the transient
+// supervised-environment exchange suite and the CLI gains the real-runtime
+// backend/Metro/provider/routing/leak/cleanup acceptance loop.
+assert.equal(total, 214, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }

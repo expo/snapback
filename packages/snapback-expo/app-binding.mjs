@@ -99,6 +99,11 @@ function isLoopbackHostname(hostname) {
     || /^127(?:\.[0-9]{1,3}){3}$/u.test(hostname);
 }
 
+function isSupervisedDeviceLocalHostname(hostname, routing) {
+  return isLoopbackHostname(hostname)
+    || (routing === 'port-forward' && hostname === '10.0.2.2');
+}
+
 function validTimestamp(value) {
   return nonEmptyString(value) && Number.isFinite(Date.parse(value));
 }
@@ -171,11 +176,12 @@ export function validateAppBindingV1(candidate) {
           'supervised-dev bindings admit only loopback or port-forward routing',
         ));
       }
-      if (!['http:', 'https:'].includes(origin.protocol) || !isLoopbackHostname(origin.hostname)) {
+      if (!['http:', 'https:'].includes(origin.protocol)
+        || !isSupervisedDeviceLocalHostname(origin.hostname, candidate.target.routing)) {
         problems.push(problem(
           'SNAPBACK_APP_BINDING_TARGET_INVALID',
           '$.target.origin',
-          'supervised-dev origins must be HTTP(S) loopback origins from the application perspective',
+          'supervised-dev origins must be HTTP(S) loopback or the Android-emulator host alias under port-forward routing',
           { hostname: origin.hostname, protocol: origin.protocol },
         ));
       }

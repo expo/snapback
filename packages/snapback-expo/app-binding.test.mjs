@@ -109,6 +109,17 @@ assert.equal(
   'SNAPBACK_APP_BINDING_TARGET_INVALID',
 );
 
+const androidEmulatorAlias = structuredClone(devBinding);
+androidEmulatorAlias.target.origin = 'http://10.0.2.2:4137';
+androidEmulatorAlias.target.routing = 'port-forward';
+assert.deepEqual(validateAppBindingV1(androidEmulatorAlias), []);
+const aliasWithoutPortForward = structuredClone(androidEmulatorAlias);
+aliasWithoutPortForward.target.routing = 'loopback';
+assert.equal(
+  validateAppBindingV1(aliasWithoutPortForward)[0].code,
+  'SNAPBACK_APP_BINDING_TARGET_INVALID',
+);
+
 const admittedDev = await admitAppBindingV1(devBinding, app, {
   now: Date.parse('2026-08-05T20:30:00.000Z'),
   delivery: { channel: 'local-supervised-ipc' },

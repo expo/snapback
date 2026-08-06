@@ -6,7 +6,17 @@
 Auth, Assets, Offline, Testing, Hosted environments, Code generation
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-05
-**Revised:** 2026-08-05 (e) — Super-refine round 2 (delta): fixed a physical-
+**Revised:** 2026-08-05 (f) — E1 selected the supervised development
+carriers: Metro receives only a credential-free rendezvous origin through
+`EXPO_PUBLIC_SNAPBACK_SUPERVISOR_ORIGIN`; the provider fetches the expiring
+binding and ordinary session at runtime from a supervisor-owned, loopback-only,
+`no-store` HTTP exchange. The supervisor invokes the G0 native mint with its
+database-bound operator token and the ready-file process capability, but only
+the ordinary session crosses the exchange. E1 also makes OS listener
+enumeration (backend, Metro, and exchange), verified Android `adb reverse`
+rules with an explicit `10.0.2.2` fallback posture, provider-owned authority
+replacement, the bearer-leak matrix, and strict reclamation executable.
+2026-08-05 (e) — Super-refine round 2 (delta): fixed a physical-
 device sentence orphaned by round 1's `AppBindingV1` discriminated-union fix
 (it referenced a "secure development binding" arm the union no longer, and
 never actually did, represent); swept remaining unqualified "dev persona"
@@ -460,7 +470,10 @@ origin; application code does not.
 
 The preferred route is explicit port forwarding such as `adb reverse`, with
 a loopback origin from the app's perspective. The supervisor installs,
-verifies, and removes the forwarding rule.
+verifies, and removes the forwarding rule. The Android emulator's reserved
+`10.0.2.2` host alias is the fallback posture: it is admitted only with
+`routing: "port-forward"`, never as a general private/LAN origin, and it does
+not cause the supervisor to create a non-loopback listener.
 
 ### Real devices in the baseline
 
@@ -692,6 +705,18 @@ project metadata.
 - Exercise live query, ordinary mutation, scoped presence, HMR/reconnect, and
   authority replacement.
 
+**E1 carrier disposition.** The non-secret value Metro exposes is only the
+credential-free loopback rendezvous origin
+(`EXPO_PUBLIC_SNAPBACK_SUPERVISOR_ORIGIN`). The provider performs a runtime
+`GET /_snapback/expo/v1/bootstrap` with `cache: "no-store"`; its response pairs
+the admitted expiring `AppBinding` with either the native mint's ordinary
+session or a structured `authority-required` refusal. The exchange exists
+only for the supervisor lifetime, listens on loopback, emits no access log,
+and is reclaimed with Metro and the managed backend. This answers OQ1/OQ2 for
+the E1 simulator/emulator baseline without strengthening the security claim:
+as §Provider says, the negative greps do not establish confidentiality or peer
+authentication against another local process.
+
 E0/E1 complete LLP 0176 G1.
 
 ### E2 — online asset command
@@ -807,14 +832,14 @@ and hostile-network proof, not bundled into routine Expo work.
 Capabilities are reported independently. The provider cannot aggregate a few
 partial adapters into an unearned “offline” claim.
 
-## Open questions
+## Open questions and E1 dispositions
 
-1. Which Expo-supported channel should carry the non-secret supervised binding
-   to simulator/emulator without source parsing or committed configuration?
-2. What local bootstrap exchange delivers the ordinary session (by email
-   today; by declared persona once that layer is accepted) without placing
-   it in `AppBinding`, bundle source, logs, or persistent public
-   configuration?
+1. **Answered for E1:** Metro carries only the credential-free rendezvous
+   origin; the binding itself is fetched at runtime from the transient local
+   exchange described in §Delivery E1.
+2. **Answered for E1:** the supervisor-owned loopback `no-store` exchange
+   delivers the ordinary session alongside the binding. The E1 negative grep
+   proves absence from the named static surfaces, not live-channel security.
 3. Should release binding be embedded as generated source, an Expo Updates
    asset, or a signed public artifact, and which owner verifies its receipt?
 4. Can real Android and iOS devices both use a supported USB/port-forward path
@@ -824,7 +849,7 @@ partial adapters into an unearned “offline” claim.
 
 ## Status
 
-Review. E0/E1 are the first slice: the correctly named package, one
+Review. E0/E1 are implemented as the first slice: the correctly named package, one
 `AppBinding`, no-URL provider boot, and direct simulator/emulator routing.
 E2 adds the ordinary-session image command. Release/external proof follows.
 LAN relay, physical-device pairing over that relay, background attempt grants,

@@ -16,7 +16,12 @@ generated `snapback.app.v1` descriptor and package tuple, registers the
 AppState lifecycle shell, and emits a public integration receipt under
 `expo.extra.snapback.integrationReceipt`.
 
-E0 deliberately defines only the `SnapbackExpoEnvironmentV1` admission seam.
-The supervised binding/session delivery used by `snapback dev --expo` belongs
-to E1; release target selection and attestation verification belong to E3.
-Neither the `AppBinding` nor the integration receipt carries session authority.
+In development, `snapback dev --expo` starts the backend and local Expo/Metro
+arms. It injects only a credential-free, loopback rendezvous origin; the
+default `SnapbackExpoEnvironmentV1` fetches the expiring supervised binding and
+ordinary session from that transient exchange at runtime. No URL prop is
+required. A project must already be settled in Sessions auth mode or boot
+reports `authority-required` with the native mint refusal.
+
+Release target selection and attestation verification belong to E3. Neither
+the `AppBinding` nor the integration receipt carries session authority.
