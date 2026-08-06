@@ -841,11 +841,6 @@ pub enum HostCommand {
         #[command(subcommand)]
         command: NetworkProfileCommand,
     },
-    /// Schema-aware bounded data operations.
-    Data {
-        #[command(subcommand)]
-        command: DataCommand,
-    },
     /// Mint one short-lived, scoped administrative data-read lease. This is a
     /// ready-file-only operation because the proof root is local operator
     /// authority and can never be discovered from a URL.

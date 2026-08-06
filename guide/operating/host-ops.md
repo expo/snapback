@@ -51,7 +51,7 @@ carries the storage diagnostic; tooling must not substitute zero.
 ## Served request operations
 
 <!-- BEGIN GENERATED CONTROL CATALOG: HOST OPS SERVED -->
-The endpoint serves **36 request spellings**. This count and table are generated from the build catalog's LLP 0024 allowlist projection:
+The endpoint serves **38 request spellings**. This count and table are generated from the build catalog's LLP 0024 allowlist projection:
 
 | Request operation | Purpose |
 | --- | --- |
@@ -79,6 +79,8 @@ The endpoint serves **36 request spellings**. This count and table are generated
 | `branch.inspect.v1` | branch.inspect.v1 |
 | `branch.list.v1` | branch.list.v1 |
 | `branch.reap.v1` | branch.reap.v1 |
+| `data.patch.apply` | Apply one previewed bounded direct row patch |
+| `data.patch.preview` | Preview one bounded direct row patch |
 | `debug.networkProfileGet` | Read the active network condition profile |
 | `debug.networkProfileSet` | Set the active network condition profile |
 | `errors.issue` | Inspect one error issue |
@@ -127,7 +129,7 @@ envelope; unknown names stay unregistered and fail closed before dispatch.
 ## Registered operation identities
 
 <!-- BEGIN GENERATED CONTROL CATALOG: HOST OPS REGISTERED -->
-The request spellings above expand into **47 registered operation identities**. This inventory is generated from each catalog row's LLP 0031 registry projection:
+The request spellings above expand into **51 registered operation identities**. This inventory is generated from each catalog row's LLP 0031 registry projection:
 
 1. `host_ops.acceptance.run`
 2. `host_ops.app.inspect`
@@ -154,28 +156,32 @@ The request spellings above expand into **47 registered operation identities**. 
 23. `host_ops.branch.inspect.v1`
 24. `host_ops.branch.list.v1`
 25. `host_ops.branch.reap.v1`
-26. `host_ops.debug.networkProfileGet`
-27. `host_ops.debug.networkProfileSet`
-28. `host_ops.errors.issue`
-29. `host_ops.errors.issues`
-30. `host_ops.errors.transition`
-31. `host_ops.function.explain`
-32. `host_ops.function.explain.impersonated`
-33. `host_ops.function.run.query`
-34. `host_ops.function.run.mutation`
-35. `host_ops.function.run.action`
-36. `host_ops.function.run.unknown`
-37. `host_ops.function.run.impersonated`
-38. `host_ops.functions.load`
-39. `host_ops.functions.reload`
-40. `host_ops.host.restart`
-41. `host_ops.host.start`
-42. `host_ops.host.stop`
-43. `host_ops.schema.load`
-44. `host_ops.schema.reload`
-45. `host_ops.telemetry.events`
-46. `host_ops.telemetry.export`
-47. `host_ops.telemetry.stats`
+26. `host_ops.data.patch.apply`
+27. `host_ops.data.patch.apply.impersonated`
+28. `host_ops.data.patch.preview`
+29. `host_ops.data.patch.preview.impersonated`
+30. `host_ops.debug.networkProfileGet`
+31. `host_ops.debug.networkProfileSet`
+32. `host_ops.errors.issue`
+33. `host_ops.errors.issues`
+34. `host_ops.errors.transition`
+35. `host_ops.function.explain`
+36. `host_ops.function.explain.impersonated`
+37. `host_ops.function.run.query`
+38. `host_ops.function.run.mutation`
+39. `host_ops.function.run.action`
+40. `host_ops.function.run.unknown`
+41. `host_ops.function.run.impersonated`
+42. `host_ops.functions.load`
+43. `host_ops.functions.reload`
+44. `host_ops.host.restart`
+45. `host_ops.host.start`
+46. `host_ops.host.stop`
+47. `host_ops.schema.load`
+48. `host_ops.schema.reload`
+49. `host_ops.telemetry.events`
+50. `host_ops.telemetry.export`
+51. `host_ops.telemetry.stats`
 <!-- END GENERATED CONTROL CATALOG: HOST OPS REGISTERED -->
 
 Query/explain reads, durable writes, credential-producing operations, and

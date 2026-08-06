@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "1598409441c695b95dd8a7f1ac865ac8a2de5649"
+    "commit": "5616db4311e39373da23ae709a078d5eae61bd36"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -217,6 +217,11 @@
       }
     ],
     "operating": [
+      {
+        "id": "operating.agent-controls",
+        "order": 1,
+        "title": "Discover agent controls"
+      },
       {
         "id": "operating.secrets-and-config",
         "order": 1,
@@ -1490,7 +1495,7 @@
       "examples": [],
       "reviewed": "2026-08-06",
       "reviewedCommit": "850427c31b9a668d55b46995e08389cd13a2c9b6",
-      "sha256": "13c857f52fce151c5a4aa2ac91c9a10b9d95c6c1294bf0c2c238d6c4975e17b2",
+      "sha256": "8f00e92111426568a0f889654adb2db02cbc1d6161c97c901a05e9c1ebb5ec97",
       "snippets": []
     },
     "clients.app-cli": {
@@ -1753,7 +1758,7 @@
       ],
       "reviewed": "2026-08-06",
       "reviewedCommit": "4ac8387f080a2659484fc09916ff22a076dc4ca8",
-      "sha256": "81390f9fe0a0509e2ee525e4e4429b369a25e9816a08df323e4ba76b76c2651d",
+      "sha256": "6f0fe08eaa6c12be7791906e8850c5bcb5a28530c276e0f3d5e7045bb4f9a20d",
       "snippets": [
         {
           "lang": "json",
@@ -2196,7 +2201,7 @@
       ],
       "reviewed": "2026-08-06",
       "reviewedCommit": "850427c31b9a668d55b46995e08389cd13a2c9b6",
-      "sha256": "f6f2d1c3438880becd44fd0fa12b3885e4fe917d67a12ec3ce0e17d542a22d2b",
+      "sha256": "2647a4fc85019c42a93d7ef33c2be4a658b695ea63ec1fd8027974e369039ca8",
       "snippets": [
         {
           "lang": "json",
@@ -2245,6 +2250,32 @@
           "source": "admin-ui/tests/fatal-rendering.mjs"
         }
       ]
+    },
+    "operating.agent-controls": {
+      "path": "guide/operating/agent-controls.md",
+      "title": "Discover agent controls",
+      "order": 1,
+      "status": "current",
+      "targets": [
+        "local"
+      ],
+      "maturity": "shipped",
+      "capabilities": [
+        "operating.agent-controls"
+      ],
+      "authorities": [
+        "llp/0184-agent-accessible-control-plane.rfc.md",
+        "llp/0031-server-route-taxonomy.spec.md",
+        "llp/0042-agent-mcp-surface.rfc.md",
+        "src/control_catalog.rs",
+        "src/cli.rs",
+        "packages/snapback-cli/mcp-control.mjs"
+      ],
+      "examples": [],
+      "reviewed": "2026-08-06",
+      "reviewedCommit": "2715951cf",
+      "sha256": "ea6262c5962a92472521f334604ed5c102482254974cf610acd0589ac527293e",
+      "snippets": []
     },
     "operating.data-patch": {
       "path": "guide/operating/data-patch.md",
@@ -2377,7 +2408,7 @@
       ],
       "reviewed": "2026-08-06",
       "reviewedCommit": "acbb7b922a060788fd09f3f98211eb9ce35f23f4",
-      "sha256": "8281eaf3095097f852f4e95e6aa49c8fcfee42d0a4a810ae7e9efe8278516133",
+      "sha256": "7a39ddce0216c1a4e726fc5dd8fa1a990af14b912872e98067595146686ee222",
       "snippets": [
         {
           "lang": "json",
@@ -2511,7 +2542,7 @@
       ],
       "reviewed": "2026-08-03",
       "reviewedCommit": "6e5d69d1037c6042fb9338221dfb489e00f5f78a",
-      "sha256": "2ced65efc45a6223b3623ff4540591ee6c7e335de9692388a4dd804226b008a9",
+      "sha256": "9417e04cc8246623bc3a3d6e2d1969c5e8b131ebcf61ae9726f46c7c6e47ec9c",
       "snippets": [
         {
           "lang": "js",
@@ -2931,7 +2962,7 @@
       "examples": [],
       "reviewed": "2026-08-03",
       "reviewedCommit": "7b467cf16",
-      "sha256": "390c49e09e191be6f00f87abdc868e2591905a908976093b98b45b5a423125ff",
+      "sha256": "84b179a21a54c65dee2277d89f5392c018a3f76ccc80754813b2f8ed669f53dd",
       "snippets": []
     },
     "sync.offline-and-retention": {
@@ -2984,9 +3015,9 @@
         "packages/snapback-contract/agent-authority-contract.test.mjs",
         "packages/snapback-react/offline.test.mjs"
       ],
-      "reviewed": "2026-08-05",
-      "reviewedCommit": "HEAD",
-      "sha256": "8fe5f0ae2b8af693d44cd055129a6514060e60661d801373a7387bfad08502be",
+      "reviewed": "2026-08-06",
+      "reviewedCommit": "711e4d763d87cadf0c638bd15ed33a85427e4f11",
+      "sha256": "fde971949340552da32f8e05c9a0628c1b999f33f59748ce740994cc738a5287",
       "snippets": [
         {
           "lang": "js",
@@ -3191,6 +3222,7 @@
       "deploy.release-build",
       "deploy.target-control",
       "operating.admin-console",
+      "operating.agent-controls",
       "operating.data-patch",
       "operating.diagnostics",
       "operating.guide-mcp",
@@ -3227,8 +3259,8 @@
     ]
   },
   "surfaces": {
-    "routes": 117,
+    "routes": 120,
     "hostOps": 41
   },
-  "contentHash": "e6272c8fe6b69fea8c99ed76313c5013e9756f7ce68123ed4efc65eea8f53911"
+  "contentHash": "d4db5e01c88d349a755fff79face0847a0ad21eac7a972150e3527e2cbc86a5c"
 }

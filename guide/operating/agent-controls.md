@@ -86,16 +86,16 @@ documentation absence never appears as success.
 ## Generated inventory
 
 <!-- BEGIN GENERATED CONTROL CATALOG: CONTROL CATALOG INVENTORY -->
-The embedded build catalog contains **109 operations** at digest `sha256:592e8b217835f500671e889a134bd6ac6f288b1bde6a79bd610521ad4135baf5`. The counts and inventory below are generated; do not edit them by hand.
+The embedded build catalog contains **111 operations** at digest `sha256:5bbf88591517e38e1334718c0b162b0e809c50eab17be072d70d3cbfd7932455`. The counts and inventory below are generated; do not edit them by hand.
 
 | Axis | Value | Count |
 | --- | --- | ---: |
 | surfaceAccess | `apiOnly` | 39 |
 | surfaceAccess | `cliOnly` | 29 |
 | surfaceAccess | `mcpOnly` | 3 |
-| surfaceAccess | `native` | 34 |
+| surfaceAccess | `native` | 36 |
 | surfaceAccess | `none` | 4 |
-| operability | `direct` | 77 |
+| operability | `direct` | 79 |
 | operability | `internal` | 11 |
 | operability | `mediated` | 7 |
 | operability | `unavailable` | 14 |
@@ -171,6 +171,8 @@ The embedded build catalog contains **109 operations** at digest `sha256:592e8b2
 | `cron.runOne` | `native` | `direct` | `shipped` | snapback cron run | snapback_cron_run | — |
 | `cron.status.read` | `apiOnly` | `direct` | `shipped` | — | — | — |
 | `cron.tick` | `native` | `direct` | `shipped` | snapback cron tick | snapback_cron_tick | — |
+| `data.patch.apply` | `native` | `direct` | `shipped` | snapback data patch --apply --input <file\|-> | snapback_data_patch_apply | operating/data-patch.md#apply |
+| `data.patch.preview` | `native` | `direct` | `shipped` | snapback data patch --preview --input <file\|-> | snapback_data_patch_preview | operating/data-patch.md#preview |
 | `data.scan` | `native` | `direct` | `shipped` | snapback data scan <table> | snapback_data_scan | operating/host-ops.md#direct-climcp-projections-beyond-host-ops-llp-0184-phase-2-p1 |
 | `debug.networkProfileGet` | `native` | `direct` | `shipped` | snapback network-profile get | snapback_network_profile_get | operating/network-profiles.md#read-the-active-profile |
 | `debug.networkProfileSet` | `native` | `direct` | `shipped` | snapback network-profile set | snapback_network_profile_set | operating/network-profiles.md#set-a-profile |
