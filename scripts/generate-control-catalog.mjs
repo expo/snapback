@@ -21,7 +21,7 @@
 //
 // @ref LLP 0184#3-completeness-and-parity-rules — rules 1-10 enforced below;
 //   rule 11 (hosted-adapter manifest vs audited fixture) in checkHostedAdapter().
-// @ref LLP 0184#3a-the-hosted-cloudflare-leg — the fifth domain leg.
+// @ref LLP 0184#3a-the-hosted-cloudflare-leg--a-fifth-domain-not-an-omission — the fifth domain leg.
 
 import { createHash } from 'node:crypto';
 import { execSync } from 'node:child_process';
