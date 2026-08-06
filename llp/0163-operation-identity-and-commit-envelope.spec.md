@@ -91,6 +91,14 @@ fork-recovery and anonymous-client transport work. C34 is the prospective
 exact clean candidate. The Spec remains `Draft` and every related capability
 remains `Missing` pending fresh exact review, performance, and publication.
 
+**Qualification amendment (2026-08-06, C35):** Prospective C34 passed
+proportional own-correctness, but the required pre-review fetch found newer
+main at `de43d0c2ee790ed4d5c9671df18e55c55440f6c1`. C34 was abandoned
+before review or performance. Normal merge commit `5bb55ecdd` preserves this
+Spec's carrier/custody implementation while reconciling LLP 0158's final
+Accepted record. C35 is prospective; the Spec remains `Draft` and every
+related capability remains `Missing`.
+
 **Related:** LLP 0012, LLP 0037, LLP 0043, LLP 0055, LLP 0095, LLP 0133,
 LLP 0148, LLP 0162
 
@@ -970,3 +978,15 @@ custody, and fail-closed projection repairs while adding the newer fork asset
 recovery and anonymous-public client wire fixes. C34 must pass fresh exact
 dual review before performance. The Spec remains `Draft` and every related
 capability remains `Missing`.
+
+## Implementation record — 2026-08-06, C34 pre-review abandonment and C35 merge
+
+Prospective C34 commit `50b441c380a1ff985f81537c0d9b9603bec5de18`
+passed its full Rust, client, guide, reference, publication-withheld,
+generated-artifact, and Zerobugs Lane 3 checks. Before exact review, the
+mandatory fetch found the final LLP 0158 acceptance cut at
+`de43d0c2ee790ed4d5c9671df18e55c55440f6c1`. C34 was abandoned before
+review or performance, and normal merge commit `5bb55ecdd` reconciled the
+fork contract without activating this Spec. C35 must rerun fresh exact review
+and performance. The Spec remains `Draft` and every related capability
+remains `Missing`.

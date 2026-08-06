@@ -41,6 +41,15 @@ and demo changes normally. C34 is the prospective exact clean candidate and
 must rerun fresh dual review plus both unchanged one-shot performance gates;
 every capability remains `Missing`.
 
+**Qualification amendment (2026-08-06, v0.39):** Prospective C34 commit
+`50b441c380a1ff985f81537c0d9b9603bec5de18` passed proportional
+own-correctness, but the required pre-review fetch found the newer LLP 0158
+acceptance cut at `de43d0c2ee790ed4d5c9671df18e55c55440f6c1`. C34 was
+abandoned before review or performance. Normal merge commit `5bb55ecdd`
+reconciles the Accepted local fork contract while retaining the separate
+derived capability's `Missing` state. C35 is prospective and must rerun every
+exact-candidate gate.
+
 **Qualification amendment (2026-08-05, v0.23):** C14's valid failed paired
 result and the prospective pre-C15 production correction are recorded below.
 Ordinary storage keeps history infrastructure eager but pays for the separate

@@ -56,6 +56,12 @@ post-review fetch found newer main at
 performance process and its reviews cannot qualify the normally merged C34
 successor. All capability states remain `Missing`.
 
+**Qualification update — 2026-08-06, C35:** Prospective C34 passed
+proportional own-correctness, but the required pre-review fetch found the final
+LLP 0158 acceptance cut at `de43d0c2ee790ed4d5c9671df18e55c55440f6c1`.
+C34 was abandoned before review or performance and merged normally as
+`5bb55ecdd`. C35 is prospective; all capability states remain `Missing`.
+
 ## Remaining acceptance work
 
 | LLP 0162 row | State through 2026-08-04 | Required closure |
@@ -72,7 +78,7 @@ successor. All capability states remain `Missing`.
 | 10 — strict promotion | Partial | Frozen v1 no-effect contention/fairness/crash evidence is joined by atomic multi-operation retention. Any captured intent or approved effect fact—including effect-plus-write and transitive effect-dependent chains—refuses strict promotion before canonical mutation with `SNAPBACK_PROMOTION_CAPTURE_ONLY_UNSUPPORTED`. Public effect-bearing promotion remains outside this Track B publication scope; global writer coverage and applicable performance/review remain independent gates. |
 | 11 — history/checkpoint | Partial | Schema publication now atomically projects finite v2 per-record policy, removal erases retained detail, and current/per-version auth plus visible-only pagination/horizon and per-record pruning are covered without changing legacy v1 `maxRows`. The registered-copy sweep invalidates the complete materialized inventory before deletion and preserves crash/unreachable obligations, but it is not yet atomic with canonical protected-record deletion; close that new-checkpoint race and the remaining lifecycle corpus. |
 | 12 — boundary proof | Partial | Promotion and full migration verification are independently derived; migration's separate evaluator has explicit-value/equivalence plus executor-drift and staged-corruption negatives. Checkpoint concurrent-writer/publication/receipt-only no-upcast negatives are covered. Finish the remaining row-wide boundary integrations/coverage before an aggregate claim. |
-| 13 — performance | Partial | C27, C31, C32, and C33 produced no qualifying result; C28, C29, and C30 were stopped by review before any performance process. The unchanged paired and conditional absolute recorders must run once on exact C34 after correctness/review clears. |
+| 13 — performance | Partial | C27, C31, C32, C33, and C34 produced no qualifying result; C28, C29, and C30 were stopped by review before any performance process. The unchanged paired and conditional absolute recorders must run once on exact C35 after correctness/review clears. |
 | 14 — identity lifecycle | Partial | First-party job/cron/migration carriers and transport-level client exclusion are landed. C31 adds automatic sessions range/ACK carriage, bounded successor capacity, required-nullable decoding, global suppression/pending/supplement/lease corruption checks, comparison-complete capacity, out-of-order floor, young-window, and exact final-reclamation negatives; fresh integrated review/publication proof remains. |
 
 The detailed LLP 0163 public-carrier work remains in its existing focused
@@ -205,6 +211,18 @@ recovery, anonymous-public client custody, and Zerobugs lane changes. C34 is
 the prospective exact clean successor. Fresh exact dual review and both
 unchanged one-shot performance gates remain mandatory; every capability
 remains `Missing`.
+
+## C34 pre-review abandonment and prospective C35 — 2026-08-06
+
+Prospective C34 commit `50b441c380a1ff985f81537c0d9b9603bec5de18`
+passed proportional own-correctness: the full Rust suite, client package,
+publication-withheld checker, guide/reference/generated-artifact checks, and
+the corrected 13/13 Zerobugs Lane 3 proof. The mandatory pre-review fetch then
+found newer main at `de43d0c2ee790ed4d5c9671df18e55c55440f6c1`, so C34 was
+abandoned before review or performance. Normal merge commit `5bb55ecdd`
+reconciles the final LLP 0158 acceptance record and retains the derived fork
+capability as `Missing`. C35 must rerun fresh exact dual review and both
+unchanged one-shot performance gates.
 
 ## Dated implementation evidence — 2026-08-04
 
@@ -551,7 +569,7 @@ conflated with this acceptance tail.
   reviews predate the final integrated implementation and are not fabricated
   into final implementation reviews.
 - Historical candidate reviews, including C33's two `READY` verdicts, do not
-  qualify C34; fresh mutually blind reviews of exact C34 remain mandatory.
+  qualify C35; fresh mutually blind reviews of exact C35 remain mandatory.
 - Independent review and the documents' named acceptance authority must be
   obtained before changing their status.
 - A capability may move above `Missing` only for a named target/component whose

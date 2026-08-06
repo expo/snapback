@@ -57,6 +57,13 @@ post-review fetch found newer main before performance. Normal merge commit
 fork-recovery and anonymous-client wire fixes. C34 is prospective; the Spec
 remains `Draft` and the capability remains `Missing`.
 
+**Qualification update — 2026-08-06, C35:** Prospective C34 passed
+proportional own-correctness, but the required pre-review fetch found newer
+main at `de43d0c2ee790ed4d5c9671df18e55c55440f6c1`. C34 was abandoned
+before review or performance. Normal merge commit `5bb55ecdd` preserves the
+carrier/custody work while reconciling LLP 0158's final Accepted record. C35
+is prospective; the Spec remains `Draft` and the capability remains `Missing`.
+
 The remaining closure gates are:
 
 - invoke the closed production activation command only after independent review,
@@ -164,6 +171,18 @@ performance and no final C33 review artifact was accepted. Normal merge commit
 repairs while adding the fork asset-recovery and anonymous-public sessions
 wire changes. C34 must receive fresh exact dual review before performance.
 The Spec remains `Draft` and the capability remains `Missing`.
+
+## C34 pre-review abandonment and C35 merge — 2026-08-06
+
+Prospective C34 commit `50b441c380a1ff985f81537c0d9b9603bec5de18`
+passed proportional own-correctness, including the full Rust suite and client
+package. The required pre-review fetch then found newer main at
+`de43d0c2ee790ed4d5c9671df18e55c55440f6c1`, so no C34 review or
+performance process started. Normal merge commit `5bb55ecdd` retains the
+carrier, custody, writer, and fail-closed projection work while reconciling
+LLP 0158's final Accepted record. C35 must receive fresh exact dual review
+before performance. The Spec remains `Draft` and the capability remains
+`Missing`.
 
 ## Progress — 2026-08-04
 
