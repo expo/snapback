@@ -1022,8 +1022,11 @@ projection sets for Team Chat and the packaged comparator and push-seam
 fixtures. The generated-artifact gate reproduces them byte-for-byte; package
 inventory, all 86 typed export subpaths, all 54 frozen bundle profiles and
 their behavior train, deployment identity, both required production surface
-builds, and artifact-path hygiene pass. No generated source definition or
-push-seam behavior was changed.
+builds, and artifact-path hygiene pass. The tracked cursors-web production
+`dist/` was regenerated from that graph and a second complete surface build
+reproduced the same binary diff digest
+`c0dc03077952fc3244a7d4e91d4050e72e97e508ebe1a7034251b3a4b14fcd94`.
+No generated source definition or push-seam behavior was changed.
 
 Because the AppDescriptor landing changed `packages/snapback-codegen` and the
 retained packaged fixture projections, it also changed the telemetry proof's
