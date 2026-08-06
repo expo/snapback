@@ -12,6 +12,12 @@ export {
   isSnapbackExpoBootDiagnostic,
   useSnapbackExpoBootState,
 } from './provider.mjs';
+export {
+  SUPERVISED_EXCHANGE_FORMAT,
+  SUPERVISED_EXCHANGE_PATH,
+  createSupervisedExpoEnvironment,
+  resolveSupervisedExpoExchangeOrigin,
+} from './supervised-environment.mjs';
 
 // Expo-safe hooks and the existing low-level provider remain aliases of the
 // canonical React owner; this package does not fork their behavior.

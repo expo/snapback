@@ -206,6 +206,18 @@ export interface SnapbackExpoEnvironmentV1 {
     binding: AppBindingV1;
     signal: AbortSignal;
   }>): Promise<AuthorityAdoptionResult> | AuthorityAdoptionResult;
+  refreshAuthority?(input: Readonly<{
+    app: AppDescriptorV1Like;
+    binding: AppBindingV1;
+    signal: AbortSignal;
+  }>): Promise<
+    | Readonly<{ status: 'ready'; publicFacts: PublicAuthorityFacts }>
+    | Readonly<{
+        status: 'authority-required';
+        diagnostic: SnapbackDiagnostic;
+        remediations: readonly TypedRemediation[];
+      }>
+  >;
   onDiagnostic?(diagnostic: SnapbackDiagnostic): void;
 }
 
@@ -225,6 +237,7 @@ export interface SnapbackExpoBootController {
   getSnapshot(): ExpoBootState;
   subscribe(listener: () => void): () => void;
   start(): Promise<ExpoBootState>;
+  refreshAuthority(): Promise<ExpoBootState>;
   reactProvider(): SnapbackReactProvider | null;
   dispose(): Promise<void>;
 }
@@ -254,3 +267,14 @@ export function SnapbackExpoProvider(props: Readonly<{
 
 export function useSnapbackExpoBootState(): ExpoBootState;
 export function isSnapbackExpoBootDiagnostic(error: unknown): boolean;
+
+export {
+  SUPERVISED_EXCHANGE_FORMAT,
+  SUPERVISED_EXCHANGE_PATH,
+  createSupervisedExpoEnvironment,
+  resolveSupervisedExpoExchangeOrigin,
+} from './supervised-environment.mjs';
+export type {
+  SupervisedAuthorityRefreshResult,
+  SupervisedSnapbackExpoEnvironmentV1,
+} from './supervised-environment.mjs';
