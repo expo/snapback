@@ -45,9 +45,14 @@ const supervisors = [];
 writeFileSync(metroScript, `
 import { writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
+import { getDefaultResultOrder } from 'node:dns';
 
 const port = Number(process.env.SNAPBACK_EXPO_METRO_PORT);
 const origin = process.env.EXPO_PUBLIC_SNAPBACK_SUPERVISOR_ORIGIN;
+writeFileSync(process.env.SNAPBACK_EXPO_TEST_ENV, JSON.stringify({
+  nodeOptions: process.env.NODE_OPTIONS,
+  defaultResultOrder: getDefaultResultOrder(),
+}));
 writeFileSync(process.env.SNAPBACK_EXPO_TEST_BUNDLE, [
   '// headless Metro bundle fixture',
   'export const supervisedOrigin = ' + JSON.stringify(origin) + ';',
@@ -131,6 +136,7 @@ function fixture(name, { sessions }) {
   const stateRoot = join(projectRoot, '.snapback');
   const bundle = join(expoRoot, 'bundle.js');
   const sourceMap = join(expoRoot, 'bundle.js.map');
+  const metroEnv = join(stateRoot, 'metro-env.json');
   return {
     projectRoot,
     backendRoot,
@@ -140,6 +146,7 @@ function fixture(name, { sessions }) {
     database: join(stateRoot, 'dev.sqlite3'),
     bundle,
     sourceMap,
+    metroEnv,
     publicConfig,
   };
 }
@@ -161,6 +168,8 @@ async function startFixture(target, options = {}) {
       SNAPBACK_RUNTIME_BINARY: runtimeBinary,
       SNAPBACK_EXPO_TEST_BUNDLE: target.bundle,
       SNAPBACK_EXPO_TEST_SOURCE_MAP: target.sourceMap,
+      SNAPBACK_EXPO_TEST_ENV: target.metroEnv,
+      NODE_OPTIONS: '--trace-warnings',
     },
     serverStdio: ['ignore', 'ignore', 'ignore'],
     onEvent(event) { events.push(event); },
@@ -212,6 +221,7 @@ async function runCliSupervisor(target) {
       SNAPBACK_RUNTIME_BINARY: runtimeBinary,
       SNAPBACK_EXPO_TEST_BUNDLE: target.bundle,
       SNAPBACK_EXPO_TEST_SOURCE_MAP: target.sourceMap,
+      SNAPBACK_EXPO_TEST_ENV: target.metroEnv,
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
@@ -327,6 +337,10 @@ try {
   // but the real native mint refusal becomes authority-required in the app.
   const unsettled = fixture('unsettled', { sessions: false });
   const unsettledRun = await startFixture(unsettled);
+  assert.deepEqual(JSON.parse(readFileSync(unsettled.metroEnv, 'utf8')), {
+    nodeOptions: '--trace-warnings --dns-result-order=ipv4first',
+    defaultResultOrder: 'ipv4first',
+  });
   assert.equal(unsettledRun.supervisor.state, 'authority-required');
   assertListenerInventory(unsettledRun.supervisor);
   const unsettledExchange = await (

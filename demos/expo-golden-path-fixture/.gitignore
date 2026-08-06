@@ -1,0 +1,6 @@
+node_modules/
+.expo/
+.snapback/
+dist/
+dist-*/
+expo-env.d.ts

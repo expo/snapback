@@ -1,0 +1,21 @@
+{
+  "expo": {
+    "name": "Snapback G1 iOS Receipt",
+    "slug": "snapback-g1-ios-receipt",
+    "version": "1.0.0",
+    "platforms": ["ios"],
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "plugins": ["@expo/snapback-expo"],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.snapback.g1iosreceipt",
+      "infoPlist": {
+        "NSAppTransportSecurity": {
+          "NSAllowsLocalNetworking": true
+        }
+      }
+    }
+  }
+}
+

@@ -88,8 +88,8 @@ export function logicalArtifactKind(path) {
   if (path === 'contract-data.manifest.json') return 'contract-data-manifest';
   if (path === 'provider-introspection.json') return 'provider-introspection';
   if (path === 'provider-bindings.json' || path === 'provider-bindings.d.ts') return 'provider-binding';
-  if (path === 'app.descriptor.json') return 'app-descriptor';
-  if (path === 'app.binding.mjs' || path === 'app.mjs' || path === 'app.d.ts') return 'typed-app-descriptor';
+  if (path === 'app.descriptor.json' || /^app\.descriptor\.[0-9a-f]{64}\.json$/u.test(path)) return 'app-descriptor';
+  if (path === 'app.binding.mjs' || /^app\.binding\.[0-9a-f]{64}\.mjs$/u.test(path) || path === 'app.mjs' || path === 'app.d.ts') return 'typed-app-descriptor';
   if (path === 'api.mjs' || path === 'api.d.ts') return 'typed-api';
   if (path === 'package.json') return 'package-metadata';
   if (path === 'routes.manifest.json') return 'route-manifest';
@@ -105,7 +105,7 @@ export function artifactConsumer(path) {
   }
   if (path === 'contract-data.manifest.json' || path.startsWith('contract/')) return 'contract';
   if (path === 'app.descriptor.json') return 'inspection';
-  if (path === 'app.binding.mjs' || path === 'app.mjs' || path === 'app.d.ts' || path === 'api.mjs' || path === 'api.d.ts' || path === 'package.json') return 'client-bundler';
+  if (/^app\.descriptor\.[0-9a-f]{64}\.json$/u.test(path) || path === 'app.binding.mjs' || /^app\.binding\.[0-9a-f]{64}\.mjs$/u.test(path) || path === 'app.mjs' || path === 'app.d.ts' || path === 'api.mjs' || path === 'api.d.ts' || path === 'package.json') return 'client-bundler';
   if (path.startsWith('operations/')) return 'app-cli';
   if (path.startsWith('remote-')) return 'release';
   return 'tooling';

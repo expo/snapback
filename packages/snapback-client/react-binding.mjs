@@ -176,7 +176,12 @@ function normalizedManifest(input) {
   // references into this owner's existing admission machinery rather than
   // asking the Expo package to recreate a React binding implementation.
   if (input?.format === 'snapback.app.v1') {
-    const descriptor = input;
+    // @ref LLP 0179#portable-descriptor-document-and-typed-binding — the
+    // generated module may hydrate portable references with non-enumerable
+    // runtime conveniences. Admission owns a frozen portable projection, so
+    // manifest hashing and later descriptor checks never mistake those
+    // conveniences for CanonicalClientValueV1 query arguments.
+    const descriptor = deepFreeze(structuredClone(input));
     const identity = descriptor.identity;
     const api = descriptor.api;
     const definitions = [

@@ -1,0 +1,12 @@
+{
+  "tables": {
+    "receiptNotes": [
+      {
+        "_id": "g1_ios_seed",
+        "text": "Seed reached the iOS live query",
+        "source": "seed"
+      }
+    ]
+  }
+}
+
