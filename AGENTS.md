@@ -113,6 +113,16 @@ silent wedge trap (ENG-22659).
 
 - Read relevant LLP documents before implementing features or fixing bugs in
   the areas they cover.
+- **`main` moves fast — often continuously for days.** Many concurrent agent
+  sessions push to it around the clock. Do not design processes, gates, or
+  qualification loops that depend on `main` being quiet for hours at a time
+  (for example, "review, then re-verify against exact HEAD, then measure
+  before landing" — newer commits will land mid-loop and starve it; the
+  Track B C27–C33 loop of 2026-08-05/06 is the cautionary case). Prefer
+  designs that land promptly after review and run remaining verification
+  against the landed commit, keeping any capability claim gated on the
+  post-landing result. Expect to `git fetch` + rebase right before every
+  push, and to retry.
 - Agents may use the machine fleet documented in
   `~/Dropbox/APIKeys/MACHINE_FLEET.md` to speed up development. Read that file
   for current availability, capabilities, and SSH commands. Prefer an

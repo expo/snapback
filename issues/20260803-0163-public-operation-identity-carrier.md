@@ -23,15 +23,40 @@ completeness choke point and LLP 0162 retains row-completion authority)
 **Systems:** Sync, Client integration, Storage, Jobs, Migrations, Testing
 **Related:** LLP 0043, LLP 0133, LLP 0162, LLP 0163
 
+## Author ruling — landing discipline for dual-READY cuts (2026-08-06)
+
+Ruled by Charlie to break the C27–C33 HEAD-chasing loop (every cut kept
+being invalidated by "the mandatory post-review fetch found newer main
+before performance"):
+
+- A cut that has received **mutually blind dual READY verdicts** (both
+  model families) **may land on main immediately**. A newer main found
+  after review requires a normal conflict-resolving merge, but it does
+  **not** invalidate the reviews or force a fresh cut.
+- The **performance leg runs immediately after landing**, against the
+  landed commit (row 13's genuinely paired, baseline-digest-bound protocol
+  with the public covered lane active).
+- **Nothing is claimed at landing.** The production activation command,
+  any coverage manifest above `Missing`, and every capability
+  advertisement remain gated on the post-landing performance result plus
+  the other named closure gates, exactly as before. Landing is
+  integration, not qualification.
+- If the post-landing performance leg fails its thresholds, record the
+  failure here and fix forward (or revert); a landed-but-unqualified cut
+  never activates.
+
+This ruling changes only the *ordering* of landing versus the performance
+leg; every honesty gate is unchanged.
+
 The public client range carrier, ordinary-mutation choke points, protected
 explanation custody, job/cron action children, and migration transaction
 carriers are implemented. Production targets do not activate a coverage
-manifest by default; an exact authenticated AdminWrite command can now activate
-the narrow local four-adapter profile. The public explanation lane has closed positive evaluators only for
-exact generated owner create/update facts, and migration remains explicitly
-uncovered. The aggregate publication/terminal split now has a truthful
-Pending→supplement lifecycle, but H1/H2/C remain carrier-only and
-review/publication gates are still open.
+manifest by default; an exact authenticated AdminWrite command can activate
+the narrow local four-adapter profile only after its gates pass. The public
+explanation lane has closed positive evaluators only for exact generated owner
+create/update facts, and migration remains explicitly uncovered. The aggregate
+publication/terminal split has a truthful Pending→supplement lifecycle, but
+H1/H2/C remain carrier-only and review/publication gates are still open.
 
 ## Scope fence after LLP 0185 Phase 0
 
