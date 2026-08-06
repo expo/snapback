@@ -5,11 +5,13 @@
   "packageManager": "bun@1.3.12",
   "dependencies": {
     "expo": "file:./expo-stub",
+    "expo-file-system": "file:./expo-file-system-stub",
     "react-native": "file:./react-native-stub",
     "react": "file:./react-stub"
   },
   "overrides": {
     "expo": "file:./expo-stub",
+    "expo-file-system": "file:./expo-file-system-stub",
     "react-native": "file:./react-native-stub",
     "react": "file:./react-stub"
   }

@@ -209,10 +209,12 @@ fn fork_lifecycle_row13_bench() {
         .as_millis() as u64;
     let diff_root = directory.path().join("forks-diff");
     std::fs::create_dir(&diff_root).unwrap();
+    let expected = snapback::instance_fork::load_expected_app(&app_root)
+        .expect("load bench app binding established by fork create");
     let attributed = snapback::instance_fork::publish_managed(
         &small,
         &diff_root.join("fork-attributed"),
-        "todo",
+        &expected,
         "bench-parent",
         wall_now,
         wall_now + 3_600_000,
@@ -222,7 +224,7 @@ fn fork_lifecycle_row13_bench() {
     let netted = snapback::instance_fork::publish_managed_with_base(
         &small,
         &diff_root.join("fork-net"),
-        "todo",
+        &expected,
         "bench-parent",
         wall_now,
         wall_now + 3_600_000,
@@ -293,7 +295,7 @@ fn fork_lifecycle_row13_bench() {
         snapback::instance_fork::publish_managed(
             &small,
             &reap_root.join(format!("fork-{index}")),
-            "todo",
+            &expected,
             "bench-parent",
             wall_now,
             wall_now + 1,

@@ -18,6 +18,7 @@ import {
   canonicalizeClientValueV1,
   canonicalReactStoreKeyV1,
   classifyRegeneratedReactReference,
+  handoffPreparedReactBindingGeneration,
   preparedReactResultContract,
   preparedReactBindingClient,
   isPreparedReactQueryGroup,
@@ -79,11 +80,21 @@ function preparedGroupForProvider(provider) {
 // @ref LLP 0114#mounted-provider-hmr-generation-handoff-dated-amendment-2026-08-05
 /* global __DEV__ */
 const positiveDevelopmentEnvironment = () => {
-  if (typeof __DEV__ === 'boolean') return __DEV__;
+  if (typeof __DEV__ === 'boolean') return __DEV__ === true;
   if (import.meta.hot != null) return true;
-  if (typeof module !== 'undefined' && module.hot != null) return true;
+  if (typeof module !== 'undefined' && module?.hot != null) return true;
   return typeof process !== 'undefined' && process.env?.NODE_ENV === 'development';
 };
+
+const HANDOFF_DEFERRED_REFERENCE = Symbol('snapback.react.hmr-deferred-reference.v1');
+const HANDOFF_PENDING = Object.freeze({
+  status: 'pending',
+  data: undefined,
+  error: null,
+  connection: 'connecting',
+  freshness: 'unknown',
+  retention: null,
+});
 
 const CONNECTION_ORDER = Object.freeze({
   error: 0,
@@ -141,16 +152,6 @@ const SKIPPED = Object.freeze({
   retention: null,
 });
 const SERVER_PENDING = pending();
-function errorSnapshot(error, connection = 'error', retention = null) {
-  return Object.freeze({
-    status: 'error',
-    data: undefined,
-    error,
-    connection,
-    freshness: 'unknown',
-    retention,
-  });
-}
 const PRESENCE_SERVER_PENDING = Object.freeze({
   status: 'pending',
   entries: Object.freeze([]),
@@ -226,18 +227,24 @@ function captureRetention(store) {
 function queryStateForConnection(store, connection, detail = {}) {
   const snapshot = store.snapshot;
   if (connection === 'error') {
-    return errorSnapshot(
-      serializeError(detail.error ?? new Error('live query connection failed')),
+    return Object.freeze({
+      status: 'error',
+      data: undefined,
+      error: serializeError(detail.error ?? new Error('live query connection failed')),
       connection,
-      store.retention,
-    );
+      freshness: 'unknown',
+      retention: store.retention,
+    });
   }
   if (connection === 'closed') {
-    return errorSnapshot(
-      diagnostic('SNAPBACK_REACT_PROVIDER_CLOSED', 'React provider is closed'),
+    return Object.freeze({
+      status: 'error',
+      data: undefined,
+      error: diagnostic('SNAPBACK_REACT_PROVIDER_CLOSED', 'React provider is closed'),
       connection,
-      store.retention,
-    );
+      freshness: 'unknown',
+      retention: store.retention,
+    });
   }
   if (snapshot.status === 'ready' || snapshot.status === 'refreshing') {
     return Object.freeze({
@@ -269,7 +276,7 @@ function assertProvider(provider) {
   if (provider?.kind === 'snapback.react-provider.v1') return provider;
   throw diagnosticError(
     'SNAPBACK_REACT_PROVIDER_REQUIRED',
-    'a prepared SnapbackProvider is required',
+    'a SnapbackProvider with a prepared binding is required',
   );
 }
 
@@ -289,7 +296,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
   if (preparedGroup !== null && !isPreparedReactQueryGroup(preparedGroup)) {
     throw diagnosticError(
       'SNAPBACK_REACT_GROUP_PREPARATION_INVALID',
-      'preparedGroup was not prepared by this binding',
+      'preparedGroup must come from binding.prepareQueryGroup()',
     );
   }
   if (preparedGroup !== null) admittedReactQueryGroup(binding, preparedGroup.reference);
@@ -302,7 +309,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
   ) {
     throw diagnosticError(
       'SNAPBACK_REACT_GROUP_CONNECTION_MISMATCH',
-      'provider and prepared group connectionId differ',
+      'provider connectionId must match the register-mode query-group bundle',
       {
         expected: preparedGroup.connectionId,
         actual: options.connectionId,
@@ -340,6 +347,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
   let terminal = false;
   let custodyPaused = false;
   let hostPaused = false;
+  const runtimePaused = () => custodyPaused || hostPaused;
   let leaseSequence = 0;
   let registeredConnectionAttached = false;
   let registeredRecovery = null;
@@ -356,7 +364,14 @@ function createRegistry(binding, providerInstanceId, options = {}) {
   // in-flight or settled handoff; handoff descriptors resolve to real
   // admitted descriptors once the binding's generation overlay swaps.
   const developmentHmr = options.developmentHmr ?? null;
+  if (
+    developmentHmr !== null
+    && (typeof developmentHmr !== 'object' || Array.isArray(developmentHmr))
+  ) {
+    throw new TypeError('developmentHmr must be an options object');
+  }
   let generationHandoff = null;
+  const handoffResolutions = new WeakMap();
 
   const notifyConnection = () => {
     for (const listener of [...connectionListeners]) {
@@ -551,7 +566,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         releaseLayerPin(store, layer);
         recordDiagnostic(diagnosticError(
           'SNAPBACK_REACT_OPTIMISTIC_REBASE_FAILED',
-          'optimistic rebase failed',
+          'an optimistic reducer failed while rebasing over newer authority',
           { attemptId: layer.id, cause: error?.code ?? error?.message ?? String(error) },
         ));
       }
@@ -669,7 +684,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
   };
 
   const startStore = (store, supersedes = null) => {
-    if (terminal || custodyPaused || hostPaused || store.handle || (store.consumers === 0 && store.pins === 0)) return;
+    if (terminal || runtimePaused() || store.handle || (store.consumers === 0 && store.pins === 0)) return;
     if (store.readOnlySnapshot !== null) return null;
     // A one-for-one supersession must carry its exact predecessor witness to
     // the server now; it is an explicit invalidation, so it resets any held
@@ -716,11 +731,14 @@ function createRegistry(binding, providerInstanceId, options = {}) {
           // project the denial on the error axis. Fresh authoritative rows
           // (a later authorized subscribe) clear it below.
           captureRetention(store);
-          publish(store, errorSnapshot(
-            serializeError(detail.error ?? detail.authorization),
-            normalizeConnection(store.handle?.current?.connection ?? 'disconnected'),
-            store.retention,
-          ), generation);
+          publish(store, Object.freeze({
+            status: 'error',
+            data: undefined,
+            error: serializeError(detail.error ?? detail.authorization),
+            connection: normalizeConnection(store.handle?.current?.connection ?? 'disconnected'),
+            freshness: 'unknown',
+            retention: store.retention,
+          }), generation);
           return;
         }
         if (detail?.freshness === 'retained') {
@@ -778,7 +796,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         handleSubscribeFailure([
           store, error, generation, handle, clearUnadoptedSubscription,
           allHandles, recoverExpiredRegisteredConnection, publish, serializeError,
-          () => !terminal && !custodyPaused && !hostPaused,
+          () => !terminal && !runtimePaused(),
           () => startStore(store),
         ])
       )).catch((loadError) => {
@@ -795,16 +813,19 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         clearUnadoptedSubscription(store);
         store.handle = null;
         allHandles.delete(handle);
-        publish(store, errorSnapshot(
-          serializeError(error),
-          'error',
-          store.retention,
-        ), generation);
+        publish(store, Object.freeze({
+          status: 'error',
+          data: undefined,
+          error: serializeError(error),
+          connection: 'error',
+          freshness: 'unknown',
+          retention: store.retention,
+        }), generation);
         let retryHandle = setTimeout(() => {
           retryHandle = null;
           if (store.retry !== cancelRetry) return;
           store.retry = null;
-          if (!terminal && !custodyPaused && !hostPaused && (store.consumers > 0 || store.pins > 0)) {
+          if (!terminal && !runtimePaused() && (store.consumers > 0 || store.pins > 0)) {
             startStore(store);
           }
         }, REACT_RUNTIME_FALLBACK_RETRY_MS);
@@ -913,12 +934,38 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         initialProjection,
         validateResultContract,
       })).catch(recordDiagnostic);
+    return;
+    const key = `${mutationReference.id} ${queryReference.id}`;
+    if (replayAdvisoryKeys.has(key)) return;
+    let detail = null;
+    try {
+      const replayed = validateResultContract(
+        store.resultContract,
+        layer.update(initialProjection, layer.mutationArgs),
+        { requireKnown: true },
+      );
+      if (!projectionEquals(replayed, initialProjection)) {
+        detail = 'returned a different projection when replayed over its own output';
+      }
+    } catch (error) {
+      detail = 'failed when replayed over its own output '
+        + `(${error?.code ?? error?.message ?? String(error)})`;
+    }
+    if (detail === null) return;
+    replayAdvisoryKeys.add(key);
+    console.warn(
+      `SNAPBACK_REACT_OPTIMISTIC_REPLAY_DIVERGENT: the optimistic update for ${mutationReference.name} `
+      + `over ${queryReference.name} ${detail}. Optimistic updates are replayable projections over an `
+      + 'evolving authoritative base: capture the intended outcome and set it (or use '
+      + 'projectRecordFields) instead of toggling or incrementing the incoming rows. See '
+      + 'guide/recipes/optimistic-toggle.md.',
+    );
   };
 
   const runMutation = async (mutationReference, mutationArgs, optimistic = null) => {
     if (terminal) throw diagnosticError('SNAPBACK_REACT_PROVIDER_CLOSED', 'React provider is closed');
-    if (mutationReference?.handoff?.mutation !== undefined) {
-      mutationReference = mutationReference.handoff.mutation;
+    if (mutationReference?.[HANDOFF_DEFERRED_REFERENCE] === true) {
+      mutationReference = mutationReference.reference;
     }
     // Admission stays synchronous on the settled path (the optimistic layer
     // must install in the same frame as the user action). Only a recoverable
@@ -954,7 +1001,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     if (
       typeof optimistic !== 'object'
       || typeof optimistic.update !== 'function'
-    ) throw new TypeError('optimistic options require query, args, and update');
+    ) throw new TypeError('optimistic mutation options require query, args, and update');
     let queryReference;
     try {
       queryReference = admittedReactReference(binding, optimistic.query, 'LiveQuery');
@@ -972,15 +1019,14 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     );
     const store = stores.get(queryKey);
     if (
-      custodyPaused
-      || hostPaused
+      runtimePaused()
       || !store
       || store.authoritativeRevision === 0
       || !['ready', 'refreshing'].includes(store.snapshot.status)
     ) {
       throw diagnosticError(
         'SNAPBACK_REACT_OPTIMISTIC_STORE_MISSING',
-        'optimistic projection requires authoritative rows',
+        'optimistic projection requires a current authoritative query store',
         { queryId: queryReference.id },
       );
     }
@@ -1059,7 +1105,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       if (capture && !client.authorityFence?.isCurrent?.(capture)) {
         throw diagnosticError(
           'SNAPBACK_CLIENT_AUTHORITY_STALE',
-          'mutation authority is stale',
+          'optimistic mutation authority was replaced before dispatch',
         );
       }
       const output = await client.mutate(admittedMutation, {
@@ -1121,7 +1167,15 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     clientMutationId,
     authorityCapture,
   }) => {
-    if (terminal) throw diagnosticError('SNAPBACK_REACT_PROVIDER_CLOSED', 'React provider is closed');
+    // @ref LLP 0180#mutation-ambiguity — these terminal checks refuse before
+    // client.mutate, proving that no mutation effect left this provider.
+    if (terminal) {
+      throw diagnosticError(
+        'SNAPBACK_REACT_PROVIDER_CLOSED',
+        'React provider is closed',
+        { effectCommitted: false },
+      );
+    }
     let admittedMutation;
     try {
       admittedMutation = admittedReactReference(binding, mutationReference, 'Mutation');
@@ -1129,7 +1183,13 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       const target = recoverableGeneration(error, mutationReference);
       if (target === null) throw error;
       await beginGenerationHandoff(target).promise;
-      if (terminal) throw diagnosticError('SNAPBACK_REACT_PROVIDER_CLOSED', 'React provider is closed');
+      if (terminal) {
+        throw diagnosticError(
+          'SNAPBACK_REACT_PROVIDER_CLOSED',
+          'React provider is closed',
+          { effectCommitted: false },
+        );
+      }
       admittedMutation = admittedReactReference(binding, mutationReference, 'Mutation');
     }
     canonicalizeClientValueV1(mutationArgs);
@@ -1319,7 +1379,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         return real.skipped ? SKIPPED : (stores.get(real.key)?.snapshot ?? SERVER_PENDING);
       }
       if (generationHandoff?.status === 'failed') return generationHandoff.failureSnapshot;
-      return SERVER_PENDING;
+      return HANDOFF_PENDING;
     }
     return stores.get(descriptor.key)?.snapshot ?? SERVER_PENDING;
   };
@@ -1411,7 +1471,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     ) {
       throw diagnosticError(
         'SNAPBACK_REACT_PRESENCE_HEARTBEAT_UNSUPPORTED',
-        'presence TTL must be an integer from 500ms through its generated maximum',
+        'managed presence TTL must be an integer from 500ms through the generated maximum',
         { ttlMs: effectiveTtlMs, maxTtlMs: room.definition.reference.maxTtlMs },
       );
     }
@@ -1419,7 +1479,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     if (!validated.ok) {
       throw diagnosticError(
         'SNAPBACK_REACT_PRESENCE_VALUE_INVALID',
-        'presence value is invalid',
+        'managed presence value does not satisfy the generated value contract',
         { collection: room.definition.reference.name, path: validated.path },
       );
     }
@@ -1427,7 +1487,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     if (new TextEncoder().encode(encoded).byteLength > room.definition.reference.maxValueBytes) {
       throw diagnosticError(
         'SNAPBACK_EPHEMERAL_VALUE_TOO_LARGE',
-        'presence value exceeds its generated byte budget',
+        'managed presence value exceeds the generated byte budget',
         { maxValueBytes: room.definition.reference.maxValueBytes },
       );
     }
@@ -1439,7 +1499,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       ) {
         throw diagnosticError(
           'SNAPBACK_REACT_PRESENCE_VALUE_CONFLICT',
-          'same-room presence consumers must publish one value and TTL',
+          'same-room managed presence consumers must publish the same value and TTL',
           { collection: room.definition.reference.name },
         );
       }
@@ -1623,7 +1683,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     pauseRoom(room);
   };
   const startRoom = (room) => {
-    if (room.closed || room.handle || terminal || custodyPaused || hostPaused) return;
+    if (room.closed || room.handle || terminal || runtimePaused()) return;
     const generation = ++room.generation;
     room.raw = PRESENCE_SERVER_PENDING;
     const handle = client.startEphemeralRoom(
@@ -1951,17 +2011,17 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     return connectionSnapshot;
   };
 
-  const quiesceRegistry = () => {
+  const quiesceRegistry = async () => {
     for (const store of stores.values()) stopStore(store);
     for (const room of rooms.values()) pauseRoom(room);
-    return Promise.allSettled([
+    await Promise.allSettled([
       ...[...allHandles].map((handle) => handle.settled()),
       ...[...rooms.values()].map((room) => room.cleanup),
       ...(registeredRecovery === null ? [] : [registeredRecovery]),
     ]);
   };
-  const resumeRegistry = async () => {
-    if (terminal || custodyPaused || hostPaused) return;
+  const resumeRegistry = () => {
+    if (terminal || runtimePaused()) return;
     manager = typeof client.liveStreamManager === 'function'
       ? client.liveStreamManager(connectionId)
       : null;
@@ -1971,9 +2031,9 @@ function createRegistry(binding, providerInstanceId, options = {}) {
 
   const barrierParticipant = {
     name: `snapback-react:${providerInstanceId}`,
-    quiesce() {
+    async quiesce() {
       custodyPaused = true;
-      return quiesceRegistry();
+      await quiesceRegistry();
     },
     blank() {
       custodyPaused = true;
@@ -2000,9 +2060,10 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       invalidatePreparedRegistrations('authority-replaced');
     },
     async commitDurable() {},
-    resume() {
+    async resume() {
+      if (terminal) return;
       custodyPaused = false;
-      return resumeRegistry();
+      resumeRegistry();
     },
   };
   const unregisterBarrier = client.registerAuthBarrierParticipant(barrierParticipant);
@@ -2054,13 +2115,33 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     return classifyRegeneratedReactReference(binding, reference);
   };
 
+  const triggerControlledDevelopmentReload = (failure) => {
+    console.error(
+      `${failure.code}: ${failure.message} (reason: ${failure.details?.reason ?? 'unknown'}). `
+      + 'Snapback is triggering a full dev reload so the mounted provider realigns with the '
+      + 'regenerated api module. If no reload mechanism is available on this host, reload '
+      + 'manually (press "r" in the Metro terminal or refresh the page).',
+    );
+    try {
+      if (typeof developmentHmr?.onReloadRequired === 'function') {
+        developmentHmr.onReloadRequired(failure);
+        return;
+      }
+    } catch { /* observational */ }
+    try { globalThis.DevSettings?.reload?.('SNAPBACK_REACT_HMR_REBIND_FAILED'); } catch { /* best effort */ }
+    try { globalThis.location?.reload?.(); } catch { /* best effort */ }
+  };
+
   const beginGenerationHandoff = (target) => {
     const key = canonicalizeClientValueV1(target);
     if (generationHandoff !== null && generationHandoff.key === key) return generationHandoff;
     const state = {
       key,
       status: 'active',
+      failure: null,
+      failureSnapshot: null,
       waiters: new Set(),
+      promise: null,
     };
     // A newer generation supersedes an in-flight handoff (rapid successive
     // HMR edits): its parked waiters move to the successor so their hooks
@@ -2071,13 +2152,27 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     }
     const settle = (outcome) => {
       if (terminal || generationHandoff !== state) return outcome;
-      state.status = outcome?.ok === true ? 'ok' : 'failed';
-      if (state.status === 'failed') {
-        const failure = outcome?.failure ?? diagnostic(
+      if (outcome?.ok === true) {
+        state.status = 'ok';
+      } else {
+        state.status = 'failed';
+        state.failure = diagnostic(
           'SNAPBACK_REACT_HMR_REBIND_FAILED',
-          'HMR rebind failed',
+          'HMR delivered regenerated Snapback references, but the mounted provider could not atomically rebind to the new generation',
+          {
+            reason: outcome?.reason ?? 'handoff-error',
+            ...(outcome?.cause === undefined ? {} : { cause: outcome.cause }),
+          },
         );
-        state.failureSnapshot = errorSnapshot(failure);
+        state.failureSnapshot = Object.freeze({
+          status: 'error',
+          data: undefined,
+          error: state.failure,
+          connection: 'error',
+          freshness: 'unknown',
+          retention: null,
+        });
+        triggerControlledDevelopmentReload(state.failure);
       }
       const waiters = [...state.waiters];
       state.waiters.clear();
@@ -2087,25 +2182,34 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       notifyConnection();
       return outcome;
     };
-    state.promise = loadReactRuntime()
-      .then((runtime) => runtime.runDevelopmentHmrHandoff(
-        binding,
-        target,
-        developmentHmr,
-      ))
-      .then(settle, () => settle({ ok: false }));
+    state.promise = handoffPreparedReactBindingGeneration(binding, target, {
+      ...(Number.isSafeInteger(developmentHmr?.timeoutMs)
+        ? { timeoutMs: developmentHmr.timeoutMs }
+        : {}),
+      ...(Number.isSafeInteger(developmentHmr?.pollIntervalMs)
+        ? { pollIntervalMs: developmentHmr.pollIntervalMs }
+        : {}),
+    }).then(settle, (error) => settle({
+      ok: false,
+      reason: 'handoff-error',
+      cause: error?.code ?? String(error),
+    }));
     generationHandoff = state;
     return state;
   };
 
   const resolveHandoffDescriptor = (descriptor) => {
+    const resolved = handoffResolutions.get(descriptor);
+    if (resolved) return resolved;
     try {
-      return admittedDescriptor(
+      const real = admittedDescriptor(
         descriptor.handoff.reference,
         descriptor.handoff.args,
         descriptor.handoff.groupBoot,
         descriptor.handoff.preparedEntryName,
       );
+      handoffResolutions.set(descriptor, real);
+      return real;
     } catch {
       return null;
     }
@@ -2115,7 +2219,15 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     beginGenerationHandoff(target);
     return Object.freeze({
       skipped: args === skip,
-      handoff: { reference, args, groupBoot, preparedEntryName },
+      handoff: Object.freeze({ reference, args, groupBoot, preparedEntryName }),
+      reference,
+      args,
+      key: null,
+      resultContract: null,
+      groupBoot,
+      preparedEntryName,
+      readOnlySnapshot: null,
+      bootDelivery: null,
     });
   };
 
@@ -2126,10 +2238,21 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       const real = resolveHandoffDescriptor(descriptor);
       if (real !== null && !real.skipped) {
         try {
-          // Reuse the ordinary transactional replacement path, then make the
-          // parked lease's cleanup delegate to the admitted successor.
-          const successor = subscribeMany([real], listener, lease);
-          lease.release = successor.release;
+          if (consumers + 1 > CONSUMER_CAP) {
+            throw diagnosticError(
+              'SNAPBACK_REACT_STORE_CAPACITY',
+              `React provider has reached its ${CONSUMER_CAP}-consumer cap`,
+              { cap: CONSUMER_CAP },
+            );
+          }
+          const store = stores.get(real.key) ?? createStore(real);
+          const edgeId = `${lease.id}:handoff${lease.edges.length}`;
+          store.idleEpoch += 1;
+          store.consumers += 1;
+          store.listeners.set(edgeId, listener);
+          lease.edges.push({ key: store.key, edgeId });
+          consumers += 1;
+          startStore(store);
         } catch (error) {
           recordDiagnostic(error);
         }
@@ -2161,7 +2284,9 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         const target = recoverableGeneration(error, reference);
         if (target === null) throw error;
         beginGenerationHandoff(target);
-        return Object.freeze({ handoff: { mutation: reference } });
+        const deferred = { reference };
+        Object.defineProperty(deferred, HANDOFF_DEFERRED_REFERENCE, { value: true });
+        return Object.freeze(deferred);
       }
     },
     subscribe(descriptor, listener, previousLease = null) {
@@ -2187,19 +2312,19 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     // cannot race an authority transition (or vice versa).
     // @ref LLP 0181#provider — the Expo lifecycle shell delegates to the
     // existing React/client machinery.
-    pause() {
+    async pause() {
       hostPaused = true;
-      return quiesceRegistry();
+      await quiesceRegistry();
     },
-    resume() {
+    async resume() {
       hostPaused = false;
-      return resumeRegistry();
+      resumeRegistry();
     },
     inspection() {
       return Object.freeze({
         providerInstanceId,
         terminal,
-        custodyPaused: custodyPaused || hostPaused,
+        custodyPaused: runtimePaused(),
         hostPaused,
         stores: stores.size,
         consumers,
@@ -2303,19 +2428,30 @@ export function createSnapbackReactProvider(binding, options = {}) {
     if (preparedGroup !== null) void abandonConsumedReactQueryGroup(preparedGroup);
     throw error;
   }
+  let disposePromise = null;
   const provider = {
     kind: 'snapback.react-provider.v1',
     providerInstanceId,
     binding: prepared,
     registry,
     assets: options.assets ?? null,
+    assetSourceAdapter: options.assetSourceAdapter ?? null,
     registerEphemeralRepublisher(reference, callback) {
       return preparedReactBindingClient(prepared).registerEphemeralRepublisher(reference, callback);
     },
-    pause: registry.pause,
-    resume: registry.resume,
-    inspection: () => registry.inspection(),
-    dispose: () => registry.dispose(),
+    pause: () => registry.pause(),
+    resume: () => registry.resume(),
+    inspection: () => Object.freeze({
+      ...registry.inspection(),
+      commandTasks: commandClientInspectionFor(provider),
+    }),
+    dispose() {
+      disposePromise ??= (async () => {
+        await disposeCommandClientFor(provider);
+        await registry.dispose();
+      })();
+      return disposePromise;
+    },
   };
   provider.surface = (surface, params, surfaceOptions = {}) => (
     bindSnapbackSurface(provider, surface, params, surfaceOptions)
@@ -2574,7 +2710,7 @@ export function projectRecordFields(recordId, fields, { idField = '_id' } = {}) 
   });
 }
 
-export function useSnapbackMutation(reference, options) {
+export function useSnapbackMutation(reference, options = {}) {
   const provider = useProvider();
   // Registry-owned admission: in a positively identified development/HMR
   // environment a regenerated same-app reference defers to the generation
@@ -2585,10 +2721,9 @@ export function useSnapbackMutation(reference, options) {
     [provider, reference],
   );
   const optimistic = options?.optimistic ?? null;
-  const runMutation = provider.registry.runMutation;
   return useCallback(
-    (args) => runMutation(admitted, args, optimistic),
-    [runMutation, admitted, optimistic],
+    (args) => provider.registry.runMutation(admitted, args, optimistic),
+    [provider, admitted, optimistic],
   );
 }
 
@@ -3300,12 +3435,24 @@ function commandClientFor(provider) {
   const client = preparedReactBindingClient(provider.binding);
   commands = createCommandClient(client, {
     assets: assetRegistryFor(provider).assets,
+    assetSourceAdapter: provider.assetSourceAdapter,
     invokeMutation: (reference, args, options) => (
       provider.registry.runCommandMutation(reference, args, options)
     ),
   });
   commandClients.set(provider, commands);
   return commands;
+}
+
+function commandClientInspectionFor(provider) {
+  return commandClients?.get(provider)?.inspection().activeCommandTasks ?? 0;
+}
+
+async function disposeCommandClientFor(provider) {
+  const commands = commandClients?.get(provider);
+  if (!commands) return;
+  commandClients.delete(provider);
+  await commands.dispose();
 }
 
 function assetRegistryFor(provider) {
@@ -3441,6 +3588,22 @@ const ASSET_IMAGE_IDLE = Object.freeze({
   record: null,
 });
 
+function bestReadyRenditionVariant(record, maxWidth) {
+  const sized = Array.isArray(record?.renditions)
+    ? record.renditions
+      .filter((rendition) => (
+        rendition?.ready === true
+        && typeof rendition.variant === 'string'
+        && Number.isFinite(rendition.width)
+      ))
+      .map((rendition) => ({ variant: rendition.variant, width: rendition.width }))
+      .sort((left, right) => left.width - right.width)
+    : [];
+  return sized.slice().reverse().find((rendition) => rendition.width <= maxWidth)?.variant
+    ?? sized[0]?.variant
+    ?? null;
+}
+
 /**
  * The renderer ladder as a headless hook (Expo-ready — no DOM API in this
  * path): local preview → ThumbHash placeholder → best delivered rendition.
@@ -3509,9 +3672,14 @@ export function useSnapbackAssetImage({
       const underlay = effectivePlaceholder !== null
         ? placeholderState(record.record)
         : null;
+      const publicVariant = record.record?.deliveryProfile === 'public-immutable'
+        ? bestReadyRenditionVariant(record.record, maxWidth)
+        : null;
       return Object.freeze({
         phase: 'rendition',
-        src: registry.assets.deliveryUrl(assetId, { maxWidth }),
+        src: publicVariant === null
+          ? registry.assets.deliveryUrl(assetId, { maxWidth })
+          : registry.assets.publicDeliveryUrl(assetId, { variant: publicVariant }),
         aspectRatio: underlay?.aspectRatio ?? null,
         placeholderSrc: underlay?.src ?? null,
         record: record.record,

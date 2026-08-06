@@ -4,12 +4,12 @@ id: clients.surfaces
 order: 2
 audience: agent-first
 capabilities: [clients.surfaces]
-authorities: [llp/0179-generated-app-descriptor-and-surfaces.rfc.md, llp/0180-asset-bearing-client-commands.rfc.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0176-expo-messaging-golden-path.plan.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/commands.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts]
+authorities: [llp/0179-generated-app-descriptor-and-surfaces.rfc.md, llp/0180-asset-bearing-client-commands.rfc.md, llp/0181-zero-configuration-expo.rfc.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0176-expo-messaging-golden-path.plan.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/commands.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-expo/asset-source.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts]
 examples: [packages/snapback-react/surface.test.mjs, packages/snapback-react/commands.test.mjs, packages/snapback-client/commands.test.mjs, packages/snapback-react/fixtures/conversation/app/snapback/generated/app.descriptor.json, packages/snapback-react/fixtures/conversation/app/snapback/generated/app.d.ts, demos/expo-golden-path-fixture/snapback/functions.mjs, demos/expo-golden-path-fixture/snapback/surface-model.mjs, demos/expo-golden-path-fixture/src/screens/chat-screen.tsx, demos/expo-golden-path-fixture/tests/g2-falsification.mjs, demos/expo-golden-path-fixture/tests/g3-command.mjs]
 status: current
 targets: [local]
 maturity: partial
-since: 0.1.10
+since: 0.1.11
 unreleased: true
 reviewed: 2026-08-06
 reviewed-commit: HEAD
@@ -22,7 +22,7 @@ reviewed-commit: HEAD
 > [auth/targets](../auth/targets.md).
 
 > **Unreleased.** This surface is newer than the newest published Snapback
-> closure, 0.1.9. Use a runtime built from this checkout until 0.1.10 ships.
+> closure, 0.1.10. Use a runtime built from this checkout until 0.1.11 ships.
 
 An **application surface** is one generated, parameterized composition of the
 reads, ordinary mutations, asset-bearing commands, raw asset intents, and
@@ -231,6 +231,24 @@ Cancellation after mutation invocation is `ambiguous`, never a fabricated
 rollback. Authority replacement does not adopt a task into the successor
 principal; each retry revalidates its captured cohort.
 
+### Expo ImagePicker input
+
+Inside `SnapbackExpoProvider`, pass an `expo-image-picker` asset directly to
+the bound command. Text-only and image send are branches of one typed call:
+
+```tsx source=demos/expo-golden-path-fixture/src/screens/chat-screen.tsx
+      const outcome = await observeCommand(
+        conversation.commands.send({ ...(body ? { body } : {}), image: picked }),
+        'picked-image',
+      );
+```
+
+The Expo provider owns picker-URI conversion, binary transport, integrity, and
+ordinary-session custody registration; the screen owns only picker UX and
+task rendering. The adapter supports `content://`, `ph://`, and `file://` in
+the live process. It does not add background, restart, offline, or
+attempt-grant semantics.
+
 ## Consume the surface from React
 
 Pass the generated surface reference, its exact parameter object, and optional
@@ -245,7 +263,6 @@ render data and the rich child state:
   );
   const connection = useSnapbackConnection();
   const outbox = useSnapbackOutbox();
-  const upload = useSnapbackAssetUpload({ upload: conversation.assets.image.reference });
   const { details, memberships, messages, reactions, users } = conversation.state;
   const activeUser = conversation.data.users?.find((user) => user._id === activeUserId);
   const userById = useMemo(() => new Map((conversation.data.users ?? []).map((user) => [user._id, user])), [conversation.data.users]);
@@ -398,11 +415,39 @@ Generation-time `SNAPBACK_SURFACE_*` refusals are:
 | `SNAPBACK_SURFACE_AUTH_BINDING_REFUSED` | Application data attempts to bind a `Principal`; surface scope is not authority. |
 | `SNAPBACK_SURFACE_MEMBER_CLASS_UNSUPPORTED` | A member has the wrong reference class, `input()` appears on an unsupported member, or the target is in the wrong namespace. |
 
-Command declarations refuse with stable `SNAPBACK_COMMAND_*` codes for an
-unknown or ambiguous mutation/intent, more than one asset, incompatible
-`assetRef` policy/optionality, an upload intent needing a second argument map,
-input collision, or an application argument that attempts to inject a
-principal.
+Command declarations refuse at generation with their own stable codes. Every
+one names the offending command and carries structured details; none of them
+truncates or partially emits the descriptor:
+
+| Code | Trigger |
+| --- | --- |
+| `SNAPBACK_COMMAND_INVALID_IDENTIFIER` | The command export name is not a portable non-reserved identifier. |
+| `SNAPBACK_COMMAND_MUTATION_CARDINALITY_INVALID` | `mutation` is absent, `null`, or an array — v1 requires exactly one ordinary mutation. Details carry `mutations`. |
+| `SNAPBACK_COMMAND_MUTATION_UNKNOWN` | The mutation target is not one generated ordinary mutation, or is missing from the generated mutation namespace. |
+| `SNAPBACK_COMMAND_MAPPING_AMBIGUOUS` | The mutation or the asset intent has multiple generated export identities. |
+| `SNAPBACK_COMMAND_MULTI_ASSET_UNSUPPORTED` | More than one asset input — v1 admits at most one. |
+| `SNAPBACK_COMMAND_ASSET_INTENT_UNKNOWN` | `intent` resolves to no generated upload intent. |
+| `SNAPBACK_COMMAND_ASSET_INTENT_ARGS_UNSUPPORTED` | The upload intent declares its own argument map; v1 commands do not carry a second one. |
+| `SNAPBACK_COMMAND_ASSET_MAPPING_INCOMPATIBLE` | `mutationArg` does not name a `v.assetRef({ upload: <this intent> })` argument with matching optionality. |
+| `SNAPBACK_COMMAND_INPUT_COLLISION` | The asset input name collides with a different ordinary mutation input. |
+| `SNAPBACK_COMMAND_AUTHORITY_INPUT_REFUSED` | An ordinary input would inject an authority `Principal`. |
+
+A running command task reports its own `SNAPBACK_COMMAND_*` diagnostics. These
+are outcome facts, not authoring errors — branch on the code, and read
+`status` for what it says about the server:
+
+| Code | Terminal status | What it asserts |
+| --- | --- | --- |
+| `SNAPBACK_COMMAND_ASSET_FAILED` | `failed` | The asset child never finalized, so the mutation was never invoked. No residue. |
+| `SNAPBACK_COMMAND_AUTHORITY_REPLACED` | `failed` | The captured authority cohort was replaced before invocation. The task is not adopted into the successor principal. |
+| `SNAPBACK_COMMAND_MUTATION_FAILED` | `failed` | A trust boundary proved refusal — a receipt, a 401/403, an authorization diagnostic, or an explicit `effectCommitted: false`. |
+| `SNAPBACK_COMMAND_MUTATION_AMBIGUOUS` | `ambiguous` | Invocation began and no settlement proof arrived. Anything short of proof lands here by design; the client never upgrades a guess to a refusal. |
+| `SNAPBACK_COMMAND_CANCELLED` | `cancelled` | Cancellation completed before invocation; the asset child was cancelled where its state permitted. |
+| `SNAPBACK_COMMAND_CANCELLED_DURING_COMMIT` | `ambiguous` | Local interest stopped after invocation. Never reported as `cancelled` — the server outcome is unknown. |
+| `SNAPBACK_COMMAND_NOT_RETRYABLE` | (outcome only) | `retry()` on a committed, cleanly cancelled, or non-terminal task. The returned task carries the predecessor's terminal snapshot unchanged. |
+
+`SNAPBACK_REACT_COMMAND_INVALID` refuses a command reference that is not the
+complete generated command admitted by this prepared binding.
 
 Client-time `SNAPBACK_REACT_SURFACE_*` refusals are:
 

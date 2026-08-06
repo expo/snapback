@@ -409,3 +409,84 @@ This entry covers the command core and headless G3 acceptance only. Expo picker
 and content-URI adapters, platform receipts, offline/restart custody,
 multi-asset commands, attempt grants, and anonymous claim-on-attach remain out
 of scope.
+
+## 2026-08-06 — LLP 0181 E2 and G3 platform exit
+
+### What changed and what passed
+
+The Expo provider now registers the native image-source boundary once. A raw
+`expo-image-picker` asset with `content://`, `ph://`, or `file://` becomes an
+immutable slice-readable structural source, while Expo's WinterCG fetch owns
+binary TUS transport and the existing client owns SHA-256/checksum work. The
+fixture sends text and the picker object through the same
+`conversation.commands.send` callable, renders phases and terminal outcome,
+and refuses to declare the receipt complete until React Native `Image` has
+actually loaded the delivery URL.
+
+The iOS library received a task image through `simctl addmedia`, and the image
+was chosen through the real Photos picker. Android received 30,670 bytes by
+`adb push` plus MediaStore scan, then returned those bytes through Android's
+Photo Picker. Both fresh supervised runs used one ordinary Sessions provider
+cohort for text and image, committed both rows, visibly rendered the image,
+and truthfully ended a deliberately cancelled command as `cancelled` with no
+residue. Both supervisors then reclaimed backend, Metro, bootstrap, and—on
+Android—all three reverse rules.
+
+### What felt good
+
+- The final screen API is the intended product sentence:
+  `conversation.commands.send({ body, image: picked })`. The screen does not
+  sequence reservation, TUS, finalization, asset-id attachment, or mutation.
+- The adapter is genuinely an adapter rather than an Expo upload subsystem.
+  The command's existing asset and mutation child states continued to drive
+  `preparing`, `transferring`, `committing`, and the terminal outcome.
+- The visible proof was hard to fake accidentally. A committed row alone was
+  insufficient; native `onLoad` had to corroborate public delivery before the
+  pass marker appeared.
+- The receipt loop preserved the useful safety claim from LLP 0180: successful
+  and cancelled tasks have no residue, while the headless post-finalize arms
+  remain only `inferred` or `unknown`, never “safe to delete.”
+
+### What felt bad or surprising
+
+Snapback's cross-runtime byte seam needed more repair than its compact API
+suggests. Native local-resource responses can be valid with status 0. A React
+Native legacy Blob can look Blob-shaped until `slice().arrayBuffer()` is
+needed. Expo 57 Android can return an actual 404 with the literal 14-byte body
+`File not found` for a picker-cache `file://` that `expo-file-system` can still
+read. And the legacy global fetch cannot be trusted to carry the task's binary
+TUS body. The final adapter therefore freezes copied bytes and uses a narrowly
+scoped local `File.bytes()` fallback rather than accepting response text.
+
+The rendering path had two similarly plausible false positives. The fixture
+used a DOM-only asset component on native, then the native hook projected a
+private-strict URL for a `public-immutable` record. Both could produce a URL
+or row without producing pixels. The repaired hook chooses a concrete public
+rendition and the fixture observes the native load.
+
+Expo itself was helpful once ownership was explicit: `expo-image-picker`,
+`expo/fetch`, `expo-file-system`, `simctl addmedia`, and Android's Photo Picker
+formed a credible device boundary. The rough edge was that the three local URI
+representations do not share browser HTTP semantics even within one Expo SDK.
+
+The assets guide still showed the earlier hand-sequenced `expo/fetch` + raw
+upload recipe. That text became stale because this change introduced the
+provider adapter and typed command; it is replaced in this same change rather
+than filed as a separate `guide-gap`. The receipt-found product defects are
+recorded and resolved under `issues/closed/`.
+
+### Comparison and result
+
+Compared with React plus Convex or Supabase, Snapback's end-state screen has
+less application-owned sequencing and a much more explicit ambiguous/residue
+contract. A conventional storage SDK may make the native URI-to-upload path
+feel mature sooner, but the application typically still coordinates storage
+and row mutation and decides what a partial failure means. Snapback moved that
+coordination into one typed task; proving the native adapter was materially
+rougher, while the resulting UI code and failure vocabulary are materially
+cleaner.
+
+The dated iOS and Android receipts complete LLP 0181 E2 and the Expo arm of
+LLP 0176 G3 for supervised simulator/emulator online use. They make no
+background, restart, offline, attempt-grant, release, physical-device,
+LAN-carrier, or LLP 0064 claim.

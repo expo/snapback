@@ -15,6 +15,7 @@ const packageNames = [
   'snapback-contract',
   'snapback-app-cli',
   'snapback-vite',
+  'snapback-expo',
   'snapback-hosted-supervisor',
 ];
 const scratch = mkdtempSync(join(tmpdir(), 'snapback-package-readmes-'));

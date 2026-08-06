@@ -8,6 +8,7 @@ import {
   SnapbackProvider,
   bindSnapbackSurface,
   createSnapbackReactProvider,
+  invokeSnapbackCommand,
   useSnapbackCommand,
 } from './index.mjs';
 
@@ -23,6 +24,28 @@ const file = Object.freeze({
   size: 4,
   slice() { return { async arrayBuffer() { return new ArrayBuffer(4); } }; },
 });
+const pickerSource = Object.freeze({
+  uri: 'content://media/external/images/media/42',
+  fileName: 'picked.png',
+  mimeType: 'image/png',
+});
+
+function deferred() {
+  let resolve;
+  let reject;
+  const promise = new Promise((yes, no) => { resolve = yes; reject = no; });
+  return { promise, resolve, reject };
+}
+
+function settleWithin(promise, message) {
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => reject(new Error(message)), 1_000);
+    promise.then(
+      (value) => { clearTimeout(timeout); resolve(value); },
+      (error) => { clearTimeout(timeout); reject(error); },
+    );
+  });
+}
 
 function readyAssetTask() {
   const snapshot = Object.freeze({
@@ -46,7 +69,44 @@ function readyAssetTask() {
   });
 }
 
-function fakeClient() {
+function transferringAssetTask() {
+  const terminal = deferred();
+  const listeners = new Set();
+  let cancelled = 0;
+  let snapshot = Object.freeze({
+    assetId: 'asset-command-disposal',
+    assetRef: null,
+    attemptId: 'attempt-command-disposal',
+    attemptExpiresAtMs: null,
+    status: 'uploading',
+    diagnostic: null,
+    bytesTransferred: 1,
+    totalBytes: 4,
+    previewUrl: null,
+    integrityBasis: 'end-to-end-verified',
+  });
+  const publish = (next) => {
+    snapshot = Object.freeze(next);
+    for (const listener of [...listeners]) listener(snapshot);
+    if (['ready', 'rejected', 'cancelled', 'failed'].includes(snapshot.status)) {
+      terminal.resolve(snapshot);
+    }
+  };
+  return {
+    done: terminal.promise,
+    snapshot: () => snapshot,
+    subscribe(listener) { listeners.add(listener); listener(snapshot); return () => listeners.delete(listener); },
+    async cancel() {
+      cancelled += 1;
+      publish({ ...snapshot, status: 'cancelled' });
+      return snapshot;
+    },
+    async retry() { throw new Error('not used'); },
+    get cancelled() { return cancelled; },
+  };
+}
+
+function fakeClient({ assetTask = null } = {}) {
   const mutations = [];
   const assets = [];
   const capture = Object.freeze({ generation: 1 });
@@ -79,16 +139,57 @@ function fakeClient() {
     assetClient: {
       start(options) {
         assets.push(options);
-        return readyAssetTask();
+        return assetTask ?? readyAssetTask();
       },
     },
+  };
+}
+
+function matchesDiagnosticCode(expected) {
+  return (error) => {
+    assert.equal(error.code, expected);
+    assert.equal(error.diagnostic.code, expected);
+    return true;
   };
 }
 
 const fixture = fakeClient();
 const binding = await prepareReactBindingForClient(fixture.client, { generatedManifest: app });
 assert.strictEqual(binding.commands.send.mutation, binding.references.sendMessage);
-const provider = createSnapbackReactProvider(binding, { assets: fixture.assetClient });
+const provider = createSnapbackReactProvider(binding, {
+  assets: fixture.assetClient,
+  assetSourceAdapter: async (source) => {
+    assert.strictEqual(source, pickerSource);
+    return {
+      file,
+      declaredFilename: source.fileName,
+      declaredContentType: source.mimeType,
+      previewUrl: source.uri,
+    };
+  },
+});
+
+const tamperedCommand = structuredClone(app.commands.send);
+tamperedCommand.passthroughArgs = [...tamperedCommand.passthroughArgs, 'tampered'];
+assert.throws(
+  () => invokeSnapbackCommand(provider, tamperedCommand, {}),
+  matchesDiagnosticCode('SNAPBACK_REACT_COMMAND_INVALID'),
+);
+
+const foreignApp = structuredClone(app);
+foreignApp.identity.descriptor = `sha256:${'f'.repeat(64)}`;
+const foreignPassthroughArgs = [...foreignApp.commands.send.passthroughArgs].reverse();
+foreignApp.commands.send.passthroughArgs = foreignPassthroughArgs;
+foreignApp.surfaces.conversation.commands.send.reference.passthroughArgs = [...foreignPassthroughArgs];
+const foreignFixture = fakeClient();
+const foreignBinding = await prepareReactBindingForClient(
+  foreignFixture.client,
+  { generatedManifest: foreignApp },
+);
+assert.throws(
+  () => invokeSnapbackCommand(provider, foreignBinding.commands.send, {}),
+  matchesDiagnosticCode('SNAPBACK_REACT_COMMAND_INVALID'),
+);
 
 const hook = { current: null };
 function Probe() {
@@ -124,10 +225,21 @@ const surface = bindSnapbackSurface(
   { presence: {} },
 );
 assert.strictEqual(surface.commands.send, surface.snapshot().commands.send);
-const image = surface.commands.send({ body: 'with image', image: file });
+const mutationCountBeforeInvalidInput = fixture.mutations.length;
+const assetCountBeforeInvalidInput = fixture.assets.length;
+assert.throws(
+  () => surface.commands.send({ conversationId: 'conversation-two', body: 'invalid rebind' }),
+  matchesDiagnosticCode('SNAPBACK_REACT_SURFACE_INPUT_INVALID'),
+);
+assert.equal(fixture.mutations.length, mutationCountBeforeInvalidInput);
+assert.equal(fixture.assets.length, assetCountBeforeInvalidInput);
+const image = surface.commands.send({ body: 'with image', image: pickerSource });
 assert.equal((await image.done).kind, 'committed');
 assert.equal(fixture.assets.length, 1);
 assert.strictEqual(fixture.assets[0].authorityCapture, fixture.mutations[1].options.authorityCapture);
+assert.equal(fixture.assets[0].declaredFilename, pickerSource.fileName);
+assert.equal(fixture.assets[0].declaredContentType, pickerSource.mimeType);
+assert.equal(fixture.assets[0].previewUrl, pickerSource.uri);
 assert.deepEqual(fixture.mutations[1].options.args, {
   conversationId: 'conversation-one',
   senderId: 'user-ada',
@@ -140,4 +252,50 @@ await surface.dispose();
 act(() => renderer.unmount());
 await provider.dispose();
 
-console.log('commands.test.mjs: hook and surface commands share the provider-owned command children');
+const disposalAsset = transferringAssetTask();
+const disposalFixture = fakeClient({ assetTask: disposalAsset });
+const disposalBinding = await prepareReactBindingForClient(
+  disposalFixture.client,
+  { generatedManifest: app },
+);
+const disposalProvider = createSnapbackReactProvider(disposalBinding, {
+  assets: disposalFixture.assetClient,
+});
+const disposalTask = invokeSnapbackCommand(disposalProvider, disposalBinding.commands.send, {
+  conversationId: 'conversation-disposal',
+  senderId: 'user-ada',
+  body: 'dispose during transfer',
+  image: file,
+});
+while (disposalTask.snapshot().status === 'preparing') await Promise.resolve();
+assert.equal(disposalTask.snapshot().status, 'transferring');
+assert.equal(disposalProvider.inspection().commandTasks, 1);
+
+const disposalDone = disposalTask.done;
+await disposalProvider.dispose();
+const disposalOutcome = await settleWithin(
+  disposalDone,
+  'provider disposal must settle an in-flight command task',
+);
+assert.equal(disposalOutcome.kind, 'failed');
+assert.equal(disposalOutcome.diagnostic.code, 'SNAPBACK_COMMAND_CLIENT_DISPOSED');
+assert.equal(disposalAsset.cancelled, 1);
+assert.equal(disposalTask.snapshot().asset.status, 'cancelled');
+assert.equal(disposalProvider.inspection().commandTasks, 0);
+assert.equal(disposalFixture.mutations.length, 0);
+
+await assert.rejects(
+  disposalProvider.registry.runCommandMutation(
+    disposalBinding.references.sendMessage,
+    { conversationId: 'conversation-disposal', senderId: 'user-ada', body: 'closed' },
+    { clientMutationId: 'closed-provider-attempt', authorityCapture: null },
+  ),
+  (error) => {
+    assert.equal(error.code, 'SNAPBACK_REACT_PROVIDER_CLOSED');
+    assert.equal(error.diagnostic.code, 'SNAPBACK_REACT_PROVIDER_CLOSED');
+    assert.equal(error.diagnostic.details.effectCommitted, false);
+    return true;
+  },
+);
+
+console.log('commands.test.mjs: hook/surface commands and provider disposal share command ownership');

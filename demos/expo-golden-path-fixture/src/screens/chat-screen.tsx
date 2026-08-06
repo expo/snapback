@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as ImagePicker from 'expo-image-picker';
 import {
   ActivityIndicator,
   FlatList,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -13,12 +14,16 @@ import {
 } from 'react-native';
 import {
   skip,
-  SnapbackAssetImage,
-  useSnapbackAssetUpload,
+  useSnapbackAssetImage,
   useSnapbackConnection,
   useSnapbackExpoBootState,
   useSnapbackOutbox,
   useSurface,
+} from '@expo/snapback-expo';
+import type {
+  CommandOutcome,
+  CommandTask,
+  CommandTaskSnapshot,
 } from '@expo/snapback-expo';
 
 import { app } from '../../snapback/generated/app.mjs';
@@ -31,7 +36,6 @@ import { shortTime } from '../time';
 type Message = GeneratedDataModel['messages'];
 type Reaction = GeneratedDataModel['reactions'];
 type User = GeneratedDataModel['users'];
-type PendingImage = { caption?: string; replyToId?: Id<'messages'> };
 const REACTIONS = ['❤️', '👍', '😂', '✨'] as const;
 const G2_CONVERSATION_ID = 'conversation_engine_room';
 const G2_PLATFORM = Platform.OS === 'ios' ? 'IOS' : Platform.OS === 'android' ? 'ANDROID' : 'UNKNOWN';
@@ -39,6 +43,11 @@ const G2_MARKER = `G2_${G2_PLATFORM}_PASS`;
 const G2_PENDING_MARKER = `G2_${G2_PLATFORM}_PENDING`;
 const G2_REACTION = '✅';
 const G2_SEND_TEXT = `G2 ${G2_PLATFORM.toLowerCase()} surface sendText echo`;
+const G3_MARKER = `G3_${G2_PLATFORM}_PASS`;
+const G3_PENDING_MARKER = `G3_${G2_PLATFORM}_PENDING`;
+const G3_TEXT_BODY = `G3 ${G2_PLATFORM.toLowerCase()} text-only command`;
+const G3_IMAGE_BODY = `G3 ${G2_PLATFORM.toLowerCase()} picked image command`;
+const G3_CANCEL_BODY = `G3 ${G2_PLATFORM.toLowerCase()} cancelled command must not commit`;
 const PERSONA_NAMES: Readonly<Record<string, string>> = {
   user_ada: 'Ada', user_grace: 'Grace', user_alan: 'Alan', user_katherine: 'Katherine',
 };
@@ -53,6 +62,10 @@ function emitG2(event: string, details: Readonly<Record<string, unknown>> = {}) 
   console.log(`SNAPBACK_G2_EVENT ${JSON.stringify({ event, platform: G2_PLATFORM.toLowerCase(), ...details })}`);
 }
 
+function emitG3(event: string, details: Readonly<Record<string, unknown>> = {}) {
+  console.log(`SNAPBACK_G3_EVENT ${JSON.stringify({ event, platform: G2_PLATFORM.toLowerCase(), ...details })}`);
+}
+
 export default function ChatScreen({ conversationId, title, onBack }: Readonly<{
   conversationId: Id<'conversations'>;
   title: string;
@@ -63,8 +76,13 @@ export default function ChatScreen({ conversationId, title, onBack }: Readonly<{
   const [replyTo, setReplyTo] = useState<Message | null>(null);
   const [selectedMessageId, setSelectedMessageId] = useState<Id<'messages'> | null>(null);
   const [composerError, setComposerError] = useState<string | null>(null);
-  const [pendingImage, setPendingImage] = useState<PendingImage | null>(null);
-  const attachedAsset = useRef<string | null>(null);
+  const [commandSnapshot, setCommandSnapshot] = useState<CommandTaskSnapshot<Id<'messages'>> | null>(null);
+  const [commandOutcome, setCommandOutcome] = useState<CommandOutcome<Id<'messages'>> | null>(null);
+  const [commandLabel, setCommandLabel] = useState<string | null>(null);
+  const [proofImageRendered, setProofImageRendered] = useState(false);
+  const [proofCancelled, setProofCancelled] = useState(false);
+  const activeCommand = useRef<CommandTask<Id<'messages'>> | null>(null);
+  const commandOff = useRef<(() => void) | null>(null);
   const listRef = useRef<FlatList<Message>>(null);
   const proofSendStarted = useRef(false);
   const proofReactionStarted = useRef(false);
@@ -74,6 +92,10 @@ export default function ChatScreen({ conversationId, title, onBack }: Readonly<{
   const proofSendLogged = useRef(false);
   const proofReactionLogged = useRef(false);
   const proofPassLogged = useRef(false);
+  const proofG3TextStarted = useRef(false);
+  const proofG3TextLogged = useRef(false);
+  const proofG3CancelStarted = useRef(false);
+  const proofG3PassLogged = useRef(false);
   const boot = useSnapbackExpoBootState();
   const proofEnabled = conversationId === G2_CONVERSATION_ID;
   const conversation = useSurface(
@@ -83,7 +105,6 @@ export default function ChatScreen({ conversationId, title, onBack }: Readonly<{
   );
   const connection = useSnapbackConnection();
   const outbox = useSnapbackOutbox();
-  const upload = useSnapbackAssetUpload({ upload: conversation.assets.image.reference });
   const { details, memberships, messages, reactions, users } = conversation.state;
   const activeUser = conversation.data.users?.find((user) => user._id === activeUserId);
   const userById = useMemo(() => new Map((conversation.data.users ?? []).map((user) => [user._id, user])), [conversation.data.users]);
@@ -106,6 +127,68 @@ export default function ChatScreen({ conversationId, title, onBack }: Readonly<{
     ));
   const proofPassed = proofEnabled && proofProviderReady && proofSurfaceReady
     && Boolean(proofMessage) && Boolean(proofReaction) && proofPresenceReady;
+  const proofG3Text = conversation.data.messages?.find((message) => message.text === G3_TEXT_BODY);
+  const proofG3Image = conversation.data.messages?.find((message) => (
+    message.text === G3_IMAGE_BODY && typeof message.image === 'string'
+  ));
+  const proofG3Passed = proofEnabled && proofProviderReady && proofSurfaceReady
+    && Boolean(proofG3Text) && Boolean(proofG3Image) && proofImageRendered && proofCancelled;
+
+  const observeCommand = useCallback(async (
+    task: CommandTask<Id<'messages'>>,
+    label: string,
+  ): Promise<CommandOutcome<Id<'messages'>>> => {
+    commandOff.current?.();
+    activeCommand.current = task;
+    setCommandLabel(label);
+    setCommandOutcome(null);
+    let emittedStatus: string | null = null;
+    const update = () => {
+      if (activeCommand.current !== task) return;
+      const snapshot = task.snapshot();
+      setCommandSnapshot(snapshot);
+      if (snapshot.status !== emittedStatus) {
+        emittedStatus = snapshot.status;
+        emitG3('command-phase', {
+          label,
+          taskId: task.id,
+          generation: task.generation,
+          status: snapshot.status,
+          assetStatus: 'asset' in snapshot ? snapshot.asset?.status ?? null : null,
+          mutationStatus: 'mutation' in snapshot ? snapshot.mutation?.status ?? null : null,
+        });
+      }
+    };
+    commandOff.current = task.subscribe(update);
+    try {
+      const outcome = await task.done;
+      if (activeCommand.current === task) setCommandOutcome(outcome);
+      emitG3('command-outcome', {
+        label,
+        taskId: task.id,
+        kind: outcome.kind,
+        residue: 'residue' in outcome ? outcome.residue?.unattached ?? null : null,
+      });
+      if (outcome.kind === 'failed') {
+        setComposerError(`${outcome.diagnostic.message}${outcome.residue ? ` · residue ${outcome.residue.unattached}` : ''}`);
+      } else if (outcome.kind === 'ambiguous') {
+        setComposerError(`Send outcome unknown — do not resend. ${outcome.diagnostic.message}`);
+      }
+      return outcome;
+    } catch (error) {
+      const message = errorText(error);
+      setComposerError(message);
+      emitG3('command-local-refusal', { label, taskId: task.id, message });
+      throw error;
+    } finally {
+      if (activeCommand.current === task) {
+        commandOff.current?.();
+        commandOff.current = null;
+      }
+    }
+  }, []);
+
+  useEffect(() => () => commandOff.current?.(), []);
 
   useEffect(() => {
     if (!proofEnabled || !proofProviderReady || proofProviderLogged.current) return;
@@ -186,15 +269,63 @@ export default function ChatScreen({ conversationId, title, onBack }: Readonly<{
     });
   }, [conversation.data.messages?.length, conversation.presence.typing.members.length, proofPassed]);
 
+  useEffect(() => {
+    if (!proofEnabled || !proofProviderReady || !proofSurfaceReady
+      || proofG3Text || proofG3TextStarted.current) return;
+    proofG3TextStarted.current = true;
+    emitG3('text-command-dispatched');
+    const task = conversation.commands.send({ body: G3_TEXT_BODY });
+    void observeCommand(task, 'text-only-proof').catch(() => {});
+  }, [conversation.commands, observeCommand, proofEnabled, proofG3Text, proofProviderReady, proofSurfaceReady]);
+
+  useEffect(() => {
+    if (!proofEnabled || !proofG3Text || proofG3TextLogged.current) return;
+    proofG3TextLogged.current = true;
+    emitG3('text-command-live-echo-observed', { messageId: proofG3Text._id });
+  }, [proofEnabled, proofG3Text]);
+
+  useEffect(() => {
+    if (!proofEnabled || !proofG3Image || !proofImageRendered
+      || proofG3CancelStarted.current) return;
+    proofG3CancelStarted.current = true;
+    const task = conversation.commands.send({ body: G3_CANCEL_BODY });
+    emitG3('negative-cancel-dispatched', { taskId: task.id });
+    const observed = observeCommand(task, 'negative-cancel');
+    void task.cancel();
+    void observed.then((outcome) => {
+      if (outcome.kind === 'cancelled') {
+        setProofCancelled(true);
+        emitG3('negative-cancel-observed', { taskId: task.id, kind: outcome.kind });
+      }
+    }).catch(() => {});
+  }, [conversation.commands, observeCommand, proofEnabled, proofG3Image, proofImageRendered]);
+
+  useEffect(() => {
+    if (!proofG3Passed || proofG3PassLogged.current) return;
+    proofG3PassLogged.current = true;
+    emitG3('pass', {
+      marker: G3_MARKER,
+      textMessageId: proofG3Text?._id ?? null,
+      imageMessageId: proofG3Image?._id ?? null,
+      deliveryRendered: proofImageRendered,
+      negative: 'cancelled',
+    });
+  }, [proofG3Image?._id, proofG3Passed, proofG3Text?._id, proofImageRendered]);
+
   const send = async () => {
     const text = draft.trim();
     if (!text) return;
     setComposerError(null);
     try {
       if (replyTo) await conversation.mutations.sendReply({ senderId: activeUserId, text, replyToId: replyTo._id });
-      else await conversation.mutations.sendText({ senderId: activeUserId, text });
-      setDraft('');
-      setReplyTo(null);
+      else {
+        const outcome = await observeCommand(
+          conversation.commands.send({ body: text }),
+          'composer-text',
+        );
+        if (outcome.kind !== 'committed') return;
+      }
+      setDraft(''); setReplyTo(null);
     } catch (error) {
       setComposerError(errorText(error));
     }
@@ -208,36 +339,32 @@ export default function ChatScreen({ conversationId, title, onBack }: Readonly<{
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.86 });
-    if (result.canceled || !result.assets[0]) return;
-    const picked = result.assets[0];
-    const blob = await fetch(picked.uri).then((response) => response.blob());
-    attachedAsset.current = null;
-    setPendingImage({ ...(draft.trim() ? { caption: draft.trim() } : {}), ...(replyTo ? { replyToId: replyTo._id } : {}) });
-    upload.start(blob, {
-      userId: activeUserId,
-      declaredFilename: picked.fileName ?? `relay-photo-${Date.now()}.jpg`,
-      declaredContentType: picked.mimeType ?? blob.type ?? 'image/jpeg',
-      previewUrl: picked.uri,
-    });
-  };
-
-  useEffect(() => {
-    const assetId = upload.state.assetId;
-    if (upload.state.status !== 'ready' || !assetId || !pendingImage || attachedAsset.current === assetId) return;
-    attachedAsset.current = assetId;
-    void conversation.mutations.sendImage({ senderId: activeUserId, assetId, ...pendingImage }).then(() => {
-      setPendingImage(null); setDraft(''); setReplyTo(null);
-    }).catch((error) => {
-      setComposerError(errorText(error)); setPendingImage(null);
-    });
-  }, [activeUserId, conversation.mutations, pendingImage, upload.state.assetId, upload.state.status]);
-
-  useEffect(() => {
-    if (upload.state.status === 'failed' || upload.state.status === 'rejected') {
-      setComposerError(upload.state.diagnostic?.message ?? 'Image upload failed.');
-      setPendingImage(null);
+    if (result.canceled || !result.assets[0]) {
+      emitG3('picker-cancelled');
+      return;
     }
-  }, [upload.state.diagnostic, upload.state.status]);
+    const picked = result.assets[0];
+    emitG3('picker-image-selected', {
+      source: 'photo-library-picker',
+      uriScheme: picked.uri.slice(0, picked.uri.indexOf(':')).toLowerCase(),
+      fileName: picked.fileName ?? null,
+      mimeType: picked.mimeType ?? null,
+      fileSize: picked.fileSize ?? null,
+    });
+    try {
+      const body = proofEnabled ? G3_IMAGE_BODY : draft.trim() || undefined;
+      const outcome = await observeCommand(
+        conversation.commands.send({ ...(body ? { body } : {}), image: picked }),
+        'picked-image',
+      );
+      if (outcome.kind === 'committed') {
+        setDraft(''); setReplyTo(null);
+        emitG3('image-command-committed', { messageId: outcome.result });
+      }
+    } catch {
+      // observeCommand projects the local adapter refusal to the composer.
+    }
+  };
 
   const react = async (message: Message, emoji: string) => {
     setComposerError(null);
@@ -252,8 +379,12 @@ export default function ChatScreen({ conversationId, title, onBack }: Readonly<{
   };
 
   const retained = messages.freshness === 'retained';
-  const uploadBusy = ['creating', 'uploading', 'finalizing'].includes(upload.state.status);
-  const progress = upload.state.totalBytes ? Math.round((upload.state.bytesTransferred / upload.state.totalBytes) * 100) : 0;
+  const commandBusy = commandSnapshot !== null
+    && ['preparing', 'transferring', 'committing'].includes(commandSnapshot.status);
+  const commandAsset = commandSnapshot && 'asset' in commandSnapshot ? commandSnapshot.asset : null;
+  const progress = commandAsset?.totalBytes
+    ? Math.round((commandAsset.bytesTransferred / commandAsset.totalBytes) * 100)
+    : 0;
   const readError = [details, memberships, messages, reactions, users].find((state) => state.status === 'error')?.error;
   const presenceError = ['error', 'unsupported'].includes(conversation.presence.typing.status)
     ? conversation.presence.typing.diagnostic ?? { message: `Typing ${conversation.presence.typing.status}` }
@@ -268,13 +399,18 @@ export default function ChatScreen({ conversationId, title, onBack }: Readonly<{
         {outbox.status === 'ready' && outbox.pending > 0 ? <Text testID="queued-mutations" style={styles.queued}>{outbox.pending} queued</Text> : null}
       </View>
       {proofEnabled ? (
-        <View style={[styles.proof, proofPassed ? styles.proofPass : styles.proofPending]}>
-          <Text style={styles.proofLabel}>LLP 0176 · G2 native surface</Text>
-          <Text testID="g2-verdict" style={styles.proofVerdict}>{proofPassed ? G2_MARKER : G2_PENDING_MARKER}</Text>
-          <Text style={styles.proofFacts}>
-            provider {proofProviderReady ? 'ready' : '…'} · messages {conversation.data.messages?.length ?? 0} · send {proofMessage ? 'echoed' : '…'} · react {proofReaction ? 'echoed' : '…'} · typing {proofPresenceReady ? 'present' : '…'}
-          </Text>
-        </View>
+        <>
+          <View style={[styles.proof, proofG3Passed ? styles.proofPass : styles.proofPending]}>
+            <Text style={styles.proofLabel}>LLP 0176 · G3 one online image command</Text>
+            <Text testID="g3-verdict" style={styles.proofVerdict}>{proofG3Passed ? G3_MARKER : G3_PENDING_MARKER}</Text>
+            <Text style={styles.proofFacts}>
+              provider {proofProviderReady ? 'ready' : '…'} · text command {proofG3Text ? 'committed' : '…'} · picked image {proofG3Image ? 'committed' : '…'} · delivery {proofImageRendered ? 'rendered' : '…'} · negative {proofCancelled ? 'cancelled' : '…'}
+            </Text>
+          </View>
+          <View style={[styles.g2Proof, proofPassed ? styles.g2ProofPass : styles.g2ProofPending]}>
+            <Text testID="g2-verdict" style={styles.g2ProofText}>{proofPassed ? G2_MARKER : G2_PENDING_MARKER} · prior surface chain</Text>
+          </View>
+        </>
       ) : null}
       {readError ? <Text testID="thread-read-error" style={styles.error}>{errorText(readError)}</Text> : null}
       {presenceError ? <Text testID="typing-error" style={styles.error}>{errorText(presenceError)}</Text> : null}
@@ -292,6 +428,14 @@ export default function ChatScreen({ conversationId, title, onBack }: Readonly<{
             quoted={item.replyToId ? messageById.get(item.replyToId) : undefined}
             selected={selectedMessageId === item._id}
             sender={userById.get(item.senderId)}
+            onImageRendered={(src) => {
+              if (item._id !== proofG3Image?._id || proofImageRendered) return;
+              setProofImageRendered(true);
+              emitG3('image-delivery-rendered', {
+                messageId: item._id,
+                deliveryScheme: src.slice(0, src.indexOf(':')).toLowerCase(),
+              });
+            }}
             onPress={() => setSelectedMessageId((value) => value === item._id ? null : item._id)}
             onReact={(emoji) => void react(item, emoji)}
             onReply={() => { setReplyTo(item); setSelectedMessageId(null); }}
@@ -302,21 +446,55 @@ export default function ChatScreen({ conversationId, title, onBack }: Readonly<{
       <View style={styles.composerShell}>
         {typingNames.length ? <Text style={styles.typing}>{typingNames.join(', ')} {typingNames.length === 1 ? 'is' : 'are'} typing…</Text> : null}
         {replyTo ? <View style={styles.replyComposer}><View style={{ flex: 1 }}><Text style={styles.replyLabel}>Replying to {userById.get(replyTo.senderId)?.name ?? 'message'}</Text><Text numberOfLines={1} style={styles.replyText}>{replyTo.text ?? 'Photo'}</Text></View><Pressable accessibilityLabel="Cancel reply" onPress={() => setReplyTo(null)}><Text style={styles.cancel}>×</Text></Pressable></View> : null}
-        {uploadBusy ? <View style={styles.uploadRow}><ActivityIndicator color={palette.accent} size="small" /><Text style={styles.uploadText}>Preparing photo · {progress}%</Text></View> : null}
+        {commandSnapshot ? (
+          <View testID="command-task" style={styles.commandRow}>
+            {commandBusy ? <ActivityIndicator color={palette.accent} size="small" /> : null}
+            <Text style={styles.uploadText}>
+              {commandLabel ?? 'send'} · {commandSnapshot.status}
+              {commandSnapshot.status === 'transferring' ? ` · ${progress}%` : ''}
+              {commandOutcome ? ` · ${commandOutcome.kind}` : ''}
+              {commandOutcome && 'residue' in commandOutcome && commandOutcome.residue
+                ? ` · residue ${commandOutcome.residue.unattached}` : ''}
+            </Text>
+            {commandBusy ? <Pressable accessibilityLabel="Cancel send task" onPress={() => void activeCommand.current?.cancel()}><Text style={styles.cancelTask}>Cancel</Text></Pressable> : null}
+          </View>
+        ) : null}
         {composerError ? <Text testID="composer-error" selectable style={styles.error}>{composerError}</Text> : null}
         <View style={styles.composer}>
-          <Pressable accessibilityLabel="Choose image" disabled={uploadBusy} onPress={() => void chooseImage()} style={styles.attach}><Text style={styles.attachText}>＋</Text></Pressable>
+          <Pressable accessibilityLabel="Choose image" disabled={commandBusy} onPress={() => void chooseImage()} style={styles.attach}><Text style={styles.attachText}>＋</Text></Pressable>
           <TextInput accessibilityLabel="Message" multiline onChangeText={setDraft} placeholder={`Message as ${activeUser?.name ?? 'Ada'}`} placeholderTextColor={palette.muted} style={styles.input} value={draft} />
-          <Pressable accessibilityLabel="Send message" disabled={!draft.trim()} onPress={() => void send()} style={[styles.send, !draft.trim() && styles.disabled]}><Text style={styles.sendText}>↑</Text></Pressable>
+          <Pressable accessibilityLabel="Send message" disabled={!draft.trim() || commandBusy} onPress={() => void send()} style={[styles.send, (!draft.trim() || commandBusy) && styles.disabled]}><Text style={styles.sendText}>↑</Text></Pressable>
         </View>
       </View>
     </KeyboardAvoidingView>
   );
 }
 
-function MessageBubble({ currentUserId, message, reactions, quoted, selected, sender, onPress, onReact, onReply }: Readonly<{
+function NativeAssetImage({ assetId, userId, onRendered }: Readonly<{
+  assetId: string;
+  userId: Id<'users'>;
+  onRendered(src: string): void;
+}>) {
+  // The shared convenience component is intentionally DOM-only. Expo uses
+  // the same canonical delivery ladder through its hook, then hands the URL
+  // to React Native's image loader.
+  const image = useSnapbackAssetImage({ assetId, maxWidth: 760, userId });
+  if (!image.src) return <ActivityIndicator color={palette.accent} style={styles.imageLoader} />;
+  return (
+    <Image
+      accessibilityLabel="Shared photo"
+      onLoad={() => { if (image.phase === 'rendition' && image.src) onRendered(image.src); }}
+      resizeMode="cover"
+      source={{ uri: image.src }}
+      style={[styles.image, image.aspectRatio ? { aspectRatio: image.aspectRatio } : null]}
+      testID={`asset-image-${assetId}`}
+    />
+  );
+}
+
+function MessageBubble({ currentUserId, message, reactions, quoted, selected, sender, onImageRendered, onPress, onReact, onReply }: Readonly<{
   currentUserId: Id<'users'>; message: Message; reactions: readonly Reaction[]; quoted?: Message; selected: boolean; sender?: User;
-  onPress(): void; onReact(emoji: string): void; onReply(): void;
+  onImageRendered(src: string): void; onPress(): void; onReact(emoji: string): void; onReply(): void;
 }>) {
   const mine = message.senderId === currentUserId;
   const grouped = Object.entries(reactions.reduce<Record<string, number>>((all, row) => ({ ...all, [row.emoji]: (all[row.emoji] ?? 0) + 1 }), {}));
@@ -327,7 +505,7 @@ function MessageBubble({ currentUserId, message, reactions, quoted, selected, se
         {!mine ? <Text style={styles.senderName}>{sender?.name ?? 'Unknown'}</Text> : null}
         <Pressable onLongPress={onPress} onPress={onPress} style={[styles.bubble, mine ? styles.mineBubble : styles.theirBubble]}>
           {quoted ? <View style={styles.quote}><Text style={styles.replyLabel}>Reply</Text><Text numberOfLines={2} style={styles.replyText}>{quoted.text ?? 'Photo'}</Text></View> : null}
-          {message.image ? <SnapbackAssetImage assetId={message.image} alt="Shared photo" maxWidth={760} style={styles.image} userId={currentUserId} /> : null}
+          {message.image ? <NativeAssetImage assetId={message.image} onRendered={onImageRendered} userId={currentUserId} /> : null}
           {message.text ? <Text selectable style={styles.messageText}>{message.text}</Text> : null}
           <Text style={styles.messageTime}>{shortTime(message.sentAt)}</Text>
         </Pressable>
@@ -352,10 +530,11 @@ const styles = StyleSheet.create({
   actions: { alignItems: 'center', backgroundColor: palette.ink, borderRadius: 20, flexDirection: 'row', gap: 10, marginTop: 5, padding: 7 }, actionEmoji: { fontSize: 17 }, replyButton: { color: '#FFF', fontSize: 11, fontWeight: '800' },
   composerShell: { backgroundColor: palette.surface, borderTopColor: palette.line, borderTopWidth: 1, gap: 6, padding: 9 }, typing: { color: palette.accent, fontSize: 11, fontStyle: 'italic' },
   replyComposer: { alignItems: 'center', backgroundColor: palette.accentSoft, borderLeftColor: palette.accent, borderLeftWidth: 3, borderRadius: 10, flexDirection: 'row', padding: 8 }, replyLabel: { color: palette.accent, fontSize: 10, fontWeight: '900' }, replyText: { color: palette.muted, fontSize: 12 }, cancel: { color: palette.muted, fontSize: 24, padding: 8 },
-  uploadRow: { alignItems: 'center', flexDirection: 'row', gap: 8 }, uploadText: { color: palette.muted, fontSize: 11 }, error: { color: palette.danger, fontSize: 11, marginHorizontal: 8 },
+  commandRow: { alignItems: 'center', flexDirection: 'row', gap: 8 }, uploadText: { color: palette.muted, flex: 1, fontSize: 11 }, cancelTask: { color: palette.danger, fontSize: 11, fontWeight: '800' }, error: { color: palette.danger, fontSize: 11, marginHorizontal: 8 },
   composer: { alignItems: 'flex-end', flexDirection: 'row', gap: 8 }, attach: { alignItems: 'center', backgroundColor: palette.accentSoft, borderRadius: 20, height: 40, justifyContent: 'center', width: 40 }, attachText: { color: palette.accent, fontSize: 25 },
   input: { backgroundColor: palette.canvas, borderColor: palette.line, borderRadius: 20, borderWidth: 1, color: palette.ink, flex: 1, fontSize: 15, maxHeight: 110, minHeight: 40, paddingHorizontal: 14, paddingVertical: 9 },
   send: { alignItems: 'center', backgroundColor: palette.accent, borderRadius: 20, height: 40, justifyContent: 'center', width: 40 }, disabled: { opacity: 0.35 }, sendText: { color: '#FFF', fontSize: 24, fontWeight: '800' },
   proof: { borderRadius: 12, gap: 3, marginHorizontal: 10, marginTop: 8, padding: 10 }, proofPending: { backgroundColor: '#FFF0D9', borderColor: palette.warning, borderWidth: 1 }, proofPass: { backgroundColor: '#DDF5E9', borderColor: palette.success, borderWidth: 2 },
   proofLabel: { color: palette.muted, fontSize: 9, fontWeight: '900', letterSpacing: 0.8 }, proofVerdict: { color: palette.ink, fontSize: 20, fontWeight: '900' }, proofFacts: { color: palette.ink, fontSize: 10, fontWeight: '700' },
+  g2Proof: { borderRadius: 8, marginHorizontal: 10, marginTop: 4, padding: 5 }, g2ProofPending: { backgroundColor: '#FFF0D9' }, g2ProofPass: { backgroundColor: '#DDF5E9' }, g2ProofText: { color: palette.muted, fontSize: 9, fontWeight: '800' }, imageLoader: { height: 170, width: 240 },
 });

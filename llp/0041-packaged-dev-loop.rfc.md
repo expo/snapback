@@ -6,6 +6,12 @@
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
 
+**Revised (closure widened to ten):** 2026-08-06 (sitting #4 ruling 2:
+`@expo/snapback-expo` joins the publishable staging closure at 0.1.10 —
+inventory, publish script, and closure tests now carry ten packages; the
+leased-promotion vector stays nine until the 0.1.10 close-out handles the
+first-publication case per §First-publication `latest` bootstrap lineage.)
+
 **Revised (runtime package seal):** 2026-08-06 (LLP 0123 Option 3 landed:
 Darwin and Linux runtime packages now carry one production-issued
 `snapback.runtime-readiness.v1` seal binding binary + shipped Hermes
@@ -1123,6 +1129,17 @@ both true today (it is versioned, non-private, types-swept, and unpublished),
 flagged here so the GA-front-door closure decision resolves it explicitly.
 
 ## Fast-path pre-consumer release (2026-08-01)
+
+Author ruling (Charlie, 2026-08-06, sitting #4): **LLP 0134 does not
+govern npm packaging** — its evidence bar (soak windows, maturity
+receipts) is struck from npm-promotion checklists, and this document owns
+packaging evidence. Once the ceremony resumes, its bar is qualified
+staging receipts (after the EAS-provenance validator repair,
+`issues/20260806-qualified-publish-eas-provenance-blocker.md`) — no
+14-day soak. Version authority: the operator supplies the version at
+publish time and the publish lane must cross-check the guide fences
+(`guide/published-closure.json` and page `since:` markers) before
+publishing.
 
 Author decision (Charlie, 2026-08-01): while the nine packages have no
 external consumers — the only consumer is Charlie himself, and the LLP 0137

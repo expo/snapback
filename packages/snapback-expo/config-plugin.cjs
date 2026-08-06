@@ -189,7 +189,14 @@ function createReceipt({ descriptor, versions }) {
     }),
     compatibility: versions,
     native: Object.freeze({
-      adapters: Object.freeze(['react-native-app-state']),
+      adapters: Object.freeze([
+        'react-native-app-state',
+        'expo-picker-uri-to-structural-blob',
+        'expo-file-system-picker-cache-fallback',
+        'expo-wintercg-fetch',
+        'snapback-client-sha256',
+        'ordinary-session-custody',
+      ]),
       permissions: Object.freeze({ ios: Object.freeze([]), android: Object.freeze([]) }),
     }),
     buildInvalidation: Object.freeze({
@@ -203,15 +210,20 @@ function createReceipt({ descriptor, versions }) {
       'app-descriptor-input:registered',
       'build-invalidation:descriptor-plugin-package',
       'lifecycle:react-native-app-state',
+      'asset-source:expo-picker-uri-to-structural-blob',
+      'asset-source:expo-file-system-picker-cache-fallback',
+      'asset-transport:expo-wintercg-fetch',
+      'asset-integrity:snapback-client-sha256',
+      'asset-authority:ordinary-session-custody',
       'native-permissions:none-in-e0',
     ]),
   });
 }
 
-// @ref LLP 0181#config-plugin — E0 has one native lifecycle adapter and no
-// native permission-bearing feature. The receipt records that exact empty
-// permission delta plus descriptor/plugin/package invalidation inputs; it
-// contains no binding, endpoint, session, pairing, or credential material.
+// @ref LLP 0181#config-plugin — the value-free receipt records the E0
+// lifecycle and E2 picker/integrity/session adapters. URI conversion itself
+// adds no native permission; the picker chosen by the application owns that.
+// The receipt contains no binding, endpoint, bearer, pairing, or credential.
 function withSnapbackExpo(config, options = {}) {
   if (!isRecord(config)) throw new TypeError('Expo config must be an object');
   const projectRootInput = options.projectRoot ?? config._internal?.projectRoot;

@@ -545,6 +545,58 @@ try {
     assert.ok(Array.isArray(entry.diagnostics));
   }
 
+  // LLP 0146 D7's OQ6-independent half: MCP preserves type-aware content in
+  // the existing host-op diagnostic details. No remediation carrier is added.
+  let unknownFunction;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    unknownFunction = await client.call('snapback_run_function', {
+      function: 'listTods',
+      args: {},
+    });
+  }
+  assert.equal(unknownFunction.structuredContent.ok, false);
+  assert.equal(
+    unknownFunction.structuredContent.diagnostics[0].code,
+    'SNAPBACK_HOST_OP_FUNCTION_UNKNOWN',
+  );
+  const unknownFunctionDetails = unknownFunction.structuredContent.diagnostics[0].details;
+  assert.equal(unknownFunctionDetails.candidateFunctions[0].name, 'listTodos');
+  assert.equal(unknownFunctionDetails.candidateFunctions[0].kind, 'LiveQuery');
+  assert.equal(typeof unknownFunctionDetails.artifactHash, 'string');
+  assert.ok(unknownFunctionDetails.localMissSummary.sameMissCount >= 3);
+  assert.equal(unknownFunctionDetails.localMissSummary.capacity, 128);
+  assert.doesNotMatch(JSON.stringify(unknownFunction.structuredContent), /listTods/);
+
+  const unknownArgumentField = await client.call(mutationTool.name, {
+    args: { titel: 'not disclosed' },
+    authority: { mode: 'devUser', userId: 'u_mcp' },
+  });
+  assert.equal(unknownArgumentField.structuredContent.ok, false);
+  assert.equal(
+    unknownArgumentField.structuredContent.diagnostics[0].code,
+    'SNAPBACK_FUNCTION_ARGS_CONTRACT_VIOLATION',
+  );
+  const unknownArgumentDetails = unknownArgumentField.structuredContent.diagnostics[0].details;
+  assert.equal(unknownArgumentDetails.candidateFields[0].name, 'title');
+  assert.equal(unknownArgumentDetails.candidateFields[0].expected, 'string');
+  assert.equal(typeof unknownArgumentDetails.expectedArgumentContract, 'object');
+  assert.doesNotMatch(JSON.stringify(unknownArgumentField.structuredContent), /titel/);
+
+  const wrongArgumentShape = await client.call(mutationTool.name, {
+    args: { title: 42 },
+    authority: { mode: 'devUser', userId: 'u_mcp' },
+  });
+  assert.equal(wrongArgumentShape.structuredContent.ok, false);
+  assert.equal(
+    wrongArgumentShape.structuredContent.diagnostics[0].code,
+    'SNAPBACK_FUNCTION_ARGS_CONTRACT_VIOLATION',
+  );
+  const wrongArgumentDetails = wrongArgumentShape.structuredContent.diagnostics[0].details;
+  assert.equal(wrongArgumentDetails.expected, 'string');
+  assert.equal(wrongArgumentDetails.actual, 'number');
+  assert.equal(wrongArgumentDetails.candidateFields[0].name, 'title');
+  assert.equal(wrongArgumentDetails.candidateFields[0].expected, 'string');
+
   // Reset is destructive: refused without an explicit tuple, and the served
   // envelope records the authority when it runs.
   const resetUnauthorized = await client.call('snapback_reset', {});

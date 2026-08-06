@@ -1731,6 +1731,16 @@ revisions). The shared substrate, by gate:
 
 ## Open questions
 
+> **2026-08-06 (sitting #4) rulings:** OQ8 — the Phase 1 gate SPLITS
+> into evaluator/conformance and end-to-end shipping slices; SD-5 cannot
+> advance the phase on the LLP 0051 D5 corpus alone. OQ10 — Candidate B
+> is DEMAND-GATED: no speculative definition, Outcomes 0/1 only until a
+> concrete candidate arrives with a named adjudicating owner (LLP 0141
+> OQ1 posture). OQ11 — execution-identity element 5 is OWNED BY LLP
+> 0166; its owner inherits the store-semantics profile and mismatch
+> disposition, and exit criterion 3's element-5 harness upgrades to
+> conformance-on-both-executions plus mismatch-refusal tests.
+
 Questions 1–2 were LLP 0127's open decisions carried verbatim in
 scope; both were adjudicated 2026-07-30 and no longer gate this Plan
 (§Decision posture).

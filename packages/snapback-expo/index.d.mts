@@ -8,6 +8,13 @@ import type {
 } from '@expo/snapback-react';
 
 export * from '@expo/snapback-react';
+export {
+  adaptExpoAssetSource,
+  createExpoAssetSourceAdapter,
+  expoAssetFetch,
+  resolveExpoFetch,
+} from './asset-source.mjs';
+export type { ExpoFetchResponseLike, ExpoPickerAssetSource } from './asset-source.mjs';
 
 export const APP_BINDING_FORMAT: 'snapback.app-binding.v1';
 export const SNAPBACK_EXPO_INTEGRATION_RECEIPT_FORMAT:
@@ -248,7 +255,10 @@ export function createSnapbackExpoBoot(options: Readonly<{
   app: AppDescriptorV1Like;
   binding?: AppBindingV1 | null;
   environment?: SnapbackExpoEnvironmentV1;
-  createProvider?: (binding: PreparedReactBinding) => SnapbackReactProvider;
+  createProvider?: (
+    binding: PreparedReactBinding,
+    options: Readonly<{ assetSourceAdapter: import('@expo/snapback-client').CommandAssetSourceAdapter }>,
+  ) => SnapbackReactProvider;
   bindLifecycle?: (
     appState: AppStateSource,
     provider: Pick<SnapbackReactProvider, 'pause' | 'resume'>,

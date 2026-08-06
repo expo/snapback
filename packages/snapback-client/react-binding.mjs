@@ -2379,27 +2379,6 @@ export function classifyRegeneratedReactReference(binding, reference) {
   });
 }
 
-// The complete re-admission engine is development/failure-only and lives in a
-// literal dynamic runtime. Keeping its validator and RQS dependencies out of
-// the successful production entry closure is part of the frozen LLP 0145
-// bundle contract; the small strict classifier and overlay reads above remain
-// synchronous in every build.
-// @ref LLP 0145#phase-a--establish-a-size-ratchet — HMR recovery must not
-// inflate the frozen production React profiles.
-export {
-  canonicalizeClientValueV1 as __hmrCanonicalizeClientValueV1,
-  compileResultContractValidator as __hmrCompileResultContractValidator,
-  deepFreeze as __hmrDeepFreeze,
-  diagnosticError as __hmrDiagnosticError,
-  exactDeploymentFunction as __hmrExactDeploymentFunction,
-  preparedReactBindingGenerationOverlays as __hmrPreparedReactBindingGenerationOverlays,
-  preparedReactBindingInternals as __hmrPreparedReactBindingInternals,
-  publicReference as __hmrPublicReference,
-  queryArtifactHash as __hmrQueryArtifactHash,
-  resultContractHash as __hmrResultContractHash,
-  sleep as __hmrSleep,
-};
-
 /**
  * Re-admit a mounted prepared binding against the live deployment for a
  * regenerated generation (development HMR only — the caller owns the positive
@@ -2450,8 +2429,24 @@ export function handoffPreparedReactBindingGeneration(binding, targetGeneration,
   const existing = preparedReactBindingGenerationHandoffs.get(prepared);
   if (existing?.key === key) return existing.promise;
   const entry = { key, promise: null };
-  entry.promise = import('./react-binding-hmr-runtime.mjs')
-    .then((runtime) => runtime.runGenerationHandoff(prepared, target, budget))
+  // The admission compiler and RQS digest helpers are needed only after a
+  // positive development/HMR signal. Keep that failure-only path outside the
+  // production React entry closure, matching react-runtime.mjs.
+  entry.promise = import('./react-binding-hmr.mjs')
+    .then(({ runPreparedReactBindingGenerationHandoff }) => (
+      runPreparedReactBindingGenerationHandoff({
+        binding: prepared,
+        target,
+        budget,
+        referenceSchemaVersion:
+          preparedReactBindingInternals.get(prepared)?.referenceSchemaVersion ?? null,
+        publishOverlay(overlay) {
+          // Atomic swap: the runtime verified the complete generation off to
+          // the side; this one synchronous write publishes it.
+          preparedReactBindingGenerationOverlays.set(prepared, overlay);
+        },
+      })
+    ))
     .finally(() => {
       if (preparedReactBindingGenerationHandoffs.get(prepared) === entry) {
         preparedReactBindingGenerationHandoffs.delete(prepared);

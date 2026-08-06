@@ -287,6 +287,16 @@ assert.match(
   /node scripts\/select-local-proof\.mjs[\s\S]*requires_native[\s\S]*scripts\/verify-local-proof --selection-receipt/u,
   'CI must plan once, condition heavyweight setup, and reopen the exact selector receipt',
 );
+assert.equal(
+  localProof.match(/\$\{\{ runner\.temp \}\}\/local-proof-selection\.json/gu)?.length,
+  3,
+  'planning, verification, and artifact retention must share one runner-temporary selector receipt',
+);
+assert.doesNotMatch(
+  localProof,
+  /(?:PROOF_SELECTION|SNAPBACK_PROOF_SELECTION_RESULTS):[^\n]*target\/proof/u,
+  'the selector receipt must survive Rust cache restoration by living outside target/',
+);
 assert.match(
   localProof,
   /Initialize native runtime submodules[\s\S]*if:\s*steps\.selection\.outputs\.requires_native == 'true'[\s\S]*git submodule update --init --recursive/u,
@@ -480,7 +490,7 @@ assert(
 );
 assert.match(
   localProof,
-  /target\/proof\/local-proof-results\.jsonl[\s\S]*target\/proof\/local-proof-selection\.json/u,
+  /target\/proof\/local-proof-results\.jsonl[\s\S]*\$\{\{ runner\.temp \}\}\/local-proof-selection\.json/u,
   'CI must retain both execution results and their exact selection authority',
 );
 const prepareHermesEnd = localProof.indexOf('\n      - ', prepareHermesStart + 1);

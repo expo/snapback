@@ -202,6 +202,9 @@ run sequence-allocation-publication -- node tests/conformance/sequence-allocatio
 run local-store-publication -- node tests/conformance/local-persistent-store-publication-v1.mjs
 run snapshot-batch-parity -- node tests/conformance/snapshot-batch-sbsb1-parity-v1.mjs
 run snapshot-batch-v2-parity -- node tests/conformance/snapshot-batch-sbsb2-parity-v1.mjs
+# @ref LLP 0157#move-1-workload-exit-llp-0155-normative-transcription — the
+# fresh provider-native workload witnesses remain source- and binary-bound.
+run fleet-observatory-move1-receipt -- node tests/acceptance/fleet-observatory-move1-v1.mjs --check --require-qualified
 run runtime-package-authority-fixtures -- node --test scripts/runtime-package-authority.test.mjs
 run package-cold-install-fixtures -- node --test scripts/snapback-package-cold-install.test.mjs
 run local-source-package-closure -- node --test scripts/local-source-package-closure.test.mjs

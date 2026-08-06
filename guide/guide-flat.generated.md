@@ -102,7 +102,7 @@ host-op registries. Owner: `ccheever`; label gaps `guide-gap`.
 | operating.host-ops | Host operations over CLI/HTTP | cli, ops, host operations | local | shipped | route /_snapback/api/host-ops | llp/0024 | operating/host-ops.md |
 | operating.agent-controls | Build/instance control discovery | controls list, controls describe, catalog | local | shipped | route /_snapback/api/control-catalog | llp/0184 | operating/agent-controls.md |
 | operating.data-patch | Preview/apply one validated existing-row correction with per-row CAS, a single-use token, normal live notification, and explicit dev authority | data patch, direct edit, patch row, correct row, expected version, row version, apply token, devUser, devAdminBypass | local | shipped | tests/data_patch_v1.rs | llp/0184, llp/0024, llp/0017 | operating/data-patch.md |
-| operating.diagnostics | Stable SNAPBACK_* codes; exact current-checkout link/launch diagnosis with one binary-selection recovery record; installed disposable vertical-slice doctor | diagnostics, errors, doctor, linker, missing symbols, stale binary, runtime recovery | all | shipped | `runRuntimeLinkProbe` in scripts/runtime-link-smoke.mjs | llp/0010, llp/0031, llp/0041, llp/0074 | operating/diagnostics.md |
+| operating.diagnostics | Stable SNAPBACK_* codes; exact current-checkout link/launch diagnosis with one binary-selection recovery record; installed disposable vertical-slice doctor; local served-generation candidates and bounded repeated-miss hints for unknown operations/functions/fields and wrong argument shapes (suggestion only—no remediation carrier or automatic apply while LLP 0146 OQ6 is open) | diagnostics, errors, doctor, linker, missing symbols, stale binary, runtime recovery, did you mean, candidate fields, candidate functions, repeated miss, wrong argument shape | all | shipped | `runRuntimeLinkProbe` in scripts/runtime-link-smoke.mjs + `unknown_function_details` in src/authoring_suggestion.rs + tests/host_ops_v0.rs | llp/0010, llp/0031, llp/0041, llp/0074, llp/0146 | operating/diagnostics.md |
 | operating.declaration-conformance | Per-invocation declared-vs-captured read/write report and local strict opt-in, plus `snapback verify` aggregation over explicitly registered acceptance paths: authoritative under-declarations and missing reports fail, universally extra declarations warn, and observed incomplete/unsupported provenance stays an explicit partial rather than a verdict. The Cloudflare target refuses `strictDeclarations: true` at compiled-schema load and `/app/ensure` with `SNAPBACK_STRICT_DECLARATIONS_TARGET_UNSUPPORTED`; it never admits the flag unenforced. Automatic discovery of every repository acceptance path, app-data-plane ring wiring, complete mutation-envelope provenance, and authoritative Cloudflare capture/reporting remain GAPs | declaration drift, undeclared read, undeclared write, strict declarations, conformance, coverage, missingReads, read set, write set | local | partial | `aggregateConformance` in packages/snapback-cli/verify.mjs | llp/0146, llp/0127, llp/0010 | GAP (guide page for the conformance report and strict opt-in; owner: ccheever, review: 2026-08-31) |
 | operating.verify | Five-stage CLI done-oracle with source-regenerated artifact identity, digest-bound runtime readiness, local admission plus registered-path D1 aggregation, generated capability resolution, registered acceptance execution, identity/test-byte-bound receipt, ordered next actions, and mechanically unique recommendation. Live-target admission, automatic acceptance-path discovery, `acceptance.run`, product-completeness claims, and CV-14 semantic-review custody are explicit nonclaims | verify, done oracle, receipt, recommended next, test bytes, readiness | local | partial | `runVerify` in packages/snapback-cli/verify.mjs | llp/0146, llp/0010 | testing/verify.md |
 | operating.served-guide | Server embeds guide pages + hash-bound flat.md and serves the root /llms.txt index | docs endpoint, llms.txt, served docs | all | shipped | route /llms.txt | llp/0061 | index.md |
@@ -3748,13 +3748,13 @@ id: backend.assets
 order: 9
 audience: agent-first
 capabilities: [backend.assets]
-authorities: [llp/0012-headless-integration-contract.spec.md, llp/0044-asset-storage-pipeline.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0096-auth-profiles-for-protocol-clients.spec.md, llp/0176-expo-messaging-golden-path.plan.md, src/assets.rs, src/assets_cut.rs, src/cli.rs, src/local.rs, src/server.rs, packages/snapback-codegen/define.mjs, packages/snapback-react/index.d.mts, packages/snapback-vite/allowlist.mjs, tests/acceptance/asset-lifecycle-v1-evidence.md]
-examples: [demos/party-wall, demos/file-drop, demos/tandem-expo-bakeoff]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0044-asset-storage-pipeline.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0096-auth-profiles-for-protocol-clients.spec.md, llp/0176-expo-messaging-golden-path.plan.md, llp/0180-asset-bearing-client-commands.rfc.md, llp/0181-zero-configuration-expo.rfc.md, src/assets.rs, src/assets_cut.rs, src/cli.rs, src/local.rs, src/server.rs, packages/snapback-codegen/define.mjs, packages/snapback-expo/asset-source.mjs, packages/snapback-react/index.d.mts, packages/snapback-vite/allowlist.mjs, tests/acceptance/asset-lifecycle-v1-evidence.md]
+examples: [demos/party-wall, demos/file-drop, demos/tandem-expo-bakeoff, demos/expo-golden-path-fixture]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-05
-reviewed-commit: f3c7d9fbb394a413370a9264f22e72b6f151a25e
+reviewed: 2026-08-06
+reviewed-commit: HEAD
 ---
 
 # Assets
@@ -3946,88 +3946,56 @@ id-shaped string written into a `v.assetRef` field fails the commit with
 reference edge commits in the same changeset. Deleting an asset refuses
 while typed references remain.
 
-## Upload from Expo ImagePicker with an ordinary session
+## Send one Expo ImagePicker image with an ordinary session
 
-Once the provider owns the real session above, bridge the native picker URI
-with `expo/fetch` (`import { fetch as expoFetch } from 'expo/fetch'`) and
-import `ImagePicker` from `expo-image-picker`. The messaging bakeoff first
-captures the picker metadata:
+For a declared asset-bearing command, `SnapbackExpoProvider` registers the
+native source adapter and binary transport once. Pass the real
+`expo-image-picker` asset directly to the generated command; application code
+does not call `expo/fetch`, start a raw upload, or carry an asset id between
+steps:
 
-```tsx source=demos/tandem-expo-bakeoff/shared/chat-screen.tsx
-  const pickImage = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      allowsEditing: false,
-      mediaTypes: ['images'],
-      quality: 0.82,
-    });
-    const asset = result.canceled ? null : result.assets[0];
-    if (!asset) return;
-    setAttachment({
-      uri: asset.uri,
-      fileName: asset.fileName ?? `message-${Date.now()}.jpg`,
-      mimeType: asset.mimeType ?? 'image/jpeg',
-    });
-    if (process.env.EXPO_OS === 'ios') void Haptics.selectionAsync();
-  };
-```
-
-Its backend hook converts that URI to a Blob with `expoFetch`, starts the
-generated upload reference, exposes byte progress, awaits `task.done`, and
-accepts only the completed `ready` receipt with a non-null `assetId`:
-
-```tsx source=demos/tandem-expo-bakeoff/snapback/src/backend.tsx
-function useImageUpload() {
-  const upload = useSnapbackAssetUpload({ upload: api.messageImageUpload });
-  const [error, setError] = useState<string | null>(null);
-  const progress = upload.state.totalBytes > 0 ? upload.state.bytesTransferred / upload.state.totalBytes : 0;
-  return useMemo(() => ({
-    state: {
-      status: error ? 'error' as const : upload.state.status === 'idle' || upload.state.status === 'ready' ? 'idle' as const : 'uploading' as const,
-      progress,
-      error: error ?? upload.state.diagnostic?.message ?? null,
-    },
-    upload: async (input: { uri: string; mimeType: string; fileName: string }) => {
-      setError(null);
-      try {
-        const response = await expoFetch(input.uri);
-        const blob = await response.blob();
-        const task = upload.start(blob, {
-          declaredContentType: input.mimeType,
-          declaredFilename: input.fileName,
-          previewUrl: input.uri,
-        }) as { done: Promise<{ status: string; assetId: string | null; diagnostic?: { message?: string } | null }> };
-        const result = await task.done;
-        if (result.status !== 'ready' || !result.assetId) {
-          throw new Error(result.diagnostic?.message ?? 'Snapback could not finish the image upload.');
-        }
-        return result.assetId;
-      } catch (cause) {
-        const message = cause instanceof Error ? cause.message : String(cause);
-        setError(message);
-        throw cause;
-      }
-    },
-  }), [error, progress, upload]);
-}
-```
-
-The screen awaits that receipt before calling its ordinary authenticated
-message mutation. The mutation performs the typed attachment; do not write
-the returned id directly into a `v.assetRef` field:
-
-```js source=demos/tandem-expo-bakeoff/snapback/snapback/functions.mjs
-    if (args.imageAssetId) {
-      values.image = await ctx.assets.attach(args.imageAssetId, { upload: 'messageImageUpload' });
+```tsx source=demos/expo-golden-path-fixture/src/screens/chat-screen.tsx
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.86 });
+    if (result.canceled || !result.assets[0]) {
+      emitG3('picker-cancelled');
+      return;
     }
+    const picked = result.assets[0];
+    emitG3('picker-image-selected', {
+      source: 'photo-library-picker',
+      uriScheme: picked.uri.slice(0, picked.uri.indexOf(':')).toLowerCase(),
+      fileName: picked.fileName ?? null,
+      mimeType: picked.mimeType ?? null,
+      fileSize: picked.fileSize ?? null,
+    });
+    try {
+      const body = proofEnabled ? G3_IMAGE_BODY : draft.trim() || undefined;
+      const outcome = await observeCommand(
+        conversation.commands.send({ ...(body ? { body } : {}), image: picked }),
+        'picked-image',
+      );
 ```
 
-That is the complete custody chain: trusted dev broker mints an ordinary
-session → `createExternalSessionClient` owns it → ImagePicker supplies a URI
-→ `expo/fetch` produces the Blob → `useSnapbackAssetUpload.start` owns the
-TUS task → `task.done` yields the ready asset id → an ordinary authenticated
-mutation calls `ctx.assets.attach`. Render `upload.state.bytesTransferred /
-totalBytes` while active and surface `rejected`/`failed` diagnostics rather
-than treating attempt creation as success.
+The adapter accepts picker-owned `content://`, `ph://`, and `file://` records.
+It copies the live-process bytes into an immutable, slice-readable structural
+source for the existing asset task. Expo's WinterCG fetch carries binary
+checksum/TUS requests. On Expo 57 Android only, a picker-cache `file://` that
+returns a genuine 404 through `expo/fetch` falls back to local
+`expo-file-system` `File.bytes()`; the 404 text is never treated as image
+bytes.
+
+The command still uses the provider's already adopted ordinary session for
+asset reservation, transfer, and mutation. Its task exposes `preparing`,
+`transferring`, `committing`, and the truthful terminal outcomes described in
+[application surfaces](../clients/surfaces.md). Render those phases and await
+`task.done`; `committed` proves the ordinary mutation settled, while `failed`,
+`ambiguous`, and `cancelled` must remain distinct. A post-finalize mutation
+failure can retain residue and is not a rollback receipt.
+
+This adapter is transient live-process custody. It does not prove background
+upload, restart recovery, offline source custody or settlement, or attempt
+grants. Use the raw `useSnapbackAssetUpload`/`assets.start` seam for workflows
+that do not fit the one-optional-asset command grammar.
 
 ## Run lifecycle callbacks
 
@@ -7878,12 +7846,12 @@ id: clients.surfaces
 order: 2
 audience: agent-first
 capabilities: [clients.surfaces]
-authorities: [llp/0179-generated-app-descriptor-and-surfaces.rfc.md, llp/0180-asset-bearing-client-commands.rfc.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0176-expo-messaging-golden-path.plan.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/commands.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts]
+authorities: [llp/0179-generated-app-descriptor-and-surfaces.rfc.md, llp/0180-asset-bearing-client-commands.rfc.md, llp/0181-zero-configuration-expo.rfc.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0176-expo-messaging-golden-path.plan.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/commands.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-expo/asset-source.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts]
 examples: [packages/snapback-react/surface.test.mjs, packages/snapback-react/commands.test.mjs, packages/snapback-client/commands.test.mjs, packages/snapback-react/fixtures/conversation/app/snapback/generated/app.descriptor.json, packages/snapback-react/fixtures/conversation/app/snapback/generated/app.d.ts, demos/expo-golden-path-fixture/snapback/functions.mjs, demos/expo-golden-path-fixture/snapback/surface-model.mjs, demos/expo-golden-path-fixture/src/screens/chat-screen.tsx, demos/expo-golden-path-fixture/tests/g2-falsification.mjs, demos/expo-golden-path-fixture/tests/g3-command.mjs]
 status: current
 targets: [local]
 maturity: partial
-since: 0.1.10
+since: 0.1.11
 unreleased: true
 reviewed: 2026-08-06
 reviewed-commit: HEAD
@@ -7896,7 +7864,7 @@ reviewed-commit: HEAD
 > [auth/targets](../auth/targets.md).
 
 > **Unreleased.** This surface is newer than the newest published Snapback
-> closure, 0.1.9. Use a runtime built from this checkout until 0.1.10 ships.
+> closure, 0.1.10. Use a runtime built from this checkout until 0.1.11 ships.
 
 An **application surface** is one generated, parameterized composition of the
 reads, ordinary mutations, asset-bearing commands, raw asset intents, and
@@ -8105,6 +8073,24 @@ Cancellation after mutation invocation is `ambiguous`, never a fabricated
 rollback. Authority replacement does not adopt a task into the successor
 principal; each retry revalidates its captured cohort.
 
+### Expo ImagePicker input
+
+Inside `SnapbackExpoProvider`, pass an `expo-image-picker` asset directly to
+the bound command. Text-only and image send are branches of one typed call:
+
+```tsx source=demos/expo-golden-path-fixture/src/screens/chat-screen.tsx
+      const outcome = await observeCommand(
+        conversation.commands.send({ ...(body ? { body } : {}), image: picked }),
+        'picked-image',
+      );
+```
+
+The Expo provider owns picker-URI conversion, binary transport, integrity, and
+ordinary-session custody registration; the screen owns only picker UX and
+task rendering. The adapter supports `content://`, `ph://`, and `file://` in
+the live process. It does not add background, restart, offline, or
+attempt-grant semantics.
+
 ## Consume the surface from React
 
 Pass the generated surface reference, its exact parameter object, and optional
@@ -8119,7 +8105,6 @@ render data and the rich child state:
   );
   const connection = useSnapbackConnection();
   const outbox = useSnapbackOutbox();
-  const upload = useSnapbackAssetUpload({ upload: conversation.assets.image.reference });
   const { details, memberships, messages, reactions, users } = conversation.state;
   const activeUser = conversation.data.users?.find((user) => user._id === activeUserId);
   const userById = useMemo(() => new Map((conversation.data.users ?? []).map((user) => [user._id, user])), [conversation.data.users]);
@@ -8272,11 +8257,39 @@ Generation-time `SNAPBACK_SURFACE_*` refusals are:
 | `SNAPBACK_SURFACE_AUTH_BINDING_REFUSED` | Application data attempts to bind a `Principal`; surface scope is not authority. |
 | `SNAPBACK_SURFACE_MEMBER_CLASS_UNSUPPORTED` | A member has the wrong reference class, `input()` appears on an unsupported member, or the target is in the wrong namespace. |
 
-Command declarations refuse with stable `SNAPBACK_COMMAND_*` codes for an
-unknown or ambiguous mutation/intent, more than one asset, incompatible
-`assetRef` policy/optionality, an upload intent needing a second argument map,
-input collision, or an application argument that attempts to inject a
-principal.
+Command declarations refuse at generation with their own stable codes. Every
+one names the offending command and carries structured details; none of them
+truncates or partially emits the descriptor:
+
+| Code | Trigger |
+| --- | --- |
+| `SNAPBACK_COMMAND_INVALID_IDENTIFIER` | The command export name is not a portable non-reserved identifier. |
+| `SNAPBACK_COMMAND_MUTATION_CARDINALITY_INVALID` | `mutation` is absent, `null`, or an array — v1 requires exactly one ordinary mutation. Details carry `mutations`. |
+| `SNAPBACK_COMMAND_MUTATION_UNKNOWN` | The mutation target is not one generated ordinary mutation, or is missing from the generated mutation namespace. |
+| `SNAPBACK_COMMAND_MAPPING_AMBIGUOUS` | The mutation or the asset intent has multiple generated export identities. |
+| `SNAPBACK_COMMAND_MULTI_ASSET_UNSUPPORTED` | More than one asset input — v1 admits at most one. |
+| `SNAPBACK_COMMAND_ASSET_INTENT_UNKNOWN` | `intent` resolves to no generated upload intent. |
+| `SNAPBACK_COMMAND_ASSET_INTENT_ARGS_UNSUPPORTED` | The upload intent declares its own argument map; v1 commands do not carry a second one. |
+| `SNAPBACK_COMMAND_ASSET_MAPPING_INCOMPATIBLE` | `mutationArg` does not name a `v.assetRef({ upload: <this intent> })` argument with matching optionality. |
+| `SNAPBACK_COMMAND_INPUT_COLLISION` | The asset input name collides with a different ordinary mutation input. |
+| `SNAPBACK_COMMAND_AUTHORITY_INPUT_REFUSED` | An ordinary input would inject an authority `Principal`. |
+
+A running command task reports its own `SNAPBACK_COMMAND_*` diagnostics. These
+are outcome facts, not authoring errors — branch on the code, and read
+`status` for what it says about the server:
+
+| Code | Terminal status | What it asserts |
+| --- | --- | --- |
+| `SNAPBACK_COMMAND_ASSET_FAILED` | `failed` | The asset child never finalized, so the mutation was never invoked. No residue. |
+| `SNAPBACK_COMMAND_AUTHORITY_REPLACED` | `failed` | The captured authority cohort was replaced before invocation. The task is not adopted into the successor principal. |
+| `SNAPBACK_COMMAND_MUTATION_FAILED` | `failed` | A trust boundary proved refusal — a receipt, a 401/403, an authorization diagnostic, or an explicit `effectCommitted: false`. |
+| `SNAPBACK_COMMAND_MUTATION_AMBIGUOUS` | `ambiguous` | Invocation began and no settlement proof arrived. Anything short of proof lands here by design; the client never upgrades a guess to a refusal. |
+| `SNAPBACK_COMMAND_CANCELLED` | `cancelled` | Cancellation completed before invocation; the asset child was cancelled where its state permitted. |
+| `SNAPBACK_COMMAND_CANCELLED_DURING_COMMIT` | `ambiguous` | Local interest stopped after invocation. Never reported as `cancelled` — the server outcome is unknown. |
+| `SNAPBACK_COMMAND_NOT_RETRYABLE` | (outcome only) | `retry()` on a committed, cleanly cancelled, or non-terminal task. The returned task carries the predecessor's terminal snapshot unchanged. |
+
+`SNAPBACK_REACT_COMMAND_INVALID` refuses a command reference that is not the
+complete generated command admitted by this prepared binding.
 
 Client-time `SNAPBACK_REACT_SURFACE_*` refusals are:
 
@@ -8570,14 +8583,7 @@ back to `curl`, raw host operations, or a one-off verification script.
 
 ## Run the supervised Expo development loop
 
-<!-- since: 0.1.10 unreleased -->
-
-> **Unreleased.** `@expo/snapback-expo` is in the source tree but not in the
-> newest published closure (`0.1.9`): a packaged consumer on
-> `@expo/snapback-*@0.1.8` cannot install the config plugin or provider this
-> section configures from npm. Use the source-checkout install above until
-> the package joins a published closure
-> (`issues/20260806-snapback-expo-package-not-in-publishable-closure.md`).
+<!-- since: 0.1.10 -->
 
 The north-star boot has three application-visible pieces: the config-plugin
 entry, the generated `app`, and `SnapbackExpoProvider`. There is no backend URL
@@ -10708,7 +10714,7 @@ documentation absence never appears as success.
 ## Generated inventory
 
 <!-- BEGIN GENERATED CONTROL CATALOG: CONTROL CATALOG INVENTORY -->
-The embedded build catalog contains **114 operations** at digest `sha256:90d37881f6a608b5990a5c1955a047eaed4b9784eadbf4ceaab65b50138c78fb`. The counts and inventory below are generated; do not edit them by hand.
+The embedded build catalog contains **114 operations** at digest `sha256:3727bea45be4d72acf856b36b7158b91fc835a7f7f9d81b43d1e4d9635e245d0`. The counts and inventory below are generated; do not edit them by hand.
 
 | Axis | Value | Count |
 | --- | --- | ---: |
@@ -10717,10 +10723,10 @@ The embedded build catalog contains **114 operations** at digest `sha256:90d3788
 | surfaceAccess | `mcpOnly` | 2 |
 | surfaceAccess | `native` | 41 |
 | surfaceAccess | `none` | 4 |
-| operability | `direct` | 89 |
+| operability | `direct` | 91 |
 | operability | `internal` | 11 |
 | operability | `mediated` | 7 |
-| operability | `unavailable` | 7 |
+| operability | `unavailable` | 5 |
 
 | Operation | Surface | Operability | Status | CLI | MCP | Guide |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -10831,14 +10837,52 @@ The embedded build catalog contains **114 operations** at digest `sha256:90d3788
 | `schema.load` | `native` | `direct` | `shipped` | snapback host load --schema <path> | snapback_load_schema | — |
 | `schema.reload` | `apiOnly` | `unavailable` | `unbuilt` | — | — | — |
 | `secretRead.mint` | `cliOnly` | `direct` | `shipped` | snapback secret-read-mint | — | — |
-| `storage.operation-coverage.activate` | `apiOnly` | `unavailable` | `shipped` | — | — | — |
-| `storage.protected-erasure` | `apiOnly` | `unavailable` | `shipped` | — | — | — |
+| `storage.operation-coverage.activate` | `apiOnly` | `direct` | `shipped` | — | — | operating/agent-controls.md#specialist-api-operations-apionly |
+| `storage.protected-erasure` | `apiOnly` | `direct` | `shipped` | — | — | operating/agent-controls.md#specialist-api-operations-apionly |
 | `telemetry.events` | `native` | `direct` | `shipped` | snapback telemetry events | snapback_telemetry_events | operating/host-ops.md |
 | `telemetry.export` | `native` | `direct` | `shipped` | snapback telemetry export | snapback_telemetry_export | operating/host-ops.md |
 | `telemetry.stats` | `native` | `direct` | `shipped` | snapback telemetry stats | snapback_telemetry_stats | operating/host-ops.md |
 | `test.<subpath-determined-by-coordinator>` | `none` | `internal` | `shipped` | — | — | — |
 | `test.corruptMeta` | `none` | `internal` | `shipped` | — | — | — |
 <!-- END GENERATED CONTROL CATALOG: CONTROL CATALOG INVENTORY -->
+
+## Specialist API operations (apiOnly)
+
+Two shipped operator operations are deliberately `apiOnly`: they have typed
+HTTP contracts but no CLI or MCP tool yet (usage evidence drives promotion —
+LLP 0184 OQ2). Both take the ordinary admin credential
+(`x-snapback-admin-token` or `x-snapback-console-credential`) against the
+local instance from your readiness descriptor.
+
+### Permanently erase one protected row
+
+`POST /_snapback/api/storage/protected-erasure` (LLP 0165). Body (closed):
+`{"operationId": "<caller-minted retry id>", "qualifiedTable": "<table>",
+"rowId": "<row id>"}`. Irreversibly deletes the canonical row and its
+retained journal history, invalidates every registered checkpoint copy, and
+returns a durable authority/target-bound receipt
+(`protected-record-erasure.receipt-v1`). Copies that cannot be destroyed yet
+are reported as `openObligations`; repeat the SAME `operationId` to resume
+them — exact retries are idempotent, while reuse with a different authority
+or target refuses. This is destructive and privacy/compliance-sensitive:
+catalog posture is `humanApprovalRequired` — confirm with a human before
+invoking. A refusal names the exact diagnostic; a fresh `operationId`
+against an already-erased row fails target-not-found rather than
+succeeding.
+
+### Activate operation-coverage writer admission
+
+`POST /_snapback/api/storage/operation-coverage/activate` (LLP 0163). Body
+(closed, v1): `{"schemaVersion": 1, "target": "local-dev-sqlite-ibex",
+"coverageProfile": "local-envelope-mapped-writers.v1"}`. Rechecks the closed
+writer inventory, persists and arms the exact writer manifest (ordinary and
+host-child lanes), and returns the active manifest
+(`operation.coverage-activation-response-v1`); the manifest survives restart
+and re-arms on database open. An exact repeat is idempotent. Activation
+changes future write admission (covered writers then require envelope
+authority) but deletes nothing — and success does **not** publish the
+AgentSafe capability; LLP 0162/0163's performance, review, complete-target,
+and author-acceptance gates remain independent.
 
 ---
 
@@ -11622,13 +11666,13 @@ id: operating.diagnostics
 order: 3
 audience: agent-first
 capabilities: [operating.diagnostics]
-authorities: [llp/0010-agent-dx-and-acceptance.spec.md, src/diagnostic.rs, packages/snapback-codegen/index.mjs, packages/snapback-cli/runtime-recovery.mjs, demos/_kit/harness.mjs, scripts/ibex-doctor, scripts/runtime-link-smoke.mjs, scripts/bootstrap-ibex-runtime]
-examples: [demos/todo/tests/acceptance/headless.mjs, packages/snapback-codegen/authoring-validation.test.mjs]
+authorities: [llp/0010-agent-dx-and-acceptance.spec.md, llp/0146-agentic-authoring-affordances.rfc.md, src/diagnostic.rs, src/authoring_suggestion.rs, packages/snapback-codegen/index.mjs, packages/snapback-cli/runtime-recovery.mjs, demos/_kit/harness.mjs, scripts/ibex-doctor, scripts/runtime-link-smoke.mjs, scripts/bootstrap-ibex-runtime]
+examples: [demos/todo/tests/acceptance/headless.mjs, packages/snapback-codegen/authoring-validation.test.mjs, tests/host_ops_v0.rs]
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-05
-reviewed-commit: 4a6000ac6f17a8c94bc2aecf573c0654e850b758
+reviewed: 2026-08-06
+reviewed-commit: 3e78f67c4972b8c13e2375970da285ae2d4c0195
 ---
 
 # Diagnostics and local doctoring
@@ -11658,6 +11702,44 @@ Public unauthenticated projections intentionally drop `message` and
 `details`, because they can contain source paths, handler text, arguments, or
 operator context. Error envelopes expose the diagnostic at
 `error.diagnostic`; some terminal mutation paths also attach a receipt.
+
+## Use candidates from the served generation
+
+After the existing authorization gate admits a caller, local unknown-operation,
+unknown-function, unknown-field, and wrong-argument-shape refusals add
+authoring help to the same `details` object:
+
+- `candidateOperations` contains only currently served host operations;
+- `candidateFunctions` names served function ids/names, kinds, exported names,
+  and argument-contract hashes, filtered to the route's expected function
+  kinds;
+- `candidateFields` names served schema or argument fields with their expected
+  type and required/optional posture;
+- `expectedArgumentContract` carries the complete served argument contract for
+  an argument refusal; and
+- `artifactHash` or `servedShapeHash` identifies the generation that produced
+  the suggestion.
+
+Treat these as generation-bound suggestions, not aliases and not commands to
+apply. Candidates contain served schema metadata only: the rejected spelling,
+argument value, row value, and secrets are not echoed. A caller that cannot
+pass the existing auth gate receives the existing uniform refusal and learns
+no function-existence candidates.
+
+`localMissSummary` is a bounded process-local hint. `sameMissCount` and
+`repeated` tell you that this process has seen the same category, generation,
+and rejected identifier before; `capacity` is 128 and counts cap at 255. The
+runtime retains only a hash of the miss, evicts least-recently-used entries,
+does not persist the summary, and does not promote popular mistakes into
+aliases. Regenerate or reload your artifacts when the diagnostic's generation
+does not match the artifact you used.
+
+LLP 0146 OQ6 is still open. No `remediations` wire member or
+machine-applicable repair endpoint exists, and the ControlCatalog
+`remediation` field remains null/absent. Until the LLP 0094/0095 carrier
+decision lands, do not synthesize an automatic repair from these candidates;
+in particular, never apply an identifier replacement without an operation
+that atomically verifies the suggestion's artifact hash.
 
 ## Assert on codes, not prose
 
@@ -12537,9 +12619,18 @@ The fork operation does all of these before it returns:
   source database's estimated bytes, or the fork root's total byte budget
   would exceed the configured limits (`--max-forks`, `--max-fork-bytes`,
   `--max-total-bytes`), reporting the admitted usage as
-  `data.resourceAdmission`; the creation TTL itself is bounded by the same
+  `data.resourceAdmission`; a fork-root lock keeps the count/byte observation,
+  registry intent, and publication one atomic admission interval even when
+  creates race at a boundary; the creation TTL itself is bounded by the same
   maximum total fork lifetime that caps renewal;
+- treats those byte checks as admission-time estimates, not a live disk
+  quota: fork-local writes and uploads can grow after creation until finite
+  TTL/reap cleanup, so use a filesystem/container quota when runtime growth
+  itself must be contained;
 - takes a consistent local snapshot and records the exact fork point;
+- records the canonical invoking app root plus logical app id in registry and
+  fork-local digest-bound evidence before publication, independently of
+  whether a server is ever launched;
 - scrubs copied sessions, agent credentials, and operational claims;
 - rotates authorization and data-stream identities and mints fresh sidecars;
 - when both generated manifests exist, admits the complete schema/function
@@ -12559,8 +12650,23 @@ The fork operation does all of these before it returns:
 Use a shared, explicit fork root when several worktrees derive from one
 parent. Each `fork create` chooses a UUID-named direct child by default, so
 worktrees do not share a database or port. Keep `--app-root` pointed at each
-worktree: that is what lets two forks preserve the same parent rows while
-loading different function bundles.
+worktree: create records its canonical path and logical app id in registry and
+fork-local digest-bound evidence. Every list, inspect, diff, renew, drop, reap,
+and recover selection rechecks that identity before projecting paths or
+credentials or mutating state. Consequently, even two worktrees with the same
+`appId` cannot select one another through a shared `--fork-root`; a legacy row
+without this binding fails closed rather than acting as a wildcard.
+
+Library callers have the same contract without a launch step. Establish or
+load the app root with `ensure_expected_app(app_root, app_id)` or
+`load_expected_app(app_root)`, then pass the returned opaque
+`ExpectedForkAppV1` to `publish_managed` or
+`publish_managed_with_base`. Those APIs revalidate the canonical app-root
+identity and persist it during mint; they never infer authority from the
+destination's parent fork root. A fork minted this way can be inspected or
+diffed immediately with the owning CLI `--app-root`. The low-level `publish`
+crash-corpus primitive is deliberately unmanaged and cannot be selected by
+managed lifecycle commands.
 
 ## Fork instead of seeding an acceptance suite
 
@@ -12729,6 +12835,8 @@ details object in automation; the message is for people.
 
 | Diagnostic | Action |
 | --- | --- |
+| `SNAPBACK_FORK_APP_BINDING_MISMATCH` | The selected fork belongs to another canonical app root or logical app identity, or the invoking app-root identity was replaced after it was loaded. Invoke from the owning `--app-root`; library callers should reload the opaque identity; never use the shared fork root as authority. |
+| `SNAPBACK_FORK_APP_BINDING_REQUIRED` | The entry predates mint-time app binding, came from the unmanaged low-level primitive, or lost that evidence. It is deliberately unselectable; a managed fork does not enter this class merely because it was never launched. Inspect and migrate/recreate it out of band rather than weakening the check. |
 | `SNAPBACK_FORK_PUBLICATION_PARTIAL` | Run `fork recover` on the exact sentinel-bearing destination before boot. |
 | `SNAPBACK_FORK_QUARANTINED` | Treat the database as non-bootable; recover its managed publication rather than clearing stamps by hand. |
 | `SNAPBACK_FORK_LINEAGE_INVALID` | Stop. Do not trust or delete the target until its local lineage provenance is understood. |
@@ -12738,13 +12846,17 @@ details object in automation; the message is for people.
 | `SNAPBACK_FORK_EXPIRED_REAP_FAILED` | Inspect the reported expired targets and restore enough evidence to stop/reap them safely before retrying create. |
 | `SNAPBACK_FORK_SERVER_EXPIRED` | Expected finite-TTL enforcement: use `create` or explicit `reap` to prove the stopped process and remove the fork, or `renew` **before** expiry to extend it. |
 | `SNAPBACK_FORK_RENEW_EXPIRED` | Renewal never resurrects: the fork is already past expiry — reap it and create a fresh fork. |
-| `SNAPBACK_FORK_RESOURCE_LIMIT_REFUSED` | A configured bound refused deterministically; the details name the resource (`fork-count`, `fork-bytes`, `total-bytes`, `diff-work`, `renewal-lifetime`) and the observed usage. Drop forks, raise the explicit flag, or bound the request. |
+| `SNAPBACK_FORK_RESOURCE_LIMIT_REFUSED` | A configured bound refused deterministically; the details name the resource (`fork-count`, `fork-bytes`, `total-bytes`, `diff-work`, `renewal-lifetime`) and the observed usage. Net diff additionally reports its streaming `phase`, `limitKind`, journal/scanned rows, and bytes. Drop forks, raise the explicit flag, or bound the request. |
 | `SNAPBACK_FORK_WRITER_COVERAGE_INVALID` | Do not treat the fork as whole-window covered. Its durable fork-point receipt is partial, tampered, late, or no longer matches the active stream/manifest; recreate it through `fork create`. |
 
 ## Read the diff at its real boundary
 
-The diff receipt covers committed **application-row journal entries after the
-fork point**, in commit order. It explicitly omits:
+The default `snapback.fork-journal-diff.v3` receipt covers committed
+**application-row journal entries in `(base, head]`**, in commit order. Its
+stream-qualified `base` and `head` identify the data-version stream, commit
+version, and exclusive/inclusive boundary. It says
+`attribution: "absent-v1"`: row `operation` is insert/update/delete, not an LLP
+0163 operation or principal identity. It explicitly omits:
 
 - auth and credential state;
 - asset blob operations;
@@ -12755,11 +12867,14 @@ fork point**, in commit order. It explicitly omits:
 For an exact net base-to-head receipt, create the fork with
 `--retain-base` (a digest-bound immutable snapshot; doubles the fork's byte
 footprint, and admission accounts for it) and run `fork diff FORK_ID --net`.
-The `snapback.fork-net-diff.v2` receipt is computed by comparing the
+The `snapback.fork-net-diff.v3` receipt is computed by comparing the
 retained base against the head directly — independent of the journal — with
 pre- and post-images, a named substrate (`retained-base-v1`) and
-machine-readable covered/omitted domains. A fork created through the complete
-cold-start carrier path can advertise `authorizer-backed-app-rows-v1` only
+machine-readable covered/omitted domains. Both v3 receipt types carry
+`receiptDigest`, a domain-separated SHA-256 digest over the JCS-canonical form
+of every other emitted fact, so approval can bind the exact receipt. A fork
+created through the complete cold-start carrier path can advertise
+`registered-connection-defensive-app-rows-v1` only
 when its digest-bound coverage receipt proves the two app-row writer lanes
 were armed at the fork point and the journal cross-check verifies through the
 observed head. A partial generated layout remains
@@ -12781,13 +12896,26 @@ scanned head. Contradictory coverage evidence refuses with
 cover. Without a retained base, `--net` refuses with
 `SNAPBACK_FORK_NET_DIFF_UNAVAILABLE`.
 
-The attributed receipt is a review aid, not a complete audit and not
-production migration admission. A long-lived fork can also outlive its journal floor; then diff
-refuses instead of returning an incomplete receipt. The attributed span is
-also work-bounded: past `--max-rows` (default 100k) diff refuses with
-`SNAPBACK_FORK_RESOURCE_LIMIT_REFUSED` and the observed row count instead of
+The journal receipt is a review aid, not a complete audit and not production
+migration admission. A long-lived fork can also outlive its journal floor;
+then diff refuses instead of returning an incomplete receipt. Both surfaces
+are work-bounded: journal rows, net base/head scanned rows, WAL validation
+bytes, and streamed bytes are
+checked during streaming, before unbounded maps can grow. Past `--max-rows`
+(default 100k) or the fixed byte budget, diff refuses with
+`SNAPBACK_FORK_RESOURCE_LIMIT_REFUSED` and observed usage instead of
 materializing an unbounded receipt. Use the reviewed migration rehearsal flow
 for production apply decisions.
+
+The upgraded completeness class covers only Snapback-registered writable
+connections with verified SQLite defensive mode and the shared default-deny
+authorizer. The net receipt validates the raw WAL header and cumulative frame
+checksums within its byte budget and detects/refuses ordinary raw WAL/app-row
+divergence and direct page corruption, but it is not an OS/file-integrity
+boundary. A same-user
+process that bypasses the connection factory and coherently forges app data,
+the version, and a matching journal entry is outside the claim; use an
+OS/container/filesystem authority boundary for that threat.
 
 ## Know what the quarantine does not promise
 
@@ -12851,7 +12979,6 @@ status: current
 targets: [local]
 maturity: shipped
 since: 0.1.10
-unreleased: true
 reviewed: 2026-08-06
 reviewed-commit: HEAD
 ---
@@ -12861,9 +12988,6 @@ reviewed-commit: HEAD
 > **Local target only.** This page describes the local dev/test target.
 > Hosted targets make deliberately weaker or different claims — see
 > [auth/targets](../auth/targets.md).
-
-> **Unreleased.** This surface is newer than the newest published Snapback
-> closure, 0.1.9. Use a runtime built from this checkout until 0.1.10 ships.
 
 Use `data.patch` to correct known fields on one existing row without adding a
 raw SQL, insert, delete, or arbitrary update surface. Preview validates the
@@ -13595,11 +13719,7 @@ introspection. Keep imperative overlays in headless/React code and generated
 ephemeral links in Contract code—do not mix a second polling or publish lane
 into the same surface.
 
-<!-- since: 0.1.10 unreleased -->
-
-> **Unreleased.** The operator-delete control is in the source tree but not
-> in the newest published closure (`0.1.9`). Expected in the next published
-> closure.
+<!-- since: 0.1.10 -->
 
 ## Delete one entry as an operator
 

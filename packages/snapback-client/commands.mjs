@@ -3,6 +3,7 @@ import { createAssetClient } from './assets.mjs';
 let commandSequence = 0;
 
 const terminalStatuses = new Set(['succeeded', 'failed', 'cancelled', 'ambiguous']);
+const commandTaskHooks = Symbol('snapback.command-task-hooks');
 
 function nextCommandId() {
   commandSequence += 1;
@@ -21,10 +22,10 @@ function diagnostic(code, message, details = {}) {
 
 function diagnosticFrom(error, fallbackCode, fallbackMessage, details = {}) {
   const carried = error?.diagnostic?.diagnostic ?? error?.diagnostic;
-  if (carried && typeof carried === 'object' && typeof carried.code === 'string') {
+  if (carried && typeof carried === 'object') {
     return Object.freeze({
       schemaVersion: carried.schemaVersion ?? 'snapback.client-diagnostic.v1',
-      code: carried.code,
+      code: typeof carried.code === 'string' ? carried.code : fallbackCode,
       severity: carried.severity ?? 'error',
       message: carried.message ?? error?.message ?? fallbackMessage,
       details: Object.freeze({ ...(carried.details ?? {}), ...details }),
@@ -72,6 +73,26 @@ function assertAssetSource(source) {
   }
 }
 
+function normalizeAdaptedAssetSource(adapted) {
+  const envelope = adapted && typeof adapted === 'object' && !Array.isArray(adapted)
+    && Object.hasOwn(adapted, 'file')
+    ? adapted
+    : { file: adapted };
+  assertAssetSource(envelope.file);
+  for (const field of ['declaredFilename', 'declaredContentType', 'previewUrl']) {
+    if (envelope[field] !== undefined && envelope[field] !== null
+      && typeof envelope[field] !== 'string') {
+      throw new TypeError(`command asset source adapter returned a non-string ${field}`);
+    }
+  }
+  return Object.freeze({
+    file: envelope.file,
+    declaredFilename: envelope.declaredFilename ?? null,
+    declaredContentType: envelope.declaredContentType ?? null,
+    previewUrl: envelope.previewUrl ?? null,
+  });
+}
+
 function commandCall(command, input) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) {
     throw new TypeError('command input must be an object');
@@ -92,7 +113,6 @@ function commandCall(command, input) {
   if (command.asset && Object.hasOwn(input, command.asset.input)
     && input[command.asset.input] !== undefined && input[command.asset.input] !== null) {
     source = input[command.asset.input];
-    assertAssetSource(source);
   } else if (command.asset && command.asset.optional !== true) {
     throw new TypeError(`command input requires asset source ${command.asset.input}`);
   }
@@ -186,6 +206,7 @@ class CommandTaskImpl {
   #finish(status, { result, diagnostic: failure, residue = null } = {}) {
     if (this.#settled) return;
     this.#settled = true;
+    this.#owner[commandTaskHooks]('settled', this);
     this.#assetOff?.();
     this.#assetOff = null;
     const asset = this.#assetTask?.snapshot?.() ?? null;
@@ -226,6 +247,7 @@ class CommandTaskImpl {
   #rejectLocal(error) {
     if (this.#settled) return;
     this.#settled = true;
+    this.#owner[commandTaskHooks]('settled', this);
     this.#rejectDone(error);
   }
 
@@ -281,7 +303,10 @@ class CommandTaskImpl {
       this.#adoptAssetTask(this.#owner.assets.start({
         upload: this.#command.asset.intent,
         args: {},
-        file: call.source,
+        file: call.source.file,
+        declaredFilename: call.source.declaredFilename,
+        declaredContentType: call.source.declaredContentType,
+        previewUrl: call.source.previewUrl,
         authorityCapture: this.#capture,
         externalTransportGeneration: this.#externalTransportGeneration,
       }));
@@ -294,6 +319,9 @@ class CommandTaskImpl {
     try {
       assertCommandDescriptor(this.#command);
       call = commandCall(this.#command, this.#input);
+      if (call.source !== null) {
+        call.source = await this.#owner.adaptAssetSource(call.source);
+      }
     } catch (error) {
       this.#rejectLocal(error);
       return;
@@ -318,7 +346,7 @@ class CommandTaskImpl {
         });
         return;
       }
-      if (this.#settled) return;
+      if (this.#settled || this.#cancelled) return;
       if (asset.status === 'cancelled') {
         this.#finish('cancelled');
         return;
@@ -428,6 +456,45 @@ class CommandTaskImpl {
     this.#finish('cancelled');
   }
 
+  async [commandTaskHooks]() {
+    if (this.#settled) return;
+    this.#cancelled = true;
+    if (this.#mutationInvoked) {
+      const failure = diagnostic(
+        'SNAPBACK_COMMAND_CLIENT_DISPOSED_DURING_COMMIT',
+        'command client was disposed after mutation invocation; server settlement is unknown',
+        { mutationAttemptId: this.#mutationId },
+      );
+      this.#finish('ambiguous', {
+        diagnostic: failure,
+        residue: this.#residue(
+          'ambiguous',
+          'command client disposal occurred after mutation invocation; attachment settlement is unknown',
+        ),
+      });
+      return;
+    }
+    const assetBeforeCancellation = this.#assetTask?.snapshot?.() ?? null;
+    const phase = assetBeforeCancellation?.status === 'ready'
+      ? 'after-finalization'
+      : this.#snapshot.status;
+    const failure = diagnostic(
+      'SNAPBACK_COMMAND_CLIENT_DISPOSED',
+      'command client was disposed before mutation invocation',
+      { phase },
+    );
+    const basis = 'the mutation was never invoked, so this command attempt provably did not attach the finalized asset';
+    let residue = this.#residue('failed', basis);
+    try {
+      if (this.#assetTask && !terminalStatuses.has(assetBeforeCancellation?.status)) {
+        await this.#assetTask.cancel();
+      }
+    } finally {
+      residue ??= this.#residue('failed', basis);
+      this.#finish('failed', { diagnostic: failure, residue });
+    }
+  }
+
   retry() {
     const status = this.#snapshot.status;
     const cleanCancelled = status === 'cancelled' && this.#networkStarted === false;
@@ -457,7 +524,7 @@ class CommandTaskImpl {
       : this.#assetTask && typeof assetSnapshot?.assetId === 'string'
         ? { assetRetryFrom: this.#assetTask }
         : null;
-    return new CommandTaskImpl(this.#owner, this.#command, this.#input, {
+    return startCommandTask(this.#owner, this.#command, this.#input, {
       id: this.id,
       generation: this.generation + 1,
       capture: this.#capture,
@@ -468,11 +535,22 @@ class CommandTaskImpl {
   }
 }
 
+function startCommandTask(owner, command, input, options) {
+  const task = new CommandTaskImpl(owner, command, input, options);
+  owner[commandTaskHooks]('started', task);
+  return task;
+}
+
 export class SnapbackCommandClient {
-  constructor(client, { assets = null, invokeMutation = null } = {}) {
+  #activeCommandTasks = new Set();
+  #disposed = false;
+  #disposePromise = null;
+
+  constructor(client, { assets = null, invokeMutation = null, assetSourceAdapter = null } = {}) {
     if (!client || typeof client !== 'object') throw new TypeError('SnapbackCommandClient requires a SnapbackClient-like owner');
     this.client = client;
     this.assets = assets ?? createAssetClient(client);
+    this.assetSourceAdapter = assetSourceAdapter;
     this.invokeMutation = invokeMutation ?? (async (reference, args, options) => {
       const output = await client.mutate(reference, {
         args,
@@ -482,6 +560,23 @@ export class SnapbackCommandClient {
       });
       return output.result;
     });
+  }
+
+
+  // @ref LLP 0180#input-and-platform-adapters — a host adapter may normalize
+  // a picker URI while the command is still preparing; only its structural
+  // File/Blob result enters the existing LLP 0044 asset task.
+  async adaptAssetSource(source) {
+    if (source && typeof source === 'object' && !Array.isArray(source)
+      && typeof source.size === 'number' && typeof source.slice === 'function') {
+      return normalizeAdaptedAssetSource(source);
+    }
+    if (typeof this.assetSourceAdapter !== 'function') {
+      assertAssetSource(source);
+      throw new TypeError('unreachable asset source validation state');
+    }
+    const adapted = await this.assetSourceAdapter(source);
+    return normalizeAdaptedAssetSource(adapted);
   }
 
   isAuthorityCurrent(capture, externalTransportGeneration = undefined) {
@@ -495,6 +590,31 @@ export class SnapbackCommandClient {
         && this.client.__authTransportGeneration === externalTransportGeneration
       )
     );
+  }
+
+  [commandTaskHooks](event, task) {
+    if (event === 'settled') {
+      this.#activeCommandTasks.delete(task);
+      return;
+    }
+    if (event !== 'started') throw new TypeError(`unknown command task event ${String(event)}`);
+    this.#activeCommandTasks.add(task);
+    if (this.#disposed) void task[commandTaskHooks]();
+  }
+
+  inspection() {
+    return Object.freeze({ activeCommandTasks: this.#activeCommandTasks.size });
+  }
+
+  dispose() {
+    if (this.#disposePromise !== null) return this.#disposePromise;
+    this.#disposed = true;
+    const tasks = [...this.#activeCommandTasks];
+    this.#disposePromise = (async () => {
+      await Promise.allSettled(tasks.map((task) => task[commandTaskHooks]()));
+      this.#activeCommandTasks.clear();
+    })();
+    return this.#disposePromise;
   }
 
   start(command, input) {
@@ -511,7 +631,7 @@ export class SnapbackCommandClient {
       && Number.isSafeInteger(this.client.__authTransportGeneration)
       ? this.client.__authTransportGeneration
       : undefined;
-    return new CommandTaskImpl(this, command, input, {
+    return startCommandTask(this, command, input, {
       capture,
       externalTransportGeneration,
     });

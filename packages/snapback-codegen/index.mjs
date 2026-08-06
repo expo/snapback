@@ -683,7 +683,8 @@ function singleNodeIdentityV1(fn) {
 function functionCompositionIdentityV1(fn) {
   const single = singleNodeIdentityV1(fn);
   if (single) return single;
-  const batch = fn.runtime?.HostPlan?.SnapshotBatch;
+  const batch = fn.runtime?.HostPlan?.SnapshotBatch
+    ?? fn.runtime?.HostPlan?.SnapshotBatchV2;
   if (!batch) return null;
   return {
     normalizedCompositePlan: batch.normalizedCompositePlan,
@@ -9985,7 +9986,9 @@ function renderAppTypes(functions, assetUploadIntents = [], commands = {}, surfa
     `export type GeneratedAppMutationName = ${union(mutationNames)};`,
     `export type GeneratedAppAssetName = ${union(assetNames)};`,
     'export type CapabilityRequirement = string;',
-    'export interface CommandAssetSource { readonly size: number; readonly name?: string; readonly type?: string; slice(start: number, end?: number): { arrayBuffer(): Promise<ArrayBuffer> } }',
+    'export interface CommandBlobSource { readonly size: number; readonly name?: string; readonly type?: string; slice(start: number, end?: number): { arrayBuffer(): Promise<ArrayBuffer> } }',
+    'export interface CommandPlatformAssetSource { readonly uri: string; readonly fileName?: string | null; readonly mimeType?: string | null; readonly fileSize?: number | null }',
+    'export type CommandAssetSource = CommandBlobSource | CommandPlatformAssetSource;',
     'type ReferenceArgs<Reference> = Reference extends { readonly __args?: infer Args } ? Args : Record<string, unknown>;',
     'type ReferenceResult<Reference> = Reference extends { readonly __result?: infer Result } ? Result : unknown;',
     'type CommandAssetInput<Input extends string | never, Optional extends boolean> = [Input] extends [never] ? unknown : Optional extends true ? { readonly [Field in Input]?: CommandAssetSource } : { readonly [Field in Input]: CommandAssetSource };',

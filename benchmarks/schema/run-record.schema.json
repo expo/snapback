@@ -1,0 +1,187 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://snapback.dev/benchmarks/run-record.schema.json",
+  "title": "Snapback competitive benchmark — single lane-run record",
+  "description": "One lane's run of one brief under the LLP 0186 W1 instrument (see benchmarks/protocol.md). Correction-loop attribution values are a DRAFT until the first instrumented run ratifies the rule; the ratchet reading these records is measurement-only until LLP 0186 OQ1/OQ2 are resolved.",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "lane",
+    "brief",
+    "harness",
+    "timestamps",
+    "wallClock",
+    "tokens",
+    "correctionLoops",
+    "handAuthoredLoc",
+    "rubric",
+    "diary"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "const": 1,
+      "description": "Version of this record schema."
+    },
+    "lane": {
+      "description": "Backend lane under test (LLP 0186 W1 lane set).",
+      "enum": ["snapback", "convex", "supabase", "pocketbase", "postgres-express"]
+    },
+    "brief": {
+      "description": "Which fixed brief was run, verbatim, from benchmarks/briefs/.",
+      "enum": ["messaging", "crud", "media"]
+    },
+    "harness": {
+      "type": "object",
+      "description": "The agent harness configuration; identical across lanes of one comparison set.",
+      "required": ["name", "model", "effort"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Agent harness and version, e.g. 'claude-code 2.x', 'codex-cli 1.y'."
+        },
+        "model": {
+          "type": "string",
+          "description": "Exact model identifier the harness ran."
+        },
+        "effort": {
+          "type": ["string", "null"],
+          "description": "Reasoning-effort / thinking setting where the harness exposes one; null if not applicable."
+        },
+        "environment": {
+          "type": "object",
+          "description": "Environment pinning per benchmarks/protocol.md: package names to exact versions (Snapback lane: published @expo/snapback-* versions, npm dist-tag noted), OS, and runtime versions.",
+          "additionalProperties": { "type": "string" }
+        }
+      }
+    },
+    "timestamps": {
+      "type": "object",
+      "required": ["startedAt", "finishedAt"],
+      "additionalProperties": false,
+      "properties": {
+        "startedAt": { "type": "string", "format": "date-time" },
+        "finishedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "wallClock": {
+      "type": "object",
+      "description": "Wall-clock accounting in seconds. totalSeconds is authoritative; the phase split is recorded where the transcript supports recovering it, null where it does not. Orientation is measured, not excluded (diary 0058 excluded it, biasing the baseline).",
+      "required": ["totalSeconds", "phases"],
+      "additionalProperties": false,
+      "properties": {
+        "totalSeconds": { "type": "number", "minimum": 0 },
+        "phases": {
+          "type": "object",
+          "required": ["orientation", "authoring", "verification", "diagnosis"],
+          "additionalProperties": false,
+          "properties": {
+            "orientation": { "type": ["number", "null"], "minimum": 0 },
+            "authoring": { "type": ["number", "null"], "minimum": 0 },
+            "verification": { "type": ["number", "null"], "minimum": 0 },
+            "diagnosis": { "type": ["number", "null"], "minimum": 0 }
+          }
+        }
+      }
+    },
+    "tokens": {
+      "type": "object",
+      "description": "Model token usage for the lane. source names the accounting channel per LLP 0186 OQ1 (which harness meter is trustworthy is OPEN); null source with null counts records an un-metered run honestly, as diary 0058 had to.",
+      "required": ["input", "output", "source"],
+      "additionalProperties": false,
+      "properties": {
+        "input": { "type": ["integer", "null"], "minimum": 0 },
+        "output": { "type": ["integer", "null"], "minimum": 0 },
+        "source": {
+          "type": ["string", "null"],
+          "description": "Accounting channel, e.g. 'claude-code-session-accounting', 'api-usage-header', 'wrapping-proxy'; null when no per-lane meter existed."
+        }
+      }
+    },
+    "correctionLoops": {
+      "type": "array",
+      "description": "Every correction loop in the run: the agent believed a step was done, evidence said otherwise, and it iterated. Attribution rule: benchmarks/protocol.md (DRAFT until ratified at the first instrumented run).",
+      "items": {
+        "type": "object",
+        "required": ["attribution", "summary", "evidence"],
+        "additionalProperties": false,
+        "properties": {
+          "attribution": {
+            "enum": ["snapback-defect", "agent-error", "environment", "ambiguous"],
+            "description": "snapback-defect: platform-under-test defect or doc/type/runtime disagreement (named for the Snapback lane's ratchet but recorded for every lane about its own platform). agent-error: the agent's own authoring mistake. environment: harness/OS/network, not the platform or the agent. ambiguous: could not be attributed under the rule; counts against no one but is reported."
+          },
+          "summary": { "type": "string" },
+          "evidence": {
+            "type": "string",
+            "description": "Pointer to the receipt: an issues/ ticket path, diary anchor, transcript span, or error-code capture."
+          },
+          "errorCode": {
+            "type": ["string", "null"],
+            "description": "Stable diagnostic code where one existed (e.g. a SNAPBACK_* code)."
+          }
+        }
+      }
+    },
+    "handAuthoredLoc": {
+      "type": "object",
+      "description": "Hand-authored source/test lines, generated artifacts excluded (diary 0058's counting rule). A ceremony proxy only — fairness rules score guarantees, not lines.",
+      "required": ["lines", "files"],
+      "additionalProperties": false,
+      "properties": {
+        "lines": { "type": "integer", "minimum": 0 },
+        "files": { "type": "integer", "minimum": 0 },
+        "sharedUiLines": {
+          "type": ["integer", "null"],
+          "description": "Lines of backend-neutral shared UI, when the comparison set shares a presentation layer (diary 0059 pattern)."
+        }
+      }
+    },
+    "rubric": {
+      "type": "object",
+      "description": "Diary 0058's scoring dimensions and weights, adopted unchanged. Scores are 0-100 per dimension; weightedOverall applies the fixed weights: functionalCompleteness 20%, realtimeTyping 10%, offlineBehavior 20%, imagesAssets 10%, dataModelTypeSafety 10%, dxDocsSetup 15%, testabilityDiagnostics 5%, operationsMaturity 10%.",
+      "required": [
+        "functionalCompleteness",
+        "realtimeTyping",
+        "offlineBehavior",
+        "imagesAssets",
+        "dataModelTypeSafety",
+        "dxDocsSetup",
+        "testabilityDiagnostics",
+        "operationsMaturity",
+        "weightedOverall"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "functionalCompleteness": { "type": "number", "minimum": 0, "maximum": 100 },
+        "realtimeTyping": { "type": "number", "minimum": 0, "maximum": 100 },
+        "offlineBehavior": { "type": "number", "minimum": 0, "maximum": 100 },
+        "imagesAssets": { "type": "number", "minimum": 0, "maximum": 100 },
+        "dataModelTypeSafety": { "type": "number", "minimum": 0, "maximum": 100 },
+        "dxDocsSetup": { "type": "number", "minimum": 0, "maximum": 100 },
+        "testabilityDiagnostics": { "type": "number", "minimum": 0, "maximum": 100 },
+        "operationsMaturity": { "type": "number", "minimum": 0, "maximum": 100 },
+        "weightedOverall": { "type": "number", "minimum": 0, "maximum": 100 }
+      }
+    },
+    "authParity": {
+      "type": "object",
+      "description": "Fairness rule 1: the lane's auth posture, labeled explicitly.",
+      "additionalProperties": false,
+      "properties": {
+        "posture": {
+          "enum": ["none", "test-persona-seam", "sessions", "production-auth"]
+        },
+        "notes": { "type": "string" }
+      }
+    },
+    "diary": {
+      "type": "string",
+      "description": "Path to the free-form run diary for this run (diaries/NNNN-*.diary.md or a benchmarks/calibration/ relative path)."
+    },
+    "notes": {
+      "type": "string",
+      "description": "Free-form caveats that don't fit elsewhere (e.g. guarantee differences a score alone would hide)."
+    }
+  }
+}

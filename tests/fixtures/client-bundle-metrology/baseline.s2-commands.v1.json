@@ -1,11 +1,11 @@
 {
   "schemaVersion": "snapback.client-bundle-metrology-supplemental-baseline.v1",
   "source": {
-    "revision": "a88b4914183aa8f57083e8786daf4a5349d9e44c",
+    "revision": "c7433d34cb8a1de0297eefa3381a5cfb9e99ec7f",
     "packageTrees": {
-      "packages/snapback-client": "6ecdb0fe1120417bc0c22300245829d83b4bab97",
+      "packages/snapback-client": "27d790ddbed768b78bd787fa0feebc7294161833",
       "packages/snapback-contract": "b0dbfecd7e674b574d423cf16e8d566d4f804273",
-      "packages/snapback-react": "e0bd16fa3b8b30e85ad698a55760503edabd3546"
+      "packages/snapback-react": "7b78af0b9923a61808d6d09c12a4447b5533d7cd"
     }
   },
   "authorities": [
@@ -41,7 +41,7 @@
   },
   "inputs": {
     "profilesSha256": "9e64a1124786b5806d90ad04801dae14366e582b915ca40afd5d332d1f93fb1c",
-    "lockfileSha256": "2909d4ff00eecfd81fdf7aaba30b10c7d87c5fc239bca8ba6d49a7c8f4afbc39"
+    "lockfileSha256": "d4d0bf8850037640a1f1adb0be58136902e596a60087be2db9b970285dadfa51"
   },
   "behaviorCommands": [
     "node packages/snapback-client/commands.test.mjs",
@@ -53,15 +53,15 @@
       "package": "@expo/snapback-client/commands",
       "fixtureSha256": "8273256d463ba4b9e6f2c798be1c82cda164d70aaabb23ef7e89069c8cbfe217",
       "externals": [],
-      "minifiedBytes": 24615,
-      "gzipBytes": 8626,
-      "brotliBytes": 7514,
-      "outputSha256": "a3c58baea23cf0999bf2967d20f96ccaf2cfcdb1834e3e8ec6ae5ea4607a90bd",
+      "minifiedBytes": 24752,
+      "gzipBytes": 8643,
+      "brotliBytes": 7510,
+      "outputSha256": "94550e1bc5c4218d7071df1e33858cc02420a2fd8fe25da67e27187b2971ab5c",
       "attribution": {
         "packages": [
           {
             "name": "@expo/snapback-client",
-            "bytes": 24350
+            "bytes": 24487
           },
           {
             "name": "<fixture>",
@@ -72,7 +72,7 @@
           {
             "module": "packages/snapback-client/assets.mjs",
             "package": "@expo/snapback-client",
-            "bytes": 14490
+            "bytes": 14627
           },
           {
             "module": "packages/snapback-client/commands.mjs",
@@ -89,7 +89,7 @@
       "metafile": {
         "inputs": {
           "packages/snapback-client/assets.mjs": {
-            "bytes": 36964,
+            "bytes": 37136,
             "imports": []
           },
           "packages/snapback-client/commands.mjs": {
@@ -114,12 +114,12 @@
           }
         },
         "output": {
-          "bytes": 24615,
+          "bytes": 24752,
           "entryPoint": "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/public-subpath-commands.fixture.mjs",
           "imports": [],
           "inputs": {
             "packages/snapback-client/assets.mjs": {
-              "bytesInOutput": 14490
+              "bytesInOutput": 14627
             },
             "packages/snapback-client/commands.mjs": {
               "bytesInOutput": 9860
@@ -137,15 +137,15 @@
       "fixtureSha256": "aaf6bb1e0b23eeb9ba7720a12f7f64fcd930d06f7b0cc8d7474bbdb0ca4f720c",
       "externals": [],
       "resolveOptionalRuntimes": true,
-      "minifiedBytes": 24624,
-      "gzipBytes": 8630,
-      "brotliBytes": 7508,
-      "outputSha256": "dcc91ce8ca6d598f0673b7431af61c3091ddb6e8a4a08e82d8d05aa0b4a774ce",
+      "minifiedBytes": 24761,
+      "gzipBytes": 8647,
+      "brotliBytes": 7511,
+      "outputSha256": "3da1f415833e0efb779519deb70ff7b351a021bdeb4db781d6d240d6cee49f06",
       "attribution": {
         "packages": [
           {
             "name": "@expo/snapback-client",
-            "bytes": 24350
+            "bytes": 24487
           },
           {
             "name": "<fixture>",
@@ -156,7 +156,7 @@
           {
             "module": "packages/snapback-client/assets.mjs",
             "package": "@expo/snapback-client",
-            "bytes": 14490
+            "bytes": 14627
           },
           {
             "module": "packages/snapback-client/commands.mjs",
@@ -173,7 +173,7 @@
       "metafile": {
         "inputs": {
           "packages/snapback-client/assets.mjs": {
-            "bytes": 36964,
+            "bytes": 37136,
             "imports": []
           },
           "packages/snapback-client/commands.mjs": {
@@ -198,12 +198,12 @@
           }
         },
         "output": {
-          "bytes": 24624,
+          "bytes": 24761,
           "entryPoint": "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/resolved-public-subpath-commands.fixture.mjs",
           "imports": [],
           "inputs": {
             "packages/snapback-client/assets.mjs": {
-              "bytesInOutput": 14490
+              "bytesInOutput": 14627
             },
             "packages/snapback-client/commands.mjs": {
               "bytesInOutput": 9860

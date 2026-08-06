@@ -801,6 +801,11 @@ new target is necessary. Portability remains part of the desired outcome.
 
 ## Status
 
+Author ruling (Charlie, 2026-08-06, sitting #4): an LLP 0005 review
+loop scaled to foundational product work is commissioned before the
+Decision-requested acceptance is taken up; owner-Specs for D-workstreams
+are named as each workstream starts, not all upfront.
+
 Draft. Stage 0 (freeze and reconcile) was executed on 2026-08-05: LLP 0182's
 claims were re-verified against the pin and 0182 is Active with four factual
 corrections (`demos/zerobugs/stage0/0182-claim-verification.v1.md`); the D1

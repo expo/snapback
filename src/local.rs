@@ -6869,10 +6869,10 @@ impl LocalSnapback {
             ));
         }
         let definition = self.function_definition(function).cloned().ok_or_else(|| {
-            SnapbackError::error(
-                "SNAPBACK_UNKNOWN_FUNCTION",
-                "runtime",
-                "managed branch execution names no served function",
+            crate::authoring_suggestion::unknown_function_error(
+                &self.functions,
+                function,
+                &[FunctionKind::Mutation, FunctionKind::Action],
             )
         })?;
         if matches!(
@@ -7260,6 +7260,10 @@ impl LocalSnapback {
         self.functions.function(name)
     }
 
+    pub(crate) fn served_function_manifest(&self) -> &FunctionManifest {
+        &self.functions
+    }
+
     pub fn inspect(&mut self) -> SnapbackResult<InspectState> {
         let mut inspect = self.inspect_core()?;
         inspect.ephemeral = self.ephemeral.diagnostics();
@@ -7495,7 +7499,13 @@ impl LocalSnapback {
         expected_generation: Option<&ArtifactGeneration>,
     ) -> SnapbackResult<QueryInvocation> {
         self.validate_prepared_service_authority(&authority)?;
-        let function = self.function(name)?;
+        let function = self.functions.function(name).ok_or_else(|| {
+            crate::authoring_suggestion::unknown_function_error(
+                &self.functions,
+                name,
+                &[FunctionKind::Query, FunctionKind::LiveQuery],
+            )
+        })?;
         self.validate_expected_generation(&authority, expected_generation)?;
         let prepared = InvocationGate::prepare_function(authority, function)?;
         let input = prepared.canonicalize_input(input);
@@ -13580,6 +13590,10 @@ impl LocalSnapback {
                     StagedRecordedMutation::Done(Box::new(recorded)),
                 ));
             }
+            // @ref LLP 0131#runtime-ingress-validation — the staged HTTP
+            // settlement lane keeps replay recovery first, then validates the
+            // served argument contract before any handler byte or plan step.
+            crate::args_contract::validate_function_args(&function, &input.args)?;
             let telemetry_correlation = telemetry_correlation(&input.correlation);
             let mut observation = Some(self.telemetry.start_classified_span(
                 crate::telemetry_contract::OperationClassIdV1::FUNCTION_MUTATION,
@@ -18341,12 +18355,8 @@ impl LocalSnapback {
                 rows: None,
                 result: None,
                 diagnostic: Some(
-                    SnapbackError::error(
-                        "SNAPBACK_UNKNOWN_FUNCTION",
-                        "runtime",
-                        format!("unknown function {name}"),
-                    )
-                    .diagnostic,
+                    crate::authoring_suggestion::unknown_function_error(&self.functions, name, &[])
+                        .diagnostic,
                 ),
             };
         };
@@ -18685,10 +18695,10 @@ impl LocalSnapback {
                 rows: None,
                 result: None,
                 diagnostic: Some(
-                    SnapbackError::error(
-                        "SNAPBACK_UNKNOWN_FUNCTION",
-                        "runtime",
-                        format!("unknown function {name}"),
+                    crate::authoring_suggestion::unknown_function_error(
+                        &self.functions,
+                        name,
+                        &[FunctionKind::Action],
                     )
                     .diagnostic,
                 ),
@@ -20956,11 +20966,7 @@ impl LocalSnapback {
         name: &str,
     ) -> SnapbackResult<&crate::manifest::FunctionDefinition> {
         self.functions.function(name).ok_or_else(|| {
-            SnapbackError::error(
-                "SNAPBACK_UNKNOWN_FUNCTION",
-                "runtime",
-                format!("unknown function {name}"),
-            )
+            crate::authoring_suggestion::unknown_function_error(&self.functions, name, &[])
         })
     }
 
@@ -25022,10 +25028,10 @@ impl ReadLane {
             .unwrap_or_else(|poisoned| poisoned.into_inner())
             .clone();
         let function = manifests.functions.function(name).ok_or_else(|| {
-            SnapbackError::error(
-                "SNAPBACK_UNKNOWN_FUNCTION",
-                "runtime",
-                format!("unknown function {name}"),
+            crate::authoring_suggestion::unknown_function_error(
+                &manifests.functions,
+                name,
+                &[FunctionKind::Query, FunctionKind::LiveQuery],
             )
         })?;
         validate_expected_generation_against_manifests(
@@ -34165,6 +34171,85 @@ globalThis.__snapbackHandlers = {
         )
         .expect_err("deleted asset refuses at commit");
         assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_ATTACH_UNAVAILABLE");
+    }
+
+    #[test]
+    fn asset_attachment_authority_cross_owner_refuses_at_commit_boundary() {
+        let mut snapback = asset_reference_snapback();
+        let asset_id = asset_ready(&mut snapback, "user_a", b"cross-owner-bytes");
+        let plan = MutationPlan {
+            steps: vec![MutationStep::Insert {
+                table: "posts".to_owned(),
+                values: BTreeMap::from([(
+                    "photo".to_owned(),
+                    ValueExpr::Literal(json!(asset_id)),
+                )]),
+                bind_id_as: None,
+            }],
+            return_value: None,
+        };
+        let error = snapback
+            .db
+            .execute_mutation(
+                &plan,
+                &HandlerInput {
+                    auth: crate::manifest::AuthInput {
+                        user_id: Some("user_b".to_owned()),
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                },
+            )
+            .expect_err("a foreign principal cannot attach the owner's asset");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_FORBIDDEN");
+        assert_eq!(
+            error.diagnostic.message,
+            "attachment caller is not the asset owner"
+        );
+        let row_count = snapback
+            .db
+            .asset_transaction(|tx| {
+                Ok(tx.query_row("SELECT COUNT(*) FROM posts", [], |row| {
+                    row.get::<_, u64>(0)
+                })?)
+            })
+            .expect("count posts after refusal");
+        assert_eq!(row_count, 0, "the refused changeset must roll back the row");
+    }
+
+    #[test]
+    fn asset_attachment_authority_missing_principal_refuses_at_commit_boundary() {
+        let mut snapback = asset_reference_snapback();
+        let asset_id = asset_ready(&mut snapback, "user_a", b"missing-principal-bytes");
+        let plan = MutationPlan {
+            steps: vec![MutationStep::Insert {
+                table: "posts".to_owned(),
+                values: BTreeMap::from([(
+                    "photo".to_owned(),
+                    ValueExpr::Literal(json!(asset_id)),
+                )]),
+                bind_id_as: None,
+            }],
+            return_value: None,
+        };
+        let error = snapback
+            .db
+            .execute_mutation(&plan, &HandlerInput::default())
+            .expect_err("a non-seed attachment requires caller authority");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_FORBIDDEN");
+        assert_eq!(
+            error.diagnostic.message,
+            "attachment requires a caller principal"
+        );
+        let row_count = snapback
+            .db
+            .asset_transaction(|tx| {
+                Ok(tx.query_row("SELECT COUNT(*) FROM posts", [], |row| {
+                    row.get::<_, u64>(0)
+                })?)
+            })
+            .expect("count posts after refusal");
+        assert_eq!(row_count, 0, "the refused changeset must roll back the row");
     }
 
     #[test]
@@ -43836,6 +43921,88 @@ globalThis.__snapbackHandlers = {
             refusal.diagnostic.code,
             "SNAPBACK_SNAPSHOT_BATCH_LIVE_CURSOR_UNSUPPORTED"
         );
+    }
+
+    #[test]
+    fn snapshot_batch_v2_relational_root_change_delivers_live_replace() {
+        // The three-node live test above mutates a bounded-child table; this
+        // pins the other matcher direction — a commit landing only on the
+        // relational node's root table must resnapshot the whole tuple
+        // (LLP 0157 §D4 table-granular live_replace), which is exactly the
+        // Fleet Move-1 burst shape.
+        use crate::manifest::{MutationPlan, MutationStep, ValueExpr};
+        let (schema, mut functions, _) = snapshot_batch_v2_publication_fixture(1, 1);
+        functions.functions.push(FunctionDefinition::new(
+            "addBook",
+            FunctionKind::Mutation,
+            FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+                steps: vec![MutationStep::Insert {
+                    table: "books".to_owned(),
+                    values: [
+                        ("title".to_owned(), ValueExpr::Arg("title".to_owned())),
+                        ("authorSlug".to_owned(), ValueExpr::Arg("slug".to_owned())),
+                        ("ownerId".to_owned(), ValueExpr::Literal(json!("user-a"))),
+                    ]
+                    .into_iter()
+                    .collect(),
+                    bind_id_as: None,
+                }],
+                return_value: None,
+            })),
+        ));
+        let mut snapback = LocalSnapback::memory().expect("mixed v2 store");
+        snapback.apply_schema(schema).expect("apply schema");
+        let diagnostics = snapback.load_functions(functions);
+        assert!(
+            diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.severity
+                    != crate::diagnostic::DiagnosticSeverity::Error),
+            "artifact activates: {diagnostics:?}",
+        );
+        seed_snapshot_batch_v2_fixture(&mut snapback, "never-visible");
+        let subscribed = snapback
+            .subscribe_live(
+                "mixedView",
+                LiveSubscribeInput {
+                    connection_id: "conn-v2-root".to_owned(),
+                    input: HandlerInput {
+                        args: json!({"parentId":"parent-a"}),
+                        auth: AuthInput {
+                            user_id: Some("user-a".to_owned()),
+                            ..AuthInput::default()
+                        },
+                        ..HandlerInput::default()
+                    },
+                    authorization_namespace: None,
+                    supersedes: None,
+                    resume_from_token: None,
+                },
+            )
+            .expect("cursor-free v2 subscribe");
+        assert_eq!(
+            subscribed.snapshot.expect("initial live snapshot").rows[0]["kind"],
+            "visible"
+        );
+        snapback
+            .invoke_mutation(
+                "addBook",
+                HandlerInput {
+                    args: json!({"title":"gamma","slug":"author-a"}),
+                    auth: AuthInput {
+                        user_id: Some("user-a".to_owned()),
+                        ..AuthInput::default()
+                    },
+                    ..HandlerInput::default()
+                },
+            )
+            .expect("commit touching only the relational root table");
+        let frames = rqs_drained_envelopes(&mut snapback, "conn-v2-root");
+        assert!(
+            !frames.is_empty(),
+            "a relational-root-only commit must deliver live_replace"
+        );
+        assert!(frames.iter().all(|frame| frame["kind"] == "live_replace"));
     }
 
     #[test]

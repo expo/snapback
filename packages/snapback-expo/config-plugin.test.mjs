@@ -60,7 +60,14 @@ try {
   assert.equal(receipt.format, 'snapback.expo-integration-receipt.v1');
   assert.equal(receipt.descriptor.path, 'snapback/generated/app.descriptor.json');
   assert.equal(receipt.descriptor.identity, descriptor.identity.descriptor);
-  assert.deepEqual(receipt.native.adapters, ['react-native-app-state']);
+  assert.deepEqual(receipt.native.adapters, [
+    'react-native-app-state',
+    'expo-picker-uri-to-structural-blob',
+    'expo-file-system-picker-cache-fallback',
+    'expo-wintercg-fetch',
+    'snapback-client-sha256',
+    'ordinary-session-custody',
+  ]);
   assert.deepEqual(receipt.native.permissions, { ios: [], android: [] });
   assert.equal(receipt.buildInvalidation.inputs.length, 3);
   assert.equal(configured.extra.retained, true);

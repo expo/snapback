@@ -558,6 +558,51 @@
     "operations.explain": {
       "operability": "direct",
       "note": "Route-level twin of the already-classified function.explain host operation (mutationDryRun explain): same admin authority, same explain semantics, reachable at POST /_snapback/api/operations/explain. Direct for the same reason function.explain is; apiOnly derivation stands (the host-op spelling carries the CLI/MCP story)."
+    },
+    "storage.protected-erasure": {
+      "operability": "direct",
+      "behavior": {
+        "readOnly": false,
+        "destructive": true,
+        "approvalPosture": "humanApprovalRequired",
+        "idempotent": true,
+        "persistsAcrossRestart": true
+      },
+      "note": "LLP 0184 storage-owner classification (2026-08-06): POST /_snapback/api/storage/protected-erasure erases one identified row (qualified_table + row_id), gated by re-validating a concrete admin credential inside the same synchronous commit window and a fenced-authority publication (LLP 0165 protected-deletion-authority-audit). A narrowly-scoped, legitimate operator erasure capability, not system-internal plumbing \u2014 an agent should be able to discover and invoke it, but the row it deletes is irreversible and likely privacy/compliance-sensitive, so approvalPosture is humanApprovalRequired rather than a bare confirmFirst. apiOnly stands: no CLI/MCP tool exists yet. Rule-5 completion (2026-08-06, memo-verified): exact retries with the same operationId/authority/target are idempotent and resume open checkpoint-destruction obligations; divergent reuse refuses; the deletion, fence, and receipt persist across restart (LLP 0165 crash/reopen record). Invocation recipe: guide anchor above.",
+      "intents": [
+        "protected erasure",
+        "permanently erase one row",
+        "destroy row history",
+        "compliance delete",
+        "invalidate checkpoints for a row"
+      ],
+      "guide": "operating/agent-controls.md#specialist-api-operations-apionly",
+      "authorities": [
+        "llp/0165-proof-domains-and-checkpoints"
+      ]
+    },
+    "storage.operation-coverage.activate": {
+      "operability": "direct",
+      "note": "LLP 0184 storage-owner classification (2026-08-06): POST /_snapback/api/storage/operation-coverage/activate activates a coverage manifest for a target/coverage profile (LLP 0162 managed-branch row-4 publication). InvocationSource::OperationCoverageActivation resolves to the ordinary admin credential class, not a system-internal-only source, and the route is ResponseSensitivity::OperatorMetadata rather than destructive \u2014 ordinary operator maintenance, ordinarily agent-invokable. apiOnly stands: no CLI/MCP tool exists yet. Rule-5 completion (2026-08-06, memo-verified): accepts only the v1 local-dev-sqlite-ibex / local-envelope-mapped-writers.v1 pair; exact repeat returns the same active manifest; the manifest persists and re-arms on database open. Success does NOT publish the AgentSafe capability or waive LLP 0162/0163 gates. targets [local] is a discovery fact (request contract exposes only the local target; handler does not yet compare declared target with derived identity) \u2014 invocation admission stays authoritative per \u00a7Design/1.",
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "idempotent": true,
+        "persistsAcrossRestart": true
+      },
+      "availabilityTargets": [
+        "local"
+      ],
+      "intents": [
+        "activate operation coverage",
+        "commit envelope writer manifest",
+        "arm writer authority",
+        "agent-safe writer admission"
+      ],
+      "guide": "operating/agent-controls.md#specialist-api-operations-apionly",
+      "authorities": [
+        "llp/0163-operation-identity-and-commit-envelope"
+      ]
     }
   },
   "pinned": {

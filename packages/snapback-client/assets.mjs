@@ -334,12 +334,21 @@ export class SnapbackAssetClient {
   #client;
   #taskStore;
   #chunkBytes;
+  #fetch;
   #tasks = new WeakMap();
 
-  constructor(client, { taskStore = null, chunkBytes = DEFAULT_CHUNK_BYTES } = {}) {
+  constructor(client, {
+    taskStore = null,
+    chunkBytes = DEFAULT_CHUNK_BYTES,
+    fetch: fetchOverride = null,
+  } = {}) {
+    if (fetchOverride !== null && typeof fetchOverride !== 'function') {
+      throw new TypeError('asset client fetch adapter must be a function');
+    }
     this.#client = client;
     this.#taskStore = taskStore ?? createMemoryAssetTaskStore();
     this.#chunkBytes = chunkBytes;
+    this.#fetch = fetchOverride ?? ((...args) => fetch(...args));
   }
 
   /** Persisted-fact partition: app (base URL) + authority identity. */
@@ -443,7 +452,7 @@ export class SnapbackAssetClient {
       'content-type': 'application/json',
       ...this.#custodyHeaders(userId, authorityCapture, externalTransportGeneration),
     };
-    const response = await fetch(`${this.#client.baseUrl}${path}`, {
+    const response = await this.#fetch(`${this.#client.baseUrl}${path}`, {
       method,
       headers,
       body: body === undefined ? undefined : JSON.stringify(body),
@@ -588,7 +597,7 @@ export class SnapbackAssetClient {
     try {
       if (state.offset === null) {
         // Resume: the acknowledged offset is the server's fact.
-        const head = await fetch(
+        const head = await this.#fetch(
           `${this.#client.baseUrl}${state.transfer.uploadUrl}`,
           {
             method: 'HEAD',
@@ -633,7 +642,7 @@ export class SnapbackAssetClient {
         const bytes = await chunkBytesOf(state.file.slice(state.offset, end));
         const controller = new AbortController();
         task._bindAbort(controller);
-        const response = await fetch(
+        const response = await this.#fetch(
           `${this.#client.baseUrl}${state.transfer.uploadUrl}`,
           {
             method: 'PATCH',
@@ -779,6 +788,20 @@ export class SnapbackAssetClient {
       return `${base}?maxWidth=${maxWidth}`;
     }
     return base;
+  }
+
+  /** A pasteable public-immutable rendition URL. The caller selects one
+   * concrete ready variant from the authorized record projection first. */
+  publicDeliveryUrl(assetId, { variant = 'primary', width = null } = {}) {
+    if (typeof variant !== 'string' || variant.length === 0 || variant === 'best') {
+      throw new TypeError('publicDeliveryUrl requires a concrete rendition variant');
+    }
+    const base = `${this.#client.baseUrl}/assets/public/${encodeURIComponent(assetId)}/${encodeURIComponent(variant)}`;
+    if (width === null) return base;
+    if (!Number.isSafeInteger(width) || width <= 0) {
+      throw new TypeError('publicDeliveryUrl width must be a positive integer');
+    }
+    return `${base}?width=${width}`;
   }
 
   /**

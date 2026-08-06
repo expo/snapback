@@ -260,3 +260,272 @@ acceptance, and confirm the LLP 0162 author's row-13 rescope is transcribed
 ATTACH/TEMP denial, and/or keyed coverage receipts) so a future stronger claim
 than "review aid" has a home. No blocking code change is required for the
 narrow claim as scoped.
+
+---
+
+## Round 2 — 2026-08-06, commit 96fd0ad1c
+
+**Family:** fable
+**Provider/runtime:** Anthropic / Claude (Fable 5), Claude Code agent session
+**Date:** 2026-08-06
+**Redacted:** no
+**Method:** fresh clean-context session; read-only worktree pinned at
+`96fd0ad1c` (`fix(forks): close derived-fork review blockers`). Declared
+**delta round**: I read both families' round-1 artifacts under `llp/reviews/`
+and remained blind to the other family's round-2 work. I read the whole fix
+diff, then attacked the resulting code: `src/storage/write_authority.rs`,
+`src/storage.rs`, `src/instance_fork.rs`, `src/cli.rs`, `src/server.rs`,
+`src/operation_ledger.rs`, `src/proof_checkpoint.rs`, and
+`tests/instance_fork_cli_v1.rs`, plus LLP 0158/0165 and the guide page. Tests
+read for non-vacuity, not executed (`vendor/ibex` uninitialized, no
+`target/`). Every finding cites file:line at this commit. The two High
+findings below were reached by construction from the code, not by running it;
+each names the exact statement, the exact deny arm, and the test gap that
+hides it.
+
+### Overall verdict
+
+**NOT READY for publication of the narrow local `operating.instance-forks`
+claim** — a change from my round-1 "READY, contingent on governance". All four
+round-1 blockers are genuinely closed (three of them elegantly), and the
+governance gate I flagged is now clearer, not worse. But the fix slice
+introduces two regressions in the *armed* fork class — precisely the class the
+publication is about — and neither is covered by the new tests, because every
+end-to-end renewal and maintenance test in the corpus runs against an
+**unarmed** fork. One of them can leave a fork unmanageable by every lifecycle
+verb including `recover`. Both are ordinary bugs with small fixes; this is a
+"fix two things and re-run" NOT READY, not a design reversal.
+
+### Disposition of the round-1 blockers
+
+**B1 — cross-app lifecycle selection via a shared `--fork-root`: CLOSED.**
+The binding is a three-carrier construction and I could not defeat it inside
+the CLI. The caller's identity is loaded from its *own* root
+(`.snapback/instance-fork-app-identity.v1.json`) and refuses unless the file
+names its own canonical path, so copying another root's identity file in does
+not help (`src/instance_fork.rs:207-241`). Selection then requires the
+registry row's `appRoot` to equal that canonical root **and** the row's
+`lineage.appId` to equal the caller's app id
+(`validate_registry_app_binding`, `:2521-2548`), and separately requires the
+fork-local `fork-app-binding-receipt.json` to agree with the registry
+(`:2659-2671`) and with the caller (`managed_target`, `:2721-2750`). All eight
+verbs bind: create (`src/cli.rs:3397`), list (`:3732`), inspect (`:3807`),
+diff (`:3887`), drop (`:3921`), renew (`:3951`), reap (`:3982`), recover
+(`:4013`). Legacy rows without `appRoot` fail closed with
+`SNAPBACK_FORK_APP_BINDING_REQUIRED` rather than acting as a wildcard
+(`:2525-2530`), and `list` no longer takes its `appId` from an arbitrary first
+entry (`src/cli.rs:3772`).
+
+The evidence is non-vacuous at both levels: the module matrix builds two app
+roots with the *same* logical app id sharing one fork root and asserts
+mismatch on `managed_target`/`renew`/`drop`/`recover_bound` in both directions,
+then flips one row to `appRoot: None` and asserts the legacy refusal
+(`src/instance_fork.rs:6499-6584`); the executable matrix does the same
+against live forks across list, inspect, `inspect --format
+admin-token-path`, diff, renew, drop, recover, cross-credential mutation over
+HTTP, and per-fork data separation (`tests/instance_fork_cli_v1.rs:547-700`).
+That last one matters: the credential-projection leg is what turns this from a
+listing-hygiene fix into an authority fix.
+
+*Residual (Low):* the binding receipt's digest is unkeyed SHA-256 computed
+from its own fields (`src/instance_fork.rs:1104-1122, 1279-1288`), so it is
+tamper-*evident* against accident, not tamper-proof against a same-user
+process that rewrites the fork directory. That is exactly the boundary
+LLP 0158 §threat-model and the new 0165 paragraph state, and it is the
+boundary the round-1 blocker actually named ("an accidental cross-selection
+hazard within the cooperating local threat model"), so I call this closed
+rather than partially closed.
+
+**B2 — armed-authorizer bypasses: CLOSED, with the class name honestly
+narrowed** from `authorizer-backed-app-rows-v1` to
+`registered-connection-defensive-app-rows-v1`
+(`src/instance_fork.rs:3958-3964`). Details and my attack attempts are in the
+companion Scope-1 artifact; the security-relevant summary is: allow-list
+authorizer with `_ => Deny` (`src/storage/write_authority.rs:803-809`),
+verified `SQLITE_DBCONFIG_DEFENSIVE` on every armed writable connection
+(`:349-351, 396-399, 813-821`), journal/version tables promoted to a
+token-gated class (`:664-667, 711-721`), covered-table writes restricted to
+the four envelope adapters plus rolled-back `DryRun` (`:176-189, 306-311`),
+and one factory for second writable connections
+(`src/storage.rs:10709-10769`) proven not to inherit a primary token
+(`src/storage.rs:27373-27461`).
+
+**B3 — receipt identity: CLOSED.** Both surfaces are v3 with `(base, head]`
+stream-qualified boundaries, `attribution: "absent-v1"`, and a
+JCS/domain-separated digest with a golden-vector + per-field tamper test
+(`src/instance_fork.rs:904-931, 994-1014, 1124-1159, 6738-6846`). The word
+"attributed" is gone from the derived surface, including the CLI summary field
+(`src/cli.rs:3819`).
+
+**B4 — racy admission and unbounded diff work: CLOSED.** `admit_creation`
+takes a root-wide `flock` and the caller holds it from observation through
+registry intent and the authoritative rename
+(`src/instance_fork.rs:3198-3240`; `src/cli.rs:3408-3441`). The race test is
+real: a `Barrier` releases two threads into `admit_creation` +
+`publish_managed_bound_with_base` at both the count and total-byte boundary,
+and asserts exactly one success, the refusal's `resource`, and one registry
+entry (`src/instance_fork.rs:6586-6666`). Net-diff work is metered per row
+during streaming with journal/scan/byte/output limits and a WAL-byte seed
+(`:3573-3643, 3715, 3747-3752, 3829-3844, 3884-3897`), proven on unchanged,
+revert-heavy, and byte-heavy inputs (`:6978-7090`). Raw-WAL header/frame
+checksum validation is new and tested (`:4460-4524, 7445+`).
+
+*Residual (Low):* only the `--net` path is byte-bounded. The default journal
+receipt still bounds a `COUNT(*)` before materializing and has no byte budget
+(`src/instance_fork.rs:3374-3431`), while the guide now claims both surfaces
+meter bytes "during streaming".
+
+### New findings in the fix slice
+
+1. **High (publication blocker) — `fork renew` fails on an armed fork and
+   leaves it unmanageable.** `apply_renewal` now opens a *registered* writer
+   on the live fork database (`src/instance_fork.rs:3024-3027`) and then calls
+   `sync_sqlite_set`, whose first statement is `PRAGMA wal_checkpoint(FULL);`
+   (`:1351-1357`). On an armed fork that connection reconstructs the durable
+   coverage manifest, verifies defensive mode, and installs the new policy
+   (`src/storage.rs:10731-10768`) — under which `wal_checkpoint` is not in
+   either read-only pragma allow-list and carries a `pragma_value`, so it
+   **denies** (`src/storage/write_authority.rs:763-802`). Arming is durable
+   and reconstructable by design (`src/operation_ledger.rs:1262-1281` →
+   `activate_mutation_coverage_in`; proven for a second connection by the
+   fix's own test at `src/storage.rs:27373-27461`), so any fork created
+   through the complete-pair carrier path (`src/cli.rs:3446-3450, 3543-3546`)
+   is affected.
+
+   The failure is not clean. `renew_managed_with_cut` writes the staging
+   sentinel and the renewal intent first (`src/instance_fork.rs:2983-2997`),
+   and inside `apply_renewal` the lineage `UPDATE _snapback_meta …`
+   autocommits *before* the denied checkpoint (`:3029-3032`). The result is a
+   fork whose database lineage carries the new expiry while its mint receipt
+   and registry row carry the old one — which `managed_target_evidence`
+   rejects with `SNAPBACK_FORK_EVIDENCE_MISMATCH` (`:2649-2658`), so
+   `inspect`, `diff`, `drop`, and `renew` all refuse, and `reap` cannot clear
+   it. `fork recover` is the documented repair and it re-enters the same
+   `apply_renewal` from the durable intent (`:4636-4667`), so it fails
+   identically. The quarantine sentinel also remains, so a restart of that
+   fork refuses. The operator's only remaining move is manual `rm -rf`.
+
+   *Why the corpus misses it:* the one executable renewal success test builds
+   its app root as an empty directory
+   (`tests/instance_fork_cli_v1.rs:1976-1986`), so no
+   `snapback/generated` pair exists, no startup carrier is written, and the
+   fork is never armed (`src/cli.rs:3446-3450`). The armed end-to-end test
+   (`tests/instance_fork_cli_v1.rs:213-400`) never renews, and the same-appId
+   matrix renews only *across* roots, where the binding check refuses before
+   `apply_renewal` is reached (`tests/instance_fork_cli_v1.rs:612-628`).
+
+   *Resolves:* admit the non-mutating maintenance pragmas (`wal_checkpoint`,
+   `shrink_memory`) on armed connections, or checkpoint through a path that
+   is not statement-prepared, or drop the checkpoint from the lifecycle
+   writer and rely on the existing `sync_sqlite_files` fsyncs. Whatever the
+   choice, add a renew (and a `recover`-after-interrupted-renew) test against
+   a fork created with the todo app root, and consider making the lineage
+   update + checkpoint one failure-atomic step so a mid-renewal error cannot
+   desynchronize the three carriers.
+
+2. **Medium — journal retention pruning is denied on every armed fork.**
+   `LocalDatabase::prune_change_journal` runs
+   `DELETE FROM _snapback_changes WHERE …` on the primary connection with no
+   writer token (`src/storage.rs:3213-3277`, delete at `:3272-3275`). Under
+   the new integrity-table arm that requires `permits_app_write()`, which is
+   false with no active writer (`src/storage/write_authority.rs:711-721,
+   306-311`), so it denies. The server's maintenance sweep calls it every
+   ordinary tick (`src/server.rs:17074-17085`) and the maintenance worker is
+   spawned unconditionally at fork boot, unlike cron/jobs/assets which are
+   explicitly idled (`src/cli.rs:7953` vs `:7920-7952`). Effect: an armed
+   fork records a `MaintenanceOperation::JournalPrune` error on every sweep
+   and its change journal grows without bound for the fork's whole lifetime;
+   a busy long-lived fork can then hit the diff journal-row bound and lose
+   `fork diff` too. Second-order: because the floor can never advance, the
+   retention-gap downgrade to `journal-enumerated-v1` becomes unreachable in
+   production, so that honest-labeling path is no longer exercised by
+   anything but hand-built fixtures.
+
+   The same shape probably reaches protected-record erasure, which deletes an
+   application row and rewrites the journal with no token
+   (`src/proof_checkpoint.rs:2789-2850`); no lane in
+   `LocalWriterLaneV1` is entered for it anywhere in production. I did not
+   confirm the route is reachable on a fork, so I record it as an instance to
+   check while fixing, not as a separate finding.
+
+   *Resolves:* give the prune (and any other production `_snapback_changes`/
+   `_snapback_version` writer) a system lane that `permits_app_write`
+   recognizes, or exempt those two tables from the token requirement when the
+   statement originates from a named system writer. Add one test that runs a
+   maintenance sweep against an armed fork and asserts the journal actually
+   shrinks.
+
+3. **Low — the registered-writer factory is fail-open on reconstruction
+   failure.** `open_registered_system_writer_v1` sets whatever manifest
+   `active_coverage_manifest` returns; if that is `None` on a database that is
+   in fact armed, `install()` early-returns without an authorizer and the
+   system-lane token still issues, producing an unrestricted writable
+   connection (`src/storage.rs:10731-10768`;
+   `src/storage/write_authority.rs:338-352`). Reading the *schema* manifest
+   fails closed (empty `covered_tables` plus the armed generic deny arm), but
+   the manifest branch does not. *Resolves:* refuse when the fork coverage
+   carrier is present but no manifest reconstructs. The same asymmetry exists
+   in `refresh_writer_authority_manifest` (`src/storage.rs:2455-2462`) and is
+   older than this commit.
+
+4. **Low — `arm_manifest` runs `PRAGMA shrink_memory` after publishing the
+   manifest** (`src/storage/write_authority.rs:403-419`). On a first arm the
+   authorizer is not yet installed so it succeeds; on any connection where the
+   authorizer is already installed (re-arm), the pragma denies and activation
+   fails through `cache_release?`. Reorder the shrink before `set_manifest`,
+   or allow it.
+
+5. **Low — legacy forks become permanently unreapable while still counting
+   against admission.** `reap` deliberately skips entries that answer
+   `APP_BINDING_REQUIRED`/`APP_BINDING_MISMATCH`
+   (`src/cli.rs:3088-3099`), and the guide tells operators to "inspect and
+   migrate/recreate it out of band"
+   (`guide/operating/instance-forks.md`, diagnostics table). But
+   `enforce_creation_limits` measures `directory_tree_bytes(fork_root)` over
+   the *whole* root (`src/instance_fork.rs:3178-3190`), so an upgrade with
+   live pre-binding forks leaves bytes that no command will reclaim yet that
+   count toward `--max-total-bytes`. *Resolves:* document the manual removal
+   path explicitly, or give `reap` an opt-in `--unbound` sweep that requires
+   the operator to name the ids.
+
+6. **Low — one app root can only ever fork one logical app.**
+   `ensure_expected_app` pins `(canonical root, appId)` on first `fork create`
+   and refuses any later create whose parent database carries a different app
+   id (`src/instance_fork.rs:151-202`). That is the right default, but nothing
+   documents how to re-point a worktree; the guide's mismatch row only covers
+   fork entries, not the app-root identity file.
+
+7. **Low (perf, note only) — every denied egress attempt now opens a
+   connection and runs three reconstruction queries.**
+   `DerivedForkRuntime::deny` goes through the registered factory
+   (`src/instance_fork.rs:2011-2027` → `src/storage.rs:10731-10768`), which is
+   strictly more work per denial than the previous raw open. Correctness is
+   unaffected (the marker table is `_snapback_*`, admitted by the system arm);
+   a handler looping on `ctx.fetch` just pays more.
+
+### Round-1 concerns, re-checked
+
+- Round-1 #1 (tamper-evident, not tamper-proof) and #2 (authorizer catch-all)
+  are both **addressed** — #2 in code, #1 by narrowing the class name and
+  adding the explicit boundary paragraph (`llp/0165-…spec.md:405-417`) and the
+  guide's closing paragraph. My round-1 open question 1 (a second writable
+  connection anywhere) is now answered and enforced by construction for the
+  three known sites.
+- Round-1 #3 (unmetered runtime byte growth) is **documented** rather than
+  fixed, which is the right call for a finite-TTL surface: the guide now says
+  admission is an estimate and points at filesystem/container quotas.
+- Round-1 #4 (lingering cleanup-lock files on reap's non-drop paths) is
+  **deliberately retained** with a new comment explaining why unlinking a lock
+  with queued waiters is worse (`src/cli.rs:3073-3076`). I accept that; it is
+  a better answer than the one I suggested.
+
+### Recommended next step
+
+Keep `operating.instance-forks` at target `none`. Fix finding N1 and N2, land
+the two tests that would have caught them (renew + `recover` against an armed
+complete-pair fork; one maintenance sweep against an armed fork asserting the
+journal shrinks), and re-run the executable fork suites on both supported
+platforms. The three governing Specs are ready in my companion review, so once
+those two regressions close and the LLP 0185 Phase 6 item-0 acceptance gate is
+satisfied, this surface is publishable: B1–B4 are closed on their merits, and
+the honest-labeling discipline in this slice is stronger than what it replaced.

@@ -72,9 +72,17 @@ await runAcceptance(suite, async () => {
   await suite.check('text-only send uses the generated surface command and commits once', async () => {
     const before = await messages();
     const task = surface.commands.send({ body: 'G3 text command' });
+    const snapshots = [];
+    const off = task.subscribe(() => snapshots.push(task.snapshot()));
     const outcome = await task.done;
+    off();
     assert.equal(outcome.kind, 'committed');
     assert.equal(task.snapshot().status, 'succeeded');
+    assert.deepEqual(commandStatuses(snapshots), ['preparing', 'committing', 'succeeded']);
+    assert(
+      snapshots.every((snapshot) => snapshot.asset === null),
+      'text-only command never starts or adopts an asset child',
+    );
     const after = await messages();
     assert.equal(after.length, before.length + 1);
     assert(after.some((row) => row._id === outcome.result && row.text === 'G3 text command'));
@@ -83,12 +91,38 @@ await runAcceptance(suite, async () => {
   await suite.check('the same typed command call admits one image source', async () => {
     const task = surface.commands.send({ body: 'G3 image command', image: pngBlob() });
     const phases = [];
-    const off = task.subscribe(() => phases.push(task.snapshot().status));
+    const snapshots = [];
+    const off = task.subscribe(() => {
+      const snapshot = task.snapshot();
+      phases.push(snapshot.status);
+      snapshots.push(snapshot);
+    });
     const outcome = await task.done;
     off();
     assert.equal(outcome.kind, 'committed');
     assert(phases.includes('transferring'));
     assert(phases.includes('committing'));
+    assert.deepEqual(commandStatuses(snapshots), [
+      'preparing',
+      'transferring',
+      'committing',
+      'succeeded',
+    ]);
+    const attemptIds = distinctSnapshotValues(snapshots, (snapshot) => snapshot.asset?.attemptId);
+    const assetIds = distinctSnapshotValues(snapshots, (snapshot) => snapshot.asset?.assetId);
+    const mutationIds = distinctSnapshotValues(snapshots, (snapshot) => snapshot.mutation?.id);
+    assert.equal(attemptIds.length, 1, `one command owns one asset attempt: ${JSON.stringify(attemptIds)}`);
+    assert.equal(assetIds.length, 1, `one command owns one asset: ${JSON.stringify(assetIds)}`);
+    assert.equal(mutationIds.length, 1, `one command owns one mutation attempt: ${JSON.stringify(mutationIds)}`);
+    const committingIndex = snapshots.findIndex((snapshot) => snapshot.status === 'committing');
+    assert.notEqual(committingIndex, -1);
+    const committingMutationId = snapshots[committingIndex].mutation.id;
+    assert(
+      snapshots.slice(committingIndex).every((snapshot) => (
+        snapshot.mutation == null || snapshot.mutation.id === committingMutationId
+      )),
+      'the mutation identity never changes from committing through the terminal snapshot',
+    );
     const row = (await messages()).find((candidate) => candidate._id === outcome.result);
     assert.equal(row?.kind, 'image');
     assert.equal(typeof row?.image, 'string');
@@ -104,12 +138,69 @@ await runAcceptance(suite, async () => {
       image: pngBlob(),
       failAfterFinalize: true,
     });
+    const snapshots = [];
+    const off = task.subscribe(() => snapshots.push(task.snapshot()));
     const outcome = await task.done;
+    off();
     assert.equal(outcome.kind, 'failed');
     assert.equal(task.snapshot().status, 'failed');
     assert.equal(task.snapshot().asset.status, 'ready');
     assert.equal(outcome.residue.unattached, 'inferred');
+    assert.deepEqual(commandStatuses(snapshots), [
+      'preparing',
+      'transferring',
+      'committing',
+      'failed',
+    ]);
+    const terminal = task.snapshot();
+    const residue = terminal.residue;
+    assert.equal(residue.assetId, terminal.asset.assetId);
+    assert(['inferred', 'unknown'].includes(residue.unattached));
+    assert.notEqual(residue.unattached, 'authoritative');
+    assert.equal(typeof residue.basis, 'string');
+    assert(residue.basis.length > 0);
+    assert.equal(typeof residue.cleanupPolicy, 'string');
+    assert(residue.cleanupPolicy.length > 0);
+    for (const repair of terminal.repairs) {
+      assert.equal(typeof repair.kind, 'string');
+      assert.doesNotMatch(repair.kind, /delete|cleanup/iu);
+      assert.equal(typeof repair.machineApplicable, 'boolean');
+      assert.equal(typeof repair.requiresApproval, 'boolean');
+    }
+    const inspected = await hostOp(server, 'asset.inspect', { assetId: residue.assetId });
+    assert.equal(inspected.asset.assetId, residue.assetId);
+    assert.equal(inspected.asset.availability, 'ready');
+    assert.notEqual(inspected.asset.availability, 'deleted');
     assert.equal((await messages()).length, before.length);
+
+    const retry = task.retry();
+    const retrySnapshots = [];
+    const retryOff = retry.subscribe(() => retrySnapshots.push(retry.snapshot()));
+    const retryOutcome = await retry.done;
+    retryOff();
+    assert.equal(retryOutcome.kind, 'failed', 'the unchanged fixture refusal re-refuses on retry');
+    assert.equal(retry.snapshot().status, 'failed');
+    assert.equal(retry.id, task.id);
+    assert.equal(retry.generation, task.generation + 1);
+    assert.equal(retry.snapshot().mutation.id, terminal.mutation.id);
+    assert.equal(retry.snapshot().asset.assetId, terminal.asset.assetId);
+    assert.equal(retry.snapshot().asset.attemptId, terminal.asset.attemptId);
+    assert.equal(
+      distinctSnapshotValues(
+        [...snapshots, ...retrySnapshots],
+        (snapshot) => snapshot.asset?.attemptId,
+      ).length,
+      1,
+      'retry adopts the ready asset task instead of starting a shadow upload attempt',
+    );
+    assert.equal(
+      distinctSnapshotValues(
+        [...snapshots, ...retrySnapshots],
+        (snapshot) => snapshot.mutation?.id,
+      ).length,
+      1,
+      'retry reuses the original mutation identity',
+    );
   });
 
   await suite.check('missing session refuses at the boundary reached by each branch', async () => {
@@ -153,6 +244,38 @@ async function messages() {
   return (await client.query(app.api.queries.messagesForConversation, {
     args: { conversationId: 'conversation_engine_room' },
   })).rows;
+}
+
+function commandStatuses(snapshots) {
+  return snapshots
+    .map((snapshot) => snapshot.status)
+    .filter((status, index, statuses) => index === 0 || status !== statuses[index - 1]);
+}
+
+function distinctSnapshotValues(snapshots, read) {
+  return [...new Set(
+    snapshots
+      .map(read)
+      .filter((value) => typeof value === 'string'),
+  )];
+}
+
+async function hostOp(runningServer, operation, input, userId = null) {
+  const response = await fetch(`${runningServer.baseUrl}/_snapback/api/host-ops`, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'x-snapback-admin-token': runningServer.adminToken,
+      ...(runningServer.impersonationCapability
+        ? { 'x-snapback-impersonation-capability': runningServer.impersonationCapability }
+        : {}),
+    },
+    body: JSON.stringify({ operation, input, ...(userId ? { userId } : {}) }),
+  });
+  const body = await response.json();
+  assert.equal(response.status, 200, `${operation}: ${JSON.stringify(body)}`);
+  assert.equal(body.ok, true, `${operation}: ${JSON.stringify(body.diagnostics ?? body)}`);
+  return body.data ?? body.result ?? body;
 }
 
 async function resetSeed(runningServer) {

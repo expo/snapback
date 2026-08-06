@@ -194,10 +194,17 @@ const client = { baseUrl, subscribeLive: () => {} };
 // --- upload end to end: chunked, checksummed, digested ---
 {
   const store = createMemoryAssetTaskStore();
+  const transportCalls = [];
   // No explicit chunkBytes: the client must narrow its default to the
   // create response's declared maxChunkBytes (limits preflight,
   // 20260801-0044-limits-preflight-ergonomics).
-  const assets = new SnapbackAssetClient(client, { taskStore: store });
+  const assets = new SnapbackAssetClient(client, {
+    taskStore: store,
+    fetch: (...args) => {
+      transportCalls.push(args);
+      return fetch(...args);
+    },
+  });
   const payload = 'twenty-six characters here!!';
   const file = makeFile(payload);
   const seen = [];
@@ -233,6 +240,11 @@ const client = { baseUrl, subscribeLive: () => {} };
     assert.match(patch.headers['upload-checksum'], /^sha256 [A-Za-z0-9+/]+=*$/);
     assert.equal(patch.headers['tus-resumable'], '1.0.0');
   }
+  assert.equal(
+    transportCalls.length,
+    state.requests.length,
+    'the registered host transport owns create, TUS PATCH, and finalize',
+  );
   // The client narrowed its default chunk to the declared maxChunkBytes
   // instead of discovering the ceiling by 413.
   for (const [, attempt] of state.attempts) {
@@ -356,6 +368,14 @@ const client = { baseUrl, subscribeLive: () => {} };
     delivering.deliveryUrl('asset_9', { variant: 'thumb' }),
     `${baseUrl}/assets/records/asset_9/bytes/thumb`,
   );
+  assert.equal(
+    delivering.publicDeliveryUrl('asset public', { variant: 'chat' }),
+    `${baseUrl}/assets/public/asset%20public/chat`,
+  );
+  assert.equal(
+    delivering.publicDeliveryUrl('asset_9', { variant: 'primary', width: 320 }),
+    `${baseUrl}/assets/public/asset_9/primary?width=320`,
+  );
   let refused = false;
   try {
     delivering.deliveryUrl('asset_9');
@@ -363,6 +383,10 @@ const client = { baseUrl, subscribeLive: () => {} };
     refused = error instanceof TypeError;
   }
   assert.ok(refused, 'best selection without maxWidth refuses client-side');
+  assert.throws(
+    () => delivering.publicDeliveryUrl('asset_9', { variant: 'best' }),
+    TypeError,
+  );
 }
 
 // --- watchStore: establishment snapshot, frames, blank, dispose ---

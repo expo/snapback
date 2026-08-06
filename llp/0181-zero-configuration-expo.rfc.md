@@ -6,7 +6,12 @@
 Auth, Assets, Offline, Testing, Hosted environments, Code generation
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-05
-**Revised:** 2026-08-06 (h) — Provider boot-state clarification from the G2
+**Revised:** 2026-08-06 (i) — E2 complete: the provider registers the
+picker/content-URI structural-source adapter, Expo binary transport, client
+checksum support, and ordinary-session custody; one real system-picked image
+committed and rendered on iOS simulator and Android emulator. No background,
+restart, offline, attempt-grant, release, physical-device, or LAN-carrier claim
+follows. Earlier same day (h) — Provider boot-state clarification from the G2
 surface checkpoint: with ordinary authority already available, an exact
 AppDescriptor may reach `ready` from LLP 0114's persisted binding receipt
 while its query/connection projections truthfully remain retained/stale. The
@@ -752,6 +757,28 @@ E0/E1 complete LLP 0176 G1.
 - Do not claim background, restart, offline, or attempt-grant behavior.
 
 E2 completes the Expo arm of LLP 0176 G3.
+
+**2026-08-06 E2 delivery note — PASS.** The shipped package registers the
+adapter at provider construction, not in application screens: `content://`,
+`ph://`, and `file://` picker records become immutable, slice-readable
+structural sources for the existing LLP 0044 task. `expo/fetch` owns native
+URI conversion and binary HTTP/TUS transport; the narrow Expo 57 Android
+picker-cache 404 uses `expo-file-system` `File.bytes()` so its literal error
+body cannot be mistaken for the selected image. Integrity stays on the
+existing client SHA-256/checksum path, and the already adopted ordinary
+session owns reservation, transfer, and mutation custody. Recorded fixtures
+test every named URI shape without a device.
+
+The final iOS simulator run selected a task-added image through the system
+Photos picker; the final Android emulator run installed an image with `adb
+push` plus MediaStore scan and selected it through Android's Photo Picker.
+Both used `chat.commands.send({ body, image: picked })`, rendered the resulting
+delivery URL, truthfully showed a cancelled negative, and reclaimed all
+supervised resources. Evidence:
+[`20260806-g3-ios-simulator.md`](../demos/expo-golden-path-fixture/receipts/20260806-g3-ios-simulator.md)
+and
+[`20260806-g3-android-emulator.md`](../demos/expo-golden-path-fixture/receipts/20260806-g3-android-emulator.md).
+This proves only the live-process supervised online slice named above.
 
 ### E3 — EAS release
 

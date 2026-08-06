@@ -6,7 +6,10 @@ import React, {
   useSyncExternalStore,
 } from 'react';
 
-import { bindSnapbackAppLifecycle } from '@expo/snapback-client';
+import {
+  bindSnapbackAppLifecycle,
+} from '@expo/snapback-client';
+import { createAssetClient } from '@expo/snapback-client/assets';
 import {
   SnapbackProvider,
   createSnapbackReactProvider,
@@ -18,6 +21,10 @@ import {
   publicBindingFacts,
 } from './app-binding.mjs';
 import { createSupervisedExpoEnvironment } from './supervised-environment.mjs';
+import {
+  adaptExpoAssetSource,
+  expoAssetFetch,
+} from './asset-source.mjs';
 
 const bootContext = createContext(null);
 let bootSequence = 0;
@@ -289,7 +296,13 @@ export function createSnapbackExpoBoot({
           : { developmentSync: environment.developmentSync }),
       });
       if (disposed) return state;
-      reactProvider = createProvider(prepared);
+      reactProvider = createProvider(prepared, {
+        // @ref LLP 0181#native-adapters — provider construction registers the
+        // picker/content-URI and binary network adapters once on LLP 0114's
+        // existing asset owner. Ordinary-session custody remains on adopted.client.
+        assets: createAssetClient(adopted.client, { fetch: expoAssetFetch }),
+        assetSourceAdapter: adaptExpoAssetSource,
+      });
       const appState = await appStateFor(environment);
       if (disposed) return state;
       lifecycle = bindLifecycle(appState, reactProvider, {

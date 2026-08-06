@@ -985,6 +985,34 @@ strategic half (see below).
 served generation; applying a suggested identifier repair against a stale
 artifact hash is refused, not applied.
 
+#### D7 implementation record — 2026-08-06 (OQ6-independent substrate)
+
+The suggestion half landed without deciding the carrier. Unknown served host
+operations, functions, schema/argument fields, and wrong argument shapes now
+enrich the refusal's **existing** diagnostic `details` object with bounded,
+typed candidates from the exact caller-visible served generation and the
+expected argument contract. A process-local 128-entry LRU retains only hashed
+miss identities, caps repeat counts, and tells an agent when it is repeating
+the same miss; no rejected identifier, application value, or secret is
+serialized. Direct HTTP, host-operation/CLI, and generated app-data MCP tests
+pin the projection, disclosure negatives, and authorization-before-existence
+ordering (`src/authoring_suggestion.rs`, `src/args_contract.rs`,
+`tests/host_ops_v0.rs`, `packages/snapback-cli/mcp-control.test.mjs`).
+
+The data-only draft registry and schema are checked in as
+`schemas/remediation-kinds.v0.{registry,schema}.json`, explicitly marked
+`draft-pending-oq6` and consumed by no wire surface. Their executable test
+keeps D7's axes independent, requires approval for principal/authority
+changes, and permits machine applicability only for typo fix, identifier
+replacement, and artifact regeneration with a full artifact-hash
+precondition. No suggestion-consuming machine-applicable repair path exists
+yet, so there is nothing that can apply a stale suggestion; the schema pins
+the mandatory hash precondition for that future path. The carrier, shared
+decoder, stale-hash refusal/apply operation, and LLP 0184 catalog projection
+all await the author ruling requested in
+`issues/20260806-llp0146-oq6-remediation-carrier-decision.md`. This record does
+not change this RFC's Draft status and does not claim D7 complete.
+
 ## Declined and deferred
 
 ### Declined 1 — Automatic aliasing from popular wrong guesses
@@ -1150,6 +1178,11 @@ permanent surface area, than adding correctness primitives (Wave 3) whose
 value an agent cannot exploit while its model of the app is still wrong.
 
 ## Open questions
+
+> **2026-08-06 (sitting #4):** D7 is RATIFIED and pulled forward as the
+> next construction item. D4 is RATIFIED CONTINGENT on the LLP 0115
+> CV-14 custody owner's dated amendment (OQ7's boundary stands). D5/D6
+> stay deferred for re-scope after Wave 1.
 
 **Ruled 2026-08-03 — author decision sitting #2
 (`issues/20260803-author-decision-sitting-2.md`).** The D1–D3 first

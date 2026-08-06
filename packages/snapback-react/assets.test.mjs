@@ -163,6 +163,9 @@ function createFakeAssets() {
     deliveryUrl(assetId, { maxWidth }) {
       return `http://fixture/assets/records/${assetId}/bytes/best?maxWidth=${maxWidth}`;
     },
+    publicDeliveryUrl(assetId, { variant }) {
+      return `http://fixture/assets/public/${assetId}/${variant}`;
+    },
     watchStore() {
       return {
         getSnapshot: () => watchSnapshot,
@@ -343,6 +346,35 @@ function renderHook(provider, hook) {
 
   act(() => { renderer.unmount(); });
   console.log('asset renderer ladder preview → rendition → blank: ok');
+}
+
+{
+  const { provider, assets } = await harness();
+  const { output, renderer } = renderHook(
+    provider,
+    () => useSnapbackAssetImage({ assetId: 'asset-public', maxWidth: 760 }),
+  );
+  await act(async () => { await flush(); });
+  act(() => {
+    assets.emitWatch({
+      status: 'ready',
+      record: {
+        assetId: 'asset-public',
+        availability: 'ready',
+        deliveryProfile: 'public-immutable',
+        renditions: [
+          { variant: 'primary', ready: true, width: 1200 },
+          { variant: 'chat', ready: true, width: 640 },
+          { variant: 'tiny', ready: false, width: 128 },
+        ],
+      },
+      mode: 'live',
+    });
+  });
+  assert.equal(output.current.phase, 'rendition');
+  assert.equal(output.current.src, 'http://fixture/assets/public/asset-public/chat');
+  act(() => { renderer.unmount(); });
+  console.log('public-immutable renderer chooses one concrete ready rendition URL: ok');
 }
 
 {

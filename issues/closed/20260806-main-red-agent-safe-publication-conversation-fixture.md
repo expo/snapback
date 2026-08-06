@@ -1,9 +1,9 @@
 # main red: agent-safe publication checker vs the conversation fixture's regenerated closure
 
-**Status:** Resolved
+**Status:** Resolved 2026-08-06
 **Systems:** Packaging, Testing, React
 
-`scripts/verify-local-proof` fails at the `agent-safe-publication-fixtures`
+`scripts/verify-local-proof` failed at the `agent-safe-publication-fixtures`
 gate (`node --test tests/agent_safe_publication_checker_v1.mjs`) on current
 main (observed at `02c481e44`, 2026-08-06 ~09:00 PDT):
 
@@ -30,16 +30,23 @@ work and this inventory is theirs to keep coherent (LLP 0184's close-out
 found it while running the full local proof; every other executed proof gate
 before this fail-fast point was green).
 
-## Resolution — 2026-08-06 wave-drift pass
+## Resolution — 2026-08-06
 
-The completed S2 fan-out on `main` regenerated the entire registered
-conversation fixture, rotating the content-addressed binding and descriptor
-again and making the whole 53-leaf closure visible in qualification C. The
-wave-drift pass reviewed that exact closure: it is confined to the existing
-conversation generated root, and its only new path kind is the declared
-`sendMessage` command contract and argument schema from `17e7ca8ca`. The
-explicit reviewed set now names the current closure and still rejects
-additions, removals, and executable paths outside the registered roots.
+Resolved in this commit. The reviewed qualification-C leaf inventory now
+restores the conversation fixture stanza that the later `8743cf3cc` generated
+fan-out accidentally dropped, rotates the binding and descriptor identities to
+the current generated closure, and admits the three generated `sendMessage`
+Contract/schema projections introduced by `17e7ca8ca`. The production checker
+and its fail-closed add/delete/rename/mode rules were not weakened.
 
-`node --test tests/agent_safe_publication_checker_v1.mjs` passes 24/24. No
-push-seam or F0a fork implementation behavior changed.
+The new leaves were inspected before admission: they contain only an ordinary
+authenticated `app:sendMessage` mutation projection and a closed argument
+schema, with a static `messages`-insert effect ceiling and no embedded secrets,
+admin operation, outbound action, endpoint, or credential class. The full
+agent-safe publication checker and the sibling generated-artifact regeneration
+gate pass.
+
+A concurrent G3 lane landed the same reconciliation shape and additionally
+rotated the content-addressed binding/descriptor paths to its regenerated
+closure; the exact-set test passes on the merged inventory without weakening
+the executable-drift rejection.

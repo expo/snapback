@@ -1,156 +1,129 @@
-# `main` is red on the client bundle ratchet: react-external profiles grew ~35%
+# `main` client bundle ratchet: React profiles grew ~35%
 
-**Status:** Resolved in the wave-drift pass — prospective G2 rollover retained
+**Status:** Resolved — accidental HMR closure removed; remaining feature and
+correctness growth dispositioned prospectively
 **Impact:** 4
 **Urgency:** 4
 **Ease:** 3
 **Confidence:** 4
 **Systems:** Packaging, Testing
 **Date:** 2026-08-06
-**Related:** `issues/closed/20260804-bundle-closure-growth-review.md` (the
-2026-08-05 ruling that blessed the previous rollover),
-`issues/20260805-static-capability-composition.md` (the remediation lane that
-ruling commissioned), `issues/20260803-first-npm-latest-promotion.md`
-(precondition 1), `issues/20260806-main-red-agent-safe-leaf-set-drift.md`
-(the other red gate, now fixed)
+**Resolved:** 2026-08-06
+**Related:** `issues/closed/20260804-bundle-closure-growth-review.md`,
+`issues/closed/20260805-static-capability-composition.md`,
+`issues/20260806-react-optional-capability-composition.md`,
+`issues/20260803-first-npm-latest-promotion.md`
 
-## Summary
+## Original measurement
 
-`scripts/client-bundle-metrology.mjs --check` fails on `main` with
-`SNAPBACK_CLIENT_BUNDLE_RATCHET_FAILED`. Measured at `167a9e080` with deps
-installed and node pinned to 24.18.0 (`.node-version`):
+At `167a9e080`, under the Node 24.18.0 receipt toolchain, the two React
+profiles exceeded their active Move-3 ceilings by about 35%:
 
 | profile | minified | gzip | brotli |
 | --- | --- | --- | --- |
-| `external-react-application` | 50114 → **67830** (+35%) | 15841 → 21759 | 13908 → 19242 |
-| `react-external` | 49943 → **67655** (+35%) | 15781 → 21701 | 13865 → 19165 |
-| `public-subpath-rqs-store` | 34851 → 35584 (+2%) | 12233 → 12530 | 10811 → 11092 |
-| `public-subpath-rqs-store-default` | 53835 → 54608 (+1%) | 16393 → 16748 | 14444 → 14803 |
-| `public-subpath-assets` | 13860 → 14038 | 5564 → 5586 | 4814 → 4852 |
-| `public-subpath-outbox-shared` | 16352 → 16530 | 5841 → 5911 | 5236 → 5288 |
-| `public-subpath-rqs-store-expo` | 36669 → 36867 | 12468 → 12564 | 11023 → 11092 |
-| `public-subpath-rqs-store-file` | 35156 → 35357 | 12151 → 12239 | 10770 → 10830 |
-| `resolved-public-subpath-assets` | 13864 → 14047 | 5555 → 5589 | 4817 → 4841 |
-| `public-subpath-rqs-registered` | — | 10649 → 10650 | 9383 → 9387 |
+| `external-react-application` | 50,114 → 67,830 | 15,841 → 21,759 | 13,908 → 19,242 |
+| `react-external` | 49,943 → 67,655 | 15,781 → 21,701 | 13,865 → 19,165 |
 
-Two clusters, and they want different answers. The `react-external` /
-`external-react-application` pair is a **~35% step change** — 17.7 kB minified,
-5.9 kB gzip each. Everything else is 1–2% drift.
+The same run had a separate 1–2% cluster in assets, shared outbox, registered
+RQS, and the persistent-store entries. The ratchet correctly refused to absorb
+either cluster without attribution.
 
-## The question
+## Root cause
 
-`issues/closed/20260804-bundle-closure-growth-review.md` established that
-client bundle growth needs an explicit size disposition ("Charlie size review
-required"), and Charlie ruled on 2026-08-05: verdict (a) **BLESSED** — the
-Full/root growth is spec-governed feature mass, "the rollover stands" — while
-commissioning the static-capability-composition remediation lane.
+The 35% step was **accidental production closure growth**. Bisect-by-inspection
+and profile measurement identified `8ce5ca33e` (`fix(react): recover HMR
+generation splits with an atomic binding handoff`) as the first commit whose
+React closure retained the step. That change put the complete development-only
+HMR re-admission loop in `packages/snapback-client/react-binding.mjs`, which is
+statically imported by `packages/snapback-react/index.mjs`.
 
-What is not determinable from the record is whether **today's** react-external
-step is part of that blessed growth or new growth on top of it. The closed
-ticket's cited figures (~149 kB minified / 41 kB gzip root-family, ~136 kB
-minified compatibility-surface) are a different scale and different profiles
-from the 17.7 kB react-external step measured here, and none of its numbers
-match the current values. So this needs a disposition rather than an
-assumption either way:
+Comparing the last committed green report (`9ba26b096`) with `167a9e080`, the
+module-own minified attribution changed as follows in each React profile:
 
-- **If it is the blessed growth**, the rollover simply was not minted for these
-  profiles and the baseline should be rolled forward — mechanical.
-- **If it is new growth**, a 35% step on the React-external profiles is exactly
-  what the ratchet exists to catch, and it wants attribution before it is
-  absorbed.
+| module | before | at `167a9e080` | delta |
+| --- | ---: | ---: | ---: |
+| `packages/snapback-contract/result-contract-validator.mjs` | 232 | 9,380 | +9,148 |
+| `packages/snapback-client/react-binding.mjs` | 4,170 | 10,478 | +6,308 |
+| `packages/snapback-react/index.mjs` | 32,967 / 32,819 | 37,509 / 37,356 | +4,542 / +4,537 |
+| `packages/snapback-client/rqs.mjs` | 1,010 | 3,746 | +2,736 |
 
-**Do not roll the baseline forward to make the gate green without answering
-this.** That is the same failure the agent-safe leaf-set gate just had: a
-threshold quietly moved to match reality, defeating the check.
+The retained code was the result-contract compiler, RQS artifact hashing, and
+the polling/validation machinery that rebuilds and atomically publishes a new
+generation. It is used only after a positive development/HMR signal.
 
-## Why it is blocking
+The two candidates named in the original ticket are excluded by chronology:
+`167a9e080` is the parent of the LLP 0081 quarantine commit `6ec40820d`, and
+the LLP 0179 conversation-surface commit `c7a8b9031` landed after the ticket.
+Neither can cause a measurement taken at `167a9e080`.
 
-- `scripts/verify-local-proof` fails on `main` (`[snapback-verify] FAIL
-  client-bundle-metrology`), so the npm capstone's precondition 1 — a green
-  local proof on the `candidateSourceSha` — remains unmeetable even after the
-  leaf-set gate was fixed in `6783f7ab8`.
-- The wave 3 close needs a green named commit (2026-08-06 amendment) and
-  cannot have one until this is dispositioned.
+## Code disposition
 
-## Reproduction
+The HMR implementation moved to
+`packages/snapback-client/react-binding-hmr.mjs` behind a literal dynamic
+import. The synchronous classifier and single-flight wrapper remain in
+`react-binding.mjs`; once the development path loads, the extracted runtime
+performs the same deployment-proved re-admission and publishes the overlay in
+one synchronous swap. HMR behavior and production refusal semantics are
+unchanged.
 
-A fresh worktree needs three things the documented path does not make obvious;
-all three produced misleading failures before the real one surfaced:
+Metrology now asserts both sides of this boundary for
+`external-react-application` and `react-external`: the static closure must not
+contain `react-binding-hmr.mjs`, and the output must retain the external
+dynamic import. On current HEAD the heavy HMR module is absent; the previously
+inflated validator and RQS ownership are back to 232 and 1,018 bytes,
+respectively, and `react-binding.mjs` owns 7,613 bytes after later feature
+landings. No successor ceiling includes the removed HMR implementation.
 
-1. `bun install --frozen-lockfile` — without it the gate dies with
-   `ERR_MODULE_NOT_FOUND: esbuild`, which looks like a broken script.
-2. node pinned to **24.18.0** per `.node-version` (`export PATH="$HOME/.volta/bin:$PATH"`);
-   an ambient node 25.x runs the gate under an unpinned toolchain.
-3. `scripts/bootstrap-ibex-runtime` cannot complete in one pass on a cold
-   worktree — its link probe has a hard 900 s ceiling
-   (`DEFAULT_RUNTIME_LINK_TIMEOUT_MS` in `scripts/runtime-link-smoke.mjs`, no
-   env override) and a cold workspace build exceeds it, yielding
-   `SNAPBACK_IBEX_RUNTIME_LINK_TIMEOUT`. Run bootstrap once to initialize the
-   submodule and install the Hermes artifacts, then `cargo build --locked
-   --bin snapback` to completion, then bootstrap again — the probe is then
-   incremental (~2 min). Note the probe passes its own `--target-dir`, so
-   `CARGO_TARGET_DIR` does not warm it.
+## Later main growth and the small-drift cluster
 
-## Disposition — 2026-08-06
+Current HEAD contains accepted changes that postdate the original measurement:
+LLP 0179 `provider.surface`/`useSurface`, LLP 0180's synchronous command-task
+projection, its asset child, and operation-lifecycle/store correctness work.
+After removing HMR, the two React profiles are 89,345 / 89,170 minified. Their
+largest retained owners are the real shipped React module (49,290 / 49,137),
+assets (14,670), and commands (9,824).
 
-This is **new growth**, not unminted coverage from the 2026-08-05 Move-3
-ruling. Commit `c7a8b90312ac979830df6948023689af169166a3` added LLP 0179 S1's
-admitted surface descriptor and `useSurface` implementation. Module
-attribution and the exact changed-profile set agree: the material step occurs
-only in `react-external` and `external-react-application`, the two workloads
-that select the new React surface capability. The smaller 1–2% rows remain
-under their existing tolerances and ceilings.
+That remaining mass is classified as **legitimate feature weight** under the
+current root API. `provider.surface(...)` is a synchronous capability of every
+prepared provider, and LLP 0180 requires command `start()` and `retry()` to
+synchronously return stable task objects. An asynchronous import would change
+those contracts. A compatibility-preserving narrow React composition is
+tracked separately in
+`issues/20260806-react-optional-capability-composition.md`.
 
-The first rollover write then refused honestly because two earlier main
-landings also evolved six active outbox/RQS ceilings:
-`4ac8387f080a2659484fc09916ff22a076dc4ca8` fixed IndexedDB binding-receipt
-persistence through writer election, while
-`6ec40820dc853f79c9207f9c9f008e81242f8348` added LLP 0081's durable
-tombstone-and-re-entry custody. `public-subpath-rqs-registered` retains the
-same minified size but changes compressed identity through that evolved store
-dependency; the other five narrow profiles contain the new custody code
-directly, and both React application closures consume the same evolved client
-graph in addition to G2's surface code.
+Following the 2026-08-04/05 precedent, historical receipts remain immutable.
+`baseline.client-bundle-disposition.v1.json` advances exactly the ten profiles
+still over ceiling after the accidental HMR bytes are removed:
 
-The fix-forward therefore declares one batched
-`aug6-client-capabilities.v1` workload and mints
-`baseline.aug6-client-capabilities.v1.json` prospectively for exactly the
-eight affected profiles. It binds the complete immutable predecessors,
-records exact landing-to-profile attribution and governing LLPs, and runs the
-writer-election, quarantine, client, React surface, Expo provider, and
-generated-descriptor behavior train before freezing. The train explicitly
-materializes the ignored Expo golden-path descriptor through the normal
-codegen command before the surface suite; its first production invocation
-refused the missing clean-checkout fixture instead of inheriting a local
-cache. No historical receipt or unrelated ceiling is edited. The
-static-capability-composition lane
-commissioned by the prior size ruling remains open; this rollover does not
-claim that remediation is complete.
+| profile | predecessor min/gzip/brotli | successor min/gzip/brotli |
+| --- | ---: | ---: |
+| `external-react-application` | 50,114 / 15,841 / 13,908 | 89,345 / 27,938 / 24,378 |
+| `react-external` | 49,943 / 15,781 / 13,865 | 89,170 / 27,875 / 24,315 |
+| `public-subpath-assets` | 13,860 / 5,564 / 4,814 | 15,229 / 5,879 / 5,087 |
+| `resolved-public-subpath-assets` | 13,864 / 5,555 / 4,817 | 15,238 / 5,883 / 5,087 |
+| `public-subpath-outbox-shared` | 16,352 / 5,841 / 5,236 | 18,377 / 6,494 / 5,811 |
+| `public-subpath-rqs-registered` | 32,045 / 10,649 / 9,383 | 32,045 / 10,650 / 9,387 |
+| `public-subpath-rqs-store` | 34,851 / 12,233 / 10,811 | 37,597 / 13,123 / 11,580 |
+| `public-subpath-rqs-store-default` | 53,835 / 16,393 / 14,444 | 57,291 / 17,435 / 15,397 |
+| `public-subpath-rqs-store-expo` | 36,669 / 12,468 / 11,023 | 38,946 / 13,163 / 11,660 |
+| `public-subpath-rqs-store-file` | 35,156 / 12,151 / 10,770 | 37,481 / 12,855 / 11,368 |
 
-The complete behavior train passed, but the first write then exposed an
-instrument bootstrap defect: after writing the candidate receipt, the same
-process demanded its already-reachable Git introduction before it could finish
-the final self-check. The repair admits an uncommitted carrier revision only
-for that exact just-written receipt and requires it to equal committed `HEAD`.
-Ordinary `--check` still requires exactly one reachable carrier introduction,
-so the exception cannot bless a later dirty or untracked ledger.
+The new `./commands` export also receives two prospective first-run profiles
+instead of mutating the earlier nine-profile local-sync-absence receipt:
+`public-subpath-commands` is 24,752 / 8,643 / 7,510 and
+`resolved-public-subpath-commands` is 24,761 / 8,647 / 7,511. The resolved
+profile continues to prove the local-sync modules are absent.
 
-The corrected producer completed at exact committed source
-`b3434f0a1da63430692934b68f0b6baddc7f530a`. Its immutable eight-profile
-receipt has SHA-256
-`367b50303d8d3dda3876387bb31fab23b91085be0cc897a000689305b4792f29`;
-the regenerated 54-profile current report has SHA-256
-`979fc3b4bea20866a7b582bed5b2287d3fa1c94a26959e8a73d0df35c12254af`.
-The complete train passed. The exact minified / gzip / Brotli deltas retained
-against the three immutable predecessors are:
+## Verification
 
-- React applications: `external-react-application` +24,708 / +7,636 / +6,611;
-  `react-external` +22,841 / +7,574 / +6,638. These totals include both the
-  custody landings and G2; the headline ~17.7 kB step is G2's later portion.
-- Custody closures: outbox +1,847 / +583 / +523; registered RQS +0 / +1 / +4;
-  RQS store +2,545 / +805 / +696; default +3,210 / +920 / +837; Expo +2,079 /
-  +599 / +569; file +2,124 / +618 / +501.
+The rollover writers and final `client-bundle-metrology --check` ran the full
+JavaScript metrology behavior train: 56 profiles, no frozen-ceiling
+regressions. Direct verification covered the packaged client, browser closure,
+client commands, packaged React bindings, React commands, and all HMR handoff
+scenarios. `./ref-check --verbose` also passed with 188 LLP documents, 3,425
+references, and zero errors or unchecked references.
 
-This closes the ratchet failure. The receipt commit is followed by a normal
-history-bound `--check`; success there, not the write-mode exception, is the
-closure oracle.
+This gate is JavaScript-only. The original reproduction note suggesting an
+Ibex bootstrap and Cargo build was unrelated to client-bundle metrology and is
+removed from the disposition path; only installed JS dependencies and the
+pinned Node runtime are required.

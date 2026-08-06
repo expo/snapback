@@ -84,6 +84,7 @@ const inventories = [
       'assets-watch-authorization.test.mjs',
       'assets.test.mjs',
       'attribution.test.mjs',
+      'auth-exchange-concurrency.test.mjs',
       'bearer-rotation.test.mjs',
       'browser-closure.test.mjs',
       'bundle.test.mjs',
@@ -197,6 +198,7 @@ const inventories = [
     suffix: '.test.mjs',
     expectedFiles: [
       'app-binding.test.mjs',
+      'asset-source.test.mjs',
       'config-plugin.test.mjs',
       'package-closure.test.mjs',
       'package.test.mjs',
@@ -232,6 +234,7 @@ const inventories = [
     expectedFiles: [
       'api-envelope-members.test.mjs',
       'app-descriptor.test.mjs',
+      'app-inspection.test.mjs',
       'args-contract-goldens.test.mjs',
       'asset-thumbhash-vector.test.mjs',
       'asset-upload-authoring.test.mjs',
@@ -613,7 +616,15 @@ const total = results.reduce((sum, result) => sum + result.count, 0);
 // packages gain the command phase/outcome and named-projection suites.
 // 220 -> 221 (2026-08-06, LLP 0157 §D8): @expo/snapback-codegen gains the
 // mixed/all-relational snapshot-batch.v2 authoring and identity-mirror suite.
-assert.equal(total, 221, 'reviewed package/admin test count changed');
+// 221 -> 222 (2026-08-06, LLP 0179 S2): @expo/snapback-codegen gains the
+// non-React descriptor inspection consumer suite.
+// 222 -> 223 (2026-08-06): @expo/snapback-client's auth-exchange concurrency
+// suite from `f782431bd fix(auth): custody lock must not span the transition
+// participant barrier` — registered in that package's test script but not
+// here, which left this gate red on main. Registered on sight, not owned.
+// 223 -> 224 (2026-08-06, LLP 0181 E2): @expo/snapback-expo gains the
+// picker/content-URI asset-source adapter suite.
+assert.equal(total, 224, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }

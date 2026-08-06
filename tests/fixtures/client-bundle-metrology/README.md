@@ -153,33 +153,6 @@ Move-3 and result-transform predecessors remain immutable. The unrelated asset
 closure stays governed by its original primary ceiling and is tightened back
 under that ceiling rather than rolled into LLP 0163.
 
-The 2026-08-06 completed-main batch is
-`baseline.aug6-client-capabilities.v1.json`, declared by
-`aug6-client-capabilities-profiles.v1.json`. It advances exactly eight
-closures in two attributed groups: six shared-outbox/RQS profiles for the
-IndexedDB writer-election repair and LLP 0081 tombstone-and-re-entry custody,
-and two React application profiles for LLP 0179 S1's conversation surface.
-The receipt binds all three predecessor ledgers independently and runs the
-focused behavior train for both groups; no unrelated ceiling is superseded.
-The train materializes the ignored Expo golden-path descriptor through the
-normal code generator before running the surface behavior suite, so a clean
-checkout exercises the same generated input rather than depending on local
-cache state.
-
-The final G2 cold-retained-boot repair is a second, one-profile rollover in
-`baseline.final-g2-cold-boot.v1.json`, declared by
-`final-g2-cold-boot-profiles.v1.json`. It advances only `react-external` from
-the completed-main batch: the existing React binding receipt now retains the
-compact descriptor-admission facts needed to reconstruct the admitted view
-offline. The predecessor remains immutable and every other August ceiling
-continues unchanged.
-
-Rollover writes follow a two-commit protocol: first commit the implementation,
-instrument declaration, profile inventory, and authorities; then mint and
-commit the receipt. The writer's same-process final self-check binds the one
-just-written receipt to that exact committed `HEAD`. Subsequent checks admit no
-override and require exactly one reachable Git introduction for every ledger.
-
 The Phase-B Micro extension is `baseline.micro-phase-b.v1.json`, backed by
 `micro-phase-b-profiles.v1.json`. It freezes separate generated core and live
 closures, the three public experimental subpaths, and a root/`./online`

@@ -68,9 +68,18 @@ The fork operation does all of these before it returns:
   source database's estimated bytes, or the fork root's total byte budget
   would exceed the configured limits (`--max-forks`, `--max-fork-bytes`,
   `--max-total-bytes`), reporting the admitted usage as
-  `data.resourceAdmission`; the creation TTL itself is bounded by the same
+  `data.resourceAdmission`; a fork-root lock keeps the count/byte observation,
+  registry intent, and publication one atomic admission interval even when
+  creates race at a boundary; the creation TTL itself is bounded by the same
   maximum total fork lifetime that caps renewal;
+- treats those byte checks as admission-time estimates, not a live disk
+  quota: fork-local writes and uploads can grow after creation until finite
+  TTL/reap cleanup, so use a filesystem/container quota when runtime growth
+  itself must be contained;
 - takes a consistent local snapshot and records the exact fork point;
+- records the canonical invoking app root plus logical app id in registry and
+  fork-local digest-bound evidence before publication, independently of
+  whether a server is ever launched;
 - scrubs copied sessions, agent credentials, and operational claims;
 - rotates authorization and data-stream identities and mints fresh sidecars;
 - when both generated manifests exist, admits the complete schema/function
@@ -90,8 +99,23 @@ The fork operation does all of these before it returns:
 Use a shared, explicit fork root when several worktrees derive from one
 parent. Each `fork create` chooses a UUID-named direct child by default, so
 worktrees do not share a database or port. Keep `--app-root` pointed at each
-worktree: that is what lets two forks preserve the same parent rows while
-loading different function bundles.
+worktree: create records its canonical path and logical app id in registry and
+fork-local digest-bound evidence. Every list, inspect, diff, renew, drop, reap,
+and recover selection rechecks that identity before projecting paths or
+credentials or mutating state. Consequently, even two worktrees with the same
+`appId` cannot select one another through a shared `--fork-root`; a legacy row
+without this binding fails closed rather than acting as a wildcard.
+
+Library callers have the same contract without a launch step. Establish or
+load the app root with `ensure_expected_app(app_root, app_id)` or
+`load_expected_app(app_root)`, then pass the returned opaque
+`ExpectedForkAppV1` to `publish_managed` or
+`publish_managed_with_base`. Those APIs revalidate the canonical app-root
+identity and persist it during mint; they never infer authority from the
+destination's parent fork root. A fork minted this way can be inspected or
+diffed immediately with the owning CLI `--app-root`. The low-level `publish`
+crash-corpus primitive is deliberately unmanaged and cannot be selected by
+managed lifecycle commands.
 
 ## Fork instead of seeding an acceptance suite
 
@@ -260,6 +284,8 @@ details object in automation; the message is for people.
 
 | Diagnostic | Action |
 | --- | --- |
+| `SNAPBACK_FORK_APP_BINDING_MISMATCH` | The selected fork belongs to another canonical app root or logical app identity, or the invoking app-root identity was replaced after it was loaded. Invoke from the owning `--app-root`; library callers should reload the opaque identity; never use the shared fork root as authority. |
+| `SNAPBACK_FORK_APP_BINDING_REQUIRED` | The entry predates mint-time app binding, came from the unmanaged low-level primitive, or lost that evidence. It is deliberately unselectable; a managed fork does not enter this class merely because it was never launched. Inspect and migrate/recreate it out of band rather than weakening the check. |
 | `SNAPBACK_FORK_PUBLICATION_PARTIAL` | Run `fork recover` on the exact sentinel-bearing destination before boot. |
 | `SNAPBACK_FORK_QUARANTINED` | Treat the database as non-bootable; recover its managed publication rather than clearing stamps by hand. |
 | `SNAPBACK_FORK_LINEAGE_INVALID` | Stop. Do not trust or delete the target until its local lineage provenance is understood. |
@@ -269,13 +295,17 @@ details object in automation; the message is for people.
 | `SNAPBACK_FORK_EXPIRED_REAP_FAILED` | Inspect the reported expired targets and restore enough evidence to stop/reap them safely before retrying create. |
 | `SNAPBACK_FORK_SERVER_EXPIRED` | Expected finite-TTL enforcement: use `create` or explicit `reap` to prove the stopped process and remove the fork, or `renew` **before** expiry to extend it. |
 | `SNAPBACK_FORK_RENEW_EXPIRED` | Renewal never resurrects: the fork is already past expiry — reap it and create a fresh fork. |
-| `SNAPBACK_FORK_RESOURCE_LIMIT_REFUSED` | A configured bound refused deterministically; the details name the resource (`fork-count`, `fork-bytes`, `total-bytes`, `diff-work`, `renewal-lifetime`) and the observed usage. Drop forks, raise the explicit flag, or bound the request. |
+| `SNAPBACK_FORK_RESOURCE_LIMIT_REFUSED` | A configured bound refused deterministically; the details name the resource (`fork-count`, `fork-bytes`, `total-bytes`, `diff-work`, `renewal-lifetime`) and the observed usage. Net diff additionally reports its streaming `phase`, `limitKind`, journal/scanned rows, and bytes. Drop forks, raise the explicit flag, or bound the request. |
 | `SNAPBACK_FORK_WRITER_COVERAGE_INVALID` | Do not treat the fork as whole-window covered. Its durable fork-point receipt is partial, tampered, late, or no longer matches the active stream/manifest; recreate it through `fork create`. |
 
 ## Read the diff at its real boundary
 
-The diff receipt covers committed **application-row journal entries after the
-fork point**, in commit order. It explicitly omits:
+The default `snapback.fork-journal-diff.v3` receipt covers committed
+**application-row journal entries in `(base, head]`**, in commit order. Its
+stream-qualified `base` and `head` identify the data-version stream, commit
+version, and exclusive/inclusive boundary. It says
+`attribution: "absent-v1"`: row `operation` is insert/update/delete, not an LLP
+0163 operation or principal identity. It explicitly omits:
 
 - auth and credential state;
 - asset blob operations;
@@ -286,11 +316,14 @@ fork point**, in commit order. It explicitly omits:
 For an exact net base-to-head receipt, create the fork with
 `--retain-base` (a digest-bound immutable snapshot; doubles the fork's byte
 footprint, and admission accounts for it) and run `fork diff FORK_ID --net`.
-The `snapback.fork-net-diff.v2` receipt is computed by comparing the
+The `snapback.fork-net-diff.v3` receipt is computed by comparing the
 retained base against the head directly — independent of the journal — with
 pre- and post-images, a named substrate (`retained-base-v1`) and
-machine-readable covered/omitted domains. A fork created through the complete
-cold-start carrier path can advertise `authorizer-backed-app-rows-v1` only
+machine-readable covered/omitted domains. Both v3 receipt types carry
+`receiptDigest`, a domain-separated SHA-256 digest over the JCS-canonical form
+of every other emitted fact, so approval can bind the exact receipt. A fork
+created through the complete cold-start carrier path can advertise
+`registered-connection-defensive-app-rows-v1` only
 when its digest-bound coverage receipt proves the two app-row writer lanes
 were armed at the fork point and the journal cross-check verifies through the
 observed head. A partial generated layout remains
@@ -312,13 +345,26 @@ scanned head. Contradictory coverage evidence refuses with
 cover. Without a retained base, `--net` refuses with
 `SNAPBACK_FORK_NET_DIFF_UNAVAILABLE`.
 
-The attributed receipt is a review aid, not a complete audit and not
-production migration admission. A long-lived fork can also outlive its journal floor; then diff
-refuses instead of returning an incomplete receipt. The attributed span is
-also work-bounded: past `--max-rows` (default 100k) diff refuses with
-`SNAPBACK_FORK_RESOURCE_LIMIT_REFUSED` and the observed row count instead of
+The journal receipt is a review aid, not a complete audit and not production
+migration admission. A long-lived fork can also outlive its journal floor;
+then diff refuses instead of returning an incomplete receipt. Both surfaces
+are work-bounded: journal rows, net base/head scanned rows, WAL validation
+bytes, and streamed bytes are
+checked during streaming, before unbounded maps can grow. Past `--max-rows`
+(default 100k) or the fixed byte budget, diff refuses with
+`SNAPBACK_FORK_RESOURCE_LIMIT_REFUSED` and observed usage instead of
 materializing an unbounded receipt. Use the reviewed migration rehearsal flow
 for production apply decisions.
+
+The upgraded completeness class covers only Snapback-registered writable
+connections with verified SQLite defensive mode and the shared default-deny
+authorizer. The net receipt validates the raw WAL header and cumulative frame
+checksums within its byte budget and detects/refuses ordinary raw WAL/app-row
+divergence and direct page corruption, but it is not an OS/file-integrity
+boundary. A same-user
+process that bypasses the connection factory and coherently forges app data,
+the version, and a matching journal entry is outside the claim; use an
+OS/container/filesystem authority boundary for that threat.
 
 ## Know what the quarantine does not promise
 

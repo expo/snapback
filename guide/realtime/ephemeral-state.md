@@ -234,11 +234,7 @@ introspection. Keep imperative overlays in headless/React code and generated
 ephemeral links in Contract code—do not mix a second polling or publish lane
 into the same surface.
 
-<!-- since: 0.1.10 unreleased -->
-
-> **Unreleased.** The operator-delete control is in the source tree but not
-> in the newest published closure (`0.1.9`). Expected in the next published
-> closure.
+<!-- since: 0.1.10 -->
 
 ## Delete one entry as an operator
 

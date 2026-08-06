@@ -394,6 +394,20 @@ custody accounting, cleanup, and redacted diagnostics. It rejects secrets,
 bearers, credential material, unsafe absolute cleanup targets, and zero-check
 attempts. Remediation increments the attempt; it never edits `v1`.
 
+### Lane F live status — ZB0 PASS (2026-08-06); ZB1–ZB7 pending
+
+`tests/acceptance/receipt.mjs` (immutable writer with secret/zero-check/
+unsafe-cleanup refusal), `tests/acceptance/zbgate.mjs` (non-vacuous gate
+runner), and `tests/acceptance/gates/zb0.mjs` are implemented. The
+supervising session's ZB0 run passed 9/9 (source pin coverage, frozen
+10/22/19/16/9/8 accounting, generated schema/query/mutation/route/effect
+accounting, static source inventory, populated workaround register,
+generated release identities, zero-check refusal self-test) and wrote
+`demos/zerobugs/evidence/snapback-control.zb0.v1.json` (mode 0444; a rerun
+refuses the existing path — remediation sets `ZBUGS_ATTEMPT`). Gates
+ZB1–ZB7 are not yet implemented; sequencing row 7 remains open until every
+gate has an honest receipt.
+
 ## Workaround and component register (predeclared)
 
 Rows not yet used retain `TBD-before-use`. Each implementing job must replace
@@ -1320,40 +1334,56 @@ diary entry for these findings. This job is expressly limited to
 `demos/zerobugs/control/`, so both out-of-directory artifacts remain deferred
 rather than silently widening scope.
 
-### Lane 6b live status — BLOCKED on a shipped-client auth defect
+### Lane 6b live status — PASS (12/12, 2026-08-06)
 
-Run repeatedly on 2026-08-06 by the supervising session in real headless
-Chrome. **Sequencing row 6 is NOT complete: no Lane 6b live PASS is claimed.**
+Run on 2026-08-06 by the supervising session in real headless Chrome against
+a fresh server: receipt `zerobugs-lane6b-live.v1`, `status: "ok"`,
+`expectedChecks: 12`, `executedChecks: 12`, `fixtureIssues: 517`, every check
+`pass`. Sequencing row 6 is complete.
 
-What the browser proved works (observed live, not claimed as gates):
+The lane first landed BLOCKED on 2026-08-06 behind two shipped-client auth
+defects and an unexplained CDP wedge. All three are now explained and fixed:
 
-- the ported UI renders the pinned 517-issue fixture — nav, filters, labels,
-  relative dates, virtualized list — served by Snapback through the Vite relay;
-- the anonymous list boots with honest completeness state;
-- the gateway OAuth-shaped login round-trip completes and, when the auth race
-  below does not fire, the SPA reaches `data-session-phase="authenticated"`
-  and the authenticated window renders.
-
-Why the suite cannot pass yet:
-
-1. **Shipped-client deadlock (root cause).** `AuthCoordinator.transition`
+1. **Shipped-client deadlock (fixed, landed).** `AuthCoordinator.transition`
    held the exclusive custody Web Lock across its participant barrier while a
-   participant ack path called `synchronize()` on the same lock. Captured with
-   Web-Lock instrumentation: `acq:<transition>` with no matching `rel`, every
-   later request queued forever, `authExchange` never settling, UI stuck in
-   `transitioning`. Ticket:
-   `issues/20260806-authexchange-deadlocks-on-concurrent-authsession.md`.
-2. A second defect on the same path: external `synchronize()` hot-retried on
-   `CLEARING` instead of awaiting barrier settlement (bounded-attempt spin
-   regression reproduces it).
-3. Fixes for both exist with green unit suites (full `snapback-contract`, nine
-   auth client files, new queued-lock/spin/interleaving regressions) but are
-   **deliberately not on main**: after them the Chrome run wedges its CDP
-   session (`Runtime.evaluate` times out) in a way a `Debugger.pause` probe
-   shows is NOT application spinning — the paused stack carries no app frames.
-   That interaction is unexplained, so the auth-custody change is parked on
-   branch `fix/auth-custody-barrier-deadlock` for focused browser verification
-   rather than landed unproven.
+   participant ack path called `synchronize()` on the same lock; a second
+   defect on the same path hot-retried external `synchronize()` on `CLEARING`
+   instead of awaiting barrier settlement. Both fixed in
+   `packages/snapback-contract` / `packages/snapback-client` with LLP 0059
+   amended to the split-ownership protocol; browser-verified live by this
+   suite (ordinary login, authenticated full-reload custody adoption, logout,
+   crew re-login). Closed ticket:
+   `issues/closed/20260806-authexchange-deadlocks-on-concurrent-authsession.md`.
+2. **The "CDP wedge" was a control-app render loop, not the auth fix and not
+   CDP.** On the `#comment-` permalink hash navigation, `useZerobugsQuery`
+   derived a fresh `AdapterResult` (fresh `items` identity) on every render,
+   so `UserPicker`'s avatar-preload effect (dep on the derived `users` array)
+   re-fired on every commit and ended in `setAvatars(<new object>)` — an
+   unbounded sync-lane React update chain running entirely in microtasks.
+   The renderer main thread never returned to the task queue, so
+   `Runtime.evaluate` reproducibly timed out (renderer at 165%+ CPU).
+   Live-proven with in-page counters: 86,260 Combobox renders / 43,119
+   avatar-effect firings during ~13 s of wedge while every other counter
+   stayed single-digit; the interrupted stack showed React `updateInput`
+   commits under `processRootScheduleInMicrotask → performSyncWorkOnRoot`.
+   Fixed by memoizing `useZerobugsQuery` on the closed hook state, deriving
+   `users` stably, and giving the avatar effect a value-equality bailout.
+   The earlier probe's "no app frames" was an artifact: `Debugger.enable`
+   sent mid-spin cannot be processed; pre-enabling the debugger before the
+   spin yields real frames and `Debugger.evaluateOnCallFrame` works while
+   paused.
+3. **Comment-permalink scroll restore re-arms per target.** The one-shot
+   `restored` ref in `Comments` was consumed by the plain issue view, so a
+   same-document hash navigation to a permalink never scrolled; the restore
+   marker now tracks the restored target and waits for the target element.
+
+Harness repairs in the same landing: the committed suite contained a
+non-parsing leftover pause-probe block (removed; the file now parses and
+runs), check 10 awaits the effect-driven scroll instead of asserting the
+first frame that renders the row, check 11 waits for
+`data-session-phase="authenticated"` before clicking the login-checked
+composer CTA (clicking earlier opens the not-logged-in modal), and the CDP
+client gained an env-gated lifecycle trace (`ZB6B_CDP_TRACE=1`).
 
 Also recorded: the ordinary actor's project count is 516, not 517 — the
 crew-only internal policy-extension issue must not appear in count-like UI
@@ -1362,6 +1392,3 @@ mousedown, so synthetic clicks must dispatch the full sequence; CDP
 `returnByValue` needs a JSON-safe wrapper for DOM/React values; and Chrome's
 IndexedDB backing store fails to open under the kit's default profile
 location on this host (`issues/20260806-chrome-indexeddb-profile-macos-tmpdir.md`).
-
-Next for this lane: verify the parked auth fix in a browser (or explain the
-CDP wedge), land it, then rerun the 12-check suite for a real receipt.

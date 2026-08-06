@@ -2,11 +2,11 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "95bae953d19d96eec883aa8b8c20941b83022c0d"
+    "commit": "77bf3726c162c108559b239cda83c541aa84fe1a"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
-    "newestPublished": "0.1.9"
+    "newestPublished": "0.1.10"
   },
   "nav": {
     ".": [
@@ -739,12 +739,15 @@
         "llp/0064-native-client-surfaces.rfc.md",
         "llp/0096-auth-profiles-for-protocol-clients.spec.md",
         "llp/0176-expo-messaging-golden-path.plan.md",
+        "llp/0180-asset-bearing-client-commands.rfc.md",
+        "llp/0181-zero-configuration-expo.rfc.md",
         "src/assets.rs",
         "src/assets_cut.rs",
         "src/cli.rs",
         "src/local.rs",
         "src/server.rs",
         "packages/snapback-codegen/define.mjs",
+        "packages/snapback-expo/asset-source.mjs",
         "packages/snapback-react/index.d.mts",
         "packages/snapback-vite/allowlist.mjs",
         "tests/acceptance/asset-lifecycle-v1-evidence.md"
@@ -752,11 +755,12 @@
       "examples": [
         "demos/party-wall",
         "demos/file-drop",
-        "demos/tandem-expo-bakeoff"
+        "demos/tandem-expo-bakeoff",
+        "demos/expo-golden-path-fixture"
       ],
-      "reviewed": "2026-08-05",
-      "reviewedCommit": "f3c7d9fbb394a413370a9264f22e72b6f151a25e",
-      "sha256": "dec2138b644866c5d1a25164c9f7fc6d103695edf6f7e6e26e1af593065e757a",
+      "reviewed": "2026-08-06",
+      "reviewedCommit": "HEAD",
+      "sha256": "df68624334dff15fa7fb6495726022c741709a03e84fafd117a517f3f08d5750",
       "snippets": [
         {
           "lang": "js",
@@ -793,17 +797,7 @@
         {
           "lang": "tsx",
           "class": "transcluded",
-          "source": "demos/tandem-expo-bakeoff/shared/chat-screen.tsx"
-        },
-        {
-          "lang": "tsx",
-          "class": "transcluded",
-          "source": "demos/tandem-expo-bakeoff/snapback/src/backend.tsx"
-        },
-        {
-          "lang": "js",
-          "class": "transcluded",
-          "source": "demos/tandem-expo-bakeoff/snapback/snapback/functions.mjs"
+          "source": "demos/expo-golden-path-fixture/src/screens/chat-screen.tsx"
         },
         {
           "lang": "js",
@@ -1500,7 +1494,7 @@
       "examples": [],
       "reviewed": "2026-08-06",
       "reviewedCommit": "850427c31b9a668d55b46995e08389cd13a2c9b6",
-      "sha256": "f1ab744fd4750ecc38b95e74ba7337e5d38515a7ecbc9c188b3687042848314d",
+      "sha256": "527a5ef9344f8beb9a134c15742ee31bc28731776d493fd8844f8139c0bb194d",
       "snippets": []
     },
     "clients.app-cli": {
@@ -1763,7 +1757,7 @@
       ],
       "reviewed": "2026-08-06",
       "reviewedCommit": "4ac8387f080a2659484fc09916ff22a076dc4ca8",
-      "sha256": "0786d7bd778ca0d8790af0e1fb0f545eac708d69ee0414427447ffc8c82abba3",
+      "sha256": "dbefb59a61222cced784a0634dc1688c99dc073e2b1129613364711cd0ea9c20",
       "snippets": [
         {
           "lang": "json",
@@ -1890,7 +1884,7 @@
         "local"
       ],
       "maturity": "partial",
-      "since": "0.1.10",
+      "since": "0.1.11",
       "unreleased": true,
       "capabilities": [
         "clients.surfaces"
@@ -1898,12 +1892,14 @@
       "authorities": [
         "llp/0179-generated-app-descriptor-and-surfaces.rfc.md",
         "llp/0180-asset-bearing-client-commands.rfc.md",
+        "llp/0181-zero-configuration-expo.rfc.md",
         "llp/0114-first-class-react-and-query-groups.spec.md",
         "llp/0176-expo-messaging-golden-path.plan.md",
         "packages/snapback-codegen/define.mjs",
         "packages/snapback-codegen/index.mjs",
         "packages/snapback-client/commands.mjs",
         "packages/snapback-client/react-binding.mjs",
+        "packages/snapback-expo/asset-source.mjs",
         "packages/snapback-react/index.mjs",
         "packages/snapback-react/index.d.mts"
       ],
@@ -1921,7 +1917,7 @@
       ],
       "reviewed": "2026-08-06",
       "reviewedCommit": "HEAD",
-      "sha256": "993b930a0009c278a56eed43c7ec1f6fe9e9eb764c288aefb012e50a4e53ee98",
+      "sha256": "d3bbb6cfbfce5cf785726b2802ffa7b5d8cc43e7a8f1f5400f12407e49349096",
       "snippets": [
         {
           "lang": "js",
@@ -1937,6 +1933,11 @@
           "lang": "js",
           "class": "transcluded",
           "source": "packages/snapback-codegen/app-descriptor.test.mjs"
+        },
+        {
+          "lang": "tsx",
+          "class": "transcluded",
+          "source": "demos/expo-golden-path-fixture/src/screens/chat-screen.tsx"
         },
         {
           "lang": "tsx",
@@ -2363,7 +2364,7 @@
       "examples": [],
       "reviewed": "2026-08-06",
       "reviewedCommit": "2715951cf",
-      "sha256": "c4f1e7d1c7fc74e0f706c2c3926ad639b8a32e0fe0b8565a13568d39c74ac412",
+      "sha256": "c793b72ec46a8dd763cb5722dbcb089d7f05e29cd850320929167bcf6a7cd0e3",
       "snippets": []
     },
     "operating.data-patch": {
@@ -2376,7 +2377,6 @@
       ],
       "maturity": "shipped",
       "since": "0.1.10",
-      "unreleased": true,
       "capabilities": [
         "operating.data-patch"
       ],
@@ -2397,7 +2397,7 @@
       ],
       "reviewed": "2026-08-06",
       "reviewedCommit": "HEAD",
-      "sha256": "30d854665c636b3d0bcfcf70284cad6330acd79279f21fa07c5f41cb1e1507d1",
+      "sha256": "b28f48c4fdb5257f5091fc30a6a30b6754cc0b266ffebe9c74448a1e6330527a",
       "snippets": [
         {
           "lang": "json",
@@ -2419,7 +2419,9 @@
       ],
       "authorities": [
         "llp/0010-agent-dx-and-acceptance.spec.md",
+        "llp/0146-agentic-authoring-affordances.rfc.md",
         "src/diagnostic.rs",
+        "src/authoring_suggestion.rs",
         "packages/snapback-codegen/index.mjs",
         "packages/snapback-cli/runtime-recovery.mjs",
         "demos/_kit/harness.mjs",
@@ -2429,11 +2431,12 @@
       ],
       "examples": [
         "demos/todo/tests/acceptance/headless.mjs",
-        "packages/snapback-codegen/authoring-validation.test.mjs"
+        "packages/snapback-codegen/authoring-validation.test.mjs",
+        "tests/host_ops_v0.rs"
       ],
-      "reviewed": "2026-08-05",
-      "reviewedCommit": "4a6000ac6f17a8c94bc2aecf573c0654e850b758",
-      "sha256": "da7f40e6b84fc63365dc0ad40bd772d904f087b200c96d0b44b425ad21363765",
+      "reviewed": "2026-08-06",
+      "reviewedCommit": "3e78f67c4972b8c13e2375970da285ae2d4c0195",
+      "sha256": "947db98b1a94416d1bb520d4151436ddccad4f2396a3c4302f60bb4a4b707eba",
       "snippets": [
         {
           "lang": "js",
@@ -2531,7 +2534,7 @@
       ],
       "reviewed": "2026-08-06",
       "reviewedCommit": "HEAD",
-      "sha256": "2e55bc3703de1ad5f88bc639da384f10291256a25ed29915e3b70eaee2b36522",
+      "sha256": "85bc7219771cc11b9dd6ab37fce079368c5aef531fa9397ed86ab7dcba78ef5a",
       "snippets": [
         {
           "lang": "js",
@@ -2718,7 +2721,7 @@
       ],
       "reviewed": "2026-08-06",
       "reviewedCommit": "6e158169b3c908b8be149db4487a71dc35738470",
-      "sha256": "c8721b8770cd8a2eb86e4d8bbc30355e02b4ab8740d14d1e52a31246d21596a1",
+      "sha256": "4d1b6b6edb088e618d4a595d00c124b2198c49f8527e32ca1e2032dc4a3c86fb",
       "snippets": [
         {
           "lang": "tsx",
@@ -3362,5 +3365,5 @@
     "routes": 122,
     "hostOps": 43
   },
-  "contentHash": "fee476c7eafefef5bfedc30bbf276aff2689a9f567fb9de19b8ec6e85af5f302"
+  "contentHash": "68ef52e10d368872313cd619fb8e181cd2056d774151a89b78e2fb56f91048ab"
 }

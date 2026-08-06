@@ -36,11 +36,10 @@ export function UserPicker({
     limit: 200,
     start: null,
   });
-  const unsortedUsers = result.value?.items ?? [];
   // TODO: Support case-insensitive sorting in ZQL.
   const users = useMemo(
-    () => unsortedUsers.toSorted((a, b) => a.login.localeCompare(b.login)),
-    [unsortedUsers],
+    () => result.value?.items.toSorted((a, b) => a.login.localeCompare(b.login)) ?? [],
+    [result],
   );
 
   // Preload the avatar icons so they show up instantly when opening the
@@ -53,7 +52,13 @@ export function UserPicker({
       if (canceled) {
         return;
       }
-      setAvatars(Object.fromEntries(avatars));
+      const nextAvatars = Object.fromEntries(avatars);
+      setAvatars(current => (
+        Object.keys(current).length === Object.keys(nextAvatars).length
+          && Object.entries(nextAvatars).every(([id, avatar]) => current[id] === avatar)
+          ? current
+          : nextAvatars
+      ));
     }
     void preload();
     return () => {

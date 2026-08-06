@@ -6,7 +6,13 @@
 generation, Protocol, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-05
-**Revised:** 2026-08-06 (e) — Accepted by the author (Charlie Cheever,
+**Revised:** 2026-08-06 (f) — Appended the dated C0/C1 delivery note: both
+slices landed at `17e7ca8ca` with the acceptance matrix and a real-runtime
+Expo-fixture witness; C2 and every deferred extension remain untouched and
+unclaimed; `unattached: "authoritative"` is recorded as unreachable against
+today's runtime with the attachment-fact ask routed to LLP 0044's owner; and
+two engine gaps are ticketed rather than absorbed. Status unchanged. Earlier
+same day (e) — Accepted by the author (Charlie Cheever,
 LLP 0176 G1 gate). Per §React projection, this acceptance amends LLP 0114
 to add `useSnapbackCommand` as a named projection with the same
 lifecycle/cleanup discipline as `useSnapbackMutation`; the corresponding
@@ -560,6 +566,69 @@ an ordinary session is the preferred first path.
   clean published-package repository.
 
 C0–C2 are LLP 0176 G3/G4. The deferred extensions are separate decisions.
+
+**2026-08-06 — C0 and C1 landed; C2 untouched.** Both slices landed in
+`17e7ca8ca` (LLP 0176 §G3's exit receipt records the collision that produced
+two implementations of this RFC and which one is on `main`). C0 is the closed
+`asset-bearing-command.v1` descriptor node plus the wrapper that owns no
+alternate asset or mutation truth
+([`packages/snapback-client/commands.mjs`](../packages/snapback-client/commands.mjs));
+C1 is the online one-asset composition, projected by `useSnapbackCommand` and
+`surface.commands.<name>`.
+
+*What is proven* is the §Acceptance matrix and no more:
+[`packages/snapback-client/commands.test.mjs`](../packages/snapback-client/commands.test.mjs)
+and [`packages/snapback-react/commands.test.mjs`](../packages/snapback-react/commands.test.mjs)
+cover text-only and one-image success with one-asset-child/one-attempt
+counters, upload refusal short of the mutation boundary, proved mutation
+refusal, unproved settlement, retry identity reuse and `notRetryable`, both
+cancellation phases, authority replacement, the residue-provenance matrix, the
+exact phase sequences, the closed terminal `status` ↔ `outcome.kind` table,
+terminal immutability under a late settlement, and the `.done`-seam classifier
+that distinguishes `ambiguous` from `failed` from the promise alone. The
+real-runtime half — a served binary, a real upload, and the commit-bound
+attachment check — is
+[`demos/expo-golden-path-fixture/tests/g3-command.mjs`](../demos/expo-golden-path-fixture/tests/g3-command.mjs),
+whose row is written only by the ordinary declarative `sendMessage` mutation.
+
+*What is not proven.* C2 is untouched: no LLP 0181 picker/content-URI adapter
+consumption, no per-OS Expo evidence for the command, no clean
+published-package repository run — so no `Online` or external-distribution
+claim follows. Every §Deferred extension — multiple assets, restart and
+offline custody, attempt grants, anonymous claim-on-attach — remains unbuilt,
+as do the §What v1 proves—and does not exclusions (process-death recovery,
+durable source-byte custody, offline queueing, native background transfer,
+automatic residue deletion, distributed atomicity, and any general workflow
+language).
+
+*Residue provenance: `authoritative` is unreachable against today's runtime.*
+Per §Failure, retry, cancellation, and residue, the client reports only what it
+can prove. The engine emits `unattached: "authoritative"` only when the asset
+child supplies a global authoritative unattached fact; the authorized asset
+record view carries availability, renditions, media, digest, and integrity
+grade and **no attachment fact**, so no live path reaches that branch — it is
+covered synthetically. A definitively refused same-authority mutation yields
+`"inferred"` with a basis that explicitly does not exclude an attachment made
+elsewhere; an unsettled attempt, a post-invocation cancellation, and authority
+replacement yield `"unknown"`. No repair kind deletes; `cleanupPolicy` names
+the declared LLP 0044 lifecycle policy rather than an action this client takes.
+
+That unreachability is **the routed ask to LLP 0044's owner**: expose an
+authoritative unattached-status fact for a finalized asset — whether a
+reference edge exists for it — through the authorized asset record view. LLP
+0176 §G3's Exit already admits this shape ("G3 does not require LLP 0044 to
+expose a new authoritative unattached-status fact it does not yet have; it
+requires the client to never present an inferred value as certain… If LLP 0044
+later exposes the authoritative fact, this residue field upgrades in place"),
+so the upgrade is a field-value change behind the existing `CommandResidue`
+contract, not a new client shape. Until LLP 0044 answers, `"authoritative"`
+stays synthetic and no live value overstates.
+
+Two engine gaps found reviewing the landed implementation are ticketed rather
+than absorbed here: provider disposal does not fence in-flight command tasks,
+and a mutation refused before dispatch by a closed provider currently reports
+`ambiguous` rather than a proved failure
+(`issues/20260806-command-task-provider-disposal-unfenced.md`).
 
 ## Acceptance
 

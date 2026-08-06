@@ -4908,12 +4908,36 @@ export class SnapbackClient {
       responseEnvelope.body,
       [challengeId, code],
     );
+    // The POST is deliberately outside custody ownership. Reconcile its
+    // result against a fresh settled capture: an internal /auth/session may
+    // have advanced the authority while the credential exchange was in
+    // flight, and submitting the pre-POST capture would apply the exchange
+    // result against an obsolete authorization-stream incarnation.
+    // @ref LLP 0059#coordinator-interface — a different current authority is
+    // a typed stale result; only an exact requested successor is idempotent.
+    let currentCapture;
+    try {
+      currentCapture = this.authCoordinator.capture();
+    } catch (error) {
+      if (
+        error?.code === 'SNAPBACK_CLIENT_AUTHORITY_CLEARING'
+        || error?.code === 'SNAPBACK_CLIENT_AUTHORITY_STALE'
+      ) throw staleAuthorityError();
+      throw error;
+    }
+    const current = this.authCoordinator.credentialFor(currentCapture);
     const authority = credentialAuthority(
       response,
       'sessions',
-      predecessor.authority.authorizationStreamIncarnation,
+      current.authority.authorizationStreamIncarnation,
     );
-    await this.authCoordinator.transition(capture, {
+    if (current.authority.kind !== 'anonymous') {
+      if (sameClientAuthority(current.authority, authority)) {
+        return credentialPublicProjection(response);
+      }
+      throw staleAuthorityError();
+    }
+    await this.authCoordinator.transition(currentCapture, {
       authority,
       bearer: response.token,
       refreshAfterMs: response.refreshAfter,

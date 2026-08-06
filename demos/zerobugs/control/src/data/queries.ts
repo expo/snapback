@@ -1,4 +1,5 @@
 import {useSnapbackQuery, type QueryState} from '@expo/snapback-react';
+import {useMemo} from 'react';
 import type {FunctionArgs, FunctionResult} from '../../snapback/generated/api';
 import {api} from '../../snapback/generated/api.mjs';
 
@@ -434,7 +435,10 @@ export function useZerobugsQuery<Name extends QueryName>(
     QUERY_REFS[name] as never,
     args as never,
   ) as QueryState<FunctionResult<(typeof QUERY_REFS)[Name]>>;
-  return deriveAdapterResult(name, state as unknown as RawState);
+  return useMemo(
+    () => deriveAdapterResult(name, state as unknown as RawState),
+    [name, state],
+  );
 }
 
 export type QueryClient = Readonly<{

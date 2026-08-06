@@ -90,3 +90,67 @@ LLP 0185 Phase 6 requires LLP 0163/0164/0165 to complete their review/acceptance
 ## Recommended next step
 
 Keep `operating.instance-forks` at target `none`. First bind every lifecycle command to the recorded canonical app root plus fork instance identity; then repair or downgrade the SQLite completeness class, make diff receipts stream-qualified and digest-bound, and make count/byte/diff-work limits real under concurrency and large inputs. Add the adversarial matrices named above, run the target release suites on both supported platforms, reconcile LLP 0162/0163/0164/0165, and commission a fresh mutually blind implementation/security review before publication.
+
+## Round 2 — 2026-08-06, commit 96fd0ad1c
+
+### Provenance
+
+- **Family:** codex
+- **Provider/runtime:** OpenAI Codex, GPT-5 family runtime
+- **Date:** 2026-08-06
+- **Commit:** `96fd0ad1c38109aa524e4cbc39439c8982e18766`
+- **Redacted:** no
+- **Method:** Independent round-2 delta review. I read both families' committed round-1 reviews, as authorized, but did not read or seek another family's round-2 review. I compared the fix with its parent, verified implementation claims against LLP 0158/0163/0164/0165 and the instance-forks guide, inspected adversarial tests, ran selected committed tests in a disposable exact-revision clone, and constructed and ran one temporary exploit test there. I made no change to this pinned worktree except appending the two requested review sections.
+
+### Overall verdict
+
+**NOT READY for publication of the narrow local `operating.instance-forks` capability.** The lifecycle binding and receipt redesign are closed convincingly, and root-wide admission is atomic. The claimed `registered-connection-defensive-app-rows-v1` class can still be re-earned after an in-process registered-writer coverage gap, and one oversized scanned row can exceed the advertised byte-work bound before refusal.
+
+Document-level fork-surface verdicts are: **LLP 0163 READY; LLP 0164 READY; LLP 0165 NOT READY.** LLP 0164's dated receipt-evolution record accurately describes the v3 artifacts and has no residual v3 drift (`llp/0164-derived-state-and-incremental-views.spec.md:489-513`). Its readiness does not override LLP 0165's failed completeness-class implementation.
+
+### Round-1 blocker dispositions
+
+1. **Cross-app lifecycle selection: closed.** Lifecycle targets now bind a digest-checked application identity derived from canonical app root and logical app id, validate it during registry lookup and against fork-local evidence, and refuse missing legacy binding (`src/instance_fork.rs:170-241`; `src/instance_fork.rs:1104-1289`; `src/instance_fork.rs:2521-2547`; `src/instance_fork.rs:2721-2749`). The CLI passes that expectation into every selector and filters foreign entries from list (`src/cli.rs:3727-3771`). The two-root, same-app-id, shared-fork-root matrix adversarially exercises list, inspect/admin token, diff, renew, drop, recover, credentials, writes, and reap (`tests/instance_fork_cli_v1.rs:542-745`), while the module test covers lower-level mutation and legacy refusal (`src/instance_fork.rs:6500-6583`).
+
+2. **Authorizer and below-surface bypasses: partially closed.** Defensive mode plus default-deny authorization now covers writable-schema aliases, `ATTACH`/`DETACH`, temp DDL, virtual tables, savepoint/raw app DML, integrity tables, and unknown actions (`src/storage/write_authority.rs:338-421`; `src/storage/write_authority.rs:659-762`). Production secondary writers use the registered factory (`src/storage.rs:10709-10769`), and adversarial schema-alias/second-writer tests are non-vacuous (`src/storage.rs:27256-27460`). WAL/page corruption checks and the raw matching-journal test support the revised tamper-evident boundary (`src/instance_fork.rs:7361-7525`). The registered-manifest continuity attack below remains in scope and keeps this blocker open.
+
+3. **Receipt identity, digest, and attribution: closed.** Both journal and net diff are distinct v3 artifacts carrying stream-qualified base/head boundaries and `attribution: "absent-v1"` (`src/instance_fork.rs:904-931`; `src/instance_fork.rs:994-1014`). Digests are JCS-canonical, exclude only `receiptDigest`, and use distinct domain strings (`src/instance_fork.rs:1124-1160`). Production refuses stream rotation when binding the current head (`src/instance_fork.rs:3273-3324`). Golden-hash, domain-separation, and every-top-level-fact mutations make the unit test substantive (`src/instance_fork.rs:6738-6845`), and the CLI acceptance assertions check the v3 identities and digest (`tests/instance_fork_cli_v1.rs:318-381`). LLP 0158's wire contract (`llp/0158-instance-forking.rfc.md:1272-1289`; `llp/0158-instance-forking.rfc.md:1320-1344`) and the guide (`guide/operating/instance-forks.md:289-332`) agree.
+
+4. **Resource admission and net-diff bounds: partially closed.** Root-wide `flock` protects count and aggregate-byte admission through publication (`src/instance_fork.rs:3198-3240`; `src/cli.rs:3405-3441`). The simultaneous boundary test proves exactly one creator wins at both limits and only one registry entry appears (`src/instance_fork.rs:6586-6665`). Net diff counts scan/journal/output work and preflights journal bytes before map construction (`src/instance_fork.rs:3573-3643`; `src/instance_fork.rs:3740-3758`); unchanged, revert-heavy, and byte-heavy cases are adversarial (`src/instance_fork.rs:6978-7088`). The remaining row-scan problem is described below.
+
+### New findings
+
+#### High — registered coverage can disappear, admit an unarmed writer, and be restored
+
+The armed callback grants direct DML to most `_snapback_*` system tables; its special integrity restriction covers only `_snapback_changes` and `_snapback_version` (`src/storage/write_authority.rs:663-672`; `src/storage/write_authority.rs:711-730`). The committed corpus explicitly demonstrates successful deletion of `_snapback_operation_coverage_v1` while coverage is armed (`src/storage.rs:27541-27599`). When the manifest is absent, `open_registered_system_writer_v1` loads `None`, and `WriterAuthorityV1::install` returns without enabling defensive mode or installing the callback (`src/storage.rs:10731-10763`; `src/storage/write_authority.rs:338-351`).
+
+I reproduced the full exploit in a temporary test at the exact commit: through registered process connections, save/delete the manifest; open a second writer and observe defensive mode off; write an application row, `_snapback_version`, and a matching journal post-image; restore the exact manifest; run net diff. The verifier awarded `registered-connection-defensive-app-rows-v1`. This is not out-of-scope raw-file forgery: it is a gap in the precise registered process-writer class LLP 0165 says is continuously armed from fork point through head (`llp/0165-proof-domains-and-checkpoints.spec.md:380-393`). It also contradicts the guide's current class description (`guide/operating/instance-forks.md:345-353`).
+
+Make the activation/coverage boundary monotonic within this class: deny arbitrary DML to manifest, stream, and activation carriers or mediate exact transitions, and have every registered factory fail closed when fork evidence says coverage should exist but the active manifest is absent or mismatched. Commit the delete → unarmed writer → matching forgery → restore exploit as a negative that must not regain the upgraded class.
+
+#### Medium — base/head scan bytes are checked after full row expansion
+
+Manifest rows are decoded into a complete document and serialized into another allocation before `observe_scan` checks the budget (`src/instance_fork.rs:4040-4066`). Generic rows likewise expand blobs to hex, build the object, and serialize it before admission (`src/instance_fork.rs:4069-4111`). One SQLite value larger than `FORK_DIFF_MAX_BYTES` can therefore consume substantially more than the claimed in-flight byte limit before refusal. The current work-bound test does not contain an oversized single scanned row (`src/instance_fork.rs:6978-7088`). Preflight SQLite value lengths before conversion, bound decoding/serialization incrementally, and add huge text/blob/vector negatives.
+
+### Fix-slice regression and drift review
+
+I found no additional fail-open parent regression: without a manifest, the parent path intentionally stays dormant, while a legitimate durable manifest re-arms on reopen (`src/storage/write_authority.rs:338-351`; `src/storage.rs:27602-27670`). No other weakened prior guarantee was identified in the reviewed slice. The raw-file boundary is now described honestly as tamper-evident, not prevented. Receipt versioning and terminology are coherent across code, LLP 0158/0163/0164/0165, tests, and guide; LLP 0164's v3 receipt-evolution note needs no correction. The High finding is instead new code/spec drift: implementation does not maintain the whole-window registered-connection fact currently asserted by LLP 0165 and the guide.
+
+### Verification actually performed
+
+After the disposable clone passed `scripts/bootstrap-ibex-runtime` build, launch, and restricted no-eval handler-VM qualification, these committed tests passed at the reviewed SHA:
+
+- `same_app_id_distinct_app_roots_cannot_select_or_mutate_each_others_forks`
+- `root_wide_admission_is_atomic_at_count_and_total_byte_boundaries`
+- `diff_receipt_v3_digests_are_domain_separated_canonical_and_bind_every_fact`
+- `net_diff_streaming_limits_refuse_unchanged_revert_heavy_and_byte_heavy_work`
+- `llp0165_armed_connection_is_defensive_default_deny_and_schema_alias_safe`
+- `llp0165_registered_second_writer_uses_connection_local_defensive_authority`
+- `net_diff_matching_journal_forgery_is_outside_the_registered_connection_class`
+- `llp0162_writer_authority_rearms_from_durable_manifest_on_reopen`
+
+The temporary registered-manifest-gap exploit test passed and produced the upgraded class, confirming rather than speculating about the bypass. `./ref-check --verbose` passed with 188 LLP documents, 3,427 references, and no errors or unchecked references. The guide checker could not complete because baseline generated demo artifacts and `ajv` were absent in this checkout; I did not treat those environmental failures as fix-slice defects.
+
+### Recommended next step
+
+Keep `operating.instance-forks` at target `none`. Preserve the closed lifecycle, v3 receipt, defensive-authorizer, registered-writer, and root-admission work; repair the manifest-continuity gap and make scanned-row byte enforcement pre-allocation. Then run the two new adversarial negatives and the existing exact-revision lifecycle/security suite before requesting a fresh implementation verdict. LLP 0163 and LLP 0164 need no further change for this fork slice; LLP 0165 and the corresponding guide class must stay unaccepted/unpublished until the registered-writer continuity claim is true.

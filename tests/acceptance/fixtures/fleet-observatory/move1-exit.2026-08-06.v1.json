@@ -1,0 +1,394 @@
+{
+  "schemaVersion": "snapback.fleet-observatory.move1-exit.v1",
+  "date": "2026-08-06",
+  "authority": [
+    "LLP 0157#move-1-workload-exit-llp-0155-normative-transcription",
+    "LLP 0157#d4--capability-classification",
+    "LLP 0155 OQ9",
+    "LLP 0155 OQ13",
+    "LLP 0138#status"
+  ],
+  "source": {
+    "revision": "8935a6cb7ea9b4ccb0f60957dc62604fd56ece42",
+    "dirty": true,
+    "files": [
+      {
+        "path": "tests/acceptance/fleet-observatory-move1-v1.mjs",
+        "sha256": "8bce5ede57035bcfcf2780007ae20d6cb0876d13799434de038f80f0082daefa"
+      },
+      {
+        "path": "demos/fleet-observatory-move1/snapback/schema.mjs",
+        "sha256": "e272991635a2446d8689c402d0092e9cd117221181e48d7ea20469192f1d614d"
+      },
+      {
+        "path": "demos/fleet-observatory-move1/snapback/functions.mjs",
+        "sha256": "becf570f05d83927bcfa1fa2b5a4204434937e55e3d892f75224b85498920f07"
+      },
+      {
+        "path": "demos/fleet-observatory-move1/snapback/trusted-composition-activation.json",
+        "sha256": "d441e81e799052725a21d443e832c664b69ab59f7844520ffd743e86a2fc9997"
+      },
+      {
+        "path": "demos/fleet-observatory-move1/snapback/generated/artifacts.json",
+        "sha256": "c9ea12835a9ac425a513fdd96ea07bb0cd605bd06147d17d006d8187d2e919a8"
+      },
+      {
+        "path": "demos/fleet-observatory-move1/demo.snapback.json",
+        "sha256": "bea43efd1af27a6df9ef53059175a97c0136af712256d49aacffb38f2509f0c5"
+      },
+      {
+        "path": "demos/fleet-observatory-move1/fixture.mjs",
+        "sha256": "07139982add1f07d7e0ebafabd800f7f655aab3e74b81b51d752930f56becb14"
+      },
+      {
+        "path": "demos/fleet-observatory-move1/src/App.tsx",
+        "sha256": "690b8b19d1b269be69a1e0cf6591ce01dd3190d4934df76015da37af280b2576"
+      },
+      {
+        "path": "demos/fleet-observatory-move1/workload-manifest.2026-08-06.v1.json",
+        "sha256": "b37cfc5301de2f963dc1235036196a9e8be273427025bc5b1ea82c9a33f5a2f2"
+      },
+      {
+        "path": "packages/snapback-client/index.mjs",
+        "sha256": "d0ce03b98637070016675519362dfc6297ce34daa0d46a6f0d0b02ec2d4dac67"
+      },
+      {
+        "path": "packages/snapback-client/materialization-store.mjs",
+        "sha256": "34ebc65b3632869e39fd9587bd79a36e0a85316c4c660d8f1b12497668652310"
+      },
+      {
+        "path": "packages/snapback-client/materialization-store-runtime.mjs",
+        "sha256": "525ffb0bee554a6b9c2e65256e0668ebfbcc23c43b0d4ae046c399aed410c049"
+      },
+      {
+        "path": "packages/snapback-client/store-policy.mjs",
+        "sha256": "e13f08a294206d9b78a5bdff18ffd6ddf65c34d07724cdbcb1e860a20288687d"
+      },
+      {
+        "path": "packages/snapback-client/store-runtime.mjs",
+        "sha256": "07f7d68a8e9a34cd1232a21b54c7a486a86d6414b21cc9b1d0f47daa6b092731"
+      }
+    ]
+  },
+  "controlledRun": {
+    "status": "PASS",
+    "runtime": {
+      "serverBinary": "target/debug/snapback",
+      "serverBinarySha256": "47a904aa42d7ecd0d3832ce11ae2cb473c70c8be5c6cef849e992506eca5a443",
+      "launchRung": "configured"
+    },
+    "activation": {
+      "format": "snapback.composition-activation-preparation.v1",
+      "activationHash": "sha256:c67b022e53de78490a73b1be53ccd6f655f12cffff38f3d2d512476f0962a7e0",
+      "deploymentId": "fleet-observatory-move1-controlled-run"
+    }
+  },
+  "manifestDecision": "refreeze-fresh-successor-manifest",
+  "budgetFreeze": {
+    "schemaVersion": "snapback.fleet-observatory.budget-freeze.v1",
+    "date": "2026-08-06",
+    "authority": "LLP 0155 OQ9",
+    "workload": {
+      "devices": 25000,
+      "sourceEventRows": 250000,
+      "updateBurst": 1000,
+      "activeMatches": 100,
+      "queryChanges": 20
+    },
+    "retentionPosture": "none",
+    "measured": {
+      "activeCustody": {
+        "materializationRecords": 21,
+        "payloadBearingRecords": 1,
+        "compactedPredecessorStubs": 20,
+        "fragments": 1,
+        "topLevelEnvelopeRows": 1,
+        "projectedResultRows": 200,
+        "eventRows": 100,
+        "rollupRows": 100,
+        "logicalBytes": 51027,
+        "resultBytes": 49652,
+        "proofBytes": 1375,
+        "physicalCarrierBytes": 129338
+      },
+      "releasedCustody": {
+        "materializationRecords": 21,
+        "payloadBearingRecords": 0,
+        "compactedInstanceBookkeepingStubs": 21,
+        "fragments": 0,
+        "retainedTopLevelRows": 0,
+        "retainedProjectedRows": 0,
+        "physicalCarrierBytes": 48731
+      },
+      "hydration": {
+        "attempts": 1,
+        "firstUsefulRows": 100,
+        "rowsInstalled": 200,
+        "payloadBytes": 49652,
+        "firstUsefulMs": 248.115,
+        "authoritativeCompleteMs": 248.115
+      }
+    },
+    "frozenCeilings": {
+      "activeCustody": {
+        "materializationRecords": 21,
+        "payloadBearingRecords": 1,
+        "compactedPredecessorStubs": 20,
+        "fragments": 1,
+        "topLevelEnvelopeRows": 1,
+        "projectedResultRows": 200,
+        "eventRows": 100,
+        "rollupRows": 100,
+        "logicalBytes": 51027
+      },
+      "releasedCustody": {
+        "materializationRecords": 21,
+        "payloadBearingRecords": 0,
+        "compactedInstanceBookkeepingStubs": 21,
+        "fragments": 0,
+        "retainedTopLevelRows": 0,
+        "retainedProjectedRows": 0
+      },
+      "hydration": {
+        "attempts": 1,
+        "firstUsefulRows": 100,
+        "rowsInstalled": 200,
+        "payloadBytes": 49652,
+        "elapsedMs": 1000
+      }
+    }
+  },
+  "footprintHydration": {
+    "activeCustody": {
+      "materializationRecords": 21,
+      "payloadBearingRecords": 1,
+      "compactedPredecessorStubs": 20,
+      "fragments": 1,
+      "topLevelEnvelopeRows": 1,
+      "projectedResultRows": 200,
+      "eventRows": 100,
+      "rollupRows": 100,
+      "logicalBytes": 51027,
+      "resultBytes": 49652,
+      "proofBytes": 1375,
+      "physicalCarrierBytes": 129338
+    },
+    "releasedCustody": {
+      "materializationRecords": 21,
+      "payloadBearingRecords": 0,
+      "compactedInstanceBookkeepingStubs": 21,
+      "fragments": 0,
+      "retainedTopLevelRows": 0,
+      "retainedProjectedRows": 0,
+      "physicalCarrierBytes": 48731
+    },
+    "hydration": {
+      "attempts": 1,
+      "firstUsefulRows": 100,
+      "rowsInstalled": 200,
+      "payloadBytes": 49652,
+      "firstUsefulMs": 248.115,
+      "authoritativeCompleteMs": 248.115
+    }
+  },
+  "summary": {
+    "pass": 8,
+    "blocked": 0,
+    "total": 8,
+    "capabilityClaimsChanged": false,
+    "carrierGapChanged": false,
+    "predecessorEvidenceRewritten": false
+  },
+  "gates": [
+    {
+      "gate": "required screens consume generated composites rather than JavaScript collection joins",
+      "status": "PASS",
+      "evidence": {
+        "route": "fleetObservatory",
+        "screen": "demos/fleet-observatory-move1/src/App.tsx",
+        "generatedReadCount": 1,
+        "profile": "snapshot-batch.v2",
+        "nodeClasses": [
+          "relational_query_v1",
+          "bounded_children_v1"
+        ],
+        "nodeTakes": [
+          100,
+          100
+        ],
+        "parentAuthorizationGroups": 1,
+        "retention": "none",
+        "requiredCapabilities": [
+          "snapshot_batch_v2",
+          "relational_query_v1",
+          "bounded_children_v1"
+        ],
+        "predecessorEvidenceRewritten": false,
+        "manifestDecision": "refreeze-fresh-successor-manifest"
+      }
+    },
+    {
+      "gate": "the client retains only desired bounded query results",
+      "status": "PASS",
+      "evidence": {
+        "ownerClassification": {
+          "profile": "snapshot-batch.v2",
+          "retention": "none"
+        },
+        "active": {
+          "materializationRecords": 21,
+          "payloadBearingRecords": 1,
+          "compactedPredecessorStubs": 20,
+          "fragments": 1,
+          "topLevelEnvelopeRows": 1,
+          "projectedResultRows": 200,
+          "eventRows": 100,
+          "rollupRows": 100,
+          "logicalBytes": 51027,
+          "resultBytes": 49652,
+          "proofBytes": 1375,
+          "physicalCarrierBytes": 129338
+        },
+        "released": {
+          "materializationRecords": 21,
+          "payloadBearingRecords": 0,
+          "compactedInstanceBookkeepingStubs": 21,
+          "fragments": 0,
+          "retainedTopLevelRows": 0,
+          "retainedProjectedRows": 0,
+          "physicalCarrierBytes": 48731
+        },
+        "activePolicy": {
+          "addressKey": "qmk1.eeG31lSLBh6Ea5KcPbC9_6ebPq2L4-MODqdmJ1AbeF8",
+          "demandState": "demanded-active",
+          "effectiveRetentionRequest": "none",
+          "retainingReason": {
+            "kind": "registrations",
+            "entries": [
+              {
+                "registrationId": "qreg1_816b11c80423676ae44a9bcb9c065c21",
+                "source": "active",
+                "ownerContextKind": "subscription"
+              }
+            ]
+          },
+          "effectiveTtlClass": "default",
+          "compacted": false
+        },
+        "releasedPolicyReasons": {
+          "instanceBookkeeping": 21,
+          "registrations": 0,
+          "releaseGrace": 0,
+          "safetyBlockers": 0
+        },
+        "offlineRenderabilityAfterRelease": "unknown-render-nothing"
+      }
+    },
+    {
+      "gate": "pagination neither duplicates nor skips an untouched root",
+      "status": "PASS",
+      "evidence": {
+        "pages": 51,
+        "eventRows": 5000,
+        "uniqueEventKeys": 5000,
+        "queryRanks": [
+          0,
+          4999
+        ],
+        "continuationCount": 50,
+        "continuationFamily": "sbsb2",
+        "rollupRows": 100
+      }
+    },
+    {
+      "gate": "20 query changes leak no predecessor rows",
+      "status": "PASS",
+      "evidence": {
+        "changes": 20,
+        "rows": [
+          "switch-00",
+          "switch-01",
+          "switch-02",
+          "switch-03",
+          "switch-04",
+          "switch-05",
+          "switch-06",
+          "switch-07",
+          "switch-08",
+          "switch-09",
+          "switch-10",
+          "switch-11",
+          "switch-12",
+          "switch-13",
+          "switch-14",
+          "switch-15",
+          "switch-16",
+          "switch-17",
+          "switch-18",
+          "switch-19"
+        ],
+        "uniqueRows": 20,
+        "predecessorPayloadRecordsAfterMaintenance": 0,
+        "compactedInstanceBookkeepingStubs": 20
+      }
+    },
+    {
+      "gate": "the 250,000-event fixture converges to exactly 100 active matches from the 1,000-update burst",
+      "status": "PASS",
+      "evidence": {
+        "sourceEventRows": 250000,
+        "updates": 1000,
+        "activeEventMatches": 100,
+        "activeRollupMatches": 100,
+        "serverSettlementMs": 12981.822,
+        "clientSettlementMs": 13042.079,
+        "liveFramesObserved": 1
+      }
+    },
+    {
+      "gate": "an implicit incomplete prefix is impossible to consume as complete",
+      "status": "PASS",
+      "evidence": {
+        "refusal": "SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED"
+      }
+    },
+    {
+      "gate": "Mallory receives no protected source or result rows",
+      "status": "PASS",
+      "evidence": {
+        "protectedCompositeRows": 0,
+        "protectedSourceRows": 0,
+        "clientMaterializationRecords": 0
+      }
+    },
+    {
+      "gate": "inspection explains every retained row and completeness transition",
+      "status": "PASS",
+      "evidence": {
+        "transitions": [
+          {
+            "state": "unhydrated",
+            "addressPresent": false,
+            "completeness": "unknown"
+          },
+          {
+            "state": "active",
+            "answerClass": "authoritative",
+            "freshness": "current",
+            "projectedRows": 200,
+            "retainingReason": "registrations"
+          },
+          {
+            "state": "released",
+            "completeness": "unknown",
+            "retainedProjectedRows": 0,
+            "retainingReason": "instance-bookkeeping",
+            "compacted": true
+          }
+        ],
+        "addressesExplained": 21,
+        "payloadBearingAddressesAfterRelease": 0
+      }
+    }
+  ]
+}

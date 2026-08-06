@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 // @ref LLP 0063#workstream-6--reduce-snapbacks-declaration-and-runtime-tax —
-// the runtime/CLI/Contract/React/client/codegen/app-CLI closure must install from a public
+// the runtime/CLI/Contract/React/Expo/client/codegen/app-CLI closure must install from a public
 // registry without sibling checkouts or repository-only resolution.
 // @ref LLP 0041#acceptance — publication is staged from immutable tarballs;
 // dry-run is the default and a real publish is double-confirmed.
@@ -46,6 +46,7 @@ const commonPackages = [
   'snapback-client',
   'snapback-codegen',
   'snapback-react',
+  'snapback-expo',
   'snapback-app-cli',
   'snapback-cli',
   'snapback-vite',

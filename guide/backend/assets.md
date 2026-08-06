@@ -4,13 +4,13 @@ id: backend.assets
 order: 9
 audience: agent-first
 capabilities: [backend.assets]
-authorities: [llp/0012-headless-integration-contract.spec.md, llp/0044-asset-storage-pipeline.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0096-auth-profiles-for-protocol-clients.spec.md, llp/0176-expo-messaging-golden-path.plan.md, src/assets.rs, src/assets_cut.rs, src/cli.rs, src/local.rs, src/server.rs, packages/snapback-codegen/define.mjs, packages/snapback-react/index.d.mts, packages/snapback-vite/allowlist.mjs, tests/acceptance/asset-lifecycle-v1-evidence.md]
-examples: [demos/party-wall, demos/file-drop, demos/tandem-expo-bakeoff]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0044-asset-storage-pipeline.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0096-auth-profiles-for-protocol-clients.spec.md, llp/0176-expo-messaging-golden-path.plan.md, llp/0180-asset-bearing-client-commands.rfc.md, llp/0181-zero-configuration-expo.rfc.md, src/assets.rs, src/assets_cut.rs, src/cli.rs, src/local.rs, src/server.rs, packages/snapback-codegen/define.mjs, packages/snapback-expo/asset-source.mjs, packages/snapback-react/index.d.mts, packages/snapback-vite/allowlist.mjs, tests/acceptance/asset-lifecycle-v1-evidence.md]
+examples: [demos/party-wall, demos/file-drop, demos/tandem-expo-bakeoff, demos/expo-golden-path-fixture]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-05
-reviewed-commit: f3c7d9fbb394a413370a9264f22e72b6f151a25e
+reviewed: 2026-08-06
+reviewed-commit: HEAD
 ---
 
 # Assets
@@ -202,88 +202,56 @@ id-shaped string written into a `v.assetRef` field fails the commit with
 reference edge commits in the same changeset. Deleting an asset refuses
 while typed references remain.
 
-## Upload from Expo ImagePicker with an ordinary session
+## Send one Expo ImagePicker image with an ordinary session
 
-Once the provider owns the real session above, bridge the native picker URI
-with `expo/fetch` (`import { fetch as expoFetch } from 'expo/fetch'`) and
-import `ImagePicker` from `expo-image-picker`. The messaging bakeoff first
-captures the picker metadata:
+For a declared asset-bearing command, `SnapbackExpoProvider` registers the
+native source adapter and binary transport once. Pass the real
+`expo-image-picker` asset directly to the generated command; application code
+does not call `expo/fetch`, start a raw upload, or carry an asset id between
+steps:
 
-```tsx source=demos/tandem-expo-bakeoff/shared/chat-screen.tsx
-  const pickImage = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      allowsEditing: false,
-      mediaTypes: ['images'],
-      quality: 0.82,
-    });
-    const asset = result.canceled ? null : result.assets[0];
-    if (!asset) return;
-    setAttachment({
-      uri: asset.uri,
-      fileName: asset.fileName ?? `message-${Date.now()}.jpg`,
-      mimeType: asset.mimeType ?? 'image/jpeg',
-    });
-    if (process.env.EXPO_OS === 'ios') void Haptics.selectionAsync();
-  };
-```
-
-Its backend hook converts that URI to a Blob with `expoFetch`, starts the
-generated upload reference, exposes byte progress, awaits `task.done`, and
-accepts only the completed `ready` receipt with a non-null `assetId`:
-
-```tsx source=demos/tandem-expo-bakeoff/snapback/src/backend.tsx
-function useImageUpload() {
-  const upload = useSnapbackAssetUpload({ upload: api.messageImageUpload });
-  const [error, setError] = useState<string | null>(null);
-  const progress = upload.state.totalBytes > 0 ? upload.state.bytesTransferred / upload.state.totalBytes : 0;
-  return useMemo(() => ({
-    state: {
-      status: error ? 'error' as const : upload.state.status === 'idle' || upload.state.status === 'ready' ? 'idle' as const : 'uploading' as const,
-      progress,
-      error: error ?? upload.state.diagnostic?.message ?? null,
-    },
-    upload: async (input: { uri: string; mimeType: string; fileName: string }) => {
-      setError(null);
-      try {
-        const response = await expoFetch(input.uri);
-        const blob = await response.blob();
-        const task = upload.start(blob, {
-          declaredContentType: input.mimeType,
-          declaredFilename: input.fileName,
-          previewUrl: input.uri,
-        }) as { done: Promise<{ status: string; assetId: string | null; diagnostic?: { message?: string } | null }> };
-        const result = await task.done;
-        if (result.status !== 'ready' || !result.assetId) {
-          throw new Error(result.diagnostic?.message ?? 'Snapback could not finish the image upload.');
-        }
-        return result.assetId;
-      } catch (cause) {
-        const message = cause instanceof Error ? cause.message : String(cause);
-        setError(message);
-        throw cause;
-      }
-    },
-  }), [error, progress, upload]);
-}
-```
-
-The screen awaits that receipt before calling its ordinary authenticated
-message mutation. The mutation performs the typed attachment; do not write
-the returned id directly into a `v.assetRef` field:
-
-```js source=demos/tandem-expo-bakeoff/snapback/snapback/functions.mjs
-    if (args.imageAssetId) {
-      values.image = await ctx.assets.attach(args.imageAssetId, { upload: 'messageImageUpload' });
+```tsx source=demos/expo-golden-path-fixture/src/screens/chat-screen.tsx
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.86 });
+    if (result.canceled || !result.assets[0]) {
+      emitG3('picker-cancelled');
+      return;
     }
+    const picked = result.assets[0];
+    emitG3('picker-image-selected', {
+      source: 'photo-library-picker',
+      uriScheme: picked.uri.slice(0, picked.uri.indexOf(':')).toLowerCase(),
+      fileName: picked.fileName ?? null,
+      mimeType: picked.mimeType ?? null,
+      fileSize: picked.fileSize ?? null,
+    });
+    try {
+      const body = proofEnabled ? G3_IMAGE_BODY : draft.trim() || undefined;
+      const outcome = await observeCommand(
+        conversation.commands.send({ ...(body ? { body } : {}), image: picked }),
+        'picked-image',
+      );
 ```
 
-That is the complete custody chain: trusted dev broker mints an ordinary
-session → `createExternalSessionClient` owns it → ImagePicker supplies a URI
-→ `expo/fetch` produces the Blob → `useSnapbackAssetUpload.start` owns the
-TUS task → `task.done` yields the ready asset id → an ordinary authenticated
-mutation calls `ctx.assets.attach`. Render `upload.state.bytesTransferred /
-totalBytes` while active and surface `rejected`/`failed` diagnostics rather
-than treating attempt creation as success.
+The adapter accepts picker-owned `content://`, `ph://`, and `file://` records.
+It copies the live-process bytes into an immutable, slice-readable structural
+source for the existing asset task. Expo's WinterCG fetch carries binary
+checksum/TUS requests. On Expo 57 Android only, a picker-cache `file://` that
+returns a genuine 404 through `expo/fetch` falls back to local
+`expo-file-system` `File.bytes()`; the 404 text is never treated as image
+bytes.
+
+The command still uses the provider's already adopted ordinary session for
+asset reservation, transfer, and mutation. Its task exposes `preparing`,
+`transferring`, `committing`, and the truthful terminal outcomes described in
+[application surfaces](../clients/surfaces.md). Render those phases and await
+`task.done`; `committed` proves the ordinary mutation settled, while `failed`,
+`ambiguous`, and `cancelled` must remain distinct. A post-finalize mutation
+failure can retain residue and is not a rollback receipt.
+
+This adapter is transient live-process custody. It does not prove background
+upload, restart recovery, offline source custody or settlement, or attempt
+grants. Use the raw `useSnapbackAssetUpload`/`assets.start` seam for workflows
+that do not fit the one-optional-asset command grammar.
 
 ## Run lifecycle callbacks
 

@@ -53,6 +53,27 @@ fn assert_success(output: &Output, operation: &str) {
     );
 }
 
+fn assert_refused(mut command: Command, operation: &str, code: &str) {
+    let output = command
+        .output()
+        .unwrap_or_else(|error| panic!("spawn {operation}: {error}"));
+    assert!(
+        !output.status.success(),
+        "{operation} unexpectedly succeeded\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let diagnostic = format!(
+        "{}\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(
+        diagnostic.contains(code),
+        "{operation} did not emit {code}:\n{diagnostic}"
+    );
+}
+
 fn fork_create(
     source: &Path,
     app_root: &Path,
@@ -132,6 +153,32 @@ fn data_path(created: &Value, key: &str) -> PathBuf {
     )
 }
 
+fn fork_admin_token(created: &Value) -> String {
+    let ready = data_path(created, "readyFile");
+    let descriptor: Value = serde_json::from_slice(
+        &std::fs::read(&ready).unwrap_or_else(|error| panic!("read {}: {error}", ready.display())),
+    )
+    .expect("fork ready descriptor JSON");
+    std::fs::read_to_string(
+        descriptor["adminTokenFile"]
+            .as_str()
+            .expect("fork admin token file"),
+    )
+    .expect("fork admin token")
+    .trim()
+    .to_owned()
+}
+
+fn copy_todo_app_root(destination: &Path) {
+    let generated = destination.join("snapback/generated");
+    std::fs::create_dir_all(&generated).expect("create copied Todo generated directory");
+    let source = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("demos/todo/snapback/generated");
+    for artifact in ["schema.manifest.json", "functions.manifest.json"] {
+        std::fs::copy(source.join(artifact), generated.join(artifact))
+            .unwrap_or_else(|error| panic!("copy Todo {artifact}: {error}"));
+    }
+}
+
 struct ForkCleanup {
     fork_root: PathBuf,
     app_root: PathBuf,
@@ -166,8 +213,8 @@ impl Drop for ForkCleanup {
 fn executable_fork_lifecycle_is_detached_exact_and_reap_safe() {
     let directory = tempfile::tempdir().expect("fork CLI fixture");
     let source = directory.path().join("parent.sqlite3");
-    let repo = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let todo_root = repo.join("demos/todo");
+    let todo_root = directory.path().join("todo-app");
+    copy_todo_app_root(&todo_root);
     let schema: SchemaManifest = serde_json::from_slice(
         &std::fs::read(todo_root.join("snapback/generated/schema.manifest.json"))
             .expect("generated Todo schema"),
@@ -279,11 +326,21 @@ fn executable_fork_lifecycle_is_detached_exact_and_reap_safe() {
         fork_root.to_str().unwrap(),
     ]);
     let diff = successful(diff, "fork diff");
+    assert_eq!(
+        diff["data"]["receipt"]["schemaVersion"],
+        "snapback.fork-journal-diff.v3"
+    );
+    assert_eq!(diff["data"]["receipt"]["attribution"], "absent-v1");
+    assert_eq!(diff["data"]["receipt"]["base"]["versionBoundary"], "exclusive");
+    assert_eq!(diff["data"]["receipt"]["head"]["versionBoundary"], "inclusive");
+    assert!(diff["data"]["receipt"]["receiptDigest"]
+        .as_str()
+        .is_some_and(|digest| digest.starts_with("sha256:")));
     assert!(
         diff["data"]["receipt"]["rows"]
             .as_array()
             .is_some_and(|rows| !rows.is_empty()),
-        "mutation is visible in the attributed fork diff"
+        "mutation is visible in the fork journal diff"
     );
 
     let mut net_diff = snapback();
@@ -299,9 +356,15 @@ fn executable_fork_lifecycle_is_detached_exact_and_reap_safe() {
     ]);
     let net_diff = successful(net_diff, "authorizer-backed fork net diff");
     let net_receipt = &net_diff["data"]["receipt"];
+    assert_eq!(net_receipt["schemaVersion"], "snapback.fork-net-diff.v3");
+    assert_eq!(net_receipt["base"]["versionBoundary"], "exclusive");
+    assert_eq!(net_receipt["head"]["versionBoundary"], "inclusive");
+    assert!(net_receipt["receiptDigest"]
+        .as_str()
+        .is_some_and(|digest| digest.starts_with("sha256:")));
     assert_eq!(
         net_receipt["completeness"],
-        "authorizer-backed-app-rows-v1"
+        "registered-connection-defensive-app-rows-v1"
     );
     assert_eq!(net_receipt["attribution"], "absent-v1");
     assert_eq!(
@@ -348,7 +411,7 @@ fn executable_fork_lifecycle_is_detached_exact_and_reap_safe() {
     assert_eq!(status["workerPosture"]["assets"], "inert");
     assert_eq!(status["egressPosture"], "deny-all-v1");
     assert!(
-        status["diffSummary"]["attributedRowCount"]
+        status["diffSummary"]["journalRowCount"]
             .as_u64()
             .is_some_and(|count| count > 0)
     );
@@ -474,6 +537,329 @@ fn executable_fork_lifecycle_is_detached_exact_and_reap_safe() {
         "reap waits for runtime/telemetry teardown before removing the whole fork tree"
     );
     assert!(source.is_file(), "reap never changes the parent database");
+}
+
+/// The explicit fork root is a storage location, never an authority boundary.
+/// Two independent app roots with the same logical app id may share it, but
+/// every projection, credential disclosure, mutation, and cleanup command is
+/// bound to the invoking canonical app root.
+#[test]
+fn same_app_id_app_roots_cannot_cross_select_a_shared_fork_root() {
+    let directory = tempfile::tempdir().expect("shared fork-root fixture");
+    let app_a = directory.path().join("app-a");
+    let app_b = directory.path().join("app-b");
+    copy_todo_app_root(&app_a);
+    copy_todo_app_root(&app_b);
+    let data_a = directory.path().join("data-a");
+    let data_b = directory.path().join("data-b");
+    std::fs::create_dir_all(&data_a).unwrap();
+    std::fs::create_dir_all(&data_b).unwrap();
+    let source_a = parent_with_schema(&data_a);
+    let source_b = parent_with_schema(&data_b);
+    let fork_root = directory.path().join("shared-forks");
+    let created_a = fork_create(&source_a, &app_a, &fork_root, "5m", false);
+    let created_b = fork_create(&source_b, &app_b, &fork_root, "5m", false);
+    let id_a = fork_id(&created_a).to_owned();
+    let id_b = fork_id(&created_b).to_owned();
+    let destination_a = data_path(&created_a, "database")
+        .parent()
+        .expect("fork A destination")
+        .to_path_buf();
+    let destination_b = data_path(&created_b, "database")
+        .parent()
+        .expect("fork B destination")
+        .to_path_buf();
+    let mut cleanup_a = ForkCleanup {
+        fork_root: fork_root.clone(),
+        app_root: app_a.clone(),
+        fork_ids: vec![id_a.clone()],
+    };
+    let mut cleanup_b = ForkCleanup {
+        fork_root: fork_root.clone(),
+        app_root: app_b.clone(),
+        fork_ids: vec![id_b.clone()],
+    };
+
+    for (app_root, own_id, hidden_id) in [
+        (&app_a, &id_a, &id_b),
+        (&app_b, &id_b, &id_a),
+    ] {
+        let listed = successful(
+            {
+                let mut command = snapback();
+                command.args([
+                    "fork",
+                    "list",
+                    "--app-root",
+                    app_root.to_str().unwrap(),
+                    "--fork-root",
+                    fork_root.to_str().unwrap(),
+                ]);
+                command
+            },
+            "root-bound fork list",
+        );
+        let ids = listed["data"]["forks"]
+            .as_array()
+            .expect("fork list")
+            .iter()
+            .map(|entry| entry["lineage"]["forkId"].as_str().unwrap())
+            .collect::<Vec<_>>();
+        assert_eq!(ids, vec![own_id.as_str()]);
+        assert!(!ids.contains(&hidden_id.as_str()));
+    }
+
+    for (verb, trailing) in [
+        ("inspect", Vec::<&str>::new()),
+        ("inspect", vec!["--format", "admin-token-path"]),
+        ("diff", Vec::<&str>::new()),
+        ("renew", vec!["--ttl", "10m"]),
+        ("drop", Vec::<&str>::new()),
+    ] {
+        let mut command = snapback();
+        command.args(["fork", verb, &id_b]);
+        command.args(trailing);
+        command.args([
+            "--app-root",
+            app_a.to_str().unwrap(),
+            "--fork-root",
+            fork_root.to_str().unwrap(),
+        ]);
+        assert_refused(
+            command,
+            &format!("app A {verb} of app B fork"),
+            snapback::instance_fork::APP_BINDING_MISMATCH_CODE,
+        );
+    }
+    let mut recover = snapback();
+    recover.args([
+        "fork",
+        "recover",
+        destination_b.to_str().unwrap(),
+        "--app-root",
+        app_a.to_str().unwrap(),
+        "--fork-root",
+        fork_root.to_str().unwrap(),
+    ]);
+    assert_refused(
+        recover,
+        "app A recovery of app B fork",
+        snapback::instance_fork::APP_BINDING_MISMATCH_CODE,
+    );
+    assert!(destination_a.is_dir() && destination_b.is_dir());
+
+    let ready_a = data_path(&created_a, "readyFile");
+    let ready_b = data_path(&created_b, "readyFile");
+    let token_a = fork_admin_token(&created_a);
+    let token_b = fork_admin_token(&created_b);
+    for (ready, wrong_token, label) in [
+        (&ready_a, &token_b, "app B credential against app A fork"),
+        (&ready_b, &token_a, "app A credential against app B fork"),
+    ] {
+        let output = snapback()
+            .args([
+                "run",
+                "--ready-file",
+                ready.to_str().unwrap(),
+                "--token",
+                wrong_token,
+                "createTodo",
+                "--args",
+                r#"{"title":"cross-root"}"#,
+                "--user",
+                "acceptance-user",
+            ])
+            .output()
+            .unwrap_or_else(|error| panic!("spawn {label}: {error}"));
+        assert!(!output.status.success(), "{label} must be refused");
+    }
+    for (ready, token, title, label) in [
+        (&ready_a, &token_a, "only-a", "app A own mutation"),
+        (&ready_b, &token_b, "only-b", "app B own mutation"),
+    ] {
+        let mut command = snapback();
+        command.args([
+            "run",
+            "--ready-file",
+            ready.to_str().unwrap(),
+            "--token",
+            token,
+            "createTodo",
+            "--args",
+            &format!(r#"{{"title":"{title}"}}"#),
+            "--user",
+            "acceptance-user",
+        ]);
+        successful(command, label);
+    }
+    assert_eq!(todo_titles(&data_path(&created_a, "database")), vec!["only-a"]);
+    assert_eq!(todo_titles(&data_path(&created_b, "database")), vec!["only-b"]);
+
+    let expires_b = created_b["data"]["receipt"]["lineage"]["expiresAtMs"]
+        .as_u64()
+        .expect("fork B expiry");
+    let reaped = successful(
+        {
+            let mut command = snapback();
+            command.args([
+                "fork",
+                "reap",
+                "--now-ms",
+                &expires_b.to_string(),
+                "--app-root",
+                app_b.to_str().unwrap(),
+                "--fork-root",
+                fork_root.to_str().unwrap(),
+            ]);
+            command
+        },
+        "app B root-bound reap",
+    );
+    assert_eq!(
+        reaped["data"]["receipt"]["reapedForkIds"],
+        serde_json::json!([id_b])
+    );
+    assert!(destination_a.is_dir(), "app B reap cannot delete app A fork");
+    assert!(!destination_b.exists(), "app B reap deletes its own fork");
+    cleanup_b.fork_ids.clear();
+
+    let dropped_a = successful(
+        {
+            let mut command = snapback();
+            command.args([
+                "fork",
+                "drop",
+                &id_a,
+                "--app-root",
+                app_a.to_str().unwrap(),
+                "--fork-root",
+                fork_root.to_str().unwrap(),
+            ]);
+            command
+        },
+        "app A own drop",
+    );
+    assert_eq!(dropped_a["data"]["dropped"], true);
+    assert!(!destination_a.exists());
+    cleanup_a.fork_ids.clear();
+}
+
+/// Regression for the mint-vs-launch binding gap: lifecycle authority is
+/// durable fork evidence, so diff must work before any ready descriptor or
+/// server process exists while a sibling app root remains unable to select it.
+#[test]
+fn library_minted_never_launched_fork_diffs_only_for_its_owning_app_root() {
+    let directory = tempfile::tempdir().expect("never-launched fork fixture");
+    let source = parent_with_schema(directory.path());
+    let owning_app = directory.path().join("owning-app");
+    let sibling_app = directory.path().join("sibling-app");
+    std::fs::create_dir(&owning_app).unwrap();
+    std::fs::create_dir(&sibling_app).unwrap();
+    let expected = snapback::instance_fork::ensure_expected_app(&owning_app, "todo")
+        .expect("establish owning app identity");
+    snapback::instance_fork::ensure_expected_app(&sibling_app, "todo")
+        .expect("establish same-app-id sibling identity");
+    let fork_root = directory.path().join("shared-forks");
+    std::fs::create_dir(&fork_root).unwrap();
+    let destination = fork_root.join("never-launched");
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .expect("wall clock")
+        .as_millis() as u64;
+    let mint = snapback::instance_fork::publish_managed_with_base(
+        &source,
+        &destination,
+        &expected,
+        "never-launched-parent",
+        now_ms,
+        now_ms + 3_600_000,
+        false,
+        true,
+    )
+    .expect("mint bound fork without launch");
+    assert!(
+        destination
+            .join(snapback::instance_fork::APP_BINDING_RECEIPT_FILE)
+            .is_file(),
+        "mint publishes fork-local app binding before any launch"
+    );
+    assert!(
+        std::fs::read_dir(&destination)
+            .unwrap()
+            .all(|entry| !entry.unwrap().file_name().to_string_lossy().ends_with(".ready.json")),
+        "the fixture never publishes runtime readiness"
+    );
+
+    let database = destination.join("parent.sqlite3");
+    let conn = rusqlite::Connection::open(&database).expect("open never-launched fork");
+    conn.execute_batch(
+        "BEGIN IMMEDIATE;
+         INSERT INTO todos(_id,_version,_createdAt,_updatedAt,title,completed,userId)
+         VALUES('never-launched-row',1,100,100,'mint-time binding',0,'user_bound');
+         UPDATE _snapback_version SET version=1 WHERE id=1;
+         INSERT INTO _snapback_changes(version,table_name,row_id,op,row_json,changed_at_ms)
+         VALUES(1,'todos','never-launched-row','insert','{}',100);
+         COMMIT;",
+    )
+    .expect("write never-launched fork workload");
+    drop(conn);
+
+    for (extra, schema, operation) in [
+        (Vec::<&str>::new(), "snapback.fork-journal-diff.v3", "attributed diff"),
+        (vec!["--net"], "snapback.fork-net-diff.v3", "net diff"),
+    ] {
+        let mut command = snapback();
+        command.args(["fork", "diff", &mint.lineage.fork_id]);
+        command.args(extra);
+        command.args([
+            "--app-root",
+            owning_app.to_str().unwrap(),
+            "--fork-root",
+            fork_root.to_str().unwrap(),
+        ]);
+        let envelope = successful(command, &format!("owning app {operation}"));
+        assert_eq!(envelope["data"]["receipt"]["schemaVersion"], schema);
+        assert_eq!(
+            envelope["data"]["receipt"]["rows"]
+                .as_array()
+                .expect("diff rows")
+                .len(),
+            1
+        );
+    }
+
+    for (extra, operation) in [
+        (Vec::<&str>::new(), "attributed diff"),
+        (vec!["--net"], "net diff"),
+    ] {
+        let mut command = snapback();
+        command.args(["fork", "diff", &mint.lineage.fork_id]);
+        command.args(extra);
+        command.args([
+            "--app-root",
+            sibling_app.to_str().unwrap(),
+            "--fork-root",
+            fork_root.to_str().unwrap(),
+        ]);
+        assert_refused(
+            command,
+            &format!("sibling app {operation}"),
+            snapback::instance_fork::APP_BINDING_MISMATCH_CODE,
+        );
+    }
+
+    let mut drop_command = snapback();
+    drop_command.args([
+        "fork",
+        "drop",
+        &mint.lineage.fork_id,
+        "--app-root",
+        owning_app.to_str().unwrap(),
+        "--fork-root",
+        fork_root.to_str().unwrap(),
+    ]);
+    successful(drop_command, "drop never-launched fork");
+    assert!(!destination.exists());
 }
 
 /// A parent database carrying the Todo demo schema, the minimum a
@@ -898,8 +1284,8 @@ fn todo_titles(database: &Path) -> Vec<String> {
 fn live_parent_writes_after_fork_point_never_appear_in_the_fork() {
     let directory = tempfile::tempdir().expect("live-parent fixture");
     let source = directory.path().join("parent.sqlite3");
-    let repo = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let todo_root = repo.join("demos/todo");
+    let todo_root = directory.path().join("todo-app");
+    copy_todo_app_root(&todo_root);
     let schema: SchemaManifest = serde_json::from_slice(
         &std::fs::read(todo_root.join("snapback/generated/schema.manifest.json"))
             .expect("generated Todo schema"),
@@ -1381,11 +1767,13 @@ fn stale_registry_partial_cleanup_never_wedges_list_reap_or_create() {
     std::fs::create_dir(&app_root).unwrap();
     let fork_root = directory.path().join("forks");
     std::fs::create_dir(&fork_root).unwrap();
+    let expected = snapback::instance_fork::ensure_expected_app(&app_root, "todo")
+        .expect("bind stale fixture to invoking app root");
 
     let intact = snapback::instance_fork::publish_managed(
         &source,
         &fork_root.join("fork-intact"),
-        "stale-app",
+        &expected,
         "stale-parent",
         1_000,
         61_000,
@@ -1395,7 +1783,7 @@ fn stale_registry_partial_cleanup_never_wedges_list_reap_or_create() {
     let stale = snapback::instance_fork::publish_managed(
         &source,
         &fork_root.join("fork-stale"),
-        "stale-app",
+        &expected,
         "stale-parent",
         1_000,
         61_000,
@@ -1461,7 +1849,7 @@ fn stale_registry_partial_cleanup_never_wedges_list_reap_or_create() {
     let wedge = snapback::instance_fork::publish_managed(
         &source,
         &fork_root.join("fork-wedge"),
-        "stale-app",
+        &expected,
         "stale-parent",
         1_000,
         61_000,
@@ -1853,10 +2241,12 @@ fn resource_limits_refuse_create_and_diff_without_residue() {
         .duration_since(std::time::UNIX_EPOCH)
         .expect("wall clock")
         .as_millis() as u64;
+    let expected = snapback::instance_fork::ensure_expected_app(&app_root, "todo")
+        .expect("bind limits fixture to invoking app root");
     let existing = snapback::instance_fork::publish_managed(
         &source,
         &fork_root.join("fork-existing"),
-        "todo",
+        &expected,
         "limits-parent",
         wall_now,
         wall_now + 3_600_000,
@@ -2057,11 +2447,13 @@ fn executable_net_diff_names_its_substrate_and_requires_a_retained_base() {
         .duration_since(std::time::UNIX_EPOCH)
         .expect("wall clock")
         .as_millis() as u64;
+    let expected = snapback::instance_fork::ensure_expected_app(&app_root, "todo")
+        .expect("bind net-diff fixture to invoking app root");
 
     let based = snapback::instance_fork::publish_managed_with_base(
         &source,
         &fork_root.join("fork-based"),
-        "todo",
+        &expected,
         "net-parent",
         wall_now,
         wall_now + 3_600_000,
@@ -2094,7 +2486,7 @@ fn executable_net_diff_names_its_substrate_and_requires_a_retained_base() {
     ]);
     let envelope = successful(net, "fork diff --net");
     let receipt = &envelope["data"]["receipt"];
-    assert_eq!(receipt["schemaVersion"], "snapback.fork-net-diff.v2");
+    assert_eq!(receipt["schemaVersion"], "snapback.fork-net-diff.v3");
     assert_eq!(receipt["substrate"], "retained-base-v1");
     assert_eq!(receipt["completeness"], "journal-enumerated-v1");
     assert_eq!(receipt["journalConsistency"], "journal-cross-check-verified");
@@ -2132,7 +2524,7 @@ fn executable_net_diff_names_its_substrate_and_requires_a_retained_base() {
     let bare = snapback::instance_fork::publish_managed(
         &source,
         &fork_root.join("fork-bare"),
-        "todo",
+        &expected,
         "net-parent",
         wall_now,
         wall_now + 3_600_000,
@@ -2171,10 +2563,12 @@ fn executable_fork_recover_repairs_one_finite_partial_publication() {
     let fork_root = directory.path().join("forks");
     std::fs::create_dir(&fork_root).unwrap();
     let destination = fork_root.join("fork-recover");
+    let expected = snapback::instance_fork::ensure_expected_app(&app_root, "recovery-app")
+        .expect("bind recovery fixture to invoking app root");
     let receipt = snapback::instance_fork::publish_managed(
         &source,
         &destination,
-        "recovery-app",
+        &expected,
         "recovery-parent",
         1_000,
         61_000,
@@ -2254,7 +2648,8 @@ fn executable_fork_recover_repairs_one_finite_partial_publication() {
     let refused = refused.output().expect("run unbounded recovery");
     assert!(!refused.status.success());
     assert!(
-        String::from_utf8_lossy(&refused.stderr).contains("SNAPBACK_FORK_TTL_INVALID"),
+        String::from_utf8_lossy(&refused.stderr)
+            .contains("SNAPBACK_FORK_APP_BINDING_REQUIRED"),
         "{}",
         String::from_utf8_lossy(&refused.stderr)
     );

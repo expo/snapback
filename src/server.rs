@@ -11854,12 +11854,15 @@ async fn enforce_registered_route_policy(
                     true,
                     policy_mode,
                 ) {
-                    Ok(()) => Err(SnapbackError::error(
+                    Ok(()) => Err(SnapbackError::new(crate::host_ops::host_op_diagnostic(
                         "SNAPBACK_HOST_OP_UNKNOWN",
-                        "host-ops",
+                        policy_body
+                            .as_ref()
+                            .and_then(|body| body.get("operation"))
+                            .and_then(Value::as_str)
+                            .unwrap_or_default(),
                         "unknown or unregistered host operation",
-                    )
-                    .with_details(serde_json::json!({ "operation": "unrecognized" }))
+                    ))
                     .into()),
                     Err(error) => Err(error),
                 }
@@ -33524,6 +33527,111 @@ globalThis.__snapbackHandlers = {
             response_json(refused).await["diagnostic"]["code"],
             "SNAPBACK_AUTH_REQUIRED",
         );
+    }
+
+    /// @ref LLP 0146#d7-typed-remediations-and-type-aware-suggestion — the
+    /// direct HTTP projection enriches its existing diagnostic details from
+    /// the exact served manifest generation; it does not add a wire member.
+    #[tokio::test]
+    async fn served_http_refusals_project_typed_candidates_and_argument_contracts() {
+        let (state, _) = auth_runtime_fixture_with(PolicyAuthMode::Dev, |snapback| {
+            let schema: SchemaManifest = serde_json::from_str(include_str!(
+                "../demos/todo/snapback/generated/schema.manifest.json"
+            ))
+            .expect("parse served suggestion schema");
+            snapback
+                .apply_schema(schema)
+                .expect("load suggestion schema");
+            let functions: FunctionManifest = serde_json::from_str(include_str!(
+                "../demos/todo/snapback/generated/functions.manifest.json"
+            ))
+            .expect("parse served suggestion functions");
+            let diagnostics = snapback.load_functions(functions);
+            assert!(
+                !diagnostics.iter().any(|diagnostic| matches!(
+                    diagnostic.severity,
+                    crate::diagnostic::DiagnosticSeverity::Error
+                        | crate::diagnostic::DiagnosticSeverity::Fatal
+                )),
+                "served suggestion fixture loads: {diagnostics:?}",
+            );
+        });
+        let router = app(state);
+        let request = |path: &str, args: Value| {
+            Request::builder()
+                .method("POST")
+                .uri(path)
+                .header(header::CONTENT_TYPE, "application/json")
+                .header("x-snapback-auth-client-protocol", "1")
+                .body(Body::from(
+                    serde_json::to_vec(&json!({ "args": args })).expect("serialize args"),
+                ))
+                .expect("served refusal request")
+        };
+
+        let mut unknown = Value::Null;
+        for _ in 0..3 {
+            let response = router
+                .clone()
+                .oneshot(request("/query/listTods", json!({})))
+                .await
+                .expect("unknown function response");
+            assert_eq!(response.status(), StatusCode::NOT_FOUND);
+            unknown = response_json(response).await;
+        }
+        let details = &unknown["diagnostic"]["details"];
+        assert_eq!(unknown["diagnostic"]["code"], "SNAPBACK_UNKNOWN_FUNCTION");
+        assert_eq!(details["candidateFunctions"][0]["name"], "listTodos");
+        assert_eq!(details["candidateFunctions"][0]["kind"], "LiveQuery");
+        assert_eq!(details["artifactHash"], "sha256:f41b9f6133737ac4");
+        assert!(
+            details["localMissSummary"]["sameMissCount"]
+                .as_u64()
+                .unwrap()
+                >= 3
+        );
+        assert!(
+            !serde_json::to_string(&unknown)
+                .unwrap()
+                .contains("listTods")
+        );
+
+        let response = router
+            .clone()
+            .oneshot(request(
+                "/mutation/createTodo",
+                json!({ "titel": "not disclosed" }),
+            ))
+            .await
+            .expect("unknown argument field response");
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+        let unknown_field = response_json(response).await;
+        let details = &unknown_field["diagnostic"]["details"];
+        assert_eq!(
+            unknown_field["diagnostic"]["code"],
+            "SNAPBACK_FUNCTION_ARGS_CONTRACT_VIOLATION",
+            "{unknown_field}"
+        );
+        assert_eq!(details["candidateFields"][0]["name"], "title");
+        assert_eq!(details["candidateFields"][0]["expected"], "string");
+        assert!(details["expectedArgumentContract"].is_object());
+        assert!(
+            !serde_json::to_string(&unknown_field)
+                .unwrap()
+                .contains("titel")
+        );
+
+        let response = router
+            .oneshot(request("/mutation/createTodo", json!({ "title": 42 })))
+            .await
+            .expect("wrong argument shape response");
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+        let wrong_shape = response_json(response).await;
+        let details = &wrong_shape["diagnostic"]["details"];
+        assert_eq!(details["expected"], "string");
+        assert_eq!(details["actual"], "number");
+        assert_eq!(details["candidateFields"][0]["name"], "title");
+        assert_eq!(details["candidateFields"][0]["expected"], "string");
     }
 
     /// A malformed carrier on a function-authenticated hosted route keeps the

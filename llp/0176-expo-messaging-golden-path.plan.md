@@ -7,7 +7,21 @@ Ephemeral state, Code generation, Developer experience, Packaging, Local
 server lifecycle, Testing, Competitive evaluation
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-05
-**Revised:** 2026-08-06 (o) — G2 exit complete: the north-star conversation
+**Revised:** 2026-08-06 (r) — Closed (q)'s per-OS nonclaim: text-only and one
+picked-image send now share the same typed `chat.commands.send` call under
+one ordinary session on a real iOS simulator and Android emulator (system
+photo pickers, delivery URLs rendered, the visible negative truthfully
+`cancelled`, residue staying `inferred | unknown`); E2's picker adapter
+registered through the provider. Supervised simulator/emulator evidence
+only; Status remains Review and G4/G5, release, physical-device, offline,
+background, restart, and attempt-grant claims remain open.
+2026-08-06 (q) — Appended the G3 exit receipt: LLP 0179 S2 and
+LLP 0180 C0/C1 landed at `17e7ca8ca`, text-only and one-image send share one
+`chat.commands.send` call in the Expo fixture, and the acceptance evidence and
+its explicit nonclaims (C2, per-OS command evidence, published packages) are
+recorded there, together with the dual-implementation collision this gate
+produced and the reduce-and-reland that resolved it. Status unchanged.
+Earlier same day (p) — sitting #4 ruling on the dev-persona owner: when LLP 0181 E1 concretely needs the declared-dev-persona contract, LLP 0039 receives a narrow dated amendment authorizing that contract only — no general unfreeze, nothing now. 2026-08-06 (o) — G2 exit complete: the north-star conversation
 surface passed the repaired headless checkpoint and real iOS-simulator and
 Android-emulator runs, with one canonical query/presence owner and all owned
 resources reclaimed. This corrects (m)'s premature exit wording; Status stays
@@ -719,6 +733,100 @@ actually prove at the time — G3 does not require LLP 0044 to expose a new
 authoritative unattached-status fact it does not yet have; it requires the
 client to never present an inferred value as certain. If LLP 0044 later
 exposes the authoritative fact, this residue field upgrades in place.
+
+**2026-08-06 G3 exit receipt.** Both halves are on `main`. LLP 0179 S2 — the
+descriptor's `commands` namespace admitted beside `mutations` rather than
+folded into it, with canonical-byte measurement and the existing ceilings
+enforced — and LLP 0180 C0/C1 — the closed `asset-bearing-command.v1`
+descriptor node and the command task over the existing asset-task and
+mutation-attempt owners — landed together in
+`17e7ca8ca feat(client,react,codegen,runtime): image-send command core + S2
+commands admission`. The engine is
+[`packages/snapback-client/commands.mjs`](../packages/snapback-client/commands.mjs)
+with the `@expo/snapback-client/commands` subpath, `useSnapbackCommand` and
+`surface.commands.<name>` ride LLP 0114 §Named projections, and the runtime
+admits `AssetRef` argument contracts at mutation ingress (`src/manifest.rs`,
+`src/args_contract.rs`) so the ordinary declarative mutation remains the sole
+commit-bound attachment check. The Expo golden-path fixture gained
+`sendMessage` + the upload intent + the `send` command with real-runtime
+acceptance in
+[`tests/g3-command.mjs`](../demos/expo-golden-path-fixture/tests/g3-command.mjs).
+
+*The Exit's own bar.* Text-only and one-image send share one typed call;
+negative authority, retry, cancel, and no-false-atomicity are covered. Measured
+2026-08-06 against a locally built, handler-VM-qualified binary in a fresh
+worktree at `96fd0ad1c`: `test:g3` **4/4** and `test:g2` **5/5**, with the
+reduce-and-reland's added evidence in the same run — exact phase traces
+(`preparing → committing → succeeded` for text-only, with every recorded
+snapshot's `asset` null; `preparing → transferring → committing → succeeded`
+for the image send; `… → failed` for the refusal), one attempt id / one asset
+id / one mutation id across the whole image-send trace, a retry that re-adopts
+the same asset and mutation identity rather than starting a shadow upload, and
+a live `asset.inspect` witness that the finalized residue is still
+`availability: 'ready'` and not deleted after the refusal. Residue
+is reported as `authoritative | inferred | unknown` with the `authoritative`
+branch reachable only when the asset child supplies a global authoritative
+unattached fact — which today's runtime does not emit, so that branch is
+covered synthetically and no live path overstates. See LLP 0180 §Delivery's
+dated C0/C1 note for the residue routing to LLP 0044, and LLP 0179 §Delivery's
+dated S2 note for the descriptor half.
+
+*Dual-implementation collision — recorded so the record is honest.* Two
+sessions built this gate concurrently without knowing it. The lane-claim
+ticket `issues/20260806-g3-command-lane-plan.md` was filed at 08:23
+(`da52b6eef`) precisely to prevent that; the other session landed
+`17e7ca8ca` at 08:56 without reading or editing it, so the claim protocol
+failed in exactly the way it was written to catch. The unlanded variant —
+a different engine placement (inline in `packages/snapback-react/index.mjs`),
+a richer descriptor node, a different diagnostic-code and remediation
+vocabulary, live auth-barrier and disposal fencing of in-flight tasks, and
+`inspectSnapbackCommands` accounting — is preserved on branches `g3/*`
+(`g3/integration`, tip `d49ddeeb4`). **It is deliberately not re-landed**:
+`main`'s engine is the one implementation, and the reduce-and-reland that
+follows this receipt ported only the unique value that composes with it —
+the non-React `app-inspection.mjs` consumer, the coverage `main` lacked, and
+the guide corrections — verified against `main`'s real API rather than the
+variant's. Anyone reading those branches should treat them as a salvage
+source, not a candidate for merge.
+
+*Scope of this receipt.* G3 only. No C2 claim: there is no LLP 0181
+picker/content-URI adapter consumption, no per-OS device or simulator evidence
+for the command, and no published-package or external-repository run, so
+nothing here supports an `Online` or distribution claim. G2's own
+simulator/emulator receipts are landed and cited above and are not restated
+as command evidence. The residue `authoritative` value, multiple assets,
+offline/restart custody, attempt grants, and distributed atomicity all remain
+unbuilt and unclaimed.
+
+**2026-08-06 per-OS command receipts — the (q) nonclaim closed; G3 complete.** The generated
+`conversation.commands.send` now accepts both `{ body }` and `{ body, image:
+picked }`. `@expo/snapback-expo` registers the picker URI conversion and
+WinterCG asset transport once on the provider-owned client; ordinary Sessions
+authority, the LLP 0044 asset task, checksum/finalization, and the ordinary
+mutation remain their existing owners. Recorded headless fixtures cover
+`content://`, `ph://`, and `file://`, including non-HTTP status 0 and the Expo
+57 Android picker-cache 404 fallback. The exact-runtime command acceptance is
+4/4 for text, one image, negative authority/retry/cancel behavior, and
+no-false-atomicity/residue.
+
+On iOS, a task-added library image was installed with `simctl addmedia` and
+selected through the system Photos picker; on Android, 30,670 bytes were
+installed with `adb push` plus MediaStore scan and selected through Android's
+Photo Picker. In each fresh supervised run one ordinary provider/session
+cohort committed the text command, committed the picked-image command, saw the
+row through the live surface, rendered the public delivery URL in native
+`Image`, and showed a pre-mutation command cancellation as `cancelled` with
+null residue. The receipts are
+[`20260806-g3-ios-simulator.md`](../demos/expo-golden-path-fixture/receipts/20260806-g3-ios-simulator.md)
+and
+[`20260806-g3-android-emulator.md`](../demos/expo-golden-path-fixture/receipts/20260806-g3-android-emulator.md).
+
+Successful/cancelled device arms have no residue. The headless finalized-byte
+failure arms preserve the only truth LLP 0044 currently supplies:
+same-authority proved refusal is `inferred`, while unsettled or replaced
+authority is `unknown`; neither is presented as certain or safe to delete.
+Both supervisors recorded full reclamation. No background, restart, offline,
+attempt-grant, release, physical-device, LAN-carrier, or LLP 0064 claim follows.
 
 ### G4 — external distribution proof
 

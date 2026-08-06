@@ -1,0 +1,24 @@
+[
+  {
+    "platform": "android",
+    "uri": "content://media/external/images/media/42017",
+    "fileName": "receipt-android.png",
+    "mimeType": "image/png",
+    "fileSize": 68
+  },
+  {
+    "platform": "ios",
+    "uri": "ph://7DDFC42A-183E-4A78-9D8A-5E1B9A2F0190/L0/001",
+    "fileName": "receipt-ios.heic",
+    "mimeType": "image/heic",
+    "fileSize": 68
+  },
+  {
+    "platform": "ios",
+    "uri": "file:///var/mobile/Containers/Data/Application/fixture/tmp/ImagePicker/receipt-ios.png",
+    "fileName": "receipt-ios.png",
+    "mimeType": "image/png",
+    "fileSize": 68
+  }
+]
+

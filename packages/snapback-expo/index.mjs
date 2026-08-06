@@ -18,6 +18,12 @@ export {
   createSupervisedExpoEnvironment,
   resolveSupervisedExpoExchangeOrigin,
 } from './supervised-environment.mjs';
+export {
+  adaptExpoAssetSource,
+  createExpoAssetSourceAdapter,
+  expoAssetFetch,
+  resolveExpoFetch,
+} from './asset-source.mjs';
 
 // Expo-safe hooks and the existing low-level provider remain aliases of the
 // canonical React owner; this package does not fork their behavior.

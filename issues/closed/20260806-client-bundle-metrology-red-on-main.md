@@ -1,10 +1,54 @@
-# client-bundle-metrology ratchet is red on main — pre-existing, environment-implicated
+# client-bundle-metrology ratchet is red on main
 
 **Status:** Resolved
 **Opened:** 2026-08-06
 **Related:** scripts/client-bundle-metrology.mjs;
 tests/fixtures/client-bundle-metrology/baseline.v1.json; LLP 0063
 workstream 8 (packaging budgets)
+
+## 2026-08-06 — 0.1.10 release candidate remains blocked after the disposition rollover
+
+The ten-package 0.1.10 release preflight re-ran the complete 133-gate local
+proof on clean `origin/main` candidate
+`430c48669ff7a716e6296f1ae6cb3b5db1575968`, using the repository-pinned
+Node 24.18.0 runtime and a process-private `TMPDIR`. The measurement method
+matched the committed baseline exactly, but `client-bundle-metrology` still
+refused with 19 frozen-ceiling regressions:
+
+| profile | minified | gzip | Brotli |
+| --- | ---: | ---: | ---: |
+| `external-react-application` | 89,345 → 91,033 (+1,688) | 27,938 → 28,352 (+414) | 24,378 → 24,719 (+341) |
+| `react-external` | 89,170 → 90,858 (+1,688) | 27,875 → 28,296 (+421) | 24,315 → 24,661 (+346) |
+| `public-subpath-assets` | 15,229 → 15,817 (+588) | 5,879 → 6,022 (+143) | 5,087 → 5,208 (+121) |
+| `resolved-public-subpath-assets` | 15,238 → 15,826 (+588) | 5,883 → 6,027 (+144) | 5,087 → 5,216 (+129) |
+| `public-subpath-commands` | 24,752 → 26,350 (+1,598) | 8,643 → 9,039 (+396) | 7,510 → 7,880 (+370) |
+| `resolved-public-subpath-commands` | 24,761 → 26,359 (+1,598) | 8,647 → 9,045 (+398) | 7,511 → 7,864 (+353) |
+| `public-subpath-ir-evaluator` | unchanged | unchanged | 6,739 → 6,740 (+1) |
+
+This is later than the already-reviewed
+`baseline.client-bundle-disposition.v1.json` rollover: commit `47b4a59ac`
+added the Expo E2 picker/asset-source adapter and expanded the client asset,
+command, and React closures after that rollover. The release preflight does
+not authorize silently advancing those ceilings. The owning repair must
+either reduce the closure or record a prospective, reviewed rollover for the
+E2 capability mass, then rerun the complete local proof.
+
+This release session stopped before staging and issued no npm publish or
+dist-tag command. While its proof was running, however, another operator or
+session published the complete ten-package 0.1.10 vector from retained ledger
+`~/snapback-release-ledgers/fastpath-ledger-0.1.10-b6afed6ef3.json`. npm records
+the publications between 2026-08-06T18:34:48Z and 18:35:32Z, including the
+first `@expo/snapback-expo` publication at 18:35:23Z; `latest` now selects
+0.1.10 on all ten names. A read-only re-download proved every registry
+tarball byte-identical to that ledger.
+
+That external publication does not discharge this blocker. The ledger binds
+old revision `b6afed6ef3eedd7be18e845e31b953da438ddc5a`, not the orchestrator's
+required fresh candidate `430c48669…`; `b6afed6ef3` predates the
+capability-maturity repair that caused the prior release attempt to stop.
+Neither the fresh candidate's full proof nor its staged ten-package rehearsal
+completed. Do not record LLP 0176 G4's publication prerequisite as met from
+this vector without an explicit reconciliation ruling.
 
 `node scripts/client-bundle-metrology.mjs --check` fails with
 `SNAPBACK_CLIENT_BUNDLE_RATCHET_FAILED` — ~28 metric regressions, the

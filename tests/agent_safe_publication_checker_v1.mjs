@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -9,6 +10,7 @@ import { fileURLToPath } from 'node:url';
 import {
   allowedPublicationChange,
   allowedPublicationPath,
+  exactCandidate,
   generatedPublicationPathsAt,
   IMPLEMENTATION_ROOTS,
   implementationDigestAt,
@@ -17,7 +19,6 @@ import {
   runChecker,
   validateAbsolutePerformanceArtifact,
   validatePairedPerformanceArtifact,
-  validatePublishedEvidenceSemantics,
   validatePublicationRecord,
   validateLocalStorePublicationTransform,
 } from '../scripts/check-agent-safe-publication.mjs';
@@ -269,10 +270,147 @@ function fixture() {
       mkdirSync(dirname(join(scratch, path)), { recursive: true });
       writeFileSync(
         join(scratch, path),
-        execFileSync('git', ['show', `${revision}:${path}`], { cwd: root }),
+        revision === head
+          ? readFileSync(join(root, path))
+          : execFileSync('git', ['show', `${revision}:${path}`], { cwd: root }),
       );
     }
   }
+  return scratch;
+}
+
+const derivedEvidence = [
+  ['lifecycleBenchMacos', 'tests/acceptance/instance-fork-lifecycle-bench.2026-08-06.macos-aarch64.v1.json'],
+  ['lifecycleBenchLinux', 'tests/acceptance/instance-fork-lifecycle-bench.2026-08-06.linux-x86_64.v1.json'],
+  ['boundsRatification', 'tests/acceptance/instance-fork-lifecycle-bench.2026-08-06.v1.json'],
+  ['assetLifecycleEvidence', 'tests/acceptance/asset-lifecycle-v1-evidence.md'],
+  ['specReviewCodex', 'llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.codex.md'],
+  ['specReviewFable', 'llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.fable.md'],
+  ['implementationReviewCodex', 'llp/reviews/0158-instance-forking.implementation-2026-08-06.codex.md'],
+  ['implementationReviewFable', 'llp/reviews/0158-instance-forking.implementation-2026-08-06.fable.md'],
+  ['authorAcceptance', 'tests/acceptance/fixtures/instance-forks/author-acceptance.2026-08-06.v1.json'],
+];
+
+function digest(bytes) {
+  return `sha256:${createHash('sha256').update(bytes).digest('hex')}`;
+}
+
+function writeJson(rootPath, path, value) {
+  const bytes = Buffer.from(`${JSON.stringify(value, null, 2)}\n`);
+  mkdirSync(dirname(join(rootPath, path)), { recursive: true });
+  writeFileSync(join(rootPath, path), bytes);
+  return bytes;
+}
+
+function publishedDerivedFixture({ omitReview, mutateMacos } = {}) {
+  const scratch = mkdtempSync(join(tmpdir(), 'snapback-derived-fork-publication-'));
+  execFileSync('git', ['init', '--quiet'], { cwd: scratch });
+  execFileSync('git', ['config', 'user.name', 'Snapback Test'], { cwd: scratch });
+  execFileSync('git', ['config', 'user.email', 'snapback-test@example.invalid'], { cwd: scratch });
+  mkdirSync(join(scratch, 'src'), { recursive: true });
+  writeFileSync(join(scratch, 'src/qualification-marker.txt'), 'derived-fork qualification C\n');
+  execFileSync('git', ['add', 'src/qualification-marker.txt'], { cwd: scratch });
+  const ibexGitlink = execFileSync('git', ['rev-parse', 'HEAD:vendor/ibex'], {
+    cwd: root,
+    encoding: 'utf8',
+  }).trim();
+  execFileSync('git', [
+    'update-index', '--add', '--cacheinfo', `160000,${ibexGitlink},vendor/ibex`,
+  ], { cwd: scratch });
+  execFileSync('git', ['commit', '--quiet', '-m', 'qualification C'], { cwd: scratch });
+  const commit = execFileSync('git', ['rev-parse', 'HEAD'], {
+    cwd: scratch,
+    encoding: 'utf8',
+  }).trim();
+  const implementationTree = implementationDigestAt(scratch, commit);
+
+  const bindings = [];
+  for (const [kind, path] of derivedEvidence.slice(0, -1)) {
+    let bytes;
+    if (kind === 'lifecycleBenchMacos' || kind === 'lifecycleBenchLinux'
+        || kind === 'boundsRatification') {
+      const value = JSON.parse(readFileSync(join(root, path)));
+      value.environment.commit = commit;
+      if (kind === 'lifecycleBenchMacos') mutateMacos?.(value);
+      bytes = writeJson(scratch, path, value);
+    } else if (kind === 'assetLifecycleEvidence') {
+      bytes = readFileSync(join(root, path));
+      mkdirSync(dirname(join(scratch, path)), { recursive: true });
+      writeFileSync(join(scratch, path), bytes);
+    } else {
+      const family = kind.endsWith('Codex') ? 'OpenAI Codex' : 'Claude Fable';
+      const implementation = kind.startsWith('implementationReview');
+      bytes = Buffer.from([
+        `# ${kind}`,
+        `**Reviewer family:** ${family}`,
+        '**Provider / runtime:** checker self-test',
+        '**Date:** 2026-08-06',
+        '**Redacted:** no',
+        '**Method:** cli-runner',
+        ...(implementation ? ['**Verdict:** READY'] : []),
+        '',
+      ].join('\n'));
+      if (path !== omitReview) {
+        mkdirSync(dirname(join(scratch, path)), { recursive: true });
+        writeFileSync(join(scratch, path), bytes);
+      }
+    }
+    bindings.push({
+      kind,
+      path,
+      sha256: path === omitReview ? `sha256:${'d'.repeat(64)}` : digest(bytes),
+    });
+  }
+
+  const candidateFacts = exactCandidate(derived.id);
+  const candidateFactsSha256 = digest(Buffer.from(JSON.stringify(candidateFacts)));
+  const acceptance = {
+    schemaVersion: 'snapback.derived-fork-author-acceptance.v1',
+    capabilityId: derived.id,
+    accepted: true,
+    authorLine: 'Charlie Cheever — accepted 2026-08-06',
+    qualifiedSourceCommit: commit,
+    implementationTreeSha256: implementationTree,
+    candidateFactsSha256,
+    qualifiedComponents: [...derived.components],
+    evidenceSha256: Object.fromEntries(bindings.map(({ kind, sha256 }) => [kind, sha256])),
+  };
+  const [authorKind, authorPath] = derivedEvidence.at(-1);
+  const authorBytes = writeJson(scratch, authorPath, acceptance);
+  bindings.push({ kind: authorKind, path: authorPath, sha256: digest(authorBytes) });
+
+  const receipt = {
+    schemaVersion: 'snapback.agent-safe-publication-receipt.v1',
+    capabilityId: derived.id,
+    qualifiedSourceCommit: commit,
+    implementationTreeSha256: implementationTree,
+    candidateFactsSha256,
+    qualifiedTargetProfileId: 'local-dev-sqlite-ibex',
+    negativeTargetProfileIds: ['cloudflare-do-sqlite-v8', 'remote-service-sqlite-ibex'],
+    negativeBuildDistributions: ['public-package'],
+    qualifiedComponents: [...derived.components],
+    evidence: bindings,
+  };
+  const receiptBytes = writeJson(scratch, derived.receipt, receipt);
+  const carrier = {
+    schemaVersion: 'snapback.local-agent-safe-publication.v1',
+    capabilityId: derived.id,
+    targetProfileId: 'local-dev-sqlite-ibex',
+    maturity: 'experimental',
+    qualifiedSourceCommit: commit,
+    implementationTreeSha256: implementationTree,
+    candidateFactsSha256,
+    qualificationReceiptSha256: digest(receiptBytes),
+    buildProvenanceRequirement: 'known-clean-contributor-source',
+    candidateFacts,
+  };
+  const carrierBytes = writeJson(scratch, derived.carrier, carrier);
+  writeJson(scratch, derived.anchor, {
+    schemaVersion: 'snapback.local-capability-publication-anchor.v1',
+    capabilityId: derived.id,
+    state: 'published',
+    carrierSha256: digest(carrierBytes),
+  });
   return scratch;
 }
 
@@ -354,11 +492,55 @@ test('target, evidence locator, and receipt shape tampering fail before publicat
   }
 });
 
-test('derived publication rejects stale qualified component scope', () => {
-  const head = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
+test('derived receipt rejects storage-evidence substitution while withheld', () => {
+  const scratch = fixture();
+  const path = join(scratch, derived.receipt);
+  const value = JSON.parse(readFileSync(path));
+  value.evidence[0] = {
+    kind: 'acceptanceCorpus',
+    path: 'tests/acceptance/fixtures/agent-safe-storage/acceptance-corpus.2026-08-04.v1.json',
+    sha256: `sha256:${'0'.repeat(64)}`,
+  };
+  writeFileSync(path, JSON.stringify(value));
+  assert.throws(() => validatePublicationRecord(scratch, derived), /evidence 0 drifted/u);
+});
+
+test('published derived-fork chain accepts its exact dedicated witness', () => {
+  const scratch = publishedDerivedFixture();
+  assert.equal(validatePublicationRecord(scratch, derived).state, 'published');
+});
+
+test('published derived-fork chain refuses a missing review', () => {
+  const scratch = publishedDerivedFixture({
+    omitReview: 'llp/reviews/0158-instance-forking.implementation-2026-08-06.fable.md',
+  });
   assert.throws(
-    () => validatePublishedEvidenceSemantics(root, derived, head),
-    /derived-fork qualified component scope drifted/u,
+    () => validatePublicationRecord(scratch, derived),
+    /evidence bytes drifted.*implementation-2026-08-06\.fable\.md/u,
+  );
+});
+
+test('published derived-fork chain refuses an out-of-bounds lifecycle median', () => {
+  const scratch = publishedDerivedFixture({
+    mutateMacos: (value) => {
+      value.measurements.createColdSmallParent.medianMs = 2_001;
+      value.measurements.createColdSmallParent.maxMs = 2_001;
+      value.measurements.sequentialCreateMedianMs = 2_001;
+    },
+  });
+  assert.throws(
+    () => validatePublicationRecord(scratch, derived),
+    /median\/statistics exceeded or drifted from ratified bounds/u,
+  );
+});
+
+test('published derived-fork chain refuses a mismatched benchmark commit', () => {
+  const scratch = publishedDerivedFixture({
+    mutateMacos: (value) => { value.environment.commit = 'f'.repeat(40); },
+  });
+  assert.throws(
+    () => validatePublicationRecord(scratch, derived),
+    /environment\/qualified commit drifted/u,
   );
 });
 
@@ -619,6 +801,20 @@ test('generated-artifact registry covers every codegen job exactly once', () => 
   assert.deepEqual(ADMIN_GENERATED_ROOTS, ['admin-ui/generated']);
 });
 
+const CONTENT_ADDRESSED_GENERATED_ROOTS = new Set(CODEGEN_JOBS.map(codegenOutputRoot));
+const CONTENT_ADDRESSED_APP_BINDING = /^app\.binding\.[0-9a-f]{64}\.mjs$/u;
+const CONTENT_ADDRESSED_APP_DESCRIPTOR = /^app\.descriptor\.[0-9a-f]{64}\.json$/u;
+
+function isRegisteredContentAddressedGeneratedLeaf(path) {
+  const separator = path.lastIndexOf('/');
+  if (separator === -1) return false;
+  return CONTENT_ADDRESSED_GENERATED_ROOTS.has(path.slice(0, separator))
+    && (
+      CONTENT_ADDRESSED_APP_BINDING.test(path.slice(separator + 1))
+      || CONTENT_ADDRESSED_APP_DESCRIPTOR.test(path.slice(separator + 1))
+    );
+}
+
 const REVIEWED_GENERATED_PUBLICATION_PATHS = new Set([
   'admin-ui/generated/contract/activateNetworkProfile.mutation.contract-meta.ts',
   'admin-ui/generated/contract/activateNetworkProfile.mutation.ts',
@@ -744,10 +940,8 @@ const REVIEWED_GENERATED_PUBLICATION_PATHS = new Set([
   'demos/zero-bakeoff/apps/contention-calendar/snapback/generated/api-envelope.members.json',
   'demos/zero-bakeoff/apps/contention-calendar/snapback/generated/api.d.ts',
   'demos/zero-bakeoff/apps/contention-calendar/snapback/generated/api.mjs',
-  'demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.binding.b196f3c632a2c016f38ec7d0bfd78be1748388815db98cc3fa2906fedf5e5580.mjs',
   'demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.binding.mjs',
   'demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.d.ts',
-  'demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.descriptor.7e35dfb68946614262d161dc69a23dccb3bd872a134e7de23cf3e6cc05a668e6.json',
   'demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.descriptor.json',
   'demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.mjs',
   'demos/zero-bakeoff/apps/contention-calendar/snapback/generated/artifacts.json',
@@ -780,10 +974,8 @@ const REVIEWED_GENERATED_PUBLICATION_PATHS = new Set([
   'packages/snapback-cli/fixtures/comparator/app/snapback/generated/api-envelope.members.json',
   'packages/snapback-cli/fixtures/comparator/app/snapback/generated/api.d.ts',
   'packages/snapback-cli/fixtures/comparator/app/snapback/generated/api.mjs',
-  'packages/snapback-cli/fixtures/comparator/app/snapback/generated/app.binding.67a44c4eb9436d9e39202777a913e30cb4db7f32d2ce984e02e23a108f313341.mjs',
   'packages/snapback-cli/fixtures/comparator/app/snapback/generated/app.binding.mjs',
   'packages/snapback-cli/fixtures/comparator/app/snapback/generated/app.d.ts',
-  'packages/snapback-cli/fixtures/comparator/app/snapback/generated/app.descriptor.a7a41b6eaedbfaf173c0090d5848a96c395fc29ae6a000d12ee6619ed807da9e.json',
   'packages/snapback-cli/fixtures/comparator/app/snapback/generated/app.descriptor.json',
   'packages/snapback-cli/fixtures/comparator/app/snapback/generated/app.mjs',
   'packages/snapback-cli/fixtures/comparator/app/snapback/generated/artifacts.json',
@@ -824,10 +1016,8 @@ const REVIEWED_GENERATED_PUBLICATION_PATHS = new Set([
   'packages/snapback-cli/fixtures/push-seam/app/snapback/generated/api-envelope.members.json',
   'packages/snapback-cli/fixtures/push-seam/app/snapback/generated/api.d.ts',
   'packages/snapback-cli/fixtures/push-seam/app/snapback/generated/api.mjs',
-  'packages/snapback-cli/fixtures/push-seam/app/snapback/generated/app.binding.40432488bb7a6fda475dedb886c08a62d84e4c27508811d8499af6cc0744d530.mjs',
   'packages/snapback-cli/fixtures/push-seam/app/snapback/generated/app.binding.mjs',
   'packages/snapback-cli/fixtures/push-seam/app/snapback/generated/app.d.ts',
-  'packages/snapback-cli/fixtures/push-seam/app/snapback/generated/app.descriptor.862e612f9c10595225352b2df68c6b0fc540f6b8366ca1931c4a53b668d810e8.json',
   'packages/snapback-cli/fixtures/push-seam/app/snapback/generated/app.descriptor.json',
   'packages/snapback-cli/fixtures/push-seam/app/snapback/generated/app.mjs',
   'packages/snapback-cli/fixtures/push-seam/app/snapback/generated/artifacts.json',
@@ -853,10 +1043,8 @@ const REVIEWED_GENERATED_PUBLICATION_PATHS = new Set([
   'packages/snapback-react/fixtures/conversation/app/snapback/generated/api-envelope.members.json',
   'packages/snapback-react/fixtures/conversation/app/snapback/generated/api.d.ts',
   'packages/snapback-react/fixtures/conversation/app/snapback/generated/api.mjs',
-  'packages/snapback-react/fixtures/conversation/app/snapback/generated/app.binding.6b1507b4385ef2475a2d1a4d2c784364af5683f175c48899eda4d98dee915439.mjs',
   'packages/snapback-react/fixtures/conversation/app/snapback/generated/app.binding.mjs',
   'packages/snapback-react/fixtures/conversation/app/snapback/generated/app.d.ts',
-  'packages/snapback-react/fixtures/conversation/app/snapback/generated/app.descriptor.de7616a7ffaac65352acd25963f220c63cbcf2681aaac769be07a7fe414691d4.json',
   'packages/snapback-react/fixtures/conversation/app/snapback/generated/app.descriptor.json',
   'packages/snapback-react/fixtures/conversation/app/snapback/generated/app.mjs',
   'packages/snapback-react/fixtures/conversation/app/snapback/generated/artifacts.json',
@@ -906,7 +1094,9 @@ const REVIEWED_GENERATED_PUBLICATION_PATHS = new Set([
 ]);
 
 function assertReviewedGeneratedPublicationPaths(generated) {
-  const actual = new Set(generated.keys());
+  const actual = new Set(
+    [...generated.keys()].filter((path) => !isRegisteredContentAddressedGeneratedLeaf(path)),
+  );
   const unexpected = [...actual]
     .filter((path) => !REVIEWED_GENERATED_PUBLICATION_PATHS.has(path))
     .sort();
@@ -924,6 +1114,51 @@ test('P-vs-C generated allowance is the exact qualification-C leaf set', () => {
   const head = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
   const generated = generatedPublicationPathsAt(root, head);
   assertReviewedGeneratedPublicationPaths(generated);
+
+  const registeredRoot = 'packages/snapback-cli/fixtures/comparator/app/snapback/generated';
+  const validDigest = '0'.repeat(64);
+  const existingBinding = [...generated.keys()].find((path) => (
+    path.startsWith(`${registeredRoot}/app.binding.`)
+    && CONTENT_ADDRESSED_APP_BINDING.test(path.slice(registeredRoot.length + 1))
+  ));
+  assert.ok(existingBinding, 'comparator fixture has no content-addressed binding leaf');
+  const churnedBinding = `${registeredRoot}/app.binding.${validDigest}.mjs`;
+  const churned = new Map(generated);
+  const bindingEntry = churned.get(existingBinding);
+  churned.delete(existingBinding);
+  churned.set(churnedBinding, bindingEntry);
+  assertReviewedGeneratedPublicationPaths(churned);
+
+  for (const unexpectedPath of [
+    `${registeredRoot}/brand-new-non-hash.mjs`,
+    `${registeredRoot}/unregistered/app.binding.${validDigest}.mjs`,
+  ]) {
+    const widened = new Map(generated).set(unexpectedPath, bindingEntry);
+    assert.throws(
+      () => assertReviewedGeneratedPublicationPaths(widened),
+      (error) => {
+        assert.deepEqual(error.actual, { unexpected: [unexpectedPath], missing: [] });
+        return true;
+      },
+      unexpectedPath,
+    );
+  }
+
+  for (const invalidContentAddressedPath of [
+    `${registeredRoot}/app.binding.${'0'.repeat(63)}.mjs`,
+    `${registeredRoot}/app.binding.${'A'.repeat(64)}.mjs`,
+    `${registeredRoot}/app.binding.${validDigest}.json`,
+    `${registeredRoot}/app.descriptor.${validDigest}.mjs`,
+    `${registeredRoot}/arbitrary.${validDigest}.mjs`,
+    `admin-ui/generated/app.binding.${validDigest}.mjs`,
+  ]) {
+    assert.equal(
+      isRegisteredContentAddressedGeneratedLeaf(invalidContentAddressedPath),
+      false,
+      invalidContentAddressedPath,
+    );
+  }
+
   const unchangedPublicationEntries = new Map(
     [...generated].map(([path, entry]) => [path, { ...entry }]),
   );
@@ -999,6 +1234,23 @@ test('P-vs-C publication path allowlist rejects executable drift', () => {
   );
   assert.equal(allowedPublicationPath('issues/20260803-wave3-program.md'), true);
   assert.equal(allowedPublicationPath('guide/operating/instance-forks.md'), true);
+  for (const path of [
+    'tests/acceptance/instance-fork-lifecycle-bench.2026-08-06.macos-aarch64.v1.json',
+    'tests/acceptance/instance-fork-lifecycle-bench.2026-08-06.linux-x86_64.v1.json',
+    'llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.codex.md',
+    'llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.fable.md',
+    'llp/reviews/0158-instance-forking.implementation-2026-08-06.codex.md',
+    'llp/reviews/0158-instance-forking.implementation-2026-08-06.fable.md',
+    'tests/acceptance/fixtures/instance-forks/author-acceptance.2026-08-06.v1.json',
+  ]) {
+    assert.equal(allowedPublicationPath(path), true, path);
+  }
+  for (const path of [
+    'tests/acceptance/instance-fork-lifecycle-bench.2026-08-06.v1.json',
+    'tests/acceptance/asset-lifecycle-v1-evidence.md',
+  ]) {
+    assert.equal(allowedPublicationPath(path), false, `${path} must stay frozen in C`);
+  }
   assert.equal(
     allowedPublicationPath('demos/latency-kanban/snapback/trusted-composition-activation.json'),
     true,

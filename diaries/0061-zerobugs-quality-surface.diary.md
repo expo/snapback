@@ -255,3 +255,49 @@ Lesson worth keeping: the browser lane is where custody bugs live. Lanes 1-5
 verified queries, mutations, effects, and routes headlessly and found three
 platform bugs; Lane 6b's first real page load found two more, in the layer
 that only exists in a browser.
+
+## 2026-08-06 — the CDP wedge was ours: Lane 6b goes green (12/12)
+
+The parked auth-custody fix is landed and Lane 6b has its first real
+receipt: `zerobugs-lane6b-live.v1`, 12/12 checks pass in real Chrome.
+
+The unexplained wedge that kept the fix off main dissolved under better
+instrumentation, and the story is worth keeping:
+
+- **The auth fix was never the problem.** With it applied, every auth-bearing
+  check passed live before the wedge point. The wedge fired at the
+  comment-permalink hash navigation — two checks later.
+- **The wedge was an infinite React sync-render loop in our own port.** Our
+  `useZerobugsQuery` derive layer built a fresh result object every render
+  (the shipped `useSnapbackQuery` snapshot underneath is stable — the
+  instability was 100% ours). UserPicker's avatar-preload effect depended on
+  an array derived from that result and ended in `setAvatars(<new object>)`,
+  so every commit scheduled another sync render, entirely in microtasks.
+  Chrome's task queue starved: `Runtime.evaluate` timed out not because CDP
+  broke but because the evaluate task could never run.
+- **Debugging lesson: enable the debugger before the spin.** The prior
+  session's `Debugger.pause` probe returned no app frames and was read as
+  "not app code". In truth `Debugger.enable` sent mid-spin is itself a task
+  that can never be processed. With the debugger enabled at session setup,
+  `Debugger.pause` interrupts the loop cleanly, and
+  `Debugger.evaluateOnCallFrame` can read in-page diagnostics while paused —
+  that is how the fiber ancestry (`input < Combobox < UserPicker`) and the
+  spin counters (86k Combobox renders in ~13 s) were captured.
+- **Snapback observation:** the pinned upstream leans on its query hook
+  returning referentially stable results; any port that re-derives per
+  render re-learns why. A `useMemo` on the closed hook state restored the
+  contract. React's failure mode here (silent full-thread starvation, no
+  "maximum update depth" error because each iteration is a fresh sync flush
+  from an effect) is far harsher than the equivalent Convex/Supabase hook
+  misuse, which typically burns CPU but keeps yielding to tasks.
+- Two latent port bugs surfaced once the loop was gone: the one-shot
+  permalink scroll-restore guard never re-armed on same-document hash
+  navigation, and the committed harness itself had a non-parsing leftover
+  probe block (it had never actually run since landing). Both fixed; the
+  harness also learned to await effect-driven scroll settlement and custody
+  restore before login-checked clicks.
+
+Net: the browser lane keeps paying. Lanes 1–5 found platform bugs headlessly;
+Lane 6b's real Chrome found two shipped auth-custody defects, and its
+acceptance run then found the port's own data-layer instability the moment
+the auth wall came down.

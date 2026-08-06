@@ -48,7 +48,7 @@ export function Comments({issueID, permalinkID}: {issueID: string; permalinkID: 
     enabled: windowEnabled,
   });
   const [history, setHistory] = useWouterScrollState<CommentCursor>(identity);
-  const restored = useRef(false);
+  const restored = useRef<string | null>(null);
   const login = useLogin();
   const latest = useZerobugsQuery('commentsPage', {
     issueID, limit: 1, start: null, dir: 'backward', inclusive: true,
@@ -75,12 +75,18 @@ export function Comments({issueID, permalinkID}: {issueID: string; permalinkID: 
   }, [identity, setHistory, windowed]);
 
   useEffect(() => {
-    if (!windowed.snapshot.complete || restored.current) return;
-    restored.current = true;
+    const restoreTarget = permalinkID ?? '(history)';
+    if (!windowed.snapshot.complete || restored.current === restoreTarget) return;
     if (permalinkID) {
-      document.getElementById(makePermalink({id: permalinkID}))?.scrollIntoView({block: 'center'});
+      const element = document.getElementById(makePermalink({id: permalinkID}));
+      if (!element) return;
+      restored.current = restoreTarget;
+      element.scrollIntoView({block: 'center'});
     } else if (history) {
+      restored.current = restoreTarget;
       window.scrollTo({top: history.scrollTop});
+    } else {
+      restored.current = restoreTarget;
     }
   }, [history, permalinkID, windowed.snapshot.complete, windowed.snapshot.items.length]);
 
