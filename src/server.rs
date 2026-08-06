@@ -7556,9 +7556,11 @@ impl RouteSpec {
                 return fail("app-data route escaped the root namespace");
             }
             RouteClass::SystemStatic => {
+                // The llms.txt convention pins this one system-static guide
+                // projection to the served root.
                 let approved_projection = (self.path.starts_with("/_snapback/admin")
                     && self.response_sensitivity == ResponseSensitivity::StaticPublic)
-                    || (self.path.starts_with("/_snapback/guide")
+                    || ((self.path.starts_with("/_snapback/guide") || self.path == "/llms.txt")
                         && self.response_sensitivity == ResponseSensitivity::PublicProjection);
                 if !approved_projection
                     || self.path_policy != RoutePolicy::Public
@@ -7980,13 +7982,14 @@ const fn served_guide_route(path: &'static str) -> RouteSpec {
 pub const GUIDE_CONTENT_HASH_HEADER: &str = "x-snapback-guide-content-sha256";
 pub const GUIDE_BUILD_COMMIT_HEADER: &str = "x-snapback-server-build-commit";
 
-fn embedded_guide_response(file: &'static crate::guide::EmbeddedGuideFile) -> Response {
-    let mut response = Response::new(Body::from(file.bytes));
+// @ref LLP 0186#w2-context-injection-surface-owned-here — the convention
+// endpoint gives agent probes a short index into the build-bound guide.
+const LLMS_TXT: &str = "# Snapback\n\n> Snapback is a local-first app backend. This server embeds its own authoring guide.\n\n## Docs\n\n- [Complete guide, single file](/_snapback/guide/flat.md)\n- [Capability index](/_snapback/guide/capabilities.md)\n- [Guide index](/_snapback/guide)\n";
+
+fn guide_bound_response(body: &'static [u8], content_type: &'static str) -> Response {
+    let mut response = Response::new(Body::from(body));
     let headers = response.headers_mut();
-    headers.insert(
-        header::CONTENT_TYPE,
-        HeaderValue::from_static(file.content_type),
-    );
+    headers.insert(header::CONTENT_TYPE, HeaderValue::from_static(content_type));
     headers.insert(
         HeaderName::from_static(GUIDE_CONTENT_HASH_HEADER),
         HeaderValue::from_static(crate::guide::GUIDE_CONTENT_SHA256),
@@ -7996,6 +7999,10 @@ fn embedded_guide_response(file: &'static crate::guide::EmbeddedGuideFile) -> Re
         HeaderValue::from_static(option_env!("SNAPBACK_BUILD_GIT_COMMIT").unwrap_or("unknown")),
     );
     response
+}
+
+fn embedded_guide_response(file: &'static crate::guide::EmbeddedGuideFile) -> Response {
+    guide_bound_response(file.bytes, file.content_type)
 }
 
 fn embedded_guide_path(path: &str) -> Response {
@@ -8018,6 +8025,10 @@ async fn served_guide_flat() -> Response {
 
 async fn served_guide_page(Path(path): Path<String>) -> Response {
     embedded_guide_path(&path)
+}
+
+async fn served_llms_txt() -> Response {
+    guide_bound_response(LLMS_TXT.as_bytes(), "text/markdown; charset=utf-8")
 }
 
 /// The app-data route registrations. Each handler literal appears only here;
@@ -8650,6 +8661,7 @@ fn system_route_registrations() -> Vec<RegisteredRoute> {
     let write =
         |path, sensitivity| system_api_route("POST", path, RoutePolicy::AdminWrite, sensitivity);
     vec![
+        RegisteredRoute::new(served_guide_route("/llms.txt"), get(served_llms_txt)),
         RegisteredRoute::new(
             served_guide_route("/_snapback/guide"),
             get(served_guide_index),
@@ -49127,9 +49139,12 @@ globalThis.__snapbackHandlers = {
                     );
                 }
                 RouteClass::SystemStatic => {
+                    // The llms.txt convention pins this one system-static guide
+                    // projection to the served root.
                     assert!(
                         route.path.starts_with("/_snapback/admin")
-                            || route.path.starts_with("/_snapback/guide"),
+                            || route.path.starts_with("/_snapback/guide")
+                            || route.path == "/llms.txt",
                         "system-static must be console or guide presentation: {}",
                         route.path
                     );

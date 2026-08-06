@@ -166,6 +166,31 @@ async fn memory_server_serves_flat_projection_with_manifest_identity() {
 }
 
 #[tokio::test]
+async fn memory_server_serves_root_llms_txt_with_guide_identity() {
+    let response = get("/llms.txt").await;
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(
+        response.headers()[header::CONTENT_TYPE],
+        "text/markdown; charset=utf-8"
+    );
+    assert_eq!(
+        header(&response, GUIDE_CONTENT_HASH_HEADER),
+        GUIDE_CONTENT_SHA256
+    );
+    assert_eq!(
+        header(&response, GUIDE_BUILD_COMMIT_HEADER),
+        option_env!("SNAPBACK_BUILD_GIT_COMMIT").unwrap_or("unknown")
+    );
+
+    let body = to_bytes(response.into_body(), usize::MAX)
+        .await
+        .expect("read llms.txt index");
+    let body = std::str::from_utf8(&body).expect("UTF-8 llms.txt index");
+    assert!(body.contains("/_snapback/guide/flat.md"));
+    assert!(body.contains("/_snapback/guide/capabilities.md"));
+}
+
+#[tokio::test]
 async fn index_and_individual_build_embedded_files_are_public_read_only() {
     let index = get("/_snapback/guide").await;
     assert_eq!(index.status(), StatusCode::OK);
@@ -220,10 +245,10 @@ async fn index_and_individual_build_embedded_files_are_public_read_only() {
 }
 
 #[test]
-fn guide_routes_are_registered_system_static_public_projections() {
+fn served_guide_routes_are_registered_system_static_public_projections() {
     let guide_routes = route_registry()
         .into_iter()
-        .filter(|route| route.path.starts_with("/_snapback/guide"))
+        .filter(|route| route.path.starts_with("/_snapback/guide") || route.path == "/llms.txt")
         .collect::<Vec<_>>();
     assert_eq!(
         guide_routes
@@ -234,6 +259,7 @@ fn guide_routes_are_registered_system_static_public_projections() {
             "/_snapback/guide",
             "/_snapback/guide/flat.md",
             "/_snapback/guide/{*path}",
+            "/llms.txt",
         ])
     );
     for route in guide_routes {
@@ -254,4 +280,5 @@ fn guide_routes_are_registered_system_static_public_projections() {
         snapback::guide::file(FLAT_PATH).unwrap().bytes,
         include_bytes!("../guide/guide-flat.generated.md")
     );
+    assert!(snapback::guide::file("capabilities.md").is_some());
 }

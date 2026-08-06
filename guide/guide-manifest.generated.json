@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "be6326956117517d4aa506b8ec2cb44699766248"
+    "commit": "bd89cebabf4932f34060f0a6a6f494a537c0be51"
   },
   "nav": {
     ".": [
@@ -1479,7 +1479,7 @@
       "examples": [],
       "reviewed": "2026-08-05",
       "reviewedCommit": "f3c7d9fbb394a413370a9264f22e72b6f151a25e",
-      "sha256": "58c6429173a09184b1cd815117abc27b38563c3c0a1c9242f957ac4e910aa3e6",
+      "sha256": "cabce0cfd268fac97926c1cc8962c2a8b516af8b7398b9d33ae9badd813d62f0",
       "snippets": []
     },
     "clients.app-cli": {
@@ -2170,7 +2170,7 @@
       ],
       "reviewed": "2026-08-05",
       "reviewedCommit": "f3c7d9fbb394a413370a9264f22e72b6f151a25e",
-      "sha256": "bf2e2a49e951f5f3c6db419d6d571f5300a55e03dca1c29c79ca16570d6967d7",
+      "sha256": "d0b3c88615e08ae8727583c61da44511111ad88d8db654e52ef056fa5e62f5a3",
       "snippets": [
         {
           "lang": "json",
@@ -2862,7 +2862,7 @@
       "examples": [],
       "reviewed": "2026-08-03",
       "reviewedCommit": "7b467cf16",
-      "sha256": "2cd61aae00ec61ae7c7a8e1b61c4a701f6ba57987b49fde59401ae7c1cd25e83",
+      "sha256": "3252dae5ea3b8a012db4081a9c83aecde91560e2e1b900afb215e47a03e12c02",
       "snippets": []
     },
     "sync.offline-and-retention": {
@@ -3157,8 +3157,8 @@
     ]
   },
   "surfaces": {
-    "routes": 116,
+    "routes": 117,
     "hostOps": 37
   },
-  "contentHash": "9185d948aece571ba5f36f221386a67cfb9e05124649cf515cc29db3d6d699c1"
+  "contentHash": "84050fdeb8467cea77d54d452797c10db2a42ae04e305edc7fe12b5583a9f61e"
 }
