@@ -5,7 +5,7 @@ import { readFile, readdir } from 'node:fs/promises';
 const read = (path) => readFile(new URL(path, import.meta.url));
 const sha256 = (bytes) => `sha256:${createHash('sha256').update(bytes).digest('hex')}`;
 
-const carrierExitBytes = await read('../acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-04.v1.json');
+const carrierExitBytes = await read('../acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-06.v1.json');
 const carrierExit = JSON.parse(carrierExitBytes);
 const triageFixtureUrl = new URL('../acceptance/fixtures/triage-graph/', import.meta.url);
 const triageNames = await readdir(triageFixtureUrl);
@@ -22,6 +22,10 @@ const triageMove1Bytes = await read(`../acceptance/fixtures/triage-graph/move1-e
 const triageMove1 = JSON.parse(triageMove1Bytes);
 const triageBudgetBytes = await read(`../acceptance/fixtures/triage-graph/budget-freeze.${triageDate}.v1.json`);
 const triageBudget = JSON.parse(triageBudgetBytes);
+const fleetMove1Bytes = await read('../acceptance/fixtures/fleet-observatory/move1-exit.2026-08-06.v1.json');
+const fleetMove1 = JSON.parse(fleetMove1Bytes);
+const fleetBudgetBytes = await read('../acceptance/fixtures/fleet-observatory/budget-freeze.2026-08-06.v1.json');
+const fleetBudget = JSON.parse(fleetBudgetBytes);
 const anchorBytes = await read('../../src/local-persistent-store-publication.anchor.v1.json');
 const anchor = JSON.parse(anchorBytes);
 const carrierBytes = await read('../../src/local-persistent-store-publication.v1.json');
@@ -54,8 +58,8 @@ if (retainedTriage.status === 'GAP') {
   assert.match(retainedTriage.reason, /^SNAPBACK_CARRIER_EXIT_TRIAGE_SUCCESSOR_MISSING:/u);
 }
 const retainedFleet = carrierExit.legs.find((row) => row.leg === 'footprint-hydration-fleet');
-assert.equal(retainedFleet.status, 'GAP');
-assert.match(retainedFleet.reason, /^SNAPBACK_CARRIER_EXIT_FLEET_SUCCESSOR_BLOCKED:/u);
+assert.equal(retainedFleet.status, 'PASS');
+assert.equal(Object.hasOwn(retainedFleet, 'reason'), false);
 
 assert.equal(triageMove1.schemaVersion, 'snapback.triage-graph.move1-exit.v1');
 assert.equal(triageMove1.date, triageDate);
@@ -84,6 +88,27 @@ assert.equal(triageBudget.measured.hydration.rowsInstalled, 100);
 assert.ok(
   triageBudget.measured.hydration.elapsedMs <= triageBudget.frozenCeilings.hydration.elapsedMs,
   'Triage hydration stays below its frozen ceiling',
+);
+
+assert.equal(fleetMove1.schemaVersion, 'snapback.fleet-observatory.move1-exit.v1');
+assert.equal(fleetBudget.schemaVersion, 'snapback.fleet-observatory.budget-freeze.v1');
+assert.equal(fleetMove1.date, fleetBudget.date);
+assert.equal(fleetMove1.controlledRun.status, 'PASS');
+assert.equal(fleetMove1.summary.blocked, 0);
+assert.equal(fleetMove1.summary.pass, fleetMove1.summary.total);
+assert.deepEqual(fleetMove1.budgetFreeze, fleetBudget);
+for (const [name, ceiling] of Object.entries(fleetBudget.frozenCeilings.activeCustody)) {
+  assert.ok(fleetBudget.measured.activeCustody[name] <= ceiling, `${name}: within frozen Fleet active-custody ceiling`);
+}
+for (const [name, ceiling] of Object.entries(fleetBudget.frozenCeilings.releasedCustody)) {
+  assert.ok(fleetBudget.measured.releasedCustody[name] <= ceiling, `${name}: within frozen Fleet released-custody ceiling`);
+}
+assert.equal(fleetBudget.measured.hydration.attempts, 1);
+assert.equal(fleetBudget.measured.hydration.rowsInstalled, 200);
+assert.ok(
+  fleetBudget.measured.hydration.authoritativeCompleteMs
+    <= fleetBudget.frozenCeilings.hydration.elapsedMs,
+  'Fleet hydration stays below its frozen ceiling',
 );
 
 assert.equal(carrier.schemaVersion, 'snapback.local-capability-publication.v1');
@@ -127,13 +152,15 @@ for (const [source, expected] of Object.entries({
 }
 assert.equal(carrier.packageClosureSha256, null);
 assert.equal(carrier.buildProvenanceRequirement, 'source-commit-and-embedded-carrier-sha256');
-const qualified = carrierExit.summary.pass === 16
-  && carrierExit.summary.gap === 1
+const qualified = carrierExit.summary.pass === 17
+  && carrierExit.summary.gap === 0
   && carrierExit.summary.skipped === 0
   && retainedTriage.status === 'PASS'
-  && retainedFleet.status === 'GAP'
+  && retainedFleet.status === 'PASS'
   && triageMove1.summary.pass === 8
-  && triageMove1.summary.blocked === 0;
+  && triageMove1.summary.blocked === 0
+  && fleetMove1.summary.pass === 8
+  && fleetMove1.summary.blocked === 0;
 assert.equal(localManifest.supportedCapabilities.includes('single_table_v1'), qualified);
 assert.equal(localManifest.capabilityGaps.includes('single_table_v1'), !qualified);
 
@@ -146,10 +173,10 @@ console.log(JSON.stringify({
   carrierSha256: sha256(carrierBytes),
   carrierExit: `${carrierExit.summary.pass} PASS / ${carrierExit.summary.gap} GAP`,
   triageMove1: `${triageMove1.summary.pass}/${triageMove1.summary.total} PASS`,
+  fleetMove1: `${fleetMove1.summary.pass}/${fleetMove1.summary.total} PASS`,
   withholdingReason: qualified
     ? null
-    : 'SNAPBACK_LOCAL_PERSISTENT_STORE_FRESH_RECEIPTS_REQUIRED: the retained carrier/Triage evidence does not satisfy 16 PASS / 1 GAP / 0 skipped plus Triage 8/8',
-  fleetBoundary: retainedFleet.reason,
+    : 'SNAPBACK_LOCAL_PERSISTENT_STORE_FRESH_RECEIPTS_REQUIRED: the retained carrier/Triage/Fleet evidence does not satisfy 17 PASS / 0 GAP / 0 skipped plus both workload exits at 8/8',
   publicPackage: 'withheld-structured-gap',
   hostedTargets: 'withheld-structured-gap',
 }));

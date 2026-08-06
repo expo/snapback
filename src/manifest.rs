@@ -10240,12 +10240,12 @@ const LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES: &[u8] =
 const LOCAL_PERSISTENT_STORE_PUBLICATION_ANCHOR_BYTES: &[u8] =
     include_bytes!("local-persistent-store-publication.anchor.v1.json");
 const LOCAL_PERSISTENT_STORE_CARRIER_EXIT_RECEIPT_BYTES: &[u8] = include_bytes!(
-    "../tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-04.v1.json"
+    "../tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-06.v1.json"
 );
 const LOCAL_PERSISTENT_STORE_TRIAGE_MOVE1_RECEIPT_BYTES: &[u8] =
-    include_bytes!("../tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-04.v1.json");
+    include_bytes!("../tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-06.v1.json");
 const LOCAL_PERSISTENT_STORE_TRIAGE_BUDGET_RECEIPT_BYTES: &[u8] =
-    include_bytes!("../tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-04.v1.json");
+    include_bytes!("../tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-06.v1.json");
 
 #[derive(Debug, Deserialize, Eq, PartialEq)]
 #[serde(deny_unknown_fields)]
@@ -10482,8 +10482,9 @@ fn local_sequence_allocation_publication_verified() -> bool {
 
 /// Validate the exact local store/class publication carrier. The carrier
 /// composes the retained carrier-exit receipt with the separately qualified
-/// Triage successor receipts; Fleet remains an explicit, non-supporting OQ5
-/// boundary. Public packages and other targets require their own authority.
+/// Triage successor receipts. The carrier exit in turn digest-binds the
+/// qualified Fleet successor; public packages and other targets require their
+/// own authority.
 ///
 /// @ref LLP 0110#local-persistent-store-publication-authority-amendment--2026-08-04
 /// — support follows the source-owned carrier and exact evidence/source
@@ -10613,11 +10614,11 @@ fn local_persistent_store_receipts_qualified(
     };
     carrier_exit["schemaVersion"] == "snapback.local-persistent-store.carrier-exit.v1"
         && carrier_exit["partial"] == false
-        && carrier_exit["summary"]["pass"].as_u64() == Some(16)
-        && carrier_exit["summary"]["gap"].as_u64() == Some(1)
+        && carrier_exit["summary"]["pass"].as_u64() == Some(17)
+        && carrier_exit["summary"]["gap"].as_u64() == Some(0)
         && carrier_exit["summary"]["skipped"].as_u64() == Some(0)
         && leg_status("footprint-hydration-triage") == Some("PASS")
-        && leg_status("footprint-hydration-fleet") == Some("GAP")
+        && leg_status("footprint-hydration-fleet") == Some("PASS")
         && triage_move1["schemaVersion"] == "snapback.triage-graph.move1-exit.v1"
         && triage_move1["controlledRun"]["status"] == "PASS"
         && triage_move1["summary"]["blocked"].as_u64() == Some(0)
@@ -14600,8 +14601,8 @@ mod membership_manifest_grammar_tests {
         let mut qualified_exit: Value =
             serde_json::from_slice(LOCAL_PERSISTENT_STORE_CARRIER_EXIT_RECEIPT_BYTES)
                 .expect("carrier exit fixture parses");
-        qualified_exit["summary"]["pass"] = json!(16);
-        qualified_exit["summary"]["gap"] = json!(1);
+        qualified_exit["summary"]["pass"] = json!(17);
+        qualified_exit["summary"]["gap"] = json!(0);
         let triage = qualified_exit["legs"]
             .as_array_mut()
             .and_then(|legs| {
@@ -14610,6 +14611,14 @@ mod membership_manifest_grammar_tests {
             })
             .expect("carrier exit carries the Triage leg");
         triage["status"] = json!("PASS");
+        let fleet = qualified_exit["legs"]
+            .as_array_mut()
+            .and_then(|legs| {
+                legs.iter_mut()
+                    .find(|leg| leg["leg"] == "footprint-hydration-fleet")
+            })
+            .expect("carrier exit carries the Fleet leg");
+        fleet["status"] = json!("PASS");
         assert!(local_persistent_store_receipts_qualified(
             &serde_json::to_vec(&qualified_exit).expect("qualified fixture serializes"),
             LOCAL_PERSISTENT_STORE_TRIAGE_MOVE1_RECEIPT_BYTES,

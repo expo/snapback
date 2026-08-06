@@ -6,7 +6,11 @@
 Live queries, Relational queries, Optimistic updates, Auth, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-08-03
-**Revised:** 2026-08-06 (Fleet blocker update: the reviewed
+**Revised:** 2026-08-06, Move-1 closure (the qualified Fleet 8/8 successor
+witness is retained, the refreshed carrier exit is 17 PASS / 0 GAP / 0
+skipped, and the local publication predicate now consumes that closed row;
+Experimental maturity and all public-package/remote/hosted nonclaims remain
+unchanged); 2026-08-06 (Fleet blocker update: the reviewed
 `snapshot-batch.v2` registration landed as LLP 0157 v0.11; the carrier row
 remains GAP pending implementation, frozen cross-language vectors, and a
 fresh Fleet witness — LLP 0157 §D1's gate list is canonical.)
@@ -1452,8 +1456,9 @@ staged and fail-closed:
   including both ladder arms, mismatch-to-fresh, examined-entry refusal,
   pending-intent blocking, atomic legacy/QMK visibility cuts, and the rule
   that a legacy token is never a QMK credential. The separate evidence act is
-  now complete: `carrier-exit.2026-08-04.v1.json` records 16 PASS / 1 Fleet
-  GAP / 0 skipped, `move1-exit.2026-08-04.v1.json` records Triage 8/8, and
+  now complete (refreshed 2026-08-06 at the Move-1 closure):
+  `carrier-exit.2026-08-06.v1.json` records 17 PASS / 0 GAP / 0 skipped,
+  the 2026-08-06 `move1-exit` receipts record Triage 8/8 and Fleet 8/8, and
   `src/local-persistent-store-publication.v1.json` binds those receipts and
   their source pins into the local manifest projection. Remote-service and
   Cloudflare targets remain nonclaims.
@@ -1903,15 +1908,13 @@ workload. Its 5,505 / 2,555 / 2,147 predecessor remains byte-identical;
 predecessor and freezes only the successor profile at 5,549 / 2,593 / 2,177.
 No other ceiling changes owner or value.
 
-The dated 2026-08-04 carrier exit is 16 PASS / 1 Fleet GAP / 0 skipped, and
-the dated Triage Move-1 exit is 8/8. Those retained receipts satisfy the local
-publication predicate and are bound by
-`src/local-persistent-store-publication.v1.json`. Fleet remains the sole
-carrier-exit GAP. The 2026-08-05 LLP 0135 OQ5 direction is ruled and the
-reviewed `snapshot-batch.v2` registration landed 2026-08-06 (LLP 0157
-v0.11), but implementation, the frozen cross-language vectors, and the fresh
-Fleet witness have not landed; the GAP does not retract the explicitly
-qualified local publication.
+The dated 2026-08-06 carrier exit is 17 PASS / 0 GAP / 0 skipped. It consumes
+the dated Triage Move-1 8/8 receipt and qualified Fleet Move-1 8/8 receipt;
+the Fleet receipt also retains the frozen custody and hydration measurements.
+Those receipts satisfy the local publication predicate and are bound through
+`src/local-persistent-store-publication.v1.json`. This closes the Fleet row
+and Move 1 only: Experimental maturity is unchanged, and remote-service,
+Cloudflare, public-package, and hosted targets remain nonclaims.
 
 ## Guardrails
 
@@ -2171,10 +2174,11 @@ Micro-profile packaging; no change to outbox/settlement custody semantics
    commissioning. §D3 records the QMK population/persistence predicate and
    §D6 the connected prove-or-fresh same-domain adoption contract. The
    implementation program landed on 2026-08-03; the shipped client now
-   implements and activates the adoption sequence. The 2026-08-04 retained
-   carrier receipt satisfies 16 PASS / 1 Fleet GAP / 0 skipped, the Triage
-   receipt satisfies 8/8, and the publication carrier binds both into the
-   local capability projection. Other targets remain fail-closed.
+   implements and activates the adoption sequence. The 2026-08-06 retained
+   carrier receipt satisfies 17 PASS / 0 GAP / 0 skipped, while the Triage
+   and Fleet receipts each satisfy 8/8. The publication carrier binds that
+   closed local evidence into the capability projection. Other targets remain
+   fail-closed.
 2. **A proof-backed resume credential** for `qmk1` materializations —
    binding resume-token identity to the materialization key and held proof
    so fresh establishment can use ladder rungs 1–2; dated
@@ -2271,9 +2275,11 @@ LLP 0053 (store-policy composition, wipe/reset scoping), and LLP 0090
 was semantic only. The implementation program then landed on 2026-08-03, and
 the §D7 gate fired on 2026-08-04 at 56/56 exact outcomes for both evaluator
 families and both claiming carriers; memory and Expo remain honest refusal
-arms. `single_table_v1@1` implementation and activation are present, and the
-dated 2026-08-04 carrier/Triage receipts subsequently satisfied the separate
-local publication predicate.
+arms. `single_table_v1@1` implementation and activation are present. The
+dated 2026-08-06 carrier receipt, qualified Triage receipt, and qualified
+Fleet receipt now satisfy the separate local publication predicate at 17
+PASS / 0 GAP / 0 skipped plus both workload exits at 8/8. This is not a
+maturity promotion or a hosted/remote claim.
 
 The v1.1 dated amendment recorded Charlie's semantic acceptance of
 `single_table_v1@1`, Arm A, and the connected prove-or-fresh adoption
@@ -2291,11 +2297,11 @@ LLP 0110's dated local-publication-authority amendment admits the exact
 contributor-source `LocalCapabilityPublicationV1` carrier for
 `single_table_v1`. That carrier binds this Spec's carrier-exit evidence, the
 qualified Triage successor receipts, and the exact implementation sources;
-it does not generalize to Fleet, public packages, remote services, or hosted
-targets. The Fleet footprint/hydration leg remains an explicit GAP after the
-2026-08-05 LLP 0135 OQ5 direction ruling, pending `snapshot-batch.v2`
-implementation, frozen cross-language vectors, and the fresh witness (its
-reviewed registration landed 2026-08-06, LLP 0157 v0.11).
+the refreshed carrier exit in turn digest-binds the qualified Fleet successor
+and budget receipts in its source provenance. The Fleet footprint/hydration
+leg is now PASS from the retained 2026-08-06 witness, closing Move 1. The
+carrier still does not generalize to public packages, remote services,
+Cloudflare, or hosted targets, and its maturity remains Experimental.
 
 The source-owned `local-persistent-store-publication.anchor.v1.json` is the
 only carrier selector: its closed `published` record names `single_table_v1`

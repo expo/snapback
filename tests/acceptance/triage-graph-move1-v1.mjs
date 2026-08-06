@@ -47,7 +47,7 @@ import { startServer } from '../../demos/_kit/server-process.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(here, '../..');
-const RUN_DATE = '2026-08-04';
+const RUN_DATE = '2026-08-06';
 const WORKLOAD_DATE = '2026-08-03';
 const DEMO = join(ROOT, 'demos/triage-graph');
 const BACKEND = join(DEMO, 'snapback');

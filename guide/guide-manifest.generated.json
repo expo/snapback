@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "e66c0e97b4e27cd01b4b5c5c622549812e627871"
+    "commit": "1c08d92e95e8e2eb64d4b527f35bd7e9fb9ba881"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -1494,7 +1494,7 @@
       "examples": [],
       "reviewed": "2026-08-06",
       "reviewedCommit": "850427c31b9a668d55b46995e08389cd13a2c9b6",
-      "sha256": "c6f08c1c6f0b51b8179a0315a432e9027509d1e709bc8611bec13df524397476",
+      "sha256": "579795fe0c00f85ec4cc2f998741d4435d54c609a5c46e83fea4e6bf2d3630d0",
       "snippets": []
     },
     "clients.app-cli": {
@@ -3344,6 +3344,7 @@
       "realtime.ephemeral",
       "realtime.live-queries",
       "realtime.snapshot-bundles",
+      "sync.local-persistent-store",
       "sync.offline",
       "testing.acceptance"
     ],
@@ -3358,7 +3359,6 @@
       "operating.agent-safe-storage",
       "operating.declaration-conformance",
       "operating.instance-forks",
-      "sync.local-persistent-store",
       "sync.offline-js-arm",
       "sync.offline-js-arm-protected",
       "sync.settlement-bounded-skew"
@@ -3368,5 +3368,5 @@
     "routes": 122,
     "hostOps": 43
   },
-  "contentHash": "8085e910774eb939c2838c2e1460455fccdda0191773dc6f3a032f1e5a3f738f"
+  "contentHash": "958eca16f1e41635635a0194c717bf9a208b56e810fe066577061555b026a7ca"
 }
