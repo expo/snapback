@@ -104,6 +104,7 @@ const RESOLVED_NARROW_SUBPATH_PROFILE_IDS = Object.freeze(
   RESOLVED_NARROW_SUBPATH_PROFILES.map((profile) => profile.id),
 );
 const S2_COMMANDS_PROFILE_IDS = Object.freeze([
+  'public-subpath-commands',
   'resolved-public-subpath-commands',
 ]);
 const PRE_S2_RESOLVED_NARROW_SUBPATH_PROFILES = Object.freeze(
