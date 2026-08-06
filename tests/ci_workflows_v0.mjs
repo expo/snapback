@@ -264,6 +264,26 @@ const localProof = readFileSync(join(workflowDir, 'local-proof.yml'), 'utf8');
 assert.match(localProof, /SNAPBACK_VERIFY_EXACT:\s*"1"/, 'canonical CI must require Exact/admin checks');
 assert.match(
   localProof,
+  /schedule:[\s\S]*cron:[\s\S]*workflow_dispatch:/u,
+  'complete local proof must be scheduled and manually dispatchable',
+);
+assert.match(
+  localProof,
+  /PROOF_CADENCE:[^\n]*schedule[^\n]*workflow_dispatch[^\n]*complete[^\n]*affected/u,
+  'push/PR proof must select affected gates while schedule/manual retains complete cadence',
+);
+assert.match(
+  localProof,
+  /node scripts\/select-local-proof\.mjs[\s\S]*requires_native[\s\S]*scripts\/verify-local-proof --selection-receipt/u,
+  'CI must plan once, condition heavyweight setup, and reopen the exact selector receipt',
+);
+assert.match(
+  localProof,
+  /Initialize native runtime submodules[\s\S]*if:\s*steps\.selection\.outputs\.requires_native == 'true'[\s\S]*git submodule update --init --recursive/u,
+  'large native submodules must be demand-loaded only for native selections',
+);
+assert.match(
+  localProof,
   /id:\s*setup-chrome[\s\S]*browser-actions\/setup-chrome@[0-9a-f]{40}[\s\S]*chrome-version:\s*stable/,
   'canonical CI must provision a pinned stable Chrome for required browser acceptance',
 );
@@ -316,6 +336,11 @@ const headroomStepStart = localProof.indexOf('      - name: Require workspace di
 const headroomStepEnd = localProof.indexOf('\n      - ', headroomStepStart + 1);
 assert(headroomStepStart >= 0 && headroomStepEnd > headroomStepStart, 'disk headroom step block must be bounded');
 const headroomStep = localProof.slice(headroomStepStart, headroomStepEnd);
+assert.match(
+  headroomStep,
+  /if:\s*steps\.selection\.outputs\.requires_native == 'true'/u,
+  'fast docs/guide selections must not pay the native disk-admission cost',
+);
 assert.match(
   headroomStep,
   /SNAPBACK_CI_DISK_HEADROOM_LOW/,
@@ -439,6 +464,11 @@ assert(
   prepareHermesStart > localProof.indexOf('      - name: Cache Hermes Linux build')
     && prepareHermesStart < verifyProofStart,
   'canonical CI must prepare an exact cache miss before the local-proof preflight',
+);
+assert.match(
+  localProof,
+  /target\/proof\/local-proof-results\.jsonl[\s\S]*target\/proof\/local-proof-selection\.json/u,
+  'CI must retain both execution results and their exact selection authority',
 );
 const prepareHermesEnd = localProof.indexOf('\n      - ', prepareHermesStart + 1);
 assert.match(

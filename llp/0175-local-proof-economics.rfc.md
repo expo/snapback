@@ -20,6 +20,11 @@ exact-current evidence remains
 mandatory for release and capability promotion. LLP 0154 carries the amended
 trust contract). 2026-08-06 (accepted by co-author Charlie Cheever for
 implementation and direct delivery; the affected-selector tranche follows.)
+2026-08-06 (D2 selector implementation: a checked 131-gate policy binds the
+exact diff and inventory, closes prerequisites, fails broad for unknown/shared
+paths, preserves mandatory Contract/Exact and admin behavior, and replays four
+historical defect diffs. Push/PR runs use affected selection; six-hour/manual
+runs retain the complete inventory.)
 **Related:** LLP 0010, LLP 0032, LLP 0109, LLP 0115, LLP 0145, LLP 0154,
 issues/closed/20260802-local-proof-is-cancelled-before-it-can-finish-on-main.md,
 issues/closed/20260802-verify-local-proof-stops-at-the-first-failure.md,
@@ -281,6 +286,13 @@ Run on every PR and `main` push, on `expo-small` where possible. Target: under
 Unknown files or an unclassified path fail closed into the broader affected
 proof; they never silently select no tests.
 
+The implemented fast boundary always runs reference integrity, workflow
+integrity, proof-runner/inventory fixtures, selector replay fixtures, and the
+package-test inventory. Explicit LLP/issue/diary docs remain on that boundary;
+guide inputs add generated-artifact and guide closure checks. The selector
+emits its exact chosen and `NOT_SELECTED` inventories even when no affected
+group is needed.
+
 #### D2.2 Affected proof
 
 Run on every PR and `main` push for the subsystem(s) selected by a checked
@@ -301,6 +313,17 @@ Shared authorities such as `Cargo.toml`, `Cargo.lock`, `package.json`, the root
 lockfile, toolchain pins, common harnesses, workflow definitions, and the path
 map itself deliberately fan out to all affected suites.
 
+The authority now lives beside the runner in
+`scripts/local-proof-selection-policy.v1.json`. It classifies all 131 stable
+canonical gates into fast/affected groups; `scripts/select-local-proof.mjs`
+binds the base/head diff, policy bytes, parsed gate inventory, selected groups,
+prerequisite closure, and heavyweight-tool requirements into one reopenable
+receipt. Any unknown path, workflow/selector change, root toolchain authority,
+or other shared authority selects every gate. Every affected code selection
+also includes LLP 0010's Contract/Exact and admin behavior lanes. Historical
+replay fixtures cover client resume ordering, native storage/route behavior,
+Cloudflare deployment identity, and generated required surfaces.
+
 #### D2.3 Complete latest-main proof
 
 Run the complete canonical inventory against the newest `main` revision on a
@@ -313,6 +336,14 @@ coalesce to the newest pending revision. The fast and affected lanes retain
 per-change attribution for the failures most likely to be introduced by that
 change; the complete proof detects dependency-map mistakes and cross-subsystem
 interactions.
+
+The canonical `local-proof` workflow now runs this complete inventory every
+six hours and on manual dispatch under a non-cancelling latest-main concurrency
+group. Pull requests and `main` pushes use affected selection instead; pull
+request updates cancel their superseded affected run. The workflow plans
+selection before installing Bun, Chrome, Rust, Cargo audit, or the large Ibex
+submodule and skips those setup costs when the selected closure does not need
+them. Both the selection receipt and gate JSONL are retained on green or red.
 
 The first implemented slice is the telemetry Phase-1 full producer. A
 six-hour schedule plus manual dispatch runs one clean Linux source snapshot;
@@ -552,12 +583,13 @@ This RFC is implemented only when all of the following hold:
 
 ## Open questions
 
-- **OQ1 — latest-main trigger (partially resolved):** telemetry uses a fixed
-  six-hour GitHub schedule plus manual dispatch and a non-cancelling concurrency
-  group that coalesces pending heads. The complete canonical inventory still
-  needs its own rollout decision after affected selection is proven.
-- **OQ2 — selector authority:** should the path-to-suite map live beside the
-  proof script or in a generated manifest owned by package/demo metadata?
+- **OQ1 — latest-main trigger (resolved for the current inventory):** both the
+  canonical proof and telemetry full producer use fixed six-hour GitHub
+  schedules plus manual dispatch and non-cancelling latest-main concurrency
+  groups that coalesce pending heads.
+- **OQ2 — selector authority (resolved for Phase 1):** the checked JSON policy
+  lives beside the proof script. Package/demo-owned generated fragments remain
+  a possible later refactor, not a prerequisite for fail-closed selection.
 - **OQ3 — receipt input closures:** which telemetry and performance inputs are
   truly claim-affecting, and which broad source bindings are accidental? Any
   narrowing requires the owning LLP's evidence review.
@@ -585,8 +617,9 @@ This RFC is implemented only when all of the following hold:
 
 ## Status
 
-Accepted, partially implemented. Phase 0 and the first two native-deduplication
-legs now have executable code:
+Accepted, partially implemented. Phase 0, the fast/affected selector, the
+latest-main cadence, and the first two native-deduplication legs now have
+executable code:
 
 - `scripts/verify-local-proof` names and times every gate, records
   `PASS | FAIL | BLOCKED | NOT_SELECTED` as JSONL, and declares the generated,
@@ -608,11 +641,21 @@ legs now have executable code:
   rolling lag and preserve exact-current release authority; and
 - CI decides whether target cleanup is required before deleting test artifacts;
   measured-safe headroom preserves them for the final build and versioned-seed
-  witnesses, while low or unmeasurable headroom still cleans fail-safe.
+  witnesses, while low or unmeasurable headroom still cleans fail-safe;
+- every canonical gate is classified by a checked policy, selected gates close
+  over their producers, unknown/shared paths run everything, and four
+  historical defect diffs replay to the gates that caught them;
+- explicit docs/guide changes exercise a fast boundary, while affected code
+  retains required Contract/Exact and admin behavior and reports its exact
+  selection receipt; and
+- the complete inventory now runs on six-hour/manual latest-main cadence rather
+  than once per push, with heavyweight setup conditional on selected claims.
 
 No test, assertion, platform obligation, capability gate, or receipt claim was
 removed. The measured 7.5-minute doctor saving and bootstrap savings remain
 projections until a green integrated CI run produces the new timing artifact.
-D2 cadence selection, D3.4–D3.6, D4 experiments, the complete D5 ownership/risk
-metadata, and Acceptance items 1–2/4–10 remain open. The next recommended move
-is D2's fail-closed fast/affected selector, informed by the new gate timings.
+D3.4–D3.6, D4 experiments, the complete D5 ownership/risk metadata, ten-run
+latency evidence, and the final release/promotion green-history condition
+remain open. The next recommended move is to observe affected-selection and
+complete-latest-main artifacts long enough to validate the latency targets
+before pursuing D3.4 predecessor caching or D3.5 behavior deduplication.

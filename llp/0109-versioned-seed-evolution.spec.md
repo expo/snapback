@@ -5,7 +5,10 @@
 **Systems:** Authoring, Code generation, App provisioning, Storage, Schema evolution, Auth, Inspection, Client integration, Diagnostics, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-27
-**Revised:** 2026-08-03 (Accepted by the author — decision sitting #2
+**Revised:** 2026-08-06 (LLP 0175 cadence reconciliation: relevant seed and
+native changes select the complete case-by-surface dispatcher; scheduled,
+release, and promotion authority still require its complete receipt). 2026-08-03
+(Accepted by the author — decision sitting #2
 extension, explicit commission 2026-08-03,
 `issues/20260803-author-decision-sitting-2.md` — with §14's required
 reconciliation set landed in the same change: dated amendments in LLP 0012,
@@ -1589,6 +1592,16 @@ and the legacy-reset observation. A cache hit is accepted only when all of
 those facts reverify. Until every mandatory runner exists and the dispatcher
 produces a conforming receipt, both versioned-seed capability ids remain
 absent.
+
+Recurring cadence does not weaken this advertisement gate. The checked local-
+proof selector maps versioned-seed corpus inputs and native storage/runtime
+changes to the complete `versioned-seed-conformance` dispatcher and closes its
+binary/readiness prerequisites. Unknown and shared-authority changes run the
+complete inventory. The same dispatcher runs again in the scheduled/manual
+complete latest-main proof and at release/capability-promotion authority;
+passing an unrelated affected subset can never advertise either capability.
+`tests/local_proof_selection_v0.mjs` replays a historical storage/route defect
+diff to this gate so the path map cannot silently lose that obligation.
 
 The additional stable code is
 `SNAPBACK_SEED_OPERATION_HISTORICAL` (HTTP 409; understood host failure).
