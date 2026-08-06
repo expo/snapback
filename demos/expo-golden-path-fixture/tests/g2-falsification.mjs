@@ -103,12 +103,16 @@ await runAcceptance(suite, async () => {
     onlineProvider,
     app.surfaces.conversation,
     { conversationId: 'conversation_engine_room' },
-    { presence: { typing: skip } },
+    { presence: { typing: { displayName: 'Ada' } } },
     () => {},
   );
 
   await suite.check('surface reaches and renders the Relay-shaped current facts', async () => {
-    await eventually(() => onlineSurface.snapshot().state.messages.freshness === 'current');
+    await eventually(() => onlineSurface.snapshot().state.messages.freshness === 'current'
+      && onlineSurface.snapshot().presence.typing.members.some((entry) => (
+        entry.key === onlineSurface.snapshot().presence.typing.selfKey
+        && entry.value.displayName === 'Ada'
+      )));
     const snapshot = onlineSurface.snapshot();
     assert.equal(snapshot.data.messages.length, 3);
     assert.equal(snapshot.data.details[0].title, 'Engine Room');
@@ -116,10 +120,13 @@ await runAcceptance(suite, async () => {
     assert.equal(snapshot.data.users.length, 4);
     assert.equal(snapshot.state.messages.status, 'ready');
     assert.equal(snapshot.state.messages.connection, 'live');
+    assert.equal(snapshot.presence.typing.status, 'ready');
+    assert.equal(onlineProvider.inspection().presenceStores, 1);
+    assert.equal(onlineProvider.inspection().presenceSubscriptions, 1);
   });
 
   await suite.check('bound reaction mutation omits conversationId and reaches the same surface', async () => {
-    await onlineSurface.mutations.addReaction({
+    await onlineSurface.mutations.react({
       messageId: 'message_er_1',
       userId: 'user_ada',
       emoji: '😂',
@@ -132,6 +139,7 @@ await runAcceptance(suite, async () => {
       messages: { ref: api.messagesForConversation, args: { conversationId: 'conversation_engine_room' } },
     }, () => {});
     await eventually(() => directMessages.snapshot().queries.messages.freshness === 'current');
+    assert.equal(onlineProvider.inspection().stores, 5);
     assert.equal(onlineProvider.inspection().serverSubscriptions, 5);
   });
 
@@ -152,7 +160,10 @@ await runAcceptance(suite, async () => {
 
   await onlineSurface.dispose();
   onlineSurface = null;
+  await eventually(() => onlineProvider.inspection().stores === 0
+    && onlineProvider.inspection().presenceStores === 0);
   await onlineProvider.dispose();
+  assertProviderResourcesClosed(onlineProvider, 'online provider');
   onlineProvider = null;
   await online.closeAuth();
   online = null;
@@ -283,4 +294,33 @@ async function pollBindingReceipt(store) {
     await new Promise((resolveWait) => setTimeout(resolveWait, 25));
   }
   return null;
+}
+
+function assertProviderResourcesClosed(provider, label) {
+  const inspection = provider.inspection();
+  assert.deepEqual({
+    stores: inspection.stores,
+    consumers: inspection.consumers,
+    subscriptions: inspection.serverSubscriptions,
+    presenceStores: inspection.presenceStores,
+    presenceConsumers: inspection.presenceConsumers,
+    presenceSubscriptions: inspection.presenceSubscriptions,
+    publishers: inspection.publishers,
+    timers: inspection.timers,
+    presenceTimers: inspection.presenceTimers,
+    presenceListeners: inspection.presenceListeners,
+    listeners: inspection.listeners,
+  }, {
+    stores: 0,
+    consumers: 0,
+    subscriptions: 0,
+    presenceStores: 0,
+    presenceConsumers: 0,
+    presenceSubscriptions: 0,
+    publishers: 0,
+    timers: 0,
+    presenceTimers: 0,
+    presenceListeners: 0,
+    listeners: 0,
+  }, `${label} leaked React resources`);
 }

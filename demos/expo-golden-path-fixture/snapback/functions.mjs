@@ -242,6 +242,15 @@ export const conversation = defineSurface({
     reactions: bind(reactionsForConversation, { conversationId: param('conversationId') }),
   },
   mutations: {
+    // @ref LLP 0176#g2--conversation-surface — keep the generated member at
+    // the accepted north-star spelling while the underlying function remains
+    // the ordinary addReaction mutation.
+    react: bind(addReaction, {
+      conversationId: param('conversationId'),
+      messageId: input('messageId'),
+      userId: input('userId'),
+      emoji: input('emoji'),
+    }),
     sendText: bind(sendText, {
       conversationId: param('conversationId'),
       senderId: input('senderId'),
@@ -252,12 +261,6 @@ export const conversation = defineSurface({
       senderId: input('senderId'),
       text: input('text'),
       replyToId: input('replyToId'),
-    }),
-    addReaction: bind(addReaction, {
-      conversationId: param('conversationId'),
-      messageId: input('messageId'),
-      userId: input('userId'),
-      emoji: input('emoji'),
     }),
     removeReaction: bind(removeReaction, {
       reactionId: input('reactionId'),

@@ -7,8 +7,13 @@ Ephemeral state, Code generation, Developer experience, Packaging, Local
 server lifecycle, Testing, Competitive evaluation
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-05
-**Revised:** 2026-08-06 (n) — Corrected G2's repair-rerun exit claim: the
-checkpoint and headless-React evidence are complete, but the iOS-simulator and
+**Revised:** 2026-08-06 (o) — G2 exit complete: the north-star conversation
+surface passed the repaired headless checkpoint and real iOS-simulator and
+Android-emulator runs, with one canonical query/presence owner and all owned
+resources reclaimed. This corrects (m)'s premature exit wording; Status stays
+Review and no physical-device, release, LAN-carrier, or LLP 0064 claim follows.
+Earlier same day (n) — Corrected G2's repair-rerun exit claim: the checkpoint
+and headless-React evidence are complete, but the iOS-simulator and
 Android-emulator surface receipts remain pending, so G2 is checkpoint-complete
 rather than exited. Earlier same day (m) — G2 repair rerun: descriptor preparation now
 reuses LLP 0114's persisted binding-receipt/RQS owner, and the real-runtime
@@ -670,6 +675,28 @@ receipts had not landed on `main` when this note was written, and the exit
 claim remains contingent on those receipts landing and being cited here.
 Until then, **G2 is "checkpoint-complete, per-OS evidence pending"** rather
 than exited; G3's unblocking remains subject to that contingency.
+
+**2026-08-06 north-star device exit — PASS; G2 complete.** The fixture now
+cold-opens one deterministic conversation and mounts the requested
+`useSurface(app.surfaces.conversation, { conversationId }, { presence: {
+typing: ... } })` shape. On both platforms it joined ordinary Sessions-provider
+readiness, current `data.messages`, a `mutations.sendText` live echo, a
+`mutations.react` live echo, and the connection-owned self-typing fact before
+rendering its pass marker. The instrumented screen re-measures at 465 versus
+the frozen 510 lines (45 lines/8.8% smaller and still beyond the advance bar).
+
+The exact-current-runtime 5/5 acceptance pins five query stores/five upstream
+subscriptions beside an equivalent low-level consumer, one presence
+store/room subscription, and an all-zero resource vector after disposal; the
+Strict Mode React test independently pins canonical query and presence owners.
+The iOS supervisor reclaimed backend, Metro, and bootstrap, and the Android
+supervisor reclaimed those processes plus all three `adb reverse` rules. The
+dated, screenshot-backed receipts are
+[`20260806-g2-ios-simulator.md`](../demos/expo-golden-path-fixture/receipts/20260806-g2-ios-simulator.md) and
+[`20260806-g2-android-emulator.md`](../demos/expo-golden-path-fixture/receipts/20260806-g2-android-emulator.md).
+All G2 exit arms now pass and G3 is unblocked. This is simulator/emulator and
+supervised-development evidence only; it does not change this Plan's Status or
+make a physical-device, release, LAN-carrier, or LLP 0064 claim.
 
 ### G3 — one online image-send command
 

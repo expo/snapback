@@ -1,11 +1,13 @@
 # Expo golden-path fixture
 
 This fixture began as LLP 0176 G1's minimal no-URL Expo app and now also hosts
-G2's Relay Room conversation-surface falsification checkpoint. The current
-screen boots with `<SnapbackExpoProvider app={app}>`, shows a conversation list
-and message thread, and consumes `app.surfaces.conversation` through
-`useSurface`. The dated G1 simulator/emulator evidence remains under
-[`receipts/`](./receipts/).
+G2's conversation-surface exit proof. The current screen boots with
+`<SnapbackExpoProvider app={app}>`, opens the Engine Room thread, and consumes
+`app.surfaces.conversation` through the north-star `useSurface` shape. On a
+device-platform run it publishes scoped typing presence, sends text, reacts to
+the returned message, waits for both echoes through the surface, and renders
+`G2_IOS_PASS` or `G2_ANDROID_PASS`. Back navigation still exposes the complete
+conversation-list and thread comparison UI.
 
 From the repository root, materialize the local package closure and generated
 application artifacts:
@@ -21,9 +23,9 @@ For iOS:
 ```sh
 node ../../packages/snapback-cli/cli.mjs dev snapback \
   --expo --expo-dir . --expo-platform ios \
-  --db .snapback/g1-ios.sqlite3 \
-  --ready-file .snapback/g1-ios.ready.json \
-  --email g1-ios@snapback.test
+  --db .snapback/g2-ios.sqlite3 \
+  --ready-file .snapback/g2-ios.ready.json \
+  --email g2-ios@snapback.test
 ```
 
 For Android, with one emulator already booted and `adb` available on `PATH`:
@@ -31,16 +33,17 @@ For Android, with one emulator already booted and `adb` available on `PATH`:
 ```sh
 node ../../packages/snapback-cli/cli.mjs dev snapback \
   --expo --expo-dir . --expo-platform android \
-  --db .snapback/g1-android.sqlite3 \
-  --ready-file .snapback/g1-android.ready.json \
-  --email g1-android@snapback.test
+  --db .snapback/g2-android.sqlite3 \
+  --ready-file .snapback/g2-android.ready.json \
+  --email g2-android@snapback.test
 ```
 
-Those commands remain the supervised launch shape. The dated G1 receipts were
-captured when the fixture screen automatically sent one mutation and emitted
-`G1_IOS_PASS`/`G1_ANDROID_PASS` plus structured `SNAPBACK_G1_EVENT` markers.
-The current G2 comparison screen does not reproduce those historical markers;
-the retained G1 simulator/emulator evidence is under [`receipts/`](./receipts/).
+Those commands remain the supervised launch shape. G1's dated marker receipts
+are unchanged historical evidence; the current screen emits structured
+`SNAPBACK_G2_EVENT` facts and the G2 marker for its platform. The completed
+device-platform receipts are
+[`20260806-g2-ios-simulator.md`](./receipts/20260806-g2-ios-simulator.md) and
+[`20260806-g2-android-emulator.md`](./receipts/20260806-g2-android-emulator.md).
 
 For the G2 headless checkpoint, use an explicitly qualified runtime binary:
 
@@ -50,9 +53,8 @@ bun run typecheck
 ```
 
 `test:g2` regenerates the fixture and exercises current surface data, bound
-mutation arguments, canonical subscription ownership, capability refusal, and
-the process-cold offline path. Its cold-offline check is deliberately a
-negative witness: the test suite is green when it reproduces the current
-descriptor-mode refusal. The G2 checkpoint itself is therefore **FAIL**, not
-PASS; see
+mutation arguments, one canonical query-store/subscription owner, one canonical
+presence-store/room owner, capability refusal, the process-cold retained path,
+and an all-zero resource vector after disposal. It passes 5/5. The append-only
+falsification and repair record is
 [`20260806-g2-falsification-baseline.md`](./receipts/20260806-g2-falsification-baseline.md).

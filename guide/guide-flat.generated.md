@@ -7928,6 +7928,15 @@ export const conversation = defineSurface({
     reactions: bind(reactionsForConversation, { conversationId: param('conversationId') }),
   },
   mutations: {
+    // @ref LLP 0176#g2--conversation-surface — keep the generated member at
+    // the accepted north-star spelling while the underlying function remains
+    // the ordinary addReaction mutation.
+    react: bind(addReaction, {
+      conversationId: param('conversationId'),
+      messageId: input('messageId'),
+      userId: input('userId'),
+      emoji: input('emoji'),
+    }),
     sendText: bind(sendText, {
       conversationId: param('conversationId'),
       senderId: input('senderId'),
@@ -7938,12 +7947,6 @@ export const conversation = defineSurface({
       senderId: input('senderId'),
       text: input('text'),
       replyToId: input('replyToId'),
-    }),
-    addReaction: bind(addReaction, {
-      conversationId: param('conversationId'),
-      messageId: input('messageId'),
-      userId: input('userId'),
-      emoji: input('emoji'),
     }),
     removeReaction: bind(removeReaction, {
       reactionId: input('reactionId'),
@@ -7989,6 +7992,11 @@ composition outside that algebra in application code or extend the subsystem
 that owns the missing operation. Binding a resource id selects scope; every
 child still performs its own existing authorization.
 
+Surface member names are authored projection names, not rewrites of the
+underlying operation. The example deliberately exposes `mutations.react`
+while its reference remains the ordinary `addReaction` mutation, giving the
+screen its resource-shaped vocabulary without hiding the inspected target.
+
 ## Inspect what generation emits
 
 Codegen places every admitted declaration under the generated
@@ -8032,7 +8040,7 @@ render data and the rich child state:
   const conversation = useSurface(
     app.surfaces.conversation,
     { conversationId },
-    { presence: { typing: draft.trim() ? { displayName: PERSONA_NAMES[activeUserId] ?? 'Someone' } : skip } },
+    { presence: { typing: draft.trim() || proofEnabled ? { displayName: PERSONA_NAMES[activeUserId] ?? 'Someone' } : skip } },
   );
   const connection = useSnapbackConnection();
   const outbox = useSnapbackOutbox();

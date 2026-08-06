@@ -417,7 +417,35 @@ still makes no exact-runtime-build identity claim.
 - **Half 2 (fact preservation): PASS** — 18/18; the real cold-client retained
   surface path now renders all three rows with truthful retained/refreshing/
   stale facts and the negative refusals stay typed.
-- **Overall G2 falsification checkpoint: PASS.** G2 exits and G3 is unblocked.
-  The original FAIL remains the preserved falsification record; the resolved
-  defect is archived at
+- **Overall G2 falsification checkpoint: PASS.** At this point the checkpoint
+  no longer blocked G2; the required iOS-simulator and Android-emulator exit
+  arms remained pending. The original FAIL remains the preserved
+  falsification record; the resolved defect is archived at
   `issues/closed/20260806-app-descriptor-use-surface-blocks-cold-retained-boot.md`.
+
+## Device-exit remeasurement — 2026-08-06
+
+The G2 device-exit screen adds visible, machine-readable joins for provider
+readiness, current surface data, `sendText` echo, `react` echo, and the scoped
+self-presence fact. Re-running the frozen line-count boundary produced:
+
+```text
+104 src/screens/inbox-screen.tsx
+361 src/screens/chat-screen.tsx
+465 total
+```
+
+The instrumented device-exit screen remains **45 lines/8.8% smaller** than the
+510-line original and **19 lines below** the frozen 484-line minimum. It has 40
+hook call sites across 11 APIs and still has zero manual
+cleanup/subscription-lifecycle lines. Half 1 therefore remains PASS after the
+device instrumentation; Half 2 remains the repaired 18/18 PASS.
+
+The final exact-current-runtime `test:g2` run passed 5/5 and additionally
+asserted five surface query stores/five upstream subscriptions, no sixth owner
+for the equivalent low-level message reader, one typing presence store/room
+subscription, and an all-zero query/presence/publisher/timer/listener resource
+vector after disposal. The platform arms and supervisor reclamation evidence
+are in
+[`20260806-g2-ios-simulator.md`](./20260806-g2-ios-simulator.md) and
+[`20260806-g2-android-emulator.md`](./20260806-g2-android-emulator.md).
