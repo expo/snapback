@@ -1,0 +1,21 @@
+{
+  "tables": {
+    "products": [
+      {
+        "_id": "seed_product_pro_monthly",
+        "productId": "pro_monthly",
+        "title": "Pro (monthly)",
+        "kind": "subscription",
+        "appleId": "com.example.app.pro.monthly",
+        "googleId": "pro_monthly",
+        "stripePriceId": "price_pro_monthly"
+      }
+    ],
+    "entitlements": [
+      { "_id": "seed_entitlement_pro", "entitlementId": "pro", "title": "Pro features" }
+    ],
+    "productEntitlements": [
+      { "_id": "seed_map_pro_monthly_pro", "productId": "pro_monthly", "entitlementId": "pro" }
+    ]
+  }
+}
