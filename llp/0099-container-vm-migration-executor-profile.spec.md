@@ -5,10 +5,10 @@
 **Systems:** Migrations, Deployment, Storage, Backup and restore, CLI, Testing
 **Author:** Claude (Fable 5), directed by Charlie Cheever
 **Date:** 2026-07-26
-**Revised:** 2026-08-06 (proposed dated amendment drafted at the author's
-direction: LLP 0188 §3 checkpoint proof as a second qualifying pre-apply
-form, §"Downtime ceiling and checkpoint"; Proposed — pending author
-ratification, then LLP 0188 G3). 2026-08-03 (Accepted 2026-08-03 by the author — decision
+**Revised:** 2026-08-06 (dated amendment drafted at the author's
+direction and ratified by the author the same day: LLP 0188 §3 checkpoint
+proof as a second qualifying pre-apply form, §"Downtime ceiling and
+checkpoint"; the proof form remains gated on LLP 0188 G3). 2026-08-03 (Accepted 2026-08-03 by the author — decision
 sitting #2, "accept all that verify",
 `issues/20260803-author-decision-sitting-2.md`; acceptance covers the Spec
 text only: the §Gates ladder G1–G3 stands unchanged and
@@ -335,11 +335,11 @@ supplemental `MigrationCheckpointV1` and barrier re-proof.
 A provider volume snapshot may be retained as supplemental evidence but never
 satisfies `SNAPBACK_MIGRATION_BACKUP_REQUIRED`.
 
-#### Dated amendment — 2026-08-06 (Proposed, pending author ratification): LTX checkpoint proof as a second qualifying pre-apply form
+#### Dated amendment — 2026-08-06 (ratified by the author 2026-08-06): LTX checkpoint proof as a second qualifying pre-apply form
 
 Required by LLP 0188 §7 (Accepted 2026-08-06), which builds the continuous
-LTX replication lane this profile's resolved decision predates. When
-ratified, this amendment admits an **LLP 0188 §3 checkpoint proof** as a
+LTX replication lane this profile's resolved decision predates.
+This amendment admits an **LLP 0188 §3 checkpoint proof** as a
 second qualifying form of the pre-apply checkpoint, alongside — not
 replacing — the existing streaming SQLite backup. Admissibility conditions,
 all mandatory: the proof satisfies every requirement of the paragraph above
@@ -354,9 +354,9 @@ boundary and governing snapshot are pinned per LLP 0188 §3 for the lifetime
 of every referencing artifact, not merely the consuming admission. Which
 form an admission uses is named in the admission record; either satisfies
 `SNAPBACK_MIGRATION_BACKUP_REQUIRED` once LLP 0188's G3 has passed for the
-proof form. Provider volume snapshots remain supplemental-only. Until this
-amendment is ratified and G3 passes, the existing streaming backup remains
-the only qualifying artifact.
+proof form. Provider volume snapshots remain supplemental-only. Until G3
+passes, the existing streaming backup remains the only qualifying
+artifact.
 
 ### Closed remote receipt
 

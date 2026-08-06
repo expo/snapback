@@ -5,10 +5,10 @@
 **Systems:** Auth, Storage, Security, API, Admin API, Backup/restore, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-08-06 (proposed dated amendment drafted at the author's
-direction: LTX-boundary capture discipline as a second admissible
-physical-capture form for the auth unit, per LLP 0188; Proposed — pending
-author ratification). 2026-08-01 (LLP 0148 prefixed identifiers: the four catalog object
+**Revised:** 2026-08-06 (dated amendment drafted at the author's
+direction and ratified by the author the same day: LTX-boundary capture
+discipline as a second admissible physical-capture form for the auth
+unit, per LLP 0188). 2026-08-01 (LLP 0148 prefixed identifiers: the four catalog object
 ids are respelled `usr_`/`idn_`/`ses_`/`aut_`, `usr_` gains a random body, both
 spellings stay readable, and no catalog version is taken — see the dated
 amendment). 2026-07-26 (capture-only provider ergonomics: `dev` and `demo`
@@ -1815,7 +1815,7 @@ rest on digest resolution and the cross-table absence check, not on id shape.
 Prefixes are advisory (LLP 0148 §D4) and no authorization, resolution, or
 fencing decision reads one.
 
-## Dated amendment: LTX-boundary capture discipline (2026-08-06, Proposed — pending author ratification)
+## Dated amendment: LTX-boundary capture discipline (2026-08-06, ratified by the author 2026-08-06)
 
 [LLP 0188](./0188-ltx-sqlite-replication.rfc.md) (Accepted 2026-08-06)
 builds continuous LTX replication of the instance database — which contains
@@ -1825,7 +1825,7 @@ boundary with the keyring snapshot governing that boundary, which security
 boundary 4 ("one quiescence boundary") and §Consistent backup's raw-copy
 exclusion do not admit as written. Recorded here because this Spec is
 Accepted and LLP 0188 may not silently reinterpret it. Drafted at the
-author's direction; effective only on ratification.
+author's direction and ratified by the author in-session 2026-08-06.
 
 **What changes.** A second physical-capture discipline is admissible for
 the auth unit: a database materialized by LTX restore at a **retained
