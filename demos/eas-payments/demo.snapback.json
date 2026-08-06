@@ -1,38 +1,56 @@
 {
   "id": "eas-payments",
   "title": "EAS Payments (engine-first slice)",
-  "description": "A learning/prototype vertical slice of the EAS Payments Engine on Snapback: a store notification triggers an action, the action resolves authoritative transaction state (stubbed for this slice) and commits through one mutation, and entitlementGrants — the derived read model — backs the live query the app gates on. A cron sweep expires closed subscription windows through the same action -> mutation split.",
+  "description": "A learning/prototype vertical slice of the EAS Payments Engine on Snapback: a store notification triggers an action, the action re-fetches authoritative transaction state from a fake local store over ctx.fetch with a granted ctx.secrets credential, and commits through one mutation; entitlementGrants — the derived read model — backs the live query the app gates on. A cron sweep expires closed subscription windows through the same action -> mutation split.",
   "artifactSchemaVersion": "snapback.v0",
   "targetProfile": "local-dev-sqlite-ibex",
-  "systems": ["API", "Storage", "Runtime", "Realtime", "Scheduled execution", "Developer experience"],
+  "systems": [
+    "API",
+    "Storage",
+    "Runtime",
+    "Realtime",
+    "Scheduled execution",
+    "Developer experience"
+  ],
   "requiredCapabilities": {
     "storageEngine": "sqlite",
     "runtimeEngine": "ibex",
     "liveSubscriptions": true,
     "syncableLiveQuery": true,
     "actions": true,
-    "cron": true
+    "cron": true,
+    "outboundActions": true,
+    "declaredConfig": true
   },
   "backend": {
     "source": "snapback/schema.mjs + snapback/functions.mjs",
-    "codegen": "node packages/snapback-codegen/index.mjs demos/eas-payments/snapback",
+    "codegen": "SNAPBACK_OUTBOUND_ACTIONS=1 node packages/snapback-codegen/index.mjs demos/eas-payments/snapback",
     "generated": [
       "snapback/generated/artifacts.json"
     ],
-    "stalenessPolicy": "committed review manifest; regenerate with codegen; freshness tracked by artifacts.json inputsHash"
+    "stalenessPolicy": "committed review manifest; regenerate with codegen under SNAPBACK_OUTBOUND_ACTIONS=1 (the opt-in is a codegen input and changes inputsHash); freshness tracked by artifacts.json inputsHash"
   },
   "seed": {
     "profile": "deterministic",
     "file": "snapback/seed.json",
-    "rows": { "products": 1, "entitlements": 1, "productEntitlements": 1 },
-    "users": ["user_ada", "user_grace", "user_dana"]
+    "rows": {
+      "products": 1,
+      "entitlements": 1,
+      "productEntitlements": 1
+    },
+    "users": [
+      "user_ada",
+      "user_grace",
+      "user_dana",
+      "user_eve"
+    ]
   },
   "surfaces": {
     "headless": {
       "requirement": "required",
       "buildTargets": [],
       "runner": "node demos/eas-payments/tests/acceptance/headless.mjs",
-      "toolchain": "node>=22 (built-in fetch); cargo to build/run the local server"
+      "toolchain": "node>=22 (built-in fetch); cargo to build/run the local server; the suite starts its own fake store"
     }
   },
   "acceptanceChecks": {
@@ -47,6 +65,10 @@
       "entitlements are user-scoped: a non-buyer holds nothing",
       "the transaction carries store, status, and environment",
       "replaying the receipt is idempotent end to end",
+      "the store, not the caller, decides the environment",
+      "a store-reported expired receipt grants nothing",
+      "a bad store credential fails the action and writes nothing",
+      "the restored credential works again",
       "a live subscriber sees a purchase land in realtime",
       "recordPurchase rejects an unknown environment",
       "the expireGrants cron job is declared against the sweep action",
@@ -63,7 +85,7 @@
     "metering"
   ],
   "notClaiming": [
-    "real store validation — validateReceipt derives a stubbed transaction id and expiry instead of calling Apple/Google/Stripe",
+    "real store validation — validateReceipt performs a real outbound fetch, but against a fake local store fixture, not Apple/Google/Stripe, and with no signature or JWS verification",
     "production auth — the slice runs in dev auth mode; sessions mode is out of scope",
     "the re-fetch-on-notification path — applyStoreState is a later slice",
     "metering or billing — transactions carry an environment tag so sandbox rows can be excluded later, and nothing consumes it yet"

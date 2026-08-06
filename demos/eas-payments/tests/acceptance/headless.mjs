@@ -1,15 +1,18 @@
 // EAS Payments — headless acceptance suite (the required surface).
 //
-// Proves the engine-first slice end to end: schema -> mutation ->
-// action(+stubbed re-fetch) -> live query, plus the cron expiry sweep that
-// flips a grant off once its subscription window closes.
+// Proves the engine end to end: schema -> mutation -> action(+real outbound
+// fetch to a fake store) -> live query, plus the cron expiry sweep that flips
+// a grant off once its subscription window closes.
 //
 // @ref LLP 0010#first-acceptance-app — headless is the required surface; every
 //   claim below is an authoritative read after a real commit.
 // @ref LLP 0028#scheduler-state-and-run-ledger — the scheduler starts inert and
 //   the suite drives every tick, so no wall-clock cadence is in the loop.
+// @ref LLP 0036#declared-configuration-in-the-manifest — the store credential
+//   is set through the admin config surface, never through app arguments.
 //
 // Run: node demos/eas-payments/tests/acceptance/headless.mjs
+// (the suite sets SNAPBACK_OUTBOUND_ACTIONS on its own server child)
 
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -19,6 +22,7 @@ import { SnapbackClient } from '../../../_kit/client.mjs';
 import { importGeneratedModule, readGeneratedJson } from '../../../_kit/generated-artifacts.mjs';
 import { startServer } from '../../../_kit/server-process.mjs';
 import { assert, assertEqual, assertThrows, createSuite, runAcceptance } from '../../../_kit/harness.mjs';
+import { startFakeStore } from './fake-store.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(here, '..', '..', '..', '..');
@@ -32,16 +36,41 @@ const functionManifest = gen('functions.manifest.json');
 const seed = JSON.parse(readFileSync(join(backendDir, 'seed.json'), 'utf8'));
 const option = (name) => { const at = process.argv.indexOf(`--${name}`); return at < 0 ? null : process.argv[at + 1]; };
 
-// Three buyers so user scoping, expiry, and the perpetual-grant case never
-// share an entitlement row.
+// Separate buyers so user scoping, expiry, credential failure, and
+// store-reported-expired never share an entitlement row — no check should
+// depend on where it sits in the file.
 const ADA = 'user_ada';
 const GRACE = 'user_grace';
 const DANA = 'user_dana';
+const EVE = 'user_eve';
 
-const suite = createSuite('eas-payments / headless', { expectedChecks: 15 });
+const STORE_KEY = 'fake-store-key-slice-2';
+const WRONG_STORE_KEY = 'not-the-store-key';
+
+const suite = createSuite('eas-payments / headless', { expectedChecks: 19 });
 const cleanups = [];
 let server = null;
 let db = null;
+let store = null;
+
+// Every validateReceipt call routes to the fake store's OS-assigned port.
+const validate = (args, userId) => db.action(api.validateReceipt, {
+  args: { storeBaseUrl: store.baseUrl, ...args },
+  userId,
+});
+
+const setStoreKey = async (value) => {
+  const res = await fetch(`${server.baseUrl}/_snapback/api/config/set`, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'x-snapback-admin-token': server.adminToken,
+    },
+    body: JSON.stringify({ entry: 'storeValidation', value }),
+  });
+  if (!res.ok) throw new Error(`config set failed: HTTP ${res.status} ${await res.text()}`);
+  return res.json();
+};
 
 const activeEntitlementIds = async (userId) => {
   const { rows } = await db.query(api.getEntitlements, { userId });
@@ -65,11 +94,17 @@ const cronJob = async (name) => {
 await runAcceptance(suite, async () => {
   // cronDisabled keeps the background scheduler from committing an expiry run
   // mid-assertion; the suite forces every tick it wants (LLP 0028).
+  store = await startFakeStore({ apiKey: STORE_KEY });
+  cleanups.push(() => store.close());
+
   server = await startServer({
     port: 0,
     db: ':memory:',
     cwd: repoRoot,
     cronDisabled: true,
+    // Generation opting in does not grant the process network authority; the
+    // runtime is the security boundary and needs its own opt-in.
+    env: { SNAPBACK_OUTBOUND_ACTIONS: '1' },
     provenance: {
       appId: 'eas-payments',
       artifactsPath: join(backendDir, 'generated', 'artifacts.json'),
@@ -114,6 +149,10 @@ await runAcceptance(suite, async () => {
     return { functions: names };
   });
 
+  // Config entries are declared in the function manifest, so the deployment
+  // value can only be set once that manifest is loaded.
+  await setStoreKey(STORE_KEY);
+
   await suite.check('deterministic reset + declarative seed installs the catalog', async () => {
     await db.reset();
     await db.seed(seed);
@@ -129,19 +168,23 @@ await runAcceptance(suite, async () => {
   });
 
   await suite.check('validateReceipt: action -> mutation -> transaction + grant', async () => {
-    const res = await db.action(api.validateReceipt, {
-      args: {
-        productId: 'pro_monthly',
-        store: 'apple',
-        receipt: 'receipt_ada_1',
-        environment: 'sandbox',
-      },
-      userId: ADA,
-    });
+    const before = store.requests.length;
+    const res = await validate({
+      productId: 'pro_monthly',
+      store: 'apple',
+      receipt: 'receipt_ada_1',
+      environment: 'sandbox',
+    }, ADA);
     assert(res.ok, `validateReceipt failed: ${JSON.stringify(res.diagnostic)}`);
-    assertEqual(res.result.storeTxnId, 'apple:receipt_ada_1', 'derived store transaction id');
+    assertEqual(res.result.storeTxnId, 'apple:receipt_ada_1', 'store transaction id');
+    assertEqual(res.result.status, 'active', 'store reported an active transaction');
     assertEqual(res.result.deduped, false, 'first delivery is not a dedupe');
-    assert(res.result.expiresAt > 0, 'stub derived an expiry');
+    assertEqual(res.result.expiresAt, store.now + store.thirtyDaysMs, 'store-reported expiry');
+    // The action really left the process: the store saw an authorized call.
+    const calls = store.requests.slice(before);
+    assertEqual(calls.length, 1, 'exactly one outbound call');
+    assertEqual(calls[0].path, '/validate', 'called the validate route');
+    assertEqual(calls[0].authorized, true, 'carried the granted credential');
     return res.result;
   });
 
@@ -191,32 +234,103 @@ await runAcceptance(suite, async () => {
   });
 
   await suite.check('replaying the receipt is idempotent end to end', async () => {
-    const replay = await db.action(api.validateReceipt, {
-      args: {
-        productId: 'pro_monthly',
-        store: 'apple',
-        receipt: 'receipt_ada_1',
-        environment: 'sandbox',
-      },
-      userId: ADA,
-    });
+    const replay = await validate({
+      productId: 'pro_monthly',
+      store: 'apple',
+      receipt: 'receipt_ada_1',
+      environment: 'sandbox',
+    }, ADA);
     assert(replay.ok, `replay failed: ${JSON.stringify(replay.diagnostic)}`);
     assertEqual(replay.result.deduped, true, 'replayed receipt deduped');
     assertEqual(await activeEntitlementIds(ADA), ['pro'], 'still exactly one entitlement');
   });
 
+  await suite.check('the store, not the caller, decides the environment', async () => {
+    // The caller asks the sandbox endpoint; the store answers `production`.
+    // What lands in the transaction must be the store's answer.
+    store.setState('apple:receipt_env_authority', {
+      productId: 'pro_monthly',
+      status: 'active',
+      environment: 'production',
+    });
+    const res = await validate({
+      productId: 'pro_monthly',
+      store: 'apple',
+      receipt: 'receipt_env_authority',
+      environment: 'sandbox',
+    }, DANA);
+    assert(res.ok, `validateReceipt failed: ${JSON.stringify(res.diagnostic)}`);
+    assertEqual(res.result.environment, 'production', 'store environment overrides the request');
+    return res.result;
+  });
+
+  await suite.check('a store-reported expired receipt grants nothing', async () => {
+    store.setState('apple:receipt_born_expired', {
+      productId: 'pro_monthly',
+      status: 'expired',
+      environment: 'sandbox',
+      expiresAt: store.now - 1_000,
+    });
+    const res = await validate({
+      productId: 'pro_monthly',
+      store: 'apple',
+      receipt: 'receipt_born_expired',
+      environment: 'sandbox',
+    }, EVE);
+    assert(res.ok, `validateReceipt failed: ${JSON.stringify(res.diagnostic)}`);
+    assertEqual(res.result.status, 'expired', 'store reported expired');
+    // The transaction is recorded, but an expired store answer is not a grant.
+    assertEqual(await activeEntitlementIds(EVE), [], 'no entitlement from an expired receipt');
+  });
+
+  await suite.check('a bad store credential fails the action and writes nothing', async () => {
+    const before = await activeEntitlementIds(DANA);
+    await setStoreKey(WRONG_STORE_KEY);
+    try {
+      // An action reports a handler failure as a structured envelope rather
+      // than throwing at the client, so assert on the envelope.
+      const res = await validate({
+        productId: 'pro_monthly',
+        store: 'apple',
+        receipt: 'receipt_bad_key',
+        environment: 'sandbox',
+      }, DANA);
+      assertEqual(res.ok, false, 'a 401 from the store must fail the action');
+      // The store saw the call and refused it.
+      const last = store.requests[store.requests.length - 1];
+      assertEqual(last.path, '/validate', 'the refused call reached the store');
+      assertEqual(last.authorized, false, 'store rejected the credential');
+      assertEqual(await activeEntitlementIds(DANA), before, 'a refused validation grants nothing');
+      // Neither the wrong key nor the real one may appear in the envelope.
+      const envelope = JSON.stringify(res.diagnostic ?? {});
+      assert(!envelope.includes(WRONG_STORE_KEY), 'diagnostic must not carry credential bytes');
+      assert(!envelope.includes(STORE_KEY), 'diagnostic must not carry credential bytes');
+      return { code: res.diagnostic?.code ?? null };
+    } finally {
+      await setStoreKey(STORE_KEY);
+    }
+  });
+
+  await suite.check('the restored credential works again', async () => {
+    const res = await validate({
+      productId: 'pro_monthly',
+      store: 'apple',
+      receipt: 'receipt_after_restore',
+      environment: 'sandbox',
+    }, DANA);
+    assert(res.ok, `validateReceipt failed after restore: ${JSON.stringify(res.diagnostic)}`);
+    assertEqual(res.result.status, 'active', 'store answered normally again');
+  });
+
   await suite.check('a live subscriber sees a purchase land in realtime', async () => {
     const live = await db.liveQuery(api.getEntitlements, { connectionId: 'grace_app', userId: GRACE });
     assertEqual(live.rows.length, 0, 'grace starts empty');
-    await db.action(api.validateReceipt, {
-      args: {
-        productId: 'pro_monthly',
-        store: 'google',
-        receipt: 'receipt_grace_1',
-        environment: 'sandbox',
-      },
-      userId: GRACE,
-    });
+    await validate({
+      productId: 'pro_monthly',
+      store: 'google',
+      receipt: 'receipt_grace_1',
+      environment: 'sandbox',
+    }, GRACE);
     const rows = await live.poll();
     assertEqual(rows.map((r) => r.entitlementId), ['pro'], 'grace received the grant over the live lane');
     return { rows: rows.length };

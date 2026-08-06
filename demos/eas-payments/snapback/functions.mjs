@@ -8,8 +8,9 @@
 //                       ->  live query the app gates on
 //
 // The action never writes, and it never trusts its own payload as the source
-// of truth. For this slice the "store" is stubbed, so the re-fetch is a local
-// derivation; the ctx.fetch seam is marked where the real call lands.
+// of truth. The re-fetch is a real outbound ctx.fetch against a fake local
+// store fixture — fake in the sense that it is not Apple/Google/Stripe, not in
+// the sense that the call is simulated.
 //
 // @ref LLP 0027#external-data-and-action-egress — egress stays out of the
 //   transactional path: the action resolves state, then a mutation commits it.
@@ -31,18 +32,19 @@ import {
 
 // --- Config -------------------------------------------------------------------
 
-// @ref LLP 0036#declared-configuration-in-the-manifest — the grant slot the
-// real store call will read through ctx.secrets. Declared now, unread by the
-// stub, so wiring the live fetch is a handler change and not a schema change.
+// @ref LLP 0036#declared-configuration-in-the-manifest — the grant the store
+// call reads through ctx.secrets. Only functions naming it in `uses` receive a
+// redacting handle; queries and mutations get no config surface at all.
 export const appConfig = defineConfig({
   storeValidation: {
     description: 'Store receipt-validation credential (Apple/Google/Stripe)',
     purpose: 'Re-fetches the authoritative transaction state after a notification',
-    required: false,
+    required: true,
     pool: false,
     howToGet:
-      'Slice stub: no credential is read yet. The real adapters take an Apple '
-      + 'App Store Server API key, a Google service account, or a Stripe secret key.',
+      'Prototype: the fake local store accepts any bearer value, and the '
+      + 'acceptance sets one. The real adapters take an Apple App Store Server '
+      + 'API key, a Google service account, or a Stripe secret key.',
   },
 });
 
@@ -173,18 +175,29 @@ export const recordPurchase = defineJsMutation({
 
 // The notification/receipt trigger. The payload says "something happened";
 // the action decides what is true and hands typed values to the mutation.
+// `environment` is routing input, not committed state: Apple really does have
+// separate sandbox and production verification endpoints, so the caller says
+// which one to ask. What comes back is what gets stored — if the store answers
+// `production` for a receipt the caller called `sandbox`, the store wins.
+//
+// @ref LLP 0036#runtime-exposure-d5-d8 — the credential reaches the
+//   request as a redacting handle materialized only into the header.
 export const validateReceipt = defineAction({
   args: {
     productId: v.string(),
     store: v.string(),
     receipt: v.string(),
     environment: v.string(),
+    // Testing seam: the fake store binds an OS-assigned port. Real adapters
+    // will carry a per-store constant instead of accepting a caller URL.
+    storeBaseUrl: v.optional(v.string()),
   },
-  // Declared but unread by the stub — the grant the live adapter will use.
   uses: ['storeValidation'],
   writes: ['transactions', 'entitlementGrants'],
   result: results.value(v.object({
     storeTxnId: v.string(),
+    status: v.string(),
+    environment: v.string(),
     expiresAt: v.integer(),
     deduped: v.boolean(),
   })),
@@ -194,27 +207,59 @@ export const validateReceipt = defineAction({
     if (args.environment !== 'sandbox' && args.environment !== 'production') {
       throw new Error('environment must be sandbox or production');
     }
+    const baseUrl = String(args.storeBaseUrl ?? '').trim();
+    if (!baseUrl) throw new Error('storeBaseUrl is required until real store adapters land');
 
-    // TODO(next slice): replace the derivation below with the real re-fetch.
-    //   const key = ctx.secrets.storeValidation;
-    //   const response = await ctx.fetch({ url: storeUrl, headers: [...key] });
-    //   const state = JSON.parse(response.bodyText);
-    // The payload is only a trigger: whatever comes back from the store is the
-    // authoritative state, and nothing from `args.receipt` is committed.
-    const now = ctx.runtime.now();
-    const storeTxnId = args.store + ':' + receipt;
-    const expiresAt = now + 2592000000; // ~30 days
+    const response = await ctx.fetch({
+      url: baseUrl + '/validate',
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        // @ref LLP 0036#runtime-exposure-d5-d8 — asBearer() is the
+        // narrow materialization; the handle itself redacts everywhere else.
+        authorization: ctx.secrets.get('storeValidation').asBearer(),
+      },
+      body: JSON.stringify({
+        store: args.store,
+        productId: args.productId,
+        receipt: receipt,
+        environment: args.environment,
+      }),
+    });
+    if (!response.ok) {
+      throw new Error('store validation refused: ' + response.status);
+    }
+
+    // Treat the response as data, never as authority. Every field is checked
+    // before it reaches the mutation.
+    const state = JSON.parse(response.bodyText);
+    const storeTxnId = String(state.storeTxnId ?? '').trim();
+    const status = String(state.status ?? '');
+    const environment = String(state.environment ?? '');
+    const expiresAt = state.expiresAt;
+    if (!storeTxnId) throw new Error('store returned no storeTxnId');
+    if (status !== 'active' && status !== 'expired' && status !== 'refunded') {
+      throw new Error('store returned an unknown status: ' + status);
+    }
+    if (environment !== 'sandbox' && environment !== 'production') {
+      throw new Error('store returned an unknown environment: ' + environment);
+    }
+    if (typeof expiresAt !== 'number' || Math.floor(expiresAt) !== expiresAt) {
+      throw new Error('store returned a non-integer expiresAt');
+    }
 
     const commit = await ctx.runMutation('recordPurchase', {
       productId: args.productId,
       store: args.store,
       storeTxnId: storeTxnId,
-      status: 'active',
-      environment: args.environment,
+      status: status,
+      environment: environment,
       expiresAt: expiresAt,
     });
     return {
       storeTxnId: storeTxnId,
+      status: status,
+      environment: environment,
       expiresAt: expiresAt,
       deduped: commit.deduped === true,
     };

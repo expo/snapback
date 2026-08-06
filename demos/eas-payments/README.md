@@ -27,11 +27,17 @@ eas-payments/
 ## The three design constraints
 
 **The notification is a trigger, never a source of truth.** `validateReceipt`
-takes a receipt, resolves what the store says is true, and hands typed values
-to `recordPurchase`. Nothing from the payload is committed directly. For this
-slice the resolution is a local derivation; the `ctx.fetch` seam and its
-`uses: ['storeValidation']` grant are declared and marked with a TODO where the
-real adapter call lands.
+takes a receipt, asks the store what is actually true over `ctx.fetch`, and
+hands typed values to `recordPurchase`. Nothing from the payload is committed.
+The `environment` argument is routing input only — it selects which store
+endpoint to ask, exactly as Apple's sandbox and production endpoints differ —
+and whatever the store answers is what gets stored. The acceptance proves this
+by having the store answer `production` to a request that said `sandbox`.
+
+The credential reaches the request through
+`ctx.secrets.get('storeValidation').asBearer()`, granted by
+`uses: ['storeValidation']`. Queries and mutations get no config surface at
+all, and a wrong credential fails the action with no write.
 
 **Entitlements are derived from transactions.** `transactions` holds raw store
 facts; `entitlementGrants` is the answer computed from them via
@@ -57,20 +63,26 @@ that scans `by_active` and flips closed windows off. A grant with no
 ## Run it
 
 ```sh
-node packages/snapback-codegen/index.mjs demos/eas-payments/snapback
+SNAPBACK_OUTBOUND_ACTIONS=1 node packages/snapback-codegen/index.mjs demos/eas-payments/snapback
 node demos/eas-payments/tests/acceptance/headless.mjs
 ```
 
+**Generate with `SNAPBACK_OUTBOUND_ACTIONS=1`.** The opt-in is a codegen input:
+the same sources generate a different `inputsHash`, bundle hash, and descriptor
+identity with it off. Generating without it produces artifacts that do not match
+the committed `artifacts.json`. (Codegen does not *fail* without the flag here,
+because `ctx.fetch` is a host-mediated call rather than the global `fetch`
+identifier that trips `BUNDLE_UNSUPPORTED_FETCH` — so the mismatch is silent.)
+
+The acceptance sets `SNAPBACK_OUTBOUND_ACTIONS=1` on the server child it spawns,
+so the test command needs no prefix. Generation opting in does not grant the
+running process network authority; the runtime is a separate boundary.
+
 The suite starts its own OS-port-isolated in-memory server with the scheduler
 inert (`cronDisabled: true`) and forces every tick itself, so no assertion
-waits on wall-clock cadence.
-
-When the action does a real fetch, both generation and the server process need
-the egress opt-in:
-
-```sh
-SNAPBACK_OUTBOUND_ACTIONS=1 node packages/snapback-codegen/index.mjs demos/eas-payments/snapback
-```
+waits on wall-clock cadence. It also starts a fake store
+(`tests/acceptance/fake-store.mjs`) on an OS-assigned port and sets the store
+credential through the admin config API.
 
 ## Out of scope for this slice
 
