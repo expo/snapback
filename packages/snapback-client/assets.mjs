@@ -221,6 +221,12 @@ function sha256Base64(bytes) {
   return createHash().update(bytes).digest('base64');
 }
 
+function transferError(status) {
+  const error = new Error(`asset transfer failed: ${status}`);
+  error.diagnostic = { code: 'SNAPBACK_ASSET_TRANSFER_FAILED', status };
+  return error;
+}
+
 /** In-memory default store for persisted resume facts. */
 export function createMemoryAssetTaskStore() {
   const map = new Map();
@@ -347,42 +353,37 @@ export class SnapbackAssetClient {
    * wins; the dev-lane header is the no-credential fallback and never
    * overrides a real credential.
    */
-  #custodyHeaders(userId) {
+  #custodyHeaders() {
     // @ref LLP 0096#2-per-profile-contract — the parent client's auth/rr
     // offer repeats on every asset boundary; the offer is not a credential.
-    const authClientProtocol = this.#client.authProtocols?.authClient ?? null;
-    const protocolHeaders = authClientProtocol === null
-      ? {}
-      : { 'x-snapback-auth-client-protocol': String(authClientProtocol) };
-
-    // A sessions request must offer the exact auth-client protocol beside
-    // its credential (the server refuses a bare bearer). The v1 fallback
-    // preserves the existing shallow-adapter behavior; SnapbackClient owns
-    // and exposes the protocol projection used by normal parent clients.
-    const bearerHeaders = (bearer) => ({
-      authorization: `Bearer ${bearer}`,
-      ...(authClientProtocol === null
-        ? { 'x-snapback-auth-client-protocol': '1' }
-        : protocolHeaders),
-    });
+    const authClientProtocol = this.#client.authProtocols?.authClient;
+    let bearer;
     const fence = this.#client.authorityFence;
     if (fence) {
       try {
-        const bearer = fence.credentialFor(fence.capture()).bearer;
-        if (bearer) return bearerHeaders(bearer);
+        bearer = fence.credentialFor(fence.capture()).bearer;
       } catch {
         // No current credential — fall through to the dev-lane posture.
       }
     }
-    const external = this.#client.bearerToken;
-    if (typeof external === 'string' && external.length > 0) {
-      return bearerHeaders(external);
+    if (!bearer) {
+      const external = this.#client.bearerToken;
+      if (typeof external === 'string' && external.length > 0) bearer = external;
+    }
+    // A sessions request must offer the exact auth-client protocol beside
+    // its credential (the server refuses a bare bearer). The v1 fallback
+    // preserves the existing shallow-adapter behavior.
+    if (bearer) {
+      return {
+        authorization: `Bearer ${bearer}`,
+        'x-snapback-auth-client-protocol': authClientProtocol ?? 1,
+      };
     }
     // @ref LLP 0176#one-owner-many-projections — anonymous-public is the
     // parent's declared credential-free auth/rr projection, not an asset-only
     // identity. Bare clients below must remain the offerless dev fallback.
-    if (this.#client.custody === 'anonymous-public') {
-      return protocolHeaders;
+    if (this.#client.custody === 'anonymous-public' && authClientProtocol != null) {
+      return { 'x-snapback-auth-client-protocol': authClientProtocol };
     }
     // Dev-lane HTTP asset requests resolve anonymously today: no server
     // route reads a dev identity header, and TUS PATCH bodies are raw bytes
@@ -393,10 +394,10 @@ export class SnapbackAssetClient {
     return {};
   }
 
-  async #json(method, path, body, { userId = null } = {}) {
+  async #json(method, path, body) {
     const headers = {
       'content-type': 'application/json',
-      ...this.#custodyHeaders(userId),
+      ...this.#custodyHeaders(),
     };
     const response = await fetch(`${this.#client.baseUrl}${path}`, {
       method,
@@ -463,7 +464,6 @@ export class SnapbackAssetClient {
           declaredContentType: state.declaredContentType,
           ...(state.retryOfAssetId ? { retryOfAssetId: state.retryOfAssetId } : {}),
         },
-        { userId: state.userId },
       );
       state.transfer = created.transfer;
       task._apply({
@@ -541,14 +541,12 @@ export class SnapbackAssetClient {
             method: 'HEAD',
             headers: {
               'tus-resumable': TUS_VERSION,
-              ...this.#custodyHeaders(state.userId),
+              ...this.#custodyHeaders(),
             },
           },
         );
         if (!head.ok) {
-          throw Object.assign(new Error(`resume HEAD failed: ${head.status}`), {
-            diagnostic: { code: 'SNAPBACK_ASSET_TRANSFER_FAILED', status: head.status },
-          });
+          throw transferError(head.status);
         }
         state.offset = Number(head.headers.get('upload-offset') ?? '0');
         state.wholeHash = createHash('sha256');
@@ -589,15 +587,13 @@ export class SnapbackAssetClient {
               'upload-offset': String(state.offset),
               // The conformance requirement: every PATCH carries a checksum.
               'upload-checksum': `sha256 ${sha256Base64(bytes)}`,
-              ...this.#custodyHeaders(state.userId),
+              ...this.#custodyHeaders(),
             },
             body: bytes,
           },
         );
         if (!response.ok) {
-          throw Object.assign(new Error(`TUS PATCH failed: ${response.status}`), {
-            diagnostic: { code: 'SNAPBACK_ASSET_TRANSFER_FAILED', status: response.status },
-          });
+          throw transferError(response.status);
         }
         state.wholeHash.update(bytes);
         state.offset = Number(
@@ -614,7 +610,6 @@ export class SnapbackAssetClient {
           lifecycleGeneration: 1,
           declaredDigest: state.wholeHash.digest('hex'),
         },
-        { userId: state.userId },
       );
       const availability = finalized.task.availability;
       task._apply({
@@ -646,7 +641,6 @@ export class SnapbackAssetClient {
             lifecycleGeneration: 1,
             discardAsset,
           },
-          { userId: this.#tasks.get(task)?.userId ?? null },
         );
       }
     } finally {
@@ -683,13 +677,8 @@ export class SnapbackAssetClient {
   }
 
   /** One authorized metadata read. */
-  record(assetId, { userId = null } = {}) {
-    return this.#json(
-      'GET',
-      `/assets/records/${encodeURIComponent(assetId)}`,
-      undefined,
-      { userId },
-    );
+  record(assetId) {
+    return this.#json('GET', `/assets/records/${encodeURIComponent(assetId)}`);
   }
 
   /**

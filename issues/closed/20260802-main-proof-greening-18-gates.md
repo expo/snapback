@@ -951,3 +951,23 @@ admission. The unchanged LLP 0145 production workload now passes every frozen
 minified, gzip, and Brotli ceiling. This is fix-forward package-proof and
 production-closure debt in the React landing, not correctness work in the
 actively owned PUSH-01 seam or F0a fork code.
+
+### Asset-custody landing drift — 2026-08-05
+
+Main then advanced to `25ac99bcfc9f5bead146cb4065e3e2539925ec69`.
+That landing correctly projected the parent auth/rr offer through the asset
+client and preserved the HTTP status of a failed TUS resume HEAD, but it also
+grew both frozen asset-subpath bundle profiles: `public-subpath-assets` from
+13,860 to 14,096 minified bytes (5,564 to 5,610 gzip; 4,814 to 4,856
+Brotli), and `resolved-public-subpath-assets` from 13,864 to 14,105
+minified bytes (5,555 to 5,614 gzip; 4,817 to 4,852 Brotli).
+
+The fix-forward keeps the parent protocol projection and bearer precedence,
+keeps bare no-custody development requests offerless, and gives both failed
+HEAD and PATCH transfers the same stable diagnostic carrying the actual HTTP
+status. It removes the now-dead per-call custody arguments and shares the
+transfer-error construction. The asset behavior suite passes and both asset
+profiles are again below every frozen minified, gzip, and Brotli ceiling; no
+ceiling or historical measurement was changed. This is client-package and
+proof-closure debt attributable to the asset-custody landing, not correctness
+work in the actively owned PUSH-01 seam or F0a fork code.
