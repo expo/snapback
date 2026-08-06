@@ -156,6 +156,45 @@ try {
   })}\n`);
   const generated = await generateApp(backend);
   assert.equal(generated.ok, true, JSON.stringify(generated.diagnostics ?? null));
+  const generatedAppBinding = join(backend, 'generated', 'app.binding.mjs');
+  const descriptorSpecifier = readFileSync(generatedAppBinding, 'utf8').match(
+    /from "(\.\/app\.descriptor\.json\?identity=[0-9a-f]{64})"/u,
+  )?.[1];
+  assert.equal(typeof descriptorSpecifier, 'string');
+  const verifiedGraphRoots = new Map();
+  const resolvedDescriptorPath = resolveGeneratedImport(
+    descriptorSpecifier,
+    generatedAppBinding,
+    verifiedGraphRoots,
+  );
+  assert.match(resolvedDescriptorPath, /[\\/]\.snapback[\\/]codegen-cache[\\/].*[\\/]app\.descriptor\.json$/u);
+  assert.equal(resolvedDescriptorPath.includes('?'), false);
+  assert.equal(
+    resolveGeneratedImport(descriptorSpecifier, resolvedDescriptorPath.replace(/\.json$/u, '.binding.mjs'), verifiedGraphRoots),
+    resolvedDescriptorPath,
+  );
+  const descriptorBuildRoot = join(root, 'descriptor-build');
+  mkdirSync(descriptorBuildRoot, { recursive: true });
+  writeFileSync(
+    join(descriptorBuildRoot, 'index.html'),
+    '<script type="module" src="/main.mjs"></script>\n',
+  );
+  writeFileSync(
+    join(descriptorBuildRoot, 'main.mjs'),
+    `import app from ${JSON.stringify(relative(descriptorBuildRoot, join(backend, 'generated', 'app.mjs')))};\n`
+      + 'globalThis.__snapbackAppDescriptor = app;\n',
+  );
+  const { build } = await import('vite');
+  await build({
+    root: descriptorBuildRoot,
+    configFile: false,
+    logLevel: 'silent',
+    plugins: [snapbackDev({
+      server: { mode: 'off' },
+      projectRoot: project,
+      generatedRoots: ['snapback/generated'],
+    })],
+  });
   const appRoot = join(root, 'app');
   const appImporter = join(appRoot, 'src', 'App.tsx');
   const materializedApiImport = relative(dirname(appImporter), join(backend, 'generated', 'api.mjs'));

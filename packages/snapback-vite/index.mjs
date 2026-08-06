@@ -71,7 +71,23 @@ function normalizeRoute(route) {
 // @ref LLP 0010#generated-artifacts — bundlers must not trust a stale
 // materialized projection when the review manifest identifies an immutable
 // complete-input graph.
-export function resolveGeneratedImport(id, importer) {
+function resolvedGeneratedSpecifier(artifactPath, resolvedArtifact, suffix) {
+  // Vite 8/Rolldown classifies queried JSON as JavaScript. The immutable
+  // review-cache directory already content-addresses these exact bytes, so
+  // the generator's Node cache-busting identity is redundant after this
+  // adapter has resolved the materialization into that directory. Preserve
+  // every semantic query (for example ?raw); strip only the generated
+  // AppDescriptor identity form.
+  // @ref LLP 0010#generated-artifacts — bundlers consume verified graph bytes
+  // without weakening the generator's ordinary Node cache boundary.
+  if (
+    artifactPath.endsWith('.json')
+    && /^\?identity=[0-9a-f]{64}$/u.test(suffix)
+  ) return resolvedArtifact;
+  return `${resolvedArtifact}${suffix}`;
+}
+
+export function resolveGeneratedImport(id, importer, verifiedGraphRoots = null) {
   if (
     typeof id !== 'string'
     || typeof importer !== 'string'
@@ -89,6 +105,21 @@ export function resolveGeneratedImport(id, importer) {
   const requested = isAbsolute(source)
     ? resolve(source)
     : resolve(dirname(importerPath), source);
+  if (verifiedGraphRoots instanceof Map) {
+    for (const [graphRoot, materializedRoot] of verifiedGraphRoots) {
+      const importerRelative = relative(graphRoot, importerPath);
+      const artifactPath = relative(graphRoot, requested).split(sep).join('/');
+      if (
+        importerRelative !== '..'
+        && !importerRelative.startsWith(`..${sep}`)
+        && artifactPath !== '..'
+        && !artifactPath.startsWith('../')
+      ) {
+        const resolvedArtifact = resolveGeneratedArtifact(materializedRoot, artifactPath);
+        return resolvedGeneratedSpecifier(artifactPath, resolvedArtifact, suffix);
+      }
+    }
+  }
   let generatedRoot = dirname(requested);
   while (true) {
     if (
@@ -96,7 +127,15 @@ export function resolveGeneratedImport(id, importer) {
       && existsSync(resolve(generatedRoot, 'artifacts.json'))
     ) {
       const artifactPath = relative(generatedRoot, requested).split(sep).join('/');
-      return `${resolveGeneratedArtifact(generatedRoot, artifactPath)}${suffix}`;
+      const resolvedArtifact = resolveGeneratedArtifact(generatedRoot, artifactPath);
+      if (verifiedGraphRoots instanceof Map) {
+        const graphRoot = artifactPath.split('/').reduce(
+          (root) => dirname(root),
+          resolvedArtifact,
+        );
+        verifiedGraphRoots.set(graphRoot, generatedRoot);
+      }
+      return resolvedGeneratedSpecifier(artifactPath, resolvedArtifact, suffix);
     }
     const parent = dirname(generatedRoot);
     if (parent === generatedRoot) return null;
@@ -161,11 +200,13 @@ export function snapbackDev(options = {}) {
 
   let command = 'serve';
   let lifecycle = null;
+  const verifiedGraphRoots = new Map();
 
   const currentState = () => (lifecycle ? lifecycle.state() : { mode, shape: null, ready: false, serverUrl: null });
 
   return {
     name: 'snapback-dev',
+    enforce: 'pre',
 
     config(_config, env) {
       command = env.command;
@@ -230,7 +271,7 @@ export function snapbackDev(options = {}) {
 
     resolveId(id, importer) {
       if (id === VIRTUAL_MODULE_ID) return RESOLVED_VIRTUAL_MODULE_ID;
-      const generated = resolveGeneratedImport(id, importer);
+      const generated = resolveGeneratedImport(id, importer, verifiedGraphRoots);
       if (generated !== null) return generated;
       return undefined;
     },

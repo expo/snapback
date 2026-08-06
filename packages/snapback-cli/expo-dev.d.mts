@@ -47,7 +47,7 @@ export function installAndroidPortForwarding(
   options?: Readonly<{
     adbBinary?: string;
     run?: (...args: any[]) => any;
-    env?: NodeJS.ProcessEnv;
+    env?: Readonly<Record<string, string | undefined>>;
   }>,
 ): Readonly<{ installed: ExpoRoutingPlan['forwards']; remove(): void }>;
 
@@ -63,7 +63,7 @@ export function mintSupervisedOrdinarySession(options: Readonly<{
   email?: string;
   operatorToken?: string;
   cwd?: string;
-  env?: NodeJS.ProcessEnv;
+  env?: Readonly<Record<string, string | undefined>>;
 }>): Readonly<Record<string, unknown>>;
 
 export interface ExpoDevSupervisor {

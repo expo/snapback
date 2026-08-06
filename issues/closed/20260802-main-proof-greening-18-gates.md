@@ -1035,3 +1035,41 @@ therefore honestly superseded rather than rebound to the new candidate. This
 is batched publication-carrier, suite-fixture, inventory, and receipt drift
 attributable to `2bb84423b`; it is not a correctness failure in the actively
 owned PUSH-01 seam or F0a fork code.
+
+### Expo/F0a landing train and final drift closure — 2026-08-06
+
+A later clean EPYC run completed the full local proof successfully at source
+`3a6c2cc39f1cc62377cd5a9854b4cde3446b1dcd`, but main advanced through the F0a
+fork and Expo delivery train before its receipt could be retained. That green
+measurement is evidence for its exact source only and is superseded; it is not
+relabelled as evidence for the later merge.
+
+The Expo E0 landing `2b5da1ff6a31f7a8240c7d72af26967b6c34022b` introduced an
+independent host-pause reason in the React registry and thereby raised the two
+compressed React workload profiles. The fix-forward preserves independent
+host/auth pause ownership, removes unreachable duplicate replay-advisory code,
+keeps stable diagnostic codes while tightening their messages, and avoids an
+unnecessary default options allocation in `useSnapbackMutation`. All 54 frozen
+profiles pass without changing a ceiling, and the complete bundle behavior
+train plus the dedicated React lifecycle regression pass.
+
+The same AppDescriptor train exposed a separate packed-consumer failure in the
+Linux runtime-package job: Vite 8/Rolldown parsed a generated queried
+`app.descriptor.json?identity=…` import as JavaScript. The Vite adapter now runs
+its generated-graph resolver before the core resolver, re-verifies nested
+imports against the materialized review graph, and removes only the redundant
+identity query after resolving JSON into the immutable content-addressed cache.
+Semantic queries remain untouched. A real Vite production build of the
+generated typed AppDescriptor now joins the package regression and passes.
+
+Finally, Expo E1 landing `567a8e0fd50d0546550f82cee7bdf41dc502f44f` exposed
+`NodeJS.ProcessEnv` from a published declaration, which failed the dependency-
+clean type consumer. Its two public environment slots now use the package's
+runtime-neutral readonly string map; all 92 published subpaths across 12
+packages compile and match their runtime exports. The client/demo landings
+through `d4ac75595d85e532d9938ea56b8cee03f929eaf4` also invalidated the Notes
+and All Aboard deployment-identity carriers; both were regenerated from that
+combined source. Inventory selects 214 declared tests and generated artifacts
+reproduce byte-for-byte. These are proof, declaration, bundler, and carrier
+debts attributable to their named landings. No correctness failure was found
+or repaired in the actively owned PUSH-01 seam or F0a fork code.
