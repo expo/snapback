@@ -1,4 +1,4 @@
-import {useEffect, useState} from 'react';
+import {useEffect, useRef, useState} from 'react';
 
 interface Props {
   timestamp: number;
@@ -135,22 +135,28 @@ const timers: Set<() => void> = new Set();
 let intervalID: ReturnType<typeof setInterval> | undefined;
 
 function useSharedInterval(fn: () => void): void {
+  const callbackRef = useRef(fn);
+  callbackRef.current = fn;
+
   useEffect(() => {
-    timers.add(fn);
+    // Deliberate deviation from the pinned upstream port: keep subscriptions
+    // stable and snapshot ticks so renders cannot mutate `timers` mid-tick.
+    const tick = () => callbackRef.current();
+    timers.add(tick);
     if (timers.size === 1) {
       intervalID = setInterval(() => {
-        for (const fn of timers) {
+        for (const fn of Array.from(timers)) {
           fn();
         }
       }, 1_000);
     }
     return () => {
-      timers.delete(fn);
+      timers.delete(tick);
       if (timers.size === 0) {
         clearInterval(intervalID);
       }
     };
-  });
+  }, []);
 }
 
 /**
