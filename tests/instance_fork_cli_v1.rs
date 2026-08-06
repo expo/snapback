@@ -1108,6 +1108,147 @@ fn executable_fork_renew_extends_a_live_fork_within_the_maximum() {
     );
 }
 
+/// LLP 0185 Phase 3 items 7/8: fork-count, byte, and diff-work limits refuse
+/// deterministically through the executable, with the observed usage in the
+/// diagnostic, and a refusal never deletes or half-creates anything.
+#[test]
+fn resource_limits_refuse_create_and_diff_without_residue() {
+    let directory = tempfile::tempdir().expect("resource limit fixture");
+    let source = parent_with_schema(directory.path());
+    let app_root = directory.path().join("app");
+    std::fs::create_dir(&app_root).unwrap();
+    let fork_root = directory.path().join("forks");
+    std::fs::create_dir(&fork_root).unwrap();
+    // A real future expiry: create's automatic sweep runs on the wall clock
+    // and must not reap this fixture out from under the count check.
+    let wall_now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .expect("wall clock")
+        .as_millis() as u64;
+    let existing = snapback::instance_fork::publish_managed(
+        &source,
+        &fork_root.join("fork-existing"),
+        "todo",
+        "limits-parent",
+        wall_now,
+        wall_now + 3_600_000,
+        false,
+    )
+    .expect("publish existing fixture");
+
+    let entries_before = std::fs::read_dir(&fork_root)
+        .expect("scan fork root")
+        .count();
+    let refused_create = |extra: &[&str], expected_resource: &str| {
+        let mut args = vec![
+            "fork",
+            "create",
+            "--from",
+            source.to_str().unwrap(),
+            "--ttl",
+            "5m",
+            "--app-root",
+            app_root.to_str().unwrap(),
+            "--fork-root",
+            fork_root.to_str().unwrap(),
+        ];
+        args.extend_from_slice(extra);
+        let output = snapback()
+            .args(&args)
+            .output()
+            .expect("run limited fork create");
+        assert!(
+            !output.status.success(),
+            "create must refuse under {expected_resource}"
+        );
+        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+        assert!(
+            stderr.contains("SNAPBACK_FORK_RESOURCE_LIMIT_REFUSED")
+                && stderr.contains(expected_resource),
+            "expected {expected_resource} refusal, got:\n{stderr}"
+        );
+    };
+    refused_create(&["--max-forks", "1"], "fork-count limit");
+    refused_create(&["--max-fork-bytes", "1"], "per-fork byte limit");
+    refused_create(&["--max-total-bytes", "1"], "total byte budget");
+    assert_eq!(
+        std::fs::read_dir(&fork_root).expect("rescan fork root").count(),
+        entries_before,
+        "a refused create leaves no staging or registry residue"
+    );
+
+    // Retained-history exhaustion through the executable diff surface.
+    let database = fork_root.join("fork-existing/parent.sqlite3");
+    let conn = rusqlite::Connection::open(&database).expect("open fork database");
+    conn.execute("UPDATE _snapback_version SET version=3 WHERE id=1", [])
+        .unwrap();
+    for index in 1..=3 {
+        conn.execute(
+            "INSERT INTO _snapback_changes(version,table_name,row_id,op,row_json,changed_at_ms)
+             VALUES(?1,'todos',?2,'insert','{}',100)",
+            rusqlite::params![index, format!("todo-{index}")],
+        )
+        .unwrap();
+    }
+    drop(conn);
+    let refused_diff = snapback()
+        .args([
+            "fork",
+            "diff",
+            &existing.lineage.fork_id,
+            "--app-root",
+            app_root.to_str().unwrap(),
+            "--fork-root",
+            fork_root.to_str().unwrap(),
+            "--max-rows",
+            "2",
+        ])
+        .output()
+        .expect("run limited fork diff");
+    assert!(!refused_diff.status.success());
+    let stderr = String::from_utf8_lossy(&refused_diff.stderr).to_string();
+    assert!(
+        stderr.contains("SNAPBACK_FORK_RESOURCE_LIMIT_REFUSED") && stderr.contains("diff-work"),
+        "{stderr}"
+    );
+    let mut allowed_diff = snapback();
+    allowed_diff.args([
+        "fork",
+        "diff",
+        &existing.lineage.fork_id,
+        "--app-root",
+        app_root.to_str().unwrap(),
+        "--fork-root",
+        fork_root.to_str().unwrap(),
+        "--max-rows",
+        "3",
+    ]);
+    let receipt = successful(allowed_diff, "fork diff at the bound");
+    assert_eq!(
+        receipt["data"]["receipt"]["rows"]
+            .as_array()
+            .expect("diff rows")
+            .len(),
+        3
+    );
+
+    // Inspection: list reports usage against the default limits.
+    let mut list = snapback();
+    list.args([
+        "fork",
+        "list",
+        "--app-root",
+        app_root.to_str().unwrap(),
+        "--fork-root",
+        fork_root.to_str().unwrap(),
+    ]);
+    let listed = successful(list, "fork list usage projection");
+    let usage = &listed["data"]["resourceUsage"];
+    assert_eq!(usage["forkCount"], 1);
+    assert!(usage["totalBytes"].as_u64().unwrap() > 0);
+    assert!(usage["defaultLimits"]["maxForks"].as_u64().unwrap() >= 1);
+}
+
 #[test]
 fn executable_fork_recover_repairs_one_finite_partial_publication() {
     let directory = tempfile::tempdir().expect("fork recovery fixture");

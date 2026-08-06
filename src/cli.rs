@@ -1294,6 +1294,15 @@ pub enum ForkCommand {
         /// Runtime readiness descriptor. Defaults inside the fork directory.
         #[arg(long)]
         ready_file: Option<PathBuf>,
+        /// Refuse creation once this many managed forks exist.
+        #[arg(long, default_value_t = crate::instance_fork::MANAGED_FORK_MAX_COUNT)]
+        max_forks: usize,
+        /// Refuse a source database set larger than this many bytes.
+        #[arg(long, default_value_t = crate::instance_fork::MANAGED_FORK_MAX_FORK_BYTES)]
+        max_fork_bytes: u64,
+        /// Refuse when existing forks plus this copy would exceed this budget.
+        #[arg(long, default_value_t = crate::instance_fork::MANAGED_FORK_MAX_TOTAL_BYTES)]
+        max_total_bytes: u64,
         /// Output JSON (default) or one shell-friendly scalar path/identity.
         #[arg(long, value_enum, default_value = "json")]
         format: ForkOutputFormat,
@@ -1326,6 +1335,9 @@ pub enum ForkCommand {
         fork_root: Option<PathBuf>,
         #[arg(long)]
         out: Option<PathBuf>,
+        /// Refuse an attributed journal span larger than this many rows.
+        #[arg(long, default_value_t = crate::instance_fork::FORK_DIFF_MAX_ROWS)]
+        max_rows: u64,
     },
     /// Stop and delete exactly one registry-bound fork.
     Drop {
@@ -2716,6 +2728,9 @@ where
             fork_root: requested_root,
             destination,
             ready_file,
+            max_forks,
+            max_fork_bytes,
+            max_total_bytes,
             format,
         } => {
             let app_root = std::fs::canonicalize(&app_root).with_context(|| {
@@ -2726,6 +2741,13 @@ where
             let automatically_reaped = automatic_reap_before_create(&root, created_at_ms)?;
             let source = from.unwrap_or_else(|| app_root.join(".snapback/dev.sqlite3"));
             let (source_database, app_id, parent_instance_id) = source_from_path(&source)?;
+            let limits = crate::instance_fork::ForkResourceLimits {
+                max_forks,
+                max_fork_bytes,
+                max_total_bytes,
+            };
+            let resource_usage =
+                crate::instance_fork::enforce_creation_limits(&root, &source_database, &limits)?;
             let ttl_ms = parse_fork_ttl(&ttl)?;
             let expires_at_ms = created_at_ms
                 .checked_add(ttl_ms)
@@ -2909,6 +2931,14 @@ where
                         "reapedForkIds": automatically_reaped.reaped,
                         "clearedStaleRegistryIds": automatically_reaped.cleared_stale_registry,
                     },
+                    "resourceAdmission": {
+                        "usage": resource_usage,
+                        "limits": {
+                            "maxForks": limits.max_forks,
+                            "maxForkBytes": limits.max_fork_bytes,
+                            "maxTotalBytes": limits.max_total_bytes,
+                        },
+                    },
                 }),
             );
             let scalars = ForkProjectionScalars {
@@ -2955,12 +2985,28 @@ where
                 .first()
                 .map(|entry| entry.lineage.app_id.clone())
                 .unwrap_or_else(|| "unknown".to_owned());
+            let resource_usage = json!({
+                "forkCount": entries.len() + unbound.len(),
+                "totalBytes": crate::instance_fork::directory_tree_bytes(&root)?,
+                "defaultLimits": {
+                    "maxForks": crate::instance_fork::MANAGED_FORK_MAX_COUNT,
+                    "maxForkBytes": crate::instance_fork::MANAGED_FORK_MAX_FORK_BYTES,
+                    "maxTotalBytes": crate::instance_fork::MANAGED_FORK_MAX_TOTAL_BYTES,
+                    "maxLifetimeMs": crate::instance_fork::MANAGED_FORK_MAX_LIFETIME_MS,
+                    "maxDiffRows": crate::instance_fork::FORK_DIFF_MAX_ROWS,
+                },
+            });
             let envelope = fork_envelope_with_diagnostics(
                 "fork.list",
                 app_id,
                 Some(&app_root),
                 None,
-                json!({ "forkRoot": root, "forks": entries, "unboundRegistry": unbound }),
+                json!({
+                    "forkRoot": root,
+                    "forks": entries,
+                    "unboundRegistry": unbound,
+                    "resourceUsage": resource_usage,
+                }),
                 diagnostics,
             );
             print_envelope(&serde_json::to_value(envelope)?);
@@ -3046,12 +3092,14 @@ where
             app_root,
             fork_root: requested_root,
             out,
+            max_rows,
         } => {
             let app_root = std::fs::canonicalize(app_root)?;
             let root = fork_root(&app_root, requested_root)?;
             let target = crate::instance_fork::managed_target(&root, &fork_id)?;
-            let receipt =
-                startup_blocking(|| crate::instance_fork::diff_receipt(&target.database))?;
+            let receipt = startup_blocking(|| {
+                crate::instance_fork::diff_receipt_bounded(&target.database, max_rows)
+            })?;
             if let Some(path) = out.as_ref() {
                 std::fs::write(path, serde_json::to_vec_pretty(&receipt)?)?;
             }

@@ -35,6 +35,40 @@ pub const RENEW_EXPIRED_CODE: &str = "SNAPBACK_FORK_RENEW_EXPIRED";
 /// extending forever.
 pub const MANAGED_FORK_MAX_LIFETIME_MS: u64 = 7 * 86_400_000;
 
+/// Provisional LLP 0185 Phase 3 item 7 resource bounds. The concrete values
+/// are author decisions pending ratification; the mechanism — deterministic
+/// refusal before any staging I/O, with the usage that triggered it in the
+/// diagnostic — is the contract.
+pub const MANAGED_FORK_MAX_COUNT: usize = 16;
+pub const MANAGED_FORK_MAX_FORK_BYTES: u64 = 4 * 1024 * 1024 * 1024;
+pub const MANAGED_FORK_MAX_TOTAL_BYTES: u64 = 16 * 1024 * 1024 * 1024;
+pub const FORK_DIFF_MAX_ROWS: u64 = 100_000;
+
+#[derive(Clone, Copy, Debug)]
+pub struct ForkResourceLimits {
+    pub max_forks: usize,
+    pub max_fork_bytes: u64,
+    pub max_total_bytes: u64,
+}
+
+impl Default for ForkResourceLimits {
+    fn default() -> Self {
+        Self {
+            max_forks: MANAGED_FORK_MAX_COUNT,
+            max_fork_bytes: MANAGED_FORK_MAX_FORK_BYTES,
+            max_total_bytes: MANAGED_FORK_MAX_TOTAL_BYTES,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ForkResourceUsageV1 {
+    pub fork_count: usize,
+    pub existing_bytes: u64,
+    pub estimated_fork_bytes: u64,
+}
+
 #[cfg(test)]
 thread_local! {
     static DIFF_AFTER_HEADER_HOOK: std::cell::RefCell<Option<Box<dyn FnOnce()>>> =
@@ -2038,6 +2072,100 @@ fn apply_renewal(
     Ok(receipt)
 }
 
+fn database_set_size(database_path: &Path) -> SnapbackResult<u64> {
+    let mut total = 0;
+    for suffix in ["", "-wal", "-shm", "-journal"] {
+        let path = PathBuf::from(format!("{}{suffix}", database_path.display()));
+        match fs::symlink_metadata(&path) {
+            Ok(metadata) if metadata.is_file() => total += metadata.len(),
+            Ok(_) => {}
+            Err(error) if error.kind() == ErrorKind::NotFound => {}
+            Err(error) => return Err(io_error("measure fork source database", error)),
+        }
+    }
+    Ok(total)
+}
+
+pub(crate) fn directory_tree_bytes(path: &Path) -> SnapbackResult<u64> {
+    let mut total = 0;
+    let mut stack = vec![path.to_path_buf()];
+    while let Some(current) = stack.pop() {
+        let entries = match fs::read_dir(&current) {
+            Ok(entries) => entries,
+            Err(error) if error.kind() == ErrorKind::NotFound => continue,
+            Err(error) => return Err(io_error("measure fork root usage", error)),
+        };
+        for entry in entries {
+            let entry = entry.map_err(|error| io_error("measure fork root usage", error))?;
+            let metadata = match entry.metadata() {
+                Ok(metadata) => metadata,
+                Err(error) if error.kind() == ErrorKind::NotFound => continue,
+                Err(error) => return Err(io_error("measure fork root usage", error)),
+            };
+            if metadata.is_dir() {
+                stack.push(entry.path());
+            } else if metadata.is_file() {
+                total += metadata.len();
+            }
+        }
+    }
+    Ok(total)
+}
+
+/// Deterministic admission for `fork create` (LLP 0185 Phase 3 item 7): the
+/// fork-count, per-fork-byte, and total-byte bounds refuse *before* any
+/// staging I/O, with the observed usage in the diagnostic. The byte check is
+/// an estimate from the source database set; it exists to refuse oversized
+/// parents predictably, not to meter the copy after the fact.
+pub fn enforce_creation_limits(
+    fork_root: &Path,
+    source_database: &Path,
+    limits: &ForkResourceLimits,
+) -> SnapbackResult<ForkResourceUsageV1> {
+    let fork_count = managed_registry_ids(fork_root)?.len();
+    if fork_count >= limits.max_forks {
+        return Err(fork_error(
+            RESOURCE_LIMIT_REFUSED_CODE,
+            "fork create refused: the managed fork-count limit is reached; drop or reap a fork first",
+        )
+        .with_details(json!({
+            "resource": "fork-count",
+            "limit": limits.max_forks,
+            "currentForkCount": fork_count,
+        })));
+    }
+    let estimated_fork_bytes = database_set_size(source_database)?;
+    if estimated_fork_bytes > limits.max_fork_bytes {
+        return Err(fork_error(
+            RESOURCE_LIMIT_REFUSED_CODE,
+            "fork create refused: the source database set exceeds the per-fork byte limit",
+        )
+        .with_details(json!({
+            "resource": "fork-bytes",
+            "limitBytes": limits.max_fork_bytes,
+            "estimatedBytes": estimated_fork_bytes,
+        })));
+    }
+    let existing_bytes = directory_tree_bytes(fork_root)?;
+    if existing_bytes.saturating_add(estimated_fork_bytes) > limits.max_total_bytes {
+        return Err(fork_error(
+            RESOURCE_LIMIT_REFUSED_CODE,
+            "fork create refused: existing forks plus this copy exceed the total byte budget",
+        )
+        .with_details(json!({
+            "resource": "total-bytes",
+            "limitBytes": limits.max_total_bytes,
+            "existingBytes": existing_bytes,
+            "estimatedBytes": estimated_fork_bytes,
+        })));
+    }
+    Ok(ForkResourceUsageV1 {
+        fork_count,
+        existing_bytes,
+        estimated_fork_bytes,
+    })
+}
+
 /// Re-read the lineage currently persisted in a fork database, ignoring the
 /// staging sentinel. The serving watchdog uses this at its expiry deadline so
 /// a completed renewal extends the running server instead of being ignored.
@@ -2065,9 +2193,20 @@ pub fn expired_managed(fork_root: &Path, now_ms: u64) -> SnapbackResult<Vec<Fork
         .collect())
 }
 
-/// Render the app-row-only inspection artifact promised by LLP 0158. The
-/// explicit omissions are part of the contract, not documentation garnish.
+/// Render the app-row-only inspection artifact promised by LLP 0158 with the
+/// default diff-work bound. The explicit omissions are part of the contract,
+/// not documentation garnish.
 pub fn diff_receipt(database_path: &Path) -> SnapbackResult<ForkDiffReceiptV1> {
+    diff_receipt_bounded(database_path, FORK_DIFF_MAX_ROWS)
+}
+
+/// [`diff_receipt`] with an explicit diff-work limit (LLP 0185 Phase 3 item
+/// 7): a journal span larger than `max_rows` refuses deterministically with
+/// the observed row count instead of materializing an unbounded receipt.
+pub fn diff_receipt_bounded(
+    database_path: &Path,
+    max_rows: u64,
+) -> SnapbackResult<ForkDiffReceiptV1> {
     // Diff is an offline lifecycle inspection surface, not serving admission.
     // It must remain available to explain or clean up an expired fork even
     // though LocalDatabase::open refuses to boot that same database.
@@ -2098,6 +2237,26 @@ pub fn diff_receipt(database_path: &Path) -> SnapbackResult<ForkDiffReceiptV1> {
         ));
     }
     run_diff_after_header_hook();
+    let attributed_rows: u64 = tx.query_row(
+        "SELECT COUNT(*)
+           FROM _snapback_changes
+          WHERE version > ?1
+            AND table_name NOT GLOB '_snapback_*'
+            AND table_name NOT GLOB '_auth_*'",
+        [runtime.lineage.fork_point_version],
+        |row| row.get(0),
+    )?;
+    if attributed_rows > max_rows {
+        return Err(fork_error(
+            RESOURCE_LIMIT_REFUSED_CODE,
+            "fork diff refused: the attributed journal span exceeds the diff-work limit",
+        )
+        .with_details(json!({
+            "resource": "diff-work",
+            "limitRows": max_rows,
+            "attributedRows": attributed_rows,
+        })));
+    }
     let mut statement = tx.prepare(
         "SELECT version,table_name,row_id,op,row_json
            FROM _snapback_changes
@@ -3506,6 +3665,97 @@ mod tests {
                 "{cut:?}: a completed renewal has its receipt, an undone one does not"
             );
         }
+    }
+
+    #[test]
+    fn creation_limits_refuse_deterministically_with_observed_usage() {
+        let directory = tempfile::tempdir().unwrap();
+        let source = source_database(directory.path());
+        let root = directory.path().join("forks");
+        fs::create_dir(&root).unwrap();
+        publish_managed(&source, &root.join("fork-a"), "app-a", "parent-a", 100, 200_000, false)
+            .unwrap();
+
+        let generous = ForkResourceLimits::default();
+        let usage = enforce_creation_limits(&root, &source, &generous).unwrap();
+        assert_eq!(usage.fork_count, 1);
+        assert!(usage.existing_bytes > 0);
+        assert!(usage.estimated_fork_bytes > 0);
+
+        // Excessive fork count.
+        let error = enforce_creation_limits(
+            &root,
+            &source,
+            &ForkResourceLimits {
+                max_forks: 1,
+                ..generous
+            },
+        )
+        .unwrap_err();
+        assert_eq!(error.diagnostic.code, RESOURCE_LIMIT_REFUSED_CODE);
+        assert_eq!(error.diagnostic.details["resource"], "fork-count");
+        assert_eq!(error.diagnostic.details["currentForkCount"], 1);
+
+        // Oversized parent.
+        let error = enforce_creation_limits(
+            &root,
+            &source,
+            &ForkResourceLimits {
+                max_fork_bytes: 1,
+                ..generous
+            },
+        )
+        .unwrap_err();
+        assert_eq!(error.diagnostic.code, RESOURCE_LIMIT_REFUSED_CODE);
+        assert_eq!(error.diagnostic.details["resource"], "fork-bytes");
+        assert!(error.diagnostic.details["estimatedBytes"].as_u64().unwrap() > 1);
+
+        // Total-byte budget exhaustion counts what is already on disk.
+        let error = enforce_creation_limits(
+            &root,
+            &source,
+            &ForkResourceLimits {
+                max_total_bytes: usage.existing_bytes,
+                ..generous
+            },
+        )
+        .unwrap_err();
+        assert_eq!(error.diagnostic.code, RESOURCE_LIMIT_REFUSED_CODE);
+        assert_eq!(error.diagnostic.details["resource"], "total-bytes");
+        assert_eq!(
+            error.diagnostic.details["existingBytes"],
+            usage.existing_bytes
+        );
+    }
+
+    #[test]
+    fn diff_work_limit_refuses_retained_history_exhaustion() {
+        let directory = tempfile::tempdir().unwrap();
+        let source = source_database(directory.path());
+        let destination = directory.path().join("fork");
+        publish(&source, &destination, "app-a", "parent-a", 42, None).unwrap();
+        let database = destination.join("app.sqlite3");
+        let conn = Connection::open(&database).unwrap();
+        conn.execute("UPDATE _snapback_version SET version=6 WHERE id=1", [])
+            .unwrap();
+        for index in 1..=6 {
+            conn.execute(
+                "INSERT INTO _snapback_changes(version,table_name,row_id,op,row_json,changed_at_ms)
+                 VALUES(?1,'todos',?2,'insert','{}',100)",
+                params![index, format!("todo-{index}")],
+            )
+            .unwrap();
+        }
+        drop(conn);
+
+        let error = diff_receipt_bounded(&database, 5).unwrap_err();
+        assert_eq!(error.diagnostic.code, RESOURCE_LIMIT_REFUSED_CODE);
+        assert_eq!(error.diagnostic.details["resource"], "diff-work");
+        assert_eq!(error.diagnostic.details["attributedRows"], 6);
+        assert_eq!(error.diagnostic.details["limitRows"], 5);
+
+        let receipt = diff_receipt_bounded(&database, 6).unwrap();
+        assert_eq!(receipt.rows.len(), 6, "at the bound the receipt is exact");
     }
 
     #[test]
