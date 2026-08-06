@@ -48,6 +48,13 @@ root.render(
 );
 ```
 
+When something breaks behind these hooks, open the
+[admin console](../operating/admin-console.md) before writing another probe:
+`snapback admin --ready-file .snapback/dev.ready.json` opens the shipped
+browser debugger for Data, Functions, Realtime, Errors, and Logs against the
+same running backend — check it before falling back to `curl`, raw host
+operations, or a one-off verification script.
+
 Preparation verifies app, deployment, auth-mode, schema, function-catalog,
 result contracts, ephemeral declarations, and capability identity. The
 provider borrows the client; `provider.dispose()` drains provider-owned

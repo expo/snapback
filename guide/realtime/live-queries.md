@@ -28,7 +28,12 @@ durable lane as commits change the result.
 
 Mark the definition live — declarative or JS style
 ([your first backend](../getting-started/your-first-backend.md) covers the
-two styles):
+two styles). Before writing a JS handler for a plain two-source join
+(conversation membership, message ⋈ sender), check
+[relational queries](../backend/relational-queries.md) —
+`defineRelationalQuery` expresses it declaratively; the honest boundary is
+that aggregation and self-joins are not expressible there today
+([LLP 0177](repo:llp/0177-chat-aggregate-and-first-related-row-demand.research.md)):
 
 ```js source=demos/todo/snapback/functions.mjs
 export const listTodos = defineJsLiveQuery({

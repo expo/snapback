@@ -103,6 +103,34 @@ lists **all** of it — sampling is how capabilities go undiscovered. Each
 teaching page ends with an **Anti-patterns** section naming what not to
 hand-roll.
 
+## Routing: paved alternatives, grep vocabulary, vocabulary splits
+
+Added 2026-08-06 from accepted LLP 0187 T1 (the routing-over-coverage
+diagnosis; LLP 0061 owns these conventions):
+
+- **Paved alternative at the point of choice.** Anti-pattern content and any
+  "hard way" a page teaches (a JS handler where a declarative surface exists,
+  a raw subscription where a hook exists) must link the paved alternative at
+  the point the reader chooses, with the honest boundary of what the paved
+  road cannot express. A worked hard-way example with no adjacent pointer is
+  a guide defect, not a style preference.
+- **The alias column is grep vocabulary.** Capability-index **Aliases** and
+  page headings must include the literal strings an agent would plausibly
+  search for: workload terms ("typing indicator", "dashboard") and plausible
+  wrong-guess symbol names (`useSnapbackEphemeral`), whichever register they
+  come from — including competitor vocabulary (Convex `useQuery`, Supabase
+  RLS; LLP 0186 W2). A miss caused by a reasonable grep that returned nothing
+  is a guide defect with a mechanical fix: add the string. Do not stuff —
+  each alias should be a string someone would actually search.
+- **Vocabulary splits are defects.** When a feature's schema side and client
+  side use different names (ephemeral collections vs `useSnapbackPresence`),
+  each side's page must name the other side's vocabulary. A grep from either
+  register must reach the feature.
+- **Every replicated miss becomes an eval seed.** When a replicated
+  discoverability miss is fixed, the fix must add a seed case to
+  [the retrieval eval](./retrieval-eval.md) that would have caught it
+  (LLP 0187 T7's standing rule), so the fix cannot silently regress.
+
 ## Links
 
 Two classes, checked:

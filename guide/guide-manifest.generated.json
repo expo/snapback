@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "65242e601cf9cc900808371eba3f76d760d3662b"
+    "commit": "cbddb192d58461963da217990c54b390baf245f7"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -1483,7 +1483,7 @@
       "examples": [],
       "reviewed": "2026-08-06",
       "reviewedCommit": "850427c31b9a668d55b46995e08389cd13a2c9b6",
-      "sha256": "874a214fc586d1d6abf279b7d42d8b0ca5e7dc471c32e0e1881905c35347249c",
+      "sha256": "2e19804e7ad3ac2bd585220e101de8298459264345bc218354d00615b2180e4e",
       "snippets": []
     },
     "clients.app-cli": {
@@ -1676,7 +1676,7 @@
       ],
       "reviewed": "2026-08-03",
       "reviewedCommit": "c442237dedd412d1fe66a85c7a0ed463eba1e013",
-      "sha256": "bb2f86339e7725946128c26fc03dfed4def9759065271ab101cff805b2eaef91",
+      "sha256": "9bb5883459da65583fa70e25712f523c5ba563bb2d685f00d299eb7b85353725",
       "snippets": [
         {
           "lang": "js",
@@ -1825,7 +1825,7 @@
       ],
       "reviewed": "2026-08-06",
       "reviewedCommit": "4ac8387f080a2659484fc09916ff22a076dc4ca8",
-      "sha256": "73ef92d51d85a3d171ac17e227efe8be597d4e792ae66640970265b80cae6555",
+      "sha256": "660905ed032fa242ef56c26b7f5dfa7665dcf27f7ba99df363fd1ddd1a6924fc",
       "snippets": [
         {
           "lang": "ts",
@@ -1907,7 +1907,7 @@
       "examples": [],
       "reviewed": "2026-08-03",
       "reviewedCommit": "f9ae0083ef41bfc9d07f033da440f96048919613",
-      "sha256": "fd4426e88e9a29fa415bb01e74b3aa1504e92942be12a4f22942c8d2e5ec184c",
+      "sha256": "cbf89e513364e1ab07956f6f81dbf12c0fd5fa544e7229c117a5ba52a5cb8e8e",
       "snippets": []
     },
     "deploying.cloudflare": {
@@ -2595,7 +2595,7 @@
       ],
       "reviewed": "2026-08-03",
       "reviewedCommit": "6e5d69d1037c6042fb9338221dfb489e00f5f78a",
-      "sha256": "687db916140b464ba0e34bdc1f5270937c094a7132b0b58f12f19a07cd67203e",
+      "sha256": "b16f362300516f1d5e77f287a08b3ebe97d2c54ac5172e50b22bb2260534c9ca",
       "snippets": [
         {
           "lang": "js",
@@ -2856,7 +2856,7 @@
       "examples": [],
       "reviewed": "2026-08-03",
       "reviewedCommit": "3109a3b4f5068595a71448b10788b56b4fa358f5",
-      "sha256": "16348b4e472f6302e8802aad9a010afea53a314b1f9a59737cbb9749fbec73cf",
+      "sha256": "175a16e768ced3ef0193ffbfbf31acdde78bcd4074ae86fe8b80fc289e0186c2",
       "snippets": []
     },
     "meta.surface-map": {
@@ -3178,5 +3178,5 @@
     "routes": 117,
     "hostOps": 37
   },
-  "contentHash": "b43b6a31f1898607e02583fcec7203d2fc457f33ea0d3ee0c3bf2ef1ff4fb226"
+  "contentHash": "d9fe49e9902386aef020d1af30c0254d8da6ac38a8d46b06a7e307dd0a27812c"
 }
