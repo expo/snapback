@@ -623,6 +623,20 @@ export function createFileRqsResumeStore({
       )).result);
     },
 
+    async outboxMarkQuarantined(id, refusal) {
+      requireOpen();
+      return serialized(async () => (await outboxWrite(
+        (outbox) => outboxOps.markQuarantined(outbox, id, refusal, now()),
+      )).result);
+    },
+
+    async outboxReenterQuarantined() {
+      requireOpen();
+      return serialized(async () => (await outboxWrite(
+        (outbox) => outboxOps.reenterQuarantined(outbox),
+      )).result);
+    },
+
     async outboxMarkResultGone(id, resultGone) {
       requireOpen();
       return serialized(async () => (await outboxWrite(
@@ -996,6 +1010,8 @@ export function createFileRqsResumeStore({
           outbox: Object.freeze({
             pending: pendingOutboxRecords(state.outbox).length,
             failed: allOutboxRecords(state.outbox).filter((r) => r.status === 'failed').length,
+            quarantined: allOutboxRecords(state.outbox)
+              .filter((r) => r.status === 'quarantined').length,
             resultGone: allOutboxRecords(state.outbox)
               .filter((r) => r.status === 'result-gone').length,
             pendingAcknowledgements: state.outbox.acks.length,
@@ -1115,9 +1131,20 @@ export async function sweepStaleRqsBlobs({
         continue; // unsupported/future bytes stay preserved exactly in place
       }
       const outbox = recognizedV1 ? emptyOutboxState() : validateOutboxState(parsed.outbox);
-      if (outbox !== null && pendingOutboxRecords(outbox).length > 0) {
+      // Quarantined intents are held for explicit re-entry against a successor
+      // schema, so the staleness janitor must never reclaim a blob that still
+      // carries one — otherwise quarantine-all-on-upgrade-required silently
+      // loses the very intents the tombstone promises to preserve. They are not
+      // `pending` (never replayed under the incompatible schema), so guard them
+      // explicitly alongside queued work.
+      // @ref LLP 0081#4-execution-journaling-and-crash-recovery — quarantined
+      //   intents survive to re-entry; the janitor cannot drop them.
+      const mustKeep = outbox !== null
+        && (pendingOutboxRecords(outbox).length > 0
+          || allOutboxRecords(outbox).some((record) => record.status === 'quarantined'));
+      if (mustKeep) {
         summary.kept += 1;
-        continue; // queued intent is never silently discarded
+        continue; // queued or quarantined intent is never silently discarded
       }
       let lastActivityMs = 0;
       const consider = (value) => {

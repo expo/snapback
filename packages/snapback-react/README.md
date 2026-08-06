@@ -81,6 +81,9 @@ bun run --cwd packages/snapback-react test
 ```
 
 The backend-bakeoff retains an exact ten-check React receipt at
-`demos/signal-desk/acceptance/results/react-presence.v1.json`. See
-`guide/clients/react.md`, `guide/clients/react-expo.md`, LLP 0064, LLP 0114,
-and LLP 0107.
+`demos/signal-desk/acceptance/results/react-presence.v1.json`. For
+consumer-facing documentation, see the served
+[React](http://127.0.0.1:4287/_snapback/guide/clients/react.md) and
+[React Expo](http://127.0.0.1:4287/_snapback/guide/clients/react-expo.md)
+Guide pages, or read the same build-bound corpus through `snapback mcp`.
+The governing design is in LLP 0064, LLP 0114, and LLP 0107.

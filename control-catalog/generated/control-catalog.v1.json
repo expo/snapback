@@ -1,11 +1,11 @@
 {
   "schemaVersion": "snapback.control-catalog.v1",
-  "catalogDigest": "sha256:63def2a7245bf3c00ae8cbf63ed0ac4500e7cd9f1a39ac509e1c59e40630cab2",
+  "catalogDigest": "sha256:2232a043339eac3656c9517d9541576cd82f44fb4502e2de63574178aa989831",
   "buildIdentity": {
-    "sourceCommit": "3cfe1c93dc505687d3cc63e97105ef89bab6b04c",
+    "sourceCommit": "bb57952372e4335c14a77cb11ac9b6bf693b4954",
     "dirty": false
   },
-  "generatedAtCommit": "3cfe1c93dc505687d3cc63e97105ef89bab6b04c",
+  "generatedAtCommit": "bb57952372e4335c14a77cb11ac9b6bf693b4954",
   "entries": [
     {
       "operation": "acceptance.run",
@@ -561,11 +561,11 @@
     },
     {
       "operation": "asset.delete",
-      "title": "asset.delete",
+      "title": "Delete one asset",
       "intents": [],
       "status": "shipped",
       "domain": "hostOps",
-      "surfaceAccess": "cliOnly",
+      "surfaceAccess": "native",
       "operability": "direct",
       "availability": {
         "targets": [
@@ -581,15 +581,15 @@
       },
       "behavior": {
         "readOnly": false,
-        "destructive": false,
-        "approvalPosture": null,
-        "idempotent": false,
+        "destructive": true,
+        "approvalPosture": "confirmFirst",
+        "idempotent": true,
         "openWorld": false,
         "persistsAcrossRestart": false
       },
       "projections": {
         "cli": "snapback assets delete",
-        "mcp": null,
+        "mcp": "snapback_asset_delete",
         "hostOps": "asset.delete",
         "http": "POST /_snapback/api/host-ops",
         "adminClient": null,
@@ -602,8 +602,7 @@
       "sources": [
         "src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
-      ],
-      "mcpDeferralReason": "Assets family; see asset.put."
+      ]
     },
     {
       "operation": "asset.ensureSeedFixture",
@@ -653,11 +652,11 @@
     },
     {
       "operation": "asset.exportCut",
-      "title": "asset.exportCut",
+      "title": "Export a consistent asset cut",
       "intents": [],
       "status": "shipped",
       "domain": "hostOps",
-      "surfaceAccess": "cliOnly",
+      "surfaceAccess": "native",
       "operability": "direct",
       "availability": {
         "targets": [
@@ -672,7 +671,7 @@
         "responseSensitivity": "SensitiveApplicationData"
       },
       "behavior": {
-        "readOnly": false,
+        "readOnly": true,
         "destructive": false,
         "approvalPosture": null,
         "idempotent": false,
@@ -681,7 +680,7 @@
       },
       "projections": {
         "cli": "snapback assets export-cut",
-        "mcp": null,
+        "mcp": "snapback_asset_export_cut",
         "hostOps": "asset.exportCut",
         "http": "POST /_snapback/api/host-ops",
         "adminClient": null,
@@ -694,16 +693,15 @@
       "sources": [
         "src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
-      ],
-      "mcpDeferralReason": "Assets family; see asset.put."
+      ]
     },
     {
       "operation": "asset.gcSweep",
-      "title": "asset.gcSweep",
+      "title": "Run asset reclamation and publication maintenance",
       "intents": [],
       "status": "shipped",
       "domain": "hostOps",
-      "surfaceAccess": "cliOnly",
+      "surfaceAccess": "native",
       "operability": "direct",
       "availability": {
         "targets": [
@@ -719,15 +717,15 @@
       },
       "behavior": {
         "readOnly": false,
-        "destructive": false,
-        "approvalPosture": null,
+        "destructive": true,
+        "approvalPosture": "confirmFirst",
         "idempotent": false,
         "openWorld": false,
         "persistsAcrossRestart": false
       },
       "projections": {
         "cli": "snapback assets gc-sweep",
-        "mcp": null,
+        "mcp": "snapback_asset_gc_sweep",
         "hostOps": "asset.gcSweep",
         "http": "POST /_snapback/api/host-ops",
         "adminClient": null,
@@ -740,16 +738,15 @@
       "sources": [
         "src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
-      ],
-      "mcpDeferralReason": "Assets family; see asset.put."
+      ]
     },
     {
       "operation": "asset.importCut",
-      "title": "asset.importCut",
+      "title": "Validate or apply an exported asset cut",
       "intents": [],
       "status": "shipped",
       "domain": "hostOps",
-      "surfaceAccess": "cliOnly",
+      "surfaceAccess": "native",
       "operability": "direct",
       "availability": {
         "targets": [
@@ -765,15 +762,15 @@
       },
       "behavior": {
         "readOnly": false,
-        "destructive": false,
-        "approvalPosture": null,
+        "destructive": true,
+        "approvalPosture": "confirmFirst",
         "idempotent": false,
         "openWorld": false,
         "persistsAcrossRestart": false
       },
       "projections": {
         "cli": "snapback assets import-cut",
-        "mcp": null,
+        "mcp": "snapback_asset_import_cut",
         "hostOps": "asset.importCut",
         "http": "POST /_snapback/api/host-ops",
         "adminClient": null,
@@ -786,16 +783,15 @@
       "sources": [
         "src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
-      ],
-      "mcpDeferralReason": "Assets family; see asset.put."
+      ]
     },
     {
       "operation": "asset.inspect",
-      "title": "asset.inspect",
+      "title": "Inspect one asset",
       "intents": [],
       "status": "shipped",
       "domain": "hostOps",
-      "surfaceAccess": "cliOnly",
+      "surfaceAccess": "native",
       "operability": "direct",
       "availability": {
         "targets": [
@@ -810,7 +806,7 @@
         "responseSensitivity": "SensitiveApplicationData"
       },
       "behavior": {
-        "readOnly": false,
+        "readOnly": true,
         "destructive": false,
         "approvalPosture": null,
         "idempotent": false,
@@ -819,7 +815,7 @@
       },
       "projections": {
         "cli": "snapback assets inspect",
-        "mcp": null,
+        "mcp": "snapback_asset_inspect",
         "hostOps": "asset.inspect",
         "http": "POST /_snapback/api/host-ops",
         "adminClient": null,
@@ -832,16 +828,15 @@
       "sources": [
         "src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
-      ],
-      "mcpDeferralReason": "Assets family; see asset.put."
+      ]
     },
     {
       "operation": "asset.list",
-      "title": "asset.list",
+      "title": "List assets by availability state",
       "intents": [],
       "status": "shipped",
       "domain": "hostOps",
-      "surfaceAccess": "cliOnly",
+      "surfaceAccess": "native",
       "operability": "direct",
       "availability": {
         "targets": [
@@ -856,7 +851,7 @@
         "responseSensitivity": "SensitiveApplicationData"
       },
       "behavior": {
-        "readOnly": false,
+        "readOnly": true,
         "destructive": false,
         "approvalPosture": null,
         "idempotent": false,
@@ -865,7 +860,7 @@
       },
       "projections": {
         "cli": "snapback assets list",
-        "mcp": null,
+        "mcp": "snapback_asset_list",
         "hostOps": "asset.list",
         "http": "POST /_snapback/api/host-ops",
         "adminClient": null,
@@ -878,8 +873,7 @@
       "sources": [
         "src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
-      ],
-      "mcpDeferralReason": "Assets family; see asset.put."
+      ]
     },
     {
       "operation": "asset.put",
@@ -929,11 +923,11 @@
     },
     {
       "operation": "asset.retry",
-      "title": "asset.retry",
+      "title": "Re-drive pending asset work",
       "intents": [],
       "status": "shipped",
       "domain": "hostOps",
-      "surfaceAccess": "cliOnly",
+      "surfaceAccess": "native",
       "operability": "direct",
       "availability": {
         "targets": [
@@ -951,13 +945,13 @@
         "readOnly": false,
         "destructive": false,
         "approvalPosture": null,
-        "idempotent": false,
+        "idempotent": true,
         "openWorld": false,
         "persistsAcrossRestart": false
       },
       "projections": {
         "cli": "snapback assets retry",
-        "mcp": null,
+        "mcp": "snapback_asset_retry",
         "hostOps": "asset.retry",
         "http": "POST /_snapback/api/host-ops",
         "adminClient": null,
@@ -970,16 +964,15 @@
       "sources": [
         "src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
-      ],
-      "mcpDeferralReason": "Assets family; see asset.put."
+      ]
     },
     {
       "operation": "asset.rotateSigningKey",
-      "title": "asset.rotateSigningKey",
+      "title": "Rotate the asset delivery signing key",
       "intents": [],
       "status": "shipped",
       "domain": "hostOps",
-      "surfaceAccess": "cliOnly",
+      "surfaceAccess": "native",
       "operability": "direct",
       "availability": {
         "targets": [
@@ -995,15 +988,15 @@
       },
       "behavior": {
         "readOnly": false,
-        "destructive": false,
-        "approvalPosture": null,
+        "destructive": true,
+        "approvalPosture": "confirmFirst",
         "idempotent": false,
         "openWorld": false,
         "persistsAcrossRestart": false
       },
       "projections": {
         "cli": "snapback assets rotate-signing-key",
-        "mcp": null,
+        "mcp": "snapback_asset_rotate_signing_key",
         "hostOps": "asset.rotateSigningKey",
         "http": "POST /_snapback/api/host-ops",
         "adminClient": null,
@@ -1016,8 +1009,7 @@
       "sources": [
         "src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
-      ],
-      "mcpDeferralReason": "Assets family; see asset.put."
+      ]
     },
     {
       "operation": "auth.mailbox.read",
@@ -2298,11 +2290,11 @@
     },
     {
       "operation": "config.plan",
-      "title": "config.plan",
+      "title": "Dry-run a config entry write",
       "intents": [],
       "status": "shipped",
       "domain": "systemApi",
-      "surfaceAccess": "apiOnly",
+      "surfaceAccess": "native",
       "operability": "direct",
       "availability": {
         "targets": [
@@ -2320,26 +2312,25 @@
         "readOnly": true,
         "destructive": false,
         "approvalPosture": null,
-        "idempotent": true,
+        "idempotent": false,
         "openWorld": false,
         "persistsAcrossRestart": false
       },
       "projections": {
-        "cli": null,
-        "mcp": null,
+        "cli": "snapback config plan",
+        "mcp": "snapback_config_plan",
         "hostOps": null,
         "http": "GET /_snapback/api/config/plan",
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "operating/secrets-and-config.md#cli-and-mcp-projections-for-statusplanverify",
       "authorities": [
         "llp/0031-server-route-taxonomy"
       ],
       "sources": [
         "src/server.rs route_registry()"
-      ],
-      "mcpDeferralReason": "See config.status."
+      ]
     },
     {
       "operation": "config.set",
@@ -2388,11 +2379,11 @@
     },
     {
       "operation": "config.status",
-      "title": "config.status",
+      "title": "Read config status",
       "intents": [],
       "status": "shipped",
       "domain": "systemApi",
-      "surfaceAccess": "apiOnly",
+      "surfaceAccess": "native",
       "operability": "direct",
       "availability": {
         "targets": [
@@ -2414,32 +2405,75 @@
         "readOnly": true,
         "destructive": false,
         "approvalPosture": null,
-        "idempotent": true,
+        "idempotent": false,
         "openWorld": false,
         "persistsAcrossRestart": false
       },
       "projections": {
-        "cli": null,
-        "mcp": null,
+        "cli": "snapback config status",
+        "mcp": "snapback_config_status",
         "hostOps": null,
         "http": "GET /_snapback/api/config/status",
         "adminClient": null,
         "console": null,
         "hostedAdapter": "config.status.read"
       },
-      "guide": null,
+      "guide": "operating/secrets-and-config.md#cli-and-mcp-projections-for-statusplanverify",
       "authorities": [
         "llp/0031-server-route-taxonomy"
       ],
       "sources": [
         "src/server.rs route_registry()",
         "cloudflare/src/gateway.js:125"
-      ],
-      "mcpDeferralReason": "No `snapback config` CLI subcommand exists today; gated HTTP twin only until Phase 1's projection lands (§Product contract/P3)."
+      ]
     },
     {
       "operation": "config.unset",
-      "title": "config.unset",
+      "title": "Unset a config entry",
+      "intents": [],
+      "status": "shipped",
+      "domain": "systemApi",
+      "surfaceAccess": "native",
+      "operability": "direct",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "routePolicy": "AdminWrite",
+        "effect": "None",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": true,
+        "approvalPosture": "confirmFirst",
+        "idempotent": true,
+        "openWorld": false,
+        "persistsAcrossRestart": true
+      },
+      "projections": {
+        "cli": "snapback config unset",
+        "mcp": "snapback_config_unset",
+        "hostOps": null,
+        "http": "POST /_snapback/api/config/unset",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0031-server-route-taxonomy"
+      ],
+      "sources": [
+        "src/server.rs route_registry()"
+      ]
+    },
+    {
+      "operation": "config.verify",
+      "title": "Verify one config entry",
       "intents": [],
       "status": "shipped",
       "domain": "systemApi",
@@ -2466,14 +2500,14 @@
         "persistsAcrossRestart": true
       },
       "projections": {
-        "cli": null,
-        "mcp": null,
+        "cli": "snapback config verify <entry>",
+        "mcp": "snapback_config_verify",
         "hostOps": null,
-        "http": "POST /_snapback/api/config/unset",
+        "http": "POST /_snapback/api/config/verify",
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "operating/secrets-and-config.md#cli-and-mcp-projections-for-statusplanverify",
       "authorities": [
         "llp/0031-server-route-taxonomy"
       ],
@@ -2482,57 +2516,12 @@
       ]
     },
     {
-      "operation": "config.verify",
-      "title": "config.verify",
-      "intents": [],
-      "status": "shipped",
-      "domain": "systemApi",
-      "surfaceAccess": "apiOnly",
-      "operability": "direct",
-      "availability": {
-        "targets": [
-          "local",
-          "derived-hosted"
-        ]
-      },
-      "policy": {
-        "authority": "operator",
-        "routePolicy": "AdminWrite",
-        "effect": "None",
-        "responseSensitivity": "OperatorMetadata"
-      },
-      "behavior": {
-        "readOnly": false,
-        "destructive": false,
-        "approvalPosture": null,
-        "idempotent": false,
-        "openWorld": false,
-        "persistsAcrossRestart": true
-      },
-      "projections": {
-        "cli": null,
-        "mcp": null,
-        "hostOps": null,
-        "http": "POST /_snapback/api/config/verify",
-        "adminClient": null,
-        "console": null
-      },
-      "guide": null,
-      "authorities": [
-        "llp/0031-server-route-taxonomy"
-      ],
-      "sources": [
-        "src/server.rs route_registry()"
-      ],
-      "mcpDeferralReason": "See config.status."
-    },
-    {
       "operation": "connection.disconnect",
-      "title": "connection.disconnect",
+      "title": "Force-disconnect one live connection (debug perturbation)",
       "intents": [],
       "status": "shipped",
       "domain": "systemApi",
-      "surfaceAccess": "apiOnly",
+      "surfaceAccess": "native",
       "operability": "direct",
       "availability": {
         "targets": [
@@ -2548,15 +2537,15 @@
       },
       "behavior": {
         "readOnly": false,
-        "destructive": false,
-        "approvalPosture": null,
-        "idempotent": false,
+        "destructive": true,
+        "approvalPosture": "confirmFirst",
+        "idempotent": true,
         "openWorld": false,
         "persistsAcrossRestart": true
       },
       "projections": {
-        "cli": null,
-        "mcp": null,
+        "cli": "snapback connections disconnect",
+        "mcp": "snapback_connection_disconnect",
         "hostOps": null,
         "http": "POST /_snapback/api/connections/{connection_id}/disconnect",
         "adminClient": null,
@@ -2932,11 +2921,11 @@
     },
     {
       "operation": "cron.runOne",
-      "title": "cron.runOne",
+      "title": "Force-run one named cron job",
       "intents": [],
       "status": "shipped",
       "domain": "systemApi",
-      "surfaceAccess": "apiOnly",
+      "surfaceAccess": "native",
       "operability": "direct",
       "availability": {
         "targets": [
@@ -2959,8 +2948,8 @@
         "persistsAcrossRestart": true
       },
       "projections": {
-        "cli": null,
-        "mcp": null,
+        "cli": "snapback cron run",
+        "mcp": "snapback_cron_run",
         "hostOps": null,
         "http": "POST /_snapback/api/cron/{name}/run",
         "adminClient": null,
@@ -3025,11 +3014,11 @@
     },
     {
       "operation": "cron.tick",
-      "title": "cron.tick",
+      "title": "Force-claim and run every due cron job",
       "intents": [],
       "status": "shipped",
       "domain": "systemApi",
-      "surfaceAccess": "apiOnly",
+      "surfaceAccess": "native",
       "operability": "direct",
       "availability": {
         "targets": [
@@ -3056,8 +3045,8 @@
         "persistsAcrossRestart": true
       },
       "projections": {
-        "cli": null,
-        "mcp": null,
+        "cli": "snapback cron tick",
+        "mcp": "snapback_cron_tick",
         "hostOps": null,
         "http": "POST /_snapback/api/cron/tick",
         "adminClient": null,
@@ -3075,11 +3064,11 @@
     },
     {
       "operation": "data.scan",
-      "title": "data.scan",
+      "title": "Bounded read-only table scan",
       "intents": [],
       "status": "shipped",
       "domain": "systemApi",
-      "surfaceAccess": "apiOnly",
+      "surfaceAccess": "native",
       "operability": "direct",
       "availability": {
         "targets": [
@@ -3097,19 +3086,19 @@
         "readOnly": true,
         "destructive": false,
         "approvalPosture": null,
-        "idempotent": true,
+        "idempotent": false,
         "openWorld": false,
         "persistsAcrossRestart": false
       },
       "projections": {
-        "cli": null,
-        "mcp": null,
+        "cli": "snapback data scan <table>",
+        "mcp": "snapback_data_scan",
         "hostOps": null,
         "http": "GET /_snapback/api/data/{table}",
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "operating/host-ops.md#direct-climcp-projections-beyond-host-ops-llp-0184-phase-2-p1",
       "authorities": [
         "llp/0031-server-route-taxonomy"
       ],
@@ -3879,7 +3868,7 @@
         "responseSensitivity": "SensitiveApplicationData",
         "projectionCredentials": {
           "http": "AdminCredential (refuses this operation entirely: SNAPBACK_HOST_OP_CLI_ONLY)",
-          "mcp": "local process/filesystem access plus the startup nonce — no admin credential gate (LLP 0184 §Design/2's disclosed, temporary, named exception; closed in Phase 2's host.restart vertical slice)"
+          "mcp": "LLP 0184 §Design/2's disclosed, temporary, named exception is now CLOSED: snapback_stop (and therefore the mutating half of snapback_restart) requires the caller to hold an admin token accepted by the same AdminRead-gated /_snapback/api/host-ops route the HTTP path uses, verified with a live probe request before any process signal (packages/snapback-cli/mcp-control.mjs McpControlServer#requireAdminCredentialForLifecycle). snapback_start's fresh-spawn leg is unchanged — there is no prior credential to hold when no server yet exists."
         }
       },
       "behavior": {
@@ -3906,7 +3895,7 @@
         "src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
-      "cliDeferralReason": "Nothing prevents a `snapback restart` CLI command composing Start/Stop the same way `snapback_restart` does; not implemented yet. Phase 2 lands it (LLP 0184 §Product contract).",
+      "cliDeferralReason": "Nothing prevents a `snapback restart` CLI command composing Start/Stop the same way `snapback_restart` does; not implemented yet — the credential-gating half of the Phase 2 vertical slice landed (see projectionCredentials.mcp below); the CLI command itself remains a follow-on.",
       "composedFrom": [
         "host.stop",
         "host.start"
@@ -4095,11 +4084,11 @@
     },
     {
       "operation": "jobs.drain",
-      "title": "jobs.drain",
+      "title": "Drain due one-off jobs",
       "intents": [],
       "status": "shipped",
       "domain": "systemApi",
-      "surfaceAccess": "apiOnly",
+      "surfaceAccess": "native",
       "operability": "direct",
       "availability": {
         "targets": [
@@ -4122,8 +4111,8 @@
         "persistsAcrossRestart": true
       },
       "projections": {
-        "cli": null,
-        "mcp": null,
+        "cli": "snapback jobs drain",
+        "mcp": "snapback_jobs_drain",
         "hostOps": null,
         "http": "POST /_snapback/api/jobs/drain",
         "adminClient": null,
@@ -4139,11 +4128,11 @@
     },
     {
       "operation": "jobs.list",
-      "title": "jobs.list",
+      "title": "List one-off jobs",
       "intents": [],
       "status": "shipped",
       "domain": "systemApi",
-      "surfaceAccess": "apiOnly",
+      "surfaceAccess": "native",
       "operability": "direct",
       "availability": {
         "targets": [
@@ -4161,19 +4150,19 @@
         "readOnly": true,
         "destructive": false,
         "approvalPosture": null,
-        "idempotent": true,
+        "idempotent": false,
         "openWorld": false,
         "persistsAcrossRestart": false
       },
       "projections": {
-        "cli": null,
-        "mcp": null,
+        "cli": "snapback jobs list",
+        "mcp": "snapback_jobs_list",
         "hostOps": null,
         "http": "GET /_snapback/api/jobs",
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "operating/host-ops.md#direct-climcp-projections-beyond-host-ops-llp-0184-phase-2-p1",
       "authorities": [
         "llp/0031-server-route-taxonomy"
       ],
@@ -4183,11 +4172,11 @@
     },
     {
       "operation": "jobs.show",
-      "title": "jobs.show",
+      "title": "Show one job",
       "intents": [],
       "status": "shipped",
       "domain": "systemApi",
-      "surfaceAccess": "apiOnly",
+      "surfaceAccess": "native",
       "operability": "direct",
       "availability": {
         "targets": [
@@ -4205,19 +4194,19 @@
         "readOnly": true,
         "destructive": false,
         "approvalPosture": null,
-        "idempotent": true,
+        "idempotent": false,
         "openWorld": false,
         "persistsAcrossRestart": false
       },
       "projections": {
-        "cli": null,
-        "mcp": null,
+        "cli": "snapback jobs show <id>",
+        "mcp": "snapback_jobs_show",
         "hostOps": null,
         "http": "GET /_snapback/api/jobs/{id}",
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "operating/host-ops.md#direct-climcp-projections-beyond-host-ops-llp-0184-phase-2-p1",
       "authorities": [
         "llp/0031-server-route-taxonomy"
       ],

@@ -5,7 +5,10 @@
 **Systems:** Application data API, Relational queries, Mutations, Code generation, Authorization, Live Queries, Storage portability, Contract/Exact, Diagnostics, Testing, Demo apps
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-27
-**Revised:** 2026-08-05 (Fleet GAP wording reconciled after LLP 0135 OQ5's
+**Revised:** 2026-08-06 (dated boundary note for LLP 0157 v0.11's
+`snapshot-batch.v2` registration: bounded-child positions keep this Spec's
+mapping/point-read/restart semantics under LLP 0135's unchanged seal-entirely
+rule; no byte, semantic, or support fact changes). 2026-08-05 (Fleet GAP wording reconciled after LLP 0135 OQ5's
 narrow `snapshot-batch.v2` direction ruling; no receipt or support claim
 changes). 2026-08-04 (local persistent-store / `single_table_v1`
 publication-authority amendment; see dated section). 2026-08-03 (Accepted LLP 0157 boundary: this Spec keeps
@@ -1781,6 +1784,27 @@ positions carry bounded-child boundary state without embedding an `sbbc1`
 credential. Existing `sbbc1` bytes do not migrate. No support fact changes
 until the owning executable gates pass.
 
+> **Dated note (2026-08-06):** LLP 0157's v0.11 amendment registers
+> `snapshot-batch.v2` / `sbsb2`, whose bounded-child positions keep this
+> Spec's boundary/terminal mapping, parent point-read, and incarnation/
+> `_version` restart semantics byte-for-byte, under LLP 0135 §2.3's
+> unchanged seal-entirely rule; relational positions are LLP 0080's and
+> carry no parent group. LLP 0157 §D8 also states the validation-order fact
+> this Spec's `sbbc1` protocol left implicit: the authority-partition
+> comparison is evaluated before the stream/restore-epoch comparison — the
+> shipped order in every family. The stronger `sbsb1`/`sbsb2` consequence
+> does **not** carry to `sbbc1`: those families bind `authorityPartition`
+> as LLP 0157 §D2's `AuthorityPartitionDigestV1`, whose preimage contains
+> the stream incarnation, so a genuine rotation changes both members and
+> collapses to their cursor-invalid class; `sbbc1` binds the coarser
+> owner-specific authority-partition identity, which a stream rotation does
+> not move, so a genuine rotation legitimately reaches
+> `SNAPBACK_BOUNDED_CHILDREN_PARENT_RESTART_REQUIRED`, exactly as this
+> Spec's protocol section states. The protocol section's two lists gain no
+> new code. Nothing changes for `bounded_children_v1`,
+> `snapshot-batch.v1`, `sbbc1`, or `sbsb1` bytes, semantics, or support
+> facts.
+
 ## Local persistent-store publication authority amendment — 2026-08-04
 
 The local and packaged publication authority above admits one additional,
@@ -1793,8 +1817,10 @@ executor, schema/codegen, and client-store source bytes that implement the
 proof/wire/store path. The older carrier-exit receipt's Triage GAP is closed
 only by those separately digest-bound successor receipts; its Fleet GAP stays
 explicit and is not rewritten as success. The 2026-08-05 LLP 0135 OQ5 product
-direction is ruled, while reviewed `snapshot-batch.v2` registration,
-implementation, and a fresh Fleet witness remain absent.
+direction is ruled and the reviewed `snapshot-batch.v2` registration landed
+2026-08-06 (LLP 0157 v0.11), while implementation, the frozen cross-language
+vectors, and a fresh Fleet witness remain absent (LLP 0157 §D1's gate list
+is canonical).
 
 The code-owned target registry may derive positive local support only when the
 source-owned published anchor names exactly `single_table_v1`, its

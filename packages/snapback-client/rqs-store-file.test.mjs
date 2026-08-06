@@ -520,3 +520,39 @@ test('sweepStaleRqsBlobs unlinks only provably abandoned sibling origins', async
   });
   assert.equal(again.swept, 0);
 });
+
+test('sweepStaleRqsBlobs keeps an old origin holding only a quarantined intent', async (t) => {
+  // Quarantine-all-on-upgrade-required leaves a blob whose only outbox work is
+  // quarantined (never pending). The staleness janitor must not reclaim it, or
+  // the tombstone-and-re-entry guarantee (LLP 0081) loses the held intent.
+  const directory = await makeDirectory(t);
+  const old = Date.now() - 90 * 24 * 60 * 60 * 1000;
+
+  const { store: quarantined } = await makeStore(t, {
+    directory,
+    identity: 'origin-quarantined-1',
+    now: () => old,
+  });
+  await quarantined.outboxEnqueue({ id: 'cm-quarantined', function: 'createThing' });
+  const marked = await quarantined.outboxMarkQuarantined('cm-quarantined', {
+    code: 'SNAPBACK_MIGRATION_UPGRADE_REQUIRED',
+  });
+  assert.equal(marked.count, 1, 'the intent is quarantined, not pending');
+  assert.equal((await quarantined.outboxPending()).length, 0, 'no pending intent remains');
+  await quarantined.close();
+
+  // A never-swept caller identity so the sweep has a keepIdentity that is not
+  // the candidate under test.
+  const { store: own } = await makeStore(t, { directory, identity: 'origin-own-keep' });
+  await own.commit(rqsEntryKey('cells', {}), makeEntry());
+  await own.close();
+
+  const summary = await sweepStaleRqsBlobs({ directory, keepIdentity: 'origin-own-keep' });
+  assert.equal(summary.swept, 0, 'the quarantined-only blob is not abandoned');
+  const names = await readdir(directory);
+  assert.equal(
+    names.filter((name) => name.endsWith('.v1.json')).length,
+    2,
+    'the quarantined origin and the caller identity both survive',
+  );
+});

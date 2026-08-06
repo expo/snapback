@@ -69,7 +69,7 @@ and `guide-gap`.
 | realtime.snapshot-bundles | Resumable-query snapshot bundles: one request evaluates a served route-manifest entry's queries at one commit with per-query resume tokens; register mode arms the pending-registration owner. The contributor local target additionally ships Experimental `mixed_bundle_boot_v2`: a disjoint LLP 0157 `mixed-route.v2` artifact/wire evaluates live and ordinary children at one pinned snapshot, registers only identity-bound live children, and returns plain children honestly read-only. Qualifying legacy RQS entries enter QMK custody only while connected through prove-or-fresh adoption; legacy bytes stay grandfathered under LLP 0090 until that one-transaction switch. `defineRoutes` + `publicInline` feed the Channel A inlined web boot (`snapbackChannelA` in packages/snapback-vite) with anonymous reads for publicInline-class routes; on the Cloudflare arm the routes manifest compiles into the Worker, the gateway serves Channel A HTML, and the coordinator answers read-mode bundles + token resume (register and mixed mode Cloudflare: deferred) | bundle, preload, resumable snapshots, boot, RQS, mixed route, read-only child, registered live child, inlined HTML, routes manifest | local, cloudflare | partial | route /app/bundle + schemas/capability.manifest.local-dev-sqlite-ibex.json (`mixed_bundle_boot_v2`) | llp/0090, llp/0092, llp/0157, llp/0166 | realtime/snapshot-bundles.md |
 | sync.offline | Retained queries, outbox, replay, optimistic overlays (Contract arm: lease-bounded protected retention, derived overlays, `Parity` under LLP 0043's proof rule) | local-first, outbox | local | shipped | route /outbox/{connection_id} | llp/0043, llp/0052 | sync/offline-and-retention.md |
 | sync.offline-js-arm | Experimental JS/React offline substrate: default IndexedDB + Web Locks in capable browsers, durable file storage in capable Node hosts, and in-memory fallback; declared public authority-independent retained queries; durable M2 outbox with exact ordered replay and pending-intent projection. Qualifying legacy RQS entries are grandfathered under LLP 0090 and move to QMK custody only while connected through prove-or-fresh, one atomic same-domain transaction; adoption never relabels bytes or drops pending outbox intent. Node/file and React-stub tests pass, and LLP 0155 proves real-Chrome `SIGKILL` persistence plus two-tab lock refusal/takeover. End-to-end browser React/server retained-current, resync/replay, settlement, observer convergence, and protected-refusal proof remain GAPs; no local execution or `Parity` claim | offline browser, cold boot, restart-safe queue, IndexedDB, default persistence, retainability opt-in, pending intent render | local | partial | `resolveDefaultRqsStore` in packages/snapback-client/rqs-store-default.mjs + `demos/public-dashboard/tests/acceptance/offline-local-first.mjs` (Node/file, same-process) + `demos/zero-bakeoff/stage0/browser/run.mjs` (real-browser carrier substrate only) | llp/0043, llp/0090, llp/0129, llp/0155, llp/0166 | GAP (end-to-end browser product proof; owner: Charlie, review: 2026-08-31; issue: issues/20260801-guide-gap-js-arm-browser-indexeddb-proof.md); sync/offline-and-retention.md |
-| sync.local-persistent-store | LLP 0166 store + hydration bridge: one v3 store domain per clientStoreId, registration-led establishment from the generated trusted activation only, completeness-proof plus applicable lease validation before page commit, public programmatic and manifest-derived preload registrations, and proof-revalidated relaunch answers. Writer maintenance derives custody from registrations: active demand is restart-volatile, durable programmatic demand survives, `none` release compacts immediately, and every retained address exposes one StorePolicyInspectionV1 reason. The D7 result-transform gate is fired on durable IndexedDB and Node/file; memory and Expo report volatile and refuse durable fragments with a structured GAP. Authority-independent `single_table_v1@1` needs no lease but keeps every proof/fence check. The contributor-source local manifest publishes the experimental class from a retained 2026-08-04 carrier exit at 16 PASS / 1 Fleet GAP / 0 skipped plus Triage 8/8; remote-service and Cloudflare manifests remain nonclaims | retained render, materialization, completeness proof, qmk1, hydration bridge, programmatic registration, preload, maintenance, custody inspection, relaunch, result transform, answer class, carrier honesty | local | partial | src/local-persistent-store-publication.v1.json + tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-04.v1.json + tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-04.v1.json + tests/conformance/result-transform-ship-gate-v1.receipt.json (56/56 Rust/JavaScript, two claiming + two refusing carriers) | llp/0166, llp/0157, llp/0135, llp/0110, llp/0094 | GAP (Fleet footprint/hydration: OQ5 direction ruled 2026-08-05; reviewed `snapshot-batch.v2` profile, implementation, and fresh witness pending; owner: Charlie, review: 2026-08-31); sync/offline-and-retention.md |
+| sync.local-persistent-store | LLP 0166 store + hydration bridge: one v3 store domain per clientStoreId, registration-led establishment from the generated trusted activation only, completeness-proof plus applicable lease validation before page commit, public programmatic and manifest-derived preload registrations, and proof-revalidated relaunch answers. Writer maintenance derives custody from registrations: active demand is restart-volatile, durable programmatic demand survives, `none` release compacts immediately, and every retained address exposes one StorePolicyInspectionV1 reason. The D7 result-transform gate is fired on durable IndexedDB and Node/file; memory and Expo report volatile and refuse durable fragments with a structured GAP. Authority-independent `single_table_v1@1` needs no lease but keeps every proof/fence check. The contributor-source local manifest publishes the experimental class from a retained 2026-08-04 carrier exit at 16 PASS / 1 Fleet GAP / 0 skipped plus Triage 8/8; remote-service and Cloudflare manifests remain nonclaims | retained render, materialization, completeness proof, qmk1, hydration bridge, programmatic registration, preload, maintenance, custody inspection, relaunch, result transform, answer class, carrier honesty | local | partial | src/local-persistent-store-publication.v1.json + tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-04.v1.json + tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-04.v1.json + tests/conformance/result-transform-ship-gate-v1.receipt.json (56/56 Rust/JavaScript, two claiming + two refusing carriers) | llp/0166, llp/0157, llp/0135, llp/0110, llp/0094 | GAP (Fleet footprint/hydration: `snapshot-batch.v2` registered 2026-08-06, LLP 0157 v0.11; implementation, frozen vectors, fresh witness pending; owner: Charlie, review: 2026-08-31); sync/offline-and-retention.md |
 | sync.offline-js-arm-protected | Lease-bounded protected retention (LLP 0043 M1 custody) on the JS/React arm — the Contract arm ships it; this arm does not yet | offline auth browser, lease js | none | design-only | llp/0129-local-first-program.plan.md (Phase 0 status note; no shipped witness) | llp/0043, llp/0053, llp/0129 | GAP (owner: Charlie, review: 2026-08-31; issue: issues/20260731-js-arm-lease-custody-and-sessions-outbox.md) |
 | sync.settlement-bounded-skew | `settlement.bounded_skew`: a mutation-declared, structurally direct `runtimeNow()` field may accept a lane-L captured time only within its declared bound; mixed sinks stay server-derived and lane Q remains unbounded replay-accept. The server path and receipt fact ship, while local capture/execution remains outside this slice. | bounded skew, local settlement, runtimeNow, claim ledger | local | partial | src/local.rs | llp/0133 | GAP (local capture/executor; owner: LLP 0155 Stage 2, review: 2026-08-31) |
 | auth.sessions | Server-minted sessions; email-code login; server-derived principals | login, signin, identity, session | local | shipped | route /auth/exchange | llp/0039, llp/0057, llp/0059 | auth/sessions-and-principals.md |
@@ -10199,6 +10199,29 @@ value bytes, and neither does `status`, the diagnostics ring, or any log
 line. Pass values in the request body — never in argv, where a process list
 would leak them.
 
+## CLI and MCP projections for status/plan/verify
+
+`config.status`, `config.plan`, and `config.verify` never carry a secret
+value, so they are direct CLI and control-MCP tools (LLP 0184 Phase 2 P1).
+`config.set`/`config.unset` are not projected as CLI/MCP yet — set carries a
+value that needs the stdin/fd carrier LLP 0036 owns, and unset is a separate,
+not-yet-landed slice; keep using the routes above for both.
+
+```sh
+snapback config status --ready-file .snapback/dev.ready.json
+snapback config plan --ready-file .snapback/dev.ready.json --entry caltrainFeed
+snapback config verify --ready-file .snapback/dev.ready.json caltrainFeed
+```
+
+or, through `snapback mcp-control`: `snapback_config_status`,
+`snapback_config_plan` (optional `entry`), and `snapback_config_verify`
+(required `entry`). Every result is the shared `hostOpsResult`-shaped
+envelope; a missing/unset entry is `ok: true` with the entry's declared state,
+not a tool error. An agent detecting a missing required entry should point a
+human at `/_snapback/admin/setup` to enter the value — no agent-facing handoff
+row exists for that step in v1 (LLP 0184 §Product contract); afterward,
+`config.status`/`config.verify` confirm completion.
+
 ## Read through a granted handle
 
 An action names entries in `uses`, then reads `ctx.secrets.get(name)` for the
@@ -10350,7 +10373,14 @@ projection. `host.restart` also fails as `SNAPBACK_HOST_OP_CLI_ONLY` over
 HTTP, but has no CLI command yet; its only current projection is the
 composed `snapback_restart` MCP tool, which spawns `host.stop` then
 `host.start` under one request id and envelope (a `snapback restart` CLI
-command is planned but not shipped).
+command is planned but not shipped). `snapback_stop` (and therefore the
+mutating half of `snapback_restart`) requires the same admin credential the
+HTTP host-ops route requires — it probes `POST /_snapback/api/host-ops`
+with the descriptor's managed admin token before signaling the process, and
+refuses without a valid token instead of stopping the server on local
+process access alone (LLP 0184 §Design/2 closes this gap in Phase 2;
+`snapback_start`'s fresh-spawn leg is unaffected, since there is no prior
+credential to hold when no server yet exists).
 `schema.reload`, `functions.reload`, and `acceptance.run` are pinned but
 unbuilt and fail as `SNAPBACK_HOST_OP_UNIMPLEMENTED`. All three families are
 registered at AdminWrite so an authenticated request reaches that structured
@@ -10424,6 +10454,50 @@ Query/explain reads, durable writes, credential-producing operations, and
 dev impersonation therefore keep distinct `RoutePolicy`, authority, effect,
 and response-sensitivity classifications even though they share one carrier.
 
+## Direct CLI/MCP projections beyond host-ops (LLP 0184 Phase 2 P1)
+
+Some agent-relevant reads live on their own `SystemApi` routes rather than
+the `/_snapback/api/host-ops` multiplexer above. Each now has a direct CLI
+command and a control-MCP tool:
+
+| Operation | CLI | MCP tool |
+| --- | --- | --- |
+| `data.scan` | `snapback data scan <table> [--limit N] [--offset N]` | `snapback_data_scan` |
+| `jobs.list` | `snapback jobs list` | `snapback_jobs_list` |
+| `jobs.show` | `snapback jobs show <id>` | `snapback_jobs_show` |
+
+`data.scan` projects `DataQuery` exactly as shipped — `table`, `limit`,
+`offset` — and **has no cursor**: the route does not have one. Offset paging
+is not stable under concurrent writes; a row can shift between pages between
+two calls issued moments apart. Prefer a narrow `--limit`, and treat a scan
+as a snapshot-ish sample rather than a guaranteed-complete enumeration under
+write load. A stable/snapshot-bound cursor would be a new storage semantic
+and is out of this projection's scope.
+
+```sh
+snapback data scan messages --limit 20 --ready-file .snapback/dev.ready.json
+```
+
+Both `data.scan` and the CLI's `secret-read-mint` mint a scoped,
+row/byte-budgeted secret-read lease automatically from the local readiness
+descriptor when one is not supplied — never by reading an arbitrary URL for
+credentials. `jobs.list`/`jobs.show` are the read-only half of LLP 0070's
+one-off job surface; draining jobs is a separate, mutating operation this
+slice does not add.
+
+Three `host-ops` asset operations also gained MCP tools this phase — the CLI
+paths (`snapback assets list|inspect|retry`) were already shipped:
+
+| Operation | MCP tool |
+| --- | --- |
+| `asset.list` | `snapback_asset_list` |
+| `asset.inspect` | `snapback_asset_inspect` |
+| `asset.retry` | `snapback_asset_retry` |
+
+The remaining asset operations (`put`, `gcSweep`, `delete`,
+`rotateSigningKey`, `exportCut`, `importCut`, `ensureSeedFixture`) stay
+CLI-only for now — see `snapback assets --help`.
+
 ## Respect admin, secret-read, and impersonation gates
 
 The admin credential authenticates the transport; it does not silently invent
@@ -10440,6 +10514,60 @@ The partial local `servicePrincipal`/scoped-token slice is admitted only by
 generated app-data calls. Host operations—including `function.run`—do not
 resolve scoped tokens into authority; use the operation's explicit admin or
 dev-impersonation gate instead.
+
+## Controlled mutations: config, cron, jobs, connections
+
+These operations sit beside the host-ops multiplexer — each is its own
+admin-gated `POST /_snapback/api/...` route, not a `host-ops` request — but
+now have the same direct CLI and control-MCP shape (LLP 0184 §P2's
+"controlled mutations" projections). Each is `AdminWrite` and every CLI form
+below accepts the same `--url`/`--ready-file`/`--token` target flags as
+`host inspect`.
+
+`config.unset` removes one config entry's stored value. It carries only the
+entry identifier — no secret value crosses the wire, so it needs no secret
+carrier (unlike `config.set`, which stays CLI-only pending a defined MCP
+secret carrier):
+
+```sh
+snapback config unset --entry stripe.secretKey --ready-file .snapback/dev.ready.json
+```
+
+or `snapback_config_unset` (`{ "entry": "stripe.secretKey" }`) through
+`snapback mcp-control`.
+
+`cron.tick` force-claims and runs every currently-due cron job; `cron.runOne`
+force-runs one named job regardless of its schedule:
+
+```sh
+snapback cron tick --ready-file .snapback/dev.ready.json
+snapback cron run nightly-digest --ready-file .snapback/dev.ready.json
+```
+
+or `snapback_cron_tick` / `snapback_cron_run` (`{ "name": "nightly-digest" }`).
+
+`jobs.drain` claims and runs due one-off jobs under an injected clock — the
+deterministic seam that lets acceptance suites drive due-ness without
+sleeping, instead of the wall clock `cron.tick` uses:
+
+```sh
+snapback jobs drain --ready-file .snapback/dev.ready.json --now-ms 1700000000000 --max-waves 3
+```
+
+or `snapback_jobs_drain` (`{ "nowMs": 1700000000000, "maxWaves": 3 }`, both
+optional — absent `nowMs` means wall clock).
+
+`connection.disconnect` is an explicit **debug perturbation** of one live
+connection — force-closing a connection for local recovery/repair testing.
+It is never application disconnect authority: the underlying route accepts
+no request body, so `reason` is recorded in the CLI/MCP receipt for the
+caller's own audit trail, not acknowledged by the server.
+
+```sh
+snapback connections disconnect conn_01h8x2 --reason "stuck presence repair" --ready-file .snapback/dev.ready.json
+```
+
+or `snapback_connection_disconnect` (`{ "connectionId": "conn_01h8x2", "reason": "stuck presence repair" }`).
 
 ## Anti-patterns
 
@@ -13193,8 +13321,8 @@ examples: [demos/triage-graph, demos/card-game, demos/todo-v2/surfaces/contract,
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-05
-reviewed-commit: HEAD
+reviewed: 2026-08-06
+reviewed-commit: 711e4d763d87cadf0c638bd15ed33a85427e4f11
 ---
 
 # Offline retention and mutation replay
@@ -13325,8 +13453,9 @@ JS arm and it is receipt-proven end to end by
 [`tests/acceptance/local-store-carrier-exit-v1.mjs`](repo:tests/acceptance/local-store-carrier-exit-v1.mjs)
 (run in the local proof; the retained 2026-08-04 run measured **16 PASS / 1
 GAP / 0 SKIPPED** after consuming Triage's qualified budget freeze; Fleet
-remains the one explicit GAP: its OQ5 direction was ruled 2026-08-05, while
-the reviewed `snapshot-batch.v2` profile, implementation, and fresh footprint/
+remains the one explicit GAP: its OQ5 direction was ruled 2026-08-05 and the
+`snapshot-batch.v2` profile was registered 2026-08-06 (LLP 0157 v0.11), while
+implementation, the frozen cross-language vectors, and the fresh footprint/
 hydration witness remain absent).
 
 Evidence scope, stated precisely: local target, Node process, file carrier,

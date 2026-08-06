@@ -1,12 +1,15 @@
 # LLP 0178: Generate-time authoring diagnostics
 
 **Type:** RFC
-**Status:** Review
+**Status:** Accepted
 **Systems:** Code generation, Developer experience, Diagnostics, Schema
 authoring, Auth, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-05
-**Revised:** 2026-08-06 — V1's policy remediations now name the admitted
+**Revised:** 2026-08-06 (b) — Accepted by author ruling (Charlie), in the
+LLP 0187 T2 sequencing context: V1 (the optional-arg contradiction slice)
+plus the first `guidePointer` advisory batch are unblocked as
+implementation work. 2026-08-06 — V1's policy remediations now name the admitted
 `argOpt` omission branch. 2026-08-05 (d) — Super-refine round 2 (delta): the round-1 fix's
 second worked example itself machine-applied a schema-weakening change
 (`v.array()` → `v.json()`) despite being introduced as policy-free —

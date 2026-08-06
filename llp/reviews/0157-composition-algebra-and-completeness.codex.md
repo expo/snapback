@@ -517,3 +517,459 @@ New NIT findings: none.
 This is a confirmation-review conclusion only; it does not accept the Spec.
 
 READY — confidence 0.97.
+
+## v0.11 amendment loop, round 1 — 2026-08-06
+
+**Round record (persisted before launch).** Scope: delta review of the
+uncommitted v0.11 `snapshot-batch.v2` / `sbsb2` dated amendment (LLP 0157
+primary; boundary notes in LLPs 0135/0080/0110). Document status: Accepted —
+no status transition is authorized or applied; this is the addendum review
+path. The 2026-08-05 LLP 0135 owner ruling is fixed authority, out of review
+scope. Topology: single-cluster lockstep, one fresh review per family,
+mutually blind; blindness is instruction-based (reviewers have repository
+access) and therefore self-attested. Reviser: the orchestrating Fable
+session, which does not review. Revision hashes (sha256):
+0157=6ee3967d74bd601cc453536c09dcc8ba82a1bb63adf7062474fe11a708399e3d,
+0135=0853be65217329bbd1ec9dd5482bbfc2fa715139cb49239cbef2bccc74bfe47e,
+0080=d49ae282aefe450cfc26d076fb1aea716ee07fd7e46fa8d728f9d1a6ec0d5ce7,
+0110=d1dcdf0a5b846f145388daad839db1bf5dcec86d6d8db736189a47b949fed728.
+Capsule: scratchpad review-instructions-r1.md + v011-delta.diff (594 lines).
+Verdict rule: READY gates on the delta; PRE-EXISTING concerns are recorded,
+not gating.
+
+**Provenance:** Codex CLI `codex exec`, model `gpt-5.6-sol`, reasoning effort xhigh, read-only sandbox, 2026-08-06. Fresh session, mutually blind (instruction-based, self-attested). Verdict binds to the round-1 revision hash vector recorded above. Body verbatim below.
+
+# Review — LLP 0157 v0.11 amendment, round 1
+
+I reviewed the supplied 594-line delta and the four specified files at the expected hashes. I did not read LLP 0157 review artifacts, other reviewers’ output, or orchestrator notes. `./ref-check --verbose` reports 0 errors.
+
+The profile bounds, parent-group mapping, relational boundary projection, sealing behavior, 8,192/6,099-byte arithmetic, and retention/classification posture otherwise agree with the owner documents.
+
+## C1 — Resume outcomes are not byte-exactly total
+
+**Severity:** MATERIAL  
+**Classification:** IN-DELTA
+
+**Location:** LLP 0157 §D8, “Resume and restart.”
+
+The amendment says revalidation covers:
+
+> “plan, argument, authority-partition, stream/restore-epoch, and order-schema boundary validation”
+
+but the coded collapse that follows lists only:
+
+> “Malformed, expired, cross-app, cross-plan, cross-parent, cross-authority, boundary-invalid, and cross-profile credentials”
+
+This leaves valid-but-mismatched `databaseId`, `targetProfileId`, `function`, `args`, `streamEpoch`, and potentially node/group bindings without an exact public outcome. The `streamEpoch` omission is especially consequential because LLP 0135’s v1 implementation record says stream changes return `SNAPBACK_SNAPSHOT_BATCH_RESTART_REQUIRED`; the amendment neither explicitly reuses nor versions that behavior. An all-relational cross-argument credential cannot be classified as cross-parent.
+
+**Concrete fix:** Add a total validation/outcome table, including precedence, for every `sbsb2` field and envelope check. Explicitly assign cross-argument/database/target/function/node/group mismatches and `streamEpoch` changes to either `SNAPBACK_SNAPSHOT_BATCH_CURSOR_INVALID` or the existing whole-composite restart outcome. Extend A14 and the shared near-miss fixture with those cases.
+
+## C2 — The bounded-child work ceiling loses the owner’s `take: 0` case
+
+**Severity:** MATERIAL  
+**Classification:** IN-DELTA
+
+**Location:** LLP 0157 §D8, “Work accounting.”
+
+The amendment states:
+
+> “for each bounded-child node, its `take + 1` examined child-range entries”
+
+LLP 0110 §1.2 instead pins:
+
+> “`take: 0` examines no child entry and returns no continuation.”
+
+The owner ruling requires summing each owner’s declared ceiling. Unconditionally deriving one examined entry for `take: 0` can produce different plan-derived ceiling and inspection values across implementations, even though execution is still forbidden from reading that entry.
+
+**Concrete fix:** State the bounded-child ceiling as `take === 0 ? 0 : take + 1`, while retaining one point-read per deduplicated parent group. Add an A14 `take: 0` case covering the derived ceiling, zero child-range reads, and the still-required parent point-read.
+
+## C3 — The implementation/vector gate is circular
+
+**Severity:** MATERIAL  
+**Classification:** IN-DELTA
+
+**Locations:** LLP 0157 §D1 registration, §D8 cross-language vectors, and §Status.
+
+The amendment repeatedly says no target may:
+
+> “admit, require, implement, or advertise `snapshot_batch_v2`”
+
+before the implementation and frozen vectors land. Section D8 simultaneously says generating the vectors and executor is the separately commissioned implementation. Read literally, the implementation needed to satisfy the gate is prohibited until it already exists.
+
+**Concrete fix:** Distinguish implementation work from activation and claims. Authorize the separately commissioned executor, disabled admission path, and vector generation to land; prohibit runtime admission, generated requirements, support/capability publication, and claims of implementation until the executor, frozen vectors, and target publication authority are all green. If “implement” means “claim implemented,” say that explicitly.
+
+## C4 — The amendment leaves contradictory current-state statements
+
+**Severity:** MATERIAL  
+**Classification:** IN-DELTA
+
+Although these stale sentences are outside added hunks, they become false because this delta registers the profile.
+
+**Locations:**
+
+- LLP 0157 §Scope and authority still says:
+
+  > “this Spec owns the still-required exact reviewed registry/cursor amendment”
+
+- LLP 0110’s later publication-authority section says:
+
+  > “reviewed `snapshot-batch.v2` registration, implementation, and a fresh Fleet witness remain absent.”
+
+The new material in both documents says the registration landed, leaving contradictory authority and gating descriptions.
+
+**Concrete fix:** Update LLP 0157’s scope to say it now owns the completed exact registration while LLP 0135 retains execution ownership. In LLP 0110, remove registration from the outstanding list, leaving implementation, frozen vectors, publication, and the Fleet witness. Perform the same present-tense scan across the four files.
+
+## C5 — The three owner documents omit the new revision from metadata
+
+**Severity:** NIT  
+**Classification:** IN-DELTA
+
+**Location:** `Revised` metadata in LLPs 0080, 0110, and 0135.
+
+Each receives normative 2026-08-06 text, but each header still begins with `2026-08-05`. LLP 0080’s latest header entry additionally says registration is still required.
+
+**Concrete fix:** Prepend a 2026-08-06 revision entry to all three metadata histories, recording the boundary note and preserving the older dated entries as historical state.
+
+## C6 — “Byte-for-byte reuse” overstates the D2–D7 change
+
+**Severity:** NIT  
+**Classification:** IN-DELTA
+
+**Location:** LLP 0157 §D1 dated registration.
+
+> “Every §D2–§D7 record shape is reused byte-for-byte”
+
+The delta extends both `NormalizedCompositePlanV1.profileId` and the closed `CursorProfileIdV1` union. Existing record instances remain byte-compatible, but the closed schemas are not literally unchanged.
+
+**Concrete fix:** Say that D2–D7 field layouts and hash grammars are reused, with only the enumerated profile/cursor registry values added, and that predecessor record bytes remain unchanged.
+
+## C7 — The common-envelope introduction still counts two families
+
+**Severity:** NIT  
+**Classification:** IN-DELTA
+
+**Location:** LLP 0157 §D8, immediately below “Common `sbbc1` / `sbsb1` / `sbsb2` envelope.”
+
+> “Both families use:”
+
+There are now three registered families.
+
+**Concrete fix:** Replace with “All three families use:”.
+
+VERDICT: NOT READY — confidence 0.96
+
+## v0.11 amendment loop, round 2 — 2026-08-06
+
+**Round record (persisted before launch).** Post-revision delta round: the
+orchestrating Fable session applied every round-1 finding from both families
+(all seven MATERIAL, all NITs including the PRE-EXISTING N8 pointer) plus one
+author-authority ruling: the all-relational `snapshot-batch.v2` composite
+keeps LLP 0135 §2.3's unnarrowed two-arm result envelope. Same topology and
+instruction-based (self-attested) blindness as round 1; reviser does not
+review. Revision hashes (sha256):
+0157=aa5c33aadae326fd135e84f0147b9310e81896d440ce07f6808524008ac9c663,
+0135=d4d7b0ac2d3d27419df1ca37d734030a22540b3de9677e3e8940d6c310015853,
+0080=01606da44bea9c06212042a8810d88a2b2fb5e44d89f7dd795c6f9e6e7b0ede7,
+0110=1e713cfe76f98dfcd39f6667690d843efa827aa9c3d4a61d1a980d24eb9e85e8.
+Capsule: scratchpad review-instructions-r2.md (enumerated revision delta) +
+v011-delta-r2.diff (751 lines). Verdict rule unchanged: READY gates on the
+amendment; PRE-EXISTING concerns recorded, not gating.
+
+**Provenance:** Codex CLI `codex exec`, model `gpt-5.6-sol`, reasoning effort xhigh, read-only sandbox, 2026-08-06. Fresh session, mutually blind (instruction-based, self-attested). Verdict binds to the round-2 revision hash vector recorded above. Body verbatim below.
+
+# Round 2 review — LLP 0157 v0.11 amendment
+
+## Blindness attestation
+
+I did not read any `llp/reviews/0157-*` file, other reviewer output, or orchestrator notes. The four supplied file hashes matched the review instructions.
+
+## Overall assessment
+
+The amendment covers LLP 0135’s four authoritative pins and generally preserves the owner boundaries, v1 compatibility, implementation gates, and nonclaims. Two in-delta normative contradictions remain, both in the revised §D8 text.
+
+## Strengths
+
+- The `sbsb2` envelope, ordered plaintext, boundary union, size arithmetic, cross-profile refusal, and vector obligations are substantially exact.
+- Bounded-child and relational resume state remain owner-derived without invented parent groups or embedded standalone cursors.
+- Sealing, `take: 0`, joined-side lookup accounting, all-relational two-arm result shape, and capability acknowledgments are represented in A14.
+- The surrounding LLP 0080/0110/0135 notes avoid claiming implementation, support, frozen vectors, or Fleet qualification.
+
+## Concerns
+
+### R2-01 — MATERIAL — IN-DELTA
+
+**Location:** LLP 0157 §D8, “Sealing,” lines 2079–2090.
+
+**Quote:**
+
+> “the envelope arm set, the authored `resultContractHash`, and therefore `QueryMaterializationKeyV1` never depend on the tuple's class mix.”
+
+This is false under LLP 0157’s own identity rules and contradicts the immediately following sentence. The visible payload contract necessarily varies with the declaration-ordered node classes and projections: bounded-child nodes contribute `{parent, children}`, while relational nodes contribute `RelationalResultEncodingV1` arrays. Consequently, `resultContractHash` changes with that payload. Independently, class mix changes `NodePlanRecordV1`, `NodePlanHashV1`, and `PlanHashV1`; `QueryMaterializationKeyV1` binds both `planHash` and `resultContractHash`.
+
+The fixed ruling only requires that the `absent` arm not be removed when it is statically unreachable. It does not make the complete result contract or QMK class-mix-independent. As written, a generator could incorrectly reuse a result-contract hash or QMK across different tuples.
+
+**Concrete fix:** Replace the claim with wording such as:
+
+> “The two-arm envelope itself is never narrowed based on the tuple’s class mix or the static reachability of `absent`. The authored result contract still includes the exact declaration-ordered visible-node payload, so its `resultContractHash`, `PlanHashV1`, and `QueryMaterializationKeyV1` vary normally with node classes, projections, and order.”
+
+### R2-02 — MATERIAL — IN-DELTA
+
+**Location:** LLP 0157 §D8, “Resume and restart,” lines 2048–2064; reinforced by A14.
+
+**Quotes:**
+
+> “Visibility and sealing precede cursor validation…”
+
+> “`SNAPBACK_SNAPSHOT_BATCH_RESTART_REQUIRED` is returned exactly when … [the credential] carries … a changed bounded-child parent incarnation or `_version`.”
+
+A14 separately requires that a bounded-child parent which “disappears or becomes invisible” seal byte-identically. These rules conflict when an authenticated continuation’s parent becomes invisible through an update that also changes `_version`: sealing precedence requires the `absent` result before cursor validation, while the unqualified “exactly when” rule requires `RESTART_REQUIRED`.
+
+This is externally visible and security-sensitive, not an implementation detail. Rust and JS implementations could choose different outcomes while each following one normative sentence.
+
+**Concrete fix:** Define the two outcomes as the cursor-validation failure partition after the sealing precheck, for example:
+
+> “After all bounded-child parent point-reads and visibility checks succeed, cursor-validation failures have exactly two diagnostics. An authenticated stream/restore-epoch change or a changed incarnation/`_version` on a still-visible bounded-child parent returns `RESTART_REQUIRED`; every other cursor-validation failure returns `CURSOR_INVALID`. A parent that is absent or invisible seals before this partition is reached.”
+
+Then describe successful visible/sealed results as outside the “two diagnostics” partition.
+
+## Recommended next step
+
+Apply the two localized §D8 corrections and mirror the clarified sealing precedence in A14. No owner ruling, admission bound, wire shape, or capability gate needs to change.
+
+VERDICT: NOT READY — confidence: 0.97
+
+## v0.11 amendment loop, round 3 — 2026-08-06
+
+**Round record (persisted before launch).** Delta round after the round-2
+revision, final round within the default budget. The orchestrating Fable
+session applied all six gating round-2 MATERIALs (Codex R2-01/R2-02; Claude
+R2 C1–C4) and the round-2 NITs N1–N9/N11, landed the C5 fan-out copies
+(LLP 0166, guide/capabilities.md, guide/sync/offline-and-retention.md, the
+residue ticket), and recorded Claude R2 N10 as owner residue in the ticket.
+Two further orchestrator rulings under author authority: the v2 relational
+order-field template set is closed to the four v1 template types, and the
+relational per-node examined-entry ceiling is pinned at exactly `take`.
+Same topology and instruction-based (self-attested) blindness; reviser does
+not review. Revision hashes (sha256):
+0157=e8ad954f5ac804a1e4f847aafb15fb43080c4569c401719a81ae5eb152e21425,
+0135=179f9e42f6665dd9356d77d2f9974bf69b78ed33eb763cb6776106b3ccbecd76,
+0080=01606da44bea9c06212042a8810d88a2b2fb5e44d89f7dd795c6f9e6e7b0ede7,
+0110=51cbca17d46ef2143214a8e182465f50e5881c87151e43ef227c13d9bd85782b.
+Capsule: scratchpad review-instructions-r3.md (enumerated round-3 delta) +
+v011-delta-r3.diff (941 lines, now including the fan-out files). Delta-round
+convergence rule in force: the loop converges when no family reports a
+MATERIAL concern in pre-existing text; remaining in-delta fixes get one more
+delta round or the final revision is labeled unreviewed.
+
+**Provenance:** Codex CLI `codex exec`, model `gpt-5.6-sol`, reasoning effort xhigh, read-only sandbox, 2026-08-06. Fresh session, mutually blind (instruction-based, self-attested). Verdict binds to the round-3 revision hash vector recorded above. Body verbatim below.
+
+# LLP 0157 v0.11 amendment — round 3 delta review
+
+## Overall assessment
+
+The amendment is largely coherent and substantially tighter around restart precedence, cursor budgeting, work accounting, sealing, migration, and publication gates. All four pinned SHA-256 hashes match, the secondary fan-out agrees with the primary documents, and `./ref-check --verbose` reports 0 errors.
+
+One unresolved MATERIAL ambiguity remains in the new cross-profile refusal rule. I found no BLOCKING concerns and no MATERIAL PRE-EXISTING concerns.
+
+## Concerns
+
+### R3-C1 — MATERIAL — IN-DELTA
+
+- **Location:** [LLP 0157 §D8](/Users/ccheever/projects/snapback/llp/0157-composition-algebra-and-completeness.spec.md:2091)
+- **Quote:** “Cross-profile refusal is total in both directions … `sbsb2` presented to a standalone node refuses under that node owner's cursor-invalid code … and `sbbc1` and LLP 0080's standalone relational credential each refuse in any batch.”
+- **Concern:** This absolute presentation rule conflicts with the governing sealing precedence. The same section says batch sealing precedes cursor validation, while LLP 0110 states that only a visible parent reaches standalone bounded-child cursor validation ([§1 reconciliation](/Users/ccheever/projects/snapback/llp/0110-bounded-children-and-activity-patterns.spec.md:1134)). Therefore:
+
+  - `sbsb2` presented to a standalone bounded-child node with an absent or invisible parent must return the indistinguishable absent result, not `SNAPBACK_BOUNDED_CHILDREN_CURSOR_INVALID`.
+  - `sbsb2`, `sbbc1`, or a standalone relational credential presented to a batch with an absent or invisible bounded-child parent must seal before the cursor family is examined, not uniformly refuse.
+  - The unqualified “total in both directions” wording permits an implementation that violates the document’s own confidentiality-preserving precheck.
+
+- **Concrete fix:** Scope the rule explicitly: “Once the receiving surface reaches cursor validation, a credential from another family refuses under that surface’s owner code.” Then state that standalone bounded-child and batch sealing prechecks remain authoritative and can prevent cursor validation entirely. Extend §D8’s vectors and A14 with:
+
+  1. visible-parent cross-family cases producing the appropriate owner code; and
+  2. absent/invisible-parent cross-family cases proving sealing wins.
+
+- **Altitude disposition:** Execution and authorization-secrecy semantics. Resolve in the amendment before implementation; this is not merely an implementation detail.
+
+### R3-C2 — NIT — IN-DELTA
+
+- **Location:** [LLP 0157 §D3](/Users/ccheever/projects/snapback/llp/0157-composition-algebra-and-completeness.spec.md:986)
+- **Quote:** “The total cursor-bearing assignment registry is …”
+- **Concern:** The table contains `single-node.v1` / `single_table_v1` → `none.v1`, immediately described as having “no public input or output cursor,” while `mixed-route.v2` is excluded because it has no cursor. The table’s semantics are clear, but “cursor-bearing” describes its contents inaccurately.
+- **Concrete fix:** Rename it the “total cursor-profile assignment registry for plans participating in page/proof identity,” or simply the “total cursor-profile assignment registry,” and retain the explicit `mixed-route.v2` exclusion.
+- **Altitude disposition:** Local terminology only; no protocol change.
+
+### R3-C3 — NIT — IN-DELTA
+
+- **Location:** [LLP 0157 §D8 Budget](/Users/ccheever/projects/snapback/llp/0157-composition-algebra-and-completeness.spec.md:2022), [A14](/Users/ccheever/projects/snapback/llp/0157-composition-algebra-and-completeness.spec.md:2369)
+- **Concern:** A14 tests missing string bounds and out-of-set order types, but does not explicitly require positive coverage for every newly closed admitted type or the pinned 256-byte root-`_id` template. The current minimum vector set could use only strings and leave silent narrowing or sizing drift for IDs, safe integers, and booleans undetected.
+- **Concrete fix:** Require the mixed or maximum-width vector set to exercise bounded strings including JSON escaping, table-scoped IDs and the 256-byte `rowId` ceiling, safe-integer extrema, and both boolean values.
+- **Altitude disposition:** Cross-language conformance coverage. Appropriate to pin now, though the normative admitted set itself is already clear.
+
+## Altitude summary
+
+- **High altitude:** The successor-profile direction remains sound and respects the fixed owner ruling without introducing another algebra-wide axis.
+- **Middle altitude:** Cross-profile routing must be reconciled explicitly with sealing-before-validation.
+- **Low altitude:** Registry terminology and positive budget-vector coverage need small clarifications.
+- **PRE-EXISTING material disposition:** None found.
+- **Confidence:** 0.95
+
+VERDICT: NOT READY
+
+## v0.11 amendment loop, round 4 — 2026-08-06
+
+**Round record (persisted before launch).** Final delta round under the
+LLP 0010 §2 addendum's "remaining in-delta fixes get one more delta round"
+allowance (the default 3-round budget was reached at round 3; launch caps
+are respected at 4 of 6 per family). The orchestrating session applied all
+round-3 findings from both families: Codex R3-C1 (cross-profile refusal
+scoped under each surface's sealing/visibility precheck) and NITs R3-C2/
+R3-C3; Claude R3 C1 (streamEpoch axis + cross-authority-first precedence,
+fix (a), plus the LLP 0110 dated reconciliation discharging the flagged
+pre-existing MATERIAL), C2 (four family template widths pinned; v1
+under-count ticketed as
+issues/20260806-snapshot-batch-template-width-undercount.md), C3
+(examinedEntryCeiling unit), and NITs C4/N1/N2/N3/N5/N7/N8 (N6's guide
+frontmatter pin is deferred to the landing commit by design). Revision
+hashes (sha256):
+0157=e87acca491a84ff3c02f86cbebca805c2ab370999908e3d6f9e8c198009adb8a,
+0135=746159671abc358263b76cd881e45740a7114136eebada291ccbee531abe864a,
+0080=01606da44bea9c06212042a8810d88a2b2fb5e44d89f7dd795c6f9e6e7b0ede7,
+0110=28cfd4af2302c83e05bdf05a3dd08a65f5e1e9b2929c76560f20a789f6e2140f.
+Capsule: scratchpad review-instructions-r4.md + v011-delta-r4.diff (1,024
+lines). Stop rule: after this round, remaining in-delta fixes are applied
+and labeled unreviewed, or the loop escalates; a MATERIAL concern in
+pre-existing text still blocks delta convergence.
+
+**Provenance:** Codex CLI `codex exec`, model `gpt-5.6-sol`, reasoning effort xhigh, read-only sandbox, 2026-08-06. Fresh session, mutually blind (instruction-based, self-attested). Verdict binds to the round-4 revision hash vector recorded above. Body verbatim below.
+
+# Round 4 review — LLP 0157 v0.11 amendment
+
+## Overall assessment
+
+The `snapshot-batch.v2` amendment is substantially coherent. The budget arithmetic, cursor validation partition, sealing precedence, work accounting, and implementation gates are well specified. However, one round-4 reconciliation incorrectly extends the batch-family rotation rule to `sbbc1`, contradicting its shipped behavior and owner text.
+
+Blindness attestation: I did not open or read any `llp/reviews/0157-*` file, reviewer output, or orchestrator notes.
+
+All four primary files matched their pinned SHA-256 values. `./ref-check --verbose` passed with 0 errors.
+
+## Strengths
+
+- The 8,192-byte envelope calculation correctly yields a 6,099-byte plaintext ceiling.
+- The pinned JSON widths are correct: escaped string ceiling `6n + 2`, safe integer 17 characters, and boolean 5 characters.
+- For `sbsb1`/`sbsb2`, the authority digest includes `authorizationStreamIncarnation`, and authority comparison precedes the separate epoch comparison as specified.
+- The §D6 accounting now cleanly separates examined index entries, parent point reads, and joined-side lookups.
+- Cross-profile validation is properly subordinate to each receiving surface’s visibility/sealing prechecks.
+- Capability publication remains gated on implementation, frozen vectors, and target-specific publication authority.
+
+## Concerns
+
+### C1 — MATERIAL · IN-DELTA · `sbbc1` genuine rotations are not necessarily cross-authority failures
+
+Exact new quote from LLP 0110:
+
+> “the authority-partition comparison is evaluated before the stream/restore-epoch comparison, so a genuine rotation (which changes both) collapses to the cursor-invalid class and the epoch-restart outcome is the tamper-only case — the shipped order”
+
+The comparison order is shipped, but the parenthetical and resulting diagnostic claim are not true for `sbbc1`.
+
+The shipped bounded-children path derives its `authorityPartition` as:
+
+> `prepared.authority().resolved().invalidation_subject()`
+
+It checks that field before `streamEpoch`, but an authorization-stream/restore rotation does not necessarily rotate the invalidation subject. Most plainly, anonymous `public-read` uses the stable subject `"anonymous"`. A genuine restore rotation can therefore change only `streamEpoch`, reaching `SNAPBACK_BOUNDED_CHILDREN_PARENT_RESTART_REQUIRED` without tampering.
+
+That matches LLP 0110’s pre-existing protocol statement:
+
+> “Cryptographically valid credentials whose stream/restore epoch, parent incarnation, or parent `_version` changed return `SNAPBACK_BOUNDED_CHILDREN_PARENT_RESTART_REQUIRED`.”
+
+The “both members change” property is valid for `sbsb1`/`sbsb2`, whose `AuthorityPartitionDigestV1` explicitly includes the stream incarnation. It cannot be copied onto the owner-specific `sbbc1` binding while simultaneously claiming that `sbbc1` semantics are unchanged.
+
+Concrete fix: replace the new LLP 0110 wording with an explicitly owner-scoped rule, for example:
+
+> `sbbc1` also compares its owner-specific authority-partition binding before `streamEpoch`; when both mismatch, cursor-invalid wins. A stream-only rotation remains `SNAPBACK_BOUNDED_CHILDREN_PARENT_RESTART_REQUIRED`. LLP 0157’s tamper-only epoch-restart statement applies to `sbsb1`/`sbsb2`, whose full authority digest contains that same epoch.
+
+Also scope LLP 0135’s phrase “the family’s validation precedence” to “the snapshot-batch (`sbsb1`/`sbsb2`) family” to prevent the same overgeneralization.
+
+Altitude disposition: owner-spec boundary reconciliation. This is a localized statement correction; it does not reopen the fixed cross-authority-first choice or require wire/code changes.
+
+### C2 — NIT · IN-DELTA · Runtime-diagnostics lead-in remains inside the dated blockquote
+
+Exact quote from LLP 0135:
+
+> “pattern as the 2026-08-04 addition above. New stable public runtime diagnostics:”
+
+This makes the general diagnostics lead-in part of the 2026-08-06 dated addition, while the diagnostic list itself resumes outside the blockquote.
+
+Concrete fix: end the quote after “addition above.” and restore `New stable public runtime diagnostics:` as its own paragraph.
+
+Altitude disposition: owner-document editorial cleanup; non-gating.
+
+### C3 — NIT · IN-DELTA · A14 calls both restart cases “tamper-only”
+
+Exact quote:
+
+> “the tamper-only restart cases and the genuine-rotation collapse”
+
+Only the epoch-restart case is tamper/inconsistent-mint-only. The other required restart case is a genuine change to a still-visible parent’s incarnation or `_version`.
+
+Concrete fix:
+
+> “the tamper-only epoch restart, the still-visible parent incarnation/`_version` restart, and the genuine stream-rotation collapse”
+
+Altitude disposition: executable-acceptance wording; non-gating because §D8 states the two cases correctly.
+
+## Pre-existing-material audit
+
+No additional MATERIAL concern was found in pre-existing amendment text.
+
+## Recommended next step
+
+Correct C1 in LLP 0110 and narrow the corresponding “family” wording in LLP 0135, then apply the two editorial fixes. No design reconsideration or additional review round appears necessary beyond confirming that delta.
+
+Confidence: high (0.97).
+
+VERDICT: NOT READY
+
+## v0.11 amendment loop close-out — 2026-08-06
+
+The loop ran four rounds: the default three-round budget plus the LLP 0010
+§2 addendum's one further delta round; launch caps (4 of 6 per family) were
+respected. The final family verdicts are the round-4 reviews above and bind
+to the round-4 revision hash vector recorded in that round's record. Both
+round-4 reviews were NOT READY on narrow, convergent findings: the two
+families independently found the same LLP 0110 precedence over-
+generalization (Codex R4 C1 = Claude R4 M1) with near-identical fixes, and
+Claude R4 additionally found the id-order-field template soundness gap (M2,
+resting on LLP 0135 §2.4's pre-existing "id widths are closed" premise and
+the shipped hard-256 substitution) plus two NITs each. No round produced a
+cross-family contradiction, a defective-decision dissent, or a
+fundamental-redesign demand, and finding volume decreased monotonically
+(R1: 7 MATERIAL across families; R2: 6; R3: 3 + 1 shared; R4: 1 shared + 1).
+
+Per the delta-round rule ("remaining in-delta fixes get one more delta
+round or the final revision is labeled unreviewed"), the orchestrating
+session applied every round-4 finding — the owner-scoped LLP 0110/0135
+precedence corrections, the id-typed-order-field `maxEncodedBytes`
+requirement (discharging the flagged pre-existing premise; ticketed
+reconciliation extended in
+`issues/20260806-snapshot-batch-template-width-undercount.md`), the vector
+(c) adjustment, and NITs Codex R4 C2/C3 and Claude R4 N1/N2 — as a
+**closing revision that is unreviewed by either family**. Closing revision
+hashes (sha256):
+0157=cafbb1838efff2ab4412df6632949ea09666faf124b230cbc6145e4c63fa0134,
+0135=0d8edba23ee753d1102f1da15f26f38ae8799b1604c229f961b3277be19350ce,
+0080=01606da44bea9c06212042a8810d88a2b2fb5e44d89f7dd795c6f9e6e7b0ede7,
+0110=e71d634818d9395b2abe0e033656e8296dfffbcd377cee30bf3241d4ac043341.
+The one deliberately deferred landing item is the guide pages'
+`reviewed`/`reviewed-commit` frontmatter pin, applied in the landing
+commit. Open owner residue is ticketed, not silently dropped: LLP 0110
+§1.1's stale `ParentIncarnationV1` spelling
+(`issues/20260804-llp-0166-finish-out-residue.md`) and the v1 budget-
+template reconciliation (`issues/20260806-…-undercount.md`).
+
+**Terminal state:** stop rule reached; convergence was not dual-READY. The
+amendment lands with its closing revision labeled unreviewed under the
+delta-round rule; the document's Accepted status is unchanged (no status
+transition was in this loop's authority). Recommendation to the author:
+treat the four-round record plus the labeled closing revision as the
+review basis for this dated amendment; any residual concern re-enters
+through an ordinary dated amendment. No prior verdict is reclassified.

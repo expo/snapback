@@ -146,6 +146,10 @@ console.log(JSON.stringify({
   assert.equal(manifest.scripts.test, 'node acceptance.mjs');
   assert.equal(manifest.scripts['test:static'], 'node acceptance.static.mjs');
   assert.equal(manifest.scripts['test:live'], manifest.scripts.test);
+  const todoAgentInstructions = readFileSync(join(project, 'AGENTS.md'), 'utf8');
+  assert.match(todoAgentInstructions, /capability index first/u);
+  assert.match(todoAgentInstructions, /snapback guide <query>/u);
+  assert.match(todoAgentInstructions, /snapback mcp/u);
   const generated = await generateApp(join(project, 'snapback'));
   assert.equal(generated.ok, true, JSON.stringify(generated.diagnostics));
   const todoStatic = spawnSync(process.execPath, ['acceptance.static.mjs'], {
@@ -166,6 +170,10 @@ console.log(JSON.stringify({
   assert.equal(reactManifest.scripts.test, 'node acceptance.mjs');
   assert.equal(reactManifest.scripts['test:static'], 'node acceptance.static.mjs');
   assert.equal(reactManifest.scripts['test:live'], reactManifest.scripts.test);
+  const reactAgentInstructions = readFileSync(join(reactProject, 'AGENTS.md'), 'utf8');
+  assert.match(reactAgentInstructions, /capability index first/u);
+  assert.match(reactAgentInstructions, /snapback guide <query>/u);
+  assert.match(reactAgentInstructions, /snapback mcp/u);
   const generatedReact = await generateApp(join(reactProject, 'snapback'));
   assert.equal(generatedReact.ok, true, JSON.stringify(generatedReact.diagnostics));
   assert.equal(

@@ -119,6 +119,20 @@ const CLI_PROJECTIONS = {
   'console.approval.request': 'snapback admin approve',
   'console.approval.poll': 'snapback admin approve',
   'console.approval.approve': 'snapback admin approve',
+  // LLP 0184 Phase 2 P1: read and diagnose.
+  'data.scan': 'snapback data scan <table>',
+  'config.status': 'snapback config status',
+  'config.plan': 'snapback config plan',
+  'config.verify': 'snapback config verify <entry>',
+  'jobs.list': 'snapback jobs list',
+  'jobs.show': 'snapback jobs show <id>',
+  // LLP 0184 §P2 landed CLI verbs, each paired with a mcp-control.mjs
+  // CONTROL_TOOLS entry landed in the same change.
+  'config.unset': 'snapback config unset',
+  'cron.tick': 'snapback cron tick',
+  'cron.runOne': 'snapback cron run',
+  'jobs.drain': 'snapback jobs drain',
+  'connection.disconnect': 'snapback connections disconnect',
 };
 
 const GUIDE_ANCHORS = {
@@ -131,6 +145,12 @@ const GUIDE_ANCHORS = {
   'errors.issues': 'operating/host-ops.md',
   'errors.issue': 'operating/host-ops.md',
   'errors.transition': 'operating/host-ops.md',
+  'data.scan': 'operating/host-ops.md#direct-climcp-projections-beyond-host-ops-llp-0184-phase-2-p1',
+  'jobs.list': 'operating/host-ops.md#direct-climcp-projections-beyond-host-ops-llp-0184-phase-2-p1',
+  'jobs.show': 'operating/host-ops.md#direct-climcp-projections-beyond-host-ops-llp-0184-phase-2-p1',
+  'config.status': 'operating/secrets-and-config.md#cli-and-mcp-projections-for-statusplanverify',
+  'config.plan': 'operating/secrets-and-config.md#cli-and-mcp-projections-for-statusplanverify',
+  'config.verify': 'operating/secrets-and-config.md#cli-and-mcp-projections-for-statusplanverify',
 };
 
 // --- Build domain fact index -------------------------------------------
@@ -455,13 +475,24 @@ for (const route of registryExport.routes) {
   }
   const operationName = deriveOperationName(route.method, route.path);
   const cli = CLI_PROJECTIONS[operationName] ?? null;
+  // @ref LLP 0184#p1-read-and-diagnose — data.scan/config.*/jobs.* land
+  // direct control-MCP tools in this phase; without this lookup the generic
+  // SystemApi loop (unlike the host-ops loop above) never noticed a tool
+  // existed and left surfaceAccess/projections.mcp permanently stale at
+  // cliOnly/null.
+  const tool = controlToolsByOperation.get(operationName);
+  let surfaceAccess;
+  if (tool && cli) surfaceAccess = 'native';
+  else if (tool && !cli) surfaceAccess = 'mcpOnly';
+  else if (!tool && cli) surfaceAccess = 'cliOnly';
+  else surfaceAccess = 'apiOnly';
   const entry = {
     operation: operationName,
-    title: operationName,
+    title: tool?.title ?? operationName,
     intents: [],
     status: 'shipped',
     domain: 'systemApi',
-    surfaceAccess: cli ? 'cliOnly' : 'apiOnly',
+    surfaceAccess,
     operability: 'unavailable',
     unavailableReason: DEFAULT_UNCLASSIFIED_REASON,
     availability: { targets: ['local', 'derived-hosted'] },
@@ -471,17 +502,21 @@ for (const route of registryExport.routes) {
       effect: route.effectPolicy,
       responseSensitivity: route.responseSensitivity,
     },
+    // @ref LLP 0184#3-completeness-and-parity-rules — rule 8 (destructive
+    // rows require approvalPosture) only has teeth if `destructive` is ever
+    // true here. A tool's own annotations are the authored, checked-in fact
+    // when one exists; the method-based guess is the apiOnly-only fallback.
     behavior: {
-      readOnly: route.method === 'GET',
-      destructive: false,
-      approvalPosture: null,
-      idempotent: route.method === 'GET',
-      openWorld: false,
+      readOnly: tool ? (tool.annotations?.readOnlyHint ?? false) : route.method === 'GET',
+      destructive: tool ? (tool.annotations?.destructiveHint ?? false) : false,
+      approvalPosture: tool?.annotations?.destructiveHint ? 'confirmFirst' : null,
+      idempotent: tool ? (tool.annotations?.idempotentHint ?? false) : route.method === 'GET',
+      openWorld: tool?.annotations?.openWorldHint ?? false,
       persistsAcrossRestart: route.method !== 'GET',
     },
     projections: {
       cli,
-      mcp: null,
+      mcp: tool?.name ?? null,
       hostOps: null,
       http: `${route.method} ${route.path}`,
       adminClient: null,
@@ -492,6 +527,7 @@ for (const route of registryExport.routes) {
     sources: ['src/server.rs route_registry()'],
   };
   if (entry.surfaceAccess === 'cliOnly') entry.mcpDeferralReason = 'Not yet classified.';
+  if (entry.surfaceAccess === 'mcpOnly') entry.cliDeferralReason = 'Not yet classified.';
   applyOverride(entry, overrides[operationName]);
   if (entry.surfaceAccess === 'cliOnly' && !entry.mcpDeferralReason) entry.mcpDeferralReason = 'Not yet classified.';
   if (entry.surfaceAccess === 'mcpOnly' && !entry.cliDeferralReason) entry.cliDeferralReason = 'Not yet classified.';

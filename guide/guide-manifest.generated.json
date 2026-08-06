@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "05306b9908e150faa5bd271bf1110bcf0695ee24"
+    "commit": "41f47b0887e20a8e786ea936864f58596dd574b6"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -1485,7 +1485,7 @@
       "examples": [],
       "reviewed": "2026-08-06",
       "reviewedCommit": "850427c31b9a668d55b46995e08389cd13a2c9b6",
-      "sha256": "2e19804e7ad3ac2bd585220e101de8298459264345bc218354d00615b2180e4e",
+      "sha256": "c230330794b08bf43cb57fce95fee97c8c305aa7aa09907f08f7bf33856d1b33",
       "snippets": []
     },
     "clients.app-cli": {
@@ -2333,7 +2333,7 @@
       ],
       "reviewed": "2026-08-06",
       "reviewedCommit": "acbb7b922a060788fd09f3f98211eb9ce35f23f4",
-      "sha256": "2c94754760c79b52d3cde59e2a4ab281df8debcbada940a666e95a12dcab31d2",
+      "sha256": "ba11d412263d478261fd144f357207477d28ac97995772e8b710fe4736bd95e1",
       "snippets": [
         {
           "lang": "json",
@@ -2467,7 +2467,7 @@
       ],
       "reviewed": "2026-08-03",
       "reviewedCommit": "6e5d69d1037c6042fb9338221dfb489e00f5f78a",
-      "sha256": "2ced65efc45a6223b3623ff4540591ee6c7e335de9692388a4dd804226b008a9",
+      "sha256": "9417e04cc8246623bc3a3d6e2d1969c5e8b131ebcf61ae9726f46c7c6e47ec9c",
       "snippets": [
         {
           "lang": "js",
@@ -2940,9 +2940,9 @@
         "packages/snapback-contract/agent-authority-contract.test.mjs",
         "packages/snapback-react/offline.test.mjs"
       ],
-      "reviewed": "2026-08-05",
-      "reviewedCommit": "HEAD",
-      "sha256": "8fe5f0ae2b8af693d44cd055129a6514060e60661d801373a7387bfad08502be",
+      "reviewed": "2026-08-06",
+      "reviewedCommit": "711e4d763d87cadf0c638bd15ed33a85427e4f11",
+      "sha256": "fde971949340552da32f8e05c9a0628c1b999f33f59748ce740994cc738a5287",
       "snippets": [
         {
           "lang": "js",
@@ -3185,5 +3185,5 @@
     "routes": 117,
     "hostOps": 37
   },
-  "contentHash": "b2de62dedf8c0addb06890b74a4efb658d063ad1671982f064e4f77e65435b2e"
+  "contentHash": "e7f73abea6c6eb8eb63880ed4828c76f668a06de3ef0aa95826f921e5d8f5e4f"
 }

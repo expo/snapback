@@ -35,6 +35,8 @@ export type SnapbackAppDataSurface = Pick<
   | 'markMutationSettlementsConsumed'
   | 'acknowledgeMutations'
   | 'replayQueuedMutations'
+  | 'quarantinedMutations'
+  | 'reenterQuarantinedMutations'
   | 'outboxStatus'
   | 'liveQuery'
   | 'startLiveQuery'
