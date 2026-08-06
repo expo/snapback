@@ -394,6 +394,20 @@ custody accounting, cleanup, and redacted diagnostics. It rejects secrets,
 bearers, credential material, unsafe absolute cleanup targets, and zero-check
 attempts. Remediation increments the attempt; it never edits `v1`.
 
+### Lane F live status — ZB0 PASS (2026-08-06); ZB1–ZB7 pending
+
+`tests/acceptance/receipt.mjs` (immutable writer with secret/zero-check/
+unsafe-cleanup refusal), `tests/acceptance/zbgate.mjs` (non-vacuous gate
+runner), and `tests/acceptance/gates/zb0.mjs` are implemented. The
+supervising session's ZB0 run passed 9/9 (source pin coverage, frozen
+10/22/19/16/9/8 accounting, generated schema/query/mutation/route/effect
+accounting, static source inventory, populated workaround register,
+generated release identities, zero-check refusal self-test) and wrote
+`demos/zerobugs/evidence/snapback-control.zb0.v1.json` (mode 0444; a rerun
+refuses the existing path — remediation sets `ZBUGS_ATTEMPT`). Gates
+ZB1–ZB7 are not yet implemented; sequencing row 7 remains open until every
+gate has an honest receipt.
+
 ## Workaround and component register (predeclared)
 
 Rows not yet used retain `TBD-before-use`. Each implementing job must replace
