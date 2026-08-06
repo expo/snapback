@@ -1,0 +1,181 @@
+{
+  "schemaVersion": "zerobugs-fixture-digests.v1",
+  "fixtureId": "normal-seed-v1",
+  "extensionId": "policy-extension-v1",
+  "seedVersion": "normal-seed-v1.policy-extension-v1",
+  "generationInstant": "2026-08-05T00:00:00.000Z",
+  "manifestId": "zerobugs-acceptance.v1",
+  "manifestDigests": {
+    "markdown": "sha256:1962d69618a94172a9e07eb36e4334c7d2bfb8c6614bad1588ac075b24c2ce31",
+    "json": "sha256:3eb0280a5803da887cea371193f62ff372ac537efa24e7cd53b150afe0d1fc2c"
+  },
+  "sourceInputs": {
+    "user.csv": "sha256:b446837bb0062cb0d3b2844349e35b055c02826f99311f7fa7a444cf1a7ea341",
+    "project.csv": "sha256:40d6bfdc74eae2ed68a97137ce414fa4ca6de1b3831cfd9a73c4622d8a8942c1",
+    "issue.csv": "sha256:96f6e11ae6c822bcb0045768168360beaba3a9cccc29f1e678446a05c4bd6277",
+    "comment.csv": "sha256:1e0561faaf725008269c4045160c834c32f565499b6e4fbebfe654761bd1bbda",
+    "label.csv": "sha256:beb01f84be6655ba16b7c19e0a4ecf71f8ec2eed1d0f5ce07611bdcdaea988f0",
+    "issueLabel.csv": "sha256:2136875760771825f55e5c660127477cb3b7939f6fe1b1bee53f11195bf9df3e"
+  },
+  "actorBindings": {
+    "ordinary-user": {
+      "role": "user",
+      "sourceUserID": "9Fw3n6EQS8mzE126AFJxb",
+      "userID": "user_f57940f9cf974984ee36c7b2"
+    },
+    "creator": {
+      "role": "user",
+      "sourceUserID": "FPEhfZQwiEMgpk3WnEY72",
+      "userID": "user_b8222266f94aa6b36a6b5999"
+    },
+    "assignee": {
+      "role": "user",
+      "sourceUserID": "_4MJeHV4T-qZb52fyNwQ9",
+      "userID": "user_47a7fdef09689e6736359a9c"
+    },
+    "crew-admin": {
+      "role": "crew",
+      "sourceUserID": "2wKdbVVF7qtnn5bx92sr9",
+      "userID": "user_804808a3aa5ef7440e34bd42"
+    },
+    "removed-member": {
+      "role": "crew",
+      "sourceUserID": "Gg4MskWt3M-ttzzlrJ9jn",
+      "userID": "user_37617f38bd751da58ed19276"
+    }
+  },
+  "ordinaryBase": {
+    "counts": {
+      "user": 14,
+      "projectCsv": 0,
+      "migrationProject": 1,
+      "issue": 516,
+      "viewState": 0,
+      "comment": 924,
+      "label": 30,
+      "issueLabel": 603,
+      "emoji": 0,
+      "userPref": 0,
+      "issueNotifications": 0
+    },
+    "actorDistribution": {
+      "crew": 7,
+      "user": 7
+    },
+    "issueDistribution": {
+      "public": 516,
+      "internal": 0,
+      "open": 155,
+      "closed": 361,
+      "sourceProjectID": "iCNlS2qEpzYWEes1RTf-D"
+    }
+  },
+  "policyExtensionCounts": {
+    "issue": 1,
+    "viewState": 5,
+    "comment": 1,
+    "emoji": 2,
+    "userPref": 5,
+    "issueNotifications": 5
+  },
+  "sourceCounts": {
+    "user": 14,
+    "project": 1,
+    "issue": 517,
+    "viewState": 5,
+    "comment": 925,
+    "label": 30,
+    "issueLabel": 603,
+    "emoji": 2,
+    "userPref": 5,
+    "issueNotifications": 5
+  },
+  "supportCounts": {
+    "identityBinding": 0,
+    "projectUserRead": 12,
+    "issueListRead": 517,
+    "issueLabelRead": 603,
+    "issueSearchDocument": 517,
+    "searchEpoch": 2
+  },
+  "tables": {
+    "user": {
+      "rowCount": 14,
+      "contentDigest": "sha256:a86b509dd559c8b564651b1b5a5e6f5899a18b465006c8e56fbfdbbc93002bff"
+    },
+    "project": {
+      "rowCount": 1,
+      "contentDigest": "sha256:a688c84ff2c66208a4ef66a454a193c9142035763559b4d85c2b9baf77ca27a3"
+    },
+    "issue": {
+      "rowCount": 517,
+      "contentDigest": "sha256:2f1d3212f20f4930738b64c192e41a421e60c7dba5b129a44fb25c1ab806ac3e"
+    },
+    "viewState": {
+      "rowCount": 5,
+      "contentDigest": "sha256:7e7cc03bb55a1ee431882674c06e4f5c46a5b03ab502a7aeea882df5d169024e"
+    },
+    "comment": {
+      "rowCount": 925,
+      "contentDigest": "sha256:441a5ccbc0ab78909e15a37c77f3291a43931e09aaab7fcc58e3ddd314b77402"
+    },
+    "label": {
+      "rowCount": 30,
+      "contentDigest": "sha256:45b83dbc6e3382b05f0c9dfcea64ed020e4a78619c267441cb6c833c988d9a2b"
+    },
+    "issueLabel": {
+      "rowCount": 603,
+      "contentDigest": "sha256:f11c2bff73b7dddedbef75351f3982d4257e57d91226f0f9b1715488d916131c"
+    },
+    "emoji": {
+      "rowCount": 2,
+      "contentDigest": "sha256:77893e0652d087e15864e29af523b10ccae925ef7ac8265b46c8dc0877ab4dca"
+    },
+    "userPref": {
+      "rowCount": 5,
+      "contentDigest": "sha256:76c029477b2cd6ac65a7b3a5ff12c5455add459ce4a18eee8d38841a50225361"
+    },
+    "issueNotifications": {
+      "rowCount": 5,
+      "contentDigest": "sha256:779cc0185c67df3b1b0341cafe3ae552f0bc6ba95b61bb84ca4b7acc2f993343"
+    },
+    "identityBinding": {
+      "rowCount": 0,
+      "contentDigest": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "projectUserRead": {
+      "rowCount": 12,
+      "contentDigest": "sha256:c5a813a607f58f77c3b483711aa085031f179397cdedb5ba76d4eb73649af7e4"
+    },
+    "issueListRead": {
+      "rowCount": 517,
+      "contentDigest": "sha256:5b76d1349931235592de436d3b31b3330b4553e28a459e27ab8978cd773be3f0"
+    },
+    "issueLabelRead": {
+      "rowCount": 603,
+      "contentDigest": "sha256:73f96b5667f2cd835f78b08533382ff9ebccfc618246e3fdec91870a5b19bd1c"
+    },
+    "issueSearchDocument": {
+      "rowCount": 517,
+      "contentDigest": "sha256:8680aa3b4b8d9722b5e182f3d3d818db69487f4541f5aea71f4cea9fa9b0aae1"
+    },
+    "searchEpoch": {
+      "rowCount": 2,
+      "contentDigest": "sha256:8d984e795661ed6d93c8a2ac56cb340409a87723cd34a71d15d386a1932156d8"
+    }
+  },
+  "readModelRebuild": {
+    "algorithm": "sha256-canonical-json-v1",
+    "tableDigests": {
+      "projectUserRead": "sha256:c5a813a607f58f77c3b483711aa085031f179397cdedb5ba76d4eb73649af7e4",
+      "issueListRead": "sha256:5b76d1349931235592de436d3b31b3330b4553e28a459e27ab8978cd773be3f0",
+      "issueLabelRead": "sha256:73f96b5667f2cd835f78b08533382ff9ebccfc618246e3fdec91870a5b19bd1c",
+      "issueSearchDocument": "sha256:8680aa3b4b8d9722b5e182f3d3d818db69487f4541f5aea71f4cea9fa9b0aae1"
+    },
+    "rebuildDigest": "sha256:c43287c46d0188499aad41f52aaafd6e1f3ec63a651be75bc7b6d09f8a52010d"
+  },
+  "overall": {
+    "rowCount": 3758,
+    "contentDigest": "sha256:be2eb1f31fe95e0a5c46a5230d98b18d762449e330691cb73e33d578fec276bd"
+  }
+}

@@ -1296,7 +1296,7 @@
     }
     return "unclassified";
   }
-  function __snapbackJsonReplacer(_key, value) {
+  function __snapbackFailureJsonReplacer(_key, value) {
     return typeof value === "string" ? __snapbackSafeString(value) : value;
   }
   // Single-sourced settlement wrapper (LLP 0048): both engines resolve an
@@ -1309,7 +1309,10 @@
       var value = await observeHarnessPromise(
         snapbackInvoke(name, argsJson, authJson, mode, runJson, secretsJson, epoch, hostCall)
       );
-      var encodedValue = trustedJsonStringify(value === undefined ? null : value, __snapbackJsonReplacer);
+      // @ref LLP 0108#result-contract-vocabulary — successful results cross
+      // this engine-neutral JSON boundary at full fidelity; the host-side
+      // validator owns the declared 1 MiB-per-string and 4 MiB-result ceilings.
+      var encodedValue = trustedJsonStringify(value === undefined ? null : value);
       if (encodedValue === undefined) {
         var resultError = new TrustedError("handler returned a value that is not JSON-serializable");
         try { trustedDefineProperty(resultError, "__snapbackCode", { value: "SNAPBACK_HANDLER_RESULT_INVALID" }); } catch (_) { resultError.__snapbackCode = "SNAPBACK_HANDLER_RESULT_INVALID"; }
@@ -1336,7 +1339,7 @@
       } catch (_) {}
       var errorClass = __snapbackValidatedErrorClass(error);
       var encodedCarrier = ',"errorClass":' + trustedJsonStringify(errorClass) +
-        ',"stack":' + trustedJsonStringify(stackRecord.value, __snapbackJsonReplacer) +
+        ',"stack":' + trustedJsonStringify(stackRecord.value, __snapbackFailureJsonReplacer) +
         ',"messageExtractionTruncated":' + (messageRecord.truncated ? 'true' : 'false') +
         ',"stackExtractionTruncated":' + (stackRecord.truncated ? 'true' : 'false');
       // A declared application refusal carries its claimed app code and JSON
@@ -1349,12 +1352,12 @@
       if (code === "SNAPBACK_APP_REFUSAL" && typeof appCode === "string") {
         var encodedDetails = trustedJsonStringify(
           appDetails === undefined ? null : appDetails,
-          __snapbackJsonReplacer
+          __snapbackFailureJsonReplacer
         );
         if (encodedDetails === undefined) encodedDetails = "null";
         return '{"r":{"__snapbackOk":false,"code":' +
           trustedJsonStringify(code) + ',"message":' +
-          trustedJsonStringify(messageRecord.value, __snapbackJsonReplacer) + encodedCarrier + ',"appCode":' +
+          trustedJsonStringify(messageRecord.value, __snapbackFailureJsonReplacer) + encodedCarrier + ',"appCode":' +
           trustedJsonStringify(appCode) + ',"appDetails":' +
           encodedDetails + '}}';
       }
@@ -1364,7 +1367,7 @@
       // handler failure into a forged success.
       return '{"r":{"__snapbackOk":false,"code":' +
         trustedJsonStringify(code) + ',"message":' +
-        trustedJsonStringify(messageRecord.value, __snapbackJsonReplacer) + encodedCarrier + '}}';
+        trustedJsonStringify(messageRecord.value, __snapbackFailureJsonReplacer) + encodedCarrier + '}}';
     }
   };
   installTrustedFunction("__snapbackInvoke", snapbackInvoke);

@@ -171,6 +171,72 @@ function publicReference(
 }
 
 function normalizedManifest(input) {
+  // @ref LLP 0179#appbinding-seam — AppDescriptor is now the stable client
+  // input. Preserve the older manifest carrier, but project descriptor
+  // references into this owner's existing admission machinery rather than
+  // asking the Expo package to recreate a React binding implementation.
+  if (input?.format === 'snapback.app.v1') {
+    const descriptor = input;
+    const identity = descriptor.identity;
+    const api = descriptor.api;
+    const definitions = [
+      ...Object.values(api?.queries ?? {}),
+      ...Object.values(api?.mutations ?? {}),
+    ];
+    if (
+      !identity
+      || typeof identity.app !== 'string'
+      || typeof identity.schema !== 'string'
+      || typeof identity.functions !== 'string'
+      || typeof identity.descriptor !== 'string'
+      || !api
+      || !descriptor.capabilities
+      || !Array.isArray(descriptor.capabilities.required)
+      || definitions.some((reference) => (
+        !reference
+        || reference.artifactKind !== 'functionReference'
+        || reference.appId !== identity.app
+        || !['Query', 'LiveQuery', 'Mutation'].includes(reference.kind)
+        || reference.expectedGeneration?.appId !== identity.app
+        || reference.expectedGeneration?.schemaHash !== identity.schema
+        || reference.expectedGeneration?.bundleHash !== identity.functions
+      ))
+    ) {
+      throw diagnosticError(
+        'SNAPBACK_REACT_MANIFEST_INVALID',
+        'prepareReactBinding requires a complete snapback.app.v1 descriptor',
+      );
+    }
+    const names = new Set();
+    const ids = new Set();
+    for (const reference of definitions) {
+      if (names.has(reference.name) || ids.has(reference.id)) {
+        throw diagnosticError(
+          'SNAPBACK_REACT_MANIFEST_INVALID',
+          'AppDescriptor repeats a function name or id',
+          { functionId: reference.id, function: reference.name },
+        );
+      }
+      names.add(reference.name);
+      ids.add(reference.id);
+    }
+    const first = definitions[0] ?? null;
+    return Object.freeze({
+      descriptorMode: true,
+      descriptor,
+      functions: Object.freeze({
+        artifactKind: 'functionManifest',
+        schemaVersion: first?.schemaVersion ?? null,
+        appId: identity.app,
+        bundleHash: identity.functions,
+        inputsHash: first?.expectedGeneration?.inputsHash ?? null,
+        functions: Object.freeze(definitions),
+      }),
+      schema: null,
+      capabilityManifest: null,
+      routes: null,
+    });
+  }
   const functions = input?.artifactKind === 'functionManifest'
     ? input
     : input?.functions;
@@ -187,6 +253,8 @@ function normalizedManifest(input) {
     );
   }
   return Object.freeze({
+    descriptorMode: false,
+    descriptor: null,
     functions,
     schema: input?.artifactKind === 'functionManifest'
       ? null
@@ -462,6 +530,11 @@ async function prepareReactBindingOnce(
     ]);
   } catch (error) {
     if (!allowPersistedReceipt) throw error;
+    // The portable descriptor intentionally omits server-owned function
+    // interiors. Its online admission can use the authenticated deployment
+    // view for RQS/policy facts, but the legacy receipt does not retain that
+    // view. Do not manufacture it from the public references on cold boot.
+    if (generated.descriptorMode) throw error;
     const adopted = await adoptPersistedBindingReceipt(client, generated, error);
     if (!adopted) throw error;
     ({ inspection, session, receiptFacts } = adopted);
@@ -500,6 +573,18 @@ async function prepareReactBindingOnce(
       },
     );
   }
+  if (
+    generated.descriptorMode
+    && inspection.schema?.schemaHash !== generated.descriptor.identity.schema
+  ) {
+    throw bindingMismatch(
+      'AppDescriptor schema identity does not match the connected deployment',
+      {
+        expectedSchemaHash: generated.descriptor.identity.schema,
+        actualSchemaHash: inspection.schema?.schemaHash ?? null,
+      },
+    );
+  }
   const deployedFunctions = new Map(
     (deployed.functions ?? []).map((definition) => [definition.id, definition]),
   );
@@ -516,7 +601,8 @@ async function prepareReactBindingOnce(
   // references canonically and fail-closed, so a carrier-grammar stamp here
   // would reject every generated `api.ephemeral.*` reference (0137 A2 f2).
   const referenceSchemaVersion = generated.capabilityManifest?.schemaVersion
-    ?? generated.functions.schemaVersion;
+    ?? generated.functions.schemaVersion
+    ?? deployed.schemaVersion;
   const expectedGeneration = generated.schema?.schemaHash
     && generated.functions.inputsHash
     ? Object.freeze({
@@ -532,14 +618,17 @@ async function prepareReactBindingOnce(
       definition,
       generated.functions.appId,
       referenceSchemaVersion,
-      expectedGeneration,
+      generated.descriptorMode
+        ? definition.expectedGeneration ?? null
+        : expectedGeneration,
     );
     const actual = deployedFunctions.get(reference.id);
     if (
       !actual
       || exactDeploymentFunction(actual) !== exactDeploymentFunction(reference)
-      || (actual.authorityIndependent === true)
-        !== (definition.authorityIndependent === true)
+      || (!generated.descriptorMode
+        && (actual.authorityIndependent === true)
+          !== (definition.authorityIndependent === true))
     ) {
       throw bindingMismatch(
         `generated reference ${reference.name} does not match the connected deployment`,
@@ -554,10 +643,13 @@ async function prepareReactBindingOnce(
     }
     references[reference.name] = reference;
     referencesById.set(reference.id, reference);
-    queryArtifactsById.set(reference.id, queryArtifactHash(definition));
+    queryArtifactsById.set(
+      reference.id,
+      queryArtifactHash(generated.descriptorMode ? actual : definition),
+    );
     authorityIndependentById.set(
       reference.id,
-      definition.authorityIndependent === true,
+      (generated.descriptorMode ? actual : definition).authorityIndependent === true,
     );
     const descriptor = deepFreeze(
       structuredClone(definition.resultContract ?? { kind: 'unknown' }),
@@ -590,7 +682,88 @@ async function prepareReactBindingOnce(
   }
   const ephemeralReferences = Object.create(null);
   const ephemeralDefinitionsById = new Map();
-  if (generated.schema !== null) {
+  if (generated.descriptorMode) {
+    const deployedCollections = new Map(
+      (inspection.schema?.ephemeralCollections ?? []).map((definition) => [
+        definition.name,
+        definition,
+      ]),
+    );
+    for (const [name, carried] of Object.entries(generated.descriptor.api.ephemeral ?? {})) {
+      const deployedDefinition = deployedCollections.get(name);
+      const expectedSubset = carried && typeof carried === 'object'
+        ? {
+            name: carried.name,
+            scopeFields: carried.scopeFields,
+            scopeContract: carried.scopeContract,
+            valueContract: carried.valueContract,
+            keyMode: carried.keyMode,
+            routingFields: carried.routingFields,
+            defaultTtlMs: carried.defaultTtlMs,
+            maxTtlMs: carried.maxTtlMs,
+            maxValueBytes: carried.maxValueBytes,
+            sustainedHz: carried.publishRate?.sustainedHz,
+            burst: carried.publishRate?.burst,
+          }
+        : null;
+      const deployedSubset = deployedDefinition
+        ? Object.fromEntries(Object.keys(expectedSubset ?? {}).map((key) => [
+            key,
+            deployedDefinition[key],
+          ]))
+        : null;
+      if (
+        !carried
+        || carried.artifactKind !== 'ephemeralCollectionReference'
+        || carried.appId !== generated.functions.appId
+        || carried.name !== name
+        || !deployedDefinition
+        || canonicalizeClientValueV1(deployedSubset)
+          !== canonicalizeClientValueV1(expectedSubset)
+      ) {
+        throw bindingMismatch(
+          `AppDescriptor ephemeral collection ${name} does not match the connected deployment`,
+          { collection: name },
+        );
+      }
+      const reference = deepFreeze(structuredClone(carried));
+      let scopeValidator;
+      let valueValidator;
+      try {
+        scopeValidator = compileResultContractValidator({
+          kind: 'value',
+          value: reference.scopeContract,
+        });
+        valueValidator = compileResultContractValidator({
+          kind: 'value',
+          value: reference.valueContract,
+        });
+      } catch (error) {
+        throw diagnosticError(
+          'SNAPBACK_REACT_MANIFEST_INVALID',
+          `AppDescriptor ephemeral collection ${name} has an invalid scope or value contract`,
+          { collection: name, cause: error?.code ?? String(error) },
+        );
+      }
+      ephemeralReferences[name] = reference;
+      ephemeralDefinitionsById.set(reference.id, Object.freeze({
+        reference,
+        definition: deepFreeze(structuredClone(deployedDefinition)),
+        staticPolicyDigest: await sha256Canonical(deployedDefinition),
+        scopeValidator,
+        valueValidator,
+      }));
+    }
+    if (deployedCollections.size !== Object.keys(ephemeralReferences).length) {
+      throw bindingMismatch(
+        'AppDescriptor ephemeral collection set does not match the connected deployment',
+        {
+          expectedCollections: Object.keys(ephemeralReferences).sort(),
+          actualCollections: [...deployedCollections.keys()].sort(),
+        },
+      );
+    }
+  } else if (generated.schema !== null) {
     if (
       generated.schema?.artifactKind !== 'schemaManifest'
       || generated.schema.appId !== generated.functions.appId
@@ -673,8 +846,50 @@ async function prepareReactBindingOnce(
   }
   const queryGroups = Object.create(null);
   const queryGroupsById = new Map();
-  let routeManifestHash = 'absent';
-  if (generated.routes !== null) {
+  let routeManifestHash = generated.descriptorMode
+    ? `descriptor:${generated.descriptor.identity.descriptor}`
+    : 'absent';
+  if (generated.descriptorMode) {
+    for (const [route, carried] of Object.entries(
+      generated.descriptor.api.queryGroups ?? {},
+    )) {
+      if (
+        !carried
+        || carried.artifactKind !== 'queryGroupReference'
+        || carried.appId !== generated.functions.appId
+        || carried.route !== route
+        || ![1, 2].includes(carried.formatVersion)
+        || !Array.isArray(carried.queries)
+        || carried.queries.length < 1
+        || carried.queries.length > 32
+      ) {
+        throw diagnosticError(
+          'SNAPBACK_REACT_MANIFEST_INVALID',
+          'AppDescriptor contains an invalid query-group reference',
+          { route },
+        );
+      }
+      for (const query of carried.queries) {
+        const admitted = referencesById.get(query?.ref?.id);
+        if (
+          !admitted
+          || exactDeploymentFunction(admitted) !== exactDeploymentFunction(query.ref)
+          || (carried.formatVersion === 1 && admitted.kind !== 'LiveQuery')
+          || (carried.formatVersion === 2
+            && !['Query', 'LiveQuery'].includes(admitted.kind))
+        ) {
+          throw diagnosticError(
+            'SNAPBACK_REACT_MANIFEST_INVALID',
+            'AppDescriptor query group contains an unadmitted child reference',
+            { route, functionId: query?.ref?.id ?? null },
+          );
+        }
+      }
+      const reference = deepFreeze(structuredClone(carried));
+      queryGroups[route] = reference;
+      queryGroupsById.set(reference.id, reference);
+    }
+  } else if (generated.routes !== null) {
     if (
       generated.routes?.formatVersion !== 1
       || generated.routes.app !== generated.functions.appId

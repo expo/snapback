@@ -3761,12 +3761,10 @@ struct LocalIbexActionHost<'a> {
 
 impl IbexActionHost for LocalIbexActionHost<'_> {
     fn validate_host_call(&mut self, op: &str) -> SnapbackResult<()> {
-        if let Some(family) = crate::instance_fork::EgressFamily::for_derived_host_op(op) {
-            // The pointer provenance is the same one used by every synchronous
-            // host callback below; no borrow escapes this call.
-            unsafe {
-                (&*self.snapback).deny_derived_fork_egress(family, now_millis())?;
-            }
+        // The pointer provenance is the same one used by every synchronous
+        // host callback below; no borrow escapes this call.
+        unsafe {
+            (&*self.snapback).deny_derived_fork_host_op(op, now_millis())?;
         }
         // In-process action invocation retains the instance borrow for the
         // whole run, so no schema/function/reset drift can interleave.
@@ -4009,6 +4007,22 @@ impl LocalSnapback {
         &self,
     ) -> Option<&crate::instance_fork::DerivedForkLineageV1> {
         self.db.derived_fork().map(|runtime| &runtime.lineage)
+    }
+
+    /// The one host-op egress gate both action hosts share: classify the op
+    /// and, on a derived fork, refuse with the exact op named in the
+    /// diagnostic — an unclassified future op fails closed with enough
+    /// context to act on (LLP 0185 Phase 3 item 4).
+    pub(crate) fn deny_derived_fork_host_op(&self, op: &str, now_ms: u64) -> SnapbackResult<()> {
+        if let Some(family) = crate::instance_fork::EgressFamily::for_derived_host_op(op)
+            && let Err(mut error) = self.deny_derived_fork_egress(family, now_ms)
+        {
+            if let Some(details) = error.diagnostic.details.as_object_mut() {
+                details.insert("hostOp".to_owned(), serde_json::Value::from(op));
+            }
+            return Err(error);
+        }
+        Ok(())
     }
 
     pub(crate) fn deny_derived_fork_egress(

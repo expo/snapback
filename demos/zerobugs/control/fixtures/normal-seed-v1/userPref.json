@@ -1,0 +1,32 @@
+[
+  {
+    "_id": "userPref_4bd67d0ddb0136237b12346c",
+    "key": "zerobugs-acceptance.v1",
+    "userID": "user_47a7fdef09689e6736359a9c",
+    "value": "ca08110cc17d4d6b87085665e50498ae"
+  },
+  {
+    "_id": "userPref_539f63c5befc9dfb26e5fac8",
+    "key": "zerobugs-acceptance.v1",
+    "userID": "user_37617f38bd751da58ed19276",
+    "value": "b4f13975cc2b20232851658e85ca4fab"
+  },
+  {
+    "_id": "userPref_8ae9909fd34c416fc889979d",
+    "key": "zerobugs-acceptance.v1",
+    "userID": "user_f57940f9cf974984ee36c7b2",
+    "value": "ba85b3abf4bb7d8db6713ad84c710c99"
+  },
+  {
+    "_id": "userPref_9e03fffbdf162774c3b8fd73",
+    "key": "zerobugs-acceptance.v1",
+    "userID": "user_b8222266f94aa6b36a6b5999",
+    "value": "af6b9ecc4cc26ac893f18d1be312a033"
+  },
+  {
+    "_id": "userPref_a8d8d19e2a389887c15bc9d2",
+    "key": "zerobugs-acceptance.v1",
+    "userID": "user_804808a3aa5ef7440e34bd42",
+    "value": "524c317d10e123efa3544aab061e5186"
+  }
+]

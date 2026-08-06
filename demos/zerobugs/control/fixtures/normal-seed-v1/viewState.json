@@ -1,0 +1,32 @@
+[
+  {
+    "_id": "viewState_08f8bc04278ee36773db76be",
+    "issueID": "issue_ded0c2976675c34f4756035d",
+    "userID": "user_b8222266f94aa6b36a6b5999",
+    "viewed": 1785887999998
+  },
+  {
+    "_id": "viewState_52cecbf618c33943ce8f71d9",
+    "issueID": "issue_ded0c2976675c34f4756035d",
+    "userID": "user_47a7fdef09689e6736359a9c",
+    "viewed": 1785887999996
+  },
+  {
+    "_id": "viewState_7d80232e345bdc6bb4d51ff0",
+    "issueID": "issue_ded0c2976675c34f4756035d",
+    "userID": "user_37617f38bd751da58ed19276",
+    "viewed": 1785887999997
+  },
+  {
+    "_id": "viewState_82b9503d35c52aed5c213ba3",
+    "issueID": "issue_ded0c2976675c34f4756035d",
+    "userID": "user_804808a3aa5ef7440e34bd42",
+    "viewed": 1785888000000
+  },
+  {
+    "_id": "viewState_a2c2c1648900cf7912c7094c",
+    "issueID": "issue_ded0c2976675c34f4756035d",
+    "userID": "user_f57940f9cf974984ee36c7b2",
+    "viewed": 1785887999999
+  }
+]

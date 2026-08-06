@@ -1,6 +1,6 @@
 # Zerobugs Stage 0.5 current-surface control plan
 
-Status: scaffolded; implementation lanes not started  
+Status: Lane 1 fixture compiler and bounded loader implemented; later behavioral lanes not started
 Governing contract: `demos/zerobugs/manifest/acceptance.v1.md`  
 Source inventory: `demos/zerobugs/stage0/inventory.v1.md`  
 Source pin: `rocicorp/mono@25c2c7308d3eb674d2d895022c9da11ef0c742fb`, `apps/zbugs`  
@@ -16,11 +16,13 @@ It is a source-faithful port, not a smaller showcase. The ten source tables,
 eight notification triggers, auth roles, asset flow, and amended defect policy
 all remain in scope.
 
-This first job provides only the plan, ten-table schema, generated-artifact
-inputs, and a minimal React boot. It does **not** claim that the query,
-mutation, composition, fixture, pinned UI, or ZB gate lanes are implemented.
-It also does not claim a hosted target, production OAuth, durable notification
-product capability, or large-fixture qualification.
+The current state provides the plan, ten source tables plus support schema,
+deterministic normal/policy fixture compiler, bounded authenticated loader,
+generated-artifact inputs, and a minimal React boot. It does **not** claim the
+19-query/16-mutator product corpus, composition gateway, pinned UI, or ZB gate
+lanes are implemented. It also does not claim a hosted target, production
+OAuth, durable notification product capability, or large-fixture
+qualification.
 
 The control may improve the four source defects frozen in manifest §8, but it
 may not reproduce them: child roots are parent-gated, notification intent is
@@ -67,7 +69,7 @@ explicitly authorizes evidence emission to `demos/zerobugs/evidence/`.
 
 | Area | Concrete files |
 | --- | --- |
-| Snapback definition | `snapback/schema.mjs`, `snapback/functions.mjs`, `snapback/routes.mjs`, `snapback/seed.json` |
+| Snapback definition | `snapback/schema.mjs`, `snapback/functions.mjs`, `snapback/routes.mjs`; no `snapback/seed.json` for the 3,758-row acceptance fixture |
 | Fixture compiler | `fixtures/normal-seed-v1/`, `fixtures/policy-extension-v1.json`, `scripts/build-fixture.mts`, `tests/fixtures/fixture-digests.json` |
 | Generated boundary | `snapback/generated/*` (generated and ignored; never hand-edited) |
 | Typed data adapter | `src/data/snapback.ts`, `src/data/types.ts`, `src/data/queries.ts`, `src/data/mutations.ts`, `src/data/completeness.ts` |
@@ -290,15 +292,54 @@ the frozen rows, not convenient substitutes.
 3. Build read models from source rows and prove a rebuild digest equals the
    incrementally maintained digest. Fixture output includes source counts,
    support-table counts, row digests, actor bindings, and manifest digest.
-4. Compile the selected pair deterministically to `snapback/seed.json` and
-   refuse unknown/missing/duplicate ids or broken typed references.
-5. Defer `large-seed-v1` and hot mutation/fanout data to a later Stage 0.5 job.
+4. Compile the selected pair deterministically to the versioned normalized
+   table files plus `tests/fixtures/fixture-digests.json`; refuse
+   unknown/missing/duplicate ids or broken typed references. The complete
+   fixture is not a versioned seed: LLP 0109 counts direct plus maintained
+   effects and caps one seed installation at 1,024, while this fixture has
+   3,758 rows. `snapback/seed.json` is therefore absent rather than truncated.
+5. Load the compiled rows through the logical acceptance-only mutation
+   `fixture.ingestBatch` (identifier-safe Snapback export
+   `fixtureIngestBatch`) in deterministic parent-first batches of at most 900:
+   user, project, label, issue, issueLabel, comment, emoji, viewState,
+   userPref, issueNotifications, then the six support tables. The loader maps
+   deterministic compiled placeholder ids to server-owned runtime ids and
+   reverses that mapping before comparing every table and the overall digest.
+6. Defer `large-seed-v1` and hot mutation/fanout data to a later Stage 0.5 job.
    Until that job lands, large-scale ZB5 rows are `GAP/deferred`; normal data
    cannot stand in for them and no performance/scale claim is allowed.
 
 The fixture compiler is a provider-specific transformation and appears in the
 workaround register. A fixture digest change creates a new receipt identity;
 it never mutates prior attempt evidence.
+
+### Bounded-ingest auth posture
+
+This is a `sessions` app, but the fixture creates the source `user` rows that
+an `identityBinding` can later connect to server-minted principals. Requiring a
+pre-existing crew binding would therefore be circular. The loader follows the
+guide's operator path exactly: `snapback session mint --email ... --ready-file
+...` consumes the owned ready descriptor's admin token and process-bound
+impersonation capability, then `createExternalSessionClient` presents the
+resulting ordinary session bearer. The mutation also checks `ctx.auth.userId`.
+
+The second gate is an acceptance-bootstrap window, not a reusable import role.
+Before every batch the mutation requires `searchEpoch` to be empty and verifies
+that every existing source user belongs to the frozen 14-user role/id set.
+`searchEpoch` is last in the deterministic load order; inserting it closes the
+window, so all later ingest calls refuse. Unknown tables, batches over 900,
+system-authored fields, foreign source users, and out-of-domain `role` or
+`visibility` values also refuse before storage. This narrow empty/in-progress
+posture is justified only for an isolated acceptance server owned by the
+harness.
+
+The versioned composition gateway never includes `fixtureIngestBatch` or
+`fixtureInspectTable` in its function allowlist, so neither is a product route.
+ZB0 and ZB4 must directly assert that ingestion refuses after fixture
+completion. Together with the session requirement, frozen-user check, and
+last-table sentinel, those gates keep this workaround from becoming a
+production write hole; any future production import needs a separately
+designed authority and resumable protocol.
 
 ## Lane F — ZB harness and immutable receipts
 
@@ -334,26 +375,25 @@ attempts. Remediation increments the attempt; it never edits `v1`.
 
 ## Workaround and component register (predeclared)
 
-Line spans are `TBD-before-use` because those files do not exist in this
-scaffold job. The implementing job must replace that marker with measured
-source/provider line ranges before its first ZB0 attempt. Using a row before
-that update fails ZB0.
+Rows not yet used retain `TBD-before-use`. Each implementing job must replace
+that marker with measured source/provider line ranges before its first ZB0
+attempt. Using a row before that update fails ZB0.
 
 | ID / class | Reason and owner | Planned files / lines | Status and lifecycle | Security boundary | Removed by |
 | --- | --- | --- | --- | --- | --- |
 | `W-QGROUP` / manual query-group graph join | Current relational capability is bounded two-source, while issue/list shapes span up to 22 relations. Owner: control data lane. | `snapback/routes.mjs`, `src/data/queries.ts` / TBD-before-use | Supported generated groups + bespoke merge; retained through control. | Merge only parent-authorized closed projections; never infer completeness. | D2 graph/query workstream. |
-| `W-READMODEL` / denormalized projection | All-label membership, project-user existence, wide list order, and comment-derived search do not fit one current live query. Owner: control server lane. | `snapback/schema.mjs`, `snapback/functions.mjs` / TBD-before-use | Supported maintained projection where available plus app-authored rows; rebuildable; retained through control. | Same-transaction writers, explicit public/private fields, digest audit. | D2 and D6. |
+| `W-READMODEL` / denormalized projection | All-label membership, project-user existence, wide list order, and comment-derived search do not fit one current live query. Owner: control server lane. | `snapback/schema.mjs:158-233`; `scripts/build-fixture.mts:511-643`; generated rows in `fixtures/normal-seed-v1/{projectUserRead,issueListRead,issueLabelRead,issueSearchDocument}.json` (complete files) | Supported maintained projection where available plus app-authored rows; rebuildable; retained through control. | Same-transaction writers, explicit public/private fields, digest audit. | D2 and D6. |
 | `W-MANUALSET` / app join/filter/sort | Adapter intersects bounded list/search/label ids and assembles rich rows. Owner: control data lane. | `src/data/queries.ts` / TBD-before-use | Bespoke; never broad/unbounded; retained through control. | Inputs carry visibility/completeness; no protected join key crosses actor boundary. | D2/D3/D6. |
-| `W-SEARCH-EPOCH` / manual invalidation | Shipped text search is not live. Owner: control search lane. | `snapback/schema.mjs`, `snapback/functions.mjs`, `src/data/queries.ts` / TBD-before-use | Supported search + bespoke synced epoch/refetch; explicit refreshing state. | Epoch reveals no query text/result membership and is partitioned by visibility class. | D6 derived search. |
+| `W-SEARCH-EPOCH` / manual invalidation | Shipped text search is not live. Owner: control search lane. | `snapback/schema.mjs:235-245`; `scripts/build-fixture.mts:625-635`; generated rows in `fixtures/normal-seed-v1/searchEpoch.json:1-14` | Supported search + bespoke synced epoch/refetch; explicit refreshing state. | Epoch reveals no query text/result membership and is partitioned by visibility class. | D6 derived search. |
 | `W-REDUCER` / duplicate handwritten reducer | Current generated optimism cannot express 11 new-verb and some branch/upsert/delete shapes. Owner: control mutation lane. | `src/data/mutations.ts` / TBD-before-use | Bespoke typed capture-and-set; removed when generated admission exists. | Visible facts only; never predicts authority, hidden recipients, or delivery. | D5 lowering/admission. |
 | `W-PENDING` / server-only pending | Hidden branch/subscription/effect state is not safely locally evaluable. Owner: control mutation lane. | `src/data/mutations.ts`, UI pending components / TBD-before-use | Supported authoritative mutation with honest pending; retained until admitted carrier exists. | No speculative protected fact or false settlement. | D5. |
 | `W-WINDOW` / app-owned window controller | No current source-equivalent `useZeroVirtualizer` primitive. Owner: control UI lane. | `src/windowing/*`, list/comments pages / TBD-before-use | Bespoke controller over supported bounded queries; retained through control. | Generation-fenced requests; parent policy on comments; honest completeness. | D4 window workstream. |
-| `W-IDENTITY` / identity binding table | Snapback principals and frozen source user ids are distinct namespaces. Owner: auth composition. | `snapback/schema.mjs`, `snapback/functions.mjs`, `composition/identity-binding.mts` / TBD-before-use | App-owned table over supported sessions/external broker; retained through control. | Only server-derived principal writes/reads binding; no caller user-id authority. | D7 auth profile. |
+| `W-IDENTITY` / identity binding table | Snapback principals and frozen source user ids are distinct namespaces. Owner: auth composition. | `snapback/schema.mjs:144-156`; `scripts/build-fixture.mts:345-369`; actor metadata in `fixtures/normal-seed-v1/fixture.json:7-33` and `tests/fixtures/fixture-digests.json:20-46` | App-owned table over supported sessions/external broker; retained through control. | Only server-derived principal writes/reads binding; no caller user-id authority. | D7 auth profile. |
 | `C-GATEWAY` / versioned composition gateway | Native Snapback does not own all nine frozen arbitrary routes or GitHub OAuth. Owner: composition lane. | `composition/zerobugs-control-composition.v1.json`, `composition/server.mts`, `composition/routes/*` / TBD-before-use | Formally versioned bespoke D7 companion; local supported control component; no native claim. | Narrow route/function allowlist, session custody, redirect/token/secret policy, owned cleanup. | D7 routes/auth. |
 | `C-NOTIFY` / durable app ledger and worker | `backend.notifications` is an explicit GAP; current jobs are local experimental. Owner: effect composition. | `snapback/schema.mjs`, `snapback/functions.mjs`, `composition/effects/*` / TBD-before-use | Supported actions + experimental jobs + bespoke ledger; local partial, hosted GAP. | Intent in mutation transaction; idempotency/fencing; explicit ambiguous outcomes; secrets by name. | D7 effects; first-class notification capability. |
 | `C-ASSET` / source URL adapter and attachment metadata | Native local asset lifecycle differs from S3 presign/Markdown URL source shape. Owner: asset composition. | `snapback/schema.mjs`, `snapback/functions.mjs`, `composition/routes/upload.mts`, `src/assets/upload.ts` / TBD-before-use | Supported local asset capability + bespoke response/Markdown adapter; hosted GAP. | Server MIME/size/checksum, typed attachment, declared delivery/CORS, GC, no credential logging. | D7 assets/routes. |
-| `W-FIXTURE` / fixture transformation | Frozen relational source ids must become typed prefixed `_id` references and support read models. Owner: fixture lane. | `scripts/build-fixture.mts`, `fixtures/*` / TBD-before-use | Bespoke deterministic compiler; retained for control reproducibility. | No credential input; exact ids/counts/digests; refuses broken references. | D8 fixture/profile workstream may standardize it. |
-| `W-ENUM` / duplicate closed-domain guard | Shipped table field validators do not admit literal unions for the source `role` and `visibility` varchar enums. Owner: schema/mutation lane. | `scripts/build-fixture.mts`, `snapback/functions.mjs` / TBD-before-use | Bespoke two-value guards at every ingestion/write boundary; schema remains `v.string()`. | Fail closed before storage; query auth never treats an unknown role as crew or visibility as public. | D5, if generated validation/lowering is extended to portable stored enum domains. |
+| `W-FIXTURE` / fixture transformation and bounded loader | Frozen relational source ids must become typed prefixed placeholder references and support read models, while handlers may only create server-owned runtime ids and LLP 0109 caps a seed at 1,024 effects. Owner: fixture lane. | Compiler `scripts/build-fixture.mts:1-1115`; batch planning/id remap/digest verification `scripts/load-fixture.mts:14-342`; closed mutation and inspection allowlists `snapback/functions.mjs:12-148`; focused witness `tests/fixture-loader.test.mts:1-153`; generated normalized rows in `fixtures/normal-seed-v1/*.json` (complete files); `fixtures/policy-extension-v1.json:1-162`; `tests/fixtures/fixture-digests.json:1-181` | Bespoke deterministic compiler plus 16 bounded ordinary mutation batches; retained for control reproducibility. No `seed.json` is authored. | Dev-minted ordinary session; empty/in-progress frozen-user gate; final `searchEpoch` sentinel closes ingestion; gateway omission; exact ids/counts/digests after inverse remap. | D8 fixture/import profile may standardize a resumable authenticated bulk loader. |
+| `W-ENUM` / duplicate closed-domain guard | Shipped table field validators do not admit literal unions for the source `role` and `visibility` varchar enums. Owner: schema/mutation lane. | Compiler guards `scripts/build-fixture.mts:190-203,645-742,758-784,811-865`; ingest guard `snapback/functions.mjs:62-90`; source varchar declarations remain `snapback/schema.mjs:16-20,51-54` | Bespoke two-value guards at every ingestion/write boundary; schema remains `v.string()`. | Fail closed before storage; query auth never treats an unknown role as crew or visibility as public. | D5, if generated validation/lowering is extended to portable stored enum domains. |
 
 ## Later-job sequencing and lane acceptance
 
@@ -400,3 +440,112 @@ artifact freshness into a live-load claim.
 ## Guide gaps encountered
 
 <!-- Append dated, concrete guide gaps here; keep capability/product GAPs in the workaround/component register. -->
+
+- **2026-08-05 — acceptance fixture over 1,024 effects.** The guide correctly
+  documents the versioned-seed effect ceiling and the general bounded mutation
+  rule, but has no intent-indexed page or recipe for loading a deterministic
+  acceptance fixture whose direct plus maintained rows exceed 1,024. The
+  ≤900-row `ingestFixtureBatch` pattern exists only as demo folklore in
+  `demos/zero-bakeoff/apps/fleet-observatory/snapback/functions.mjs`; finding
+  and adapting it required repository search outside `guide/`.
+
+## Lane 1 validation
+
+Run on 2026-08-05 against the frozen `apps/zbugs` pin named by the lane task.
+No runtime bootstrap or readiness repair was attempted.
+
+| Command | Result |
+| --- | --- |
+| `ZBUGS_PIN=<frozen apps/zbugs> bun scripts/build-fixture.mts` | PASS, exit 0. Base counts matched the manifest exactly: 14 users (7 crew/7 user), one migration project, 516 public issues (155 open/361 closed), 924 comments, 30 labels, and 603 issue-label rows. The policy extension added the exact frozen issue/comment/emoji ids plus five rows in each principal overlay table. Compiled source counts are user 14, project 1, issue 517, viewState 5, comment 925, label 30, issueLabel 603, emoji 2, userPref 5, issueNotifications 5. Support counts are identityBinding 0 (principals are minted and bound in Lane 2), projectUserRead 12, issueListRead 517, issueLabelRead 603, issueSearchDocument 517, and searchEpoch 2. |
+| fixture compiler, immediate second run | PASS; every generated fixture/seed/digest byte was identical. Combined generated-file SHA-256: `e7f5f86ab10a136b18f9637cd60ea29249c3d38c2b5a1dacf0bdca58c973346a`. Fixture overall digest: `sha256:be2eb1f31fe95e0a5c46a5230d98b18d762449e330691cb73e33d578fec276bd`. Read-model rebuild digest: `sha256:c43287c46d0188499aad41f52aaafd6e1f3ec63a651be75bc7b6d09f8a52010d`. |
+| `bun scripts/build-fixture.mts` without `ZBUGS_PIN` | Expected refusal, exit 1: `ZBUGS_FIXTURE_REFUSED: ZBUGS_PIN must name the pinned apps/zbugs directory`. |
+| `bun run generate` before local package links were installed | Exit 127: `/bin/bash: snapback: command not found`. |
+| `bun install --offline` | PASS, exit 0; Bun 1.3.12 restored the lockfile-pinned repository-local packages. |
+| `bun run generate` after install | **BLOCKED, exit 1.** The sole diagnostic is `SNAPBACK_SEED_EFFECT_LIMIT`: `versioned seed exceeds the 1024-effect ceiling`, reported at cumulative `rowCount: 1462`, `limit: 1024`. The complete compiled fixture has 3,758 direct rows after read models. Current codegen applies the same `validateTables` ceiling to legacy and versioned seed declarations, so changing seed syntax cannot admit the frozen fixture. No row was omitted, packed into an undeclared staging table, or truncated to manufacture a pass. |
+| `bun run typecheck` | BLOCKED downstream of codegen, exit 2: the failed generator did not materialize `capability.manifest.json`, `functions.manifest.json`, or `schema.manifest.json`, so the existing imports in `src/main.tsx` cannot resolve. |
+| `bun run build` | BLOCKED downstream of codegen, exit 1 with `SNAPBACK_CODEGEN_CACHE_INVALID`; the Vite plugin correctly refused the absent cache and instructed `snapback generate snapback`. |
+| `SNAPBACK_RUNTIME_BINARY=/Users/ccheever/projects/snapback/target/debug/snapback ./node_modules/.bin/snapback verify snapback --json` | Exit 1 at artifact freshness with `SNAPBACK_CODEGEN_CACHE_INVALID`; runtime readiness and seed/admission stages were reported `blocked`, so no seed-load claim is made. No bootstrap repair was attempted. |
+
+The discrepancy above records the first Lane 1 attempt. The continuation task
+authorized the repository-precedented bounded multi-transaction resolution:
+the complete fixture stays in normalized versioned files, `seed.json` is
+absent, and `fixtureIngestBatch` loads all 3,758 rows in 16 ordinary commits of
+at most 900 rows. No fixture row was truncated and no seed/write limit was
+raised.
+
+### Lane 1 continuation — bounded fixture ingestion
+
+Run on 2026-08-05 from `demos/zerobugs/control`. No runtime bootstrap,
+readiness-receipt repair, port-policy repair, or fixture truncation was
+attempted.
+
+| Command | Result |
+| --- | --- |
+| `bun run generate` | PASS, exit 0: 16 tables and two acceptance-only operations (`fixtureIngestBatch`, `fixtureInspectTable`). The two warnings are explicit `v.json()`/unknown-result degradation facts for this fixture-only surface; no seed-effect diagnostic remains. |
+| `bun run test:fixture` | PASS, exit 0: four Bun/Node-test cases prove deterministic load planning and inverse-id digest recovery, ≤900 batches, unknown-table refusal, W-ENUM role/visibility refusal, completion-sentinel refusal, and foreign-user refusal against the generated handler bundle. |
+| `bun run typecheck` | PASS, exit 0. |
+| `bun run build` | PASS, exit 0; Vite 8 built the client. The only output outside the build inventory was the upstream `optimizeDeps.rollupOptions` deprecation warning. |
+| `SNAPBACK_RUNTIME_BINARY=/Users/ccheever/projects/snapback/target/debug/snapback ./node_modules/.bin/snapback dev snapback --db /private/tmp/zerobugs-lane1.7ososc/zerobugs.sqlite --ready-file /private/tmp/zerobugs-lane1.7ososc/dev.ready.json --json` | **ENVIRONMENT BLOCKED, exit 1:** exact code `SNAPBACK_DEV_SERVER_START_FAILED`; nested server stderr was `failed to bind Snapback server to 127.0.0.1:4287: Operation not permitted (os error 1)`. Per task instruction, runtime work stopped here: `scripts/load-fixture.mts` was not invoked, so no live loaded-count or live digest-verification result is claimed. The child had exited, the owned temp directory was deleted, and `lsof` reported no listener on 4287. Process-table inspection itself was sandbox-refused. |
+
+The runtime-independent contract remains: source counts user 14, project 1,
+label 30, issue 517, issueLabel 603, comment 925, emoji 2, viewState 5,
+userPref 5, issueNotifications 5; support counts identityBinding 0,
+projectUserRead 12, issueListRead 517, issueLabelRead 603,
+issueSearchDocument 517, searchEpoch 2; overall rows 3,758 and expected digest
+`sha256:be2eb1f31fe95e0a5c46a5230d98b18d762449e330691cb73e33d578fec276bd`.
+These values passed the focused compiler-output/loader normalization test, but
+the environmental runtime refusal prevents calling them live-load evidence.
+
+### Lane 1 continuation — live load outside the sandbox
+
+Run on 2026-08-05 by the supervising session (outside the codex sandbox,
+which cannot bind loopback). Server: `snapback dev` with
+`SNAPBACK_RUNTIME_BINARY=<repo>/target/debug/snapback` against a scratch
+database; loader: `scripts/load-fixture.mts`.
+
+Loader defects found and fixed during this run:
+
+1. **Session mint used the wrong credential path.** The loader invoked
+   `session mint` and got `SNAPBACK_ADMIN_TOKEN_REQUIRED`: mint is an
+   admin-gated host-op. The loader now reads the managed admin-token carrier
+   named by the readiness descriptor (`adminTokenFile`) and passes it as
+   `SNAPBACK_ADMIN_TOKEN` in the mint environment only.
+2. **Digest mismatches were undiagnosable.** On mismatch the verifier now
+   reports the first differing row (observed vs compiled canonical JSON).
+3. **Null canonicalization.** The runtime returns unset optional fields as
+   explicit `null`; the compiled fixture omits them. The query surface does
+   not distinguish null from absent, so observed-row normalization now drops
+   null-valued fields before digesting. First observed on the single
+   `project` row (`issueCountEstimate`/`markURL`/`logoURL`).
+
+Result: **BLOCKED by a runtime defect, not by the fixture.** All 16 batches
+ingested; per-table counts matched; the `comment` digest failed at row index
+886: the pinned 44,084-char body is stored intact (verified in raw SQLite)
+but the JS query handler read it back silently clipped to exactly 16,384
+chars. Filed as
+`issues/20260805-js-handler-string-reads-silently-truncate-16kib.md`; fix in
+progress. Until the rebuilt runtime lands, the live digest verification is
+recorded BLOCKED-on-runtime; fixture bytes, counts, and the loader pipeline
+are complete and deterministic.
+
+### Lane 1 completion — live load PASS on the repaired runtime
+
+The truncation defect was fixed (successful JS results were serialized
+through the bounded failure-metadata replacer; see
+`issues/closed/20260805-js-handler-string-reads-silently-truncate-16kib.md`).
+On the rebuilt runtime the full live load passed on 2026-08-05:
+
+```json
+{"status":"ok","counts":{"user":14,"project":1,"label":30,"issue":517,
+"issueLabel":603,"comment":925,"emoji":2,"viewState":5,"userPref":5,
+"issueNotifications":5,"identityBinding":0,"projectUserRead":12,
+"issueListRead":517,"issueLabelRead":603,"issueSearchDocument":517,
+"searchEpoch":2},
+"overallDigest":"sha256:be2eb1f31fe95e0a5c46a5230d98b18d762449e330691cb73e33d578fec276bd",
+"batches":16}
+```
+
+The observed overall digest equals the compiled contract digest exactly.
+Lane 1's completion check (sequencing row 1) is met: counts/ids/digests pass,
+typed refs and the read-model rebuild digest pass, and `snapback generate`
+passes. Lane 2 (local auth/identity composition) is next.

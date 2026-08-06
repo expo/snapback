@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "aee056aef080321916fd76641b80b7823366c265"
+    "commit": "fa496b39bf56319eac1b60ab97bb57b24d7e9414"
   },
   "nav": {
     ".": [
@@ -247,6 +247,11 @@
         "id": "operating.error-tracking",
         "order": 6,
         "title": "Backend error tracking"
+      },
+      {
+        "id": "operating.instance-forks",
+        "order": 7,
+        "title": "Local instance forks"
       }
     ],
     "protocol": [
@@ -1474,7 +1479,7 @@
       "examples": [],
       "reviewed": "2026-08-05",
       "reviewedCommit": "f3c7d9fbb394a413370a9264f22e72b6f151a25e",
-      "sha256": "d25196af330f3ef8484966953aaae10edc35b046cd27567cd0913c7c9078c0c6",
+      "sha256": "1b3c0ceb113f78a11aa4735dec88bb075653a45d5eacec9d5664a43065de2e10",
       "snippets": []
     },
     "clients.app-cli": {
@@ -1704,10 +1709,15 @@
         "llp/0064-native-client-surfaces.rfc.md",
         "llp/0114-first-class-react-and-query-groups.spec.md",
         "llp/0176-expo-messaging-golden-path.plan.md",
+        "llp/0181-zero-configuration-expo.rfc.md",
         "packages/snapback-client/index.mjs",
         "packages/snapback-client/react-binding.mjs",
         "packages/snapback-client/rqs-store-default.mjs",
         "packages/snapback-client/rqs-store-expo.mjs",
+        "packages/snapback-expo/app-binding.mjs",
+        "packages/snapback-expo/config-plugin.cjs",
+        "packages/snapback-expo/index.mjs",
+        "packages/snapback-expo/provider.mjs",
         "packages/snapback-react/index.mjs",
         "scripts/install-local-snapback-packages.mjs",
         "demos/partiful-matrix/tests/acceptance/native-react-expo.mjs",
@@ -1716,6 +1726,7 @@
       "examples": [
         "demos/partiful-matrix/native/react-expo",
         "packages/snapback-client/webcrypto-fallback.test.mjs",
+        "packages/snapback-expo/provider.test.mjs",
         "packages/snapback-react/webcrypto-fallback.test.mjs",
         "packages/snapback-client/rqs-store-expo.test.mjs",
         "packages/snapback-client/rqs-resume-expo.test.mjs",
@@ -1726,8 +1737,12 @@
       ],
       "reviewed": "2026-08-05",
       "reviewedCommit": "f3c7d9fbb394a413370a9264f22e72b6f151a25e",
-      "sha256": "7caebcbf1a5d5ed169ff9d02774b66ab0851d0f49d065bb4dbb726568dbd4445",
+      "sha256": "0bfd5643855d63ee286604d3bf52fdb8baeb32dd3a5fe568da441acbc8f2f2d3",
       "snippets": [
+        {
+          "lang": "tsx",
+          "class": "fragment"
+        },
         {
           "lang": "ts",
           "class": "fragment"
@@ -2155,7 +2170,7 @@
       ],
       "reviewed": "2026-08-05",
       "reviewedCommit": "f3c7d9fbb394a413370a9264f22e72b6f151a25e",
-      "sha256": "2888ba12f68322f2e9deca472674c3f21a79aab9d9ad75e8b54eaa42506b7a16",
+      "sha256": "1f2c90c03b1bbff7b0f4ee53b646e3505822bfa22e1d8868c3e9ee2dadfbf647",
       "snippets": [
         {
           "lang": "json",
@@ -2303,6 +2318,45 @@
           "lang": "json",
           "class": "transcluded",
           "source": "tests/host_ops_v0.rs"
+        }
+      ]
+    },
+    "operating.instance-forks": {
+      "path": "guide/operating/instance-forks.md",
+      "title": "Local instance forks",
+      "order": 7,
+      "status": "current",
+      "targets": [
+        "local"
+      ],
+      "maturity": "partial",
+      "capabilities": [
+        "operating.instance-forks"
+      ],
+      "authorities": [
+        "llp/0158-instance-forking.rfc.md",
+        "src/cli.rs",
+        "src/instance_fork.rs",
+        "demos/_kit/instance-fork.mjs"
+      ],
+      "examples": [
+        "demos/todo/tests/acceptance/forked-parent.mjs",
+        "tests/instance_fork_cli_v1.rs",
+        "tests/acceptance/instance-fork-fleet-dogfood.2026-08-03.v1.json"
+      ],
+      "reviewed": "2026-08-05",
+      "reviewedCommit": "HEAD",
+      "sha256": "35a164ef44884180deaaf5fc6fc2c9780429993fa426620effba7e0fccdd7548",
+      "snippets": [
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/todo/tests/acceptance/forked-parent.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/todo/tests/acceptance/forked-parent.mjs"
         }
       ]
     },
@@ -3101,5 +3155,5 @@
     "routes": 111,
     "hostOps": 37
   },
-  "contentHash": "7d8a44acc5ca9291a7c2c7622e3d0cb57e7fe073d426962040fc5cab584b7c82"
+  "contentHash": "3cd56c403c798091a971ed2a1d80eb98c57fe89c5186cbd60fadab59965ea7b9"
 }

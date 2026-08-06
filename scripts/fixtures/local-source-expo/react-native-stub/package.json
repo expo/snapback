@@ -1,0 +1,9 @@
+{
+  "name": "react-native",
+  "version": "0.86.2",
+  "type": "module",
+  "exports": {
+    ".": "./index.mjs",
+    "./package.json": "./package.json"
+  }
+}

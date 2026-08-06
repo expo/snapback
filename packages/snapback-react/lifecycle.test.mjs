@@ -280,6 +280,22 @@ assert.equal(first.snapshot().status, 'ready');
 assert.equal(client.inspection().starts, 2, 'successor authority receives a fresh headless room');
 assert.equal(client.inspection().activeHandles, 1);
 
+await firstProvider.pause();
+assert.equal(firstProvider.inspection().hostPaused, true);
+assert.equal(client.inspection().activeHandles, 0);
+await firstBarrier.quiesce({});
+await firstBarrier.resume({});
+await flush();
+assert.equal(
+  client.inspection().activeHandles,
+  0,
+  'authority resume cannot restart the registry while the host remains paused',
+);
+await firstProvider.resume();
+await flush();
+assert.equal(firstProvider.inspection().hostPaused, false);
+assert.equal(client.inspection().activeHandles, 1);
+
 // HMR-like replacement constructs the successor before releasing the
 // predecessor. Each provider has isolated ownership; disposing the old module
 // drains only its room/barrier and leaves the successor live.

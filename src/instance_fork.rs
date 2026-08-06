@@ -12,14 +12,63 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fs::{self, File};
 use std::io::{ErrorKind, Write};
 use std::path::{Path, PathBuf};
+use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
 pub const STAGING_SENTINEL: &str = ".snapback-fork-staging.v1";
 pub const MINT_RECEIPT_FILE: &str = "fork-mint-receipt.json";
+pub const RENEW_INTENT_FILE: &str = "fork-renew-intent.json";
+pub const RENEW_RECEIPT_FILE: &str = "fork-renew-receipt.json";
 pub const REGISTRY_DIRECTORY: &str = ".snapback-fork-registry";
 const LINEAGE_META_KEY: &str = "instance_fork_lineage_v1";
 const QUARANTINE_META_KEY: &str = "instance_fork_quarantine_v1";
 const EGRESS_TABLE: &str = "_snapback_fork_egress_attempts_v1";
+
+pub const SERVER_EXPIRED_CODE: &str = "SNAPBACK_FORK_SERVER_EXPIRED";
+pub const RESOURCE_LIMIT_REFUSED_CODE: &str = "SNAPBACK_FORK_RESOURCE_LIMIT_REFUSED";
+pub const RENEW_EXPIRED_CODE: &str = "SNAPBACK_FORK_RENEW_EXPIRED";
+
+/// Maximum total lifetime for a managed fork, binding creation through every
+/// renewal (LLP 0185 Phase 3 item 6's "configured maximum"; author-ratified
+/// 2026-08-05). Requests past it refuse with [`RESOURCE_LIMIT_REFUSED_CODE`]
+/// rather than silently extending forever. LLP 0185 OQ1 (whether agent
+/// fleets need a different default) stays open until Phase 2b observes real
+/// fleets.
+pub const MANAGED_FORK_MAX_LIFETIME_MS: u64 = 7 * 86_400_000;
+
+/// LLP 0185 Phase 3 item 7 resource bounds (author-ratified 2026-08-05).
+/// The mechanism — deterministic refusal before any staging I/O, with the
+/// usage that triggered it in the diagnostic — is the contract; explicit
+/// CLI flags override per invocation.
+pub const MANAGED_FORK_MAX_COUNT: usize = 16;
+pub const MANAGED_FORK_MAX_FORK_BYTES: u64 = 4 * 1024 * 1024 * 1024;
+pub const MANAGED_FORK_MAX_TOTAL_BYTES: u64 = 16 * 1024 * 1024 * 1024;
+pub const FORK_DIFF_MAX_ROWS: u64 = 100_000;
+
+#[derive(Clone, Copy, Debug)]
+pub struct ForkResourceLimits {
+    pub max_forks: usize,
+    pub max_fork_bytes: u64,
+    pub max_total_bytes: u64,
+}
+
+impl Default for ForkResourceLimits {
+    fn default() -> Self {
+        Self {
+            max_forks: MANAGED_FORK_MAX_COUNT,
+            max_fork_bytes: MANAGED_FORK_MAX_FORK_BYTES,
+            max_total_bytes: MANAGED_FORK_MAX_TOTAL_BYTES,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ForkResourceUsageV1 {
+    pub fork_count: usize,
+    pub existing_bytes: u64,
+    pub estimated_fork_bytes: u64,
+}
 
 #[cfg(test)]
 thread_local! {
@@ -50,6 +99,40 @@ fn fork_error(code: &'static str, message: impl Into<String>) -> SnapbackError {
 
 fn io_error(context: &'static str, error: std::io::Error) -> SnapbackError {
     fork_error("SNAPBACK_FORK_IO_FAILED", format!("{context}: {error}"))
+}
+
+fn wall_clock_now_ms() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|elapsed| {
+            elapsed
+                .as_millis()
+                .min(crate::manifest::PORTABLE_TIMESTAMP_MAX_MS.into()) as u64
+        })
+        .unwrap_or(0)
+}
+
+/// Reserved Phase-1 admission path for the concrete fork/byte/diff bounds
+/// defined by LLP 0185 Phase 3. No limit is invented or enforced here.
+pub fn resource_limit_refusal(resource: &str, message: impl Into<String>) -> SnapbackError {
+    fork_error(RESOURCE_LIMIT_REFUSED_CODE, message)
+        .with_details(json!({ "resource": resource }))
+}
+
+pub fn server_expired_error(
+    lineage: &DerivedForkLineageV1,
+    observed_at_ms: u64,
+) -> SnapbackError {
+    fork_error(
+        SERVER_EXPIRED_CODE,
+        "derived-fork server is past its finite expiry; shutting down and refusing new work",
+    )
+    .with_details(json!({
+        "forkId": lineage.fork_id,
+        "expiresAtMs": lineage.expires_at_ms,
+        "observedAtMs": observed_at_ms,
+        "disposition": "shutting-down"
+    }))
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -579,6 +662,7 @@ pub struct ForkRegistryEntryV1 {
 #[derive(Clone, Debug)]
 pub struct ManagedForkTargetV1 {
     pub entry: ForkRegistryEntryV1,
+    pub receipt: ForkMintReceiptV1,
     pub destination: PathBuf,
     pub database: PathBuf,
     pub ready_file: Option<PathBuf>,
@@ -607,6 +691,18 @@ pub struct ForkDiffReceiptV1 {
     pub table_counts: BTreeMap<String, u64>,
     pub coverage: Vec<String>,
     pub omissions: Vec<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ForkRenewReceiptV1 {
+    pub schema_version: String,
+    pub fork_id: String,
+    pub renewed_at_ms: u64,
+    pub previous_expires_at_ms: u64,
+    pub expires_at_ms: u64,
+    pub created_at_ms: u64,
+    pub max_lifetime_ms: u64,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -885,11 +981,36 @@ fn scrub_and_mint_with_cut(
 }
 
 pub fn inspect_boot(database_path: &Path) -> SnapbackResult<Option<DerivedForkRuntime>> {
+    inspect_boot_at(database_path, wall_clock_now_ms())
+}
+
+/// Inspect a database for serving at an injected portable clock. Lifecycle
+/// callers deliberately use [`inspect_published_evidence`] instead so an
+/// expired fork remains provable and therefore safely removable.
+// @ref LLP 0185#authority-and-boundaries — finite expiry is server boot
+// authority, not advisory metadata that only an invoked reaper observes.
+pub fn inspect_boot_at(
+    database_path: &Path,
+    now_ms: u64,
+) -> SnapbackResult<Option<DerivedForkRuntime>> {
+    let runtime = inspect_published_evidence(database_path)?;
+    if let Some(runtime) = runtime.as_ref()
+        && let Some(expires_at_ms) = runtime.lineage.expires_at_ms
+        && expires_at_ms <= now_ms
+    {
+        return Err(server_expired_error(&runtime.lineage, now_ms));
+    }
+    Ok(runtime)
+}
+
+fn inspect_published_evidence(
+    database_path: &Path,
+) -> SnapbackResult<Option<DerivedForkRuntime>> {
     let directory = database_path.parent().unwrap_or_else(|| Path::new("."));
     if directory.join(STAGING_SENTINEL).exists() {
         return Err(fork_error(
-            "SNAPBACK_FORK_QUARANTINED",
-            "a staging sentinel prevents this derived deployment from serving",
+            "SNAPBACK_FORK_PUBLICATION_PARTIAL",
+            "fork publication is incomplete; run `snapback fork recover` for the exact destination",
         ));
     }
     inspect_evidence(database_path)
@@ -931,6 +1052,17 @@ fn inspect_evidence(database_path: &Path) -> SnapbackResult<Option<DerivedForkRu
             let lineage: DerivedForkLineageV1 = serde_json::from_str(&lineage).map_err(|_| {
                 fork_error("SNAPBACK_FORK_LINEAGE_INVALID", "fork lineage is malformed")
             })?;
+            if lineage.format_version != 1
+                || lineage.promotable
+                || lineage
+                    .expires_at_ms
+                    .is_some_and(|expires_at_ms| expires_at_ms <= lineage.created_at_ms)
+            {
+                return Err(fork_error(
+                    "SNAPBACK_FORK_LINEAGE_INVALID",
+                    "fork lineage version, class, or finite expiry is invalid",
+                ));
+            }
             let receipt: ForkMintReceiptV1 = serde_json::from_slice(
                 &fs::read(&receipt_path).map_err(|error| io_error("read fork receipt", error))?,
             )
@@ -967,25 +1099,72 @@ fn inspect_evidence(database_path: &Path) -> SnapbackResult<Option<DerivedForkRu
 }
 
 fn validate_minted_sidecars(database_path: &Path) -> SnapbackResult<()> {
-    let invalid = || {
-        fork_error(
-            "SNAPBACK_FORK_EVIDENCE_INCOMPLETE",
-            "fork mint sidecars are missing or invalid",
-        )
-    };
-    let admin =
-        crate::secure_file::read_owner_only(&crate::admin::admin_token_sibling(database_path))
-            .map_err(|_| invalid())?;
-    let admin = std::str::from_utf8(&admin).map_err(|_| invalid())?.trim();
-    if admin.len() != 37 || !admin.starts_with("sbat_") {
-        return Err(invalid());
+    fn require_regular(path: &Path, sidecar: &'static str) -> SnapbackResult<()> {
+        let metadata = fs::symlink_metadata(path).map_err(|error| {
+            if error.kind() == ErrorKind::NotFound {
+                fork_error(
+                    "SNAPBACK_FORK_SIDECAR_MISSING",
+                    format!("required minted {sidecar} sidecar is missing"),
+                )
+                .with_details(json!({ "sidecar": sidecar }))
+            } else {
+                io_error("inspect minted fork sidecar", error)
+            }
+        })?;
+        if metadata.file_type().is_symlink() || !metadata.is_file() {
+            return Err(fork_error(
+                "SNAPBACK_FORK_SIDECAR_MALFORMED",
+                format!("minted {sidecar} sidecar is not a regular file"),
+            )
+            .with_details(json!({ "sidecar": sidecar })));
+        }
+        Ok(())
     }
+
+    let admin_path = crate::admin::admin_token_sibling(database_path);
+    require_regular(&admin_path, "admin-token")?;
+    let admin = crate::secure_file::read_owner_only(&admin_path).map_err(|_| {
+        fork_error(
+            "SNAPBACK_FORK_SIDECAR_MALFORMED",
+            "minted admin-token sidecar cannot be read with owner-only custody",
+        )
+        .with_details(json!({ "sidecar": "admin-token" }))
+    })?;
+    let admin = std::str::from_utf8(&admin)
+        .map_err(|_| {
+            fork_error(
+                "SNAPBACK_FORK_SIDECAR_MALFORMED",
+                "minted admin-token sidecar is not UTF-8",
+            )
+            .with_details(json!({ "sidecar": "admin-token" }))
+        })?
+        .trim();
+    if admin.len() != 37 || !admin.starts_with("sbat_") {
+        return Err(fork_error(
+            "SNAPBACK_FORK_SIDECAR_MALFORMED",
+            "minted admin-token sidecar does not contain a Snapback admin token",
+        )
+        .with_details(json!({ "sidecar": "admin-token" })));
+    }
+    let auth_path = crate::auth::keyring::AuthKeyringStore::keyring_path(database_path);
+    require_regular(&auth_path, "auth-keyring")?;
     crate::auth::keyring::AuthKeyringStore::file_for_database(database_path)
         .load_existing()
-        .map_err(|_| invalid())?;
+        .map_err(|_| {
+            fork_error(
+                "SNAPBACK_FORK_SIDECAR_MALFORMED",
+                "minted auth-keyring sidecar is malformed",
+            )
+            .with_details(json!({ "sidecar": "auth-keyring" }))
+        })?;
     let resume_path = database_path.with_file_name(crate::rqs::RESUME_KEYRING_FILE_NAME);
+    require_regular(&resume_path, "resume-keyring")?;
     if !crate::rqs::ResumeKeyring::persisted_file_has_active_key(&resume_path) {
-        return Err(invalid());
+        return Err(fork_error(
+            "SNAPBACK_FORK_SIDECAR_MALFORMED",
+            "minted resume-keyring sidecar has no active key",
+        )
+        .with_details(json!({ "sidecar": "resume-keyring" })));
     }
     Ok(())
 }
@@ -1217,6 +1396,20 @@ pub fn publish_managed(
             "fork expiry must be later than creation and within the portable timestamp range",
         ));
     }
+    // Creation shares the same maximum total lifetime renewal is bound by
+    // (author ruling 2026-08-05) — otherwise the renewal cap would be
+    // decorative for a fork simply created long-lived in the first place.
+    if expires_at_ms.saturating_sub(now_ms) > MANAGED_FORK_MAX_LIFETIME_MS {
+        return Err(fork_error(
+            RESOURCE_LIMIT_REFUSED_CODE,
+            "fork create refused: the requested TTL exceeds the maximum fork lifetime",
+        )
+        .with_details(json!({
+            "resource": "fork-lifetime",
+            "requestedExpiresAtMs": expires_at_ms,
+            "maxLifetimeMs": MANAGED_FORK_MAX_LIFETIME_MS,
+        })));
+    }
     publish_with_options(
         source_database,
         destination,
@@ -1270,7 +1463,10 @@ pub fn record_managed_runtime(
     Ok(entry)
 }
 
-pub fn list_managed(fork_root: &Path) -> SnapbackResult<Vec<ForkRegistryEntryV1>> {
+/// Enumerate the fork ids recorded in the advisory registry without binding
+/// them to local evidence. Lifecycle sweeps use this so one stale or
+/// concurrently-removed entry cannot wedge every other fork's cleanup.
+pub fn managed_registry_ids(fork_root: &Path) -> SnapbackResult<Vec<String>> {
     let registry = fork_root.join(REGISTRY_DIRECTORY);
     if !registry.exists() {
         return Ok(Vec::new());
@@ -1283,7 +1479,7 @@ pub fn list_managed(fork_root: &Path) -> SnapbackResult<Vec<ForkRegistryEntryV1>
             "fork registry is not a real directory",
         ));
     }
-    let mut entries = Vec::new();
+    let mut ids = Vec::new();
     for child in fs::read_dir(&registry).map_err(|error| io_error("scan fork registry", error))? {
         let child = child.map_err(|error| io_error("read fork registry entry", error))?;
         if child.path().extension().and_then(|value| value.to_str()) != Some("json") {
@@ -1301,6 +1497,15 @@ pub fn list_managed(fork_root: &Path) -> SnapbackResult<Vec<ForkRegistryEntryV1>
             })?
             .to_owned();
         validate_fork_id(&recorded_id)?;
+        ids.push(recorded_id);
+    }
+    ids.sort();
+    Ok(ids)
+}
+
+pub fn list_managed(fork_root: &Path) -> SnapbackResult<Vec<ForkRegistryEntryV1>> {
+    let mut entries = Vec::new();
+    for recorded_id in managed_registry_ids(fork_root)? {
         entries.push(managed_target(fork_root, &recorded_id)?.entry);
     }
     entries.sort_by(|left, right| left.lineage.fork_id.cmp(&right.lineage.fork_id));
@@ -1419,8 +1624,17 @@ pub fn managed_target(fork_root: &Path, fork_id: &str) -> SnapbackResult<Managed
         .map_err(|error| io_error("resolve managed fork root", error))?;
     let entry = load_registry_entry(&root, fork_id)?;
     let destination_path = root.join(&entry.destination);
-    let destination_metadata = fs::symlink_metadata(&destination_path)
-        .map_err(|error| io_error("inspect managed fork destination", error))?;
+    let destination_metadata = fs::symlink_metadata(&destination_path).map_err(|error| {
+        if error.kind() == ErrorKind::NotFound {
+            fork_error(
+                "SNAPBACK_FORK_REGISTRY_STALE",
+                "registry entry names a fork destination that no longer exists",
+            )
+            .with_details(json!({ "forkId": fork_id }))
+        } else {
+            io_error("inspect managed fork destination", error)
+        }
+    })?;
     if destination_metadata.file_type().is_symlink() || !destination_metadata.is_dir() {
         return Err(fork_error(
             "SNAPBACK_FORK_EVIDENCE_MISMATCH",
@@ -1439,8 +1653,17 @@ pub fn managed_target(fork_root: &Path, fork_id: &str) -> SnapbackResult<Managed
     }
 
     let database_path = destination.join(&entry.database_file);
-    let database_metadata = fs::symlink_metadata(&database_path)
-        .map_err(|error| io_error("inspect managed fork database", error))?;
+    let database_metadata = fs::symlink_metadata(&database_path).map_err(|error| {
+        if error.kind() == ErrorKind::NotFound {
+            fork_error(
+                "SNAPBACK_FORK_REGISTRY_STALE",
+                "registry entry names a fork database that no longer exists",
+            )
+            .with_details(json!({ "forkId": fork_id }))
+        } else {
+            io_error("inspect managed fork database", error)
+        }
+    })?;
     if database_metadata.file_type().is_symlink() || !database_metadata.is_file() {
         return Err(fork_error(
             "SNAPBACK_FORK_EVIDENCE_MISMATCH",
@@ -1482,7 +1705,7 @@ pub fn managed_target(fork_root: &Path, fork_id: &str) -> SnapbackResult<Managed
             "fork mint receipt is malformed",
         )
     })?;
-    let runtime = inspect_boot(&database)?.ok_or_else(|| {
+    let runtime = inspect_published_evidence(&database)?.ok_or_else(|| {
         fork_error(
             "SNAPBACK_FORK_EVIDENCE_INCOMPLETE",
             "registered fork has no authoritative local lineage",
@@ -1534,20 +1757,80 @@ pub fn managed_target(fork_root: &Path, fork_id: &str) -> SnapbackResult<Managed
 
     Ok(ManagedForkTargetV1 {
         entry,
+        receipt,
         destination,
         database,
         ready_file,
     })
 }
 
+/// A per-fork advisory lock serializing destructive lifecycle actions. A
+/// cleanup actor that loses the race then observes complete absence
+/// (`SNAPBACK_FORK_NOT_FOUND`) instead of a torn mid-teardown state — the
+/// 2026-08-03 fleet-dogfood drop/reap race was exactly that torn window.
+/// The serialization guarantee is Unix-only (flock); elsewhere the lock file
+/// is advisory bookkeeping without mutual exclusion.
+pub struct ForkCleanupLock {
+    _file: File,
+    path: PathBuf,
+}
+
+pub fn lock_cleanup(fork_root: &Path, fork_id: &str) -> SnapbackResult<ForkCleanupLock> {
+    validate_fork_id(fork_id)?;
+    let directory = fork_root.join(REGISTRY_DIRECTORY);
+    fs::create_dir_all(&directory)
+        .map_err(|error| io_error("create fork registry for cleanup lock", error))?;
+    let path = directory.join(format!("{fork_id}.cleanup-lock"));
+    let file = File::create(&path).map_err(|error| io_error("create fork cleanup lock", error))?;
+    #[cfg(unix)]
+    {
+        use std::os::fd::AsRawFd as _;
+        if unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_EX) } != 0 {
+            return Err(io_error(
+                "acquire fork cleanup lock",
+                std::io::Error::last_os_error(),
+            ));
+        }
+    }
+    Ok(ForkCleanupLock { _file: file, path })
+}
+
+impl ForkCleanupLock {
+    /// Remove the lock file once the fork it guarded is fully gone. Actors
+    /// already queued on this inode wake to plain absence; later actors
+    /// create a fresh lock and equally observe absence.
+    pub fn dispose(self) {
+        let _ = fs::remove_file(&self.path);
+    }
+}
+
 /// Remove exactly one registry-bound fork directory. Callers stop a live
 /// child first; path validation prevents registry corruption from widening the
 /// deletion target.
 pub fn drop_managed(fork_root: &Path, fork_id: &str) -> SnapbackResult<ForkRegistryEntryV1> {
+    let lock = lock_cleanup(fork_root, fork_id)?;
+    let entry = drop_managed_locked(fork_root, fork_id)?;
+    lock.dispose();
+    Ok(entry)
+}
+
+/// The teardown body. Callers must hold this fork's [`ForkCleanupLock`];
+/// re-binding evidence under the lock is what makes concurrent cleanup
+/// observe all-or-nothing states.
+pub fn drop_managed_locked(
+    fork_root: &Path,
+    fork_id: &str,
+) -> SnapbackResult<ForkRegistryEntryV1> {
     let target = managed_target(fork_root, fork_id)?;
     let entry = target.entry;
-    fs::remove_dir_all(&target.destination)
-        .map_err(|error| io_error("drop fork directory", error))?;
+    // A concurrent drop/reap may win the directory removal between the
+    // evidence re-bind above and this call. Duplicate cleanup of the same
+    // fork is idempotent, not an I/O fault.
+    match fs::remove_dir_all(&target.destination) {
+        Ok(()) => {}
+        Err(error) if error.kind() == ErrorKind::NotFound => {}
+        Err(error) => return Err(io_error("drop fork directory", error)),
+    }
     sync_directory(fork_root)?;
     let registry = registry_path(fork_root, fork_id);
     match fs::remove_file(&registry) {
@@ -1556,6 +1839,355 @@ pub fn drop_managed(fork_root: &Path, fork_id: &str) -> SnapbackResult<ForkRegis
         Err(error) => return Err(io_error("remove fork registry entry", error)),
     }
     Ok(entry)
+}
+
+/// Complete a partial cleanup: remove one registry entry whose recorded fork
+/// directory is already gone. Refuses while the destination still exists, so
+/// this can never widen into deleting fork state — only stale bookkeeping.
+pub fn clear_stale_registry_entry(fork_root: &Path, fork_id: &str) -> SnapbackResult<()> {
+    let lock = lock_cleanup(fork_root, fork_id)?;
+    clear_stale_registry_entry_locked(fork_root, fork_id)?;
+    lock.dispose();
+    Ok(())
+}
+
+/// See [`clear_stale_registry_entry`]; callers must hold the cleanup lock.
+pub fn clear_stale_registry_entry_locked(
+    fork_root: &Path,
+    fork_id: &str,
+) -> SnapbackResult<()> {
+    let root = fs::canonicalize(fork_root)
+        .map_err(|error| io_error("resolve managed fork root", error))?;
+    let entry = load_registry_entry(&root, fork_id)?;
+    if root.join(&entry.destination).exists() {
+        return Err(fork_error(
+            "SNAPBACK_FORK_EVIDENCE_MISMATCH",
+            "registry entry is not stale: its recorded fork destination still exists",
+        )
+        .with_details(json!({ "forkId": fork_id })));
+    }
+    match fs::remove_file(registry_path(&root, fork_id)) {
+        Ok(()) => sync_directory(&root.join(REGISTRY_DIRECTORY)),
+        Err(error) if error.kind() == ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(io_error("remove stale fork registry entry", error)),
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct ForkRenewIntentV1 {
+    format_version: u32,
+    lineage: DerivedForkLineageV1,
+    previous_expires_at_ms: u64,
+    renewed_at_ms: u64,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum RenewCut {
+    AfterSentinelWrite,
+    AfterIntentWrite,
+    AfterDatabaseUpdate,
+    AfterReceiptRewrite,
+    AfterRegistryRewrite,
+    AfterRenewReceipt,
+    AfterIntentRemoval,
+}
+
+fn maybe_renew_cut(cut_at: Option<RenewCut>, point: RenewCut) -> SnapbackResult<()> {
+    if cut_at == Some(point) {
+        Err(fork_error(
+            "SNAPBACK_FORK_TEST_CRASH_CUT",
+            format!("injected crash after {point:?}"),
+        ))
+    } else {
+        Ok(())
+    }
+}
+
+/// Extend one managed fork's finite expiry (LLP 0185 Phase 3 item 6).
+/// Renewal requires the exact registry-bound identity, refuses an already-
+/// expired fork (expiry is authority, not advisory metadata to resurrect),
+/// must strictly move the expiry later — it can never shorten or clear it —
+/// and is bounded by [`MANAGED_FORK_MAX_LIFETIME_MS`] from creation. The
+/// three expiry carriers (database lineage, mint receipt, registry entry)
+/// update behind a staging sentinel plus a renewal-intent file so a crash at
+/// any point recovers to one consistent expiry via [`recover`].
+pub fn renew_managed(
+    fork_root: &Path,
+    fork_id: &str,
+    now_ms: u64,
+    ttl_ms: u64,
+) -> SnapbackResult<ForkRenewReceiptV1> {
+    renew_managed_with_cut(fork_root, fork_id, now_ms, ttl_ms, None)
+}
+
+fn renew_managed_with_cut(
+    fork_root: &Path,
+    fork_id: &str,
+    now_ms: u64,
+    ttl_ms: u64,
+    cut_at: Option<RenewCut>,
+) -> SnapbackResult<ForkRenewReceiptV1> {
+    let _lock = lock_cleanup(fork_root, fork_id)?;
+    let target = managed_target(fork_root, fork_id)?;
+    let lineage = target.receipt.lineage.clone();
+    let previous_expires_at_ms = lineage.expires_at_ms.ok_or_else(|| {
+        fork_error(
+            "SNAPBACK_FORK_TTL_INVALID",
+            "only finite managed forks can renew",
+        )
+    })?;
+    if previous_expires_at_ms <= now_ms {
+        return Err(fork_error(
+            RENEW_EXPIRED_CODE,
+            "renewal refused: the fork is already past its finite expiry; reap it and create a fresh fork",
+        )
+        .with_details(json!({
+            "forkId": lineage.fork_id,
+            "expiresAtMs": previous_expires_at_ms,
+            "observedAtMs": now_ms,
+        })));
+    }
+    let expires_at_ms = now_ms
+        .checked_add(ttl_ms)
+        .filter(|expiry| *expiry <= crate::manifest::PORTABLE_TIMESTAMP_MAX_MS)
+        .ok_or_else(|| {
+            fork_error(
+                "SNAPBACK_FORK_TTL_INVALID",
+                "renewed expiry exceeds the portable clock",
+            )
+        })?;
+    if expires_at_ms <= previous_expires_at_ms {
+        return Err(fork_error(
+            "SNAPBACK_FORK_TTL_INVALID",
+            "renewal must move the finite expiry later; it never shortens or clears it",
+        )
+        .with_details(json!({
+            "expiresAtMs": previous_expires_at_ms,
+            "requestedExpiresAtMs": expires_at_ms,
+        })));
+    }
+    if expires_at_ms.saturating_sub(lineage.created_at_ms) > MANAGED_FORK_MAX_LIFETIME_MS {
+        return Err(fork_error(
+            RESOURCE_LIMIT_REFUSED_CODE,
+            "renewal refused: requested expiry exceeds the configured maximum fork lifetime",
+        )
+        .with_details(json!({
+            "resource": "renewal-lifetime",
+            "createdAtMs": lineage.created_at_ms,
+            "requestedExpiresAtMs": expires_at_ms,
+            "maxLifetimeMs": MANAGED_FORK_MAX_LIFETIME_MS,
+        })));
+    }
+
+    let mut renewed = lineage;
+    renewed.expires_at_ms = Some(expires_at_ms);
+    let sentinel = target.destination.join(STAGING_SENTINEL);
+    File::create(&sentinel)
+        .and_then(|file| file.sync_all())
+        .map_err(|error| io_error("write fork renewal sentinel", error))?;
+    sync_directory(&target.destination)?;
+    maybe_renew_cut(cut_at, RenewCut::AfterSentinelWrite)?;
+    let intent = ForkRenewIntentV1 {
+        format_version: 1,
+        lineage: renewed.clone(),
+        previous_expires_at_ms,
+        renewed_at_ms: now_ms,
+    };
+    write_json_sync(&target.destination.join(RENEW_INTENT_FILE), &intent)?;
+    sync_directory(&target.destination)?;
+    maybe_renew_cut(cut_at, RenewCut::AfterIntentWrite)?;
+    apply_renewal(
+        fork_root,
+        &target.destination,
+        &target.database,
+        &intent,
+        true,
+        cut_at,
+    )
+}
+
+/// Carry a validated renewal intent through every expiry carrier. Idempotent:
+/// the crash-recovery path re-runs it from the durable intent file, where the
+/// advisory registry stays best-effort (`registry_authoritative = false`)
+/// per [`recover`]'s posture, while a live renewal must leave the registry in
+/// exact lineage agreement or fail so recovery can finish the job.
+fn apply_renewal(
+    fork_root: &Path,
+    destination: &Path,
+    database: &Path,
+    intent: &ForkRenewIntentV1,
+    registry_authoritative: bool,
+    cut_at: Option<RenewCut>,
+) -> SnapbackResult<ForkRenewReceiptV1> {
+    let renewed = &intent.lineage;
+    let lineage_json = serde_json::to_string(renewed)
+        .map_err(|error| fork_error("SNAPBACK_FORK_LINEAGE_INVALID", error.to_string()))?;
+    let conn = Connection::open(database)?;
+    conn.execute(
+        "UPDATE _snapback_meta SET value=?2 WHERE key=?1",
+        params![LINEAGE_META_KEY, lineage_json],
+    )?;
+    sync_sqlite_set(database, &conn, None)?;
+    drop(conn);
+    maybe_renew_cut(cut_at, RenewCut::AfterDatabaseUpdate)?;
+
+    let receipt_path = destination.join(MINT_RECEIPT_FILE);
+    let mut mint: ForkMintReceiptV1 = serde_json::from_slice(
+        &fs::read(&receipt_path).map_err(|error| io_error("read fork receipt for renewal", error))?,
+    )
+    .map_err(|_| {
+        fork_error(
+            "SNAPBACK_FORK_RECEIPT_INVALID",
+            "fork mint receipt is malformed",
+        )
+    })?;
+    mint.lineage = renewed.clone();
+    write_json_sync(&receipt_path, &mint)?;
+    maybe_renew_cut(cut_at, RenewCut::AfterReceiptRewrite)?;
+
+    // The registry entry must return to exact lineage equality or
+    // managed_target refuses the fork; a pre-crash or corrupt entry is
+    // rebuilt fresh, the same posture recovery already takes.
+    let registry_result = (|| -> SnapbackResult<()> {
+        let registry = registry_path(fork_root, &renewed.fork_id);
+        let registry_directory = fork_root.join(REGISTRY_DIRECTORY);
+        fs::create_dir_all(&registry_directory)
+            .map_err(|error| io_error("create fork registry for renewal", error))?;
+        let mut entry = fs::read(&registry)
+            .ok()
+            .and_then(|bytes| serde_json::from_slice::<ForkRegistryEntryV1>(&bytes).ok())
+            .unwrap_or_else(|| registry_entry("published", destination, &mint));
+        entry.lineage = renewed.clone();
+        write_json_sync(&registry, &entry)?;
+        sync_directory(&registry_directory)
+    })();
+    if registry_authoritative {
+        registry_result?;
+    }
+    maybe_renew_cut(cut_at, RenewCut::AfterRegistryRewrite)?;
+
+    let receipt = ForkRenewReceiptV1 {
+        schema_version: "snapback.fork-renew.v1".to_owned(),
+        fork_id: renewed.fork_id.clone(),
+        renewed_at_ms: intent.renewed_at_ms,
+        previous_expires_at_ms: intent.previous_expires_at_ms,
+        expires_at_ms: renewed.expires_at_ms.expect("renewed lineage is finite"),
+        created_at_ms: renewed.created_at_ms,
+        max_lifetime_ms: MANAGED_FORK_MAX_LIFETIME_MS,
+    };
+    write_json_sync(&destination.join(RENEW_RECEIPT_FILE), &receipt)?;
+    maybe_renew_cut(cut_at, RenewCut::AfterRenewReceipt)?;
+    fs::remove_file(destination.join(RENEW_INTENT_FILE))
+        .map_err(|error| io_error("remove fork renewal intent", error))?;
+    maybe_renew_cut(cut_at, RenewCut::AfterIntentRemoval)?;
+    fs::remove_file(destination.join(STAGING_SENTINEL))
+        .map_err(|error| io_error("remove fork renewal sentinel", error))?;
+    sync_directory(destination)?;
+    Ok(receipt)
+}
+
+fn database_set_size(database_path: &Path) -> SnapbackResult<u64> {
+    let mut total = 0;
+    for suffix in ["", "-wal", "-shm", "-journal"] {
+        let path = PathBuf::from(format!("{}{suffix}", database_path.display()));
+        match fs::symlink_metadata(&path) {
+            Ok(metadata) if metadata.is_file() => total += metadata.len(),
+            Ok(_) => {}
+            Err(error) if error.kind() == ErrorKind::NotFound => {}
+            Err(error) => return Err(io_error("measure fork source database", error)),
+        }
+    }
+    Ok(total)
+}
+
+pub(crate) fn directory_tree_bytes(path: &Path) -> SnapbackResult<u64> {
+    let mut total = 0;
+    let mut stack = vec![path.to_path_buf()];
+    while let Some(current) = stack.pop() {
+        let entries = match fs::read_dir(&current) {
+            Ok(entries) => entries,
+            Err(error) if error.kind() == ErrorKind::NotFound => continue,
+            Err(error) => return Err(io_error("measure fork root usage", error)),
+        };
+        for entry in entries {
+            let entry = entry.map_err(|error| io_error("measure fork root usage", error))?;
+            let metadata = match entry.metadata() {
+                Ok(metadata) => metadata,
+                Err(error) if error.kind() == ErrorKind::NotFound => continue,
+                Err(error) => return Err(io_error("measure fork root usage", error)),
+            };
+            if metadata.is_dir() {
+                stack.push(entry.path());
+            } else if metadata.is_file() {
+                total += metadata.len();
+            }
+        }
+    }
+    Ok(total)
+}
+
+/// Deterministic admission for `fork create` (LLP 0185 Phase 3 item 7): the
+/// fork-count, per-fork-byte, and total-byte bounds refuse *before* any
+/// staging I/O, with the observed usage in the diagnostic. The byte check is
+/// an estimate from the source database set; it exists to refuse oversized
+/// parents predictably, not to meter the copy after the fact.
+pub fn enforce_creation_limits(
+    fork_root: &Path,
+    source_database: &Path,
+    limits: &ForkResourceLimits,
+) -> SnapbackResult<ForkResourceUsageV1> {
+    let fork_count = managed_registry_ids(fork_root)?.len();
+    if fork_count >= limits.max_forks {
+        return Err(fork_error(
+            RESOURCE_LIMIT_REFUSED_CODE,
+            "fork create refused: the managed fork-count limit is reached; drop or reap a fork first",
+        )
+        .with_details(json!({
+            "resource": "fork-count",
+            "limit": limits.max_forks,
+            "currentForkCount": fork_count,
+        })));
+    }
+    let estimated_fork_bytes = database_set_size(source_database)?;
+    if estimated_fork_bytes > limits.max_fork_bytes {
+        return Err(fork_error(
+            RESOURCE_LIMIT_REFUSED_CODE,
+            "fork create refused: the source database set exceeds the per-fork byte limit",
+        )
+        .with_details(json!({
+            "resource": "fork-bytes",
+            "limitBytes": limits.max_fork_bytes,
+            "estimatedBytes": estimated_fork_bytes,
+        })));
+    }
+    let existing_bytes = directory_tree_bytes(fork_root)?;
+    if existing_bytes.saturating_add(estimated_fork_bytes) > limits.max_total_bytes {
+        return Err(fork_error(
+            RESOURCE_LIMIT_REFUSED_CODE,
+            "fork create refused: existing forks plus this copy exceed the total byte budget",
+        )
+        .with_details(json!({
+            "resource": "total-bytes",
+            "limitBytes": limits.max_total_bytes,
+            "existingBytes": existing_bytes,
+            "estimatedBytes": estimated_fork_bytes,
+        })));
+    }
+    Ok(ForkResourceUsageV1 {
+        fork_count,
+        existing_bytes,
+        estimated_fork_bytes,
+    })
+}
+
+/// Re-read the lineage currently persisted in a fork database, ignoring the
+/// staging sentinel. The serving watchdog uses this at its expiry deadline so
+/// a completed renewal extends the running server instead of being ignored.
+pub fn refreshed_lineage(
+    database_path: &Path,
+) -> SnapbackResult<Option<DerivedForkLineageV1>> {
+    Ok(inspect_evidence(database_path)?.map(|runtime| runtime.lineage))
 }
 
 pub fn expired_managed(fork_root: &Path, now_ms: u64) -> SnapbackResult<Vec<ForkRegistryEntryV1>> {
@@ -1576,10 +2208,24 @@ pub fn expired_managed(fork_root: &Path, now_ms: u64) -> SnapbackResult<Vec<Fork
         .collect())
 }
 
-/// Render the app-row-only inspection artifact promised by LLP 0158. The
-/// explicit omissions are part of the contract, not documentation garnish.
+/// Render the app-row-only inspection artifact promised by LLP 0158 with the
+/// default diff-work bound. The explicit omissions are part of the contract,
+/// not documentation garnish.
 pub fn diff_receipt(database_path: &Path) -> SnapbackResult<ForkDiffReceiptV1> {
-    let runtime = inspect_boot(database_path)?.ok_or_else(|| {
+    diff_receipt_bounded(database_path, FORK_DIFF_MAX_ROWS)
+}
+
+/// [`diff_receipt`] with an explicit diff-work limit (LLP 0185 Phase 3 item
+/// 7): a journal span larger than `max_rows` refuses deterministically with
+/// the observed row count instead of materializing an unbounded receipt.
+pub fn diff_receipt_bounded(
+    database_path: &Path,
+    max_rows: u64,
+) -> SnapbackResult<ForkDiffReceiptV1> {
+    // Diff is an offline lifecycle inspection surface, not serving admission.
+    // It must remain available to explain or clean up an expired fork even
+    // though LocalDatabase::open refuses to boot that same database.
+    let runtime = inspect_published_evidence(database_path)?.ok_or_else(|| {
         fork_error(
             "SNAPBACK_FORK_EVIDENCE_INCOMPLETE",
             "diff requires a minted derived deployment",
@@ -1606,6 +2252,26 @@ pub fn diff_receipt(database_path: &Path) -> SnapbackResult<ForkDiffReceiptV1> {
         ));
     }
     run_diff_after_header_hook();
+    let attributed_rows: u64 = tx.query_row(
+        "SELECT COUNT(*)
+           FROM _snapback_changes
+          WHERE version > ?1
+            AND table_name NOT GLOB '_snapback_*'
+            AND table_name NOT GLOB '_auth_*'",
+        [runtime.lineage.fork_point_version],
+        |row| row.get(0),
+    )?;
+    if attributed_rows > max_rows {
+        return Err(fork_error(
+            RESOURCE_LIMIT_REFUSED_CODE,
+            "fork diff refused: the attributed journal span exceeds the diff-work limit",
+        )
+        .with_details(json!({
+            "resource": "diff-work",
+            "limitRows": max_rows,
+            "attributedRows": attributed_rows,
+        })));
+    }
     let mut statement = tx.prepare(
         "SELECT version,table_name,row_id,op,row_json
            FROM _snapback_changes
@@ -1809,6 +2475,42 @@ pub fn recover(parent: &Path, destination: &Path) -> SnapbackResult<()> {
                 "published fork database is missing",
             ));
         }
+        // A crash-interrupted renewal leaves its durable intent behind the
+        // sentinel; completing it restores all three expiry carriers to the
+        // intent's one lineage before the fork becomes bootable again.
+        let intent_path = destination.join(RENEW_INTENT_FILE);
+        if intent_path.exists() {
+            let intent: ForkRenewIntentV1 = serde_json::from_slice(
+                &fs::read(&intent_path)
+                    .map_err(|error| io_error("read fork renewal intent", error))?,
+            )
+            .map_err(|_| {
+                fork_error(
+                    "SNAPBACK_FORK_RECEIPT_INVALID",
+                    "fork renewal intent is malformed",
+                )
+            })?;
+            let mut expected = receipt.lineage.clone();
+            expected.expires_at_ms = intent.lineage.expires_at_ms;
+            if intent.format_version != 1
+                || intent.lineage.promotable
+                || intent.lineage.expires_at_ms.is_none()
+                || intent.lineage != expected
+            {
+                return Err(fork_error(
+                    "SNAPBACK_FORK_EVIDENCE_MISMATCH",
+                    "fork renewal intent does not identify this fork",
+                ));
+            }
+            apply_renewal(parent, destination, &database, &intent, false, None)?;
+            if inspect_evidence(&database)?.is_none() {
+                return Err(fork_error(
+                    "SNAPBACK_FORK_EVIDENCE_INCOMPLETE",
+                    "renewed fork lost its local lineage evidence",
+                ));
+            }
+            return Ok(());
+        }
         // @ref LLP 0158#design-sketch — keep quarantine
         // present through the complete local-evidence check; a recovery crash
         // must never expose a bootable derived deployment.
@@ -1991,6 +2693,76 @@ mod tests {
     }
 
     #[test]
+    fn parent_commits_after_the_fork_point_are_invisible_to_the_published_fork() {
+        let directory = tempfile::tempdir().unwrap();
+        let source = source_database(directory.path());
+        let parent = Connection::open(&source).unwrap();
+        parent
+            .execute_batch(
+                "CREATE TABLE notes(id TEXT PRIMARY KEY, body TEXT NOT NULL);
+                 INSERT INTO notes(id,body) VALUES('kept','fork point');
+                 INSERT INTO notes(id,body) VALUES('mutated','fork point');
+                 INSERT INTO notes(id,body) VALUES('doomed','fork point');",
+            )
+            .unwrap();
+
+        let destination = directory.path().join("fork");
+        let receipt =
+            publish_managed(&source, &destination, "app-a", "parent-a", 100, 200_000, false)
+                .unwrap();
+        assert_eq!(receipt.lineage.fork_point_version, 0);
+
+        // Every kind of committed parent progress after the fork point:
+        // update, insert, delete, new schema, and journal/version advance.
+        parent
+            .execute_batch(
+                "UPDATE notes SET body='parent advanced' WHERE id='mutated';
+                 DELETE FROM notes WHERE id='doomed';
+                 INSERT INTO notes(id,body) VALUES('after','parent only');
+                 CREATE TABLE post_fork_table(id TEXT PRIMARY KEY);
+                 UPDATE _snapback_version SET version=7 WHERE id=1;
+                 INSERT INTO _snapback_changes(version,table_name,row_id,op,row_json,changed_at_ms)
+                 VALUES(7,'notes','after','insert','{\"_id\":\"after\"}',150);",
+            )
+            .unwrap();
+
+        let database = destination.join("app.sqlite3");
+        let fork = Connection::open(&database).unwrap();
+        let body = |id: &str| {
+            fork.query_row("SELECT body FROM notes WHERE id=?1", [id], |row| {
+                row.get::<_, String>(0)
+            })
+        };
+        assert_eq!(body("kept").unwrap(), "fork point");
+        assert_eq!(body("mutated").unwrap(), "fork point");
+        assert_eq!(body("doomed").unwrap(), "fork point");
+        assert_eq!(
+            fork.query_row("SELECT COUNT(*) FROM notes WHERE id='after'", [], |row| {
+                row.get::<_, u64>(0)
+            })
+            .unwrap(),
+            0,
+            "a derived deployment is a pinned copy, not a view of parent head"
+        );
+        assert!(!table_exists(&fork, "post_fork_table").unwrap());
+        assert_eq!(
+            fork.query_row("SELECT version FROM _snapback_version WHERE id=1", [], |row| {
+                row.get::<_, u64>(0)
+            })
+            .unwrap(),
+            receipt.lineage.fork_point_version,
+            "parent version advance never moves the fork's committed head"
+        );
+        drop(fork);
+        let diff = diff_receipt(&database).unwrap();
+        assert!(
+            diff.rows.is_empty(),
+            "post-fork parent journal entries never attribute into the fork diff"
+        );
+        assert_eq!(diff.observed_head_version, receipt.lineage.fork_point_version);
+    }
+
+    #[test]
     fn parent_credential_and_cursor_corpus_is_refused_by_minted_fork() {
         let directory = tempfile::tempdir().unwrap();
         let source = source_database(directory.path());
@@ -2074,8 +2846,18 @@ mod tests {
             conn.execute_batch(
                 "CREATE TABLE _auth_sessions(id TEXT PRIMARY KEY, token_hash TEXT);
                  CREATE TABLE _auth_agent_credentials(id TEXT PRIMARY KEY, token_hash TEXT);
+                 CREATE TABLE _auth_grants(id TEXT PRIMARY KEY, subject TEXT, revoked_at_ms INTEGER);
+                 CREATE TABLE _auth_grant_tokens(id TEXT PRIMARY KEY, grant_id TEXT, token_hash TEXT);
                  INSERT INTO _auth_sessions VALUES('session-a','parent-session-token-hash');
-                 INSERT INTO _auth_agent_credentials VALUES('agent-a','parent-agent-token-hash');",
+                 INSERT INTO _auth_agent_credentials VALUES('agent-a','parent-agent-token-hash');
+                 -- One live and one already-revoked grant: neither class of
+                 -- parent authority — current, stale, or revoked — may exist
+                 -- in the fork at all, so revocation cannot be undone by
+                 -- forking (LLP 0185 Phase 3 item 2).
+                 INSERT INTO _auth_grants VALUES('grant-live','agent-a',NULL);
+                 INSERT INTO _auth_grants VALUES('grant-revoked','agent-a',900);
+                 INSERT INTO _auth_grant_tokens VALUES('gtok-live','grant-live','live-hash');
+                 INSERT INTO _auth_grant_tokens VALUES('gtok-revoked','grant-revoked','revoked-hash');",
             )
             .unwrap();
             let tx = conn.transaction().unwrap();
@@ -2117,6 +2899,16 @@ mod tests {
             0,
             "parent agent credential hash is absent"
         );
+        for table in ["_auth_grants", "_auth_grant_tokens"] {
+            assert_eq!(
+                conn.query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |row| {
+                    row.get::<_, u64>(0)
+                })
+                .unwrap(),
+                0,
+                "{table}: live, stale, and revoked parent grant authority is all absent"
+            );
+        }
         let child_admin = fs::read_to_string(crate::admin::admin_token_sibling(&database)).unwrap();
         assert_ne!(child_admin.trim(), parent_admin);
         let child_auth_bytes = fs::read(crate::auth::keyring::AuthKeyringStore::keyring_path(
@@ -2162,6 +2954,96 @@ mod tests {
             .unwrap(),
             crate::assets::SignedTokenOutcome::Invalid
         ));
+    }
+
+    #[test]
+    fn host_op_gate_denies_every_egress_family_and_names_unclassified_ops() {
+        let directory = tempfile::tempdir().unwrap();
+        let source = source_database(directory.path());
+        let destination = directory.path().join("fork");
+        publish(&source, &destination, "app-a", "parent-a", 42, None).unwrap();
+        let database = destination.join("app.sqlite3");
+        let fork = crate::local::LocalSnapback::open(&database).unwrap();
+
+        // The plan's egress families that flow through the shared host-op
+        // gate: HTTP fetch, external effects, push delivery, action streams,
+        // and job enqueue all refuse at the same mediation point.
+        for (op, family) in [
+            ("host.fetch", "fetch"),
+            ("action.externalEffectBegin", "fetch"),
+            ("push.send", "push_send"),
+            ("action.streamOpen", "stream_open"),
+            ("action.streamRead", "stream_read"),
+            ("action.streamCancel", "stream_cancel"),
+            ("jobs.enqueue", "jobs_enqueue"),
+        ] {
+            let error = fork.deny_derived_fork_host_op(op, 43).unwrap_err();
+            assert_eq!(error.diagnostic.code, "SNAPBACK_FORK_EGRESS_DENIED", "{op}");
+            assert_eq!(error.diagnostic.details["family"], family, "{op}");
+            assert_eq!(error.diagnostic.details["hostOp"], op);
+        }
+        // The future-family rule: an op this build has never heard of fails
+        // closed and the diagnostic names the exact op, not just the bucket.
+        let error = fork
+            .deny_derived_fork_host_op("future.networkDial", 44)
+            .unwrap_err();
+        assert_eq!(error.diagnostic.code, "SNAPBACK_FORK_EGRESS_DENIED");
+        assert_eq!(
+            error.diagnostic.details["family"],
+            "unclassified_host_operation"
+        );
+        assert_eq!(error.diagnostic.details["hostOp"], "future.networkDial");
+        // Local-only ops stay admitted on a fork.
+        fork.deny_derived_fork_host_op("db.query", 45).unwrap();
+        fork.deny_derived_fork_host_op("runtime.now", 45).unwrap();
+        drop(fork);
+        // Every refusal above left a durable, payload-free marker.
+        let conn = Connection::open(&database).unwrap();
+        let marker_families: u64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM _snapback_fork_egress_attempts_v1",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(marker_families, 7, "one marker row per denied family");
+
+        // The same gate is inert on an ordinary (non-fork) instance.
+        let plain = crate::local::LocalSnapback::open(&source).unwrap();
+        plain.deny_derived_fork_host_op("host.fetch", 46).unwrap();
+    }
+
+    #[test]
+    fn manual_cron_and_asset_provider_paths_deny_on_a_fork() {
+        let directory = tempfile::tempdir().unwrap();
+        let source = source_database(directory.path());
+        let destination = directory.path().join("fork");
+        publish(&source, &destination, "app-a", "parent-a", 42, None).unwrap();
+        let mut fork =
+            crate::local::LocalSnapback::open(&destination.join("app.sqlite3")).unwrap();
+        let manual_cron = match fork.claim_manual_cron_run("any-job", 43) {
+            Ok(_) => panic!("a fork must never claim a manual cron run"),
+            Err(error) => error,
+        };
+        assert_eq!(
+            manual_cron.diagnostic.code, "SNAPBACK_FORK_EGRESS_DENIED",
+            "a manual cron drain is the same egress family as the scheduler"
+        );
+        // Inherited provider configuration cannot turn a fork into an
+        // outbound asset client: the provider-adapter selection point itself
+        // refuses before any store is constructed.
+        let saved = std::env::var("SNAPBACK_ASSET_STORE").ok();
+        unsafe { std::env::set_var("SNAPBACK_ASSET_STORE", "s3") };
+        let denied = match fork.asset_store_obj() {
+            Ok(_) => panic!("a fork must never construct a provider asset store"),
+            Err(error) => error,
+        };
+        match saved {
+            Some(value) => unsafe { std::env::set_var("SNAPBACK_ASSET_STORE", value) },
+            None => unsafe { std::env::remove_var("SNAPBACK_ASSET_STORE") },
+        }
+        assert_eq!(denied.diagnostic.code, "SNAPBACK_FORK_EGRESS_DENIED");
+        assert_eq!(denied.diagnostic.details["family"], "asset_provider");
     }
 
     #[test]
@@ -2272,7 +3154,7 @@ mod tests {
         File::create(directory.path().join(STAGING_SENTINEL)).unwrap();
         assert_eq!(
             inspect_boot(&source).unwrap_err().diagnostic.code,
-            "SNAPBACK_FORK_QUARANTINED"
+            "SNAPBACK_FORK_PUBLICATION_PARTIAL"
         );
         fs::remove_file(directory.path().join(STAGING_SENTINEL)).unwrap();
         let conn = Connection::open(&source).unwrap();
@@ -2317,10 +3199,56 @@ mod tests {
             fs::remove_file(path).unwrap();
             assert_eq!(
                 inspect_boot(&database).unwrap_err().diagnostic.code,
-                "SNAPBACK_FORK_EVIDENCE_INCOMPLETE",
+                "SNAPBACK_FORK_SIDECAR_MISSING",
                 "{sidecar}"
             );
         }
+    }
+
+    #[test]
+    fn boot_refuses_at_injected_finite_expiry_but_lifecycle_evidence_remains_readable() {
+        let directory = tempfile::tempdir().unwrap();
+        let source = source_database(directory.path());
+        let root = directory.path().join("forks");
+        fs::create_dir(&root).unwrap();
+        let destination = root.join("fork-a");
+        let receipt =
+            publish_managed(&source, &destination, "app-a", "parent-a", 100, 200, false)
+                .unwrap();
+
+        assert!(inspect_boot_at(&destination.join("app.sqlite3"), 199)
+            .unwrap()
+            .is_some());
+        let error = inspect_boot_at(&destination.join("app.sqlite3"), 200).unwrap_err();
+        assert_eq!(error.diagnostic.code, SERVER_EXPIRED_CODE);
+        assert_eq!(error.diagnostic.details["forkId"], receipt.lineage.fork_id);
+        assert_eq!(
+            managed_target(&root, &receipt.lineage.fork_id)
+                .unwrap()
+                .entry
+                .lineage,
+            receipt.lineage
+        );
+    }
+
+    #[test]
+    fn malformed_sidecar_and_resource_limit_placeholder_have_stable_codes() {
+        let directory = tempfile::tempdir().unwrap();
+        let source = source_database(directory.path());
+        let destination = directory.path().join("fork");
+        publish(&source, &destination, "app-a", "parent-a", 42, None).unwrap();
+        let database = destination.join("app.sqlite3");
+        fs::write(crate::admin::admin_token_sibling(&database), b"not-a-token").unwrap();
+        assert_eq!(
+            inspect_boot_at(&database, 42).unwrap_err().diagnostic.code,
+            "SNAPBACK_FORK_SIDECAR_MALFORMED"
+        );
+        assert_eq!(
+            resource_limit_refusal("fork-count", "fork-count limit reached")
+                .diagnostic
+                .code,
+            RESOURCE_LIMIT_REFUSED_CODE
+        );
     }
 
     #[test]
@@ -2528,6 +3456,26 @@ mod tests {
     }
 
     #[test]
+    fn missing_registered_destination_is_reported_as_stale_registry_state() {
+        let directory = tempfile::tempdir().unwrap();
+        let source = source_database(directory.path());
+        let root = directory.path().join("forks");
+        fs::create_dir(&root).unwrap();
+        let destination = root.join("fork-a");
+        let receipt =
+            publish_managed(&source, &destination, "app-a", "parent-a", 100, 200, false)
+                .unwrap();
+        fs::remove_dir_all(&destination).unwrap();
+        assert_eq!(
+            managed_target(&root, &receipt.lineage.fork_id)
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_FORK_REGISTRY_STALE"
+        );
+    }
+
+    #[test]
     fn copied_history_drops_parent_operation_identity_when_ledgers_are_scrubbed() {
         let directory = tempfile::tempdir().unwrap();
         let source = source_database(directory.path());
@@ -2609,6 +3557,363 @@ mod tests {
             diff_receipt(&database).unwrap_err().diagnostic.code,
             "SNAPBACK_FORK_DIFF_RETENTION_GAP"
         );
+    }
+
+    #[test]
+    fn concurrent_drops_of_one_fork_settle_idempotently() {
+        let directory = tempfile::tempdir().unwrap();
+        let source = source_database(directory.path());
+        let root = directory.path().join("forks");
+        fs::create_dir(&root).unwrap();
+        // Several rounds to vary the interleaving; each round races four
+        // cleanup actors on the same fork.
+        for round in 0..4 {
+            let destination = root.join(format!("fork-{round}"));
+            let receipt =
+                publish_managed(&source, &destination, "app-a", "parent-a", 100, 200_000, false)
+                    .unwrap();
+            let outcomes = std::thread::scope(|scope| {
+                let handles = (0..4)
+                    .map(|_| {
+                        let root = root.clone();
+                        let fork_id = receipt.lineage.fork_id.clone();
+                        scope.spawn(move || drop_managed(&root, &fork_id))
+                    })
+                    .collect::<Vec<_>>();
+                handles
+                    .into_iter()
+                    .map(|handle| handle.join().unwrap())
+                    .collect::<Vec<_>>()
+            });
+            let mut wins = 0;
+            for outcome in outcomes {
+                match outcome {
+                    Ok(_) => wins += 1,
+                    Err(error) => assert_eq!(
+                        error.diagnostic.code, "SNAPBACK_FORK_NOT_FOUND",
+                        "a losing cleanup actor observes complete absence, never a torn teardown"
+                    ),
+                }
+            }
+            assert_eq!(wins, 1, "round {round}: exactly one actor performs the teardown");
+            assert!(!destination.exists(), "round {round}: fork directory is gone");
+            assert!(
+                !registry_path(&root, &receipt.lineage.fork_id).exists(),
+                "round {round}: registry entry is gone"
+            );
+        }
+    }
+
+    #[test]
+    fn stale_registry_entries_clear_only_after_their_directory_is_gone() {
+        let directory = tempfile::tempdir().unwrap();
+        let source = source_database(directory.path());
+        let root = directory.path().join("forks");
+        fs::create_dir(&root).unwrap();
+        let destination = root.join("fork-a");
+        let receipt =
+            publish_managed(&source, &destination, "app-a", "parent-a", 100, 200_000, false)
+                .unwrap();
+
+        // While the fork directory exists the entry is not stale; clearing
+        // must refuse rather than orphan a live fork's bookkeeping.
+        assert_eq!(
+            clear_stale_registry_entry(&root, &receipt.lineage.fork_id)
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_FORK_EVIDENCE_MISMATCH"
+        );
+
+        fs::remove_dir_all(&destination).unwrap();
+        assert_eq!(
+            managed_registry_ids(&root).unwrap(),
+            vec![receipt.lineage.fork_id.clone()],
+            "id enumeration keeps working over a stale entry"
+        );
+        clear_stale_registry_entry(&root, &receipt.lineage.fork_id).unwrap();
+        assert!(managed_registry_ids(&root).unwrap().is_empty());
+        assert_eq!(
+            clear_stale_registry_entry(&root, &receipt.lineage.fork_id)
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_FORK_NOT_FOUND"
+        );
+    }
+
+    #[test]
+    fn renewal_moves_every_expiry_carrier_and_never_shortens_clears_or_resurrects() {
+        let directory = tempfile::tempdir().unwrap();
+        let source = source_database(directory.path());
+        let root = directory.path().join("forks");
+        fs::create_dir(&root).unwrap();
+        let destination = root.join("fork-a");
+        let receipt =
+            publish_managed(&source, &destination, "app-a", "parent-a", 100, 200_000, false)
+                .unwrap();
+        let fork_id = receipt.lineage.fork_id.clone();
+        let database = destination.join("app.sqlite3");
+
+        // Boot refuses at the original expiry before renewal.
+        assert_eq!(
+            inspect_boot_at(&database, 250_000).unwrap_err().diagnostic.code,
+            SERVER_EXPIRED_CODE
+        );
+
+        let renewed = renew_managed(&root, &fork_id, 150, 299_850).unwrap();
+        assert_eq!(renewed.schema_version, "snapback.fork-renew.v1");
+        assert_eq!(renewed.previous_expires_at_ms, 200_000);
+        assert_eq!(renewed.expires_at_ms, 300_000);
+        assert_eq!(renewed.created_at_ms, 100);
+        assert_eq!(renewed.max_lifetime_ms, MANAGED_FORK_MAX_LIFETIME_MS);
+
+        // Every carrier agrees and the moved expiry is real boot authority.
+        let target = managed_target(&root, &fork_id).unwrap();
+        assert_eq!(target.entry.lineage.expires_at_ms, Some(300_000));
+        assert_eq!(target.receipt.lineage.expires_at_ms, Some(300_000));
+        assert!(inspect_boot_at(&database, 250_000).unwrap().is_some());
+        assert!(expired_managed(&root, 200_000).unwrap().is_empty());
+        assert_eq!(expired_managed(&root, 300_000).unwrap().len(), 1);
+        let durable: ForkRenewReceiptV1 =
+            serde_json::from_slice(&fs::read(destination.join(RENEW_RECEIPT_FILE)).unwrap())
+                .unwrap();
+        assert_eq!(durable, renewed);
+
+        // Shortening or holding the expiry is refused outright.
+        assert_eq!(
+            renew_managed(&root, &fork_id, 200, 100_000)
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_FORK_TTL_INVALID"
+        );
+        // The configured maximum binds creation through every renewal.
+        let over_limit = renew_managed(
+            &root,
+            &fork_id,
+            200,
+            MANAGED_FORK_MAX_LIFETIME_MS,
+        )
+        .unwrap_err();
+        assert_eq!(over_limit.diagnostic.code, RESOURCE_LIMIT_REFUSED_CODE);
+        assert_eq!(over_limit.diagnostic.details["resource"], "renewal-lifetime");
+        assert_eq!(
+            over_limit.diagnostic.details["maxLifetimeMs"],
+            MANAGED_FORK_MAX_LIFETIME_MS
+        );
+        // Overflow and unknown identity stay in the named vocabulary.
+        assert_eq!(
+            renew_managed(&root, &fork_id, 200, u64::MAX)
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_FORK_TTL_INVALID"
+        );
+        assert_eq!(
+            renew_managed(&root, &Uuid::now_v7().to_string(), 200, 1_000)
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_FORK_NOT_FOUND"
+        );
+        // An already-expired fork is never resurrected.
+        assert_eq!(
+            renew_managed(&root, &fork_id, 300_000, 1_000)
+                .unwrap_err()
+                .diagnostic
+                .code,
+            RENEW_EXPIRED_CODE
+        );
+        // After every refusal the carriers still hold the last good expiry.
+        assert_eq!(
+            managed_target(&root, &fork_id)
+                .unwrap()
+                .entry
+                .lineage
+                .expires_at_ms,
+            Some(300_000)
+        );
+    }
+
+    #[test]
+    fn renewal_crash_matrix_recovers_to_one_consistent_expiry() {
+        let cuts = [
+            (RenewCut::AfterSentinelWrite, 200_000),
+            (RenewCut::AfterIntentWrite, 300_000),
+            (RenewCut::AfterDatabaseUpdate, 300_000),
+            (RenewCut::AfterReceiptRewrite, 300_000),
+            (RenewCut::AfterRegistryRewrite, 300_000),
+            (RenewCut::AfterRenewReceipt, 300_000),
+            (RenewCut::AfterIntentRemoval, 300_000),
+        ];
+        for (cut, expected_expiry) in cuts {
+            let directory = tempfile::tempdir().unwrap();
+            let source = source_database(directory.path());
+            let root = directory.path().join("forks");
+            fs::create_dir(&root).unwrap();
+            let destination = root.join("fork-a");
+            let receipt =
+                publish_managed(&source, &destination, "app-a", "parent-a", 100, 200_000, false)
+                    .unwrap();
+            let fork_id = receipt.lineage.fork_id.clone();
+            let database = destination.join("app.sqlite3");
+
+            let error = renew_managed_with_cut(&root, &fork_id, 150, 299_850, Some(cut))
+                .unwrap_err();
+            assert_eq!(error.diagnostic.code, "SNAPBACK_FORK_TEST_CRASH_CUT", "{cut:?}");
+            // The torn window fails closed for serving.
+            assert_eq!(
+                inspect_boot_at(&database, 151).unwrap_err().diagnostic.code,
+                "SNAPBACK_FORK_PUBLICATION_PARTIAL",
+                "{cut:?}"
+            );
+
+            recover(&root, &destination).unwrap();
+            assert!(
+                !destination.join(STAGING_SENTINEL).exists()
+                    && !destination.join(RENEW_INTENT_FILE).exists(),
+                "{cut:?}: recovery leaves no renewal residue"
+            );
+            let target = managed_target(&root, &fork_id).unwrap();
+            assert_eq!(
+                target.entry.lineage.expires_at_ms,
+                Some(expected_expiry),
+                "{cut:?}: every carrier recovers to one deterministic expiry"
+            );
+            assert_eq!(target.receipt.lineage.expires_at_ms, Some(expected_expiry));
+            assert!(inspect_boot_at(&database, 151).unwrap().is_some(), "{cut:?}");
+            let receipt_exists = destination.join(RENEW_RECEIPT_FILE).exists();
+            assert_eq!(
+                receipt_exists,
+                expected_expiry == 300_000,
+                "{cut:?}: a completed renewal has its receipt, an undone one does not"
+            );
+        }
+    }
+
+    #[test]
+    fn creation_limits_refuse_deterministically_with_observed_usage() {
+        let directory = tempfile::tempdir().unwrap();
+        let source = source_database(directory.path());
+        let root = directory.path().join("forks");
+        fs::create_dir(&root).unwrap();
+        publish_managed(&source, &root.join("fork-a"), "app-a", "parent-a", 100, 200_000, false)
+            .unwrap();
+
+        let generous = ForkResourceLimits::default();
+        let usage = enforce_creation_limits(&root, &source, &generous).unwrap();
+        assert_eq!(usage.fork_count, 1);
+        assert!(usage.existing_bytes > 0);
+        assert!(usage.estimated_fork_bytes > 0);
+
+        // Excessive fork count.
+        let error = enforce_creation_limits(
+            &root,
+            &source,
+            &ForkResourceLimits {
+                max_forks: 1,
+                ..generous
+            },
+        )
+        .unwrap_err();
+        assert_eq!(error.diagnostic.code, RESOURCE_LIMIT_REFUSED_CODE);
+        assert_eq!(error.diagnostic.details["resource"], "fork-count");
+        assert_eq!(error.diagnostic.details["currentForkCount"], 1);
+
+        // Oversized parent.
+        let error = enforce_creation_limits(
+            &root,
+            &source,
+            &ForkResourceLimits {
+                max_fork_bytes: 1,
+                ..generous
+            },
+        )
+        .unwrap_err();
+        assert_eq!(error.diagnostic.code, RESOURCE_LIMIT_REFUSED_CODE);
+        assert_eq!(error.diagnostic.details["resource"], "fork-bytes");
+        assert!(error.diagnostic.details["estimatedBytes"].as_u64().unwrap() > 1);
+
+        // Total-byte budget exhaustion counts what is already on disk.
+        let error = enforce_creation_limits(
+            &root,
+            &source,
+            &ForkResourceLimits {
+                max_total_bytes: usage.existing_bytes,
+                ..generous
+            },
+        )
+        .unwrap_err();
+        assert_eq!(error.diagnostic.code, RESOURCE_LIMIT_REFUSED_CODE);
+        assert_eq!(error.diagnostic.details["resource"], "total-bytes");
+        assert_eq!(
+            error.diagnostic.details["existingBytes"],
+            usage.existing_bytes
+        );
+    }
+
+    #[test]
+    fn create_shares_the_maximum_fork_lifetime_with_renewal() {
+        let directory = tempfile::tempdir().unwrap();
+        let source = source_database(directory.path());
+        let over = publish_managed(
+            &source,
+            &directory.path().join("fork-over"),
+            "app-a",
+            "parent-a",
+            100,
+            100 + MANAGED_FORK_MAX_LIFETIME_MS + 1,
+            false,
+        )
+        .unwrap_err();
+        assert_eq!(over.diagnostic.code, RESOURCE_LIMIT_REFUSED_CODE);
+        assert_eq!(over.diagnostic.details["resource"], "fork-lifetime");
+        assert!(
+            !directory.path().join("fork-over").exists(),
+            "a lifetime refusal leaves no staging residue"
+        );
+        // Exactly at the bound is admitted.
+        publish_managed(
+            &source,
+            &directory.path().join("fork-at-bound"),
+            "app-a",
+            "parent-a",
+            100,
+            100 + MANAGED_FORK_MAX_LIFETIME_MS,
+            false,
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn diff_work_limit_refuses_retained_history_exhaustion() {
+        let directory = tempfile::tempdir().unwrap();
+        let source = source_database(directory.path());
+        let destination = directory.path().join("fork");
+        publish(&source, &destination, "app-a", "parent-a", 42, None).unwrap();
+        let database = destination.join("app.sqlite3");
+        let conn = Connection::open(&database).unwrap();
+        conn.execute("UPDATE _snapback_version SET version=6 WHERE id=1", [])
+            .unwrap();
+        for index in 1..=6 {
+            conn.execute(
+                "INSERT INTO _snapback_changes(version,table_name,row_id,op,row_json,changed_at_ms)
+                 VALUES(?1,'todos',?2,'insert','{}',100)",
+                params![index, format!("todo-{index}")],
+            )
+            .unwrap();
+        }
+        drop(conn);
+
+        let error = diff_receipt_bounded(&database, 5).unwrap_err();
+        assert_eq!(error.diagnostic.code, RESOURCE_LIMIT_REFUSED_CODE);
+        assert_eq!(error.diagnostic.details["resource"], "diff-work");
+        assert_eq!(error.diagnostic.details["attributedRows"], 6);
+        assert_eq!(error.diagnostic.details["limitRows"], 5);
+
+        let receipt = diff_receipt_bounded(&database, 6).unwrap();
+        assert_eq!(receipt.rows.len(), 6, "at the bound the receipt is exact");
     }
 
     #[test]

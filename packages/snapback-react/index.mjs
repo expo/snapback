@@ -336,6 +336,8 @@ function createRegistry(binding, providerInstanceId, options = {}) {
   let publishers = 0;
   let terminal = false;
   let custodyPaused = false;
+  let hostPaused = false;
+  const runtimePaused = () => custodyPaused || hostPaused;
   let leaseSequence = 0;
   let registeredConnectionAttached = false;
   let registeredRecovery = null;
@@ -488,6 +490,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
           ? client.liveStreamManager(connectionId)
           : null;
         custodyPaused = false;
+        if (hostPaused) return;
         for (const store of stores.values()) startStore(store);
         for (const room of rooms.values()) startRoom(room);
       })
@@ -664,7 +667,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
   };
 
   const startStore = (store, supersedes = null) => {
-    if (terminal || custodyPaused || store.handle || (store.consumers === 0 && store.pins === 0)) return;
+    if (terminal || runtimePaused() || store.handle || (store.consumers === 0 && store.pins === 0)) return;
     if (store.readOnlySnapshot !== null) return null;
     // A one-for-one supersession must carry its exact predecessor witness to
     // the server now; it is an explicit invalidation, so it resets any held
@@ -773,7 +776,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         handleSubscribeFailure([
           store, error, generation, handle, clearUnadoptedSubscription,
           allHandles, recoverExpiredRegisteredConnection, publish, serializeError,
-          () => !terminal && !custodyPaused,
+          () => !terminal && !runtimePaused(),
           () => startStore(store),
         ])
       )).catch((loadError) => {
@@ -799,7 +802,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
           retryHandle = null;
           if (store.retry !== cancelRetry) return;
           store.retry = null;
-          if (!terminal && !custodyPaused && (store.consumers > 0 || store.pins > 0)) {
+          if (!terminal && !runtimePaused() && (store.consumers > 0 || store.pins > 0)) {
             startStore(store);
           }
         }, REACT_RUNTIME_FALLBACK_RETRY_MS);
@@ -993,7 +996,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     );
     const store = stores.get(queryKey);
     if (
-      custodyPaused
+      runtimePaused()
       || !store
       || store.authoritativeRevision === 0
       || !['ready', 'refreshing'].includes(store.snapshot.status)
@@ -1613,7 +1616,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     pauseRoom(room);
   };
   const startRoom = (room) => {
-    if (room.closed || room.handle || terminal || custodyPaused) return;
+    if (room.closed || room.handle || terminal || runtimePaused()) return;
     const generation = ++room.generation;
     room.raw = PRESENCE_SERVER_PENDING;
     const handle = client.startEphemeralRoom(
@@ -1935,17 +1938,29 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     return connectionSnapshot;
   };
 
+  const quiesceRegistry = async () => {
+    for (const store of stores.values()) stopStore(store);
+    for (const room of rooms.values()) pauseRoom(room);
+    await Promise.allSettled([
+      ...[...allHandles].map((handle) => handle.settled()),
+      ...[...rooms.values()].map((room) => room.cleanup),
+      ...(registeredRecovery === null ? [] : [registeredRecovery]),
+    ]);
+  };
+  const resumeRegistry = () => {
+    if (terminal || runtimePaused()) return;
+    manager = typeof client.liveStreamManager === 'function'
+      ? client.liveStreamManager(connectionId)
+      : null;
+    for (const store of stores.values()) startStore(store);
+    for (const room of rooms.values()) startRoom(room);
+  };
+
   const barrierParticipant = {
     name: `snapback-react:${providerInstanceId}`,
     async quiesce() {
       custodyPaused = true;
-      for (const store of stores.values()) stopStore(store);
-      for (const room of rooms.values()) pauseRoom(room);
-      await Promise.allSettled([
-        ...[...allHandles].map((handle) => handle.settled()),
-        ...[...rooms.values()].map((room) => room.cleanup),
-        ...(registeredRecovery === null ? [] : [registeredRecovery]),
-      ]);
+      await quiesceRegistry();
     },
     blank() {
       custodyPaused = true;
@@ -1974,12 +1989,8 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     async commitDurable() {},
     async resume() {
       if (terminal) return;
-      manager = typeof client.liveStreamManager === 'function'
-        ? client.liveStreamManager(connectionId)
-        : null;
       custodyPaused = false;
-      for (const store of stores.values()) startStore(store);
-      for (const room of rooms.values()) startRoom(room);
+      resumeRegistry();
     },
   };
   const unregisterBarrier = client.registerAuthBarrierParticipant(barrierParticipant);
@@ -2160,11 +2171,25 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       return () => connectionListeners.delete(listener);
     },
     recordDiagnostic,
+    // Host lifecycle is projected through the same registry operations as
+    // the auth barrier, with an independent reason bit so a host resume
+    // cannot race an authority transition (or vice versa).
+    // @ref LLP 0181#provider — the Expo lifecycle shell delegates to the
+    // existing React/client machinery.
+    async pause() {
+      hostPaused = true;
+      await quiesceRegistry();
+    },
+    async resume() {
+      hostPaused = false;
+      resumeRegistry();
+    },
     inspection() {
       return Object.freeze({
         providerInstanceId,
         terminal,
-        custodyPaused,
+        custodyPaused: runtimePaused(),
+        hostPaused,
         stores: stores.size,
         consumers,
         serverSubscriptions: activeStores().length,
@@ -2196,6 +2221,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       if (terminal) return;
       terminal = true;
       custodyPaused = true;
+      hostPaused = true;
       const ownsUnadoptedRegisteredOwner = preparedGroup?.connectionId === connectionId
         && (
           preparedRegistrations.size > 0
@@ -2275,6 +2301,8 @@ export function createSnapbackReactProvider(binding, options = {}) {
     registerEphemeralRepublisher(reference, callback) {
       return preparedReactBindingClient(prepared).registerEphemeralRepublisher(reference, callback);
     },
+    pause: () => registry.pause(),
+    resume: () => registry.resume(),
     inspection: () => registry.inspection(),
     dispose: () => registry.dispose(),
   });
