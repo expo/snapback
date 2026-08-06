@@ -847,7 +847,16 @@ main. Its source changed the telemetry closure and its
 `14e4548fd873f00c0beebc4cd5978be5ec52d294` landing added five negative
 ControlCatalog completeness fixtures without selecting them in local-proof.
 The stale in-flight producer was stopped rather than retained. The final source
-candidate selects those fixtures as `control-catalog-fixtures`; all five pass.
+candidate selects those fixtures as `control-catalog-fixtures`.
+
+The same landing's `--check` compared the generated artifact byte-for-byte,
+including a Git identity captured before the carrier commit. A committed
+carrier therefore invalidated itself immediately and no sequence of ordinary
+regenerate/commit operations could make the gate green. The check now schema-
+validates the retained carrier and compares the exact semantic catalog while
+preserving its generation provenance. A source-commit/carrier-commit regression
+joins the original fixture file; all six cases pass.
+
 The 97-entry ControlCatalog carrier is regenerated once for the combined
 candidate `9986c733b1c3d9f929b276ade935ddf026c4bb42`, retaining catalog digest
 `sha256:919b2ba9fea2c3edb02f8311352a2d61c9e2ef07240a9b19b66947735b5a6736`.
