@@ -233,6 +233,22 @@ async function exerciseOutboxContract(store, { label }) {
   await store.outboxDiscard('cm-after-result-gone');
   // Explicit discard of the failed record; wipe clears everything.
   assert.equal(await store.outboxDiscard('cm-1'), true);
+  await store.outboxEnqueue({
+    id: 'cm-quarantine',
+    function: 'createThing',
+    args: { privateValue: 'must-not-project' },
+  });
+  const quarantine = await store.outboxMarkQuarantined('cm-quarantine', {
+    code: 'SNAPBACK_MIGRATION_UPGRADE_REQUIRED',
+  });
+  assert.equal(quarantine.count, 1, `${label}: quarantine transition commits`);
+  assert.equal((await store.outboxRecords())[0].status, 'quarantined');
+  assert.equal(Object.hasOwn((await store.outboxRecords())[0], 'args'), false);
+  assert.equal(await store.outboxEmpty(), false, `${label}: quarantine keeps resume fenced`);
+  const reentry = await store.outboxReenterQuarantined();
+  assert.deepEqual(reentry.clientMutationIds, ['cm-quarantine']);
+  assert.deepEqual((await store.outboxPending())[0].args, { privateValue: 'must-not-project' });
+  await store.outboxDiscard('cm-quarantine');
   await store.outboxEnqueue({ id: 'cm-3', function: 'createThing' });
   await store.wipe();
   assert.deepEqual(await store.outboxPending(), [], `${label}: wipe clears the queue`);
@@ -1773,7 +1789,7 @@ test('committed result-expired becomes durable result-gone and blocks ordered su
   );
   assert.deepEqual(
     { ...(await client.outboxStatus()) },
-    { supported: true, pending: 1, failed: 0, resultGone: 1, replaying: false },
+    { supported: true, pending: 1, failed: 0, quarantined: 0, resultGone: 1, replaying: false },
   );
 });
 
@@ -1828,7 +1844,7 @@ test('recreated file-backed client preserves result-gone without redelivery', as
   });
   assert.deepEqual(
     { ...(await recreatedClient.outboxStatus()) },
-    { supported: true, pending: 1, failed: 0, resultGone: 1, replaying: false },
+    { supported: true, pending: 1, failed: 0, quarantined: 0, resultGone: 1, replaying: false },
   );
   const replay = await recreatedClient.replayQueuedMutations();
   assert.deepEqual(
@@ -1976,14 +1992,14 @@ test('outboxStatus and subscribeOutbox project the queue facts (LLP 0114 React-a
   const disabled = new SnapbackClient('http://127.0.0.1:9', { rqsStore: null });
   assert.deepEqual(
     { ...(await disabled.outboxStatus()) },
-    { supported: false, pending: 0, failed: 0, resultGone: 0, replaying: false },
+    { supported: false, pending: 0, failed: 0, quarantined: 0, resultGone: 0, replaying: false },
   );
 
   const events = [];
   const unsubscribe = client.subscribeOutbox(() => events.push('event'));
   assert.deepEqual(
     { ...(await client.outboxStatus()) },
-    { supported: true, pending: 0, failed: 0, resultGone: 0, replaying: false },
+    { supported: true, pending: 0, failed: 0, quarantined: 0, resultGone: 0, replaying: false },
   );
 
   // Queue two intents offline: each transition notifies subscribers.
@@ -1993,7 +2009,7 @@ test('outboxStatus and subscribeOutbox project the queue facts (LLP 0114 React-a
   assert(events.length >= 2, 'queue transitions notified subscribers');
   assert.deepEqual(
     { ...(await client.outboxStatus()) },
-    { supported: true, pending: 2, failed: 0, resultGone: 0, replaying: false },
+    { supported: true, pending: 2, failed: 0, quarantined: 0, resultGone: 0, replaying: false },
   );
 
   // Replay: first record refused (drop-and-mark-failed), second settles.
@@ -2022,7 +2038,7 @@ test('outboxStatus and subscribeOutbox project the queue facts (LLP 0114 React-a
   assert(events.length > drained, 'replay transitions notified subscribers');
   assert.deepEqual(
     { ...(await client.outboxStatus()) },
-    { supported: true, pending: 0, failed: 1, resultGone: 0, replaying: false },
+    { supported: true, pending: 0, failed: 1, quarantined: 0, resultGone: 0, replaying: false },
     'failed records stay visible; settled records leave the counts',
   );
 

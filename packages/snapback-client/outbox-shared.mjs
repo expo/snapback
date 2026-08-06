@@ -23,6 +23,7 @@ import { canonicalizeClientValueV1 } from './canonical-client-value.mjs';
 export const OUTBOX_MAX_RECORDS = 1024;
 export const OUTBOX_MAX_RECORD_BYTES = 262_144; // 256 KiB serialized
 export const OUTBOX_MAX_PENDING_ACKS = 4096;
+export const OUTBOX_QUARANTINE_TOMBSTONE_FORMAT = 'snapback.outbox-quarantine-tombstone.v1';
 
 // Connectivity classification shared by the LLP 0043 M2 queue path and the
 // offline binding-receipt path (react-binding.mjs, which cannot import
@@ -310,6 +311,52 @@ const cascadeFailure = (state, unresolvedIds, afterSequence) => {
     ? { state, failedIds }
     : { state: { ...state, records }, failedIds };
 };
+
+const quarantineDependencyIds = (records, trigger) => {
+  const unresolvedIds = new Set(settlementMintIds(trigger));
+  const dependentIds = new Set();
+  if (!unresolvedIds.size) return dependentIds;
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const candidate of records) {
+      if (
+        candidate.id === trigger.id
+        || candidate.sequence <= trigger.sequence
+        || dependentIds.has(candidate.id)
+        || !hasStringLeaf(candidate.args, unresolvedIds)
+      ) continue;
+      dependentIds.add(candidate.id);
+      for (const minted of settlementMintIds(candidate)) unresolvedIds.add(minted);
+      changed = true;
+    }
+  }
+  return dependentIds;
+};
+
+// The durable record keeps the original intent privately so explicit re-entry
+// can restore it. Every observable store/client projection replaces that
+// private record with this stable payload-free tombstone.
+//
+// @ref LLP 0081#4-execution-journaling-and-crash-recovery — an incompatible
+//   client's queued intent is observable as a redacted tombstone, never
+//   silently replayed or dropped.
+const quarantineTombstone = (record) => ({
+  format: OUTBOX_QUARANTINE_TOMBSTONE_FORMAT,
+  status: 'quarantined',
+  id: record.id,
+  clientMutationId: record.id,
+  function: record.function,
+  sequence: record.sequence,
+  quarantinedAt: record.quarantine?.quarantinedAt ?? null,
+  refusalCode: record.quarantine?.refusalCode ?? 'SNAPBACK_UPGRADE_REQUIRED',
+  quarantineDisposition: record.quarantine?.disposition ?? 'compatibility-unclassified',
+  causeClientMutationId: record.quarantine?.causeClientMutationId ?? record.id,
+  provenance: {
+    source: 'server-replay-refusal',
+    payload: 'redacted',
+  },
+});
 
 const reconcileSettledMintIds = (state, record, settlement) => {
   const { replacements, unresolved } = settlementIdResolution(record, settlement);
@@ -600,6 +647,69 @@ export const outboxOps = {
     );
     return { state: cascaded.state, result: true };
   },
+  /// First-cut LLP 0081 quarantine: without generated successor-compatibility
+  /// facts, one upgrade-required replay refusal quarantines every pending
+  /// intent. Exact-leaf dependents retain an explicit dependent disposition;
+  /// other pending records are held as compatibility-unclassified. No intent
+  /// is dropped and no quarantined intent is selected by pendingOutboxRecords.
+  markQuarantined(state, id, refusal, now) {
+    const trigger = state.records[id];
+    if (!trigger || trigger.status !== 'pending') return { state, result: false };
+    const refusalCode = typeof refusal?.code === 'string' && refusal.code.length > 0
+      ? refusal.code
+      : 'SNAPBACK_UPGRADE_REQUIRED';
+    const pending = Object.values(state.records)
+      .filter((record) => record.status === 'pending')
+      .sort(outboxOrder);
+    const dependentIds = quarantineDependencyIds(pending, trigger);
+    const records = { ...state.records };
+    for (const record of pending) {
+      const disposition = record.id === trigger.id
+        ? 'upgrade-required-refusal'
+        : dependentIds.has(record.id)
+          ? 'dependent'
+          : 'compatibility-unclassified';
+      records[record.id] = {
+        ...record,
+        status: 'quarantined',
+        failure: null,
+        quarantine: {
+          quarantinedAt: now,
+          refusalCode,
+          disposition,
+          causeClientMutationId: trigger.id,
+        },
+      };
+    }
+    const next = { ...state, records };
+    return {
+      state: next,
+      result: {
+        count: pending.length,
+        tombstones: pending.map((record) => quarantineTombstone(records[record.id])),
+      },
+    };
+  },
+  /// Explicit successor-admission cut. Payloads and replay identities are
+  /// unchanged; only quarantined records re-enter the ordered pending lane.
+  /// Compatibility classification/transformation is a generated-facts
+  /// follow-on, so this first cut deliberately re-enters the whole quarantine.
+  reenterQuarantined(state) {
+    const records = { ...state.records };
+    const ids = [];
+    for (const existing of Object.values(records).sort(outboxOrder)) {
+      if (existing.status !== 'quarantined') continue;
+      const { quarantine: _quarantine, ...record } = existing;
+      records[existing.id] = { ...record, status: 'pending', failure: null };
+      ids.push(existing.id);
+    }
+    return ids.length === 0
+      ? { state, result: { count: 0, clientMutationIds: [] } }
+      : {
+        state: { ...state, records },
+        result: { count: ids.length, clientMutationIds: ids },
+      };
+  },
   /// Persist the server's outcome-known/payload-gone disposition without
   /// pretending that an unavailable result is a normal settlement. This is
   /// terminal for transport (the operation must never execute again) but
@@ -735,6 +845,9 @@ export const outboxOps = {
       if (predecessor.status === 'result-gone') {
         return { state: working, result: { status: 'blocked', record: null } };
       }
+      if (predecessor.status === 'quarantined') {
+        return { state: working, result: { status: 'blocked', record: null } };
+      }
       const minted = new Set(settlementMintIds(predecessor));
       if (!minted.size || !hasStringLeaf(target.args, minted)) continue;
       if (predecessor.status === 'pending') {
@@ -805,10 +918,16 @@ export const pendingOutboxRecords = (state) => Object.values(state.records)
 /// ordered successors until the application explicitly resolves the missing
 /// result dependency.
 export const unresolvedOutboxRecords = (state) => Object.values(state.records)
-  .filter((record) => record.status === 'pending' || record.status === 'result-gone')
+  .filter((record) => (
+    record.status === 'pending'
+    || record.status === 'result-gone'
+    || record.status === 'quarantined'
+  ))
   .sort(outboxOrder);
 
-export const allOutboxRecords = (state) => Object.values(state.records).sort(outboxOrder);
+export const allOutboxRecords = (state) => Object.values(state.records)
+  .sort(outboxOrder)
+  .map((record) => record.status === 'quarantined' ? quarantineTombstone(record) : record);
 
 /// Pending acknowledgements for one auth identity: only records matching the
 /// current userId are exposed/sent (LLP 0043: returning to the prior user can
