@@ -40840,6 +40840,26 @@ globalThis.__snapbackHandlers = {
             "SNAPBACK_PROFILE",
             "environment variable selecting the server profile",
         ),
+        (
+            "SNAPBACK_PACKAGED_STORE_QUALIFICATION_RECEIPT",
+            "environment variable selecting the public-package store qualification receipt",
+        ),
+        (
+            "SNAPBACK_PACKAGED_STORE_QUALIFICATION_MODE",
+            "environment variable enabling receipt-backed public-package store qualification",
+        ),
+        (
+            "SNAPBACK_PACKAGED_STORE_QUALIFICATION_IDENTITY_UNQUALIFIED",
+            "CLI-local receipt-minting identity diagnostic; never emitted by the Snapback HTTP server",
+        ),
+        (
+            "SNAPBACK_PACKAGED_STORE_QUALIFICATION_SUITE_UNQUALIFIED",
+            "CLI-local receipt-minting suite diagnostic; never emitted by the Snapback HTTP server",
+        ),
+        (
+            "SNAPBACK_PACKAGED_STORE_QUALIFICATION_CLOSURE_INVALID",
+            "CLI-local receipt-minting package-closure diagnostic; never emitted by the Snapback HTTP server",
+        ),
         // @ref LLP 0132#acceptance — these test-only harness inputs bind the
         // retained scale receipt; they are not runtime/API refusal codes.
         (
