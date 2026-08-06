@@ -74,6 +74,14 @@ results or performance after the mandatory fetch found newer main. C32 is the
 normally merged, regenerated successor; the Spec remains `Draft` and every
 related capability remains `Missing`.
 
+**Qualification amendment (2026-08-05, C33):** C32 was abandoned before a
+qualifying dual review completed and before performance after newer mainline
+cuts were detected. Normal merge commits `cc5d6bce64550210d7b55b929841a8f9af8f2f68`
+and `211f85714cdac7abdf4022b77cb08bce4419a35c` preserve this Spec's carrier,
+custody, and fail-closed projection repairs while incorporating the current
+fork/AppBinding work. C33 is the next prospective exact clean candidate; the
+Spec remains `Draft` and every related capability remains `Missing`.
+
 **Related:** LLP 0012, LLP 0037, LLP 0043, LLP 0055, LLP 0095, LLP 0133,
 LLP 0148, LLP 0162
 
@@ -918,7 +926,7 @@ This Spec stays `Draft` and every related capability stays `Missing` pending
 a fresh exact candidate, dual review, the unchanged performance gates, and
 publication acceptance.
 
-## Implementation record — 2026-08-05, C31 pre-result abandonment and C32 merge
+## Implementation record — 2026-08-05, C31/C32 pre-result abandonments and C33 merge
 
 Exact clean C31 commit `58ec598c38b3f8077682266727dbe3e0dc574b1d`
 was abandoned before either fresh review returned because the mandatory fetch
@@ -930,5 +938,11 @@ lease, lifecycle, and suppression validation while compositionally adding the
 upstream AppDescriptor and artifact-index changes. All maintained generated
 closures were regenerated from the combined source and the full Rust,
 client, schema, publication, guide, reference, and catalog gates were green.
-The Spec remains `Draft` and every related capability remains `Missing`; C32
-must receive fresh exact dual review before any performance process starts.
+The Spec remains `Draft` and every related capability remains `Missing`. C32
+received one fresh Fable `READY`, but the Codex review did not complete as a
+qualifying result before the remote-tip check found newer main; no final C32
+review artifact was accepted and no performance process started. The newer
+mainline cuts were merged normally as `cc5d6bce64550210d7b55b929841a8f9af8f2f68`
+and `211f85714cdac7abdf4022b77cb08bce4419a35c`, with combined guide/generated
+closures regenerated. C33 must receive fresh exact dual review before any
+performance process starts.

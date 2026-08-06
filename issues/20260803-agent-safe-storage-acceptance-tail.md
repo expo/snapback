@@ -5,7 +5,7 @@
 **Reconciled:** 2026-08-05 (LLP 0185 Phase 0 assigned each remaining proof leg
 to its contract owner without changing row state); 2026-08-05 (LLP 0185 Phase
 3 derived-deployment evidence is recorded below without changing row state)
-**Updated:** 2026-08-05 (exact merged C30 stopped before performance after Codex found Host-lease and pending-capacity projection gaps; prospective C31 validates them globally and closes client-suppression closure symmetry; capabilities remain Missing); 2026-08-05 (exact C29 stopped before performance after two NOT READY reviews; prospective C30 closes terminal-supplement retention coherence, automatic sessions ACK custody, the public explanation oracle, Host terminal/pending rollback proof, and accepted-0158 status drift; capabilities remain Missing); 2026-08-05 (merged C28 stopped before performance after two NOT READY reviews; prospective C29 repairs automatic sessions range custody, Host tombstone schema nullability, terminal-time coherence, and pending-writer rollback proof; capabilities remain Missing); 2026-08-05 (C27 terminated pre-result with no artifacts; C28 repairs tombstone comparison, contiguous floors, bounded ranges, and transactional writer guards; capabilities remain Missing); 2026-08-04 (pre-result row-13 protocol repair: the author-ratified
+**Updated:** 2026-08-05 (C32 abandoned before qualifying dual review completed or performance; two newer mainline cuts merged normally and C33 is prospective; capabilities remain Missing); 2026-08-05 (exact merged C30 stopped before performance after Codex found Host-lease and pending-capacity projection gaps; prospective C31 validates them globally and closes client-suppression closure symmetry; capabilities remain Missing); 2026-08-05 (exact C29 stopped before performance after two NOT READY reviews; prospective C30 closes terminal-supplement retention coherence, automatic sessions ACK custody, the public explanation oracle, Host terminal/pending rollback proof, and accepted-0158 status drift; capabilities remain Missing); 2026-08-05 (merged C28 stopped before performance after two NOT READY reviews; prospective C29 repairs automatic sessions range custody, Host tombstone schema nullability, terminal-time coherence, and pending-writer rollback proof; capabilities remain Missing); 2026-08-05 (C27 terminated pre-result with no artifacts; C28 repairs tombstone comparison, contiguous floors, bounded ranges, and transactional writer guards; capabilities remain Missing); 2026-08-04 (pre-result row-13 protocol repair: the author-ratified
 contention ceiling now matches the frozen 1,000-ms reservation and separate
 500-ms maximum promotion-commit duration; the absolute recorder binds exact
 baseline and compiled-candidate bytes, and its 128/eight-writer p99 uses the
@@ -35,7 +35,7 @@ negatives, and independent clocks added; residual rows remain open)
 Agent experience
 **Related:** LLP 0158, LLP 0162, LLP 0163, LLP 0164, LLP 0165;
 `issues/20260803-0163-public-operation-identity-carrier.md`;
-`issues/20260803-guide-gap-instance-forks.md`
+`issues/closed/20260803-guide-gap-instance-forks.md`
 
 Track B now has the step-0 baseline and OQ13 gate artifacts, the first
 integrated implementation slices for LLP 0163-0165, F0b fleet dogfood, a clean
@@ -44,10 +44,10 @@ fork/promotion absolute runs. This ticket is the honest remainder against LLP
 0162's single acceptance corpus. It does not reopen implemented work and does
 not authorize capability publication.
 
-**Qualification update — 2026-08-05:** C31 was abandoned before review
-results or performance after the mandatory fetch found newer main. C32 is the
-normally merged and regenerated successor; all capability states remain
-`Missing`.
+**Qualification update — 2026-08-05:** C31 and C32 were abandoned before a
+qualifying dual review and performance completed after mandatory fetch/tip
+checks found newer main. Both newer cuts were merged normally and C33 is the
+prospective exact clean successor; all capability states remain `Missing`.
 
 ## Remaining acceptance work
 
@@ -65,7 +65,7 @@ normally merged and regenerated successor; all capability states remain
 | 10 — strict promotion | Partial | Frozen v1 no-effect contention/fairness/crash evidence is joined by atomic multi-operation retention. Any captured intent or approved effect fact—including effect-plus-write and transitive effect-dependent chains—refuses strict promotion before canonical mutation with `SNAPBACK_PROMOTION_CAPTURE_ONLY_UNSUPPORTED`. Public effect-bearing promotion remains outside this Track B publication scope; global writer coverage and applicable performance/review remain independent gates. |
 | 11 — history/checkpoint | Partial | Schema publication now atomically projects finite v2 per-record policy, removal erases retained detail, and current/per-version auth plus visible-only pagination/horizon and per-record pruning are covered without changing legacy v1 `maxRows`. The registered-copy sweep invalidates the complete materialized inventory before deletion and preserves crash/unreachable obligations, but it is not yet atomic with canonical protected-record deletion; close that new-checkpoint race and the remaining lifecycle corpus. |
 | 12 — boundary proof | Partial | Promotion and full migration verification are independently derived; migration's separate evaluator has explicit-value/equivalence plus executor-drift and staged-corruption negatives. Checkpoint concurrent-writer/publication/receipt-only no-upcast negatives are covered. Finish the remaining row-wide boundary integrations/coverage before an aggregate claim. |
-| 13 — performance | Partial | C27 and C31 produced no result; C28, C29, and C30 were stopped by review before any performance process. The unchanged paired and conditional absolute recorders must run once on a fresh exact post-C32 candidate after correctness/review clears. |
+| 13 — performance | Partial | C27, C31, and C32 produced no qualifying result; C28, C29, and C30 were stopped by review before any performance process. The unchanged paired and conditional absolute recorders must run once on exact C33 after correctness/review clears. |
 | 14 — identity lifecycle | Partial | First-party job/cron/migration carriers and transport-level client exclusion are landed. C31 adds automatic sessions range/ACK carriage, bounded successor capacity, required-nullable decoding, global suppression/pending/supplement/lease corruption checks, comparison-complete capacity, out-of-order floor, young-window, and exact final-reclamation negatives; fresh integrated review/publication proof remains. |
 
 The detailed LLP 0163 public-carrier work remains in its existing focused
@@ -163,7 +163,7 @@ pending lane/audience/epoch, and client suppression audience. Every capability
 remains `Missing`; fresh exact review and both unchanged performance gates are
 still mandatory.
 
-## C31 pre-result abandonment and prospective C32 — 2026-08-05
+## C31/C32 pre-result abandonment and prospective C33 — 2026-08-05
 
 Exact clean C31 commit `58ec598c38b3f8077682266727dbe3e0dc574b1d`
 was abandoned before either fresh review returned when the mandatory fetch
@@ -172,7 +172,14 @@ No review or performance artifact was accepted for C31. Merge commit
 `1eaa30b7f4e810476c556c3c4206b3deb6597849` compositionally retains the
 Track B carrier and publication closures, adds the upstream AppDescriptor and
 asset-auth changes, and regenerates every maintained generated closure from
-the combined source. Post-merge own-correctness is green. C32 must still pass
+the combined source. C32 was then abandoned before qualifying dual review
+completed and before performance when the remote-tip check found mainline cuts
+`2b5da1ff6a31f7a8240c7d72af26967b6c34022b` and
+`9d7f81a4095799c49f8bb27006e1d597f80f84cb`. Normal merge commits
+`cc5d6bce64550210d7b55b929841a8f9af8f2f68` and
+`211f85714cdac7abdf4022b77cb08bce4419a35c` preserve the Track B source,
+incorporate the ratified fork limits/AppBinding work, and regenerate the
+combined guide closures. Post-merge own-correctness is green. C33 must pass
 fresh exact dual review and both unchanged one-shot performance gates; every
 capability remains `Missing`.
 
@@ -454,8 +461,8 @@ publish a capability on its own.
   LLP 0165 remain `Draft`. Their existing extraction
   reviews predate the final integrated implementation and are not fabricated
   into final implementation reviews.
-- C27's pre-repair reviews do not qualify C28; fresh mutually blind reviews of
-  the exact post-C28 candidate remain mandatory.
+- Historical candidate reviews do not qualify C33; fresh mutually blind
+  reviews of exact C33 remain mandatory.
 - Independent review and the documents' named acceptance authority must be
   obtained before changing their status.
 - A capability may move above `Missing` only for a named target/component whose

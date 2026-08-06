@@ -622,7 +622,7 @@ test('generated-artifact registry covers every codegen job exactly once', () => 
 test('P-vs-C generated allowance is the exact qualification-C leaf set', () => {
   const head = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
   const generated = generatedPublicationPathsAt(root, head);
-  assert.equal(generated.size, 208);
+  assert.equal(generated.size, 224);
   const unchangedPublicationEntries = new Map(
     [...generated].map(([path, entry]) => [path, { ...entry }]),
   );

@@ -19,6 +19,16 @@ newer main. C32 retains the repair after a normal, regenerated merge; every
 capability remains `Missing` pending fresh exact review and the unchanged
 performance/publication gates.
 
+**Qualification amendment (2026-08-05, v0.37):** C32 was abandoned before a
+qualifying dual review completed and before performance when the mandatory
+remote-tip check found two newer mainline cuts. Both were merged normally as
+`cc5d6bce64550210d7b55b929841a8f9af8f2f68` and
+`211f85714cdac7abdf4022b77cb08bce4419a35c`; the combined guide/generated
+closures were regenerated, the C-frozen generated-leaf checker was corrected
+from 208 to the actual 224 leaves, and C33 is the next prospective exact clean
+candidate. No C32 review artifact or performance result qualifies publication,
+and every capability remains `Missing`.
+
 **Qualification amendment (2026-08-05, v0.23):** C14's valid failed paired
 result and the prospective pre-C15 production correction are recorded below.
 Ordinary storage keeps history infrastructure eager but pays for the separate
@@ -607,8 +617,13 @@ upstream commits were merged normally as
 `1eaa30b7f4e810476c556c3c4206b3deb6597849`; its AppDescriptor and
 artifact-index changes were regenerated from the combined source while the
 C31 custody repairs and all `Missing` capability projections were retained.
-C32 is the next prospective exact candidate and must rerun fresh dual review
-and both unchanged one-shot performance gates.
+C32 was subsequently abandoned before a qualifying dual review completed and
+before performance after the required remote-tip check found newer main at
+`2b5da1ff6a31f7a8240c7d72af26967b6c34022b` and then
+`9d7f81a4095799c49f8bb27006e1d597f80f84cb`. The two normal merge commits
+above preserve the Track B repairs and regenerate the combined closures. C33
+is the next prospective exact candidate and must rerun fresh dual review and
+both unchanged one-shot performance gates.
 
 **Implementation evidence:** 2026-08-03 (dated candidate evidence recorded:
 the comparable read/write/idle observations are within threshold on the step-0

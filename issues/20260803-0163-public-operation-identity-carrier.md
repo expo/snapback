@@ -2,7 +2,7 @@
 
 **Status:** Open
 **Opened:** 2026-08-03 (LLP 0163 durable storage slice)
-**Updated:** 2026-08-05 (exact C30 stopped before performance; C31 repairs global Host-lease, pending-capacity, and client-suppression projection coherence; Draft/Missing unchanged); 2026-08-05 (exact C29 stopped before performance; C30 repairs terminal-supplement projection coherence, automatic sessions ACK custody, the public explanation oracle, and the Host rollback matrix; Draft/Missing unchanged); 2026-08-05 (merged C28 stopped before performance; C29 repairs automatic sessions range custody, Host tombstone schema nullability, retention-time coherence, and pending rollback proof; Draft/Missing unchanged); 2026-08-05 (C27 pre-result abandonment and C28 identity-lifecycle correction; Draft/Missing unchanged); 2026-08-04 (fork-boundary correction — managed branches pin
+**Updated:** 2026-08-05 (C32 stopped before qualifying dual review completed or performance; two newer mainline cuts were merged normally and C33 is prospective; Draft/Missing unchanged); 2026-08-05 (exact C30 stopped before performance; C31 repairs global Host-lease, pending-capacity, and client-suppression projection coherence; Draft/Missing unchanged); 2026-08-05 (exact C29 stopped before performance; C30 repairs terminal-supplement projection coherence, automatic sessions ACK custody, the public explanation oracle, and the Host rollback matrix; Draft/Missing unchanged); 2026-08-05 (merged C28 stopped before performance; C29 repairs automatic sessions range custody, Host tombstone schema nullability, retention-time coherence, and pending rollback proof; Draft/Missing unchanged); 2026-08-05 (C27 pre-result abandonment and C28 identity-lifecycle correction; Draft/Missing unchanged); 2026-08-04 (fork-boundary correction — managed branches pin
 canonical schema/function-bundle identities and preserve exact retry across
 parent drift, but CaptureOnly is truthfully non-promotable. Product provider
 custody, ordered settlement, and public effect-bearing strict promotion are
@@ -44,10 +44,11 @@ even though both efforts meet in row 4. The consolidated row ledger remains
 `issues/20260803-agent-safe-storage-acceptance-tail.md`; neither ticket may
 mark a row complete independently of LLP 0162.
 
-**Qualification update — 2026-08-05:** C31 was abandoned before review
-results or performance after the mandatory fetch found newer main. C32 is the
-normally merged and regenerated successor; the Spec remains `Draft` and the
-capability remains `Missing`.
+**Qualification update — 2026-08-05:** C31 and C32 were abandoned before a
+qualifying dual review and performance completed after mandatory fetch/tip
+checks found newer main. The two later cuts were merged normally; C33 is the
+prospective exact clean successor. The Spec remains `Draft` and the capability
+remains `Missing`.
 
 The remaining closure gates are:
 
@@ -123,7 +124,7 @@ The Spec remains `Draft` and the capability remains `Missing`. Fresh exact
 review, fixed-Air performance, named-author acceptance, and publication
 binding remain open.
 
-## C31 pre-result abandonment and C32 merge — 2026-08-05
+## C31/C32 pre-result abandonment and C33 merge — 2026-08-05
 
 Exact clean C31 commit `58ec598c38b3f8077682266727dbe3e0dc574b1d`
 was abandoned before either fresh review returned after the mandatory fetch
@@ -131,7 +132,13 @@ found newer `origin/main` at `2bb84423b59e81e4afa865339765142ad2769bc2`.
 No C31 review or performance artifact was accepted. Merge commit
 `1eaa30b7f4e810476c556c3c4206b3deb6597849` preserves the global lease,
 pending-lifecycle, and suppression checks and regenerates the combined
-AppDescriptor/artifact closure. C32 is the next prospective exact candidate.
+AppDescriptor/artifact closure. C32 was then abandoned before a qualifying
+dual review completed and before performance when the required remote-tip
+check found newer main. Normal merge commits
+`cc5d6bce64550210d7b55b929841a8f9af8f2f68` and
+`211f85714cdac7abdf4022b77cb08bce4419a35c` preserve those repairs and
+regenerate the combined fork/AppBinding guide closure. C33 is the next
+prospective exact candidate.
 
 The Spec remains `Draft` and the capability remains `Missing`. Fresh exact
 review, fixed-Air performance, named-author acceptance, and publication
