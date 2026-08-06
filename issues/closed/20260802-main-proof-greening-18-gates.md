@@ -971,3 +971,35 @@ profiles are again below every frozen minified, gzip, and Brotli ceiling; no
 ceiling or historical measurement was changed. This is client-package and
 proof-closure debt attributable to the asset-custody landing, not correctness
 work in the actively owned PUSH-01 seam or F0a fork code.
+
+### Final batched telemetry carrier — 2026-08-05
+
+The final EPYC producer measured a fresh clean detached checkout at exact
+source `5c9737aaa30a779122217e1946a71d42077d9b96`. Before dispatch the host
+reported zero load, 243.4 GiB available memory, 1,384.5 GiB free disk, and no
+other proof/build process. The retained Node 24.18.0 and Bun 1.3.12 archives
+were copied into the run namespace and rechecked against their retained
+SHA-256 manifests before the frozen Bun install.
+
+The initial read-only doctor reported the expected fresh-checkout
+`SNAPBACK_IBEX_SUBMODULE_UNINITIALIZED` state and explicitly delegated repair
+to the coded bootstrap. The unchanged
+`scripts/verify-telemetry-phase1-proof --full` invocation then initialized
+Ibex pin `4c34c831aa087d6783b0d68f281cdb374ed7fc89`, copied compatible prepared
+Hermes artifacts through supported `SNAPBACK_IBEX_CHECKOUT`, exact-linked and
+launched the candidate, and qualified its restricted no-eval handler VM. No
+administrator change, manual machine repair, loader bypass, or source
+substitution was used.
+
+The locked Rust smoke passed, the release build and readiness issuance passed,
+and the full benchmark remained within every recorded ceiling. The retained
+receipt has SHA-256
+`0c94c1431c199bfee224ff3685f4f2defb2beb04269997d8e70fcd8ce1c10fb1`
+and covers 444 proof-source files with digest
+`e6ba0e5e7d90db02e145954d1d135dfeb295a01ea31dc89021a6473c20128a17`.
+The 1,209-line transcript at
+`/var/cache/expose-build/snapback-telemetry-5c9737.vpY8dT/telemetry-full.log`
+has SHA-256
+`185ffca385e6f739f36271ec419caa26ea3534de41c4bc9bb18e96e2417ecab1`.
+The 120-second idle interval observed zero storage mutations, zero read bytes,
+zero write bytes, 3/10 allowed CPU ticks (30/100 ms), and zero RSS-page growth.
