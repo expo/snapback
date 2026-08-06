@@ -5,7 +5,13 @@
 **Systems:** Sync, Storage, Runtime, Client integration, Auth, Wire Protocol, Realtime, Packaging, Testing, Documentation, Competitive evaluation
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-30
-**Revised:** 2026-08-05 (Phase-2b client-outbox re-adoption boundary: the
+**Revised:** 2026-08-06 (OQ9 RESOLVED by the author — Phase 2a browser
+story is IR-only; full-runtime WASM deferred; Phase 2a's falsifiable exit
+is the browser-IR-coverage gate (≥90% semantic + 100% common-path,
+real-browser, exact D5); a narrow engine-free WASM slice is a
+demand-triggered reopen. See §Open questions 9. The completion boundary's
+OQ9 dependency is thereby satisfied on the exit-semantics axis.)
+2026-08-05 (Phase-2b client-outbox re-adoption boundary: the
 shipped replay path drains through the same client instance that queued on a
 transport failure; a fresh post-swap client does not re-adopt that durable
 pending record. The honest first rung therefore proves empty-outbox swap and
@@ -1909,6 +1915,18 @@ scope; both were adjudicated 2026-07-30 and no longer gate this Plan
    engine-free WASM conformance/size/latency gate. This closes the missing-
    artifact half of the concern, not the author-owned choice of which exit
    semantics govern Phase 2a.
+   **RESOLVED (2026-08-06, Charlie Cheever): IR-only.** The browser story is
+   pinned to the shipped JS IR evaluator (the assessment's recommended option
+   (i)); full-runtime WASM is deferred. Phase 2a's falsifiable exit is
+   therefore the **browser-IR-coverage gate** (assessment exit option 2):
+   ≥90% semantic IR coverage of the versioned reference-app durable-mutation
+   corpus plus 100% execution coverage for the designated browser common-path
+   mutations, proven by generated artifacts under a real-browser IndexedDB
+   acceptance run with exact LLP 0051 D5 results. A narrow, engine-free WASM
+   slice is a **demand-triggered reopen** (the assessment's IR-negative
+   trigger), never a Phase-2a exit requirement — so LLP 0051 §Rejected's
+   no-JS-engine-to-browser constraint is preserved. This resolves the
+   author-owned half; the missing-artifact half was already closed above.
 10. **What is Candidate B, exactly, and who owns it? — OPEN (v0.7,
     raised by round 5).** Outcome 3 requires that a fact be
     inexpressible after B, but B is currently an open-ended list of

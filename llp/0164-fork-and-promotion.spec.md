@@ -5,7 +5,7 @@
 **Systems:** Storage, Runtime, Effects, Auth, Agent experience, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-03
-**Revised:** 2026-08-05 (LLP 0185 Phase 0 ownership reconciliation — this
+**Revised:** 2026-08-06 (derived-deployment reconciliation — row-5 parent-write fixture recorded closed at module and live-server level, §Diff target-choice delegation recorded exercised by the retained-base net diff, asset coverage-fact satisfaction stated, LLP 0185 added to Related; Draft/Missing unchanged); 2026-08-05 (LLP 0185 Phase 0 ownership reconciliation — this
 Spec owns the remaining row-5 derived post-fork-parent-write fixture and both
 row-9 diff oracles; LLP 0158 remains the derived-deployment contract authority
 and LLP 0165 retains only journal-completeness closure. No row state changed.);
@@ -78,7 +78,7 @@ gated on F0b surface-level acceptance and are not advertised complete.)
 §§3-5 under its OQ14 decision; carries the fork-class, diff, and promotion
 contracts so they can version independently of the profile umbrella)
 **Related:** LLP 0037, LLP 0055, LLP 0066, LLP 0088, LLP 0097, LLP 0148,
-LLP 0158, LLP 0162, LLP 0163, LLP 0165
+LLP 0158, LLP 0162, LLP 0163, LLP 0165, LLP 0185
 
 **Implementation evidence:** 2026-08-03 (promotion now commits an independent
 LLP 0165 boundary proof and aggregate LLP 0163 provenance through an
@@ -471,6 +471,41 @@ not reopened here. Global writer coverage, fixed-Air performance/p99, final
 integrated own-correctness, independent review, author acceptance, and
 capability publication also remain open. This Spec therefore remains `Draft`,
 and every related capability remains `Missing`.
+
+### Derived-deployment reconciliation record — 2026-08-06
+
+Four reconciliations against the landed implementation; no row state or
+capability claim changes.
+
+- **Row-5 parent-write fixture is closed, at two levels.** The 2026-08-04
+  checkpoint's module fixture
+  (`instance_fork::tests::derived_fork_keeps_its_pinned_copy_when_parent_writes_after_publication`)
+  was joined 2026-08-05 by
+  `parent_commits_after_the_fork_point_are_invisible_to_the_published_fork`
+  and the live-server bidirectional leg in `tests/instance_fork_cli_v1.rs`.
+  The 2026-08-05 owner note above remains correct about *ownership* (this
+  Spec's row-5 work, not LLP 0158 F1's), but its "remaining" framing is
+  superseded on this specific fixture.
+- **The §Diff target-choice delegation was exercised.** The local
+  derived-deployment target adopted the opt-in immutable retained base
+  (`fork create --retain-base`, digest-bound `ForkBaseReceiptV1`) and emits
+  `snapback.fork-net-diff.v1` with the substrate named on every receipt
+  (`retained-base-v1`, completeness `journal-enumerated-v1`), per this
+  Spec's "target's choice, named on the receipt" clause. LLP 0158 carries
+  the wire contract; LLP 0185 Phase 4 tracks the executable tail. Naming
+  hazard worth noting: two distinct receipt types currently share the
+  `ForkDiffReceiptV1` Rust name — the in-app branch receipt in
+  `src/fork_promotion.rs` and the derived-deployment attributed-sequence
+  receipt in `src/instance_fork.rs`. They serialize different schemas and
+  are not interchangeable.
+- **Asset coverage in diffs.** LLP 0162 §4 requires asset coverage as a
+  separate diff fact. The derived net-diff receipt satisfies it explicitly
+  and honestly today via `domains.assets: "omitted"`. Asset custody and
+  lifecycle themselves are owned by LLP 0158 OQ5 and LLP 0185 Phase 5, not
+  by this Spec.
+- **Related** now names LLP 0185, whose Phase 4 owns the executable
+  derived-diff tail (filters, pagination, human projection, LLP 0163
+  attribution) that this Spec deliberately does not gate on.
 
 ## Open items
 

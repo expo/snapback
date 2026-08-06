@@ -21,6 +21,30 @@ export function createCodegenSummary({
     if (fn.kind === 'LiveQuery') operationCounts.live += 1;
   }
   const warnings = diagnostics.filter(({ severity }) => severity === 'warning');
+  const implicitAuthRequirements = diagnostics
+    .filter(({ code }) => code === 'SNAPBACK_AUTH_REQUIREMENT_IMPLICIT')
+    .map((diagnostic) => {
+      const operation = diagnostic.details?.function ?? diagnostic.function;
+      const source = diagnostic.sourceSpan
+        ? {
+            path: diagnostic.sourceSpan.file,
+            line: diagnostic.sourceSpan.line,
+            column: diagnostic.sourceSpan.column,
+          }
+        : (sourceSpans[operation] ?? { path: 'functions.mjs', line: 1, column: 1 });
+      return {
+        code: diagnostic.code,
+        operation,
+        source,
+        effectiveLegacyRequirement: diagnostic.details?.effectiveLegacyRequirement ?? 'optional-user',
+        allowed: [...(diagnostic.details?.allowed ?? [])],
+        guideAnchor: diagnostic.details?.guideAnchor,
+      };
+    })
+    .filter(({ operation }) => typeof operation === 'string')
+    .sort((left, right) => (
+      left.operation < right.operation ? -1 : left.operation > right.operation ? 1 : 0
+    ));
   const degradedByOperation = new Map();
   for (const diagnostic of diagnostics) {
     if (diagnostic.code !== 'SNAPBACK_HANDLER_RESULT_CONTRACT_DEGRADED') continue;
@@ -105,9 +129,11 @@ export function createCodegenSummary({
       ephemeralCollections: ephemeralCollections.length,
       custody,
       warnings: warnings.length,
+      implicitAuthRequirements: implicitAuthRequirements.length,
       degradedResults: degradedResults.length,
       ...(seedArtifact ? { seedRows: seedRowCount } : {}),
     },
+    implicitAuthRequirements,
     degradedResults,
     ...(seedArtifact
       ? {
@@ -133,6 +159,12 @@ export function formatCodegenSummary(summary) {
     lines.push(
       `  degraded ${item.operation}: ${item.source.path}:${item.source.line}:${item.source.column} -> ${item.output.path}#${item.output.symbol}`,
       `    ${item.remediation}`,
+    );
+  }
+  for (const item of summary.implicitAuthRequirements ?? []) {
+    lines.push(
+      `  auth ${item.operation}: ${item.source.path}:${item.source.line}:${item.source.column} omits auth and currently uses ${item.effectiveLegacyRequirement}`,
+      `    Add auth: 'public', auth: 'optional-user', or auth: 'authenticated'; see ${item.guideAnchor}`,
     );
   }
   return lines.join('\n');

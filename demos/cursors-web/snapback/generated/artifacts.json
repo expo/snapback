@@ -329,6 +329,7 @@
       },
       "degradedResults": 0,
       "ephemeralCollections": 1,
+      "implicitAuthRequirements": 0,
       "operations": {
         "action": 0,
         "live": 0,
@@ -341,6 +342,7 @@
       "warnings": 0
     },
     "degradedResults": [],
+    "implicitAuthRequirements": [],
     "inputsHash": "c4d4417f9cee167ff45cb60a413670e36d867b8f360cde4a5fe756b3006f0b9d",
     "schemaVersion": "snapback.codegen-summary.v1"
   },

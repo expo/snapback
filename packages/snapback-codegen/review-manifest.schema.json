@@ -92,6 +92,7 @@
         "appId": { "type": "string", "minLength": 1 },
         "inputsHash": { "type": "string", "minLength": 1 },
         "counts": { "type": "object" },
+        "implicitAuthRequirements": { "type": "array" },
         "degradedResults": { "type": "array" }
       }
     }

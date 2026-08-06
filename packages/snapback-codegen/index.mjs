@@ -1243,6 +1243,9 @@ export async function generateInProcess(backendDir, options = {}) {
   }
   const authMode = validateSchemaAuthDefinition(schemaDef, err);
   const artifactVersion = authMode === 'sessions' ? SESSIONS_SCHEMA_VERSION : SCHEMA_VERSION;
+  const functionDefinitionSourceSpans = exportedDefinitionSourceSpans(
+    graphEntrySource(functionsGraph, functionsPath),
+  );
   const schemaRequiredCapabilities = [...new Set(schemaDef.requiredCapabilities ?? [])];
   if (authMode === 'sessions' && !schemaRequiredCapabilities.includes('auth.sessions.v1')) {
     schemaRequiredCapabilities.unshift('auth.sessions.v1');
@@ -2024,6 +2027,76 @@ export async function generateInProcess(backendDir, options = {}) {
       continue;
     }
     validateFunctionAuthDefinition(name, def, err);
+    // @ref LLP 0178#v4--function-auth-omission — omission remains valid only
+    // through the sessions compatibility phase, so report it as an advisory
+    // rather than an unsuppressible validation error.
+    // @ref LLP 0186#w3--errors-as-the-primary-docs-channel-sequencing-ask — name the
+    // explicit-auth rule and carry every valid repair instead of silently
+    // widening the authored operation to optional-user.
+    if (authMode === 'sessions' && def.auth === undefined) {
+      const authoredSpan = functionDefinitionSourceSpans[name];
+      const precondition = {
+        function: name,
+        authMode: 'sessions',
+        authoredRequirement: 'omitted',
+        effectiveLegacyRequirement: 'optional-user',
+      };
+      diagnostics.push({
+        code: 'SNAPBACK_AUTH_REQUIREMENT_IMPLICIT',
+        severity: 'warning',
+        subsystem: 'auth',
+        message: `${name}: sessions-mode functions must explicitly set auth; omission currently uses the legacy optional-user requirement. Add auth: 'public', auth: 'optional-user', or auth: 'authenticated' (guide/auth/sessions-and-principals.md#choose-each-functions-auth-requirement).`,
+        function: name,
+        ...(authoredSpan
+          ? {
+              sourceSpan: {
+                file: authoredSpan.path,
+                line: authoredSpan.line,
+                column: authoredSpan.column,
+              },
+            }
+          : {}),
+        details: {
+          function: name,
+          authMode: 'sessions',
+          effectiveLegacyRequirement: 'optional-user',
+          allowed: ['public', 'optional-user', 'authenticated'],
+          guideAnchor: 'guide/auth/sessions-and-principals.md#choose-each-functions-auth-requirement',
+          remediations: [
+            {
+              kind: 'setFunctionAuthRequirement',
+              requirement: 'public',
+              riskClass: 'policy',
+              machineApplicable: false,
+              requiresApproval: true,
+              authorityEffect: 'changes-declared-requirement',
+              precondition,
+              description: `Add auth: 'public' to ${name} when anonymous invocation is intentional without declaring optional-user behavior.`,
+            },
+            {
+              kind: 'setFunctionAuthRequirement',
+              requirement: 'optional-user',
+              riskClass: 'policy',
+              machineApplicable: false,
+              requiresApproval: true,
+              authorityEffect: 'none',
+              precondition,
+              description: `Add auth: 'optional-user' to ${name} when anonymous and user-bearing invocation are both intentional.`,
+            },
+            {
+              kind: 'setFunctionAuthRequirement',
+              requirement: 'authenticated',
+              riskClass: 'policy',
+              machineApplicable: false,
+              requiresApproval: true,
+              authorityEffect: 'narrows',
+              precondition,
+              description: `Add auth: 'authenticated' to ${name} when invocation must require a resolved user.`,
+            },
+          ],
+        },
+      });
+    }
     validateFunctionRefusalTrackingDefinition(name, def, err);
     validateProtectedAndRetainabilityDefinition(name, def, err);
     const argNames = new Set(Object.keys(def.args));
@@ -4093,9 +4166,6 @@ export async function generateInProcess(backendDir, options = {}) {
   if (diagnostics.some((d) => d.severity === 'error')) {
     return { ok: false, diagnostics };
   }
-  const functionSourceSpans = exportedDefinitionSourceSpans(
-    graphEntrySource(functionsGraph, functionsPath),
-  );
   const generatedReferences = buildGeneratedReferences(
     appId,
     functionManifest.functions,
@@ -4105,7 +4175,7 @@ export async function generateInProcess(backendDir, options = {}) {
     routesManifest,
     assetUploadIntents,
     { schemaVersion: artifactVersion, appId, schemaHash, bundleHash, inputsHash },
-    functionSourceSpans,
+    functionDefinitionSourceSpans,
   );
   const appDescriptor = createAppDescriptorV1({
     app: appId,
@@ -4352,7 +4422,7 @@ export async function generateInProcess(backendDir, options = {}) {
       ephemeralCollections,
       fileRecords: files,
       diagnostics: [...diagnostics, ...infoDiagnostics],
-      sourceSpans: exportedDefinitionSourceSpans(graphEntrySource(functionsGraph, functionsPath)),
+      sourceSpans: functionDefinitionSourceSpans,
       schemaFieldSpans: authoredPropertySourceSpans(graphEntrySource(schemaGraph, schemaPath), 'schema.mjs'),
       outputDirectory: targetConfig.outputDirectory,
       seedArtifact,

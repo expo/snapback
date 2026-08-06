@@ -31,6 +31,13 @@ class while keeping optional agent-custody and external-store package exports
 out of consumers that did not select them. Use the root entry when those
 additional exports are required.
 
+When something breaks behind this client, open the
+[admin console](../operating/admin-console.md) before writing another probe:
+`snapback admin --ready-file .snapback/dev.ready.json` opens the shipped
+browser debugger for Data, Functions, Realtime, Errors, and Logs against the
+same running backend — check it before falling back to `curl`, raw host
+operations, or a one-off verification script.
+
 ## Construct one client per backend and custody context
 
 ```js source=packages/snapback-client/index.mjs

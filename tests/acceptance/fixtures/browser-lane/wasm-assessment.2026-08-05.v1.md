@@ -324,6 +324,12 @@ cheaply available today because the toolchain must first deliver:
 
 ### Verdict among the three choices
 
+> **Author disposition (2026-08-06, Charlie Cheever): option (i) adopted —
+> browser story is IR-only, WASM deferred.** Phase 2a's governing falsifiable
+> exit is exit option 2 below (the browser-IR-coverage gate); the reopen
+> trigger recorded here is the standing path back to option (iii). Recorded in
+> LLP 0129 §Open questions 9.
+
 - **(i) Browser = IR evaluator only; WASM deferred/rejected — recommend now.**
   It covers 92.3% of the frozen semantic corpus, every examined CRUD/reorder
   common path is IR-shaped, and it costs 7.6 KiB gzip. Keep the one frozen
