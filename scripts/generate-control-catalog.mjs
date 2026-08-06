@@ -97,6 +97,7 @@ const controlResourcesByOperation = new Map(
 const CLI_PROJECTIONS = {
   'host.start': 'snapback host start',
   'host.stop': 'snapback host stop',
+  'host.restart': 'snapback restart',
   'app.inspect': 'snapback host inspect',
   'app.reset': 'snapback host reset',
   'schema.load': 'snapback host load --schema <path>',
@@ -153,6 +154,7 @@ const CLI_PROJECTIONS = {
 };
 
 const GUIDE_ANCHORS = {
+  'host.restart': 'operating/host-ops.md#restart-with-one-credential-bound-receipt',
   'debug.networkProfileGet': 'operating/network-profiles.md#read-the-active-profile',
   'debug.networkProfileSet': 'operating/network-profiles.md#set-a-profile',
   'debug.live.forceResync': 'operating/host-ops.md',

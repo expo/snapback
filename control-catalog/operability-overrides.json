@@ -13,12 +13,11 @@
     },
     "host.restart": {
       "operability": "direct",
-      "surfaceAccessOverride": "mcpOnly",
-      "cliDeferralReason": "Nothing prevents a `snapback restart` CLI command composing Start/Stop the same way `snapback_restart` does; not implemented yet — the credential-gating half of the Phase 2 vertical slice landed (see projectionCredentials.mcp below); the CLI command itself remains a follow-on.",
       "composedFrom": ["host.stop", "host.start"],
       "projectionCredentials": {
         "http": "AdminCredential (refuses this operation entirely: SNAPBACK_HOST_OP_CLI_ONLY)",
-        "mcp": "LLP 0184 §Design/2's disclosed, temporary, named exception is now CLOSED: snapback_stop (and therefore the mutating half of snapback_restart) requires the caller to hold an admin token accepted by the same AdminRead-gated /_snapback/api/host-ops route the HTTP path uses, verified with a live probe request before any process signal (packages/snapback-cli/mcp-control.mjs McpControlServer#requireAdminCredentialForLifecycle). snapback_start's fresh-spawn leg is unchanged — there is no prior credential to hold when no server yet exists."
+        "cli": "snapback restart resolves a concrete owner-only admin token and proves it with app.inspect on the AdminRead-gated /_snapback/api/host-ops route before its nonce-verified native stop; no credential enters argv or its receipt (src/cli.rs host_restart_result/restart_admin_credential_probe).",
+        "mcp": "LLP 0184 §Design/2's disclosed, temporary, named exception is CLOSED: snapback_stop (and therefore the mutating half of snapback_restart) requires an admin token accepted by the same AdminRead-gated /_snapback/api/host-ops route, verified with a live probe before any process signal (packages/snapback-cli/mcp-control.mjs McpControlServer#requireAdminCredentialForLifecycle). The fresh-spawn leg has no prior server credential to hold."
       }
     },
     "app.inspect": { "operability": "direct" },

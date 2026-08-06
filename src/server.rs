@@ -40247,6 +40247,26 @@ globalThis.__snapbackHandlers = {
             "CLI-local detached-start lifecycle diagnostic; never emitted by the Snapback HTTP server",
         ),
         (
+            "SNAPBACK_HOST_RESTART_ADMIN_CREDENTIAL_REQUIRED",
+            "CLI-local composed-restart authority diagnostic; never emitted by the Snapback HTTP server",
+        ),
+        (
+            "SNAPBACK_HOST_RESTART_READY_INVALID",
+            "CLI-local replacement-readiness diagnostic; never emitted by the Snapback HTTP server",
+        ),
+        (
+            "SNAPBACK_HOST_RESTART_START_FAILED",
+            "CLI-local replacement-spawn diagnostic; never emitted by the Snapback HTTP server",
+        ),
+        (
+            "SNAPBACK_HOST_RESTART_START_TIMEOUT",
+            "CLI-local replacement-readiness timeout diagnostic; never emitted by the Snapback HTTP server",
+        ),
+        (
+            "SNAPBACK_HOST_RESTART_STOP_TIMEOUT",
+            "CLI-local verified-stop timeout diagnostic; never emitted by the Snapback HTTP server",
+        ),
+        (
             "SNAPBACK_ACTION_MAX_CONCURRENCY",
             "environment variable configuring detached action worker admission",
         ),

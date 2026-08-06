@@ -5,7 +5,11 @@
 **Systems:** Developer experience, Runtime, API, Tooling, Testing, Auth, Security, Client integration
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-27
-**Revised:** 2026-08-06 (LLP 0184 Phase 2 residue: add the built AdminRead
+**Revised:** 2026-08-06 (LLP 0184 Phase 2 residue: `host.restart` is built as
+the native `snapback restart` CLI plus the existing `snapback_restart` MCP
+composition; both prove a concrete admin credential through the live
+AdminRead host-ops route before the nonce-verified stop and return one request
+id/envelope); 2026-08-06 (LLP 0184 Phase 2 residue: add the built AdminRead
 `cron.list` host operation and its direct GET, CLI, and MCP projections over
 the LLP 0028-owned in-memory scheduler inspection state); 2026-08-04 (LLP 0167 OQ2 ruling author-ratified: the `debug.*`
 runtime-perturbation family is decided, with built
@@ -33,6 +37,8 @@ result core); 2026-07-23 (dated pointer note: the provisioning/project-lifecycle
 >   handshake), `host.stop` (CLI, via the readiness descriptor; signals the
 >   pid only after the descriptor's `startupNonce` matches the live `/health`
 >   identity, refusing stale or unverifiable descriptors — ENG-23366),
+>   `host.restart` (native `snapback restart` plus `snapback_restart`; one
+>   credential-proven stop/start composition, request id, and envelope),
 >   `app.inspect`, `app.reset` (with optional seed), `schema.load`,
 >   `functions.load`, `function.run` (queries and mutations; never actions)
 >   — each as CLI verb + HTTP operation, tested in `tests/host_ops_v0.rs`.
@@ -54,8 +60,8 @@ result core); 2026-07-23 (dated pointer note: the provisioning/project-lifecycle
 >   `debug.networkProfileSet` (`AdminWrite`) return the shared envelope and
 >   terminate at the same network-profile activation gate as the dedicated
 >   admin routes.
-> - **Pinned, not built:** `host.restart`, `schema.reload`,
->   `functions.reload`, `acceptance.run` — requested over HTTP they return
+> - **Pinned, not built:** `schema.reload`, `functions.reload`,
+>   `acceptance.run` — requested over HTTP they return
 >   the structured `SNAPBACK_HOST_OP_UNIMPLEMENTED` envelope (`host.*` over
 >   HTTP returns `SNAPBACK_HOST_OP_CLI_ONLY`). As of ENG-25388 these
 >   operations are registered in the HTTP operation registry at their

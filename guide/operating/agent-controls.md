@@ -193,7 +193,7 @@ The embedded build catalog contains **113 operations** at digest `sha256:a5b8693
 | `functions.reload` | `apiOnly` | `unavailable` | `unbuilt` | — | — | — |
 | `health` | `apiOnly` | `direct` | `shipped` | — | — | — |
 | `health.read` | `apiOnly` | `direct` | `shipped` | — | — | — |
-| `host.restart` | `mcpOnly` | `direct` | `shipped` | — | snapback_restart | — |
+| `host.restart` | `native` | `direct` | `shipped` | snapback restart | snapback_restart | operating/host-ops.md#restart-with-one-credential-bound-receipt |
 | `host.start` | `cliOnly` | `direct` | `shipped` | snapback host start | snapback_start | — |
 | `host.stop` | `cliOnly` | `direct` | `shipped` | snapback host stop | snapback_stop | — |
 | `hostCall.dispatch` | `none` | `internal` | `shipped` | — | — | — |

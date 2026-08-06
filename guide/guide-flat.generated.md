@@ -10207,14 +10207,14 @@ documentation absence never appears as success.
 ## Generated inventory
 
 <!-- BEGIN GENERATED CONTROL CATALOG: CONTROL CATALOG INVENTORY -->
-The embedded build catalog contains **110 operations** at digest `sha256:a41fcb4293c4112edec6e5a9bfbd6a0b1215d3ab106d673c928100da5bfd199b`. The counts and inventory below are generated; do not edit them by hand.
+The embedded build catalog contains **110 operations** at digest `sha256:95baa90d9517c0cb2e5a3e6a35b6bdda25a21a9831fa0c9af1b18de945b1c089`. The counts and inventory below are generated; do not edit them by hand.
 
 | Axis | Value | Count |
 | --- | --- | ---: |
 | surfaceAccess | `apiOnly` | 38 |
 | surfaceAccess | `cliOnly` | 29 |
-| surfaceAccess | `mcpOnly` | 3 |
-| surfaceAccess | `native` | 36 |
+| surfaceAccess | `mcpOnly` | 2 |
+| surfaceAccess | `native` | 37 |
 | surfaceAccess | `none` | 4 |
 | operability | `direct` | 78 |
 | operability | `internal` | 11 |
@@ -10310,7 +10310,7 @@ The embedded build catalog contains **110 operations** at digest `sha256:a41fcb4
 | `functions.reload` | `apiOnly` | `unavailable` | `unbuilt` | — | — | — |
 | `health` | `apiOnly` | `direct` | `shipped` | — | — | — |
 | `health.read` | `apiOnly` | `direct` | `shipped` | — | — | — |
-| `host.restart` | `mcpOnly` | `direct` | `shipped` | — | snapback_restart | — |
+| `host.restart` | `native` | `direct` | `shipped` | snapback restart | snapback_restart | operating/host-ops.md#restart-with-one-credential-bound-receipt |
 | `host.start` | `cliOnly` | `direct` | `shipped` | snapback host start | snapback_start | — |
 | `host.stop` | `cliOnly` | `direct` | `shipped` | snapback host stop | snapback_stop | — |
 | `hostCall.dispatch` | `none` | `internal` | `shipped` | — | — | — |
@@ -10609,21 +10609,29 @@ accepts its closed v1 body only under `input` (with `schemaVersion: 1`),
 refuses legacy sibling fields, and is registered AdminWrite; paths and
 grants are server-owned.
 
-`host.start` and `host.stop` are CLI-only lifecycle verbs today—a running
-server cannot safely own starting/stopping itself; over HTTP they fail as
-`SNAPBACK_HOST_OP_CLI_ONLY`, and the `snapback` CLI is their working
-projection. `host.restart` also fails as `SNAPBACK_HOST_OP_CLI_ONLY` over
-HTTP, but has no CLI command yet; its only current projection is the
-composed `snapback_restart` MCP tool, which spawns `host.stop` then
-`host.start` under one request id and envelope (a `snapback restart` CLI
-command is planned but not shipped). `snapback_stop` (and therefore the
-mutating half of `snapback_restart`) requires the same admin credential the
-HTTP host-ops route requires — it probes `POST /_snapback/api/host-ops`
-with the descriptor's managed admin token before signaling the process, and
-refuses without a valid token instead of stopping the server on local
-process access alone (LLP 0184 §Design/2 closes this gap in Phase 2;
-`snapback_start`'s fresh-spawn leg is unaffected, since there is no prior
-credential to hold when no server yet exists).
+`host.start` and `host.stop` are CLI-only lifecycle verbs—a running server
+cannot safely own starting/stopping itself; over HTTP they fail as
+`SNAPBACK_HOST_OP_CLI_ONLY`. `host.restart` has native CLI and MCP
+projections, but its registered HTTP identity deliberately returns the same
+CLI-only refusal.
+
+## Restart with one credential-bound receipt
+
+```sh fragment reason="The ready descriptor is a runtime-owned capability path."
+snapback restart --ready-file .snapback/dev.ready.json \
+  --reason "reload native dependency"
+```
+
+Both `snapback restart` and `snapback_restart` compose stop then start under
+one request id and one `host.restart` envelope. Before any process signal,
+they resolve a concrete administrator token and prove it through
+`app.inspect` on the AdminRead-gated host-ops route; a missing or refused
+credential leaves the old server running. The stop leg independently checks
+the descriptor's startup nonce, and the start leg accepts only a successor
+descriptor with the same database and a new startup nonce. Credentials never
+enter child argv or the receipt. The fresh-spawn leg has no prior server
+credential to hold.
+
 `schema.reload`, `functions.reload`, and `acceptance.run` are pinned but
 unbuilt and fail as `SNAPBACK_HOST_OP_UNIMPLEMENTED`. All three families are
 registered at AdminWrite so an authenticated request reaches that structured

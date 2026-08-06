@@ -744,6 +744,15 @@ pub enum HostCommand {
         #[arg(long)]
         ready_file: PathBuf,
     },
+    /// host.restart — credential-prove, stop, then spawn the replacement
+    /// server named by the same readiness descriptor.
+    Restart {
+        #[arg(long)]
+        ready_file: PathBuf,
+        /// Operator reason recorded in the composed receipt.
+        #[arg(long, default_value = "cli-restart")]
+        reason: String,
+    },
     /// Open the local admin console with a derived browser credential, or
     /// approve a browser-displayed device code from a token-holding terminal.
     Admin(AdminArgs),
@@ -2093,6 +2102,9 @@ pub async fn run_from_env() -> anyhow::Result<()> {
         None => run(cli.serve).await,
         Some(HostCommand::Start(args)) => run(args).await,
         Some(HostCommand::Stop { ready_file }) => host_stop(&ready_file),
+        Some(HostCommand::Restart { ready_file, reason }) => {
+            host_restart(&ready_file, &reason).await
+        }
         Some(HostCommand::Admin(args)) => admin_command(args).await,
         Some(HostCommand::Inspect(target)) => {
             host_op_via_http(&target, json!({ "operation": "app.inspect" }))
@@ -6179,6 +6191,16 @@ fn print_envelope(envelope: &Value) -> bool {
 /// synthesized host.stop envelope (the CLI owns this operation — a server
 /// cannot stop itself over its own HTTP surface).
 fn host_stop(ready_file: &Path) -> anyhow::Result<()> {
+    let request_id = crate::ids::mint_time_ordered(crate::ids::Kind::HostOperation);
+    let envelope = host_stop_result(ready_file, &request_id)?;
+    let ok = print_envelope(&serde_json::to_value(&envelope)?);
+    if !ok {
+        std::process::exit(1);
+    }
+    Ok(())
+}
+
+fn host_stop_result(ready_file: &Path, request_id: &str) -> anyhow::Result<HostOpsResult> {
     let value = read_trusted_json_file(ready_file)?;
     let descriptor = HostReadyDescriptor::validate(&value).map_err(|problems| {
         anyhow::anyhow!(
@@ -6196,7 +6218,7 @@ fn host_stop(ready_file: &Path) -> anyhow::Result<()> {
         |ok: bool, data: Value, diagnostics: Vec<crate::diagnostic::Diagnostic>| HostOpsResult {
             schema_version: SNAPBACK_SCHEMA_VERSION.to_owned(),
             result_kind: HOST_OPS_RESULT_KIND.to_owned(),
-            request_id: crate::ids::mint_time_ordered(crate::ids::Kind::HostOperation),
+            request_id: request_id.to_owned(),
             operation: "host.stop".to_owned(),
             ok,
             target: descriptor.target.clone(),
@@ -6220,8 +6242,7 @@ fn host_stop(ready_file: &Path) -> anyhow::Result<()> {
             }),
             vec![diagnostic],
         );
-        print_envelope(&serde_json::to_value(&refused)?);
-        std::process::exit(1);
+        return Ok(refused);
     }
     let stopped = std::process::Command::new("kill")
         .arg(descriptor.pid.to_string())
@@ -6231,7 +6252,7 @@ fn host_stop(ready_file: &Path) -> anyhow::Result<()> {
     if stopped {
         let _ = std::fs::remove_file(ready_file);
     }
-    let envelope = envelope(
+    Ok(envelope(
         stopped,
         json!({
             "stoppedPid": descriptor.pid,
@@ -6239,12 +6260,433 @@ fn host_stop(ready_file: &Path) -> anyhow::Result<()> {
             "verifiedBy": "startupNonce",
         }),
         Vec::new(),
-    );
+    ))
+}
+
+/// Compose the same concrete-credential probe, nonce-verified stop, and
+/// detached replacement start as `snapback_restart` in mcp-control.mjs.
+/// Secrets stay in an in-memory header and never enter child argv or receipts.
+///
+/// @ref LLP 0184#2-derived-ownership-not-a-second-registry — the CLI restart
+/// closes the same named lifecycle authority exception as the MCP projection.
+async fn host_restart(ready_file: &Path, reason: &str) -> anyhow::Result<()> {
+    let request_id = crate::ids::mint_time_ordered(crate::ids::Kind::HostOperation);
+    let envelope = host_restart_result(ready_file, reason, &request_id).await?;
     let ok = print_envelope(&serde_json::to_value(&envelope)?);
     if !ok {
         std::process::exit(1);
     }
     Ok(())
+}
+
+async fn host_restart_result(
+    ready_file: &Path,
+    reason: &str,
+    request_id: &str,
+) -> anyhow::Result<HostOpsResult> {
+    let value = read_trusted_json_file(ready_file)?;
+    let previous_descriptor = HostReadyDescriptor::validate(&value).map_err(|problems| {
+        anyhow::anyhow!(
+            "{} is not a valid readiness descriptor: {}",
+            ready_file.display(),
+            problems.join("; ")
+        )
+    })?;
+
+    let probe = restart_admin_credential_probe(ready_file);
+    let probe = match probe {
+        Ok(probe) if probe.get("ok").and_then(Value::as_bool) == Some(true) => probe,
+        Ok(probe) => {
+            let diagnostics = diagnostics_from_result(&probe).unwrap_or_else(|| {
+                vec![crate::diagnostic::Diagnostic::error(
+                    "SNAPBACK_HOST_RESTART_ADMIN_CREDENTIAL_REQUIRED",
+                    "host-ops",
+                    "host.restart requires an administrator credential accepted by the live host-ops route",
+                )]
+            });
+            let previous = lifecycle_result(
+                request_id,
+                "host.stop",
+                previous_descriptor.target.clone(),
+                false,
+                json!({}),
+                diagnostics,
+            );
+            let current = lifecycle_result(
+                request_id,
+                "host.start",
+                previous_descriptor.target.clone(),
+                false,
+                json!({}),
+                Vec::new(),
+            );
+            return Ok(compose_restart_result(request_id, reason, &previous, &current));
+        }
+        Err(_) => {
+            let previous = lifecycle_result(
+                request_id,
+                "host.stop",
+                previous_descriptor.target.clone(),
+                false,
+                json!({}),
+                vec![crate::diagnostic::Diagnostic::error(
+                    "SNAPBACK_HOST_RESTART_ADMIN_CREDENTIAL_REQUIRED",
+                    "host-ops",
+                    "host.restart could not prove an administrator credential against the live host-ops route",
+                )],
+            );
+            let current = lifecycle_result(
+                request_id,
+                "host.start",
+                previous_descriptor.target.clone(),
+                false,
+                json!({}),
+                Vec::new(),
+            );
+            return Ok(compose_restart_result(request_id, reason, &previous, &current));
+        }
+    };
+    drop(probe);
+
+    let mut previous = host_stop_result(ready_file, request_id)?;
+    if !previous.ok {
+        let current = lifecycle_result(
+            request_id,
+            "host.start",
+            previous_descriptor.target.clone(),
+            false,
+            json!({}),
+            Vec::new(),
+        );
+        return Ok(compose_restart_result(request_id, reason, &previous, &current));
+    }
+
+    let exited = wait_for_server_exit(&previous_descriptor).await;
+    previous.data["exited"] = json!(exited);
+    if !exited {
+        previous.ok = false;
+        previous.diagnostics.push(crate::diagnostic::Diagnostic::error(
+            "SNAPBACK_HOST_RESTART_STOP_TIMEOUT",
+            "host-ops",
+            "the verified server did not stop before the restart deadline",
+        ));
+        let current = lifecycle_result(
+            request_id,
+            "host.start",
+            previous_descriptor.target.clone(),
+            false,
+            json!({}),
+            Vec::new(),
+        );
+        return Ok(compose_restart_result(request_id, reason, &previous, &current));
+    }
+
+    let current = restart_start_result(
+        ready_file,
+        &previous_descriptor,
+        request_id,
+    )
+    .await;
+    Ok(compose_restart_result(request_id, reason, &previous, &current))
+}
+
+fn restart_admin_credential_probe(ready_file: &Path) -> anyhow::Result<Value> {
+    let local_target = TargetArgs {
+        url: None,
+        ready_file: Some(ready_file.to_path_buf()),
+        token: None,
+        impersonation_capability_stdin: false,
+    };
+    // Unlike an ordinary loopback AdminRead, lifecycle proof requires a
+    // concrete credential carrier. Reuse the strict resolver that fails when
+    // the declared owner-only token is missing instead of falling through to
+    // the loopback read convenience.
+    let resolved = resolve_admin_console_target(&local_target)?;
+    let proof_target = TargetArgs {
+        url: Some(resolved.server_url),
+        ready_file: None,
+        token: Some(resolved.token),
+        impersonation_capability_stdin: false,
+    };
+    post_host_op(&proof_target, json!({ "operation": "app.inspect" }))
+}
+
+fn diagnostics_from_result(value: &Value) -> Option<Vec<crate::diagnostic::Diagnostic>> {
+    if let Some(diagnostics) = value.get("diagnostics") {
+        let diagnostics = serde_json::from_value(diagnostics.clone()).ok()?;
+        return Some(diagnostics);
+    }
+    value
+        .get("diagnostic")
+        .cloned()
+        .and_then(|diagnostic| serde_json::from_value(diagnostic).ok())
+        .map(|diagnostic| vec![diagnostic])
+}
+
+fn lifecycle_result(
+    request_id: &str,
+    operation: &str,
+    target: crate::host_ops::HostOpsTarget,
+    ok: bool,
+    data: Value,
+    diagnostics: Vec<crate::diagnostic::Diagnostic>,
+) -> HostOpsResult {
+    HostOpsResult {
+        schema_version: SNAPBACK_SCHEMA_VERSION.to_owned(),
+        result_kind: HOST_OPS_RESULT_KIND.to_owned(),
+        request_id: request_id.to_owned(),
+        operation: operation.to_owned(),
+        ok,
+        target,
+        authority: None,
+        artifacts: HostOpsArtifacts::default(),
+        data,
+        diagnostics,
+        next: Vec::new(),
+        secret_read_tables: Vec::new(),
+        secret_read_rows: 0,
+        secret_read_query: false,
+        secret_read_provenance_complete: true,
+    }
+}
+
+fn compose_restart_result(
+    request_id: &str,
+    reason: &str,
+    previous: &HostOpsResult,
+    current: &HostOpsResult,
+) -> HostOpsResult {
+    let mut diagnostics = previous.diagnostics.clone();
+    diagnostics.extend(current.diagnostics.clone());
+    HostOpsResult {
+        schema_version: SNAPBACK_SCHEMA_VERSION.to_owned(),
+        result_kind: HOST_OPS_RESULT_KIND.to_owned(),
+        request_id: request_id.to_owned(),
+        operation: "host.restart".to_owned(),
+        ok: previous.ok && current.ok,
+        target: current.target.clone(),
+        authority: None,
+        artifacts: current.artifacts.clone(),
+        data: json!({
+            "restartReason": reason,
+            "previous": previous.data,
+            "current": current.data,
+        }),
+        diagnostics,
+        next: Vec::new(),
+        secret_read_tables: Vec::new(),
+        secret_read_rows: 0,
+        secret_read_query: false,
+        secret_read_provenance_complete: true,
+    }
+}
+
+async fn wait_for_server_exit(descriptor: &HostReadyDescriptor) -> bool {
+    for _ in 0..200 {
+        let endpoint_gone = fetch_health(&descriptor.server_url).is_err();
+        #[cfg(unix)]
+        let process_gone = process_is_proven_gone(descriptor.pid).unwrap_or(false);
+        #[cfg(not(unix))]
+        let process_gone = endpoint_gone;
+        if endpoint_gone && process_gone {
+            return true;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+    false
+}
+
+async fn restart_start_result(
+    ready_file: &Path,
+    previous: &HostReadyDescriptor,
+    request_id: &str,
+) -> HostOpsResult {
+    let failure = |code: &'static str, message: String| {
+        lifecycle_result(
+            request_id,
+            "host.start",
+            previous.target.clone(),
+            false,
+            json!({}),
+            vec![crate::diagnostic::Diagnostic::error(code, "host-ops", message)],
+        )
+    };
+    let argv = match restart_start_argv(ready_file, previous) {
+        Ok(argv) => argv,
+        Err(message) => return failure("SNAPBACK_HOST_RESTART_READY_INVALID", message),
+    };
+    let executable = match std::env::current_exe() {
+        Ok(executable) => executable,
+        Err(error) => {
+            return failure(
+                "SNAPBACK_HOST_RESTART_START_FAILED",
+                format!("could not resolve the current snapback executable: {error}"),
+            );
+        }
+    };
+    let mut command = std::process::Command::new(executable);
+    command
+        .args(&argv)
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null());
+    for (key, _) in std::env::vars_os() {
+        if key.to_string_lossy().starts_with("DYLD_") {
+            command.env_remove(key);
+        }
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::CommandExt as _;
+        // The replacement outlives this one-shot CLI process. MCP keeps its
+        // child owner alive; the CLI uses a new session for equivalent custody.
+        unsafe {
+            command.pre_exec(|| {
+                if libc::setsid() == -1 {
+                    return Err(std::io::Error::last_os_error());
+                }
+                Ok(())
+            });
+        }
+    }
+    let mut child = match command.spawn() {
+        Ok(child) => child,
+        Err(error) => {
+            return failure(
+                "SNAPBACK_HOST_RESTART_START_FAILED",
+                format!("could not spawn the replacement server: {error}"),
+            );
+        }
+    };
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
+    let descriptor = loop {
+        if ready_file.exists() {
+            let value = match read_trusted_json_file(ready_file) {
+                Ok(value) => value,
+                Err(error) => {
+                    let _ = child.kill();
+                    return failure(
+                        "SNAPBACK_HOST_RESTART_READY_INVALID",
+                        format!("replacement readiness could not be read: {error}"),
+                    );
+                }
+            };
+            match HostReadyDescriptor::validate(&value) {
+                Ok(descriptor) => break descriptor,
+                Err(problems) => {
+                    let _ = child.kill();
+                    return failure(
+                        "SNAPBACK_HOST_RESTART_READY_INVALID",
+                        format!("replacement readiness was invalid: {}", problems.join("; ")),
+                    );
+                }
+            }
+        }
+        match child.try_wait() {
+            Ok(Some(status)) => {
+                return failure(
+                    "SNAPBACK_HOST_RESTART_START_FAILED",
+                    format!("replacement server exited before readiness with {status}"),
+                );
+            }
+            Err(error) => {
+                return failure(
+                    "SNAPBACK_HOST_RESTART_START_FAILED",
+                    format!("replacement process status could not be read: {error}"),
+                );
+            }
+            Ok(None) => {}
+        }
+        if std::time::Instant::now() >= deadline {
+            let _ = child.kill();
+            return failure(
+                "SNAPBACK_HOST_RESTART_START_TIMEOUT",
+                "replacement server did not publish readiness within 15 seconds".to_owned(),
+            );
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    };
+
+    if descriptor.pid != child.id()
+        || descriptor.database.mode != previous.database.mode
+        || descriptor.database.path != previous.database.path
+        || descriptor.startup_nonce == previous.startup_nonce
+    {
+        let _ = child.kill();
+        return failure(
+            "SNAPBACK_HOST_RESTART_READY_INVALID",
+            "replacement readiness did not identify the spawned successor over the same database"
+                .to_owned(),
+        );
+    }
+
+    let inspect = match restart_admin_credential_probe(ready_file) {
+        Ok(inspect) => inspect,
+        Err(_) => {
+            return failure(
+                "SNAPBACK_HOST_RESTART_START_FAILED",
+                "replacement server was ready but failed the administrator-credential inspect probe"
+                    .to_owned(),
+            );
+        }
+    };
+    let ok = inspect.get("ok").and_then(Value::as_bool) == Some(true);
+    let diagnostics = diagnostics_from_result(&inspect).unwrap_or_default();
+    let artifacts = inspect
+        .get("artifacts")
+        .cloned()
+        .and_then(|artifacts| serde_json::from_value(artifacts).ok())
+        .unwrap_or_default();
+    HostOpsResult {
+        schema_version: SNAPBACK_SCHEMA_VERSION.to_owned(),
+        result_kind: HOST_OPS_RESULT_KIND.to_owned(),
+        request_id: request_id.to_owned(),
+        operation: "host.start".to_owned(),
+        ok,
+        target: descriptor.target.clone(),
+        authority: None,
+        artifacts,
+        data: json!({
+            "attached": false,
+            "managed": true,
+            "pid": descriptor.pid,
+            "serverUrl": descriptor.server_url,
+            "readyFile": ready_file.display().to_string(),
+            "database": descriptor.database.path.as_deref().unwrap_or("memory"),
+            "runtimeState": inspect.pointer("/data/runtimeState").cloned().unwrap_or(Value::Null),
+        }),
+        diagnostics,
+        next: Vec::new(),
+        secret_read_tables: Vec::new(),
+        secret_read_rows: 0,
+        secret_read_query: false,
+        secret_read_provenance_complete: true,
+    }
+}
+
+fn restart_start_argv(
+    ready_file: &Path,
+    descriptor: &HostReadyDescriptor,
+) -> Result<Vec<std::ffi::OsString>, String> {
+    let mut argv = vec![
+        std::ffi::OsString::from("start"),
+        std::ffi::OsString::from("--ready-file"),
+        ready_file.as_os_str().to_owned(),
+    ];
+    match descriptor.database.mode.as_str() {
+        "file" => {
+            let path = descriptor
+                .database
+                .path
+                .as_deref()
+                .ok_or_else(|| "file-backed readiness has no database path".to_owned())?;
+            argv.push(std::ffi::OsString::from("--db"));
+            argv.push(std::ffi::OsString::from(path));
+        }
+        "memory" => argv.push(std::ffi::OsString::from("--memory")),
+        mode => return Err(format!("unsupported readiness database mode {mode:?}")),
+    }
+    Ok(argv)
 }
 
 /// GET the descriptor's `/health` and return its JSON payload, or a
@@ -9673,6 +10115,85 @@ mod tests {
             }
             other => panic!("expected start command, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn restart_subcommand_requires_ready_file_and_parses_reason() {
+        let cli = Cli::parse_from([
+            "snapback",
+            "restart",
+            "--ready-file",
+            ".snapback/dev.ready.json",
+            "--reason",
+            "reload native module",
+        ]);
+        assert!(matches!(
+            cli.command,
+            Some(HostCommand::Restart { ready_file, reason })
+                if ready_file == Path::new(".snapback/dev.ready.json")
+                    && reason == "reload native module"
+        ));
+        assert!(Cli::try_parse_from(["snapback", "restart"]).is_err());
+    }
+
+    #[test]
+    fn restart_start_argv_reuses_descriptor_target_without_authority() {
+        let mut descriptor = stop_descriptor(Some("old-startup"));
+        descriptor.database.mode = "file".to_owned();
+        descriptor.database.path = Some("/tmp/restart.sqlite3".to_owned());
+        descriptor.admin_token_file = Some("/tmp/restart.sqlite3.admin-token".to_owned());
+        let argv = super::restart_start_argv(Path::new("/tmp/restart.ready.json"), &descriptor)
+            .unwrap()
+            .into_iter()
+            .map(|arg| arg.to_string_lossy().into_owned())
+            .collect::<Vec<_>>();
+        assert_eq!(
+            argv,
+            [
+                "start",
+                "--ready-file",
+                "/tmp/restart.ready.json",
+                "--db",
+                "/tmp/restart.sqlite3",
+            ]
+        );
+        assert!(
+            argv.iter().all(|arg| !arg.contains("admin-token")),
+            "authority carriers never enter the replacement argv"
+        );
+    }
+
+    #[test]
+    fn restart_composition_keeps_one_request_id_and_one_envelope() {
+        let descriptor = stop_descriptor(Some("old-startup"));
+        let previous = super::lifecycle_result(
+            "hop_fixed",
+            "host.stop",
+            descriptor.target.clone(),
+            true,
+            json!({ "stoppedPid": descriptor.pid, "exited": true }),
+            Vec::new(),
+        );
+        let current = super::lifecycle_result(
+            "hop_fixed",
+            "host.start",
+            descriptor.target,
+            true,
+            json!({ "pid": 5252, "runtimeState": { "ready": true } }),
+            Vec::new(),
+        );
+        let restart = super::compose_restart_result(
+            "hop_fixed",
+            "acceptance restart",
+            &previous,
+            &current,
+        );
+        assert!(restart.ok);
+        assert_eq!(restart.operation, "host.restart");
+        assert_eq!(restart.request_id, "hop_fixed");
+        assert_eq!(restart.data["restartReason"], "acceptance restart");
+        assert_eq!(restart.data["previous"]["stoppedPid"], 4242);
+        assert_eq!(restart.data["current"]["pid"], 5252);
     }
 
     #[test]

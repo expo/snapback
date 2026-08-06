@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "524e8161e093505fe64dd4a9d28ea8a6439875c5"
+    "commit": "8ea596ac450f7062727d3810ed38a29b288186f7"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -2269,7 +2269,7 @@
       "examples": [],
       "reviewed": "2026-08-06",
       "reviewedCommit": "2715951cf",
-      "sha256": "f3fd918cd59cbe10d2225f7b891208004ae6b3ae04f3ab9aa7107009e9c6b9fc",
+      "sha256": "dc05136173893a26d138aa5b9acd5f283da49f016dc04de6b9cfd685ee994dd0",
       "snippets": []
     },
     "operating.diagnostics": {
@@ -2364,7 +2364,7 @@
       ],
       "reviewed": "2026-08-06",
       "reviewedCommit": "acbb7b922a060788fd09f3f98211eb9ce35f23f4",
-      "sha256": "756b2958d1b198b3e422cc0a74c2de72378a300fddde155ca5febb733ffa6773",
+      "sha256": "c92bdb5c0b209fcdb27f57a367aeb2cec494b760de7112e9b575e172781e6f4a",
       "snippets": [
         {
           "lang": "json",
@@ -3221,5 +3221,5 @@
     "routes": 121,
     "hostOps": 38
   },
-  "contentHash": "52ebdead56dbc962e007f94f1a1db01b3b60f78631f018dc43d3073d0dab120c"
+  "contentHash": "f7c56a74a49da86a098f17c7da14b22cd854ff8c270af5ab0bec7ed8807e3fd5"
 }

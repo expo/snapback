@@ -21,6 +21,143 @@ use std::fs;
 use std::path::PathBuf;
 use tower::ServiceExt as _;
 
+struct RestartServerGuard {
+    binary: &'static str,
+    ready_file: PathBuf,
+    active: bool,
+}
+
+impl RestartServerGuard {
+    fn stop(&mut self) {
+        if !self.active {
+            return;
+        }
+        let _ = std::process::Command::new(self.binary)
+            .args(["stop", "--ready-file"])
+            .arg(&self.ready_file)
+            .env_remove("SNAPBACK_ADMIN_TOKEN")
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status();
+        self.active = false;
+    }
+}
+
+impl Drop for RestartServerGuard {
+    fn drop(&mut self) {
+        self.stop();
+    }
+}
+
+fn wait_for_cli_ready(
+    child: &mut std::process::Child,
+    path: &std::path::Path,
+) -> HostReadyDescriptor {
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
+    loop {
+        if path.exists() {
+            let value: Value = serde_json::from_slice(&fs::read(path).unwrap()).unwrap();
+            return HostReadyDescriptor::validate(&value).expect("valid CLI readiness descriptor");
+        }
+        if let Some(status) = child.try_wait().unwrap() {
+            panic!("Snapback server exited before readiness: {status}");
+        }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "Snapback server did not publish readiness"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+}
+
+/// @ref LLP 0184#2-derived-ownership-not-a-second-registry — the native CLI
+/// restart proves a concrete admin credential before signaling, then returns
+/// one composed receipt for the stop/start successor transition.
+#[test]
+fn snapback_restart_cli_proves_credential_and_composes_lifecycle() {
+    let binary = env!("CARGO_BIN_EXE_snapback");
+    let directory = tempfile::tempdir().unwrap();
+    let database = directory.path().join("restart.sqlite3");
+    let ready_file = directory.path().join("restart.ready.json");
+    let mut initial = std::process::Command::new(binary)
+        .args(["start", "--port", "0", "--db"])
+        .arg(&database)
+        .arg("--ready-file")
+        .arg(&ready_file)
+        .env_remove("SNAPBACK_ADMIN_TOKEN")
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+        .unwrap();
+    let previous = wait_for_cli_ready(&mut initial, &ready_file);
+    let mut cleanup = RestartServerGuard {
+        binary,
+        ready_file: ready_file.clone(),
+        active: true,
+    };
+    let previous_nonce = previous.startup_nonce.clone().unwrap();
+    let token_file = snapback::admin::admin_token_sibling(&database);
+    let token = fs::read_to_string(&token_file).unwrap();
+    let token_backup = directory.path().join("restart.admin-token.backup");
+
+    fs::rename(&token_file, &token_backup).unwrap();
+    let refused = std::process::Command::new(binary)
+        .args(["restart", "--ready-file"])
+        .arg(&ready_file)
+        .arg("--reason")
+        .arg("credential-negative")
+        .env_remove("SNAPBACK_ADMIN_TOKEN")
+        .output()
+        .unwrap();
+    fs::rename(&token_backup, &token_file).unwrap();
+    assert!(!refused.status.success());
+    let refused: Value = serde_json::from_slice(&refused.stdout).unwrap();
+    assert_eq!(refused["operation"], "host.restart");
+    assert_eq!(refused["ok"], false);
+    assert_eq!(
+        refused["diagnostics"][0]["code"],
+        "SNAPBACK_HOST_RESTART_ADMIN_CREDENTIAL_REQUIRED"
+    );
+    let after_refusal: Value = serde_json::from_slice(&fs::read(&ready_file).unwrap()).unwrap();
+    assert_eq!(after_refusal["startupNonce"], previous_nonce);
+
+    // Reap the first child as soon as restart signals it. This mirrors the
+    // long-lived MCP launcher and lets the CLI prove process exit, not merely
+    // loss of the listening socket.
+    let reaper = std::thread::spawn(move || initial.wait().unwrap());
+    let restarted = std::process::Command::new(binary)
+        .args(["restart", "--ready-file"])
+        .arg(&ready_file)
+        .arg("--reason")
+        .arg("acceptance-restart")
+        .env_remove("SNAPBACK_ADMIN_TOKEN")
+        .output()
+        .unwrap();
+    assert!(
+        restarted.status.success(),
+        "restart stderr: {}\nstdout: {}",
+        String::from_utf8_lossy(&restarted.stderr),
+        String::from_utf8_lossy(&restarted.stdout)
+    );
+    assert!(reaper.join().unwrap().success());
+    let receipt: Value = serde_json::from_slice(&restarted.stdout).unwrap();
+    assert_eq!(receipt["operation"], "host.restart");
+    assert_eq!(receipt["ok"], true, "{receipt}");
+    assert_eq!(receipt["data"]["restartReason"], "acceptance-restart");
+    assert_eq!(receipt["data"]["previous"]["stoppedPid"], previous.pid);
+    assert_eq!(receipt["data"]["previous"]["exited"], true);
+    assert!(receipt["data"]["current"]["pid"].as_u64().is_some());
+    assert!(receipt["data"]["current"]["runtimeState"].is_object());
+    assert!(
+        !String::from_utf8_lossy(&restarted.stdout).contains(token.trim()),
+        "the administrator credential must not enter the restart receipt"
+    );
+    let current: Value = serde_json::from_slice(&fs::read(&ready_file).unwrap()).unwrap();
+    assert_ne!(current["startupNonce"], previous_nonce);
+
+    cleanup.stop();
+}
+
 fn generated(file: &str) -> Value {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("demos/todo/snapback/generated")
