@@ -419,9 +419,15 @@ fn fork_lifecycle_row13_bench() {
             "diff spans are 10k journal rows, an order of magnitude under the 100k diff-work bound",
         ],
     });
+    // Platform-qualified filename so second-platform receipts (the row-13
+    // Linux leg) land beside the original macOS record instead of clobbering
+    // it. The date stays explicit: a receipt is a dated artifact, not a
+    // rolling latest.
     let out = repo.join(format!(
-        "tests/acceptance/instance-fork-lifecycle-bench.{}.v1.json",
-        "2026-08-06"
+        "tests/acceptance/instance-fork-lifecycle-bench.{}.{}-{}.v1.json",
+        "2026-08-06",
+        std::env::consts::OS,
+        std::env::consts::ARCH,
     ));
     std::fs::write(&out, serde_json::to_vec_pretty(&receipt).unwrap()).unwrap();
     println!("receipt written: {}", out.display());
