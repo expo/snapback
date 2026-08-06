@@ -337,6 +337,10 @@ run asset-conformance --requires current-binary-readiness -- node tests/acceptan
 run app-cli-served-journey --requires current-binary-readiness -- node tests/acceptance/app-cli-served-journey.mjs
 run app-cli-settlement-goldens --requires current-binary-readiness -- node tests/acceptance/app-cli-settlement-goldens.mjs
 run todo-headless --requires current-binary-readiness -- node demos/todo/tests/acceptance/headless.mjs
+# @ref LLP 0158#implementation-path-local-v1-explored-2026-08-03 — the F1
+# acceptance-harness option preserves realistic parent state, verifies fork
+# isolation, and tears down through the exact registry-bound drop lifecycle.
+run forked-parent --requires current-binary-readiness -- node demos/todo/tests/acceptance/forked-parent.mjs
 run todo-v2-headless --requires current-binary-readiness -- node demos/todo-v2/tests/acceptance/headless.mjs
 # Five deliberately different app kernels keep relational reads, trusted
 # runtime values, cron/live demand, route bundles, and membership authority in
