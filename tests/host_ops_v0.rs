@@ -53,7 +53,11 @@ fn wait_for_cli_ready(
     child: &mut std::process::Child,
     path: &std::path::Path,
 ) -> HostReadyDescriptor {
-    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
+    // 60s ceiling: readiness normally lands in ~1-2s, but a cold spawn under
+    // heavy fleet machine load (parallel builds/agent sessions) has been
+    // observed to exceed a 15s deadline; the loop returns as soon as the
+    // descriptor appears, so a generous ceiling costs nothing when healthy.
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(60);
     loop {
         if path.exists() {
             let value: Value = serde_json::from_slice(&fs::read(path).unwrap()).unwrap();
