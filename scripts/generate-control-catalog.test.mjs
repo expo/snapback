@@ -8,9 +8,9 @@
 // without a test noticing.
 //
 // @ref LLP 0184#3-completeness-and-parity-rules — rules exercised: rule 8
-//   (destructive requires approvalPosture), rule 5 (cliOnly requires
-//   mcpDeferralReason), and rule 11 (hosted-adapter manifest vs the audited
-//   gateway-paths.inventory.json fixture).
+//   (destructive requires approvalPosture), rule 6 (mediated handoff custody),
+//   rule 5 (cliOnly requires mcpDeferralReason), and rule 11 (hosted-adapter
+//   manifest vs the audited gateway-paths.inventory.json fixture).
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -130,6 +130,61 @@ test('ephemeral operator delete narrows availability and keeps projections hones
   }
 });
 
+test('config.set compiles as CLI-only with a stdin/fd carrier and no MCP projection', () => {
+  const dir = scratchRepo();
+  try {
+    const result = runCompiler(dir);
+    assert.equal(result.ok, true, `expected clean compile, got:\n${result.output}`);
+    const catalog = JSON.parse(readFileSync(
+      join(dir, 'control-catalog/generated/control-catalog.v1.json'),
+      'utf8',
+    ));
+    const entry = catalog.entries.find((candidate) => candidate.operation === 'config.set');
+    assert.ok(entry, 'config.set must be compiled from the live admin route registry');
+    assert.equal(entry.operability, 'direct');
+    assert.equal(entry.surfaceAccess, 'cliOnly');
+    assert.equal(
+      entry.projections.cli,
+      'snapback config set --entry <name> (--value-stdin|--value-fd N)',
+    );
+    assert.equal(entry.projections.mcp, null);
+    assert.match(entry.mcpDeferralReason, /no MCP secret carrier/i);
+    assert.deepEqual(entry.inputSchema.properties.valueCarrier.enum, ['stdin', 'fd']);
+    assert.match(entry.inputSchema.properties.valueCarrier.description, /absent from argv/i);
+    assert.match(entry.guide, /secrets-and-config\.md#set-an-agent-held-value/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('admin.link publishes the complete mediated handoff and negative witness', () => {
+  const dir = scratchRepo();
+  try {
+    const result = runCompiler(dir);
+    assert.equal(result.ok, true, `expected clean compile, got:\n${result.output}`);
+    const catalog = JSON.parse(readFileSync(
+      join(dir, 'control-catalog/generated/control-catalog.v1.json'),
+      'utf8',
+    ));
+    const entries = catalog.entries.filter((entry) => entry.operation.startsWith('admin.link.'));
+    assert.equal(entries.length, 4, 'all four route identities belong to one admin-link handoff');
+    for (const entry of entries) {
+      assert.equal(entry.operability, 'mediated');
+      assert.equal(entry.surfaceAccess, 'cliOnly');
+      for (const semantic of ['plan', 'initiate', 'status', 'resume']) {
+        assert.equal(typeof entry.mediatedHandoff[semantic], 'string');
+        assert.notEqual(entry.mediatedHandoff[semantic], '');
+      }
+      assert.match(entry.mediatedHandoff.protectedArtifact, /sbcc_/);
+      assert.deepEqual(entry.mediatedHandoff.negativeLeakTests, [
+        'tests/admin_claim_link_v0.rs::planted_claim_link_redeems_once_and_attached_cli_reports_it',
+      ]);
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('check preserves the valid generation snapshot while recomputing catalog content', () => {
   const dir = scratchRepo();
   try {
@@ -221,6 +276,24 @@ test('rule 5 fails when a cliOnly row loses its mcpDeferralReason', () => {
     const result = runCompiler(dir);
     assert.equal(result.ok, false, 'compiler must fail when a cliOnly row has no mcpDeferralReason');
     assert.match(result.output, /surfaceAccess cliOnly requires mcpDeferralReason/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('rule 6 fails when a mediated row loses its negative custody witness', () => {
+  const dir = scratchRepo();
+  try {
+    const manifestPath = join(dir, 'control-catalog/operability-overrides.json');
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+    const entry = manifest.overrides['admin.link.mint'];
+    assert.equal(entry.operability, 'mediated');
+    delete entry.mediatedHandoff.negativeLeakTests;
+    writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
+
+    const result = runCompiler(dir);
+    assert.equal(result.ok, false, 'compiler must fail without the mediated negative witness');
+    assert.match(result.output, /admin\.link\.mint: operability mediated requires .*negativeLeakTests.*\(rule 6\)/);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

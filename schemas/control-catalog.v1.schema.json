@@ -41,6 +41,29 @@
     "ApprovalPosture": {
       "enum": ["open", "confirmFirst", "humanApprovalRequired"]
     },
+    "MediatedHandoff": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["plan", "initiate", "status", "resume", "protectedArtifact", "negativeLeakTests"],
+      "properties": {
+        "plan": { "type": "string", "minLength": 1 },
+        "initiate": { "type": "string", "minLength": 1 },
+        "status": { "type": "string", "minLength": 1 },
+        "resume": { "type": "string", "minLength": 1 },
+        "protectedArtifact": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The secret, approval artifact, or external-custodian material the agent-facing projection must never receive."
+        },
+        "negativeLeakTests": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "minItems": 1,
+          "description": "Checked-in witnesses proving the protected artifact stays out of the agent-facing projection."
+        }
+      },
+      "description": "LLP 0184 rule 6. Required for every mediated row so plan/initiate/status/resume and the negative custody witness remain catalog facts."
+    },
     "RouteClassDomain": {
       "description": "The domain this row's identity was drawn from (§3's completeness rules and §3a's fifth leg).",
       "enum": [
@@ -98,6 +121,7 @@
         "domain": { "$ref": "#/$defs/RouteClassDomain" },
         "surfaceAccess": { "$ref": "#/$defs/SurfaceAccess" },
         "operability": { "$ref": "#/$defs/Operability" },
+        "mediatedHandoff": { "$ref": "#/$defs/MediatedHandoff" },
         "mcpDeferralReason": {
           "type": "string",
           "description": "Required when surfaceAccess is cliOnly (§Product contract)."
@@ -243,6 +267,10 @@
         {
           "if": { "properties": { "operability": { "const": "unavailable" } } },
           "then": { "required": ["unavailableReason"] }
+        },
+        {
+          "if": { "properties": { "operability": { "const": "mediated" } } },
+          "then": { "required": ["mediatedHandoff"] }
         }
       ]
     }

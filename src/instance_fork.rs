@@ -21,9 +21,11 @@ pub const RENEW_INTENT_FILE: &str = "fork-renew-intent.json";
 pub const RENEW_RECEIPT_FILE: &str = "fork-renew-receipt.json";
 pub const BASE_SNAPSHOT_FILE: &str = "fork-base.sqlite3";
 pub const BASE_RECEIPT_FILE: &str = "fork-base-receipt.json";
+pub const APP_ROW_COVERAGE_RECEIPT_FILE: &str = "fork-app-row-coverage-receipt.json";
 pub const REGISTRY_DIRECTORY: &str = ".snapback-fork-registry";
 const LINEAGE_META_KEY: &str = "instance_fork_lineage_v1";
 const QUARANTINE_META_KEY: &str = "instance_fork_quarantine_v1";
+pub(crate) const APP_ROW_COVERAGE_META_KEY: &str = "instance_fork_app_row_coverage_v1";
 const EGRESS_TABLE: &str = "_snapback_fork_egress_attempts_v1";
 
 pub const SERVER_EXPIRED_CODE: &str = "SNAPBACK_FORK_SERVER_EXPIRED";
@@ -33,6 +35,7 @@ pub const NET_DIFF_UNAVAILABLE_CODE: &str = "SNAPBACK_FORK_NET_DIFF_UNAVAILABLE"
 pub const ASSET_CUT_INCOMPLETE_CODE: &str = "SNAPBACK_FORK_ASSET_CUT_INCOMPLETE";
 pub const ASSET_CUT_UNSUPPORTED_CODE: &str = "SNAPBACK_FORK_ASSET_CUT_UNSUPPORTED";
 pub const DIFF_ORACLE_MISMATCH_CODE: &str = "SNAPBACK_FORK_DIFF_ORACLE_MISMATCH";
+pub const WRITER_COVERAGE_INVALID_CODE: &str = "SNAPBACK_FORK_WRITER_COVERAGE_INVALID";
 
 /// Maximum total lifetime for a managed fork, binding creation through every
 /// renewal (LLP 0185 Phase 3 item 6's "configured maximum"; author-ratified
@@ -774,6 +777,28 @@ pub struct ForkBaseReceiptV1 {
     pub retained_at_ms: u64,
 }
 
+/// Durable evidence that the derived fork's process-owned SQLite writer was
+/// armed before any post-fork application commit could run. The identical
+/// object lives in the database and beside it; the digest binds the fork
+/// point to the exact fork-local journal-authority manifest.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ForkAppRowCoverageReceiptV1 {
+    pub schema_version: String,
+    pub profile: String,
+    pub fork_id: String,
+    pub data_version_stream: String,
+    pub fork_point_version: u64,
+    pub activation_head_version: u64,
+    pub activated_at_ms: u64,
+    pub manifest_version: u64,
+    pub manifest_digest: String,
+    pub covered_lanes: Vec<String>,
+    pub uncovered_lanes: Vec<String>,
+    pub writer_choke_points: Vec<String>,
+    pub receipt_digest: String,
+}
+
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ForkNetDiffRowV1 {
@@ -793,7 +818,16 @@ pub struct ForkNetDiffRowV1 {
 /// folded journal where retention still covers the fork point.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct ForkNetDiffReceiptV1 {
+pub struct ForkNetDiffWriterCoverageV1 {
+    pub coverage_window: String,
+    pub manifest_digest: Option<String>,
+    pub covered_lanes: Vec<String>,
+    pub uncovered_lanes: Vec<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ForkNetDiffReceiptV2 {
     pub schema_version: String,
     pub fork_id: String,
     pub app_id: String,
@@ -803,6 +837,8 @@ pub struct ForkNetDiffReceiptV1 {
     pub substrate: String,
     pub completeness: String,
     pub journal_consistency: String,
+    pub writer_coverage: ForkNetDiffWriterCoverageV1,
+    pub attribution: String,
     pub rows: Vec<ForkNetDiffRowV1>,
     pub table_counts: BTreeMap<String, u64>,
     pub domains: BTreeMap<String, String>,
@@ -832,6 +868,72 @@ pub struct ForkReapReceiptV1 {
 pub struct DerivedForkRuntime {
     pub database_path: PathBuf,
     pub lineage: DerivedForkLineageV1,
+}
+
+fn fork_app_row_covered_lanes() -> Vec<String> {
+    let mut lanes = vec![
+        crate::operation_ledger::DERIVED_FORK_ORDINARY_APP_ROW_JOURNAL_LANE_V1.to_owned(),
+        crate::operation_ledger::DERIVED_FORK_HOST_CHILD_APP_ROW_JOURNAL_LANE_V1.to_owned(),
+    ];
+    lanes.sort();
+    lanes
+}
+
+fn fork_app_row_writer_choke_points() -> Vec<String> {
+    let mut writers = crate::operation_ledger::ORDINARY_MUTATION_WRITERS_V1
+        .into_iter()
+        .chain(crate::operation_ledger::HOST_CHILD_MUTATION_WRITERS_V1)
+        .map(str::to_owned)
+        .collect::<Vec<_>>();
+    writers.sort();
+    writers
+}
+
+fn fork_app_row_uncovered_lanes() -> Vec<String> {
+    crate::storage::local_target_app_effective_uncovered_lanes_v1()
+}
+
+fn fork_app_row_all_lanes() -> Vec<String> {
+    fork_app_row_covered_lanes()
+        .into_iter()
+        .chain(fork_app_row_uncovered_lanes())
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect()
+}
+
+fn fork_app_row_coverage_digest(
+    receipt: &ForkAppRowCoverageReceiptV1,
+) -> SnapbackResult<String> {
+    let body = serde_json::to_vec(&json!({
+        "schemaVersion": receipt.schema_version,
+        "profile": receipt.profile,
+        "forkId": receipt.fork_id,
+        "dataVersionStream": receipt.data_version_stream,
+        "forkPointVersion": receipt.fork_point_version,
+        "activationHeadVersion": receipt.activation_head_version,
+        "activatedAtMs": receipt.activated_at_ms,
+        "manifestVersion": receipt.manifest_version,
+        "manifestDigest": receipt.manifest_digest,
+        "coveredLanes": receipt.covered_lanes,
+        "uncoveredLanes": receipt.uncovered_lanes,
+        "writerChokePoints": receipt.writer_choke_points,
+    }))
+    .map_err(|error| {
+        fork_error(
+            WRITER_COVERAGE_INVALID_CODE,
+            format!("derived-fork writer coverage could not be digested: {error}"),
+        )
+    })?;
+    use sha2::Digest as _;
+    let mut hasher = sha2::Sha256::new();
+    hasher.update(b"snapback:derived-fork-app-row-coverage:v1\n");
+    hasher.update(body);
+    Ok(format!("sha256:{:x}", hasher.finalize()))
+}
+
+fn writer_coverage_invalid(message: impl Into<String>) -> SnapbackError {
+    fork_error(WRITER_COVERAGE_INVALID_CODE, message)
 }
 
 fn table_exists(conn: &Connection, name: &str) -> SnapbackResult<bool> {
@@ -895,6 +997,13 @@ fn sync_sqlite_set(
     cut_at: Option<PublicationCut>,
 ) -> SnapbackResult<()> {
     conn.execute_batch("PRAGMA wal_checkpoint(FULL);")?;
+    sync_sqlite_files(database_path, cut_at)
+}
+
+fn sync_sqlite_files(
+    database_path: &Path,
+    cut_at: Option<PublicationCut>,
+) -> SnapbackResult<()> {
     for (path, cut) in [
         (
             database_path.to_path_buf(),
@@ -1172,7 +1281,114 @@ pub fn inspect_boot_at(
     Ok(runtime)
 }
 
-fn inspect_published_evidence(database_path: &Path) -> SnapbackResult<Option<DerivedForkRuntime>> {
+/// Apply an optional dev-schema fixture before the fork becomes reachable,
+/// then arm the existing generated-writer/SQLite-authorizer cut while the
+/// child head still equals its fork point. Production `fork create` instead
+/// calls [`arm_open_derived_fork_app_row_coverage`] after its complete cold
+/// startup carrier has applied the schema and before listener bind.
+///
+/// @ref LLP 0165#derived-fork-authorizer-backed-net-diff--2026-08-06 — the
+///   upgraded app-row claim requires fork-point activation evidence, not an
+///   authorizer manifest installed after a child write.
+pub fn arm_derived_fork_app_row_coverage(
+    database_path: &Path,
+    schema: Option<crate::manifest::SchemaManifest>,
+    activated_at_ms: u64,
+) -> SnapbackResult<ForkAppRowCoverageReceiptV1> {
+    let mut database = crate::storage::LocalDatabase::open(database_path)?;
+    if let Some(schema) = schema {
+        database.apply_schema(schema)?;
+    }
+    arm_open_derived_fork_app_row_coverage(&mut database, activated_at_ms)
+}
+
+/// Arm writer coverage on the exact database connection that will serve the
+/// fork. Cold-start composition has already admitted and applied the complete
+/// schema/function pair; this cut must still precede listener bind.
+///
+/// @ref LLP 0058#cold-startup-artifact-carrier — settled Sessions consumes a
+///   complete owner-only pair before this activation cut.
+/// @ref LLP 0165#derived-fork-authorizer-backed-net-diff--2026-08-06 — the
+///   manifest is active from the fork point on the process-owned connection.
+pub(crate) fn arm_open_derived_fork_app_row_coverage(
+    database: &mut crate::storage::LocalDatabase,
+    activated_at_ms: u64,
+) -> SnapbackResult<ForkAppRowCoverageReceiptV1> {
+    let runtime = database.derived_fork().cloned().ok_or_else(|| {
+        writer_coverage_invalid("writer coverage activation requires a minted derived fork")
+    })?;
+    let database_path = database.database_path().map(Path::to_path_buf).ok_or_else(|| {
+        writer_coverage_invalid("writer coverage activation requires a file-backed fork")
+    })?;
+    if database.current_version()? != runtime.lineage.fork_point_version {
+        return Err(writer_coverage_invalid(
+            "derived-fork writer coverage must arm before the first post-fork commit",
+        ));
+    }
+    let activation_head_version = database.current_version()?;
+    if activation_head_version != runtime.lineage.fork_point_version {
+        return Err(writer_coverage_invalid(
+            "worktree schema preparation advanced the app-row head before writer coverage armed",
+        ));
+    }
+    let manifest =
+        database.activate_derived_fork_app_row_journal_coverage(activated_at_ms)?;
+    if !database.derived_fork_exact_app_row_journal_coverage_active()?
+        || database.current_version()? != activation_head_version
+    {
+        return Err(writer_coverage_invalid(
+            "derived-fork writer coverage did not arm the exact manifest at the fork point",
+        ));
+    }
+    let mut receipt = ForkAppRowCoverageReceiptV1 {
+        schema_version: "snapback.fork-app-row-coverage.v1".to_owned(),
+        profile: "derived-fork-app-rows-v1".to_owned(),
+        fork_id: runtime.lineage.fork_id,
+        data_version_stream: manifest.stream_id.clone(),
+        fork_point_version: runtime.lineage.fork_point_version,
+        activation_head_version,
+        activated_at_ms,
+        manifest_version: manifest.manifest_version,
+        manifest_digest: manifest.coverage_digest.clone(),
+        covered_lanes: fork_app_row_covered_lanes(),
+        uncovered_lanes: fork_app_row_uncovered_lanes(),
+        writer_choke_points: fork_app_row_writer_choke_points(),
+        receipt_digest: String::new(),
+    };
+    receipt.receipt_digest = fork_app_row_coverage_digest(&receipt)?;
+
+    let encoded = serde_json::to_string(&receipt)
+        .map_err(|error| writer_coverage_invalid(format!("coverage receipt encode: {error}")))?;
+    if manifest.manifest_version != receipt.manifest_version
+        || manifest.coverage_digest != receipt.manifest_digest
+        || manifest.covered_lanes != receipt.covered_lanes
+        || manifest.writer_choke_points != receipt.writer_choke_points
+    {
+        return Err(writer_coverage_invalid(
+            "active manifest does not match the fork-point coverage receipt",
+        ));
+    }
+    // Keep the durable receipt write on the serving connection and fsync its
+    // WAL set without draining it. Opening or checkpointing through a
+    // short-lived second connection here can unlink the live WAL on macOS
+    // while the server keeps writing its now-invisible inode.
+    database
+        .persist_derived_fork_app_row_coverage_receipt(&encoded)
+        .map_err(|error| {
+            writer_coverage_invalid(format!("persist derived-fork coverage fact: {error}"))
+        })?;
+    sync_sqlite_files(&database_path, None)?;
+    write_json_sync(
+        &database_path.with_file_name(APP_ROW_COVERAGE_RECEIPT_FILE),
+        &receipt,
+    )?;
+    sync_directory(database_path.parent().unwrap_or_else(|| Path::new(".")))?;
+    Ok(receipt)
+}
+
+fn inspect_published_evidence(
+    database_path: &Path,
+) -> SnapbackResult<Option<DerivedForkRuntime>> {
     let directory = database_path.parent().unwrap_or_else(|| Path::new("."));
     if directory.join(STAGING_SENTINEL).exists() {
         return Err(fork_error(
@@ -1188,7 +1404,10 @@ fn inspect_evidence(database_path: &Path) -> SnapbackResult<Option<DerivedForkRu
     if !database_path.exists() {
         return Ok(None);
     }
-    let conn = Connection::open(database_path)?;
+    let conn = Connection::open_with_flags(
+        database_path,
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
+    )?;
     if !table_exists(&conn, "_snapback_meta")? {
         return Ok(None);
     }
@@ -2471,7 +2690,10 @@ pub fn diff_receipt_bounded(
             "diff requires a minted derived deployment",
         )
     })?;
-    let mut conn = Connection::open(database_path)?;
+    let mut conn = Connection::open_with_flags(
+        database_path,
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
+    )?;
     // One read transaction pins the floor, head, and rows to the same SQLite
     // snapshot. A later writer can advance or prune without creating a
     // receipt whose header and body describe different moments.
@@ -2576,6 +2798,109 @@ pub fn diff_receipt_bounded(
     })
 }
 
+fn verified_fork_app_row_coverage(
+    conn: &Connection,
+    directory: &Path,
+    runtime: &DerivedForkRuntime,
+) -> SnapbackResult<Option<ForkAppRowCoverageReceiptV1>> {
+    let file_path = directory.join(APP_ROW_COVERAGE_RECEIPT_FILE);
+    let file_body = match fs::read(&file_path) {
+        Ok(bytes) => Some(bytes),
+        Err(error) if error.kind() == ErrorKind::NotFound => None,
+        Err(error) => return Err(io_error("read fork app-row coverage receipt", error)),
+    };
+    let database_body = conn
+        .query_row(
+            "SELECT value FROM _snapback_meta WHERE key=?1",
+            [APP_ROW_COVERAGE_META_KEY],
+            |row| row.get::<_, String>(0),
+        )
+        .optional()?;
+    let (file_body, database_body) = match (file_body, database_body) {
+        (None, None) => return Ok(None),
+        (Some(file_body), Some(database_body)) => (file_body, database_body),
+        _ => {
+            return Err(writer_coverage_invalid(
+                "derived-fork writer coverage evidence is present in only one durable carrier",
+            ));
+        }
+    };
+    let file_receipt: ForkAppRowCoverageReceiptV1 = serde_json::from_slice(&file_body)
+        .map_err(|error| writer_coverage_invalid(format!("coverage file decode: {error}")))?;
+    let database_receipt: ForkAppRowCoverageReceiptV1 = serde_json::from_str(&database_body)
+        .map_err(|error| writer_coverage_invalid(format!("coverage database decode: {error}")))?;
+    if file_receipt != database_receipt {
+        return Err(writer_coverage_invalid(
+            "database and filesystem writer coverage receipts disagree",
+        ));
+    }
+    let receipt = file_receipt;
+    if receipt.schema_version != "snapback.fork-app-row-coverage.v1"
+        || receipt.profile != "derived-fork-app-rows-v1"
+        || receipt.fork_id != runtime.lineage.fork_id
+        || receipt.fork_point_version != runtime.lineage.fork_point_version
+        || receipt.activation_head_version != runtime.lineage.fork_point_version
+        || receipt.covered_lanes != fork_app_row_covered_lanes()
+        || receipt.uncovered_lanes != fork_app_row_uncovered_lanes()
+        || receipt.writer_choke_points != fork_app_row_writer_choke_points()
+        || receipt.receipt_digest != fork_app_row_coverage_digest(&receipt)?
+    {
+        return Err(writer_coverage_invalid(
+            "derived-fork writer coverage receipt does not bind the exact fork-point profile",
+        ));
+    }
+    let stream = crate::seed_identity::strict_current_data_version_stream(conn)?
+        .ok_or_else(|| writer_coverage_invalid("fork has no active data-version stream"))?;
+    let manifest = crate::operation_ledger::active_coverage_manifest(conn, &stream)?
+        .ok_or_else(|| writer_coverage_invalid("fork coverage manifest is no longer active"))?;
+    if receipt.data_version_stream != stream
+        || receipt.manifest_version != manifest.manifest_version
+        || receipt.manifest_digest != manifest.coverage_digest
+        || receipt.covered_lanes != manifest.covered_lanes
+        || receipt.writer_choke_points != manifest.writer_choke_points
+    {
+        return Err(writer_coverage_invalid(
+            "active writer manifest does not match the fork-point receipt",
+        ));
+    }
+    let activated_at_ms: u64 = conn.query_row(
+        "SELECT activated_at_ms FROM _snapback_operation_coverage_v1
+          WHERE manifest_version=?1 AND stream_id=?2 AND coverage_digest=?3",
+        params![
+            receipt.manifest_version,
+            receipt.data_version_stream,
+            receipt.manifest_digest
+        ],
+        |row| row.get(0),
+    )?;
+    if activated_at_ms != receipt.activated_at_ms {
+        return Err(writer_coverage_invalid(
+            "coverage activation time does not match its durable manifest row",
+        ));
+    }
+    Ok(Some(receipt))
+}
+
+/// Re-read both durable coverage carriers and the active manifest through a
+/// read-only lifecycle handle. Fork creation uses this after readiness so its
+/// response never trusts the mere presence of the child-written receipt file.
+pub fn verified_derived_fork_app_row_coverage(
+    database_path: &Path,
+) -> SnapbackResult<Option<ForkAppRowCoverageReceiptV1>> {
+    let runtime = inspect_published_evidence(database_path)?.ok_or_else(|| {
+        writer_coverage_invalid("writer coverage verification requires a minted derived fork")
+    })?;
+    let conn = Connection::open_with_flags(
+        database_path,
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
+    )?;
+    verified_fork_app_row_coverage(
+        &conn,
+        database_path.parent().unwrap_or_else(|| Path::new(".")),
+        &runtime,
+    )
+}
+
 /// The exact net base-to-head diff (LLP 0185 Phase 4). The row set is
 /// computed by comparing the digest-verified retained base against the
 /// current head directly — an oracle independent of the journal — and the
@@ -2585,7 +2910,7 @@ pub fn diff_receipt_bounded(
 pub fn net_diff_receipt(
     database_path: &Path,
     max_rows: u64,
-) -> SnapbackResult<ForkNetDiffReceiptV1> {
+) -> SnapbackResult<ForkNetDiffReceiptV2> {
     let runtime = inspect_published_evidence(database_path)?.ok_or_else(|| {
         fork_error(
             "SNAPBACK_FORK_EVIDENCE_INCOMPLETE",
@@ -2621,14 +2946,94 @@ pub fn net_diff_receipt(
         ));
     }
 
-    let base = Connection::open_with_flags(&base_path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)?;
-    let mut head = Connection::open(database_path)?;
+    let base = Connection::open_with_flags(
+        &base_path,
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
+    )?;
+    let base_schema = crate::storage::active_schema_manifest_from_connection(&base)?;
+    let mut head = Connection::open_with_flags(
+        database_path,
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
+    )?;
     let tx = head.transaction()?;
+    let head_schema = crate::storage::active_schema_manifest_from_connection(&tx)?;
     let observed_head_version = tx.query_row(
         "SELECT version FROM _snapback_version WHERE id=1",
         [],
         |row| row.get::<_, u64>(0),
     )?;
+    let retention_floor = crate::storage::change_journal_floor_on(&tx)?;
+    let coverage_receipt = verified_fork_app_row_coverage(&tx, directory, &runtime)?;
+    let journal_cross_check_available = retention_floor <= runtime.lineage.fork_point_version;
+    let mut journaled = BTreeSet::new();
+    let mut latest_covered_journal_post_images = BTreeMap::<
+        String,
+        BTreeMap<String, Option<Value>>,
+    >::new();
+    if journal_cross_check_available {
+        let mut statement = tx.prepare(
+            "SELECT table_name,row_id,op,row_json FROM _snapback_changes
+              WHERE version > ?1
+                AND table_name NOT GLOB '_snapback_*'
+                AND table_name NOT GLOB '_auth_*'
+              ORDER BY version,id",
+        )?;
+        for row in statement.query_map([runtime.lineage.fork_point_version], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, Option<String>>(3)?,
+            ))
+        })? {
+            let (table, row_id, operation, row_json) = row?;
+            journaled.insert((table.clone(), row_id.clone()));
+            if coverage_receipt.is_some() {
+                let post_image = match (operation.as_str(), row_json) {
+                    ("insert" | "update", Some(row_json)) => {
+                        Some(serde_json::from_str(&row_json).map_err(|error| {
+                            fork_error(
+                                "SNAPBACK_FORK_DIFF_INVALID",
+                                format!("covered journal post-image is malformed: {error}"),
+                            )
+                            .with_details(json!({
+                                "table": table,
+                                "rowId": row_id,
+                                "operation": operation,
+                            }))
+                        })?)
+                    }
+                    ("delete", None) => None,
+                    ("insert" | "update" | "delete", _) => {
+                        return Err(fork_error(
+                            "SNAPBACK_FORK_DIFF_INVALID",
+                            "covered journal operation and post-image disagree",
+                        )
+                        .with_details(json!({
+                            "table": table,
+                            "rowId": row_id,
+                            "operation": operation,
+                        })));
+                    }
+                    _ => {
+                        return Err(fork_error(
+                            "SNAPBACK_FORK_DIFF_INVALID",
+                            "covered journal operation is not recognized",
+                        )
+                        .with_details(json!({
+                            "table": table,
+                            "rowId": row_id,
+                            "operation": operation,
+                        })));
+                    }
+                };
+                latest_covered_journal_post_images
+                    .entry(table)
+                    .or_default()
+                    .insert(row_id, post_image);
+            }
+        }
+    }
 
     let mut tables = BTreeSet::new();
     for conn in [&base, &*tx] {
@@ -2648,8 +3053,29 @@ pub fn net_diff_receipt(
     let mut rows = Vec::new();
     let mut table_counts = BTreeMap::new();
     for table in &tables {
-        let base_rows = read_app_table_rows(&base, table)?;
-        let head_rows = read_app_table_rows(&tx, table)?;
+        let base_table = base_schema
+            .as_ref()
+            .and_then(|schema| schema.tables.iter().find(|candidate| candidate.name == *table));
+        let head_table = head_schema
+            .as_ref()
+            .and_then(|schema| schema.tables.iter().find(|candidate| candidate.name == *table));
+        let base_rows = read_app_table_rows(&base, table, base_table)?;
+        let head_rows = read_app_table_rows(&tx, table, head_table)?;
+        if let Some(latest_rows) = latest_covered_journal_post_images.get(table) {
+            for (row_id, journal_post_image) in latest_rows {
+                if head_rows.get(row_id) != journal_post_image.as_ref() {
+                    return Err(fork_error(
+                        DIFF_ORACLE_MISMATCH_CODE,
+                        "the covered journal's final post-image disagrees with the base/head oracle",
+                    )
+                    .with_details(json!({
+                        "table": table,
+                        "rowId": row_id,
+                        "reason": "journal-head-postimage-mismatch",
+                    })));
+                }
+            }
+        }
         let mut row_ids = BTreeSet::new();
         row_ids.extend(base_rows.keys().cloned());
         row_ids.extend(head_rows.keys().cloned());
@@ -2686,27 +3112,34 @@ pub fn net_diff_receipt(
         })));
     }
 
+    // @ref LLP 0165#derived-fork-authorizer-backed-net-diff--2026-08-06 — an
+    //   armed receipt cannot let an out-of-process write borrow an earlier
+    //   legitimate journal entry for the same row.
     // Journal cross-check: within retention, every net-changed row must be
-    // explained by at least one attributed journal entry. Folded entries
-    // that net to no change (reverts, insert+delete) are legitimate; a
-    // net-changed row with no journal trace means the journal is lying by
-    // omission, which is exactly what this receipt must never paper over.
-    let retention_floor = crate::storage::change_journal_floor_on(&tx)?;
-    let journal_consistency = if retention_floor > runtime.lineage.fork_point_version {
+    // explained by at least one journal entry. For the authorizer-backed
+    // class, the last journal post-image for every touched row must also equal
+    // the independently scanned head. This prevents an out-of-process write
+    // from borrowing an earlier legitimate journal entry for the same row.
+    let journal_consistency = if !journal_cross_check_available {
         "journal-cross-check-unavailable-retention-gap".to_owned()
     } else {
-        let mut journaled = BTreeSet::new();
-        let mut statement = tx.prepare(
-            "SELECT DISTINCT table_name, row_id FROM _snapback_changes
-              WHERE version > ?1
-                AND table_name NOT GLOB '_snapback_*'
-                AND table_name NOT GLOB '_auth_*'",
-        )?;
-        for row in statement.query_map([runtime.lineage.fork_point_version], |row| {
-            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
-        })? {
-            let (table, row_id) = row?;
-            journaled.insert((table, row_id));
+        if let Some((table, rows)) = latest_covered_journal_post_images
+            .iter()
+            .find(|(table, rows)| !tables.contains(*table) && rows.values().any(Option::is_some))
+        {
+            let row_id = rows
+                .iter()
+                .find_map(|(row_id, post_image)| post_image.as_ref().map(|_| row_id))
+                .expect("the predicate requires one retained post-image");
+            return Err(fork_error(
+                DIFF_ORACLE_MISMATCH_CODE,
+                "the covered journal retains a row that is absent from the base/head oracle",
+            )
+            .with_details(json!({
+                "table": table,
+                "rowId": row_id,
+                "reason": "journal-head-table-missing",
+            })));
         }
         if let Some(unexplained) = rows
             .iter()
@@ -2725,16 +3158,43 @@ pub fn net_diff_receipt(
         "journal-cross-check-verified".to_owned()
     };
 
-    Ok(ForkNetDiffReceiptV1 {
-        schema_version: "snapback.fork-net-diff.v1".to_owned(),
+    let writer_coverage = match coverage_receipt.as_ref() {
+        Some(receipt) => ForkNetDiffWriterCoverageV1 {
+            coverage_window: "fork-point-to-observed-head-verified".to_owned(),
+            manifest_digest: Some(receipt.manifest_digest.clone()),
+            covered_lanes: receipt.covered_lanes.clone(),
+            uncovered_lanes: receipt.uncovered_lanes.clone(),
+        },
+        None => ForkNetDiffWriterCoverageV1 {
+            coverage_window: "unverified".to_owned(),
+            manifest_digest: None,
+            covered_lanes: Vec::new(),
+            uncovered_lanes: fork_app_row_all_lanes(),
+        },
+    };
+    let completeness = if coverage_receipt.is_some()
+        && journal_consistency == "journal-cross-check-verified"
+    {
+        "authorizer-backed-app-rows-v1"
+    } else {
+        "journal-enumerated-v1"
+    };
+
+    // @ref LLP 0165#derived-fork-authorizer-backed-net-diff--2026-08-06 —
+    //   writer authority and journal consistency are separate receipt facts;
+    //   both must pass before the app-row completeness spelling upgrades.
+    Ok(ForkNetDiffReceiptV2 {
+        schema_version: "snapback.fork-net-diff.v2".to_owned(),
         fork_id: runtime.lineage.fork_id,
         app_id: runtime.lineage.app_id,
         parent_instance_id: runtime.lineage.parent_instance_id,
         fork_point_version: runtime.lineage.fork_point_version,
         observed_head_version,
         substrate: "retained-base-v1".to_owned(),
-        completeness: "journal-enumerated-v1".to_owned(),
+        completeness: completeness.to_owned(),
         journal_consistency,
+        writer_coverage,
+        attribution: "absent-v1".to_owned(),
         rows,
         table_counts,
         domains: BTreeMap::from([
@@ -2755,7 +3215,11 @@ pub fn net_diff_receipt(
 /// Values come from the live column bytes — SQLite storage classes map to
 /// JSON directly, blobs render as lowercase hex — so two identical rows
 /// compare equal regardless of which database file they were read from.
-fn read_app_table_rows(conn: &Connection, table: &str) -> SnapbackResult<BTreeMap<String, Value>> {
+fn read_app_table_rows(
+    conn: &Connection,
+    table: &str,
+    manifest: Option<&crate::manifest::TableManifest>,
+) -> SnapbackResult<BTreeMap<String, Value>> {
     let quoted = format!("\"{}\"", table.replace('"', "\"\""));
     let mut statement = match conn.prepare(&format!("SELECT * FROM {quoted}")) {
         Ok(statement) => statement,
@@ -2776,6 +3240,21 @@ fn read_app_table_rows(conn: &Connection, table: &str) -> SnapbackResult<BTreeMa
     let mut rows = BTreeMap::new();
     let mut raw = statement.query([])?;
     while let Some(row) = raw.next()? {
+        if let Some(manifest) = manifest {
+            let document = crate::storage::row_to_document(row, manifest, &columns)?;
+            let row_id = document
+                .get("_id")
+                .and_then(Value::as_str)
+                .ok_or_else(|| {
+                    fork_error(
+                        "SNAPBACK_FORK_DIFF_INVALID",
+                        format!("app table {table} has a row without a string _id"),
+                    )
+                })?
+                .to_owned();
+            rows.insert(row_id, document);
+            continue;
+        }
         let mut object = serde_json::Map::new();
         let mut row_id = None;
         for (index, column) in columns.iter().enumerate() {
@@ -3202,6 +3681,98 @@ pub fn recover(parent: &Path, destination: &Path) -> SnapbackResult<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn app_row_schema() -> crate::manifest::SchemaManifest {
+        crate::manifest::SchemaManifest {
+            tables: vec![crate::manifest::TableManifest {
+                name: "items".to_owned(),
+                fields: vec![
+                    crate::manifest::FieldManifest {
+                        name: "title".to_owned(),
+                        field_type: crate::manifest::FieldType::String,
+                        optional: false,
+                    },
+                    crate::manifest::FieldManifest {
+                        name: "rank".to_owned(),
+                        field_type: crate::manifest::FieldType::Integer,
+                        optional: true,
+                    },
+                ],
+                indexes: Vec::new(),
+                syncable: true,
+                permission_backing: false,
+                permission_fields: None,
+                search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
+                search_live_limits: None,
+                membership: None,
+                asset_sharing: None,
+                history: None,
+            }],
+            ..crate::manifest::SchemaManifest::default()
+        }
+    }
+
+    fn app_row_source_database(directory: &Path) -> PathBuf {
+        let path = directory.join("app.sqlite3");
+        let mut db = crate::storage::LocalDatabase::open(&path).unwrap();
+        db.apply_schema(app_row_schema()).unwrap();
+        db.commit_buffered_writes(
+            &crate::manifest::HandlerInput::default(),
+            vec![
+                crate::storage::BufferedWrite::Insert {
+                    table: "items".to_owned(),
+                    id: "update-me".to_owned(),
+                    values: serde_json::Map::from_iter([(
+                        "title".to_owned(),
+                        json!("before"),
+                    )]),
+                },
+                crate::storage::BufferedWrite::Insert {
+                    table: "items".to_owned(),
+                    id: "delete-me".to_owned(),
+                    values: serde_json::Map::from_iter([(
+                        "title".to_owned(),
+                        json!("doomed"),
+                    )]),
+                },
+                crate::storage::BufferedWrite::Insert {
+                    table: "items".to_owned(),
+                    id: "revert-me".to_owned(),
+                    values: serde_json::Map::from_iter([(
+                        "title".to_owned(),
+                        json!("original"),
+                    )]),
+                },
+            ],
+            Vec::new(),
+            Value::Null,
+        )
+        .unwrap();
+        drop(db);
+        path
+    }
+
+    fn publish_armed_app_row_fork(
+        source: &Path,
+        destination: &Path,
+    ) -> (ForkMintReceiptV1, ForkAppRowCoverageReceiptV1, PathBuf) {
+        let now_ms = wall_clock_now_ms();
+        let mint = publish_managed_with_base(
+            source,
+            destination,
+            "app-a",
+            "parent-a",
+            now_ms,
+            now_ms + 60_000,
+            false,
+            true,
+        )
+        .unwrap();
+        let database = destination.join(&mint.database_file);
+        let coverage = arm_derived_fork_app_row_coverage(&database, None, now_ms + 1).unwrap();
+        (mint, coverage, database)
+    }
 
     fn source_database(directory: &Path) -> PathBuf {
         let path = directory.join("app.sqlite3");
@@ -5043,10 +5614,18 @@ mod tests {
         drop(fork);
 
         let net = net_diff_receipt(&database, FORK_DIFF_MAX_ROWS).unwrap();
-        assert_eq!(net.schema_version, "snapback.fork-net-diff.v1");
+        assert_eq!(net.schema_version, "snapback.fork-net-diff.v2");
         assert_eq!(net.substrate, "retained-base-v1");
         assert_eq!(net.completeness, "journal-enumerated-v1");
         assert_eq!(net.journal_consistency, "journal-cross-check-verified");
+        assert_eq!(net.attribution, "absent-v1");
+        assert_eq!(net.writer_coverage.coverage_window, "unverified");
+        assert_eq!(net.writer_coverage.manifest_digest, None);
+        assert!(net.writer_coverage.covered_lanes.is_empty());
+        assert_eq!(
+            net.writer_coverage.uncovered_lanes,
+            fork_app_row_all_lanes()
+        );
         assert_eq!(net.fork_point_version, receipt.lineage.fork_point_version);
         assert_eq!(net.observed_head_version, 3);
         let summary = net
@@ -5096,6 +5675,325 @@ mod tests {
         assert_eq!(
             sibling_net.journal_consistency,
             "journal-cross-check-verified"
+        );
+    }
+
+    #[test]
+    fn net_diff_authorizer_backed_app_row_corpus_and_runtime_negative() {
+        let directory = tempfile::tempdir().unwrap();
+        let source = app_row_source_database(directory.path());
+        let destination = directory.path().join("fork-armed");
+        let (mint, coverage, database) = publish_armed_app_row_fork(&source, &destination);
+
+        assert_eq!(coverage.fork_point_version, mint.lineage.fork_point_version);
+        assert_eq!(coverage.activation_head_version, mint.lineage.fork_point_version);
+        assert_eq!(coverage.covered_lanes, fork_app_row_covered_lanes());
+        assert_eq!(coverage.uncovered_lanes, fork_app_row_uncovered_lanes());
+        assert_eq!(
+            coverage.writer_choke_points,
+            fork_app_row_writer_choke_points()
+        );
+
+        let mut fork = crate::storage::LocalDatabase::open(&database).unwrap();
+        assert!(
+            !fork
+                .operation_lane_covered(crate::operation_ledger::ORDINARY_MUTATION_LANE_V1)
+                .unwrap()
+                && !fork
+                    .operation_lane_covered(
+                        crate::operation_ledger::HOST_CHILD_MUTATION_LANE_V1,
+                    )
+                    .unwrap(),
+            "fork journal authority must not imply LLP 0163 operation-envelope coverage"
+        );
+        let denied = fork
+            .execute_out_of_seam_app_sql_for_test(
+                "INSERT INTO items(_id,_version,_createdAt,_updatedAt,title) \
+                 VALUES('raw-bypass',2,102,102,'must be denied')",
+            )
+            .expect_err("fork authorizer must deny direct app-table SQL");
+        assert!(matches!(
+            denied,
+            rusqlite::Error::SqliteFailure(failure, _)
+                if failure.code == rusqlite::ErrorCode::AuthorizationForStatementDenied
+        ));
+
+        fork.commit_buffered_writes(
+            &crate::manifest::HandlerInput::default(),
+            vec![
+                crate::storage::BufferedWrite::Insert {
+                    table: "items".to_owned(),
+                    id: "inserted".to_owned(),
+                    values: serde_json::Map::from_iter([(
+                        "title".to_owned(),
+                        json!("new"),
+                    )]),
+                },
+                crate::storage::BufferedWrite::Insert {
+                    table: "items".to_owned(),
+                    id: "ephemeral".to_owned(),
+                    values: serde_json::Map::from_iter([(
+                        "title".to_owned(),
+                        json!("gone by head"),
+                    )]),
+                },
+                crate::storage::BufferedWrite::Patch {
+                    table: "items".to_owned(),
+                    id: "update-me".to_owned(),
+                    values: serde_json::Map::from_iter([(
+                        "title".to_owned(),
+                        json!("after"),
+                    )]),
+                },
+                crate::storage::BufferedWrite::Patch {
+                    table: "items".to_owned(),
+                    id: "revert-me".to_owned(),
+                    values: serde_json::Map::from_iter([(
+                        "title".to_owned(),
+                        json!("changed"),
+                    )]),
+                },
+                crate::storage::BufferedWrite::Delete {
+                    table: "items".to_owned(),
+                    id: "delete-me".to_owned(),
+                },
+            ],
+            Vec::new(),
+            Value::Null,
+        )
+        .unwrap();
+        fork.commit_buffered_writes(
+            &crate::manifest::HandlerInput::default(),
+            vec![
+                crate::storage::BufferedWrite::Delete {
+                    table: "items".to_owned(),
+                    id: "ephemeral".to_owned(),
+                },
+                crate::storage::BufferedWrite::Patch {
+                    table: "items".to_owned(),
+                    id: "revert-me".to_owned(),
+                    values: serde_json::Map::from_iter([(
+                        "title".to_owned(),
+                        json!("original"),
+                    )]),
+                },
+            ],
+            Vec::new(),
+            Value::Null,
+        )
+        .unwrap();
+        drop(fork);
+
+        let net = net_diff_receipt(&database, FORK_DIFF_MAX_ROWS).unwrap();
+        assert_eq!(net.schema_version, "snapback.fork-net-diff.v2");
+        assert_eq!(net.completeness, "authorizer-backed-app-rows-v1");
+        assert_eq!(net.journal_consistency, "journal-cross-check-verified");
+        assert_eq!(net.attribution, "absent-v1");
+        assert_eq!(
+            net.writer_coverage.coverage_window,
+            "fork-point-to-observed-head-verified"
+        );
+        assert_eq!(
+            net.writer_coverage.manifest_digest.as_deref(),
+            Some(coverage.manifest_digest.as_str())
+        );
+        assert_eq!(net.writer_coverage.covered_lanes, fork_app_row_covered_lanes());
+        assert_eq!(
+            net.writer_coverage.uncovered_lanes,
+            fork_app_row_uncovered_lanes()
+        );
+        assert_eq!(net.domains["appRows"], "net-covered");
+        assert_eq!(net.domains["schema"], "omitted");
+        assert_eq!(
+            net.rows
+                .iter()
+                .map(|row| (row.row_id.as_str(), row.operation.as_str()))
+                .collect::<Vec<_>>(),
+            vec![
+                ("delete-me", "delete"),
+                ("inserted", "insert"),
+                ("revert-me", "update"),
+                ("update-me", "update"),
+            ]
+        );
+        let reverted = net
+            .rows
+            .iter()
+            .find(|row| row.row_id == "revert-me")
+            .unwrap();
+        assert_eq!(reverted.pre_image.as_ref().unwrap()["title"], "original");
+        assert_eq!(reverted.post_image.as_ref().unwrap()["title"], "original");
+        assert_ne!(
+            reverted.pre_image.as_ref().unwrap()["_version"],
+            reverted.post_image.as_ref().unwrap()["_version"],
+            "generated writes retain system-field evidence even after content reverts"
+        );
+
+        let conn = Connection::open(&database).unwrap();
+        conn.execute(
+            "INSERT INTO _snapback_meta(key,value) VALUES('retention_floor','2') \
+             ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+            [],
+        )
+        .unwrap();
+        drop(conn);
+        let retention_gap = net_diff_receipt(&database, FORK_DIFF_MAX_ROWS).unwrap();
+        assert_eq!(retention_gap.completeness, "journal-enumerated-v1");
+        assert_eq!(
+            retention_gap.journal_consistency,
+            "journal-cross-check-unavailable-retention-gap"
+        );
+        assert_eq!(
+            retention_gap.writer_coverage.coverage_window,
+            "fork-point-to-observed-head-verified"
+        );
+    }
+
+    #[test]
+    fn net_diff_armed_path_refuses_bypass_tampered_base_and_coverage_fact() {
+        let directory = tempfile::tempdir().unwrap();
+        let source = app_row_source_database(directory.path());
+
+        let bypass = directory.path().join("fork-bypass");
+        let (_, _, bypass_database) = publish_armed_app_row_fork(&source, &bypass);
+        let mut covered = crate::storage::LocalDatabase::open(&bypass_database).unwrap();
+        covered
+            .commit_buffered_writes(
+                &crate::manifest::HandlerInput::default(),
+                vec![crate::storage::BufferedWrite::Insert {
+                    table: "items".to_owned(),
+                    id: "borrowed-journal".to_owned(),
+                    values: serde_json::Map::from_iter([(
+                        "title".to_owned(),
+                        json!("journaled"),
+                    )]),
+                }],
+                Vec::new(),
+                Value::Null,
+            )
+            .unwrap();
+        drop(covered);
+        let conn = Connection::open(&bypass_database).unwrap();
+        conn.execute(
+            "UPDATE items SET title='out-of-band' WHERE _id='borrowed-journal'",
+            [],
+        )
+        .unwrap();
+        drop(conn);
+        let mismatch = net_diff_receipt(&bypass_database, FORK_DIFF_MAX_ROWS).unwrap_err();
+        assert_eq!(mismatch.diagnostic.code, DIFF_ORACLE_MISMATCH_CODE);
+        assert_eq!(mismatch.diagnostic.details["rowId"], "borrowed-journal");
+        assert_eq!(
+            mismatch.diagnostic.details["reason"],
+            "journal-head-postimage-mismatch"
+        );
+
+        let unexplained = directory.path().join("fork-bypass-unexplained");
+        let (_, _, unexplained_database) = publish_armed_app_row_fork(&source, &unexplained);
+        let conn = Connection::open(&unexplained_database).unwrap();
+        conn.execute(
+            "INSERT INTO items(_id,_version,_createdAt,_updatedAt,title) \
+             VALUES('smuggled',2,102,102,'no journal entry')",
+            [],
+        )
+        .unwrap();
+        drop(conn);
+        let mismatch = net_diff_receipt(&unexplained_database, FORK_DIFF_MAX_ROWS).unwrap_err();
+        assert_eq!(mismatch.diagnostic.code, DIFF_ORACLE_MISMATCH_CODE);
+        assert_eq!(mismatch.diagnostic.details["rowId"], "smuggled");
+
+        let tampered_base = directory.path().join("fork-tampered-base");
+        let (_, _, tampered_base_database) =
+            publish_armed_app_row_fork(&source, &tampered_base);
+        let base_conn = Connection::open(tampered_base.join(BASE_SNAPSHOT_FILE)).unwrap();
+        base_conn
+            .execute(
+                "INSERT INTO items(_id,_version,_createdAt,_updatedAt,title) \
+                 VALUES('tamper',2,102,102,'rewrite history')",
+                [],
+            )
+            .unwrap();
+        drop(base_conn);
+        assert_eq!(
+            net_diff_receipt(&tampered_base_database, FORK_DIFF_MAX_ROWS)
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_FORK_EVIDENCE_MISMATCH"
+        );
+
+        let tampered_coverage = directory.path().join("fork-tampered-coverage");
+        let (_, mut coverage, tampered_coverage_database) =
+            publish_armed_app_row_fork(&source, &tampered_coverage);
+        coverage.profile = "forged-profile".to_owned();
+        write_json_sync(
+            &tampered_coverage.join(APP_ROW_COVERAGE_RECEIPT_FILE),
+            &coverage,
+        )
+        .unwrap();
+        assert_eq!(
+            net_diff_receipt(&tampered_coverage_database, FORK_DIFF_MAX_ROWS)
+                .unwrap_err()
+                .diagnostic
+                .code,
+            WRITER_COVERAGE_INVALID_CODE
+        );
+    }
+
+    #[test]
+    fn net_diff_unarmed_and_armed_late_never_upgrade() {
+        let directory = tempfile::tempdir().unwrap();
+        let source = app_row_source_database(directory.path());
+        let destination = directory.path().join("fork-late");
+        let now_ms = wall_clock_now_ms();
+        let mint = publish_managed_with_base(
+            &source,
+            &destination,
+            "app-a",
+            "parent-a",
+            now_ms,
+            now_ms + 60_000,
+            false,
+            true,
+        )
+        .unwrap();
+        let database = destination.join(&mint.database_file);
+        let mut fork = crate::storage::LocalDatabase::open(&database).unwrap();
+        fork.commit_buffered_writes(
+            &crate::manifest::HandlerInput::default(),
+            vec![crate::storage::BufferedWrite::Insert {
+                table: "items".to_owned(),
+                id: "before-arm".to_owned(),
+                values: serde_json::Map::from_iter([(
+                    "title".to_owned(),
+                    json!("already written"),
+                )]),
+            }],
+            Vec::new(),
+            Value::Null,
+        )
+        .unwrap();
+        drop(fork);
+
+        assert_eq!(
+            arm_derived_fork_app_row_coverage(&database, None, now_ms + 2)
+                .unwrap_err()
+                .diagnostic
+                .code,
+            WRITER_COVERAGE_INVALID_CODE
+        );
+        let mut late = crate::storage::LocalDatabase::open(&database).unwrap();
+        late.activate_derived_fork_app_row_journal_coverage(now_ms + 3)
+            .unwrap();
+        drop(late);
+
+        let net = net_diff_receipt(&database, FORK_DIFF_MAX_ROWS).unwrap();
+        assert_eq!(net.completeness, "journal-enumerated-v1");
+        assert_eq!(net.writer_coverage.coverage_window, "unverified");
+        assert_eq!(net.writer_coverage.manifest_digest, None);
+        assert_eq!(
+            net.writer_coverage.uncovered_lanes,
+            fork_app_row_all_lanes()
         );
     }
 

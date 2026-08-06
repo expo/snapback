@@ -86,7 +86,7 @@ documentation absence never appears as success.
 ## Generated inventory
 
 <!-- BEGIN GENERATED CONTROL CATALOG: CONTROL CATALOG INVENTORY -->
-The embedded build catalog contains **114 operations** at digest `sha256:7624d26866a45188127af998d7ba84d1a2a5426681cfb9ecd098379a41754f7f`. The counts and inventory below are generated; do not edit them by hand.
+The embedded build catalog contains **114 operations** at digest `sha256:28b55da600e070409ad63bbac8bce0cd15dc62fc6aa32031bd451c308bf5aab2`. The counts and inventory below are generated; do not edit them by hand.
 
 | Axis | Value | Count |
 | --- | --- | ---: |
@@ -104,7 +104,7 @@ The embedded build catalog contains **114 operations** at digest `sha256:7624d26
 | --- | --- | --- | --- | --- | --- | --- |
 | `acceptance.run` | `mcpOnly` | `unavailable` | `unbuilt` | — | snapback_acceptance_run | — |
 | `admin.link.exchange` | `cliOnly` | `mediated` | `shipped` | snapback admin link | — | — |
-| `admin.link.mint` | `cliOnly` | `mediated` | `shipped` | snapback admin link | — | — |
+| `admin.link.mint` | `cliOnly` | `mediated` | `shipped` | snapback admin link | — | operating/admin-console.md#hand-a-one-time-link-from-an-agent-terminal-to-a-remote-browser |
 | `admin.link.revoke` | `cliOnly` | `mediated` | `shipped` | snapback admin link --revoke <claim> | — | — |
 | `admin.link.status` | `cliOnly` | `mediated` | `shipped` | snapback admin link --status <claim> | — | — |
 | `app.ensure.provision` | `apiOnly` | `direct` | `shipped` | — | — | — |
@@ -152,7 +152,7 @@ The embedded build catalog contains **114 operations** at digest `sha256:7624d26
 | `cli.telemetry.query` | `cliOnly` | `direct` | `shipped` | snapback telemetry query | — | — |
 | `client-mutations.purge` | `apiOnly` | `internal` | `shipped` | — | — | — |
 | `config.plan` | `native` | `direct` | `shipped` | snapback config plan | snapback_config_plan | operating/secrets-and-config.md#cli-and-mcp-projections-for-statusplanverify |
-| `config.set` | `cliOnly` | `direct` | `shipped` | — | — | — |
+| `config.set` | `cliOnly` | `direct` | `shipped` | snapback config set --entry <name> (--value-stdin\|--value-fd N) | — | operating/secrets-and-config.md#set-an-agent-held-value-without-exposing-it |
 | `config.status` | `native` | `direct` | `shipped` | snapback config status | snapback_config_status | operating/secrets-and-config.md#cli-and-mcp-projections-for-statusplanverify |
 | `config.unset` | `native` | `direct` | `shipped` | snapback config unset | snapback_config_unset | — |
 | `config.verify` | `native` | `direct` | `shipped` | snapback config verify <entry> | snapback_config_verify | operating/secrets-and-config.md#cli-and-mcp-projections-for-statusplanverify |

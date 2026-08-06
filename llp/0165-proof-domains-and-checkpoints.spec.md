@@ -5,7 +5,14 @@
 **Systems:** Storage, Migrations, Diagnostics, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-03
-**Revised:** 2026-08-05 (LLP 0185 Phase 0 ownership reconciliation — clarified
+**Revised:** 2026-08-06 (derived-fork writer-completeness integration — the
+complete cold-start carrier admits the generated pair, then the generated
+transaction seam and SQLite authorizer arm on the serving connection before
+listener bind. The digest-bound fork-point receipt upgrades only the app-row
+lanes to `authorizer-backed-app-rows-v1`, and only while the independent
+journal cross-check is verified; a partial post-bind dev-manifest layout stays
+unarmed and `journal-enumerated-v1`. This is not the storage-wide row-4 claim,
+and the Spec remains Draft.); 2026-08-05 (LLP 0185 Phase 0 ownership reconciliation — clarified
 that this Spec, not LLP 0163 or LLP 0164, owns the global generated-writer plus
 SQLite-authorizer journal-completeness choke point; the neighboring Specs own
 their manifest and diff-surface inputs. No acceptance row changed state.);
@@ -65,7 +72,19 @@ component)
 **Related:** LLP 0035, LLP 0037, LLP 0053, LLP 0081, LLP 0088, LLP 0158,
 LLP 0162, LLP 0163, LLP 0164
 
-**Implementation evidence:** 2026-08-04 (the protected-erasure acceptance-tail
+**Implementation evidence:** 2026-08-06 (the local derived-fork complete-pair
+lane admits its worktree schema/functions through the owner-only cold-start
+carrier and activates the exact two-lane/four-writer journal-authority
+manifest on that process-owned connection before listener bind. Its
+fork-specific lane names do not
+project LLP 0163 operation-envelope coverage. Matching database and filesystem
+receipts bind activation to the fork point, and the active manifest is
+re-verified before a net diff may advertise
+`authorizer-backed-app-rows-v1`. Direct in-process SQL is denied by the SQLite
+authorizer; external bypass, base tampering, and coverage-receipt tampering
+refuse; unarmed, late-armed, and retention-gap spans remain
+`journal-enumerated-v1`. This closes only the narrowed fork app-row slice.);
+2026-08-04 (the protected-erasure acceptance-tail
 audit verified the product transaction and generation fence against LLP 0162
 row 11 and added simultaneous exact/divergent retry corpus. Row 11's
 protected-erasure tail is closed; independent review, author acceptance, and
@@ -121,8 +140,10 @@ revision reconciles them.
   authority choke point — a generated transaction API (LLP 0037 pattern)
   with an unforgeable lane-writer token, backed by a SQLite authorizer
   denying out-of-seam writes to covered tables — with compile-level and
-  runtime negative fixtures. Until the seam lands, coverage and diff
-  advertise the enumerated-fixture inventory class, not completeness.
+  runtime negative fixtures. A receipt advertises completeness only when an
+  exact manifest was active for its entire observation window and the
+  independent journal cross-check passes; otherwise it advertises the
+  enumerated-fixture inventory class or refuses.
 - **Checkpoints.** Two substrate classes: materialized (physical copy;
   alone can base a non-promotable fork) and receipt-only (boundary receipt;
   no retained state; inventory unless dual-path-verified at creation, and
@@ -324,8 +345,63 @@ For issuance-bearing ordinary mutations with an active finite history policy,
 the HostPlan/Buffered transaction fills retained history rows with the owning
 operation identity before commit. This supplies the operation-provenance join
 for covered history rows without changing uncovered writes into covered ones.
-Neither integration establishes the still-missing global generated write
-facade plus SQLite-authorizer completeness seam.
+Neither integration establishes global journal completeness. The generated
+write facade and SQLite-authorizer enforcement now exist, but ordinary parent
+startup does not arm them by default and excluded writer families have not
+completed the storage-wide migration.
+
+### Derived-fork authorizer-backed net diff — 2026-08-06
+
+The local derived-fork lane is the first deliberately narrow whole-window use
+of the journal-completeness choke point. On the complete-pair path, `fork
+create` launches the child with the owner-only cold-start carrier; on the
+process-owned connection, startup admits (and where needed applies) the
+worktree schema/function pair, verifies that the application head still equals
+`forkPointVersion`, activates the exact fork-local journal-authority manifest,
+and only then binds the listener. The manifest's covered lanes are
+`derivedForkOrdinaryAppRowJournal` and
+`derivedForkHostChildAppRowJournal`, mapped to the four generated ordinary and
+host-child physical writer adapters. These distinct names intentionally do not
+activate or advertise LLP 0163's `ordinaryMutation` and `hostChildMutation`
+operation-envelope lanes. Activation writes identical
+`snapback.fork-app-row-coverage.v1` evidence to
+`_snapback_meta.instance_fork_app_row_coverage_v1` and the sibling
+`fork-app-row-coverage-receipt.json`. Its self-digest binds the fork identity,
+fork point, data-version stream, activation head/time, exact manifest version
+and digest, covered lanes, uncovered/refused app-effective lanes, and writer
+choke points.
+
+The completeness spelling is **`authorizer-backed-app-rows-v1`**. It means
+only this: from the derived fork point through the receipt's observed head,
+physical writes to application tables made by the process-owned SQLite
+connection were admitted only under the generated writer token for the
+`derivedForkOrdinaryAppRowJournal` or
+`derivedForkHostChildAppRowJournal` lane; the active manifest names the four
+corresponding writer choke points; and the retained-base/head oracle agrees
+that every net-changed app row is explained by the journal. For this armed
+class, the latest journal post-image for every touched row must also equal the
+independently scanned head, so a bypass cannot borrow an earlier legitimate
+journal entry for the same row. The receipt
+names the manifest digest and covered/uncovered lane sets separately from
+`journalConsistency`; the uncovered set names the app-effective writer
+families that are refused while this profile is armed. Its `domains` map
+continues to mark schema, auth,
+operational, configuration, assets, egress attempts, telemetry, and sidecars
+omitted. Operation attribution is also explicitly `absent-v1`; the fork
+journal-authority profile supplies no operation identity or envelope claim.
+
+The spelling is unavailable when either durable carrier is missing, malformed,
+or disagrees; when the manifest/stream no longer matches; or when activation
+did not bind the fork point. Contradictory evidence refuses with
+`SNAPBACK_FORK_WRITER_COVERAGE_INVALID`. A net change absent from the journal,
+or a covered journal whose final post-image disagrees with the head oracle,
+refuses with `SNAPBACK_FORK_DIFF_ORACLE_MISMATCH`. A partial generated layout
+using the historical post-bind loader, any other unarmed fork, a manifest
+armed after the first child commit, or a retention gap remains
+`journal-enumerated-v1`; none receives a free upgrade. This record neither
+changes ordinary parent default-arming semantics nor claims the storage-wide
+LLP 0162 row-4 program: default arming, excluded-writer migration, and any
+broader lane/domain coverage remain open.
 
 ## Acceptance
 
@@ -345,13 +421,15 @@ parallel corpus here.
    bound.
 2. *(Executed 2026-08-03.)* Concrete per-domain preimage field lists and
    golden vectors are recorded above and generated from the Rust implementation.
-3. This Spec owns the global write-authority choke point. Both controls (the
-   generated transaction API with lane-writer token AND the SQLite authorizer)
-   are decided by LLP 0162 §4; LLP 0163 supplies the target writer inventory,
-   envelope-hook routing, and active coverage manifest, but does not close
-   journal completeness. Promotion proof and ordinary history-operation joins
-   are integrated; open here are the generated-facade surface, authorizer
-   enforcement, and migration path for existing direct-SQL write sites.
+3. This Spec owns the global write-authority choke point. Both decided controls
+   landed in [`src/storage/write_authority.rs`](../src/storage/write_authority.rs):
+   the generated transaction API holds the unforgeable lane-writer token, and
+   the SQLite authorizer denies out-of-seam writes to covered tables. LLP 0163
+   supplies the writer inventory, envelope-hook routing, and active coverage
+   manifest. The 2026-08-06 record above closes only the local derived-fork
+   app-row window. Open here are ordinary default arming, migration or explicit
+   exclusion of every remaining writer family/direct-SQL site, and the
+   storage-wide LLP 0162 row-4 acceptance program.
 4. *(Executed 2026-08-04.)* The full migration receipt binds a separately
    implemented expected-value oracle and adversarial drift corpus. The
    registered protected-record product command supplies the previously missing

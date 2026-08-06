@@ -136,6 +136,7 @@ const CLI_PROJECTIONS = {
   'data.scan': 'snapback data scan <table>',
   'config.status': 'snapback config status',
   'config.plan': 'snapback config plan',
+  'config.set': 'snapback config set --entry <name> (--value-stdin|--value-fd N)',
   'config.verify': 'snapback config verify <entry>',
   'cron.list': 'snapback cron list',
   'jobs.list': 'snapback jobs list',
@@ -170,6 +171,7 @@ const GUIDE_ANCHORS = {
   'jobs.show': 'operating/host-ops.md#direct-climcp-projections-beyond-host-ops-llp-0184-phase-2-p1',
   'config.status': 'operating/secrets-and-config.md#cli-and-mcp-projections-for-statusplanverify',
   'config.plan': 'operating/secrets-and-config.md#cli-and-mcp-projections-for-statusplanverify',
+  'config.set': 'operating/secrets-and-config.md#set-an-agent-held-value-without-exposing-it',
   'config.verify': 'operating/secrets-and-config.md#cli-and-mcp-projections-for-statusplanverify',
   'cron.list': 'backend/cron.md#inspect-declared-jobs-and-runtime-posture',
   'ephemeral.cleanup': 'realtime/ephemeral-state.md#clean-up-expired-entries-operationally',
@@ -224,6 +226,8 @@ function policyFromOperation(op) {
 function applyOverride(entry, override) {
   if (!override) return entry;
   if (override.operability) entry.operability = override.operability;
+  if (override.mediatedHandoff) entry.mediatedHandoff = override.mediatedHandoff;
+  if (override.intents) entry.intents = override.intents;
   if (override.availability) entry.availability = override.availability;
   if (override.surfaceAccessOverride) entry.surfaceAccess = override.surfaceAccessOverride;
   if (override.mcpDeferralReason) entry.mcpDeferralReason = override.mcpDeferralReason;
@@ -233,6 +237,9 @@ function applyOverride(entry, override) {
   if (override.behavior) entry.behavior = { ...entry.behavior, ...override.behavior };
   if (override.authorities) entry.authorities = override.authorities;
   if (override.sources) entry.sources = override.sources;
+  if (override.guide) entry.guide = override.guide;
+  if (override.inputSchema) entry.inputSchema = override.inputSchema;
+  if (override.outputSchema) entry.outputSchema = override.outputSchema;
   if (override.unavailableReason) entry.unavailableReason = override.unavailableReason;
   if (override.internalReason) entry.internalReason = override.internalReason;
   // @ref LLP 0184#b-forced-live-resync--add-now — availability.targets
@@ -628,6 +635,26 @@ for (const entry of entries) {
 for (const entry of entries) {
   if (entry.behavior.destructive && !entry.behavior.approvalPosture) {
     completenessErrors.push(`${entry.operation}: destructive:true requires a non-null approvalPosture (rule 8).`);
+  }
+}
+
+// --- Rule 6: mediated rows publish a resumable, negative-leak handoff -------
+
+for (const entry of entries) {
+  if (entry.operability !== 'mediated') continue;
+  const handoff = entry.mediatedHandoff;
+  const required = ['plan', 'initiate', 'status', 'resume', 'protectedArtifact', 'negativeLeakTests'];
+  const missing = required.filter((field) => {
+    if (!handoff || !(field in handoff)) return true;
+    return field === 'negativeLeakTests'
+      ? !Array.isArray(handoff[field]) || handoff[field].length === 0
+      : typeof handoff[field] !== 'string' || handoff[field].trim() === '';
+  });
+  if (missing.length > 0) {
+    completenessErrors.push(
+      `${entry.operation}: operability mediated requires plan/initiate/status/resume, ` +
+        `protectedArtifact, and negativeLeakTests; missing ${missing.join(', ')} (rule 6).`,
+    );
   }
 }
 

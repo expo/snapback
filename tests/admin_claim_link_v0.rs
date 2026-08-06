@@ -120,6 +120,7 @@ fn planted_claim_link_redeems_once_and_attached_cli_reports_it() {
     assert_eq!(cache.as_deref(), Some("no-store, private"));
     let exchanged: Value = serde_json::from_str(&body).unwrap();
     let credential = exchanged["credential"].as_str().unwrap();
+    assert!(credential.starts_with("sbcc_"));
     assert_eq!(exchanged["provenance"], "operatorClaim");
 
     let (write_status, _, _) = post_json(
@@ -155,10 +156,15 @@ fn planted_claim_link_redeems_once_and_attached_cli_reports_it() {
         .expect("reattach to claim status");
     assert!(status_output.status.success());
     let status_text = String::from_utf8(status_output.stdout).unwrap();
+    let status_error = String::from_utf8(status_output.stderr).unwrap();
     assert!(status_text.contains("claim redeemed at"), "{status_text}");
     assert!(
         status_text.contains("directTransport peer"),
         "{status_text}"
+    );
+    assert!(
+        !status_text.contains(credential) && !status_error.contains(credential),
+        "status/resume output leaked the browser-only credential"
     );
 
     let revoke_output = snapback()
@@ -210,15 +216,33 @@ fn planted_claim_link_redeems_once_and_attached_cli_reports_it() {
         .recv_timeout(Duration::from_secs(10))
         .expect("attached CLI flushes claim link");
     let attached_code = claim_code(&attached_link).to_owned();
-    let (attached_exchange, _, _) =
+    let (attached_exchange, attached_body, _) =
         post_json(&exchange_url, json!({ "claimCode": attached_code }), None);
     assert_eq!(attached_exchange, 200);
+    let attached_exchange: Value = serde_json::from_str(&attached_body).unwrap();
+    let attached_credential = attached_exchange["credential"].as_str().unwrap();
+    assert!(attached_credential.starts_with("sbcc_"));
     let report = lines_rx
         .recv_timeout(Duration::from_secs(10))
         .expect("attached CLI reports redemption");
     assert!(report.contains("claim redeemed at"), "{report}");
+    assert!(
+        !attached_link.contains(attached_credential) && !report.contains(attached_credential),
+        "attached initiate/status output leaked the browser-only credential"
+    );
     let attached_status = attached.wait().expect("wait attached CLI");
     assert!(attached_status.success());
+    let mut attached_stderr = String::new();
+    attached
+        .stderr
+        .take()
+        .unwrap()
+        .read_to_string(&mut attached_stderr)
+        .unwrap();
+    assert!(
+        !attached_stderr.contains(attached_credential),
+        "attached stderr leaked the browser-only credential"
+    );
     reader.join().unwrap();
 
     server.kill().expect("stop snapback server");
@@ -245,6 +269,22 @@ fn planted_claim_link_redeems_once_and_attached_cli_reports_it() {
         assert!(
             !server_stderr.contains(raw_code),
             "claim leaked to server stderr"
+        );
+    }
+    for browser_credential in [credential, attached_credential] {
+        assert!(
+            !server_stdout.contains(browser_credential),
+            "claim-derived credential leaked to server stdout"
+        );
+        assert!(
+            !server_stderr.contains(browser_credential),
+            "claim-derived credential leaked to server stderr"
+        );
+        assert!(
+            !std::fs::read_to_string(&ready_file)
+                .unwrap_or_default()
+                .contains(browser_credential),
+            "claim-derived credential leaked to the ready receipt"
         );
     }
 }

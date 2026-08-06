@@ -16,6 +16,7 @@ import {
   SnapbackAssetImage,
   useSnapbackAssetUpload,
   useSnapbackConnection,
+  useSnapbackExpoBootState,
   useSnapbackOutbox,
   useSurface,
 } from '@expo/snapback-expo';
@@ -32,6 +33,12 @@ type Reaction = GeneratedDataModel['reactions'];
 type User = GeneratedDataModel['users'];
 type PendingImage = { caption?: string; replyToId?: Id<'messages'> };
 const REACTIONS = ['❤️', '👍', '😂', '✨'] as const;
+const G2_CONVERSATION_ID = 'conversation_engine_room';
+const G2_PLATFORM = Platform.OS === 'ios' ? 'IOS' : Platform.OS === 'android' ? 'ANDROID' : 'UNKNOWN';
+const G2_MARKER = `G2_${G2_PLATFORM}_PASS`;
+const G2_PENDING_MARKER = `G2_${G2_PLATFORM}_PENDING`;
+const G2_REACTION = '✅';
+const G2_SEND_TEXT = `G2 ${G2_PLATFORM.toLowerCase()} surface sendText echo`;
 const PERSONA_NAMES: Readonly<Record<string, string>> = {
   user_ada: 'Ada', user_grace: 'Grace', user_alan: 'Alan', user_katherine: 'Katherine',
 };
@@ -40,6 +47,10 @@ function errorText(error: unknown) {
   if (error instanceof Error) return error.message;
   if (error && typeof error === 'object' && 'message' in error) return String(error.message);
   return String(error);
+}
+
+function emitG2(event: string, details: Readonly<Record<string, unknown>> = {}) {
+  console.log(`SNAPBACK_G2_EVENT ${JSON.stringify({ event, platform: G2_PLATFORM.toLowerCase(), ...details })}`);
 }
 
 export default function ChatScreen({ conversationId, title, onBack }: Readonly<{
@@ -55,10 +66,20 @@ export default function ChatScreen({ conversationId, title, onBack }: Readonly<{
   const [pendingImage, setPendingImage] = useState<PendingImage | null>(null);
   const attachedAsset = useRef<string | null>(null);
   const listRef = useRef<FlatList<Message>>(null);
+  const proofSendStarted = useRef(false);
+  const proofReactionStarted = useRef(false);
+  const proofProviderLogged = useRef(false);
+  const proofSurfaceLogged = useRef(false);
+  const proofPresenceLogged = useRef(false);
+  const proofSendLogged = useRef(false);
+  const proofReactionLogged = useRef(false);
+  const proofPassLogged = useRef(false);
+  const boot = useSnapbackExpoBootState();
+  const proofEnabled = conversationId === G2_CONVERSATION_ID;
   const conversation = useSurface(
     app.surfaces.conversation,
     { conversationId },
-    { presence: { typing: draft.trim() ? { displayName: PERSONA_NAMES[activeUserId] ?? 'Someone' } : skip } },
+    { presence: { typing: draft.trim() || proofEnabled ? { displayName: PERSONA_NAMES[activeUserId] ?? 'Someone' } : skip } },
   );
   const connection = useSnapbackConnection();
   const outbox = useSnapbackOutbox();
@@ -70,6 +91,100 @@ export default function ChatScreen({ conversationId, title, onBack }: Readonly<{
   const typingNames = [...new Set(conversation.presence.typing.members
     .filter((entry) => entry.key !== conversation.presence.typing.selfKey)
     .map((entry) => entry.value.displayName))];
+  const proofMessage = conversation.data.messages?.find((message) => message.text === G2_SEND_TEXT);
+  const proofReaction = proofMessage
+    ? conversation.data.reactions?.find((row) => row.messageId === proofMessage._id && row.userId === activeUserId && row.emoji === G2_REACTION)
+    : undefined;
+  const proofProviderReady = boot.status === 'ready';
+  const proofSurfaceReady = conversation.state.messages.status === 'ready'
+    && conversation.state.messages.freshness === 'current'
+    && (conversation.data.messages?.length ?? 0) >= 3;
+  const proofPresenceReady = conversation.presence.typing.status === 'ready'
+    && conversation.presence.typing.members.some((entry) => (
+      entry.key === conversation.presence.typing.selfKey
+      && entry.value.displayName === (PERSONA_NAMES[activeUserId] ?? 'Someone')
+    ));
+  const proofPassed = proofEnabled && proofProviderReady && proofSurfaceReady
+    && Boolean(proofMessage) && Boolean(proofReaction) && proofPresenceReady;
+
+  useEffect(() => {
+    if (!proofEnabled || !proofProviderReady || proofProviderLogged.current) return;
+    proofProviderLogged.current = true;
+    emitG2('provider-ready', {
+      routing: boot.status === 'ready' ? boot.binding.target.routing : null,
+      authorityKind: boot.status === 'ready' ? boot.authority.kind : null,
+      authMode: boot.status === 'ready' ? boot.authority.authMode : null,
+    });
+  }, [boot, proofEnabled, proofProviderReady]);
+
+  useEffect(() => {
+    if (!proofEnabled || !proofSurfaceReady || proofSurfaceLogged.current) return;
+    proofSurfaceLogged.current = true;
+    emitG2('surface-data-observed', {
+      conversationId,
+      messageCount: conversation.data.messages?.length ?? 0,
+      freshness: conversation.state.messages.freshness,
+    });
+  }, [conversation.data.messages?.length, conversation.state.messages.freshness, conversationId, proofEnabled, proofSurfaceReady]);
+
+  useEffect(() => {
+    if (!proofEnabled || !proofPresenceReady || proofPresenceLogged.current) return;
+    proofPresenceLogged.current = true;
+    emitG2('presence-self-observed', {
+      memberCount: conversation.presence.typing.members.length,
+      status: conversation.presence.typing.status,
+    });
+  }, [conversation.presence.typing.members.length, conversation.presence.typing.status, proofEnabled, proofPresenceReady]);
+
+  useEffect(() => {
+    if (!proofEnabled || !proofProviderReady || !proofSurfaceReady || proofMessage || proofSendStarted.current) return;
+    proofSendStarted.current = true;
+    emitG2('sendText-dispatched');
+    void conversation.mutations.sendText({ senderId: activeUserId, text: G2_SEND_TEXT })
+      .then(() => emitG2('sendText-settled'))
+      .catch((error) => {
+        const message = errorText(error);
+        setComposerError(message);
+        emitG2('sendText-failed', { message });
+      });
+  }, [activeUserId, conversation.mutations, proofEnabled, proofMessage, proofProviderReady, proofSurfaceReady]);
+
+  useEffect(() => {
+    if (!proofEnabled || !proofMessage || proofSendLogged.current) return;
+    proofSendLogged.current = true;
+    emitG2('sendText-live-echo-observed', { messageId: proofMessage._id });
+  }, [proofEnabled, proofMessage]);
+
+  useEffect(() => {
+    if (!proofEnabled || !proofMessage || proofReaction || proofReactionStarted.current) return;
+    proofReactionStarted.current = true;
+    emitG2('reaction-dispatched', { messageId: proofMessage._id, emoji: G2_REACTION });
+    void conversation.mutations.react({
+      messageId: proofMessage._id,
+      userId: activeUserId,
+      emoji: G2_REACTION,
+    }).then(() => emitG2('reaction-settled')).catch((error) => {
+      const message = errorText(error);
+      setComposerError(message);
+      emitG2('reaction-failed', { message });
+    });
+  }, [activeUserId, conversation.mutations, proofEnabled, proofMessage, proofReaction]);
+
+  useEffect(() => {
+    if (!proofEnabled || !proofReaction || proofReactionLogged.current) return;
+    proofReactionLogged.current = true;
+    emitG2('reaction-live-echo-observed', { reactionId: proofReaction._id });
+  }, [proofEnabled, proofReaction]);
+
+  useEffect(() => {
+    if (!proofPassed || proofPassLogged.current) return;
+    proofPassLogged.current = true;
+    emitG2('pass', {
+      marker: G2_MARKER,
+      messageCount: conversation.data.messages?.length ?? 0,
+      presenceMembers: conversation.presence.typing.members.length,
+    });
+  }, [conversation.data.messages?.length, conversation.presence.typing.members.length, proofPassed]);
 
   const send = async () => {
     const text = draft.trim();
@@ -129,7 +244,7 @@ export default function ChatScreen({ conversationId, title, onBack }: Readonly<{
     const existing = (conversation.data.reactions ?? []).find((row) => row.messageId === message._id && row.userId === activeUserId && row.emoji === emoji);
     try {
       if (existing) await conversation.mutations.removeReaction({ reactionId: existing._id });
-      else await conversation.mutations.addReaction({ messageId: message._id, userId: activeUserId, emoji });
+      else await conversation.mutations.react({ messageId: message._id, userId: activeUserId, emoji });
       setSelectedMessageId(null);
     } catch (error) {
       setComposerError(errorText(error));
@@ -152,6 +267,15 @@ export default function ChatScreen({ conversationId, title, onBack }: Readonly<{
         <Text testID="thread-retained" style={styles.contextText}>{retained ? 'Saved history' : connection.status === 'live' ? 'Live' : 'Offline'}</Text>
         {outbox.status === 'ready' && outbox.pending > 0 ? <Text testID="queued-mutations" style={styles.queued}>{outbox.pending} queued</Text> : null}
       </View>
+      {proofEnabled ? (
+        <View style={[styles.proof, proofPassed ? styles.proofPass : styles.proofPending]}>
+          <Text style={styles.proofLabel}>LLP 0176 · G2 native surface</Text>
+          <Text testID="g2-verdict" style={styles.proofVerdict}>{proofPassed ? G2_MARKER : G2_PENDING_MARKER}</Text>
+          <Text style={styles.proofFacts}>
+            provider {proofProviderReady ? 'ready' : '…'} · messages {conversation.data.messages?.length ?? 0} · send {proofMessage ? 'echoed' : '…'} · react {proofReaction ? 'echoed' : '…'} · typing {proofPresenceReady ? 'present' : '…'}
+          </Text>
+        </View>
+      ) : null}
       {readError ? <Text testID="thread-read-error" style={styles.error}>{errorText(readError)}</Text> : null}
       {presenceError ? <Text testID="typing-error" style={styles.error}>{errorText(presenceError)}</Text> : null}
       <FlatList
@@ -232,4 +356,6 @@ const styles = StyleSheet.create({
   composer: { alignItems: 'flex-end', flexDirection: 'row', gap: 8 }, attach: { alignItems: 'center', backgroundColor: palette.accentSoft, borderRadius: 20, height: 40, justifyContent: 'center', width: 40 }, attachText: { color: palette.accent, fontSize: 25 },
   input: { backgroundColor: palette.canvas, borderColor: palette.line, borderRadius: 20, borderWidth: 1, color: palette.ink, flex: 1, fontSize: 15, maxHeight: 110, minHeight: 40, paddingHorizontal: 14, paddingVertical: 9 },
   send: { alignItems: 'center', backgroundColor: palette.accent, borderRadius: 20, height: 40, justifyContent: 'center', width: 40 }, disabled: { opacity: 0.35 }, sendText: { color: '#FFF', fontSize: 24, fontWeight: '800' },
+  proof: { borderRadius: 12, gap: 3, marginHorizontal: 10, marginTop: 8, padding: 10 }, proofPending: { backgroundColor: '#FFF0D9', borderColor: palette.warning, borderWidth: 1 }, proofPass: { backgroundColor: '#DDF5E9', borderColor: palette.success, borderWidth: 2 },
+  proofLabel: { color: palette.muted, fontSize: 9, fontWeight: '900', letterSpacing: 0.8 }, proofVerdict: { color: palette.ink, fontSize: 20, fontWeight: '900' }, proofFacts: { color: palette.ink, fontSize: 10, fontWeight: '700' },
 });

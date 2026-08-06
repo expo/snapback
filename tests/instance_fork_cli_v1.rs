@@ -60,6 +60,17 @@ fn fork_create(
     ttl: &str,
     with_secrets: bool,
 ) -> Value {
+    fork_create_with_options(source, app_root, fork_root, ttl, with_secrets, false)
+}
+
+fn fork_create_with_options(
+    source: &Path,
+    app_root: &Path,
+    fork_root: &Path,
+    ttl: &str,
+    with_secrets: bool,
+    retain_base: bool,
+) -> Value {
     let mut command = snapback();
     command.args([
         "fork",
@@ -75,6 +86,9 @@ fn fork_create(
     ]);
     if with_secrets {
         command.arg("--with-secrets");
+    }
+    if retain_base {
+        command.arg("--retain-base");
     }
     successful(command, "fork create")
 }
@@ -169,10 +183,38 @@ fn executable_fork_lifecycle_is_detached_exact_and_reap_safe() {
         app_root: todo_root.clone(),
         fork_ids: Vec::new(),
     };
-    let created = fork_create(&source, &todo_root, &fork_root, "5m", false);
+    let created =
+        fork_create_with_options(&source, &todo_root, &fork_root, "5m", false, true);
     cleanup.track(fork_id(&created));
     assert_eq!(created["ok"], true);
     assert_eq!(created["data"]["secrets"], "scrubbed");
+    let writer_coverage = &created["data"]["writerCoverageReceipt"];
+    assert_eq!(
+        writer_coverage["schemaVersion"],
+        "snapback.fork-app-row-coverage.v1"
+    );
+    assert_eq!(writer_coverage["profile"], "derived-fork-app-rows-v1");
+    assert_eq!(
+        writer_coverage["forkPointVersion"],
+        created["data"]["receipt"]["lineage"]["forkPointVersion"]
+    );
+    assert_eq!(
+        writer_coverage["activationHeadVersion"],
+        writer_coverage["forkPointVersion"]
+    );
+    assert!(writer_coverage["manifestDigest"]
+        .as_str()
+        .is_some_and(|digest| digest.starts_with("sha256:")));
+    assert_eq!(
+        writer_coverage["coveredLanes"],
+        serde_json::json!([
+            "derivedForkHostChildAppRowJournal",
+            "derivedForkOrdinaryAppRowJournal"
+        ])
+    );
+    assert!(writer_coverage["uncoveredLanes"]
+        .as_array()
+        .is_some_and(|lanes| !lanes.is_empty()));
     let mut list = snapback();
     list.args([
         "fork",
@@ -242,6 +284,38 @@ fn executable_fork_lifecycle_is_detached_exact_and_reap_safe() {
             .as_array()
             .is_some_and(|rows| !rows.is_empty()),
         "mutation is visible in the attributed fork diff"
+    );
+
+    let mut net_diff = snapback();
+    net_diff.args([
+        "fork",
+        "diff",
+        fork_id(&created),
+        "--net",
+        "--app-root",
+        todo_root.to_str().unwrap(),
+        "--fork-root",
+        fork_root.to_str().unwrap(),
+    ]);
+    let net_diff = successful(net_diff, "authorizer-backed fork net diff");
+    let net_receipt = &net_diff["data"]["receipt"];
+    assert_eq!(
+        net_receipt["completeness"],
+        "authorizer-backed-app-rows-v1"
+    );
+    assert_eq!(net_receipt["attribution"], "absent-v1");
+    assert_eq!(
+        net_receipt["writerCoverage"]["coverageWindow"],
+        "fork-point-to-observed-head-verified"
+    );
+    assert_eq!(
+        net_receipt["writerCoverage"]["coveredLanes"],
+        writer_coverage["coveredLanes"]
+    );
+    assert_eq!(
+        net_receipt["rows"][0]["postImage"]["completed"],
+        false,
+        "the independent oracle emits the schema-decoded logical row"
     );
 
     let mut inspect = snapback();
@@ -752,7 +826,11 @@ fn signed_issue_status(server_url: &str, bearer: &str, asset_id: &str) -> u16 {
 }
 
 fn primary_blob_path(database: &Path, asset_id: &str) -> PathBuf {
-    let conn = rusqlite::Connection::open(database).expect("open asset database");
+    let conn = rusqlite::Connection::open_with_flags(
+        database,
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
+    )
+    .expect("open asset database read-only");
     let physical_key: String = conn
         .query_row(
             "SELECT b.physical_key
@@ -795,7 +873,11 @@ fn asset_gc_sweep(ready: &Path, token: &str, now_ms: u64, operation: &str) -> Va
 }
 
 fn todo_titles(database: &Path) -> Vec<String> {
-    let conn = rusqlite::Connection::open(database).expect("open database read-only");
+    let conn = rusqlite::Connection::open_with_flags(
+        database,
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
+    )
+    .expect("open database read-only");
     let mut statement = conn
         .prepare("SELECT title FROM todos ORDER BY title")
         .expect("prepare todo title query");
@@ -1895,6 +1977,69 @@ fn resource_limits_refuse_create_and_diff_without_residue() {
     assert!(usage["defaultLimits"]["maxForks"].as_u64().unwrap() >= 1);
 }
 
+/// A partial dev-manifest layout still uses the historical post-bind loader.
+/// Because its schema is not active at the fork point, it must never inherit
+/// the complete-pair path's authorizer-backed whole-window claim.
+#[test]
+fn partial_generated_layout_stays_journal_enumerated() {
+    let directory = tempfile::tempdir().expect("partial generated-layout fixture");
+    let source = parent_with_schema(directory.path());
+    let app_root = directory.path().join("partial-app");
+    let generated = app_root.join("snapback/generated");
+    std::fs::create_dir_all(&generated).expect("partial generated directory");
+    let repo = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    std::fs::copy(
+        repo.join("demos/todo/snapback/generated/schema.manifest.json"),
+        generated.join("schema.manifest.json"),
+    )
+    .expect("copy only the generated schema");
+
+    let fork_root = directory.path().join("forks");
+    let mut cleanup = ForkCleanup {
+        fork_root: fork_root.clone(),
+        app_root: app_root.clone(),
+        fork_ids: Vec::new(),
+    };
+    let created =
+        fork_create_with_options(&source, &app_root, &fork_root, "5m", false, true);
+    cleanup.track(fork_id(&created));
+    assert_eq!(created["data"]["writerCoverageReceipt"], Value::Null);
+    assert!(health(
+        created["target"]["serverUrl"]
+            .as_str()
+            .expect("partial fork URL")
+    )["ok"]
+        .as_bool()
+        .unwrap_or(false));
+    assert!(
+        !data_path(&created, "database")
+            .with_file_name(snapback::instance_fork::APP_ROW_COVERAGE_RECEIPT_FILE)
+            .exists(),
+        "the partial path must not write fork-point coverage evidence"
+    );
+
+    let mut net = snapback();
+    net.args([
+        "fork",
+        "diff",
+        fork_id(&created),
+        "--net",
+        "--app-root",
+        app_root.to_str().unwrap(),
+        "--fork-root",
+        fork_root.to_str().unwrap(),
+    ]);
+    let receipt = successful(net, "partial-layout fork diff --net");
+    assert_eq!(
+        receipt["data"]["receipt"]["completeness"],
+        "journal-enumerated-v1"
+    );
+    assert_eq!(
+        receipt["data"]["receipt"]["writerCoverage"]["coverageWindow"],
+        "unverified"
+    );
+}
+
 /// LLP 0185 Phase 4: the exact net receipt through the executable — named
 /// substrate and completeness, oracle-verified journal consistency, and a
 /// deterministic refusal when the fork has no retained base.
@@ -1947,12 +2092,30 @@ fn executable_net_diff_names_its_substrate_and_requires_a_retained_base() {
     ]);
     let envelope = successful(net, "fork diff --net");
     let receipt = &envelope["data"]["receipt"];
-    assert_eq!(receipt["schemaVersion"], "snapback.fork-net-diff.v1");
+    assert_eq!(receipt["schemaVersion"], "snapback.fork-net-diff.v2");
     assert_eq!(receipt["substrate"], "retained-base-v1");
     assert_eq!(receipt["completeness"], "journal-enumerated-v1");
+    assert_eq!(receipt["journalConsistency"], "journal-cross-check-verified");
+    assert_eq!(receipt["attribution"], "absent-v1");
+    assert_eq!(receipt["writerCoverage"]["coverageWindow"], "unverified");
+    assert_eq!(receipt["writerCoverage"]["manifestDigest"], Value::Null);
     assert_eq!(
-        receipt["journalConsistency"],
-        "journal-cross-check-verified"
+        receipt["writerCoverage"]["coveredLanes"],
+        serde_json::json!([])
+    );
+    assert_eq!(
+        receipt["writerCoverage"]["uncoveredLanes"],
+        serde_json::json!([
+            "derivedForkHostChildAppRowJournal",
+            "derivedForkOrdinaryAppRowJournal",
+            "membershipTransition",
+            "migration",
+            "projectionRebuild",
+            "resetAndSeed",
+            "schemaActivation",
+            "standaloneSeed",
+            "strictPromotionReexecution"
+        ])
     );
     let rows = receipt["rows"].as_array().expect("net rows");
     assert_eq!(rows.len(), 1);

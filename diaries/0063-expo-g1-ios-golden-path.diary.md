@@ -1,10 +1,14 @@
 # 0063 — Expo G1 simulator/emulator golden path
 
 **Date:** 2026-08-06
-**Systems:** Expo SDK 57, `@expo/snapback-expo`, AppDescriptor, supervised development, iOS simulator, Android emulator
+**Systems:** Expo SDK 57, `@expo/snapback-expo`, AppDescriptor, surfaces,
+supervised development, iOS simulator, Android emulator
 **Related:** `demos/expo-golden-path-fixture/`, LLP 0176 G1, LLP 0179,
 LLP 0181, `demos/expo-golden-path-fixture/receipts/20260806-g1-ios-simulator.md`,
-`demos/expo-golden-path-fixture/receipts/20260806-g1-android-emulator.md`
+`demos/expo-golden-path-fixture/receipts/20260806-g1-android-emulator.md`,
+LLP 0176 G2,
+`demos/expo-golden-path-fixture/receipts/20260806-g2-ios-simulator.md`,
+`demos/expo-golden-path-fixture/receipts/20260806-g2-android-emulator.md`
 
 ## What was built
 
@@ -269,5 +273,78 @@ offline is a sharper failure than simply lacking first-class retention.
 
 The receipt is
 `demos/expo-golden-path-fixture/receipts/20260806-g2-falsification-baseline.md`.
-The design defect is tracked in
-`issues/20260806-app-descriptor-use-surface-blocks-cold-retained-boot.md`.
+The repaired design defect is archived in
+`issues/closed/20260806-app-descriptor-use-surface-blocks-cold-retained-boot.md`.
+
+## 2026-08-06 — G2 simulator/emulator exit
+
+### What changed
+
+The fixture now cold-opens Engine Room and turns the accepted north-star shape
+into a visible per-platform proof. Its single conversation surface publishes a
+scoped typing fact, waits for current messages, sends text, reacts to the
+returned message, and waits for both writes to return through the surface
+before emitting `G2_IOS_PASS` or `G2_ANDROID_PASS`. Structured app events and
+the screen expose each constituent fact rather than treating the mutation
+promises or screenshot alone as proof.
+
+The real-runtime acceptance was tightened at the same time: five reads must
+remain five canonical stores/subscriptions beside an equivalent low-level
+message consumer, typing must remain one presence store/room subscription, and
+disposal must leave the complete query, presence, publisher, timer, and
+listener vector at zero.
+
+### What felt good
+
+- The same authoring snippet worked unchanged behind same-host loopback on iOS
+  and three supervisor-owned `adb reverse` rules on Android. Transport and
+  authority facts stayed outside the screen.
+- The pass marker is a genuine join: provider readiness, surface data, both
+  mutation echoes, and the self-presence member must all coexist. That made the
+  screenshot useful without asking it to prove canonical ownership.
+- The supervisor JSONL closed the evidence loop. Each platform receipt joins
+  binary identity, routing, app facts, literal listeners, and strict process or
+  forward-rule reclamation; executable inspection supplies the duplicate-owner
+  and post-disposal resource assertions.
+
+### What felt bad or surprising
+
+- Evidence instrumentation grew the rebuilt thread from 235 to 361 lines. The
+  frozen two-screen boundary is still 465 lines, 45 lines/8.8% below Relay's
+  510-line original and past the 5% advance bar, but a production screen would
+  not keep this much receipt-only orchestration inline.
+- A clean evidence worktree needed the repository root frozen install before
+  generation because current codegen imports its declared `acorn` dependency.
+  The pinned Bun executable handled it without a source workaround.
+- On iOS, interrupting the SSH/`tee` wrapper detached the shell without
+  stopping its independent supervisor child. The required post-stop checks
+  caught it; signaling the exact supervisor PID then produced the expected
+  closed event and full reclamation. Android's first capture also showed an
+  existing SafeAreaView warning toast, so the final screenshot was recaptured
+  after dismissing the warning rather than hiding it in the receipt.
+
+During final mainline reconciliation, the dedicated
+`guide/clients/surfaces.md` page landed and made the fixture a verified snippet
+source. Updating its declaration excerpt to the north-star `react` projection
+kept the guide and generated manifest byte-current with the exercised screen.
+
+None of those observations exposed missing guide knowledge or a product defect,
+so no `guide-gap` or defect ticket was filed.
+
+### Comparison and result
+
+A hosted React plus Convex or Supabase app would usually avoid the local
+supervisor and emulator-forwarding setup. Snapback required more evidence
+plumbing, but the application resource shape was smaller: one bound surface
+owned messages, mutations, and room-scoped presence, while one supervisor
+could prove the carrier and its cleanup. The canonical-owner inspection is
+also stronger than inferring subscription health from a visually correct chat
+screen.
+
+Both platform chains passed and shut down cleanly. The Air's pre-existing
+checkout is clean with the named `g2-ios-receipt` transport branch retained
+without a worktree; the Android prepared checkout is clean on
+`g2-android-receipt`. No task-owned simulator, emulator, server, Metro,
+bootstrap, reverse rule, or adb daemon remained. This completes LLP 0176 G2
+for headless React plus iOS simulator and Android emulator only; it makes no
+physical-device, release, LAN-carrier, or LLP 0064 claim.

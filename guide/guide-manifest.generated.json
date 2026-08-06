@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "251367f3dc55b0453ece065ebddb8f8b0e62cfcf"
+    "commit": "4444767ccc09eb93fe074c9d00ecc9ca29d38d0b"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -170,6 +170,11 @@
         "id": "clients.react",
         "order": 2,
         "title": "The React client"
+      },
+      {
+        "id": "clients.surfaces",
+        "order": 2,
+        "title": "Application surfaces"
       },
       {
         "id": "clients.swift",
@@ -1013,7 +1018,7 @@
       ],
       "reviewed": "2026-08-05",
       "reviewedCommit": "4a6000ac6f17a8c94bc2aecf573c0654e850b758",
-      "sha256": "edcfb02bee2d26ebede168a65792af4ce19a3a81502e056d8c9504f47922dc20",
+      "sha256": "49b54c8e8f650552f80332cfa692f8f0c54a2255bc46f8182687b62e9979c021",
       "snippets": [
         {
           "lang": "js",
@@ -1495,7 +1500,7 @@
       "examples": [],
       "reviewed": "2026-08-06",
       "reviewedCommit": "850427c31b9a668d55b46995e08389cd13a2c9b6",
-      "sha256": "c354f27e4537991793ca969c2938fa1aa594355b3a52c768c729c9576ca23fba",
+      "sha256": "aa09d730ebe2ff465ef792ff5ea977385050b9d8dc5a804545c94b9e05dcb16b",
       "snippets": []
     },
     "clients.app-cli": {
@@ -1876,6 +1881,80 @@
         }
       ]
     },
+    "clients.surfaces": {
+      "path": "guide/clients/surfaces.md",
+      "title": "Application surfaces",
+      "order": 2,
+      "status": "current",
+      "targets": [
+        "local"
+      ],
+      "maturity": "partial",
+      "since": "0.1.10",
+      "unreleased": true,
+      "capabilities": [
+        "clients.surfaces"
+      ],
+      "authorities": [
+        "llp/0179-generated-app-descriptor-and-surfaces.rfc.md",
+        "llp/0114-first-class-react-and-query-groups.spec.md",
+        "llp/0176-expo-messaging-golden-path.plan.md",
+        "packages/snapback-codegen/define.mjs",
+        "packages/snapback-codegen/index.mjs",
+        "packages/snapback-client/react-binding.mjs",
+        "packages/snapback-react/index.mjs",
+        "packages/snapback-react/index.d.mts"
+      ],
+      "examples": [
+        "packages/snapback-react/surface.test.mjs",
+        "packages/snapback-react/fixtures/conversation/app/snapback/generated/app.descriptor.json",
+        "packages/snapback-react/fixtures/conversation/app/snapback/generated/app.d.ts",
+        "demos/expo-golden-path-fixture/snapback/functions.mjs",
+        "demos/expo-golden-path-fixture/snapback/surface-model.mjs",
+        "demos/expo-golden-path-fixture/src/screens/chat-screen.tsx",
+        "demos/expo-golden-path-fixture/tests/g2-falsification.mjs"
+      ],
+      "reviewed": "2026-08-06",
+      "reviewedCommit": "HEAD",
+      "sha256": "e91b9dcdef6e24b5f642d1f14d38dd8d3eeecd8e9c7e8859fafcdbfd663dd4c5",
+      "snippets": [
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/expo-golden-path-fixture/snapback/functions.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "packages/snapback-codegen/app-descriptor.test.mjs"
+        },
+        {
+          "lang": "tsx",
+          "class": "transcluded",
+          "source": "demos/expo-golden-path-fixture/src/screens/chat-screen.tsx"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "packages/snapback-react/surface.test.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "packages/snapback-react/surface.test.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "packages/snapback-react/surface.test.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/expo-golden-path-fixture/tests/g2-falsification.mjs"
+        }
+      ]
+    },
     "clients.swift": {
       "path": "guide/clients/swift.md",
       "title": "Swift client",
@@ -2201,7 +2280,7 @@
       ],
       "reviewed": "2026-08-06",
       "reviewedCommit": "850427c31b9a668d55b46995e08389cd13a2c9b6",
-      "sha256": "2647a4fc85019c42a93d7ef33c2be4a658b695ea63ec1fd8027974e369039ca8",
+      "sha256": "65f70324616129d43ee2aa3f0a5b641240f224cc175be8eaab1915fd944bb980",
       "snippets": [
         {
           "lang": "json",
@@ -2274,7 +2353,7 @@
       "examples": [],
       "reviewed": "2026-08-06",
       "reviewedCommit": "2715951cf",
-      "sha256": "a46c7fa2895845da05241a325cad51a7f5b3e757d9d5a60d72f5a4062ab73838",
+      "sha256": "576b794e0fb131f7fd2634a67f87a942632422a7a831bc209c4a594f794e8d6d",
       "snippets": []
     },
     "operating.data-patch": {
@@ -2440,9 +2519,9 @@
         "tests/instance_fork_cli_v1.rs",
         "tests/acceptance/instance-fork-fleet-dogfood.2026-08-03.v1.json"
       ],
-      "reviewed": "2026-08-05",
+      "reviewed": "2026-08-06",
       "reviewedCommit": "HEAD",
-      "sha256": "63910d0a894950d5772e9264fbb09c1dbdead28afb897100baf824b34f8f5ff8",
+      "sha256": "2e55bc3703de1ad5f88bc639da384f10291256a25ed29915e3b70eaee2b36522",
       "snippets": [
         {
           "lang": "js",
@@ -2532,17 +2611,20 @@
       ],
       "authorities": [
         "llp/0036-app-secrets-and-config.rfc.md",
+        "llp/0184-agent-accessible-control-plane.rfc.md",
+        "src/cli.rs",
         "packages/snapback-codegen/define.mjs",
         "packages/snapback-codegen/index.mjs",
         "demos/all-aboard/snapback/functions.mjs",
         "demos/all-aboard/tests/acceptance/egress.mjs"
       ],
       "examples": [
-        "demos/all-aboard"
+        "demos/all-aboard",
+        "tests/config_set_cli_v0.rs"
       ],
-      "reviewed": "2026-08-03",
-      "reviewedCommit": "6e5d69d1037c6042fb9338221dfb489e00f5f78a",
-      "sha256": "9417e04cc8246623bc3a3d6e2d1969c5e8b131ebcf61ae9726f46c7c6e47ec9c",
+      "reviewed": "2026-08-06",
+      "reviewedCommit": "c9af5600c82c30e6765b270fc10db368adf0dd5a",
+      "sha256": "364efb98b9729987a3565adc06dfe227e0ea2e7dd6540b8466702cc3d28d769b",
       "snippets": [
         {
           "lang": "js",
@@ -3224,6 +3306,7 @@
       "clients.protocol",
       "clients.react",
       "clients.react-expo",
+      "clients.surfaces",
       "clients.swift",
       "deploy.cloudflare",
       "deploy.release-build",
@@ -3269,5 +3352,5 @@
     "routes": 122,
     "hostOps": 43
   },
-  "contentHash": "a52724b231d3e0bdcf3d68e17bf984c0cafba4575c5a1f06df36333424a2bf3b"
+  "contentHash": "f2458ecb4ea7657915171e23369d6a9374de156c560d608af02cfa59294e01a6"
 }

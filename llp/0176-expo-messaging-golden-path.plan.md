@@ -7,7 +7,15 @@ Ephemeral state, Code generation, Developer experience, Packaging, Local
 server lifecycle, Testing, Competitive evaluation
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-05
-**Revised:** 2026-08-06 (m) — G2 repair rerun: descriptor preparation now
+**Revised:** 2026-08-06 (o) — G2 exit complete: the north-star conversation
+surface passed the repaired headless checkpoint and real iOS-simulator and
+Android-emulator runs, with one canonical query/presence owner and all owned
+resources reclaimed. This corrects (m)'s premature exit wording; Status stays
+Review and no physical-device, release, LAN-carrier, or LLP 0064 claim follows.
+Earlier same day (n) — Corrected G2's repair-rerun exit claim: the checkpoint
+and headless-React evidence are complete, but the iOS-simulator and
+Android-emulator surface receipts remain pending, so G2 is checkpoint-complete
+rather than exited. Earlier same day (m) — G2 repair rerun: descriptor preparation now
 reuses LLP 0114's persisted binding-receipt/RQS owner, and the real-runtime
 surface witness renders all three retained messages with retained/refreshing/
 stale facts offline. Half 1 remains PASS, Half 2 is now PASS (18/18), G2 exits,
@@ -649,6 +657,46 @@ has exited and G3 is unblocked. The append-only command/result record is in
 [`20260806-g2-falsification-baseline.md`](../demos/expo-golden-path-fixture/receipts/20260806-g2-falsification-baseline.md),
 and the resolved defect is in
 [`issues/closed/20260806-app-descriptor-use-surface-blocks-cold-retained-boot.md`](../issues/closed/20260806-app-descriptor-use-surface-blocks-cold-retained-boot.md).
+
+**2026-08-06 G2 exit-claim precision correction.** The preceding paragraph's
+closing claim outruns its evidence: the falsification checkpoint is proven in
+both halves—Half 1 at 339 versus 510 physical lines and Half 2 at 18/18 after
+the repair—by the real-runtime
+[`g2-falsification.mjs`](../demos/expo-golden-path-fixture/tests/g2-falsification.mjs),
+and the Exit line's headless-React half is proven by
+[`surface.test.mjs`](../packages/snapback-react/surface.test.mjs). The other
+two halves are not yet proven: the north-star snippet has no iOS-simulator or
+Android-emulator G2 receipt in
+[`receipts/`](../demos/expo-golden-path-fixture/receipts/), and the 2026-08-06
+per-OS receipts there are G1 boot receipts that do not exercise the surface
+snippet. That per-OS work is in flight: both the iOS-simulator and
+Android-emulator runs were executed in a concurrent fleet session whose
+receipts had not landed on `main` when this note was written, and the exit
+claim remains contingent on those receipts landing and being cited here.
+Until then, **G2 is "checkpoint-complete, per-OS evidence pending"** rather
+than exited; G3's unblocking remains subject to that contingency.
+
+**2026-08-06 north-star device exit — PASS; G2 complete.** The fixture now
+cold-opens one deterministic conversation and mounts the requested
+`useSurface(app.surfaces.conversation, { conversationId }, { presence: {
+typing: ... } })` shape. On both platforms it joined ordinary Sessions-provider
+readiness, current `data.messages`, a `mutations.sendText` live echo, a
+`mutations.react` live echo, and the connection-owned self-typing fact before
+rendering its pass marker. The instrumented screen re-measures at 465 versus
+the frozen 510 lines (45 lines/8.8% smaller and still beyond the advance bar).
+
+The exact-current-runtime 5/5 acceptance pins five query stores/five upstream
+subscriptions beside an equivalent low-level consumer, one presence
+store/room subscription, and an all-zero resource vector after disposal; the
+Strict Mode React test independently pins canonical query and presence owners.
+The iOS supervisor reclaimed backend, Metro, and bootstrap, and the Android
+supervisor reclaimed those processes plus all three `adb reverse` rules. The
+dated, screenshot-backed receipts are
+[`20260806-g2-ios-simulator.md`](../demos/expo-golden-path-fixture/receipts/20260806-g2-ios-simulator.md) and
+[`20260806-g2-android-emulator.md`](../demos/expo-golden-path-fixture/receipts/20260806-g2-android-emulator.md).
+All G2 exit arms now pass and G3 is unblocked. This is simulator/emulator and
+supervised-development evidence only; it does not change this Plan's Status or
+make a physical-device, release, LAN-carrier, or LLP 0064 claim.
 
 ### G3 — one online image-send command
 

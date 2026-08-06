@@ -33,7 +33,10 @@ function BootFallback({ state }: Readonly<{ state: ExpoBootState }>) {
 
 function G2Screens() {
   useSnapbackExpoBootState();
-  const [thread, setThread] = useState<null | { id: Id<'conversations'>; title: string }>(null);
+  const [thread, setThread] = useState<null | { id: Id<'conversations'>; title: string }>({
+    id: 'conversation_engine_room' as Id<'conversations'>,
+    title: 'Engine Room',
+  });
   return thread ? (
     <ChatScreen conversationId={thread.id} title={thread.title} onBack={() => setThread(null)} />
   ) : (

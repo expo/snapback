@@ -898,7 +898,12 @@ async fn console_device_approval_is_terminal_authorized_and_single_use() {
         .await
         .unwrap();
     assert_eq!(approved.status(), StatusCode::OK);
-    assert_eq!(json(approved).await["approved"], true);
+    let approved = json(approved).await;
+    assert_eq!(approved["approved"], true);
+    assert!(
+        approved.get("credential").is_none(),
+        "terminal approval must not receive the browser credential"
+    );
 
     let replayed_approval = app
         .clone()

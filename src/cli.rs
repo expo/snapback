@@ -641,6 +641,11 @@ pub struct Args {
     #[arg(long)]
     pub startup_artifacts: Option<PathBuf>,
 
+    /// Fork-create-only pre-bind cut: after the complete startup pair is
+    /// active, arm the derived fork's app-row writer coverage before bind.
+    #[arg(long, hide = true, requires = "startup_artifacts")]
+    pub derived_fork_arm_writer_coverage: bool,
+
     /// Read-only LLP 0157 trust root emitted beside the generated manifests.
     /// The server re-derives every activation binding and exact-compares the
     /// public key manifest to its database-side signing custody before bind.
@@ -706,6 +711,7 @@ impl Default for Args {
             hosted_edge: None,
             hosted_admission: None,
             startup_artifacts: None,
+            derived_fork_arm_writer_coverage: false,
             trusted_composition_activation: None,
             clear_desired_auth_mode: false,
             allow_auth_downgrade: false,
@@ -813,11 +819,7 @@ pub enum HostCommand {
         #[command(subcommand)]
         command: DataCommand,
     },
-    /// config.status / config.plan / config.verify (LLP 0036; LLP 0184 P1
-    /// backfill) plus config.unset (LLP 0184 §P2/§P3) — non-secret config
-    /// planning, verification, and entry removal. `config unset` carries only
-    /// an entry identifier; no secret value crosses the wire, unlike
-    /// `config set`, which is not projected here (LLP 0184 §P3).
+    /// Config planning, secret-safe value writes, verification, and removal.
     Config {
         #[command(subcommand)]
         command: ConfigCommand,
@@ -1397,6 +1399,33 @@ pub enum ConfigCommand {
         #[arg(long)]
         entry: Option<String>,
     },
+    /// config.set — write one value through stdin or an inherited file
+    /// descriptor. The value is never accepted as a command-line argument.
+    Set {
+        #[command(flatten)]
+        target: TargetArgs,
+        /// The config entry identifier (e.g. `stripe.secretKey`).
+        #[arg(long)]
+        entry: String,
+        /// Read the exact UTF-8 value bytes from standard input.
+        #[arg(
+            long,
+            required_unless_present = "value_fd",
+            conflicts_with = "value_fd"
+        )]
+        value_stdin: bool,
+        /// Read the exact UTF-8 value bytes from inherited descriptor N.
+        #[arg(
+            long,
+            value_name = "N",
+            required_unless_present = "value_stdin",
+            conflicts_with = "value_stdin"
+        )]
+        value_fd: Option<u32>,
+        /// Add this value to a declared pool instead of replacing the entry.
+        #[arg(long)]
+        append: bool,
+    },
     /// config.verify — run one entry's probe action and report ok/not-ok
     /// plus the probe diagnostic. Never returns the configured value.
     Verify {
@@ -1696,7 +1725,7 @@ pub enum ForkCommand {
         /// Refuse an attributed journal span larger than this many rows.
         #[arg(long, default_value_t = crate::instance_fork::FORK_DIFF_MAX_ROWS)]
         max_rows: u64,
-        /// Produce the exact net base-to-head receipt (snapback.fork-net-diff.v1)
+        /// Produce the exact net base-to-head receipt (snapback.fork-net-diff.v2)
         /// instead of the attributed sequence; requires --retain-base at create.
         #[arg(long)]
         net: bool,
@@ -2086,7 +2115,25 @@ fn guide_command(query: &[String]) -> anyhow::Result<()> {
 }
 
 pub async fn run_from_env() -> anyhow::Result<()> {
-    let cli = Cli::parse();
+    let cli = match Cli::try_parse() {
+        Ok(cli) => cli,
+        Err(error)
+            if argv_targets_config_set()
+                && !matches!(
+                    error.kind(),
+                    clap::error::ErrorKind::DisplayHelp | clap::error::ErrorKind::DisplayVersion
+                ) =>
+        {
+            // Config values are deliberately absent from argv, but a caller
+            // can still make a spelling mistake that causes clap to quote an
+            // unexpected token. Collapse every config-set parse refusal to a
+            // stable, value-free diagnostic instead of rendering argv.
+            anyhow::bail!(
+                "SNAPBACK_CONFIG_SET_USAGE_INVALID: invalid config set arguments; run `snapback config set --help` for the value-free usage"
+            )
+        }
+        Err(error) => error.exit(),
+    };
     reject_misdirected_serve_flags(&cli)?;
     match cli.command {
         None => run(cli.serve).await,
@@ -2448,6 +2495,11 @@ pub async fn run_from_env() -> anyhow::Result<()> {
             startup_blocking(|| migrate_command(command, json))
         }
     }
+}
+
+fn argv_targets_config_set() -> bool {
+    let mut args = std::env::args_os().skip(1);
+    args.next().is_some_and(|arg| arg == "config") && args.next().is_some_and(|arg| arg == "set")
 }
 
 #[derive(Deserialize)]
@@ -3358,18 +3410,6 @@ where
                 "SNAPBACK_FORK_PATH_INVALID: published destination could not be resolved",
             )?;
             let database = destination.join(&receipt.database_file);
-            let ready_file = match ready_file {
-                Some(path) if path.is_absolute() => path,
-                Some(path) => destination.join(path),
-                None => destination.join("fork.ready.json"),
-            };
-            let ready_parent = ready_file
-                .parent()
-                .context("SNAPBACK_FORK_READY_INVALID: ready file has no parent")?;
-            anyhow::ensure!(
-                std::fs::canonicalize(ready_parent)? == destination,
-                "SNAPBACK_FORK_READY_INVALID: ready file must be a direct child of the fork directory"
-            );
             let generated = app_root.join("snapback/generated");
             let generated_schema = generated.join("schema.manifest.json");
             let generated_functions = generated.join("functions.manifest.json");
@@ -3379,10 +3419,38 @@ where
                 // pair before listener bind. Keep the carrier inside the
                 // fork-private tree so exact drop/reap owns it with the rest
                 // of the derived deployment.
+                let schema = serde_json::from_value(read_json_file(&generated_schema).with_context(
+                    || {
+                        format!(
+                            "SNAPBACK_FORK_LOAD_FAILED: could not read {}",
+                            generated_schema.display()
+                        )
+                    },
+                )?)
+                .with_context(|| {
+                    format!(
+                        "SNAPBACK_FORK_LOAD_FAILED: {} is not a schema manifest",
+                        generated_schema.display()
+                    )
+                })?;
+                let functions = serde_json::from_value(
+                    read_json_file(&generated_functions).with_context(|| {
+                        format!(
+                            "SNAPBACK_FORK_LOAD_FAILED: could not read {}",
+                            generated_functions.display()
+                        )
+                    })?,
+                )
+                .with_context(|| {
+                    format!(
+                        "SNAPBACK_FORK_LOAD_FAILED: {} is not a functions manifest",
+                        generated_functions.display()
+                    )
+                })?;
                 let carrier = crate::auth::mode::StartupArtifacts {
                     format_version: crate::auth::mode::STARTUP_ARTIFACT_FORMAT_VERSION,
-                    schema: serde_json::from_value(read_json_file(&generated_schema)?)?,
-                    functions: serde_json::from_value(read_json_file(&generated_functions)?)?,
+                    schema,
+                    functions,
                     seed: None,
                 };
                 let path = destination.join("fork-startup-artifacts.json");
@@ -3403,6 +3471,18 @@ where
             } else {
                 None
             };
+            let ready_file = match ready_file {
+                Some(path) if path.is_absolute() => path,
+                Some(path) => destination.join(path),
+                None => destination.join("fork.ready.json"),
+            };
+            let ready_parent = ready_file
+                .parent()
+                .context("SNAPBACK_FORK_READY_INVALID: ready file has no parent")?;
+            anyhow::ensure!(
+                std::fs::canonicalize(ready_parent)? == destination,
+                "SNAPBACK_FORK_READY_INVALID: ready file must be a direct child of the fork directory"
+            );
             let log_path = destination.join("fork-runtime.log");
             let log = std::fs::OpenOptions::new()
                 .create(true)
@@ -3426,7 +3506,10 @@ where
                 .stdout(std::process::Stdio::from(log))
                 .stderr(std::process::Stdio::from(error_log));
             if let Some(path) = startup_artifacts.as_deref() {
-                launch.arg("--startup-artifacts").arg(path);
+                launch
+                    .arg("--startup-artifacts")
+                    .arg(path)
+                    .arg("--derived-fork-arm-writer-coverage");
             }
             #[cfg(unix)]
             {
@@ -3449,6 +3532,15 @@ where
             let deadline = std::time::Instant::now() + std::time::Duration::from_secs(20);
             while !ready_file.exists() {
                 if let Some(status) = child.try_wait()? {
+                    if startup_artifacts.is_some()
+                        && std::fs::read_to_string(&log_path)
+                            .is_ok_and(|log| log.contains("SNAPBACK_FORK_LOAD_FAILED:"))
+                    {
+                        anyhow::bail!(
+                            "SNAPBACK_FORK_LOAD_FAILED: generated startup artifacts were refused; see {}",
+                            log_path.display()
+                        );
+                    }
                     anyhow::bail!(
                         "SNAPBACK_FORK_BOOT_FAILED: server exited with {status}; see {}",
                         log_path.display()
@@ -3478,6 +3570,25 @@ where
                 "fork.create",
             )
             .map_err(|diagnostic| anyhow::anyhow!("{}: {}", diagnostic.code, diagnostic.message))?;
+            let writer_coverage_receipt = if startup_artifacts.is_some() {
+                match startup_blocking(|| {
+                    crate::instance_fork::verified_derived_fork_app_row_coverage(&database)
+                }) {
+                    Ok(Some(receipt)) => Some(receipt),
+                    Ok(None) => {
+                        let _ = quiet_stop_fork(&ready_file, &database);
+                        anyhow::bail!(
+                            "SNAPBACK_FORK_WRITER_COVERAGE_INVALID: complete startup returned without fork-point coverage evidence"
+                        );
+                    }
+                    Err(error) => {
+                        let _ = quiet_stop_fork(&ready_file, &database);
+                        return Err(error.into());
+                    }
+                }
+            } else {
+                None
+            };
             let declared_admin = descriptor
                 .admin_token_file
                 .as_deref()
@@ -3499,7 +3610,9 @@ where
             };
             // A complete pair was already admitted atomically at cold start.
             // Preserve the historical partial-manifest dev path only when no
-            // complete startup carrier was available.
+            // complete startup carrier was available. This post-bind path is
+            // deliberately unarmed and therefore cannot claim whole-window
+            // authorizer-backed coverage.
             if startup_artifacts.is_none() {
                 for (operation, key, path) in [
                     ("schema.load", "schema", generated_schema),
@@ -3507,8 +3620,20 @@ where
                 ] {
                     if path.is_file() {
                         let mut request = json!({ "operation": operation });
-                        request[key] = read_json_file(&path)?;
-                        let response = post_host_op(&target, request)?;
+                        request[key] = match read_json_file(&path) {
+                            Ok(manifest) => manifest,
+                            Err(error) => {
+                                let _ = quiet_stop_fork(&ready_file, &database);
+                                anyhow::bail!("SNAPBACK_FORK_LOAD_FAILED: {error:#}");
+                            }
+                        };
+                        let response = match post_host_op(&target, request) {
+                            Ok(response) => response,
+                            Err(error) => {
+                                let _ = quiet_stop_fork(&ready_file, &database);
+                                anyhow::bail!("SNAPBACK_FORK_LOAD_FAILED: {error:#}");
+                            }
+                        };
                         if !response.get("ok").and_then(Value::as_bool).unwrap_or(false) {
                             let _ = quiet_stop_fork(&ready_file, &database);
                             anyhow::bail!("SNAPBACK_FORK_LOAD_FAILED: {response}");
@@ -3529,6 +3654,7 @@ where
                 Some(descriptor.server_url.clone()),
                 json!({
                     "receipt": receipt,
+                    "writerCoverageReceipt": writer_coverage_receipt,
                     "registry": entry,
                     "database": database,
                     "readyFile": ready_file,
@@ -4950,11 +5076,150 @@ fn controls_command(command: ControlsCommand) -> anyhow::Result<()> {
     }
 }
 
-/// config.status / config.plan / config.verify — LLP 0036-owned, non-secret
-/// projections (LLP 0184 P1 backfill), plus config.unset (LLP 0184 §P2):
-/// `config.unset` direct CLI projection; LLP 0036 pairs it with a 1:1
-/// `snapback_config_unset` MCP tool landed alongside
-/// (`packages/snapback-cli/mcp-control.mjs`).
+const MAX_CONFIG_CLI_VALUE_BYTES: u64 = 1024 * 1024;
+
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ConfigSetCliRequest<'a> {
+    entry: &'a str,
+    value: &'a str,
+    append: bool,
+    source: &'static str,
+}
+
+fn read_config_value<R: std::io::Read>(reader: R) -> anyhow::Result<zeroize::Zeroizing<String>> {
+    use zeroize::{Zeroize as _, Zeroizing};
+
+    let mut bytes = Zeroizing::new(Vec::new());
+    reader
+        .take(MAX_CONFIG_CLI_VALUE_BYTES + 1)
+        .read_to_end(&mut bytes)
+        .map_err(|_| {
+            anyhow::anyhow!(
+                "SNAPBACK_CONFIG_VALUE_READ_FAILED: config value carrier could not be read"
+            )
+        })?;
+    if bytes.len() as u64 > MAX_CONFIG_CLI_VALUE_BYTES {
+        anyhow::bail!(
+            "SNAPBACK_CONFIG_VALUE_TOO_LARGE: config value carrier exceeds the 1048576-byte CLI limit"
+        );
+    }
+    match String::from_utf8(std::mem::take(&mut *bytes)) {
+        Ok(value) => Ok(Zeroizing::new(value)),
+        Err(error) => {
+            let mut rejected = error.into_bytes();
+            rejected.zeroize();
+            anyhow::bail!(
+                "SNAPBACK_CONFIG_VALUE_INVALID: config value carrier must contain valid UTF-8"
+            )
+        }
+    }
+}
+
+fn read_config_value_carrier(
+    value_stdin: bool,
+    value_fd: Option<u32>,
+) -> anyhow::Result<zeroize::Zeroizing<String>> {
+    if value_stdin {
+        return read_config_value(std::io::stdin().lock());
+    }
+    let descriptor = value_fd.context(
+        "SNAPBACK_CONFIG_SET_USAGE_INVALID: choose exactly one of --value-stdin or --value-fd N",
+    )?;
+    #[cfg(unix)]
+    {
+        use std::os::fd::FromRawFd as _;
+
+        let descriptor = i32::try_from(descriptor).map_err(|_| {
+            anyhow::anyhow!(
+                "SNAPBACK_CONFIG_VALUE_FD_INVALID: config value descriptor is outside the supported range"
+            )
+        })?;
+        // SAFETY: dup reads the caller-provided descriptor without taking
+        // ownership of it. A nonnegative result is a new descriptor owned by
+        // the File constructed immediately below.
+        let duplicate = unsafe { libc::dup(descriptor) };
+        if duplicate < 0 {
+            return Err(anyhow::anyhow!(
+                "SNAPBACK_CONFIG_VALUE_FD_INVALID: config value descriptor is not readable"
+            ));
+        }
+        // SAFETY: duplicate is a fresh owned descriptor returned by dup and
+        // is converted into exactly one File.
+        let file = unsafe { std::fs::File::from_raw_fd(duplicate) };
+        return read_config_value(file);
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = descriptor;
+        anyhow::bail!(
+            "SNAPBACK_CONFIG_VALUE_FD_UNSUPPORTED: inherited config value descriptors are unavailable on this host; use --value-stdin"
+        )
+    }
+}
+
+fn config_set_refusal(status: u16, response: ureq::Response) -> anyhow::Error {
+    let code = response
+        .into_json::<Value>()
+        .ok()
+        .and_then(|body| {
+            body.pointer("/diagnostic/code")
+                .or_else(|| body.pointer("/diagnostics/0/code"))
+                .and_then(Value::as_str)
+                .filter(|code| code.starts_with("SNAPBACK_"))
+                .map(ToOwned::to_owned)
+        })
+        .unwrap_or_else(|| "SNAPBACK_CONFIG_SET_FAILED".to_owned());
+    anyhow::anyhow!(
+        "{code}: config.set failed with HTTP {status}; response body omitted to protect the submitted value"
+    )
+}
+
+// @ref LLP 0184#product-contract-what-agent-accessible-means — config.set is
+//   `(cliOnly, direct)` and its only v1 value carriers are stdin/fd; there is
+//   deliberately no MCP projection.
+// @ref LLP 0036#operations-and-projections-llp-0024 — reuse the existing
+//   config.set route, ordinary admin credential, value-free write envelope,
+//   and `source: cli` audit fact.
+fn config_set_post(
+    target: &TargetArgs,
+    entry: &str,
+    value: &str,
+    append: bool,
+) -> anyhow::Result<crate::local::ConfigWriteOutcome> {
+    let resolved = resolve_http_target_for_operation(target, false)?;
+    let token = target
+        .token
+        .clone()
+        .or_else(|| std::env::var("SNAPBACK_ADMIN_TOKEN").ok())
+        .filter(|token| !token.is_empty())
+        .or(resolved.minted_token);
+    let path = "/_snapback/api/config/set";
+    let mut request = ureq::post(&format!("{}{path}", resolved.server_url));
+    if let Some(token) = token {
+        request = request.set("x-snapback-admin-token", &token);
+    }
+    let body = ConfigSetCliRequest {
+        entry,
+        value,
+        append,
+        source: "cli",
+    };
+    match request.send_json(&body) {
+        Ok(response) => response.into_json().map_err(|_| {
+            anyhow::anyhow!(
+                "SNAPBACK_CONFIG_SET_RESPONSE_INVALID: config.set response was not the expected value-free envelope"
+            )
+        }),
+        Err(ureq::Error::Status(status, response)) => {
+            Err(config_set_refusal(status, response))
+        }
+        Err(_) => Err(anyhow::anyhow!(
+            "SNAPBACK_CONFIG_SET_REQUEST_FAILED: config.set request failed before a response was received"
+        )),
+    }
+}
+
 fn config_command(command: ConfigCommand) -> anyhow::Result<()> {
     match command {
         ConfigCommand::Status { target } => {
@@ -4968,6 +5233,18 @@ fn config_command(command: ConfigCommand) -> anyhow::Result<()> {
                 query.push(("entry", entry));
             }
             let response = admin_json_get(&target, "/_snapback/api/config/plan", query)?;
+            println!("{}", serde_json::to_string_pretty(&response)?);
+            Ok(())
+        }
+        ConfigCommand::Set {
+            target,
+            entry,
+            value_stdin,
+            value_fd,
+            append,
+        } => {
+            let value = read_config_value_carrier(value_stdin, value_fd)?;
+            let response = config_set_post(&target, &entry, value.as_str(), append)?;
             println!("{}", serde_json::to_string_pretty(&response)?);
             Ok(())
         }
@@ -7193,9 +7470,25 @@ async fn run_composed(
         Ok(state) => state,
         Err(error) => {
             emit_startup_artifact_refusal(&error);
+            if args.derived_fork_arm_writer_coverage {
+                return Err(anyhow::anyhow!("SNAPBACK_FORK_LOAD_FAILED: {error}"));
+            }
             return Err(error.into());
         }
     };
+    if args.derived_fork_arm_writer_coverage {
+        // @ref LLP 0058#cold-startup-artifact-carrier — the complete pair is
+        // active before the fork-specific coverage cut.
+        // @ref LLP 0165#derived-fork-authorizer-backed-net-diff--2026-08-06 —
+        // arm the process-owned connection at the fork point before bind.
+        startup_blocking(|| {
+            crate::instance_fork::arm_open_derived_fork_app_row_coverage(
+                snapback.auth_database_mut(),
+                now_ms(),
+            )
+        })
+        .map_err(anyhow::Error::new)?;
+    }
     auth_runtime.seed_durable_clock_floor(&mut snapback)?;
     validate_auth_transport(
         bind_ip,
@@ -10976,6 +11269,7 @@ mod tests {
             ready_file: Some(ready.clone()),
             restored_from_backup: None,
             startup_artifacts: None,
+            derived_fork_arm_writer_coverage: false,
             trusted_composition_activation: None,
             clear_desired_auth_mode: false,
             allow_auth_downgrade: false,
@@ -11000,6 +11294,7 @@ mod tests {
             hosted_edge: None,
             hosted_admission: None,
             startup_artifacts: None,
+            derived_fork_arm_writer_coverage: false,
             trusted_composition_activation: None,
             clear_desired_auth_mode: false,
             allow_auth_downgrade: false,
@@ -11370,6 +11665,82 @@ mod tests {
                 command: ConfigCommand::Verify { entry, .. }
             }) if entry == "stripe.secretKey"
         ));
+    }
+
+    #[test]
+    fn config_set_cli_requires_exactly_one_non_argv_carrier() {
+        let stdin = Cli::parse_from([
+            "snapback",
+            "config",
+            "set",
+            "--entry",
+            "stripe.secretKey",
+            "--value-stdin",
+            "--url",
+            "http://127.0.0.1:4287",
+        ]);
+        assert!(matches!(
+            stdin.command,
+            Some(HostCommand::Config {
+                command: ConfigCommand::Set {
+                    entry,
+                    value_stdin: true,
+                    value_fd: None,
+                    append: false,
+                    ..
+                }
+            }) if entry == "stripe.secretKey"
+        ));
+
+        let descriptor = Cli::parse_from([
+            "snapback",
+            "config",
+            "set",
+            "--entry",
+            "stripe.secretKey",
+            "--value-fd",
+            "9",
+            "--append",
+            "--url",
+            "http://127.0.0.1:4287",
+        ]);
+        assert!(matches!(
+            descriptor.command,
+            Some(HostCommand::Config {
+                command: ConfigCommand::Set {
+                    value_stdin: false,
+                    value_fd: Some(9),
+                    append: true,
+                    ..
+                }
+            })
+        ));
+
+        assert!(
+            Cli::try_parse_from([
+                "snapback",
+                "config",
+                "set",
+                "--entry",
+                "stripe.secretKey",
+                "--url",
+                "http://127.0.0.1:4287",
+            ])
+            .is_err()
+        );
+        assert!(
+            Cli::try_parse_from([
+                "snapback",
+                "config",
+                "set",
+                "--entry",
+                "stripe.secretKey",
+                "--value-stdin",
+                "--value-fd",
+                "9",
+            ])
+            .is_err()
+        );
     }
 
     #[test]

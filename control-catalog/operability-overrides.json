@@ -97,20 +97,95 @@
     "admin.link.mint": {
       "operability": "mediated",
       "surfaceAccessOverride": "cliOnly",
+      "intents": ["open admin console for a human", "mint one-time operator link", "observe browser redemption", "resume admin link handoff"],
+      "guide": "operating/admin-console.md#hand-a-one-time-link-from-an-agent-terminal-to-a-remote-browser",
+      "authorities": ["llp/0017-admin-console-inspection-surface", "llp/0184-agent-accessible-control-plane"],
+      "sources": ["src/cli.rs AdminCommand::Link", "tests/admin_claim_link_v0.rs"],
+      "mediatedHandoff": {
+        "plan": "Select the direct, --url-base, --lan, or --tailscale reachability posture and attached/default or --no-wait lifecycle before minting; snapback admin link --help exposes their conflicts without creating a claim.",
+        "initiate": "snapback admin link authenticates with the ordinary admin credential, mints a one-time fragment link, and prints that deliberately shareable link for human browser redemption.",
+        "status": "The default attached invocation polls until redemption or expiry; snapback admin link --status <claim> observes the same bounded server-side record after --no-wait.",
+        "resume": "snapback admin link --status <claim> reattaches to an outstanding or redeemed claim, while --revoke <claim> provides bounded cleanup of the issued credential.",
+        "protectedArtifact": "The issued sbcc_ console credential is delivered only to the redeeming browser; the one-time sbcl_ claim link is intentionally agent-visible and becomes inert after redemption or expiry.",
+        "negativeLeakTests": ["tests/admin_claim_link_v0.rs::planted_claim_link_redeems_once_and_attached_cli_reports_it"]
+      },
       "mcpDeferralReason": "No MCP tool yet; a one-time operator claim link is a human-redemption artifact (LLP 0184 §Product contract's cliOnly/mediated worked example).",
       "note": "snapback admin link (src/cli.rs AdminCommand::Link) — mints, observes, reattaches to, or revokes a one-time operator claim link via POST /_snapback/api/console/claim(/exchange|/status|/revoke). Human redemption is the operation's whole point, so every leg is mediated regardless of surfaceAccess (rule 6)."
     },
-    "admin.link.exchange": { "operability": "mediated", "surfaceAccessOverride": "cliOnly", "mcpDeferralReason": "See admin.link.mint." },
-    "admin.link.status": { "operability": "mediated", "surfaceAccessOverride": "cliOnly", "mcpDeferralReason": "See admin.link.mint." },
-    "admin.link.revoke": { "operability": "mediated", "surfaceAccessOverride": "cliOnly", "mcpDeferralReason": "See admin.link.mint." },
+    "admin.link.exchange": {
+      "operability": "mediated",
+      "surfaceAccessOverride": "cliOnly",
+      "mediatedHandoff": {
+        "plan": "Select the direct, --url-base, --lan, or --tailscale reachability posture and attached/default or --no-wait lifecycle before minting; snapback admin link --help exposes their conflicts without creating a claim.",
+        "initiate": "snapback admin link authenticates with the ordinary admin credential, mints a one-time fragment link, and prints that deliberately shareable link for human browser redemption.",
+        "status": "The default attached invocation polls until redemption or expiry; snapback admin link --status <claim> observes the same bounded server-side record after --no-wait.",
+        "resume": "snapback admin link --status <claim> reattaches to an outstanding or redeemed claim, while --revoke <claim> provides bounded cleanup of the issued credential.",
+        "protectedArtifact": "The issued sbcc_ console credential is delivered only to the redeeming browser; the one-time sbcl_ claim link is intentionally agent-visible and becomes inert after redemption or expiry.",
+        "negativeLeakTests": ["tests/admin_claim_link_v0.rs::planted_claim_link_redeems_once_and_attached_cli_reports_it"]
+      },
+      "mcpDeferralReason": "See admin.link.mint."
+    },
+    "admin.link.status": {
+      "operability": "mediated",
+      "surfaceAccessOverride": "cliOnly",
+      "mediatedHandoff": {
+        "plan": "Select the direct, --url-base, --lan, or --tailscale reachability posture and attached/default or --no-wait lifecycle before minting; snapback admin link --help exposes their conflicts without creating a claim.",
+        "initiate": "snapback admin link authenticates with the ordinary admin credential, mints a one-time fragment link, and prints that deliberately shareable link for human browser redemption.",
+        "status": "The default attached invocation polls until redemption or expiry; snapback admin link --status <claim> observes the same bounded server-side record after --no-wait.",
+        "resume": "snapback admin link --status <claim> reattaches to an outstanding or redeemed claim, while --revoke <claim> provides bounded cleanup of the issued credential.",
+        "protectedArtifact": "The issued sbcc_ console credential is delivered only to the redeeming browser; the one-time sbcl_ claim link is intentionally agent-visible and becomes inert after redemption or expiry.",
+        "negativeLeakTests": ["tests/admin_claim_link_v0.rs::planted_claim_link_redeems_once_and_attached_cli_reports_it"]
+      },
+      "mcpDeferralReason": "See admin.link.mint."
+    },
+    "admin.link.revoke": {
+      "operability": "mediated",
+      "surfaceAccessOverride": "cliOnly",
+      "mediatedHandoff": {
+        "plan": "Select the direct, --url-base, --lan, or --tailscale reachability posture and attached/default or --no-wait lifecycle before minting; snapback admin link --help exposes their conflicts without creating a claim.",
+        "initiate": "snapback admin link authenticates with the ordinary admin credential, mints a one-time fragment link, and prints that deliberately shareable link for human browser redemption.",
+        "status": "The default attached invocation polls until redemption or expiry; snapback admin link --status <claim> observes the same bounded server-side record after --no-wait.",
+        "resume": "snapback admin link --status <claim> reattaches to an outstanding or redeemed claim, while --revoke <claim> provides bounded cleanup of the issued credential.",
+        "protectedArtifact": "The issued sbcc_ console credential is delivered only to the redeeming browser; the one-time sbcl_ claim link is intentionally agent-visible and becomes inert after redemption or expiry.",
+        "negativeLeakTests": ["tests/admin_claim_link_v0.rs::planted_claim_link_redeems_once_and_attached_cli_reports_it"]
+      },
+      "mcpDeferralReason": "See admin.link.mint."
+    },
     "config.status": { "operability": "direct", "note": "LLP 0184 Phase 2 P1: gained snapback config status + snapback_config_status; now (native, direct)." },
     "config.plan": { "operability": "direct", "note": "LLP 0184 Phase 2 P1: gained snapback config plan + snapback_config_plan; now (native, direct)." },
     "config.verify": { "operability": "direct", "note": "LLP 0184 Phase 2 P1: gained snapback config verify + snapback_config_verify; now (native, direct)." },
     "config.set": {
       "operability": "direct",
-      "surfaceAccessOverride": "cliOnly",
+      "intents": ["set config", "set secret", "configure api key", "write deployment credential"],
       "mcpDeferralReason": "No MCP secret carrier is defined (§Product contract): stdin/fd is a CLI-process carrier with no MCP equivalent. Promoting to native requires a defined, security-owner-approved MCP secret carrier first.",
-      "note": "Carries a secret value via stdin/fd (the only v1 carrier). Human entry through the existing browser/operator setup page needs no agent-facing handoff row — the agent is never in that call chain."
+      "guide": "operating/secrets-and-config.md#set-an-agent-held-value-without-exposing-it",
+      "authorities": ["llp/0036-app-secrets-and-config", "llp/0184-agent-accessible-control-plane"],
+      "sources": ["src/server.rs config_set()", "src/cli.rs ConfigCommand::Set"],
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["entry", "valueCarrier"],
+        "properties": {
+          "entry": { "type": "string", "minLength": 1 },
+          "valueCarrier": {
+            "enum": ["stdin", "fd"],
+            "description": "The CLI accepts value bytes only through --value-stdin or --value-fd N. The value is structurally absent from argv, MCP, catalog examples, and receipts."
+          },
+          "append": { "type": "boolean", "default": false }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["entry", "applyState", "valueChanged", "generation"],
+        "properties": {
+          "entry": { "type": "string" },
+          "applyState": { "type": "string" },
+          "valueChanged": { "type": "boolean" },
+          "generation": { "type": "integer", "minimum": 0 }
+        }
+      },
+      "note": "Phase 4: snapback config set now carries exactly one UTF-8 secret value through --value-stdin or --value-fd N, posts the existing admin-gated route with source=cli, and returns only the value-free ConfigWriteOutcome. Human entry through the existing browser/operator setup page needs no agent-facing handoff row — the agent is never in that call chain."
     },
     "cron.tick": { "operability": "direct", "note": "LLP 0184 §P2 landed `snapback cron tick` (src/cli.rs CronCommand::Tick) and `snapback_cron_tick` (mcp-control.mjs); surfaceAccess is now derived native. AdminClient.tickCron() (packages/snapback-admin-client/index.mjs:577) remains the pre-existing apiOnly path." },
     "cron.list": { "operability": "direct", "note": "LLP 0184 Phase 2 residue: read-only cron inspection projects the loaded functions manifest and already-held scheduler ledger through the AdminRead cron.list host operation, `GET /_snapback/api/cron`, `snapback cron list`, and `snapback_cron_list`. It deliberately omits run ids, handler diagnostics/results, jitter seeds, and recent-run payloads." },
@@ -141,11 +216,43 @@
     "console.approval.request": {
       "operability": "mediated",
       "surfaceAccessOverride": "cliOnly",
+      "mediatedHandoff": {
+        "plan": "The browser explains that terminal approval is required and displays the bounded snapback admin approve <code> command without displaying any console credential.",
+        "initiate": "The browser requests a short-lived device/user-code pair and transfers only the user code to the terminal operator.",
+        "status": "The browser polls with its device code and observes pending or the terminal-approved terminal state.",
+        "resume": "Polling resumes until the ten-minute bound; an expired or consumed attempt starts a fresh request rather than reusing an artifact.",
+        "protectedArtifact": "The sbcc_ console credential is returned only to the browser poll; snapback admin approve receives only the user code and a value-free approved receipt.",
+        "negativeLeakTests": ["tests/admin_v0.rs::console_device_approval_is_terminal_authorized_and_single_use"]
+      },
       "mcpDeferralReason": "No MCP tool yet; approving a short-lived console-displayed code is a human action by design (src/cli.rs AdminCommand::Approve).",
       "note": "Backs `snapback admin approve`."
     },
-    "console.approval.poll": { "operability": "mediated", "surfaceAccessOverride": "cliOnly", "mcpDeferralReason": "See console.approval.request." },
-    "console.approval.approve": { "operability": "mediated", "surfaceAccessOverride": "cliOnly", "mcpDeferralReason": "See console.approval.request." },
+    "console.approval.poll": {
+      "operability": "mediated",
+      "surfaceAccessOverride": "cliOnly",
+      "mediatedHandoff": {
+        "plan": "The browser explains that terminal approval is required and displays the bounded snapback admin approve <code> command without displaying any console credential.",
+        "initiate": "The browser requests a short-lived device/user-code pair and transfers only the user code to the terminal operator.",
+        "status": "The browser polls with its device code and observes pending or the terminal-approved terminal state.",
+        "resume": "Polling resumes until the ten-minute bound; an expired or consumed attempt starts a fresh request rather than reusing an artifact.",
+        "protectedArtifact": "The sbcc_ console credential is returned only to the browser poll; snapback admin approve receives only the user code and a value-free approved receipt.",
+        "negativeLeakTests": ["tests/admin_v0.rs::console_device_approval_is_terminal_authorized_and_single_use"]
+      },
+      "mcpDeferralReason": "See console.approval.request."
+    },
+    "console.approval.approve": {
+      "operability": "mediated",
+      "surfaceAccessOverride": "cliOnly",
+      "mediatedHandoff": {
+        "plan": "The browser explains that terminal approval is required and displays the bounded snapback admin approve <code> command without displaying any console credential.",
+        "initiate": "The browser requests a short-lived device/user-code pair and transfers only the user code to the terminal operator.",
+        "status": "The browser polls with its device code and observes pending or the terminal-approved terminal state.",
+        "resume": "Polling resumes until the ten-minute bound; an expired or consumed attempt starts a fresh request rather than reusing an artifact.",
+        "protectedArtifact": "The sbcc_ console credential is returned only to the browser poll; snapback admin approve receives only the user code and a value-free approved receipt.",
+        "negativeLeakTests": ["tests/admin_v0.rs::console_device_approval_is_terminal_authorized_and_single_use"]
+      },
+      "mcpDeferralReason": "See console.approval.request."
+    },
     "push.maintenance": {
       "operability": "internal",
       "internalReason": "Push-notification maintenance sweep; internal scheduled/system maintenance, not an author/operator-invoked action today."
