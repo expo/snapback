@@ -394,7 +394,33 @@ custody accounting, cleanup, and redacted diagnostics. It rejects secrets,
 bearers, credential material, unsafe absolute cleanup targets, and zero-check
 attempts. Remediation increments the attempt; it never edits `v1`.
 
-### Lane F live status — ZB0 PASS (2026-08-06); ZB1–ZB7 pending
+### Lane F live status — ZB0–ZB4 receipts landed (2026-08-06); ZB5–ZB7 pending
+
+Supervising live runs (fresh server per gate, receipts under
+`demos/zerobugs/evidence/`):
+
+- **ZB0** `v1` — PASS 9 / GAP 0 / FAIL 0.
+- **ZB1** `v1` — PASS 18 / GAP 1 (query-group cut: opaque JS queries carry
+  no schema-derived route bindings; owner D2 / `W-QGROUP`).
+- **ZB2** `v1` — PASS 3 / GAP 39 (no Zerobugs query declares an admitted
+  retention carrier and the adapter submits `queue:false`, so the
+  retained/offline/queued matrix is honestly GAP; owner D3; browser
+  restart/two-tab facts belong to ZB5).
+- **ZB3** `v1` FAIL (gate-authoring defect: frozen-name vs generated-identity
+  lookup and guessed lane4 row order; preserved as the attempt trail),
+  `v2` — PASS 26 / GAP 2 (durable queued restart and revocation-crossing
+  queued write need the offline queue; owners ZB5 and D3/D5).
+- **ZB4** `v1` FAIL (gate-authoring defect: expected config/status to refuse
+  untrusted callers, but LLP 0036 deliberately leaves value-free config
+  reads open — the probe against a live server confirmed reads return entry
+  names only while `/_snapback/api/inspect` and `config/set` refuse;
+  preserved), `v2` — PASS 26 / GAP 4 (retained/queued negative delivery have
+  no admitted carrier; crew-to-user and out-of-band policy transitions have
+  no control operation).
+
+The ZB4 v2 check now pins the documented contract: inspect refuses
+untrusted callers, `config/status` never discloses a configured secret
+value, and `config/set` refuses the untrusted write.
 
 `tests/acceptance/receipt.mjs` (immutable writer with secret/zero-check/
 unsafe-cleanup refusal), `tests/acceptance/zbgate.mjs` (non-vacuous gate
@@ -405,7 +431,7 @@ accounting, static source inventory, populated workaround register,
 generated release identities, zero-check refusal self-test) and wrote
 `demos/zerobugs/evidence/snapback-control.zb0.v1.json` (mode 0444; a rerun
 refuses the existing path — remediation sets `ZBUGS_ATTEMPT`). Gates
-ZB1–ZB7 are not yet implemented; sequencing row 7 remains open until every
+ZB5–ZB7 are not yet implemented; sequencing row 7 remains open until every
 gate has an honest receipt.
 
 ## Workaround and component register (predeclared)
