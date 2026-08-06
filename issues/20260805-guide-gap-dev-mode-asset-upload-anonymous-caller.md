@@ -118,3 +118,13 @@ upload identity is itself the authoring failure. Full notes are in
 - Either narrow the "pasteable" claim to same-origin/direct-navigation only,
   or make `public-immutable` (and `private-signed`) delivery routes exempt
   from the blanket `StaticPublic` CORP header so the documented claim holds.
+
+## Resolution (part 2)
+
+2026-08-05: Resolved the delivery-header half without changing the separately
+owned part-1 upload-authority guide gap. The server now derives cross-origin
+embed permission only for LLP 0044's closed public and signed delivery route
+set and emits `Cross-Origin-Resource-Policy: cross-origin` on both lanes.
+Other `StaticPublic` routes retain `same-origin`; targeted response-control
+tests pin both the positive delivery behavior and the negative operator-page
+counter-case.

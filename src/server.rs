@@ -7425,6 +7425,10 @@ pub struct EffectiveRoutePolicy {
     pub legacy_body_policy: LegacyBodyPolicy,
     pub effect_policy: EffectPolicy,
     pub response_sensitivity: ResponseSensitivity,
+    /// The closed LLP 0044 delivery-route predicate, carried into response
+    /// controls so no other public/static route inherits cross-origin embed
+    /// permission from its sensitivity class alone.
+    pub cross_origin_embeddable: bool,
 }
 
 /// A declared route in the registry. `policy` is retained as a source
@@ -7508,6 +7512,7 @@ impl RouteSpec {
             legacy_body_policy: self.legacy_body_policy,
             effect_policy: self.effect_policy,
             response_sensitivity: self.response_sensitivity,
+            cross_origin_embeddable: pasteable_delivery_route(self),
         };
         if matches!(mode, PolicyAuthMode::Sessions) {
             let overlay = self.session_overlay;
@@ -8837,6 +8842,16 @@ fn apply_registered_response_controls(
             HeaderName::from_static("cross-origin-opener-policy"),
             HeaderValue::from_static("same-origin"),
         );
+    }
+    if effective.cross_origin_embeddable {
+        // @ref LLP 0044#delivery-profiles — these two closed delivery lanes
+        // are expressly consumable by cross-origin `<img src>` and CDN pulls;
+        // the URL is their entire authority.
+        headers.insert(
+            HeaderName::from_static("cross-origin-resource-policy"),
+            HeaderValue::from_static("cross-origin"),
+        );
+    } else if effective.response_sensitivity == ResponseSensitivity::StaticPublic {
         headers.insert(
             HeaderName::from_static("cross-origin-resource-policy"),
             HeaderValue::from_static("same-origin"),
@@ -33966,6 +33981,41 @@ globalThis.__snapbackHandlers = {
             .await
             .unwrap();
         assert_eq!(body.as_ref(), admin_html.as_bytes());
+    }
+
+    #[test]
+    fn pasteable_asset_delivery_is_cross_origin_without_weakening_static_pages() {
+        let spec_for = |method, path| {
+            super::route_registry()
+                .into_iter()
+                .find(|spec| spec.method == method && spec.path == path)
+                .unwrap_or_else(|| panic!("registered route {method} {path}"))
+        };
+
+        for path in [
+            "/assets/public/{id}/{variant}",
+            "/assets/signed/{id}/{variant}",
+        ] {
+            let response = super::apply_registered_response_controls(
+                spec_for("GET", path).effective_for(PolicyAuthMode::Sessions),
+                axum::response::Response::new(Body::empty()),
+            );
+            assert_eq!(
+                response.headers()["cross-origin-resource-policy"],
+                "cross-origin",
+                "{path} must remain pasteable from another origin"
+            );
+        }
+
+        let response = super::apply_registered_response_controls(
+            spec_for("GET", "/_snapback/admin/setup").effective_for(PolicyAuthMode::Dev),
+            axum::response::Response::new(Body::empty()),
+        );
+        assert_eq!(
+            response.headers()["cross-origin-resource-policy"],
+            "same-origin",
+            "a non-delivery StaticPublic route keeps LLP 0060's isolation"
+        );
     }
 
     #[tokio::test]
