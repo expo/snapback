@@ -10714,11 +10714,118 @@ mod tests {
         );
     }
 
-    // @ref LLP 0184#p2-controlled-mutations — parse coverage for the LLP
-    // 0184 §P2 typed CLI verbs (config.unset, cron.tick/runOne, jobs.drain,
-    // connection.disconnect). These only assert clap wiring; the HTTP-level
-    // behavior is covered by mcp-control.test.mjs's real-server acceptance
-    // (the equivalent MCP tools share the same served routes).
+    // @ref LLP 0184#project-the-shipped-long-tail — parse coverage for the
+    // Phase 2 P1 read/diagnose and P2 controlled-mutation CLI projections.
+    // These only assert clap wiring; HTTP behavior is covered by
+    // mcp-control.test.mjs's real-server acceptance because the equivalent
+    // MCP tools share the same served routes.
+    #[test]
+    fn data_scan_cli_parses_table_bounds_and_target() {
+        let parsed = Cli::parse_from([
+            "snapback",
+            "data",
+            "scan",
+            "messages",
+            "--limit",
+            "20",
+            "--offset",
+            "40",
+            "--url",
+            "http://127.0.0.1:4287",
+        ]);
+        assert!(matches!(
+            parsed.command,
+            Some(HostCommand::Data {
+                command: DataCommand::Scan {
+                    table,
+                    limit: 20,
+                    offset: 40,
+                    ..
+                }
+            }) if table == "messages"
+        ));
+    }
+
+    #[test]
+    fn config_read_and_verify_cli_verbs_parse() {
+        let status = Cli::parse_from([
+            "snapback",
+            "config",
+            "status",
+            "--url",
+            "http://127.0.0.1:4287",
+        ]);
+        assert!(matches!(
+            status.command,
+            Some(HostCommand::Config {
+                command: ConfigCommand::Status { .. }
+            })
+        ));
+
+        let plan = Cli::parse_from([
+            "snapback",
+            "config",
+            "plan",
+            "--entry",
+            "stripe.secretKey",
+            "--url",
+            "http://127.0.0.1:4287",
+        ]);
+        assert!(matches!(
+            plan.command,
+            Some(HostCommand::Config {
+                command: ConfigCommand::Plan { entry: Some(entry), .. }
+            }) if entry == "stripe.secretKey"
+        ));
+
+        let verify = Cli::parse_from([
+            "snapback",
+            "config",
+            "verify",
+            "stripe.secretKey",
+            "--url",
+            "http://127.0.0.1:4287",
+        ]);
+        assert!(matches!(
+            verify.command,
+            Some(HostCommand::Config {
+                command: ConfigCommand::Verify { entry, .. }
+            }) if entry == "stripe.secretKey"
+        ));
+    }
+
+    #[test]
+    fn jobs_list_and_show_cli_verbs_parse() {
+        let list = Cli::parse_from([
+            "snapback",
+            "jobs",
+            "list",
+            "--url",
+            "http://127.0.0.1:4287",
+        ]);
+        assert!(matches!(
+            list.command,
+            Some(HostCommand::Jobs {
+                command: JobsCommand::List { .. }
+            })
+        ));
+
+        let show = Cli::parse_from([
+            "snapback",
+            "jobs",
+            "show",
+            "job_01h8x2",
+            "--url",
+            "http://127.0.0.1:4287",
+        ]);
+        assert!(matches!(
+            show.command,
+            Some(HostCommand::Jobs {
+                command: JobsCommand::Show { id, .. }
+            }) if id == "job_01h8x2"
+        ));
+    }
+
     #[test]
     fn config_unset_cli_parses_entry_and_target() {
         let parsed = Cli::parse_from([
