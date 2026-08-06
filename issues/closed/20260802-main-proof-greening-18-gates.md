@@ -1329,3 +1329,10 @@ implementation. Because this carrier and its retained proof sources postdate
 the `5980c2106` telemetry measurement above, that Linux receipt remains valid
 for its own candidate but is superseded for the final batch. A fresh exact
 Linux producer is still required after the receipt itself is committed.
+
+The first Latency regeneration also exposed a fixture-only serialization bug:
+the newly asynchronous generated-module identity reader was returned without
+`await`, so JSON encoded the pending promise as `{}`. Awaiting that evidence
+restored the intended generated-plan identities; the real producer and all
+five retained checks then passed. This changes only the proof fixture, not the
+actively owned push seam or F0a implementation.

@@ -394,7 +394,7 @@ async function runRealExit() {
     assert.equal(reloadRecords.filter((record) => record.id === queued.queued.clientMutationId).length, 1);
 
     return {
-      sourceIdentity: staticIdentityEvidence(),
+      sourceIdentity: await staticIdentityEvidence(),
       localEvaluation: {
         allFivePaintedFromIr: true,
         latencyMs: Object.fromEntries(VERBS.map((name) => [
