@@ -7,7 +7,7 @@
     "LLP 0051 D5"
   ],
   "source": {
-    "revision": "f8341b7dbc0baf9b5b9b937a4e6190bf36a8da80",
+    "revision": "1b8bd5766874d4a5d1d3058442392a3cf87577d0",
     "dirty": true,
     "files": [
       {
@@ -28,11 +28,11 @@
       },
       {
         "path": "demos/latency-kanban/snapback/trusted-composition-activation.json",
-        "sha256": "e3c01bffd03475bb33256bf9388d088f3f035b853d5d6a7fb1c63149b206f0b3"
+        "sha256": "301c98abebdbe349419033b4ff426e04f83bd9466bee9da58554ea14eeba3224"
       },
       {
         "path": "demos/latency-kanban/snapback/generated/artifacts.json",
-        "sha256": "b956472f0a19b6cc6cd8a8eab38f08a052d8206dcf88f78cae63d63d41091d45"
+        "sha256": "c530ba92c74c6a1c667e5f4f077e366ea40592bd57f6ee041418d1d278871140"
       },
       {
         "path": "demos/latency-kanban/src/App.tsx",
@@ -44,7 +44,7 @@
       },
       {
         "path": "packages/snapback-codegen/index.mjs",
-        "sha256": "0c2039c6b2de172bc831d5f6a7b27826366b82d80c77ad48ef86741923016228"
+        "sha256": "59e43608c4d0a91355bbfab1d3f243cb12b6aef104c62a4fa484d3b2f58f31b4"
       }
     ]
   },
@@ -52,12 +52,12 @@
     "status": "PASS",
     "activation": {
       "format": "snapback.composition-activation-preparation.v1",
-      "activationHash": "sha256:87e0470ce09d376ebcd022d358f7812d85691a036cbe20795eb0b7da5d072f59",
+      "activationHash": "sha256:9dbd23fe0a5c369d401aa501c4c114ac31f07b17fd54a1913f8137535f15104c",
       "deploymentId": "latency-kanban-move3-exit"
     },
     "runtime": {
       "serverBinary": "target/debug/snapback",
-      "serverBinarySha256": "c3385f3b6fa00066568c17540693c8ba8f849129ed6112efdd43a19985a7907d",
+      "serverBinarySha256": "bd33cda4d568792337c9a71bbf716bd830b1f32234856c22b09720c96b329a2d",
       "launchRung": "configured"
     }
   },
@@ -181,16 +181,16 @@
       "evidence": {
         "allFivePaintedFromIr": true,
         "latencyMs": {
-          "create": 9.561,
-          "edit": 10.394,
-          "assign": 11.08,
-          "archive": 9.746,
-          "reorder": 9.597
+          "create": 11.157,
+          "edit": 10.938,
+          "assign": 10.244,
+          "archive": 9.851,
+          "reorder": 9.886
         },
-        "lockedRefusalLocalMs": 16.019,
+        "lockedRefusalLocalMs": 13.61,
         "rapidMoves": {
           "count": 20,
-          "stackPaintMs": 183.28,
+          "stackPaintMs": 190.076,
           "peakLayers": 20,
           "visibleRowsBefore": 2,
           "visibleRowsAfter": 2
@@ -203,66 +203,66 @@
         "settlements": [
           {
             "verb": "create",
-            "clientMutationId": "mut_01kzbmxm8qf4qb3aagghwbrrt5",
+            "clientMutationId": "mut_01kzbqq5gye0ka59kfqbxcyybj",
             "operationHash": "sha256:9f6ccd09e05d732c1b80a861db6c3281ad3babb19aecfe7e88c741704b2fffa3",
             "retiredLayer": true
           },
           {
             "verb": "edit",
-            "clientMutationId": "mut_01kzbmxm9gfn4sgabjy3qq3j24",
+            "clientMutationId": "mut_01kzbqq5hrfqsvcqveg41zt850",
             "operationHash": "sha256:9205ee2708a8aee48d64714ee77602effaddcea65bd531f985a05e70160795d9",
             "retiredLayer": true
           },
           {
             "verb": "assign",
-            "clientMutationId": "mut_01kzbmxmabeawanaczta4wfgmx",
+            "clientMutationId": "mut_01kzbqq5jke4yahme9syy0e285",
             "operationHash": "sha256:93a4b72b3a9bd54608c624c89c3a6e76c4bbd1b93d176e46d2240836b5c9b112",
             "retiredLayer": true
           },
           {
             "verb": "reorder",
-            "clientMutationId": "mut_01kzbmxmb3eftb257spr7dnzr7",
+            "clientMutationId": "mut_01kzbqq5kde9tazj4v98ztvp09",
             "operationHash": "sha256:535af230e807ad93697bb79d853b7a9b017f25c5d9382a9925227718a89327f9",
             "retiredLayer": true
           },
           {
             "verb": "archive",
-            "clientMutationId": "mut_01kzbmxmbwe21a0xbpzsk2fw43",
+            "clientMutationId": "mut_01kzbqq5m7ecdthq45mz1t9s60",
             "operationHash": "sha256:ea61fc9522df550105697563d4af13476a243a999cd9e5b46337cdbed13616db",
             "retiredLayer": true
           },
           {
             "verb": "create-locked",
-            "clientMutationId": "mut_01kzbmxmcpefta81jz7rn9n1h2",
+            "clientMutationId": "mut_01kzbqq5ncek5t6589h8dn0bcn",
             "operationHash": "sha256:9f6ccd09e05d732c1b80a861db6c3281ad3babb19aecfe7e88c741704b2fffa3",
             "retiredLayer": true
           }
         ],
         "rapidSettlementIdentities": [
-          "mut_01kzbmxmdeez1r7f99r88gh4dy",
-          "mut_01kzbmxmdffkrsg4byavwwnt4v",
-          "mut_01kzbmxmdfesvsc9w5p775ghj5",
-          "mut_01kzbmxmdfe9cvs87zv7azmfbg",
-          "mut_01kzbmxmdfeqetfh3wze0tze1d",
-          "mut_01kzbmxmdffgxa2gtcr74465t8",
-          "mut_01kzbmxmdff6h965y3nrvktqzt",
-          "mut_01kzbmxmdff2fbbd4xbqnkmdw5",
-          "mut_01kzbmxmdffnnss2ks8cce9p10",
-          "mut_01kzbmxmdgfmn9kg40nwqtddcr",
-          "mut_01kzbmxmdgeqjt8hb7mpym2bz5",
-          "mut_01kzbmxmdgfvesw163stnqpp50",
-          "mut_01kzbmxmdgft1szeman3cysyf5",
-          "mut_01kzbmxmdge528dek3qhagcdjc",
-          "mut_01kzbmxmdgefztqygbxk5mbmkh",
-          "mut_01kzbmxmdgf9ebfjq3bxfhrq33",
-          "mut_01kzbmxmdge84tjbxp4gvsdvnv",
-          "mut_01kzbmxmdgec19fstaftzcs06w",
-          "mut_01kzbmxmdge7wrv5x0wkwfcx98",
-          "mut_01kzbmxmdhevsb3fchbr293q9h"
+          "mut_01kzbqq5p6e9rbqcx1g5yp78st",
+          "mut_01kzbqq5p6enfszekkgqeahyy5",
+          "mut_01kzbqq5p6f8cs64byd8dwxkp6",
+          "mut_01kzbqq5p6en7ac6chmakfj3re",
+          "mut_01kzbqq5p7fvbszppymwhq5t1q",
+          "mut_01kzbqq5p7fm5r30xhxdaz28t9",
+          "mut_01kzbqq5p7fmzrsffrbrwnfqz7",
+          "mut_01kzbqq5p7fvfagvmmyx680rg7",
+          "mut_01kzbqq5p7e83a2rq146s6hc02",
+          "mut_01kzbqq5p7ek5bgb41r4pt7h49",
+          "mut_01kzbqq5p7fxwb8wcf2tcj789t",
+          "mut_01kzbqq5p7fehadhbzgdaym018",
+          "mut_01kzbqq5p7egc9tcbftgatt0tm",
+          "mut_01kzbqq5p8f0rayhsm1fp2s2m0",
+          "mut_01kzbqq5p8fj387fb7z3xb2s5x",
+          "mut_01kzbqq5p8ekpsk6b2q725pyq8",
+          "mut_01kzbqq5p8fn586v6q5pgg7hsq",
+          "mut_01kzbqq5p8etcsvwb0179fbqf7",
+          "mut_01kzbqq5p8e89sn532bwp52md1",
+          "mut_01kzbqq5p8esntxzz6095qzm4q"
         ],
         "concurrentSettlementIdentities": [
-          "mut_01kzbmxna7f1k9mr3tcp3v2b4b",
-          "mut_01kzbmxna8evb8mgdjw30crf7n"
+          "mut_01kzbqq6kde0j8zhdmwgmx2gex",
+          "mut_01kzbqq6kde6xsgpcw5g69p7ze"
         ],
         "refusal": {
           "code": "KANBAN_CARD_LOCKED",
@@ -279,11 +279,11 @@
         "concurrentMoves": {
           "count": 2,
           "finalCard": {
-            "_id": "cards_01kzbmxm93fh9aja5th4xv98rk",
+            "_id": "cards_01kzbqq5hbe2sa3f70af4ta1ne",
             "_version": 29,
-            "_createdAt": 1786023694627,
-            "_updatedAt": 1786023695707,
-            "boardId": "boards_01kzbmxkxvej8bvh4tnws9ft2q",
+            "_createdAt": 1786026628650,
+            "_updatedAt": 1786026629762,
+            "boardId": "boards_01kzbqq55ze19aep2sp6qb09r9",
             "title": "Edited in IR",
             "column": "ready",
             "rank": 800,
@@ -299,7 +299,7 @@
       "status": "PASS",
       "evidence": {
         "processKilledWith": "SIGKILL",
-        "queuedIdentity": "mut_01kzbmxndbe93arp3aaz18rkqd",
+        "queuedIdentity": "mut_01kzbqq6pme1kan1ww5z9ydqen",
         "preKillLayers": 1,
         "relaunchLayers": 1,
         "postIntentRowsBeforeNetwork": 1,
