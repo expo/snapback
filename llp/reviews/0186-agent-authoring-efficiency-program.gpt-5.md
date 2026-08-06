@@ -79,3 +79,41 @@ Verdict (0187): NOT READY
 1. **MATERIAL, IN-DELTA — The combined sequence does not separate independent routing artifacts from golden-path dependencies.** LLP 0186 places the authoring skill, aliases, `/llms.txt`, and the LLP 0176 conversation-surface scaffold in one W2 ownership bucket; LLP 0187 T4 then schedules its funnel alongside W2 and the qualified npm promotion. But the scaffold depends on LLP 0179 S1 / LLP 0176 G2, while the external proof depends later on LLP 0176 G4. The cluster needs an explicit dependency graph: independent W2 routing artifacts after W0; scaffold only after G2/S1; external qualification only after the qualified publication and G4 prerequisites. Without that split, “W2 after W0” has no single executable meaning.
 
 Verdict (set): NOT READY
+## Round 3 — 2026-08-06 — delta round on revision (c) — verbatim review
+
+**Round record:** round 3 authorized by the author 2026-08-06 ("ok do one more round"), extending the original 2-round cap. Delta = the revision-(c) fix set, enumerated in the instruction file (sha256 6fe3ce4fd22c0eafb4f6181761cf43fdb3491cf64c92e4a2139fe0149bc01be5); IN-DELTA vs PRE-EXISTING classification required. Fresh reviewer (codex exec, gpt-5.6-sol, xhigh, read-only sandbox). Blindness instruction-based, self-attested.
+**Bound to revision (c):**
+- 0186 sha256 f7b3347739d5f7efe348449e76858970d8a0c6e1f328f0a85cfd15f0b7be7e7e
+- 0187 sha256 8d29d199c92cb0655d4d9279aad1b67042bdcdd2d1c71fe9060484ad0a4b4f41
+
+The revision-(c) hashes match the targets. The timing attribution, calibration-before-ratchet, and G2/S1 scaffold gate are materially improved and supported by the diaries and companion LLPs. The cluster is still not ready: its dependency/status model contradicts the repository, T1 remains internally inconsistent, and a pre-existing causal claim still exceeds the evidence. This verdict binds to `f7b3347739d5f7efe348449e76858970d8a0c6e1f328f0a85cfd15f0b7be7e7e` and `8d29d199c92cb0655d4d9279aad1b67042bdcdd2d1c71fe9060484ad0a4b4f41`.
+
+## LLP 0186
+
+1. **MATERIAL, IN-DELTA** — The revised W0 exit incorrectly requires an already-landed item. LLP 0186 lines 241–252 calls the closure fence open and says items 2 and 5 remain necessary for npm truth. But `issues/closed/20260804-guide-gap-published-closure-drift.md:90-99` records its resolution; `guide/conventions.md:66-95` contains the implemented contract; and LLP 0061 lines 456–461 records the registered check. Commit `8b821028a` landed this before revision (c), `cdef8ccf8`. W0’s current state and release sequence therefore remain false.
+
+2. **MATERIAL, IN-DELTA** — The W2 dependency split still conflates independently shippable artifacts. Lines 311–319 correctly state that `/llms.txt` depends on an unresolved LLP 0061 projection decision, corroborated by open `issues/20260806-guide-flat-projection-oversize.md:23-29`; lines 326–328 then group `/llms.txt` with the skill and aliases as shipping “right after W0.” The plan needs three lanes: skill/aliases after W0, `/llms.txt` after the LLP 0061 projection lands, and the scaffold after LLP 0176 G2 / LLP 0179 S1. G2 and S1 are indeed future work in Review (`llp/0176-…:564-596`, `llp/0179-…:547-555`).
+
+3. **DETAIL, PRE-EXISTING** — Lines 105–112 say both named diaries independently “hit this wall.” Tandem captured the TUS 403 (`diaries/0059-…:54-63`), while Relay Room explicitly says it corroborated the authority boundary but did not capture a device 403 (`diaries/0058-relay-room-…:220-224`; `issues/closed/20260805-guide-gap-dev-mode-asset-upload-anonymous-caller.md:104-108`). “Reached the same authority boundary” would preserve the evidence without overstating the receipt.
+
+Verdict (0186): NOT READY
+
+## LLP 0187
+
+1. **MATERIAL, IN-DELTA** — T1’s narrowed landed claim still contradicts both its new residual list and the repository. Lines 210–211 say the react-expo, react, and headless pages carry the console pointer; lines 233–237 then say react and headless still lack it. Repository inspection confirms the pointer only in `guide/clients/react-expo.md:83-97`. The other residuals are also accurate: `guide/realtime/live-queries.md:27-46` has the JS-live-query example without a relational pointer, and `guide/capabilities.md:63` lacks the literal `useSnapbackEphemeral` alias. The “pages the sweep touched” qualifier does not cure a worked-example bullet that still names untouched pages as landed.
+
+2. **MATERIAL, IN-DELTA** — The revised ownership summary still presents T5 as future work even though LLP 0061 already owns and implements it. LLP 0187 lines 47–51 says the closure fence “lands” as an amendment; T5 and sequencing repeat that prospective state at lines 305–315 and 364. The closed ticket, LLP 0061 implementation note, schema, conventions, and successful guide check show it is already landed. Revision (c) came after that implementation and should classify T5 as completed evidence, not planned work.
+
+3. **MATERIAL, PRE-EXISTING** — Sequencing overcommits LLP 0184 far beyond T3’s evidence. T3 lines 253–263 argues for the served catalog and generated guide tables—Phase 1 items 4–5—but sequencing lines 355–356 elevates all of LLP 0184 Phases 2–5 to the second-highest discoverability priority. Those phases include building new mutation controls and mediated secret carriers (`llp/0184-…:1158-1189`), not merely structural existence lookup. Narrow the dependency to the catalog/search/table work and any specifically required external-eval slice, or supply evidence for prioritizing the unrelated control-plane program.
+
+4. **DETAIL, PRE-EXISTING** — OQ4’s exact flat-projection measurement has already drifted: it records 718,436 bytes, while the checked-in `guide/guide-flat.generated.md` is 726,870 bytes at this revision. The 5.5× conclusion remains directionally valid, but the fact should be commit-bound or described approximately.
+
+Verdict (0187): NOT READY
+
+## Cluster (set-level)
+
+1. **MATERIAL, IN-DELTA** — The cluster still lacks a coherent executable dependency graph. Both documents treat T5 as pending although it landed before revision (c); 0186 calls `/llms.txt` immediately shippable despite its separate LLP 0061 gate; and 0187 lines 357–363 still schedules T4 beside an undifferentiated “W2 wave,” which includes the G2/S1-gated scaffold. The set should explicitly distinguish completed closure-fence work, W0-gated skill/alias work, projection-gated `/llms.txt`, and golden-path-gated scaffold work.
+
+2. **MATERIAL, PRE-EXISTING** — The two documents make incompatible claims about evidence strength. Revised 0186 lines 33–39 correctly says the 2.3× loss was not causally itemized and W1 must build that instrument. LLP 0187 lines 15–20 nevertheless calls the bakeoffs an “unusually clean measurement” showing losses were “almost entirely discoverability and packaging,” and lines 150–154 call discoverability “the whole gap.” Relay Room supplied the only lane timing and identifies its largest detour as the managed dev-loop defect (`diaries/0058-relay-room-…:157-181,295-298`); Tandem recorded no lane timing. LLP 0187 should claim strong replicated evidence of routing failures, not causal measurement of almost the entire competitive loss.
+
+Verdict (set): NOT READY

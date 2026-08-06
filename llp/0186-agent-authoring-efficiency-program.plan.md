@@ -6,7 +6,7 @@
 Error handling, Code generation, Packaging, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-05
-**Revised:** 2026-08-06 (c — post-loop targeted fixes from round-2 verified findings; revision (c) itself is unreviewed)
+**Revised:** 2026-08-06 (d — round-3 reconciliation: mid-loop landings (T5 fence 8b821028a) + verified round-3 findings; revision (d) itself is unreviewed)
 **Related:** LLP 0061 (agent-first guide), LLP 0130 (Convex parity standing
 decisions), LLP 0146 (agentic authoring affordances), LLP 0176 (Expo
 messaging golden-path program), LLP 0178 (generate-time authoring
@@ -22,8 +22,9 @@ application on — measured in wall-clock time and tokens against Convex,
 Supabase, PocketBase, and hand-rolled Postgres — and today it is measurably
 not. The 2026-08-05 paired bakeoffs
 (`diaries/0058-relay-room-expo-backend-bakeoff.diary.md` and
-`diaries/0059-tandem-expo-messaging-bakeoff.diary.md`; each arm ran its
-own agent and scripts) put the same WhatsApp-shaped brief through
+`diaries/0059-tandem-expo-messaging-bakeoff.diary.md`; each bakeoff ran
+its own agent and scripts — within relay-room, one agent ran both lanes
+back-to-back) put the same WhatsApp-shaped brief through
 Snapback and Convex. The instrumented lane pair is the relay-room
 diary's: **26m03s on Snapback vs 11m15s on Convex**, biased in Snapback's
 favor because Snapback-only orientation reading was excluded from the
@@ -80,7 +81,10 @@ carries its status as of 2026-08-06. Resolved items remain evidence — the
 benchmark measured the product as the agents found it — but the waves in
 this Plan sequence only what is still open, and the W0 exit is not met
 until the fixes are *demonstrated from published packages*, which no run
-has yet done.
+has yet done. Status facts here are dated snapshots, not live state: the
+fleet has repeatedly landed this Plan's items within hours of a revision
+(the fence in item 5 landed mid-review); the cited tickets are the
+source of truth.
 
 ### The measured gap is pre-product plumbing
 
@@ -108,8 +112,9 @@ can ever satisfy the asset-upload ownership check; the first upload dies
 with a bare TUS 403 and the only in-app resolution was rebuilding the demo
 into sessions mode with a 138-line trusted-local token broker
 (`issues/closed/20260805-guide-gap-dev-mode-asset-upload-anonymous-caller.md`).
-Both diaries hit this wall independently — it is the single
-highest-signal defect in the set.
+Tandem captured the 403 directly; relay-room independently corroborated
+the same authority boundary without a device 403 receipt — it is the
+single highest-signal defect in the set.
 
 ### Three friction classes dominate agent cost
 
@@ -238,17 +243,19 @@ agent installs.
    diagnostics; pinned by `packages/snapback-cli/expo-dev-loop.test.mjs`).
    Cheapest fix in the set against the dimension diary 0058 scored
    62 vs 96.
-5. **Open.** Version-fence guide pages against the published closure
-   (`issues/20260804-guide-gap-published-closure-drift.md`) — the ticket
-   traces three of one arm's four largest time sinks to the guide teaching
-   primitives the installed packages don't contain. Design owned by LLP
-   0187 T5 (as a LLP 0061 frontmatter-contract amendment); sequenced here
-   with item 2 so the fence and the closure it fences land together.
+5. **Landed 2026-08-06** (`8b821028a` — `guide/published-closure.json`,
+   the `since:`/`unreleased:` frontmatter contract, the `check-guide.mjs`
+   consistency join and its test;
+   `issues/closed/20260804-guide-gap-published-closure-drift.md`). The
+   ticket traced three of one arm's four largest time sinks to the guide
+   teaching primitives the installed packages don't contain. The fence
+   landed as exactly the LLP 0061 amendment LLP 0187 T5 prescribed —
+   hours after this Plan sequenced it as open, mid-review.
 
 Exit (unchanged, and not yet met): a cold agent on a fresh, checkout-free
 machine reaches a live, phone-reachable backend from published packages
 with zero corrections not caused by its own authoring mistakes. The
-landed items make this *plausible from source*; only items 2 and 5 plus a
+landed items make this *plausible from source*; only item 2 plus a
 verifying cold run make it *true from npm*.
 
 ### W1 — Competitive benchmark and ratchet (owned here)
@@ -308,24 +315,23 @@ internal LLP tooling only), and no competitor-vocabulary indexing.
   competitor-vocabulary half; LLP 0187 T1 owns the inward rule for
   Snapback's own vocabulary splits, and the initial eval cases land once,
   here.
-- **`/llms.txt`** served beside the guide endpoints, pointing at the
-  capability index and a flat projection, so agents that probe the
-  convention find the corpus instead of nothing. Dependency, stated
-  honestly: `guide/guide-flat.generated.md` is ~718 KB against LLP 0061's
-  one-request reading premise, so `/llms.txt` cannot simply point at
-  today's flat file for context-limited agents
-  (`issues/20260806-guide-flat-projection-oversize.md`); the diet/tier
-  design is a LLP 0061 amendment, and this item consumes whichever
-  projection 0061 lands.
+- **`/llms.txt`** served beside the guide endpoints, so agents that probe
+  the convention find the corpus instead of nothing. Two stages:
+  an index-only `/llms.txt` (pointing at the capability index, which
+  holds 0061's enforced 40 KiB budget) ships right after W0; pointing at
+  a whole-surface flat projection waits on LLP 0061's diet/tier
+  amendment, because `guide/guide-flat.generated.md` (~727 KB at this
+  writing, and growing) has outgrown 0061's one-request reading premise
+  (`issues/20260806-guide-flat-projection-oversize.md`).
 - **Golden-path scaffold:** a `create-snapback-app` template carrying the
   LLP 0176 conversation surface as runnable, CI-verified code. Agents are
   far cheaper editing a working example than composing from prose, and
   published templates/examples are also what enters the next training
   cut. (Relation: LLP 0062's generated-app CLI; the template is a
-  consumer of 0176's gates, not a fork of them.) This is the one W2 item
-  gated on companion work landing — the conversation surface is LLP 0176
-  G2 / LLP 0179 S1, both future — while the skill, aliases, and
-  `/llms.txt` are independent of it and ship right after W0.
+  consumer of 0176's gates, not a fork of them.) W2 therefore has three
+  lanes: the skill, aliases, and index-only `/llms.txt` ship right after
+  W0; the full-projection `/llms.txt` completes when 0061's projection
+  lands; the scaffold waits on LLP 0176 G2 / LLP 0179 S1.
 
 ### W3 — Errors as the primary docs channel (sequencing ask)
 
@@ -395,9 +401,8 @@ Per-iteration costs, weighted by how many times an agent iterates:
 | Golden path, descriptor, zero-config, catalog | 0176, 0179, 0181, 0184 | consume; re-measure via W1 as gates land |
 
 W0 and W1 are parallel and first: W0 (now reduced to the qualified npm
-promotion, the closure fence, and the verifying cold run) because it
-dominates the measured gap, W1 because every later claim of improvement
-needs the instrument.
+promotion and the verifying cold run) because it dominates the measured
+gap, W1 because every later claim of improvement needs the instrument.
 W2's skill can ship immediately after W0 (it should teach the fixed
 paths, not the workarounds). W1 re-runs are the falsification checkpoint
 for everything else: if a wave lands and the lane doesn't get cheaper,

@@ -23,6 +23,7 @@ tree in place, read-only, no redaction.
 |---|---|---|---|
 | 1 | (a) 0186 `33410b51…`, 0187 `90a9616c…` | NOT READY / NOT READY / NOT READY | NOT READY / NOT READY / NOT READY |
 | 2 (delta) | (b) 0186 `73d2f0ee…`, 0187 `c5959200…` | **READY / READY / READY** | NOT READY / NOT READY / NOT READY |
+| 3 (delta, author-extended) | (c) 0186 `f7b33477…`, 0187 `8d29d199…` | NOT READY / NOT READY / NOT READY | NOT READY / NOT READY / NOT READY |
 
 Round-1 instruction sha256 `d24b139c…`; round-2 (delta enumeration +
 IN-DELTA/PRE-EXISTING classification) instruction sha256 `872764797…`.
@@ -66,15 +67,50 @@ targeted fixes for the verified round-2 findings:
 | Claude set-2: T1/W2 alias boundary blurs on workload vocabulary | DETAIL, IN-DELTA | Not fixed; noted for the next revision — T7 standing rule + W2 landing covers any register, one sentence would pin it |
 | Claude set-3: 0187's leverage ranking depends on W1's instrument (OQ1 risk) | DETAIL, PRE-EXISTING | Not fixed; the falsification-checkpoint sentence in 0186 Sequencing is the hook if the author wants it named |
 
+## Round 3 (author-extended) and the treadmill finding
+
+The author authorized a third round to review revision (c). Both families
+returned NOT READY — but the findings converged on a single dominant
+cause that is not a defect of the documents' decisions: **the fleet lands
+this program's own work items faster than review rounds complete.** The
+published-closure fence (0186 W0 item 5 / 0187 T5) landed as commit
+`8b821028a` — an ancestor of the very commit that produced revision (c),
+18 minutes earlier — so both documents described landed work as
+open/future at their own tree state. Round 3 also verified: the v.array()
+diagnostic repair landed (`fd751aac5`), LLP 0179 was Accepted
+(`c1251d838`), the flat guide grew again (726,870 B), and the host-ops
+hand count drifted a second time (36 served ops vs the page's "thirty") —
+live confirmation of 0187 T3's own thesis. Genuine round-3 defects beyond
+staleness: 0186's W2 `/llms.txt` lane needed an index-first/projection
+split, 0187's T1 console bullet contradicted its own residual list,
+0187's sequencing over-committed LLP 0184 Phases 2–5, and the two
+documents disagreed on evidence strength (0187's "unusually clean
+measurement" vs 0186's qualitative-attribution label). Every finding was
+orchestrator-verified against the repository before revision.
+
+**Revision (d) — applied post-round-3, UNREVIEWED** (0186 sha256
+`18e8a6c0…`, 0187 sha256 `07f448df…`): reconciles the mid-loop landings
+(item 5 / T5 marked LANDED with receipts; W0 remainder = item 2 + cold
+run), applies the verified round-3 fixes (three-lane W2 split, T1 bullet
+consistency, 0184 scope narrowed to Phase 1 items 4–5 + the Phase 5
+external-eval slice, evidence-strength alignment scoping the causal claim
+to the one scored comparison, arms/lanes provenance, 403 receipt
+precision, second-drift citation, approximate dated sizes), and adds a
+standing "status facts are dated snapshots; tickets are the source of
+truth" discipline to both dating notes — the structural answer to the
+treadmill.
+
 ## Proposed next step (author decides; this loop applies nothing)
 
-Recommend **stay `Review`** for both documents: every MATERIAL finding
-from both families is either fixed in revision (c) or was round-1
-material fixed in (b); the residue is DETAIL-grade. The honest caveat is
-that revision (c) is unreviewed — options are (1) accept the documents at
-(c) on the author's own reading, (2) authorize one further delta round to
-review (c), or (3) leave both in `Review` until the first W0/W1 execution
-results test the Plan's claims in practice. Revert-to-Draft is not
-proposed: no reviewer identified a defective program-level decision;
-round-2 Claude explicitly found the program design sound and the evidence
-base verified.
+**Stop reviewing; recommend stay `Review` and accept on the author's own
+reading of revision (d), or accept after the first W0/W1 execution
+receipts.** Three rounds produced monotonically shrinking defect classes:
+round 1 = real evidence/ownership defects; round 2 = altitude
+disagreement plus verified precision defects; round 3 = almost entirely
+mid-loop repository movement. Each further round now reviews a moving
+target and will keep finding staleness that is not a decision defect —
+the documents' own dated-snapshot discipline (added in (d)) is the
+correct terminal state for a Plan whose backlog the fleet is actively
+executing. Revert-to-Draft is not proposed: across three rounds and six
+reviews, no reviewer identified a defective program-level decision, and
+round-2 Claude explicitly verified the program design and evidence base.
