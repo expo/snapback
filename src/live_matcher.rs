@@ -182,6 +182,21 @@ pub(crate) fn live_subscription_may_be_affected(
         // matcher conservative rather than accidentally claiming §2.5's
         // future live dependency implementation in this checkpoint.
         FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatch(_)) => true,
+        // V2 keeps fixed table-granular whole-batch replacement over the
+        // union of both owner dependency sets. A relevant change resnapshots
+        // the complete tuple; an unrelated table does not wake it.
+        FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatchV2(plan)) => {
+            changes.iter().any(|change| {
+                plan.nodes.iter().any(|node| match node {
+                    crate::manifest::SnapshotBatchNodeV2::BoundedChildren(node) => {
+                        change.table == node.parent_table || change.table == node.child_table
+                    }
+                    crate::manifest::SnapshotBatchNodeV2::RelationalQuery(node) => {
+                        change.table == node.root || change.table == node.joined
+                    }
+                })
+            })
+        }
         FunctionRuntime::HostPlan(HandlerPlan::SearchQuery(plan)) => {
             changes.iter().any(|change| change.table == plan.table)
         }

@@ -25768,6 +25768,96 @@ fn bounded_projection_result_contract(
     }
 }
 
+fn snapshot_batch_relational_result_contract(
+    root: &crate::manifest::TableManifest,
+    joined: &crate::manifest::TableManifest,
+    plan: &crate::manifest::RelationalQueryPlan,
+) -> crate::manifest::ResultValueContract {
+    use crate::manifest::{
+        FieldType, JoinKind, ProjectionSource, ResultObjectFieldContract, ResultValueContract,
+    };
+    let scalar = |table: &crate::manifest::TableManifest,
+                  field_name: &str|
+     -> ResultValueContract {
+        if field_name == "_id" {
+            return ResultValueContract::Id {
+                table: table.name.clone(),
+            };
+        }
+        let field = table
+            .field(field_name)
+            .expect("relational projection field validated before contract derivation");
+        let value = match &field.field_type {
+            FieldType::String => ResultValueContract::String {
+                max_bytes: 1_048_576,
+            },
+            FieldType::Boolean => ResultValueContract::Boolean,
+            FieldType::Integer => ResultValueContract::Integer {
+                min: -9_007_199_254_740_991,
+                max: 9_007_199_254_740_991,
+            },
+            FieldType::Real => ResultValueContract::FiniteReal {
+                min: -f64::MAX,
+                max: f64::MAX,
+            },
+            FieldType::Principal => ResultValueContract::Principal,
+            FieldType::Id { table } => ResultValueContract::Id {
+                table: table.clone(),
+            },
+            FieldType::AssetRef { .. } => ResultValueContract::AssetRef,
+            FieldType::Vector { .. } | FieldType::Json | FieldType::RelationIncarnation { .. } => {
+                unreachable!("non-portable relational projection refused before derivation")
+            }
+        };
+        if field.optional {
+            ResultValueContract::Union {
+                variants: vec![ResultValueContract::Null, value],
+            }
+        } else {
+            value
+        }
+    };
+    let nullable = |value: ResultValueContract| match &value {
+        ResultValueContract::Null => value,
+        ResultValueContract::Union { variants }
+            if variants
+                .iter()
+                .any(|variant| matches!(variant, ResultValueContract::Null)) =>
+        {
+            value
+        }
+        _ => ResultValueContract::Union {
+            variants: vec![ResultValueContract::Null, value],
+        },
+    };
+    let fields = plan
+        .projection
+        .iter()
+        .map(|leaf| ResultObjectFieldContract {
+            name: leaf.name.clone(),
+            required: true,
+            value: match &leaf.source {
+                ProjectionSource::RootField(name) => scalar(root, name),
+                ProjectionSource::JoinedField(name) => {
+                    let value = scalar(joined, name);
+                    if plan.join_kind == JoinKind::Left {
+                        nullable(value)
+                    } else {
+                        value
+                    }
+                }
+                ProjectionSource::Literal(value) => ResultValueContract::Literal {
+                    value: value.clone(),
+                },
+            },
+        })
+        .collect();
+    ResultValueContract::Object {
+        fields,
+        allow_extra: false,
+    }
+}
+
 /// Reconcile authored order uses into the one schema-level UTF-8 ceiling for
 /// each `(table, field)`. The authoring member lives on `OrderExpr` because a
 /// cursor profile is what needs the bound, but storage must never receive two
@@ -25852,6 +25942,18 @@ fn order_field_bounds_from_functions(
             FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatch(plan)) => {
                 for node in &plan.nodes {
                     register(&node.child_table, &node.order)?;
+                }
+            }
+            FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatchV2(plan)) => {
+                for node in &plan.nodes {
+                    match node {
+                        crate::manifest::SnapshotBatchNodeV2::BoundedChildren(node) => {
+                            register(&node.child_table, &node.order)?;
+                        }
+                        crate::manifest::SnapshotBatchNodeV2::RelationalQuery(node) => {
+                            register(&node.root, &node.order)?;
+                        }
+                    }
                 }
             }
             _ => {}
@@ -26704,6 +26806,157 @@ fn validate_function_schema_references(
                         "SNAPBACK_SNAPSHOT_BATCH_RESULT_CONTRACT_INVALID",
                         "query",
                         "snapshot batch visible nodes must exactly match the declaration-ordered cursor-free page tuple",
+                    ));
+                }
+            }
+            FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatchV2(plan)) => {
+                // @ref LLP 0157#d1--the-node-algebra — schema admission is
+                // per owner class. The composite adds no weakened relational
+                // or bounded-child plan shape and derives its heterogeneous
+                // visible tuple in declaration order.
+                let snapshot_projection_outputs = manifest
+                    .projections
+                    .iter()
+                    .map(|projection| projection.output_table.clone())
+                    .collect();
+                let mut expected_nodes = Vec::with_capacity(plan.nodes.len());
+                for node in &plan.nodes {
+                    match node {
+                        crate::manifest::SnapshotBatchNodeV2::BoundedChildren(node) => {
+                            let parent = table(&node.parent_table)?;
+                            let child = table(&node.child_table)?;
+                            validate_bounded_children_node_schema_references(
+                                node,
+                                parent,
+                                child,
+                                &snapshot_projection_outputs,
+                            )?;
+                            use crate::manifest::{ResultObjectFieldContract, ResultValueContract};
+                            expected_nodes.push(ResultValueContract::Object {
+                                fields: vec![
+                                    ResultObjectFieldContract {
+                                        name: "parent".to_owned(),
+                                        required: true,
+                                        value: bounded_projection_result_contract(
+                                            parent,
+                                            &node.parent_projection,
+                                        ),
+                                    },
+                                    ResultObjectFieldContract {
+                                        name: "children".to_owned(),
+                                        required: true,
+                                        value: ResultValueContract::Array {
+                                            element: Box::new(bounded_projection_result_contract(
+                                                child,
+                                                &node.child_projection,
+                                            )),
+                                            max_items: node.take as usize,
+                                        },
+                                    },
+                                ],
+                                allow_extra: false,
+                            });
+                        }
+                        crate::manifest::SnapshotBatchNodeV2::RelationalQuery(node) => {
+                            let mut root_filters = node.root_visibility.clone();
+                            root_filters.extend(node.root_filters.iter().cloned());
+                            query(&QueryPlan {
+                                table: node.root.clone(),
+                                filters: root_filters,
+                                order: node.order.clone(),
+                                limit: Some(node.take as usize),
+                                membership_filters: Vec::new(),
+                                indexed_by: Some(node.root_index.clone()),
+                            })?;
+                            for pair in &node.join_on {
+                                field(&node.root, &pair.root_field)?;
+                            }
+                            let mut joined_filters: Vec<crate::manifest::FilterExpr> = node
+                                .join_on
+                                .iter()
+                                .map(|pair| crate::manifest::FilterExpr {
+                                    field: pair.joined_field.clone(),
+                                    op: crate::manifest::FilterOp::Eq,
+                                    value: ValueExpr::Literal(Value::Null),
+                                })
+                                .collect();
+                            joined_filters.extend(node.joined_visibility.iter().cloned());
+                            query(&QueryPlan {
+                                table: node.joined.clone(),
+                                filters: joined_filters,
+                                order: Vec::new(),
+                                limit: Some(1),
+                                membership_filters: Vec::new(),
+                                indexed_by: None,
+                            })?;
+                            let joined = table(&node.joined)?;
+                            let key = node
+                                .join_on
+                                .iter()
+                                .map(|pair| pair.joined_field.as_str())
+                                .collect::<Vec<_>>();
+                            if !joined.indexes.iter().any(|candidate| {
+                                candidate.name == node.joined_index
+                                    && candidate.unique
+                                    && candidate
+                                        .fields
+                                        .iter()
+                                        .map(String::as_str)
+                                        .eq(key.iter().copied())
+                            }) {
+                                return Err(SnapbackError::error(
+                                    "SNAPBACK_RELATIONAL_CARDINALITY_UNPROVEN",
+                                    "runtime",
+                                    "snapshot batch v2 relational node requires its exact unique joined index",
+                                ));
+                            }
+                            for leaf in &node.projection {
+                                match &leaf.source {
+                                    crate::manifest::ProjectionSource::RootField(name) => {
+                                        field(&node.root, name)?;
+                                    }
+                                    crate::manifest::ProjectionSource::JoinedField(name) => {
+                                        field(&node.joined, name)?;
+                                    }
+                                    crate::manifest::ProjectionSource::Literal(_) => {}
+                                }
+                            }
+                            let root = table(&node.root)?;
+                            use crate::manifest::ResultValueContract;
+                            expected_nodes.push(ResultValueContract::Array {
+                                element: Box::new(snapshot_batch_relational_result_contract(
+                                    root, joined, node,
+                                )),
+                                max_items: node.take as usize,
+                            });
+                        }
+                    }
+                }
+                let actual_nodes = match &function.result_contract {
+                    crate::manifest::FunctionResultContract::Records {
+                        record: crate::manifest::ResultValueContract::Union { variants },
+                        ..
+                    } => variants
+                        .get(1)
+                        .and_then(|visible| match visible {
+                            crate::manifest::ResultValueContract::Object { fields, .. } => {
+                                fields.get(1)
+                            }
+                            _ => None,
+                        })
+                        .and_then(|field| match &field.value {
+                            crate::manifest::ResultValueContract::Tuple { elements } => {
+                                Some(elements)
+                            }
+                            _ => None,
+                        }),
+                    _ => None,
+                };
+                if actual_nodes != Some(&expected_nodes) {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_SNAPSHOT_BATCH_RESULT_CONTRACT_INVALID",
+                        "query",
+                        "snapshot batch v2 visible nodes must exactly match the declaration-ordered mixed cursor-free page tuple",
                     ));
                 }
             }
@@ -29199,6 +29452,21 @@ fn plan_io(definition: &FunctionDefinition) -> (Vec<String>, Vec<String>) {
                 .nodes
                 .iter()
                 .flat_map(|node| [node.parent_table.clone(), node.child_table.clone()])
+                .collect::<BTreeSet<_>>();
+            (reads.into_iter().collect(), Vec::new())
+        }
+        FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatchV2(plan)) => {
+            let reads = plan
+                .nodes
+                .iter()
+                .flat_map(|node| match node {
+                    crate::manifest::SnapshotBatchNodeV2::BoundedChildren(node) => {
+                        [node.parent_table.clone(), node.child_table.clone()]
+                    }
+                    crate::manifest::SnapshotBatchNodeV2::RelationalQuery(node) => {
+                        [node.root.clone(), node.joined.clone()]
+                    }
+                })
                 .collect::<BTreeSet<_>>();
             (reads.into_iter().collect(), Vec::new())
         }
