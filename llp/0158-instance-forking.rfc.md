@@ -6,15 +6,27 @@
 experience, Developer experience, CLI, Documentation, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-03
-**Revised:** 2026-08-05 (post-acceptance review repairs: the fork-private
-asset durability chain now fsyncs both `assets/blobs` and its `assets` parent,
-the crash-cut matrix includes asset-bearing publication, and recovery deletes
-only UUID-suffixed, sentinel-proved staging directories while preserving
-same-prefix bystanders. These corrections retain Accepted design status and do
-not publish the derived-fork capability.); 2026-08-05 (author decisions, LLP 0185 Phase 0 items 2 and 6,
-ratified by Charlie 2026-08-05: the earlier Draft → Review transition and LLP
-0005 review loop were subsequently completed by v0.19's Accepted transition;
-the publication mechanism
+**Revised:** 2026-08-06 (**Accepted** by the author after the LLP 0005
+loop converged: round-2 independent GPT-family review returned NOT-READY
+with eight verified findings — including two code blockers (recover's
+staging-reap widening; the missing `assets/` fsync link) — all fixed and
+landed, and the round-3 delta re-review returned READY with every finding
+independently confirmed resolved and no new findings
+(`llp/reviews/0158-instance-forking.codex.md`). Acceptance covers the
+same-`appId` derived-deployment identity model and the local F0/F1
+contract this document records; it is not a capability publication —
+`operating.instance-forks` stays at target `none` until LLP 0185 Phase 6
+completes its remaining gates, and
+`agent_safe_derived_deployment_fork_v1` remains wholly `Missing` behind its
+distinct qualification chain.); 2026-08-05 (post-acceptance review repairs:
+the fork-private asset durability chain now fsyncs both `assets/blobs` and its
+`assets` parent, the crash-cut matrix includes asset-bearing publication, and
+recovery deletes only UUID-suffixed, sentinel-proved staging directories while
+preserving same-prefix bystanders. These corrections retain Accepted design
+status and publish no capability.); 2026-08-05 (author decisions, LLP 0185
+Phase 0 items 2 and 6, ratified by Charlie 2026-08-05: the earlier Draft →
+Review transition and LLP 0005 review loop were completed by the 2026-08-06
+Accepted transition; and the publication mechanism
 governing `operating.instance-forks` is the **LLP 0061 guide
 capability-index claim** — the existing index row, currently target `none`,
 is the claim surface Phase 6 item 6 will move, gated on Phase 6 item 0's
@@ -281,13 +293,14 @@ LLP 0083, LLP 0088, LLP 0097 (ephemeral data branches — the implemented
 in-app sibling this RFC must position against), LLP 0099, LLP 0139, LLP 0146,
 LLP 0162, LLP 0163, LLP 0164, LLP 0165, LLP 0185
 
-> **Accepted design; capability not published.** The local F0a/F0b/F1 design,
-> including the same-`appId` derived-deployment amendment below, is accepted.
-> The local program through LLP 0185 Phase 5 is implemented in source.
-> Acceptance records the contract and landed substrate; it commits no schedule
-> or priority and is not a capability advertisement.
-> `agent_safe_derived_deployment_fork_v1` remains wholly `Missing` until its
-> distinct qualification and publication gates pass.
+> **Accepted but unpublished.** The local F0a/F0b/F1 design, including the
+> same-`appId` derived-deployment amendment below, was Accepted on 2026-08-06
+> after a converged LLP 0005 loop. The local program through LLP 0185 Phase 5
+> is implemented in source. Acceptance records the contract and landed
+> substrate; it commits no schedule or priority and is not a capability
+> advertisement. `operating.instance-forks` stays at target `none`, and
+> `agent_safe_derived_deployment_fork_v1` remains wholly `Missing`, until
+> their distinct LLP 0185 qualification and publication gates pass.
 
 ## Summary
 
@@ -1547,7 +1560,7 @@ distinct qualification and publication gates pass.
 
 ## Status
 
-**Accepted 2026-08-05.** F0a, F0b, and F1 implement the local safety
+**Accepted 2026-08-06.** F0a, F0b, and F1 implement the local safety
 substrate, CLI consumer, dated fleet dogfood, guide, fork-aware harness, and
 the LLP 0185 lifecycle/resource-bound increments, concurrent agent/worktree
 ergonomics, first exact net-diff slice, fork-private asset custody, and the
@@ -1555,8 +1568,9 @@ post-acceptance durability/recovery corrections. Remaining Phase-4 filters,
 pagination, human projection, authorizer-backed completeness, and F2 hosted
 work stay open under LLP 0185. Acceptance records the approved design, the
 same-`appId` derived-deployment amendment, and the landed local substrate. It
-does not advertise `agent_safe_derived_deployment_fork_v1`; that capability
-remains wholly `Missing` behind its separate qualification/publication gate.
+does not advertise a capability: `operating.instance-forks` remains at target
+`none`, and `agent_safe_derived_deployment_fork_v1` remains wholly `Missing`,
+behind their separate qualification/publication gates.
 The earliest local-only `clonefile` validation and its corrected claim remain
 in §Spike evidence. The same-day 0097 reconciliation narrowed the claimed
 territory. A
@@ -1566,8 +1580,10 @@ round 6 after a strictly shrinking defect set — 4 blockers + 6 majors in
 round 1 down to clean; two convergent cross-family findings; artifacts
 under `llp/reviews/0158-instance-forking.{claude,codex}.md`). Both
 families' shared closing guidance authorized the now-landed F0a after OQ9's
-author decision. The 2026-08-05 independent implementation review and explicit
-author acceptance complete the LLP 0005 transition to Accepted.
+author decision. The author made the Draft → Review transition on
+2026-08-05 (LLP 0185 Phase 0 item 2) and accepted the document on
+2026-08-06 after the loop converged (round-2 findings all resolved,
+round-3 delta READY).
 
 **Acceptance basis.** All three graduation criteria hold:
 
@@ -1616,4 +1632,7 @@ demonstrated schema/function-divergent, out-of-process value beyond LLP 0097's
 in-app branch. All three empirical graduation criteria are satisfied. The OQ4
 DO-bookmark spike is F2 hosted work, while OQ2's `CaptureOnly` residual and
 bypass closure are sequenced by LLP 0185/0164 rather than conditions of this
-design acceptance; neither may be advertised before its own gate.
+design acceptance. The author made the Draft → Review transition on
+2026-08-05 and accepted the document on 2026-08-06. Neither the OQ4/OQ2
+residuals nor the landed F0b `DenyAll` implementation may be advertised before
+its own qualification and publication gate.

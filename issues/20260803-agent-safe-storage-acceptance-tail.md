@@ -509,9 +509,12 @@ publish a capability on its own.
 - Publication mechanism decided (LLP 0185 Phase 0 item 6): the LLP 0061
   guide capability-index claim governs `operating.instance-forks`; no LLP
   0113 manifest or LLP 0134 registration act for the local claim.
-- LLP 0158's earlier Draft → Review author ruling is superseded by its v0.19
-  Accepted transition after independent implementation review. The separate
-  derived-fork capability remains `Missing` pending its own publication gates.
+- **LLP 0158 ACCEPTED 2026-08-06** after the loop converged: round-2
+  independent review NOT-READY (8 verified findings, 2 code blockers, all
+  fixed and landed), round-3 delta READY with no new findings. Phase 6
+  item 0's first governing-document bullet is satisfied. The separate
+  derived-fork capability remains `Missing` pending its own qualification and
+  publication gates.
 - LLP 0024/0030 fork-field stability re-verified against the Phase 0
   freeze: `schemas/host-ready.schema.json` is byte-unchanged since
   `fbb596876`, and the only `src/host_ops.rs` change (`2af0dc9fc`) is an
