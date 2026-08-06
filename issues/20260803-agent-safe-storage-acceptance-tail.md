@@ -418,21 +418,34 @@ state changes above `Missing` are made here.
 Recorded as input evidence for the owners above; it does not close a row or
 publish a capability on its own.
 
-- **Row 5:** module and live-server fixtures prove parent commits after the
-  fork point stay invisible to the fork, with bidirectional isolation, diff
-  attribution, concurrent-lifecycle determinism, stale-registry completion,
-  distinct-port concurrency, SIGKILL, and missing-ready outcomes.
-- **Row 6:** the shared derived-fork host-operation gate is tested per family,
-  including manual cron, provider-adapter selection, and an unclassified-op
-  fail-closed rule. Push-receipt maintenance, a VM-level JS fetch negative,
-  and `CaptureOnly` for this class remain outside that dated evidence.
-- **Row 7:** live, stale, and revoked parent grants are absent after mint, and
-  bidirectional parent/fork bearer replay is refused with data-level no-commit
-  proof. Production wired-auth legs remain independently gated.
-- **Row 8:** fork-count, per-fork bytes, total bytes, diff work, and renewal
-  lifetime refuse deterministically with observed usage; bounded renewal has a
-  seven-cut recovery matrix. Limit ratification, true disk-pressure simulation,
-  and the separate digest-work/replay-floor legs remain with their owners.
+- **Row 5 (fork isolation):** the derived post-fork-parent-write invisibility
+  fixture now exists at two levels —
+  `instance_fork::tests::parent_commits_after_the_fork_point_are_invisible_to_the_published_fork`
+  (module) and `live_parent_writes_after_fork_point_never_appear_in_the_fork`
+  (`tests/instance_fork_cli_v1.rs`, live-server bidirectional with diff
+  attribution). Concurrent-lifecycle determinism (drop races one-winner,
+  stale-registry completion, distinct-port simultaneous forks, SIGKILL and
+  missing-ready outcomes) has dated tests in the same files.
+- **Row 6 (effect quarantine):** the shared host-op gate
+  (`deny_derived_fork_host_op`) is behaviorally tested per family, including
+  manual cron, provider-adapter selection, and the named-op unclassified
+  fail-closed rule. Open bypass negatives: push-receipt maintenance on a
+  ledger-bearing fork; a VM-level JS-action fetch negative; `CaptureOnly`
+  remains unimplemented for this class.
+- **Row 7 (identity/authority):** live, stale, and revoked parent grant
+  authority proven absent post-mint; bidirectional live-HTTP bearer replay
+  (parent↔fork) proven refused with data-level no-commit checks. Production
+  wired-auth legs remain open.
+- **Row 8 (resource containment):** create admission (fork-count, per-fork
+  bytes, total bytes), diff-work bound, and renewal max-lifetime cap all
+  refuse deterministically with observed usage
+  (`SNAPBACK_FORK_RESOURCE_LIMIT_REFUSED`); bounded renewal has a 7-cut
+  crash-recovery matrix; creation shares the renewal lifetime cap (author
+  rulings 2026-08-05: limit constants ratified; integrated sandbox tier
+  deferred until demand). Still open: a true ENOSPC/disk-pressure simulation
+  (not portably automatable — interrupted-copy behavior is covered by the
+  20-cut publication crash matrix instead); digest-work/replay-floor legs stay
+  with their owners above.
 
 ## Review and publication gates
 

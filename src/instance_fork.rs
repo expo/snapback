@@ -28,17 +28,18 @@ pub const SERVER_EXPIRED_CODE: &str = "SNAPBACK_FORK_SERVER_EXPIRED";
 pub const RESOURCE_LIMIT_REFUSED_CODE: &str = "SNAPBACK_FORK_RESOURCE_LIMIT_REFUSED";
 pub const RENEW_EXPIRED_CODE: &str = "SNAPBACK_FORK_RENEW_EXPIRED";
 
-/// Provisional maximum total lifetime for a managed fork, binding creation
-/// through every renewal (LLP 0185 Phase 3 item 6's "configured maximum").
-/// The concrete bound is an author decision pending LLP 0185 OQ1; renewals
-/// past it refuse with [`RESOURCE_LIMIT_REFUSED_CODE`] rather than silently
-/// extending forever.
+/// Maximum total lifetime for a managed fork, binding creation through every
+/// renewal (LLP 0185 Phase 3 item 6's "configured maximum"; author-ratified
+/// 2026-08-05). Requests past it refuse with [`RESOURCE_LIMIT_REFUSED_CODE`]
+/// rather than silently extending forever. LLP 0185 OQ1 (whether agent
+/// fleets need a different default) stays open until Phase 2b observes real
+/// fleets.
 pub const MANAGED_FORK_MAX_LIFETIME_MS: u64 = 7 * 86_400_000;
 
-/// Provisional LLP 0185 Phase 3 item 7 resource bounds. The concrete values
-/// are author decisions pending ratification; the mechanism — deterministic
-/// refusal before any staging I/O, with the usage that triggered it in the
-/// diagnostic — is the contract.
+/// LLP 0185 Phase 3 item 7 resource bounds (author-ratified 2026-08-05).
+/// The mechanism — deterministic refusal before any staging I/O, with the
+/// usage that triggered it in the diagnostic — is the contract; explicit
+/// CLI flags override per invocation.
 pub const MANAGED_FORK_MAX_COUNT: usize = 16;
 pub const MANAGED_FORK_MAX_FORK_BYTES: u64 = 4 * 1024 * 1024 * 1024;
 pub const MANAGED_FORK_MAX_TOTAL_BYTES: u64 = 16 * 1024 * 1024 * 1024;
@@ -1528,6 +1529,20 @@ pub fn publish_managed(
             "SNAPBACK_FORK_TTL_INVALID",
             "fork expiry must be later than creation and within the portable timestamp range",
         ));
+    }
+    // Creation shares the same maximum total lifetime renewal is bound by
+    // (author ruling 2026-08-05) — otherwise the renewal cap would be
+    // decorative for a fork simply created long-lived in the first place.
+    if expires_at_ms.saturating_sub(now_ms) > MANAGED_FORK_MAX_LIFETIME_MS {
+        return Err(fork_error(
+            RESOURCE_LIMIT_REFUSED_CODE,
+            "fork create refused: the requested TTL exceeds the maximum fork lifetime",
+        )
+        .with_details(json!({
+            "resource": "fork-lifetime",
+            "requestedExpiresAtMs": expires_at_ms,
+            "maxLifetimeMs": MANAGED_FORK_MAX_LIFETIME_MS,
+        })));
     }
     publish_with_options(
         source_database,
@@ -4130,6 +4145,39 @@ mod tests {
             error.diagnostic.details["existingBytes"],
             usage.existing_bytes
         );
+    }
+
+    #[test]
+    fn create_shares_the_maximum_fork_lifetime_with_renewal() {
+        let directory = tempfile::tempdir().unwrap();
+        let source = source_database(directory.path());
+        let over = publish_managed(
+            &source,
+            &directory.path().join("fork-over"),
+            "app-a",
+            "parent-a",
+            100,
+            100 + MANAGED_FORK_MAX_LIFETIME_MS + 1,
+            false,
+        )
+        .unwrap_err();
+        assert_eq!(over.diagnostic.code, RESOURCE_LIMIT_REFUSED_CODE);
+        assert_eq!(over.diagnostic.details["resource"], "fork-lifetime");
+        assert!(
+            !directory.path().join("fork-over").exists(),
+            "a lifetime refusal leaves no staging residue"
+        );
+        // Exactly at the bound is admitted.
+        publish_managed(
+            &source,
+            &directory.path().join("fork-at-bound"),
+            "app-a",
+            "parent-a",
+            100,
+            100 + MANAGED_FORK_MAX_LIFETIME_MS,
+            false,
+        )
+        .unwrap();
     }
 
     #[test]

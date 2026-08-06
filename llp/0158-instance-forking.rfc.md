@@ -22,13 +22,20 @@ generated compatibility identity, never authority to infer or reuse another
 instance's state. This documentation correction does not publish the derived-
 deployment capability, which remains Missing behind its distinct F0b gate.);
 2026-08-05 (LLP 0185 Phase 3 isolation/lifecycle evidence:
-bounded intent-journaled `fork renew` with a provisional max-lifetime cap and
+bounded intent-journaled `fork renew` with a max-lifetime cap and
 `SNAPBACK_FORK_RENEW_EXPIRED`; create-admission and diff-work resource limits
 wiring `SNAPBACK_FORK_RESOURCE_LIMIT_REFUSED`; per-fork cleanup locking,
 stale-registry completion, and dated concurrent-lifecycle/port evidence;
 parent-write-after-fork invisibility fixtures at module and live-server
 level; credential/egress matrix extensions and the named-op unclassified
-host-op diagnostic. Limit constants remain author-ratification-pending.);
+host-op diagnostic.); 2026-08-05 (author rulings: the Phase 3 limit
+constants are ratified as shipped; `fork create`'s TTL now shares the same
+maximum total lifetime that bounds renewal, refusing with
+`SNAPBACK_FORK_RESOURCE_LIMIT_REFUSED` resource `fork-lifetime`; and the
+Phase 3 item 9 containment answer for v1 is the documented
+bring-your-own-OS-boundary guidance — no integrated sandbox/container tier
+is built until a real native-code consumer or Phase 8 hosted work names the
+requirement.);
 2026-08-05 (LLP 0185 Phase 1 operating workflow: made finite TTL
 self-enforcing through create-time reap plus boot/periodic server refusal,
 wired local-evidence recovery to `fork recover`, added `fork inspect` and
@@ -844,8 +851,9 @@ Explicit `reap --now-ms` remains as the deterministic operator/test surface.
 Bounded renewal is built (LLP 0185 Phase 3, 2026-08-05): `fork renew` extends
 a finite expiry under the per-fork cleanup lock, refuses an already-expired
 fork (`SNAPBACK_FORK_RENEW_EXPIRED`), is capped by a configured maximum total
-lifetime from creation (`MANAGED_FORK_MAX_LIFETIME_MS`, provisional 7d pending
-author ratification), emits a durable `ForkRenewReceiptV1`, and carries all
+lifetime from creation (`MANAGED_FORK_MAX_LIFETIME_MS`, 7d, author-ratified
+2026-08-05; creation shares the same cap), emits a durable
+`ForkRenewReceiptV1`, and carries all
 three expiry carriers (database lineage, mint receipt, registry entry)
 through a sentinel-plus-intent protocol that `fork recover` completes after a
 crash at any cut. The serving watchdog re-reads the database lineage at its
@@ -1291,10 +1299,11 @@ remaining program, roughly:
 
 1. **Paved lifecycle and bounded resources** — landed 2026-08-05 (LLP 0185
    Phases 1/3): automatic expiry enforcement, product-facing recovery,
-   inspection, bounded renewal, fork/byte/diff limits, and concurrent
-   cleanup/port evidence all exist with dated tests. Remaining here: author
-   ratification of the provisional limit constants and an optional OS
-   sandbox/container containment tier.
+   inspection, bounded renewal, fork/byte/diff/lifetime limits, and
+   concurrent cleanup/port evidence all exist with dated tests. The limit
+   constants are author-ratified (2026-08-05) and the v1 containment answer
+   is the documented OS-boundary guidance; an integrated sandbox/container
+   tier is deliberately deferred until demand names it.
 2. **Acceptance closure** — the LLP 0162 row-5 parent-write isolation fixture
    and the first per-class credential/egress matrices and resource-exhaustion
    negatives landed 2026-08-05; independent review and the remaining

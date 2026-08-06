@@ -11281,8 +11281,9 @@ The fork operation does all of these before it returns:
   `SNAPBACK_FORK_RESOURCE_LIMIT_REFUSED` when the managed fork count, the
   source database's estimated bytes, or the fork root's total byte budget
   would exceed the configured limits (`--max-forks`, `--max-fork-bytes`,
-  `--max-total-bytes`; defaults are provisional constants pending
-  ratification), reporting the admitted usage as `data.resourceAdmission`;
+  `--max-total-bytes`), reporting the admitted usage as
+  `data.resourceAdmission`; the creation TTL itself is bounded by the same
+  maximum total fork lifetime that caps renewal;
 - takes a consistent local snapshot and records the exact fork point;
 - scrubs copied sessions, agent credentials, and operational claims;
 - rotates authorization and data-stream identities and mints fresh sidecars;
