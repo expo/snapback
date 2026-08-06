@@ -89,6 +89,7 @@ host-op registries. Owner: `ccheever`; label gaps `guide-gap`.
 | clients.mutation-outcomes | Raw provider settlement facts plus Exact three-fact mutation projection | mutation state, timeout, retry, receipt, ambiguity | local | shipped | `partitime.step1-mutation-projection.v1` in demos/partiful-matrix/tests/acceptance/step1-mutation-projection.mjs | llp/0043, llp/0063 | clients/contract-adapter.md |
 | clients.optimistic-overlays | Derived optimistic mutations + reconciliation | optimistic, overlays, latency | local | shipped | `deriveOptimisticReducer` in packages/snapback-contract/index.mjs | llp/0052 | clients/contract-adapter.md |
 | clients.react | Prepared React provider over one headless store/transport seam: exact generated single/grouped live queries, capability-gated all-live and mixed-route references with one-commit register-mode adoption, explicit per-child registered-live/read-only boot provenance, honest weakest aggregate connection state, explicit live fallback, attach-deadline recovery, sessions authorization adoption, result-validated optimistic mutation rebase/rollback, local managed connection-keyed presence, per-query `freshness`/`retention` offline facts with the `useSnapbackOutbox` queued-intent projection, Strict Mode/HMR sharing, complete cleanup, and retained Signal Desk receipts | react, hooks, useSyncExternalStore, useSnapbackQuery, Convex useQuery, result inference, typed mutation, optimistic rollback, replay advisory, projectRecordFields, optimistic toggle helper, presence, ephemeral hook, useSnapbackPresence, typing indicator, query groups, mixed route, read-only snapshot, bundle prime, registered bundle, hmr, offline freshness, outbox badge | local | shipped | `useSnapbackPresence` in packages/snapback-react/index.d.mts | llp/0012, llp/0064, llp/0074, llp/0090, llp/0101, llp/0114, llp/0106, llp/0107, llp/0129, llp/0157 | clients/react.md |
+| clients.surfaces | Generated application surfaces bind one screen/resource's reads, ordinary mutations, raw assets, and presence around shared params; React and headless projections share canonical owners. `commands` is reserved and refused in S1. | defineSurface, useSurface, observeSnapbackSurface, application surface, screen surface, one hook for a screen, bind query and mutation, surface presence, conversation surface, useSnapbackSurface | local | partial | `useSurface` in packages/snapback-react/index.d.mts + packages/snapback-react/surface.test.mjs + packages/snapback-react/fixtures/conversation/app/snapback/generated/app.descriptor.json | llp/0179, llp/0114, llp/0176 | clients/surfaces.md |
 | clients.react-expo | React Expo Online; supervised no-URL simulator/emulator boot. G1 receipts prove routing; devices, LAN, and release are not claimed. | react native, expo, ios, android, snapback dev --expo, SnapbackExpoProvider, adb reverse, 10.0.2.2, authority-required | local | shipped | `runExpoDev` in packages/snapback-cli/expo-dev.mjs + expo-golden-path-fixture receipts | llp/0012, llp/0064, llp/0176, llp/0181 | clients/react-expo.md |
 | operating.server-lifecycle | Start/reuse/stop servers safely; ports; provenance; crash detection | run server, ports, bindPortExactly, lifecycle, watchdog, crash, prebuilt binary, seed reset | local | shipped | `startServer` in demos/_kit/server-process.mjs | llp/0010, llp/0030 | testing/acceptance.md |
 | operating.instance-forks | Experimental source-only finite-TTL derived-instance CLI with expiry enforcement, bounded renewal, resource-limit admission, recovery, bounded inspection, scalar projections, diff, concurrency-safe cleanup, fork-per-worktree and parallel-suite guidance, and exact drop; LLP 0158 is Accepted as the local contract, but the separate derived capability remains unsupported and this source evidence is not a claim | fork, derived instance, fork per worktree, parallel suite, inspect, status, recover, renew, diff, automatic reap, resource limits | none | partial | `ForkCommand` in src/cli.rs + tests/instance_fork_cli_v1.rs + instance_fork unit matrices (parent-write invisibility, renewal crash cuts, concurrency, disk pressure, egress/credential) + tests/acceptance/instance-fork-fleet-dogfood.2026-08-03.v1.json + demos/todo/tests/acceptance/fork-parallel-dispositions.mjs (source proof only; public tuple Missing) | llp/0158, llp/0185 | GAP (derived-capability qualification/publication, exact-diff validation, and hosted-target work remain; owner: Charlie, review: 2026-08-31; see operating/instance-forks.md) |
@@ -327,6 +328,8 @@ you never build around a feature because you didn't know it existed.
   bindings, one-surface boot, derived optimistic overlays, offline classes.
 - [The React client](./clients/react.md) — first-class external-store hook,
   keyed sibling sharing, Strict Mode lifecycle, and settlement state.
+- [Application surfaces](./clients/surfaces.md) — bind one backend resource or
+  screen once, then consume its reads, mutations, assets, and presence.
 - [React Expo Online clients](./clients/react-expo.md) — no-URL
   `snapback dev --expo` simulator/emulator boot through
   `SnapbackExpoProvider`, plus per-OS evidence, carrier storage, authenticated
@@ -2547,6 +2550,12 @@ captured dependencies, and commits once. It does not hold one SQLite read
 transaction across arbitrary asynchronous handler work; commit-time OCC rejects
 relevant drift between reads. Every row changed by the commit receives the
 same monotonic version. A rejected mutation commits nothing.
+
+When one screen calls several of these mutations against the same resource id,
+declare them once with `defineSurface` instead of rewiring each call site — see
+[application surfaces](../clients/surfaces.md), which binds a resource's reads,
+mutations, assets, and presence around shared parameters. The mutations
+themselves are unchanged; a surface only composes the generated references.
 
 ## Define the write boundary
 
@@ -7859,6 +7868,402 @@ no-work refusal, and exact provider/client/server cleanup with zero skips.
 - **Do not create presence heartbeat intervals in application code.** Pass
   managed intent to `useSnapbackPresence`; the provider owns admission,
   refresh, disconnect, and teardown.
+
+---
+
+<!-- snapback-guide-source: guide/clients/surfaces.md -->
+---
+title: Application surfaces
+id: clients.surfaces
+order: 2
+audience: agent-first
+capabilities: [clients.surfaces]
+authorities: [llp/0179-generated-app-descriptor-and-surfaces.rfc.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0176-expo-messaging-golden-path.plan.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts]
+examples: [packages/snapback-react/surface.test.mjs, packages/snapback-react/fixtures/conversation/app/snapback/generated/app.descriptor.json, packages/snapback-react/fixtures/conversation/app/snapback/generated/app.d.ts, demos/expo-golden-path-fixture/snapback/functions.mjs, demos/expo-golden-path-fixture/snapback/surface-model.mjs, demos/expo-golden-path-fixture/src/screens/chat-screen.tsx, demos/expo-golden-path-fixture/tests/g2-falsification.mjs]
+status: current
+targets: [local]
+maturity: partial
+since: 0.1.10
+unreleased: true
+reviewed: 2026-08-06
+reviewed-commit: HEAD
+---
+
+# Application surfaces
+
+> **Local target only.** This page describes the local dev/test target.
+> Hosted targets make deliberately weaker or different claims — see
+> [auth/targets](../auth/targets.md).
+
+> **Unreleased.** This surface is newer than the newest published Snapback
+> closure, 0.1.9. Use a runtime built from this checkout until 0.1.10 ships.
+
+An **application surface** is one generated, parameterized composition of the
+reads, ordinary mutations, raw asset intents, and presence lanes that belong
+to a resource or screen. Declare it on the backend with `defineSurface`; bind
+it in React with `useSurface`, or use `observeSnapbackSurface` and
+`provider.surface(...)` without React. This is the vocabulary split to keep in
+mind: backend searches use **surface declaration** and `defineSurface`, while
+client searches use **screen surface**, `useSurface`, and
+`observeSnapbackSurface`.
+
+A surface composes existing generated references. It adds no endpoint, cache,
+authorization layer, query language, or presence implementation. The low-level
+[React hooks](./react.md) remain available and share the same owners.
+
+## Declare a surface for one screen
+
+Import `defineSurface`, `bind`, `param`, and `input` from
+`@expo/snapback-codegen/define`. The Expo golden-path backend declares its
+conversation once and binds `conversationId` through every scoped child:
+
+```js source=demos/expo-golden-path-fixture/snapback/functions.mjs
+export const conversation = defineSurface({
+  params: { conversationId: v.id('conversations') },
+  reads: {
+    users: bind(users, {}),
+    details: bind(conversationDetails, { conversationId: param('conversationId') }),
+    memberships: bind(membershipsForConversation, { conversationId: param('conversationId') }),
+    messages: bind(messagesForConversation, { conversationId: param('conversationId') }),
+    reactions: bind(reactionsForConversation, { conversationId: param('conversationId') }),
+  },
+  mutations: {
+    sendText: bind(sendText, {
+      conversationId: param('conversationId'),
+      senderId: input('senderId'),
+      text: input('text'),
+    }),
+    sendReply: bind(sendReply, {
+      conversationId: param('conversationId'),
+      senderId: input('senderId'),
+      text: input('text'),
+      replyToId: input('replyToId'),
+    }),
+    addReaction: bind(addReaction, {
+      conversationId: param('conversationId'),
+      messageId: input('messageId'),
+      userId: input('userId'),
+      emoji: input('emoji'),
+    }),
+    removeReaction: bind(removeReaction, {
+      reactionId: input('reactionId'),
+    }),
+    sendImage: bind(sendImage, {
+      conversationId: param('conversationId'),
+      senderId: input('senderId'),
+      assetId: input('assetId'),
+      caption: input('caption'),
+      replyToId: input('replyToId'),
+    }),
+  },
+  assets: {
+    image: bind(messageImageUpload, {}),
+  },
+  presence: {
+    typing: bind(typing, {
+      scope: { conversationId: param('conversationId') },
+    }),
+  },
+});
+```
+
+The declaration has six named fields:
+
+- `params` declares up to eight portable validators. `param('name')`
+  substitutes one of those values into a child binding.
+- `reads`, `mutations`, `assets`, and `presence` bind locally authored
+  generated references. `input('name')` leaves a mutation or asset value for
+  the eventual caller.
+- `commands` is part of the grammar, but generation currently refuses every
+  command member; see [the v1 boundary](#stay-inside-the-v1-boundary).
+
+A binding leaf may be `param(name)`, `input(name)`, or a portable scalar
+literal (`null`, string, boolean, or finite number). An object-shaped target
+may instead receive one bounded **flat scope record**, such as
+`{ scope: { conversationId: param('conversationId') } }`; its values use the
+same leaves. It is not a general object-construction escape hatch.
+
+The grammar is deliberately closed: no callbacks, conditionals, loops,
+computed fields, inheritance, nested surfaces, or result transforms. Put
+composition outside that algebra in application code or extend the subsystem
+that owns the missing operation. Binding a resource id selects scope; every
+child still performs its own existing authorization.
+
+## Inspect what generation emits
+
+Codegen places every admitted declaration under the generated
+`snapback.app.v1` descriptor's `surfaces` node. Each surface records its
+parameter contracts and complete `reads`, `mutations`, `commands`, `assets`,
+and `presence` maps. Every member records its generated reference, the complete
+target-to-`param`/`input`/literal binding map, and an `inputs` map containing
+only values the caller still supplies.
+
+The codegen acceptance test makes that distinction explicit:
+
+```js source=packages/snapback-codegen/app-descriptor.test.mjs
+  assert.deepEqual(descriptor.surfaces.items.mutations.create.bindings, {
+    group: { kind: 'param', name: 'group' },
+    title: { kind: 'input', name: 'title' },
+  });
+  assert.deepEqual(Object.keys(descriptor.surfaces.items.mutations.create.inputs), ['title']);
+```
+
+The tracked React fixture's
+[descriptor JSON](repo:packages/snapback-react/fixtures/conversation/app/snapback/generated/app.descriptor.json)
+is the portable inspection artifact. Its
+[`app.d.ts`](repo:packages/snapback-react/fixtures/conversation/app/snapback/generated/app.d.ts)
+turns the same `inputs` map into the member's call type: for example,
+`addReaction` accepts `messageId`, `userId`, and `emoji`, but not the already
+bound `conversationId`. The separate `provider-bindings.d.ts` continues to
+describe the underlying raw mutation's complete arguments; the omission is a
+property of the generated surface member, not a mutation-signature rewrite.
+
+Do not ask a caller for a bound parameter again. The complete descriptor
+mapping remains available to inspection and auth review even though the
+surface callable type omits it.
+
+## Consume the surface from React
+
+Pass the generated surface reference, its exact parameter object, and optional
+presence publish values to `useSurface`. The real Expo screen uses both compact
+render data and the rich child state:
+
+```tsx source=demos/expo-golden-path-fixture/src/screens/chat-screen.tsx
+  const conversation = useSurface(
+    app.surfaces.conversation,
+    { conversationId },
+    { presence: { typing: draft.trim() ? { displayName: PERSONA_NAMES[activeUserId] ?? 'Someone' } : skip } },
+  );
+  const connection = useSnapbackConnection();
+  const outbox = useSnapbackOutbox();
+  const upload = useSnapbackAssetUpload({ upload: conversation.assets.image.reference });
+  const { details, memberships, messages, reactions, users } = conversation.state;
+  const activeUser = conversation.data.users?.find((user) => user._id === activeUserId);
+  const userById = useMemo(() => new Map((conversation.data.users ?? []).map((user) => [user._id, user])), [conversation.data.users]);
+  const messageById = useMemo(() => new Map((conversation.data.messages ?? []).map((message) => [message._id, message])), [conversation.data.messages]);
+  const typingNames = [...new Set(conversation.presence.typing.members
+    .filter((entry) => entry.key !== conversation.presence.typing.selfKey)
+    .map((entry) => entry.value.displayName))];
+```
+
+The snapshot exposes five member namespaces plus its descriptor:
+
+- `data.<read>` is exactly `state.<read>.data`. It is the compact row/value
+  projection and is `undefined`, never a fabricated `[]`, while that child is
+  pending, skipped, or errored.
+- `state.<read>` is the complete LLP 0114 query snapshot: `status`
+  (`pending | ready | refreshing | error | skipped`), `data`, `error`,
+  `freshness` (`unknown | retained | current`), `connection`, and the
+  `retention` fact.
+- `mutations.<name>(inputs)` is a typed ordinary mutation callable. Its input
+  contains only the generated member's unbound inputs.
+- `presence.<name>` is the existing per-room presence state with `entries`
+  re-exported as `members`; status, connection, diagnostic, `selfKey`, and
+  room actions remain available.
+- `assets.<name>` exposes the existing raw asset-task seam (`reference` and
+  `start`). It is not the reserved command composition promised for S2.
+- `descriptor` is the exact admitted generated surface reference.
+
+`skip` from `@expo/snapback-react` opts one presence member out of publishing
+without dropping its read-side room. A declared presence member missing from
+the options object also defaults to `skip`. Presence self identity is derived
+from the adopted session and connection. A publish payload containing its own
+`userId` refuses locally with
+`SNAPBACK_REACT_SURFACE_PRESENCE_IDENTITY_INPUT`; publish only the collection's
+non-identity value fields.
+
+## Observe the same surface without React
+
+Use `bindSnapbackSurface(provider, surface, params, options)` or its provider
+alias `provider.surface(...)` when another framework owns rendering. The
+listener convenience is
+`observeSnapbackSurface(provider, surface, params, options, listener)`.
+The returned owner provides:
+
+- `snapshot()` for the same `data`/`state`/`mutations`/`presence`/`assets`/
+  `descriptor` projection;
+- `reads.<name>.snapshot()` and `reads.<name>.subscribe(listener)` for one
+  child;
+- `mutations.<name>(inputs)` and `assets.<name>.start(...)`;
+- `update(params, options)` to retarget that bound owner; and
+- `dispose()` for all of its owned edges.
+
+This is one owner shared with the low-level hooks, not a second subscription
+layer. The package test binds a low-level query and a surface to the same
+reference and arguments, then asserts object identity:
+
+```js source=packages/snapback-react/surface.test.mjs
+assert.strictEqual(
+  surface.snapshot().state.messages,
+  lowLevel.snapshot().queries.messages,
+  'surface and low-level reads observe the exact same LLP 0114 store snapshot',
+);
+assert.strictEqual(surface.snapshot().data.messages, surface.snapshot().state.messages.data);
+```
+
+Mixing `useSurface`, `useSnapbackQuery`, and `observeSnapbackQueries` for the
+same provider/reference/arguments therefore shares the same store snapshot and
+upstream subscription. Equivalent presence joins the same canonical room.
+
+## Change parameters without leaking predecessor state
+
+A headless `update(params, options)` prepares the successor read descriptors
+and presence rooms before releasing each predecessor room and lease exactly
+once. Compact data becomes `undefined` across the handoff instead of showing
+rows from the old scope:
+
+```js source=packages/snapback-react/surface.test.mjs
+surface.update(
+  { conversationId: 'conversation-two' },
+  { presence: { typing: { displayName: 'Ada' } } },
+);
+assert.equal(surface.snapshot().data.messages, undefined, 'parameter replacement cannot leak predecessor rows');
+await flush();
+assert.equal(surface.snapshot().data.messages[0].conversationId, 'conversation-two');
+assert.equal(directMessages.at(-1).data[0].conversationId, 'conversation-two');
+assert.deepEqual(client.metrics().rooms, [
+  { conversationId: 'conversation-one' },
+  { conversationId: 'conversation-two' },
+]);
+assert.equal(provider.inspection().presenceStores, 1, 'predecessor room is released after successor adoption');
+```
+
+With `useSurface`, a React render whose params change creates a successor
+binding and retires the predecessor generation. A mutation callable captured
+from that predecessor cannot act for the successor:
+
+```js source=packages/snapback-react/surface.test.mjs
+assert.throws(
+  () => predecessorMutation({ messageId: 'stale-message', userId: 'user-ada', emoji: '⛔' }),
+  (error) => error?.code === 'SNAPBACK_REACT_SURFACE_GENERATION_STALE',
+  'a captured mutation callable cannot act for a retired parameter generation',
+);
+```
+
+Read mutation callables from the current hook result instead of retaining one
+across a parameter change. Provider disposal and authority replacement apply
+the same generation fences and blank predecessor compact data.
+
+## Stay within the generation budgets
+
+Codegen enforces these exact ceilings before it emits a surface:
+
+| Ceiling | Maximum | Counted unit |
+| --- | ---: | --- |
+| `SURFACE_MAX_PER_APP` | 32 | Surfaces in one app |
+| `SURFACE_MAX_PARAMS` | 8 | Parameters on one surface |
+| `SURFACE_MAX_MEMBERS` | 24 | Reads + mutations + assets + presence on one surface |
+| `SURFACE_MAX_MEMBER_BINDINGS` | 32 | Binding leaves on one member |
+| `SURFACE_MAX_SCOPE_RECORD_FIELDS` | 8 | Fields in one flat scope record |
+
+Exceeding any ceiling fails generation with
+`SNAPBACK_SURFACE_BUDGET_EXCEEDED`; it never truncates the descriptor. The
+limits keep a surface resource-shaped instead of recreating one global app
+store.
+
+## Act on every surface refusal
+
+Generation-time `SNAPBACK_SURFACE_*` refusals are:
+
+| Code | Trigger |
+| --- | --- |
+| `SNAPBACK_SURFACE_BUDGET_EXCEEDED` | An app, parameter list, member set, member binding, or scope record exceeds the ceiling above. |
+| `SNAPBACK_SURFACE_INVALID_IDENTIFIER` | A surface export, parameter, or member name is not a portable non-reserved identifier. |
+| `SNAPBACK_SURFACE_PARAMETER_UNKNOWN` | `param(name)` names no declared surface parameter. |
+| `SNAPBACK_SURFACE_PARAMETER_TYPE_MISMATCH` | A parameter or portable literal does not match the target validator, or a parameter validator is invalid. |
+| `SNAPBACK_SURFACE_INPUT_UNKNOWN` | A binding names no target argument, or a scope record names no target field. |
+| `SNAPBACK_SURFACE_REQUIRED_INPUT_UNBOUND` | A required target argument or required scope field has no binding. |
+| `SNAPBACK_SURFACE_REFERENCE_UNKNOWN` | The bound definition is not one exported generated app member. |
+| `SNAPBACK_SURFACE_BINDING_AMBIGUOUS` | A definition has multiple export identities or one `input(name)` is bound more than once. |
+| `SNAPBACK_SURFACE_BINDING_UNPORTABLE` | A binding uses nested/object construction outside one flat object-shaped target, or a literal is not portable JSON. |
+| `SNAPBACK_SURFACE_AUTH_BINDING_REFUSED` | Application data attempts to bind a `Principal`; surface scope is not authority. |
+| `SNAPBACK_SURFACE_MEMBER_CLASS_UNSUPPORTED` | A member has the wrong reference class, `input()` appears on an unsupported member, the target is in the wrong namespace, or `commands` is nonempty in S1. |
+
+Client-time `SNAPBACK_REACT_SURFACE_*` refusals are:
+
+| Code | Trigger |
+| --- | --- |
+| `SNAPBACK_REACT_SURFACE_INVALID` | The reference is not the complete generated surface admitted by this prepared binding, or a generated binding kind cannot be projected. |
+| `SNAPBACK_REACT_SURFACE_PARAMS_INVALID` | Params are not an object or their keys do not exactly match the generated declaration. |
+| `SNAPBACK_REACT_SURFACE_OPTIONS_INVALID` | Options are not the closed `{ presence }` object, or they name an unknown presence member. |
+| `SNAPBACK_REACT_SURFACE_INPUT_INVALID` | A mutation's unbound inputs are missing/unknown, or an asset call omits `file` or adds an unknown call field. |
+| `SNAPBACK_REACT_SURFACE_PRESENCE_IDENTITY_INPUT` | A non-skipped presence publish payload carries `userId`. |
+| `SNAPBACK_REACT_SURFACE_GENERATION_STALE` | A mutation or asset callable belongs to a retired or disposed React surface generation. |
+
+Treat the stable code as the branch key and its structured details as the
+repair context; do not match message text.
+
+## Render a cold retained boot
+
+Descriptor-mode online preparation persists a compact admitted deployment
+projection through LLP 0114's existing binding receipt and RQS store. On a
+fresh offline client, the byte-identical descriptor reconstructs the admitted
+function, RQS, ephemeral-policy, surface, and capability view before the
+provider exists. The real-runtime acceptance proves the surface then renders
+the retained rows through both projections:
+
+```js source=demos/expo-golden-path-fixture/tests/g2-falsification.mjs
+  await suite.check('descriptor cold boot renders retained message history through the surface', async () => {
+    assert(await coldStore.loadReactBindingReceipt(), 'the exact binding receipt is present before cold preparation');
+    const binding = await offline.prepareReactBinding({ generatedManifest: app });
+    assert.equal(binding.source, 'persisted-receipt');
+    offlineProvider = createSnapbackReactProvider(binding, { connectionId: 'g2-offline' });
+    offlineSurface = observeSnapbackSurface(
+      offlineProvider,
+      app.surfaces.conversation,
+      { conversationId: 'conversation_engine_room' },
+      { presence: { typing: skip } },
+      () => {},
+    );
+    await eventually(() => offlineSurface.snapshot().state.messages.freshness === 'retained');
+    const snapshot = offlineSurface.snapshot();
+    assert.equal(snapshot.data.messages.length, 3);
+    assert.strictEqual(snapshot.data.messages, snapshot.state.messages.data);
+    assert.equal(snapshot.state.messages.status, 'refreshing');
+    assert.equal(snapshot.state.messages.connection, 'stale');
+  });
+```
+
+The honest retained frame is `freshness: 'retained'`,
+`status: 'refreshing'`, and `connection: 'stale'` until an authoritative
+answer arrives. Surfaces add no cache, receipt format, retained-row copy, or
+boot lifecycle of their own. A memory-only store still cannot survive a
+process-cold boot; use the carrier rules on [the React client page](./react.md)
+and [offline retention](../sync/offline-and-retention.md).
+
+## Stay inside the v1 boundary
+
+This page is `maturity: partial` because the declaration object names
+`commands`, but current codegen refuses a nonempty command namespace with
+`SNAPBACK_SURFACE_MEMBER_CLASS_UNSUPPORTED` and the message “commands are
+reserved for descriptor slice S2.” Use the ordinary `mutations` namespace and
+raw `assets` task seam that exist today; do not present an asset-plus-mutation
+sequence as one admitted command.
+
+V1 also does not admit nested surfaces, inheritance, dynamic member creation,
+one surface calling another, callbacks, or hidden result transformation. Reuse
+happens through the existing generated references and their canonical owners.
+The current proof is local-target only; no hosted application-surface claim is
+made here.
+
+## Anti-patterns
+
+- **Do not hand-wire five `useSnapbackQuery` calls plus a presence hook when
+  one generated composition exists.** [Declare the application surface](#declare-a-surface-for-one-screen)
+  and [consume it with `useSurface`](#consume-the-surface-from-react); use
+  low-level hooks only for composition outside the surface's closed grammar.
+- **Do not pass a bound parameter again as a mutation input.** Inspect the
+  generated member's reduced call type and
+  [supply only its unbound inputs](#inspect-what-generation-emits).
+- **Do not smuggle `userId` into a presence payload.**
+  [Publish only non-identity collection values](#consume-the-surface-from-react);
+  the session/connection owner supplies self identity.
+- **Do not hold a `useSurface` mutation callable across a parameter change.**
+  [Read it from the current generation](#change-parameters-without-leaking-predecessor-state)
+  so a retired callable cannot act under successor scope.
+- **Do not force command composition into S1.** Stay on the
+  [admitted mutation and raw-asset boundary](#stay-inside-the-v1-boundary)
+  until descriptor slice S2 ships.
 
 ---
 

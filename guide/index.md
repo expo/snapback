@@ -205,6 +205,8 @@ you never build around a feature because you didn't know it existed.
   bindings, one-surface boot, derived optimistic overlays, offline classes.
 - [The React client](./clients/react.md) — first-class external-store hook,
   keyed sibling sharing, Strict Mode lifecycle, and settlement state.
+- [Application surfaces](./clients/surfaces.md) — bind one backend resource or
+  screen once, then consume its reads, mutations, assets, and presence.
 - [React Expo Online clients](./clients/react-expo.md) — no-URL
   `snapback dev --expo` simulator/emulator boot through
   `SnapbackExpoProvider`, plus per-OS evidence, carrier storage, authenticated

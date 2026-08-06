@@ -25,6 +25,12 @@ transaction across arbitrary asynchronous handler work; commit-time OCC rejects
 relevant drift between reads. Every row changed by the commit receives the
 same monotonic version. A rejected mutation commits nothing.
 
+When one screen calls several of these mutations against the same resource id,
+declare them once with `defineSurface` instead of rewiring each call site — see
+[application surfaces](../clients/surfaces.md), which binds a resource's reads,
+mutations, assets, and presence around shared parameters. The mutations
+themselves are unchanged; a surface only composes the generated references.
+
 ## Define the write boundary
 
 The paved JS form colocates its direct handler expression with arguments,
