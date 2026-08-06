@@ -29,8 +29,9 @@ claim is gated on fork lifecycle metrics — cold- and live-parent create
 latency by parent size, attributed and net diff latency at the diff-work
 bound, drop/reap latency, and concurrent-create contention — not the
 broader agent-safe-storage storage-engine submetrics, which stay with the
-full profile. Absolute bounds still require dated 0162-author
-ratification once measured.); 2026-08-05 (LLP 0185 Phase 5: implemented OQ5's decided
+full profile. Absolute bounds were measured 2026-08-05 and **ratified by
+the 0162 author 2026-08-06**; the bench asserts them, and the dated
+receipts live under `tests/acceptance/instance-fork-lifecycle-bench.*`.); 2026-08-05 (LLP 0185 Phase 5: implemented OQ5's decided
 same-cut fork-private asset custody — durable asset metadata now copies with
 a digest- and length-verified private blob-tree copy taken from the staged
 metadata cut, in-flight attempts/work-ledger claims scrub, signing keys keep

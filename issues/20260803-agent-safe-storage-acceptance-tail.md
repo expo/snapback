@@ -124,10 +124,14 @@ and none of this closes a row on its own.
   32 MiB parent), live-parent create 200 ms, drop 63 ms, attributed diff
   47 ms and net diff 68 ms at 10k journal rows, reap-of-three 76 ms, and
   three concurrent creates at 417 ms wall versus a 212 ms sequential
-  median. **Proposed bounds (pending 0162-author ratification):** create ≤
-  2 s small / ≤ 3 s at 32 MiB / ≤ 2 s live; drop ≤ 1 s; attributed diff ≤
+  median. **Bounds RATIFIED by the 0162 author 2026-08-06:** create ≤ 2 s
+  small / ≤ 3 s at 32 MiB / ≤ 2 s live; drop ≤ 1 s; attributed diff ≤
   500 ms and net diff ≤ 750 ms per 10k rows; reap ≤ 1 s per sweep of
-  three; concurrent 3-create wall ≤ 3× the sequential-create bound.
+  three; concurrent 3-create wall ≤ 3× the sequential-create bound. The
+  bench now asserts these bounds (median-gated), so a rerun is a pass/fail
+  row-13 gate; the 2026-08-06 receipt embeds them and passes. For the
+  narrow local claim, row 13's remaining need is a second-platform run
+  (Linux), not further ratification.
   Rerun recipe: `cargo test --release --test instance_fork_bench_v1 --
   --ignored --nocapture`.
 - Still gated on Track B: LLP 0163/0164/0165 acceptance loops (their
