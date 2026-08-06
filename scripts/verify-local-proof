@@ -172,6 +172,7 @@ run runtime-readiness-fixtures -- node --test tests/runtime_readiness_receipt_v0
 run proof-runner-fixtures -- node --test tests/proof_runner_v0.mjs
 run local-proof-inventory -- node --test tests/local_proof_inventory_v0.mjs
 run affected-selector-fixtures -- node --test tests/local_proof_selection_v0.mjs
+run drift-prone-gate-fixtures -- node --test tests/drift_prone_gates_v0.mjs
 run package-test-inventory -- node scripts/check-package-test-inventory.mjs
 # @ref LLP 0134#9-acceptance — closed maturity records and the pushed-range
 # transition pin are checked before generated artifacts or native builds.

@@ -813,6 +813,7 @@ function isRegisteredContentAddressedGeneratedLeaf(path) {
 }
 
 const REVIEWED_GENERATED_PUBLICATION_PATHS = new Set([
+  // BEGIN GENERATED PUBLICATION LEAF SET
   'admin-ui/generated/contract/activateNetworkProfile.mutation.contract-meta.ts',
   'admin-ui/generated/contract/activateNetworkProfile.mutation.ts',
   'admin-ui/generated/contract/cleanup.mutation.contract-meta.ts',
@@ -1089,6 +1090,7 @@ const REVIEWED_GENERATED_PUBLICATION_PATHS = new Set([
   'packages/snapback-react/fixtures/conversation/app/snapback/generated/provider-bindings.json',
   'packages/snapback-react/fixtures/conversation/app/snapback/generated/provider-introspection.json',
   'packages/snapback-react/fixtures/conversation/app/snapback/generated/schema.manifest.json',
+  // END GENERATED PUBLICATION LEAF SET
 ]);
 
 export function auditReviewedGeneratedPublicationPaths(generated) {

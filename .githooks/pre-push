@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+root="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+if [ -z "$root" ] || [ ! -f "$root/scripts/drift-prone-gates.mjs" ]; then
+  printf '[snapback-drift] REFUSED: repository root or drift gate runner is unavailable\n' >&2
+  exit 2
+fi
+
+# @ref LLP 0175#same-change-frozen-record-coupling — the tracked hook
+# delegates Git's exact ref-update stream to the checked selector-backed gate.
+exec node "$root/scripts/drift-prone-gates.mjs" pre-push --remote "$1"
