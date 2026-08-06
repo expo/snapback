@@ -10110,7 +10110,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-06
-reviewed-commit: 711e4d763
+reviewed-commit: 2715951cf
 ---
 
 # Discover agent controls
