@@ -97,7 +97,7 @@ and `guide-gap`.
 | clients.react | Prepared React provider over one headless store/transport seam: exact generated single/grouped live queries, capability-gated all-live and mixed-route references with one-commit register-mode adoption, explicit per-child registered-live/read-only boot provenance, honest weakest aggregate connection state, explicit live fallback, attach-deadline recovery, sessions authorization adoption, result-validated optimistic mutation rebase/rollback, local managed connection-keyed presence, per-query `freshness`/`retention` offline facts with the `useSnapbackOutbox` queued-intent projection, Strict Mode/HMR sharing, complete cleanup, and retained Signal Desk receipts | react, hooks, useSyncExternalStore, result inference, typed mutation, optimistic rollback, replay advisory, projectRecordFields, optimistic toggle helper, presence, ephemeral hook, useSnapbackPresence, typing indicator, query groups, mixed route, read-only snapshot, bundle prime, registered bundle, hmr, offline freshness, outbox badge | local | shipped | `useSnapbackPresence` in packages/snapback-react/index.d.mts | llp/0012, llp/0064, llp/0074, llp/0090, llp/0101, llp/0114, llp/0106, llp/0107, llp/0129, llp/0157 | clients/react.md |
 | clients.react-expo | React Expo Online surface; independent Android and iOS implementation evidence, with the shipped asset and admin-console paths cross-indexed from the carrier guide | react native, expo, android, ios, mobile, Expo asset upload, Expo ImagePicker, Expo debugging, admin console | local | shipped | `profileId` in demos/partiful-matrix/tests/acceptance/native-react-expo.mjs | llp/0012, llp/0064 | clients/react-expo.md |
 | operating.server-lifecycle | Start/reuse/stop servers safely; ports; provenance; crash detection | run server, ports, bindPortExactly, lifecycle, watchdog, crash, prebuilt binary, seed reset | local | shipped | `startServer` in demos/_kit/server-process.mjs | llp/0010, llp/0030 | testing/acceptance.md |
-| operating.instance-forks | Experimental source-only finite-TTL derived-instance CLI with automatic expiry enforcement, recovery, bounded inspection, scalar projections, diff, and exact cleanup; implementation evidence is not a capability claim while LLP 0158 stays Draft | fork, derived instance, inspect, status, recover, diff, automatic reap | none | partial | `ForkCommand` in src/cli.rs + tests/instance_fork_cli_v1.rs + tests/acceptance/instance-fork-fleet-dogfood.2026-08-03.v1.json (source proof only) | llp/0158, llp/0185 | GAP (publication, resource governance, stronger isolation, exact-diff validation, and hosted-target work remain; owner: Charlie, review: 2026-08-31; see operating/instance-forks.md) |
+| operating.instance-forks | Experimental source-only finite-TTL derived-instance CLI with automatic expiry enforcement, bounded renewal, resource-limit admission, recovery, bounded inspection, scalar projections, diff, concurrency-safe cleanup, and exact drop; implementation evidence is not a capability claim while LLP 0158 stays Draft | fork, derived instance, inspect, status, recover, renew, diff, automatic reap, resource limits | none | partial | `ForkCommand` in src/cli.rs + tests/instance_fork_cli_v1.rs + instance_fork unit matrices (parent-write invisibility, renewal crash cuts, concurrency, egress/credential) + tests/acceptance/instance-fork-fleet-dogfood.2026-08-03.v1.json (source proof only) | llp/0158, llp/0185 | GAP (publication, limit-constant ratification, remaining bypass negatives, exact-diff validation, independent review, and hosted-target work remain; owner: Charlie, review: 2026-08-31; see operating/instance-forks.md) |
 | operating.packaged-dev-loop | Install a native runtime; scaffold, generate, doctor, and watch/load through one CLI. The current packed React/Vite starter and inferred sessions startup pass locally, but the expanded React closure is not yet the byte-verified public `0.1.0` closure. | install, new app, react starter, vite, dev, one command, watch, sessions startup, packaged runtime | local | partial | `runDev` in packages/snapback-cli/index.mjs | llp/0041, llp/0058, llp/0114, llp/0103 | getting-started/the-authoring-loop.md |
 | operating.inspect | Health and inspect projections | inspect, status, debug | local | shipped | route /inspect | llp/0017, llp/0031 | getting-started/the-authoring-loop.md |
 | operating.secrets-config | App secrets/config: declare, set, verify — write-only | secrets, config, api keys, config verification, verify config, config verify | local | shipped | route /_snapback/api/config/status | llp/0036 | operating/secrets-and-config.md |
@@ -11227,7 +11227,15 @@ contract.
 The fork operation does all of these before it returns:
 
 - sweeps already-expired, safely verifiable forks in the selected fork root,
-  or refuses creation if any expired target cannot be proved safe to remove;
+  completes any stale registry bookkeeping whose fork directory is already
+  gone (reported as `data.automaticReap.clearedStaleRegistryIds`), or refuses
+  creation if any expired target cannot be proved safe to remove;
+- checks resource admission and refuses deterministically with
+  `SNAPBACK_FORK_RESOURCE_LIMIT_REFUSED` when the managed fork count, the
+  source database's estimated bytes, or the fork root's total byte budget
+  would exceed the configured limits (`--max-forks`, `--max-fork-bytes`,
+  `--max-total-bytes`; defaults are provisional constants pending
+  ratification), reporting the admitted usage as `data.resourceAdmission`;
 - takes a consistent local snapshot and records the exact fork point;
 - scrubs copied sessions, agent credentials, and operational claims;
 - rotates authorization and data-stream identities and mints fresh sidecars;
@@ -11300,6 +11308,9 @@ target/debug/snapback fork diff "$FORK_ID" \
   --app-root "$PWD" --fork-root /absolute/path/to/shared-fork-root \
   --out /absolute/path/to/fork-diff.json
 
+target/debug/snapback fork renew "$FORK_ID" --ttl 2h \
+  --app-root "$PWD" --fork-root /absolute/path/to/shared-fork-root
+
 target/debug/snapback fork drop "$FORK_ID" \
   --app-root "$PWD" --fork-root /absolute/path/to/shared-fork-root
 
@@ -11315,14 +11326,29 @@ five `--format` scalar values match `create`, so a script can write, for
 example, `FORK_URL=$(... fork inspect "$FORK_ID" --format url ...)` without
 parsing display text.
 
-`drop` stops and removes exactly one verified fork. Explicit `reap` is a
-deterministic test and operations surface: the caller supplies a portable
-millisecond clock and the command removes only verified forks whose finite
-expiry is at or before that clock. Normal creation needs no injected clock: it
-uses the system clock to sweep the same fork-root scope first and reports the
-reaped IDs in `data.automaticReap`. If that sweep cannot safely remove every
-expired fork, creation fails closed with
-`SNAPBACK_FORK_EXPIRED_REAP_FAILED` and the known count.
+`renew` extends one fork's finite expiry from now by `--ttl`, bounded by a
+configured maximum total lifetime from creation. It re-binds the exact
+registry identity first, refuses to shorten or clear the expiry, refuses an
+already-expired fork outright (`SNAPBACK_FORK_RENEW_EXPIRED` — reap and
+recreate instead), and emits a durable `snapback.fork-renew.v1` receipt both
+in the envelope and beside the fork database. A renewal that crashes mid-way
+is completed by `fork recover` from its durable intent; a running fork server
+re-reads the renewed expiry at its old deadline and keeps serving.
+
+`drop` stops and removes exactly one verified fork; concurrent drop/reap of
+the same fork settles with one winner and `SNAPBACK_FORK_NOT_FOUND` for the
+rest, never a torn teardown. Explicit `reap` is a deterministic test and
+operations surface: the caller supplies a portable millisecond clock and the
+command removes only verified forks whose finite expiry is at or before that
+clock, and additionally completes stale registry entries whose fork
+directory is already gone (`data.clearedStaleRegistryIds`). `list` binds
+every entry it can and reports the rest under `data.unboundRegistry` with
+warning diagnostics instead of failing wholesale; it also projects
+`data.resourceUsage` (fork count, total bytes, default limits). Normal
+creation needs no injected clock: it uses the system clock to sweep the same
+fork-root scope first and reports the reaped IDs in `data.automaticReap`. If
+that sweep cannot safely remove every expired fork, creation fails closed
+with `SNAPBACK_FORK_EXPIRED_REAP_FAILED`.
 
 A derived server independently reads its recorded expiry. It refuses an
 already-expired boot, then checks at least once per second while serving and
@@ -11365,8 +11391,9 @@ details object in automation; the message is for people.
 | `SNAPBACK_FORK_REGISTRY_STALE` | Treat the registry as advisory and inspect the named exact path; never recursively sweep based only on the row. |
 | `SNAPBACK_FORK_STOP_UNVERIFIED` | Resolve the missing/stale ready descriptor or live PID; Snapback intentionally will not signal or delete an unproved target. |
 | `SNAPBACK_FORK_EXPIRED_REAP_FAILED` | Inspect the reported expired targets and restore enough evidence to stop/reap them safely before retrying create. |
-| `SNAPBACK_FORK_SERVER_EXPIRED` | Expected finite-TTL enforcement: use `create` or explicit `reap` to prove the stopped process and remove the fork. |
-| `SNAPBACK_FORK_RESOURCE_LIMIT_REFUSED` | Reserved for Phase-3 admission limits; Phase 1 defines the automation code but enforces no invented limit. |
+| `SNAPBACK_FORK_SERVER_EXPIRED` | Expected finite-TTL enforcement: use `create` or explicit `reap` to prove the stopped process and remove the fork, or `renew` **before** expiry to extend it. |
+| `SNAPBACK_FORK_RENEW_EXPIRED` | Renewal never resurrects: the fork is already past expiry — reap it and create a fresh fork. |
+| `SNAPBACK_FORK_RESOURCE_LIMIT_REFUSED` | A configured bound refused deterministically; the details name the resource (`fork-count`, `fork-bytes`, `total-bytes`, `diff-work`, `renewal-lifetime`) and the observed usage. Drop forks, raise the explicit flag, or bound the request. |
 
 ## Read the diff at its real boundary
 
@@ -11381,8 +11408,11 @@ fork point**, in commit order. It explicitly omits:
 
 It is a review aid, not a complete audit and not production migration
 admission. A long-lived fork can also outlive its journal floor; then diff
-refuses instead of returning an incomplete receipt. Use the reviewed migration
-rehearsal flow for production apply decisions.
+refuses instead of returning an incomplete receipt. The attributed span is
+also work-bounded: past `--max-rows` (default 100k) diff refuses with
+`SNAPBACK_FORK_RESOURCE_LIMIT_REFUSED` and the observed row count instead of
+materializing an unbounded receipt. Use the reviewed migration rehearsal flow
+for production apply decisions.
 
 ## Know what the quarantine does not promise
 
@@ -11390,6 +11420,15 @@ rehearsal flow for production apply decisions.
   runtime. They do not contain a malicious same-user process that can open the
   parent's files or make its own network calls; that requires an OS/container
   boundary.
+- **Workloads containing arbitrary native code need an OS isolation boundary
+  you provide.** The fork's `deny-all-v1` gate mediates Snapback-owned egress
+  and custody surfaces only. If the app under test loads native modules,
+  shells out, or executes untrusted code, run the fork server inside an OS
+  containment tier — a dedicated OS user, a container (the fork directory and
+  ready file are self-contained and bind-mountable), or a VM — and treat the
+  fork root as inside that boundary. Snapback does not ship an integrated
+  sandbox tier today; if one is added later it will be advertised as a
+  separate containment tier, not folded into the runtime quarantine claim.
 - The default is secret scrubbing. `--with-secrets` is an explicit high-risk
   opt-in for the config-secret sibling; it does not weaken credential minting
   or egress denial.

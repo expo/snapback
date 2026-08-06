@@ -57,7 +57,15 @@ contract.
 The fork operation does all of these before it returns:
 
 - sweeps already-expired, safely verifiable forks in the selected fork root,
-  or refuses creation if any expired target cannot be proved safe to remove;
+  completes any stale registry bookkeeping whose fork directory is already
+  gone (reported as `data.automaticReap.clearedStaleRegistryIds`), or refuses
+  creation if any expired target cannot be proved safe to remove;
+- checks resource admission and refuses deterministically with
+  `SNAPBACK_FORK_RESOURCE_LIMIT_REFUSED` when the managed fork count, the
+  source database's estimated bytes, or the fork root's total byte budget
+  would exceed the configured limits (`--max-forks`, `--max-fork-bytes`,
+  `--max-total-bytes`; defaults are provisional constants pending
+  ratification), reporting the admitted usage as `data.resourceAdmission`;
 - takes a consistent local snapshot and records the exact fork point;
 - scrubs copied sessions, agent credentials, and operational claims;
 - rotates authorization and data-stream identities and mints fresh sidecars;
@@ -130,6 +138,9 @@ target/debug/snapback fork diff "$FORK_ID" \
   --app-root "$PWD" --fork-root /absolute/path/to/shared-fork-root \
   --out /absolute/path/to/fork-diff.json
 
+target/debug/snapback fork renew "$FORK_ID" --ttl 2h \
+  --app-root "$PWD" --fork-root /absolute/path/to/shared-fork-root
+
 target/debug/snapback fork drop "$FORK_ID" \
   --app-root "$PWD" --fork-root /absolute/path/to/shared-fork-root
 
@@ -145,14 +156,29 @@ five `--format` scalar values match `create`, so a script can write, for
 example, `FORK_URL=$(... fork inspect "$FORK_ID" --format url ...)` without
 parsing display text.
 
-`drop` stops and removes exactly one verified fork. Explicit `reap` is a
-deterministic test and operations surface: the caller supplies a portable
-millisecond clock and the command removes only verified forks whose finite
-expiry is at or before that clock. Normal creation needs no injected clock: it
-uses the system clock to sweep the same fork-root scope first and reports the
-reaped IDs in `data.automaticReap`. If that sweep cannot safely remove every
-expired fork, creation fails closed with
-`SNAPBACK_FORK_EXPIRED_REAP_FAILED` and the known count.
+`renew` extends one fork's finite expiry from now by `--ttl`, bounded by a
+configured maximum total lifetime from creation. It re-binds the exact
+registry identity first, refuses to shorten or clear the expiry, refuses an
+already-expired fork outright (`SNAPBACK_FORK_RENEW_EXPIRED` — reap and
+recreate instead), and emits a durable `snapback.fork-renew.v1` receipt both
+in the envelope and beside the fork database. A renewal that crashes mid-way
+is completed by `fork recover` from its durable intent; a running fork server
+re-reads the renewed expiry at its old deadline and keeps serving.
+
+`drop` stops and removes exactly one verified fork; concurrent drop/reap of
+the same fork settles with one winner and `SNAPBACK_FORK_NOT_FOUND` for the
+rest, never a torn teardown. Explicit `reap` is a deterministic test and
+operations surface: the caller supplies a portable millisecond clock and the
+command removes only verified forks whose finite expiry is at or before that
+clock, and additionally completes stale registry entries whose fork
+directory is already gone (`data.clearedStaleRegistryIds`). `list` binds
+every entry it can and reports the rest under `data.unboundRegistry` with
+warning diagnostics instead of failing wholesale; it also projects
+`data.resourceUsage` (fork count, total bytes, default limits). Normal
+creation needs no injected clock: it uses the system clock to sweep the same
+fork-root scope first and reports the reaped IDs in `data.automaticReap`. If
+that sweep cannot safely remove every expired fork, creation fails closed
+with `SNAPBACK_FORK_EXPIRED_REAP_FAILED`.
 
 A derived server independently reads its recorded expiry. It refuses an
 already-expired boot, then checks at least once per second while serving and
@@ -195,8 +221,9 @@ details object in automation; the message is for people.
 | `SNAPBACK_FORK_REGISTRY_STALE` | Treat the registry as advisory and inspect the named exact path; never recursively sweep based only on the row. |
 | `SNAPBACK_FORK_STOP_UNVERIFIED` | Resolve the missing/stale ready descriptor or live PID; Snapback intentionally will not signal or delete an unproved target. |
 | `SNAPBACK_FORK_EXPIRED_REAP_FAILED` | Inspect the reported expired targets and restore enough evidence to stop/reap them safely before retrying create. |
-| `SNAPBACK_FORK_SERVER_EXPIRED` | Expected finite-TTL enforcement: use `create` or explicit `reap` to prove the stopped process and remove the fork. |
-| `SNAPBACK_FORK_RESOURCE_LIMIT_REFUSED` | Reserved for Phase-3 admission limits; Phase 1 defines the automation code but enforces no invented limit. |
+| `SNAPBACK_FORK_SERVER_EXPIRED` | Expected finite-TTL enforcement: use `create` or explicit `reap` to prove the stopped process and remove the fork, or `renew` **before** expiry to extend it. |
+| `SNAPBACK_FORK_RENEW_EXPIRED` | Renewal never resurrects: the fork is already past expiry — reap it and create a fresh fork. |
+| `SNAPBACK_FORK_RESOURCE_LIMIT_REFUSED` | A configured bound refused deterministically; the details name the resource (`fork-count`, `fork-bytes`, `total-bytes`, `diff-work`, `renewal-lifetime`) and the observed usage. Drop forks, raise the explicit flag, or bound the request. |
 
 ## Read the diff at its real boundary
 
@@ -211,8 +238,11 @@ fork point**, in commit order. It explicitly omits:
 
 It is a review aid, not a complete audit and not production migration
 admission. A long-lived fork can also outlive its journal floor; then diff
-refuses instead of returning an incomplete receipt. Use the reviewed migration
-rehearsal flow for production apply decisions.
+refuses instead of returning an incomplete receipt. The attributed span is
+also work-bounded: past `--max-rows` (default 100k) diff refuses with
+`SNAPBACK_FORK_RESOURCE_LIMIT_REFUSED` and the observed row count instead of
+materializing an unbounded receipt. Use the reviewed migration rehearsal flow
+for production apply decisions.
 
 ## Know what the quarantine does not promise
 
@@ -220,6 +250,15 @@ rehearsal flow for production apply decisions.
   runtime. They do not contain a malicious same-user process that can open the
   parent's files or make its own network calls; that requires an OS/container
   boundary.
+- **Workloads containing arbitrary native code need an OS isolation boundary
+  you provide.** The fork's `deny-all-v1` gate mediates Snapback-owned egress
+  and custody surfaces only. If the app under test loads native modules,
+  shells out, or executes untrusted code, run the fork server inside an OS
+  containment tier — a dedicated OS user, a container (the fork directory and
+  ready file are self-contained and bind-mountable), or a VM — and treat the
+  fork root as inside that boundary. Snapback does not ship an integrated
+  sandbox tier today; if one is added later it will be advertised as a
+  separate containment tier, not folded into the runtime quarantine claim.
 - The default is secret scrubbing. `--with-secrets` is an explicit high-risk
   opt-in for the config-secret sibling; it does not weaken credential minting
   or egress denial.

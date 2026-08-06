@@ -3,7 +3,9 @@
 **Status:** Open
 **Opened:** 2026-08-03 (Track B integrated implementation pass)
 **Reconciled:** 2026-08-05 (LLP 0185 Phase 0 — assigned each remaining proof
-leg to its contract owner without changing any row state)
+leg to its contract owner without changing any row state); 2026-08-05 (LLP
+0185 Phase 3 — dated derived-deployment evidence recorded below, row states
+unchanged)
 **Systems:** Storage, Sync, Auth, Effects, Migrations, Testing, Performance,
 Agent experience
 **Related:** LLP 0158, LLP 0162, LLP 0163, LLP 0164, LLP 0165;
@@ -40,6 +42,39 @@ from `Partial`.
 | 12 — boundary proof | Partial | Promotion and checkpoint proof paths are integrated; add migration boundary integration and the remaining concurrent-writer/publication/receipt-only negative corpus. | LLP 0165 owns the domain-separated proof contracts and closure across callers; LLP 0081/0164 callers supply inputs, not parallel definitions. |
 | 13 — performance | Partial | The final-integrated absolute rerun is recorded. Run a genuinely paired/interleaved, baseline-digest-bound comparison with the public covered lane active; obtain dated RFC-author absolute-bound ratification; record p99 contention and every applicable crash/reopen gate. | Per-component single ownership: LLP 0163 for envelope/explanation metrics, LLP 0164 for fork/diff/promotion/reap and p99 contention, LLP 0165 for history/checkpoint/proof metrics. LLP 0162's author alone ratifies shared bounds/exceptions. |
 | 14 — identity lifecycle | Partial | Wire first-party host job/cron/migration callers and transport-level client exclusion, then finish capacity/purge/current-authority negative fixtures beyond the landed promotion-ticket lease. | LLP 0163; the public-carrier ticket owns execution. |
+
+### Dated LLP 0185 Phase 3 evidence (2026-08-05, derived-deployment class only)
+
+Recorded here as input evidence for the owners above; no row state changes,
+and none of this closes a row on its own.
+
+- **Row 5 (fork isolation):** the derived post-fork-parent-write invisibility
+  fixture now exists at two levels —
+  `instance_fork::tests::parent_commits_after_the_fork_point_are_invisible_to_the_published_fork`
+  (module) and `live_parent_writes_after_fork_point_never_appear_in_the_fork`
+  (`tests/instance_fork_cli_v1.rs`, live-server bidirectional with diff
+  attribution). Concurrent-lifecycle determinism (drop races one-winner,
+  stale-registry completion, distinct-port simultaneous forks, SIGKILL and
+  missing-ready outcomes) has dated tests in the same files.
+- **Row 6 (effect quarantine):** the shared host-op gate
+  (`deny_derived_fork_host_op`) is behaviorally tested per family, including
+  manual cron, provider-adapter selection, and the named-op unclassified
+  fail-closed rule. Open bypass negatives: push-receipt maintenance on a
+  ledger-bearing fork; a VM-level JS-action fetch negative; `CaptureOnly`
+  remains unimplemented for this class.
+- **Row 7 (identity/authority):** live, stale, and revoked parent grant
+  authority proven absent post-mint; bidirectional live-HTTP bearer replay
+  (parent↔fork) proven refused with data-level no-commit checks. Production
+  wired-auth legs remain open.
+- **Row 8 (resource containment):** create admission (fork-count, per-fork
+  bytes, total bytes), diff-work bound, and renewal max-lifetime cap all
+  refuse deterministically with observed usage
+  (`SNAPBACK_FORK_RESOURCE_LIMIT_REFUSED`); bounded renewal has a 7-cut
+  crash-recovery matrix. Open: author ratification of the provisional limit
+  constants; a true ENOSPC/disk-pressure simulation (not portably
+  automatable — interrupted-copy behavior is covered by the 20-cut
+  publication crash matrix instead); digest-work/replay-floor legs stay with
+  their owners above.
 
 The detailed LLP 0163 public-carrier work remains in its existing focused
 ticket. The first F1 operating-guide and single-consumer fork-aware harness

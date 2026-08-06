@@ -6,7 +6,15 @@
 experience, Developer experience, CLI, Documentation, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-03
-**Revised:** 2026-08-05 (LLP 0185 Phase 1 operating workflow: made finite TTL
+**Revised:** 2026-08-05 (LLP 0185 Phase 3 isolation/lifecycle evidence:
+bounded intent-journaled `fork renew` with a provisional max-lifetime cap and
+`SNAPBACK_FORK_RENEW_EXPIRED`; create-admission and diff-work resource limits
+wiring `SNAPBACK_FORK_RESOURCE_LIMIT_REFUSED`; per-fork cleanup locking,
+stale-registry completion, and dated concurrent-lifecycle/port evidence;
+parent-write-after-fork invisibility fixtures at module and live-server
+level; credential/egress matrix extensions and the named-op unclassified
+host-op diagnostic. Limit constants remain author-ratification-pending.);
+2026-08-05 (LLP 0185 Phase 1 operating workflow: made finite TTL
 self-enforcing through create-time reap plus boot/periodic server refusal,
 wired local-evidence recovery to `fork recover`, added `fork inspect` and
 opt-in scalar projections, expanded stable lifecycle diagnostics, and updated
@@ -792,8 +800,16 @@ with `SNAPBACK_FORK_SERVER_EXPIRED`; it retains its non-secret ready descriptor
 so the next reaper can prove the recorded PID is gone before deleting state.
 Explicit `reap --now-ms` remains as the deterministic operator/test surface.
 
-One lifecycle limit remains explicit: bounded renewal belongs to LLP 0185
-Phase 3. Renewal may move a finite expiry but may not clear it. Independently,
+Bounded renewal is built (LLP 0185 Phase 3, 2026-08-05): `fork renew` extends
+a finite expiry under the per-fork cleanup lock, refuses an already-expired
+fork (`SNAPBACK_FORK_RENEW_EXPIRED`), is capped by a configured maximum total
+lifetime from creation (`MANAGED_FORK_MAX_LIFETIME_MS`, provisional 7d pending
+author ratification), emits a durable `ForkRenewReceiptV1`, and carries all
+three expiry carriers (database lineage, mint receipt, registry entry)
+through a sentinel-plus-intent protocol that `fork recover` completes after a
+crash at any cut. The serving watchdog re-reads the database lineage at its
+deadline, so renewing a live fork extends the running server. Renewal may
+move a finite expiry but may not clear it. Independently,
 derived-deployment forks never promote or clear their TTL. A permanent copied
 environment, if ever added, is a different provisioning product rather than a
 lifecycle transition of this fork class. If the F2-era shared asset store
@@ -897,10 +913,10 @@ historical spike and the remaining follow-ons:
 | `CaptureOnly` effect capture | **Open shared follow-on** — 0097 ledger/keying and simulated-result mediation remain unwired for derived deployments | `src/branches.rs`; LLP 0097/0164 |
 | Identity scrub-and-mint | **Built** — transactional custody scrub, auth/data-stream rotation, fork stamp, fresh admin/auth/resume sidecars, negative credential corpus | `src/instance_fork.rs` |
 | Asset custody | **Decided and built as refusal** — any occupied refuse-class asset table returns `SNAPBACK_FORK_CUSTODY_REFUSED`; fork-private same-cut copy is additive work and shared-store indirection is F2 | `src/instance_fork.rs` |
-| Fork registry, TTL, reaping | **Built with one remaining limit** — advisory UUID registry, finite timestamps, exact drop, caller-clock deterministic reap, create-time automatic reap, and boot/periodic server self-expiry; bounded renewal remains Phase 3 | `src/instance_fork.rs`, `src/cli.rs` |
+| Fork registry, TTL, reaping | **Built** — advisory UUID registry, finite timestamps, exact drop, caller-clock deterministic reap, create-time automatic reap, boot/periodic server self-expiry, bounded intent-journaled renewal with a max-lifetime cap, per-fork cleanup locking, and stale-registry completion | `src/instance_fork.rs`, `src/cli.rs` |
 | Recovery and inspection | **Built** — exact-destination local-evidence recovery, bounded status/diff summary, process health, isolation posture, and JSON-first shell scalar overlays | `src/instance_fork.rs::recover`, `src/cli.rs::fork_command` |
 | Diff receipt | **Built** for attributed app-row journal entries with explicit coverage/omissions and same-snapshot floor/head/row capture; it refuses after a retention gap and is not an exact net diff | `src/instance_fork.rs::diff_receipt` |
-| Port/endpoint isolation | **Built for creation** — the OS selects an ephemeral port via `--port 0`, returned in an LLP 0030 ready file; concurrent allocation and lifecycle races remain Phase-3 evidence | `src/cli.rs` |
+| Port/endpoint isolation | **Built** — the OS selects an ephemeral port via `--port 0`, returned in an LLP 0030 ready file; dated 2026-08-05 evidence covers simultaneous creates binding distinct ports, concurrent drops settling one-winner/`NOT_FOUND`, SIGKILLed servers, and deleted ready descriptors | `src/cli.rs`, `tests/instance_fork_cli_v1.rs` |
 
 Two design points the inventory surfaces:
 
@@ -1140,7 +1156,8 @@ the freeze:
 | `SNAPBACK_FORK_RECEIPT_INVALID` | Fork evidence cannot be encoded or a mint/recovery receipt is malformed. |
 | `SNAPBACK_FORK_REGISTRY_INVALID` | The registry directory/entry, format, state, identity, or recorded path shape is invalid. |
 | `SNAPBACK_FORK_REGISTRY_STALE` | A registry entry names a missing destination/database/ready process fact and cannot be treated as live state. |
-| `SNAPBACK_FORK_RESOURCE_LIMIT_REFUSED` | Reserved admission class for Phase-3 fork/byte/diff limits; no limit is invented or triggered in Phase 1. |
+| `SNAPBACK_FORK_RENEW_EXPIRED` | Renewal targeted a fork already past its finite expiry; expiry is authority and renewal never resurrects. |
+| `SNAPBACK_FORK_RESOURCE_LIMIT_REFUSED` | A configured bound refused the operation deterministically: create admission (fork-count, per-fork bytes, total bytes), the diff-work row limit, or the renewal max-lifetime cap; details carry the observed usage. |
 | `SNAPBACK_FORK_SERVER_EXPIRED` | A derived server observed its finite expiry at boot or during serving and refuses/shuts down. |
 | `SNAPBACK_FORK_SIDECAR_COLLISION` | Private staging already contains a sidecar that scrub-and-mint must create fresh. |
 | `SNAPBACK_FORK_SIDECAR_MALFORMED` | A required minted sidecar exists but fails regular-file, custody, encoding, token, or key validation. |
@@ -1228,13 +1245,18 @@ The original bill's identity scrub-and-mint, `DenyAll` mediation, backup
 materialization, basic registry/TTL lifecycle, and attributed app-row receipt
 have landed. LLP 0185 now owns the remaining program, roughly:
 
-1. **Paved lifecycle and bounded resources** — automatic expiry enforcement,
-   product-facing recovery, inspection, bounded renewal, fork/byte/diff limits,
-   and concurrent cleanup/port evidence.
-2. **Acceptance closure** — the LLP 0162 row-5 parent-write isolation fixture,
-   per-class credential/effect matrices, resource exhaustion, and independent
-   review. LLP 0164 owns the fork/diff surface legs and LLP 0165 the journal-
-   completeness leg.
+1. **Paved lifecycle and bounded resources** — landed 2026-08-05 (LLP 0185
+   Phases 1/3): automatic expiry enforcement, product-facing recovery,
+   inspection, bounded renewal, fork/byte/diff limits, and concurrent
+   cleanup/port evidence all exist with dated tests. Remaining here: author
+   ratification of the provisional limit constants and an optional OS
+   sandbox/container containment tier.
+2. **Acceptance closure** — the LLP 0162 row-5 parent-write isolation fixture
+   and the first per-class credential/egress matrices and resource-exhaustion
+   negatives landed 2026-08-05; independent review and the remaining
+   bypass-negative legs (push-receipt maintenance on a ledger-bearing fork,
+   VM-level action-fetch negative) are open. LLP 0164 owns the fork/diff
+   surface legs and LLP 0165 the journal-completeness leg.
 3. **Exact diff** — adopt LLP 0164's immutable-base/first-preimage substrate and
    LLP 0165's writer-authority choke point, then add an independent net-diff
    oracle, structured domains, and bounded continuation.
