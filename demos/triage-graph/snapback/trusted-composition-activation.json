@@ -2,27 +2,27 @@
   "format": "snapback.trusted-composition-activation.v1",
   "activation": {
     "format": "snapback.composition-activation.v1",
-    "databaseId": "019fd193-36c0-7332-a19a-6c524d99e4e4",
+    "databaseId": "019fd75a-caf7-7592-9b3b-6e7091d3da26",
     "deploymentId": "triage-graph-p3-controlled-run",
     "targetProfileId": "local-dev-sqlite-ibex",
     "authMode": "sessions",
     "expectedGeneration": {
       "schemaVersion": "snapback.v1",
       "appId": "triage-graph",
-      "schemaHash": "snapback.v1:sessions:schema:sha256:c19cf0793b4c457f5ea4a66b2be35f0d56ec27db1f3b1562c76c21c4f0a6c245",
-      "bundleHash": "snapback.v1:sessions:function:sha256:f714fa5ee7ef641c7fc0c95bb41e75f951a6c741fdc40f6a95b27ceace015d13",
-      "inputsHash": "snapback.v1:sessions:inputs:sha256:8732f9cd3f9029a1198992bfb689054c40f0d3db7658092ec6c42684ebe225c9"
+      "schemaHash": "snapback.v1:sessions:schema:sha256:d1bb951d8a97ae4b3b4b9a8bd4d17c83b41f5831d3f2ec9af7d4a47bfc60d031",
+      "bundleHash": "snapback.v1:sessions:function:sha256:a107701635e1b2bfa2ff0ceeae5ba95d5e9c9dd585ee01541265583859f3dcd4",
+      "inputsHash": "snapback.v1:sessions:inputs:sha256:0589081c604803e5bd4d2c2277be71161b57fbf220239688c20d47bfd94e9c5f"
     },
-    "proofKeyManifestDigest": "sha256:9f9757792cf90d28fbb4493c2a43a3031f43c41b90473bedbacb9cd2a18f542f"
+    "proofKeyManifestDigest": "sha256:9896d6aa4656bc69d03ac0fe88691ca523bd2304430e79dc1240e6d8c9d98f04"
   },
-  "activationHash": "sha256:13c4711abb9bc0f4a78410902865a7e3ff75dafb7d6b21a52ef2e74c8b9c3410",
+  "activationHash": "sha256:c6df20bc4994ba678100de0604887c7ff103789475ca807ca35a1312e7673e9f",
   "proofKeys": {
     "format": "snapback.completeness-proof-keys.v1",
     "keys": [
       {
-        "proofKeyId": "sbpk1.6ajTWXcOOhTyIngKbrpMsg",
+        "proofKeyId": "sbpk1.2BwYgQ8NCmRnJmxw_WoyEQ",
         "algorithm": "Ed25519",
-        "publicKeyBase64url": "dR9GFSWpvSbcPoKd5MJbFGVZO4TnDEJ4awnOHhgnL1o"
+        "publicKeyBase64url": "RXTKXvhtQUnyFYW35x7fJ5BAcc9Hy-PMju8ZV5XGH6A"
       }
     ]
   }
