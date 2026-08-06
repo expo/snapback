@@ -80,6 +80,36 @@ fn auth_policy_unavailable(message: &'static str) -> crate::diagnostic::Snapback
     )
 }
 
+/// The settled-sessions startup pin refusing a regenerated artifact pair is
+/// correct, but it must not dead-end: even a comment-only source edit rotates
+/// the complete deployment identity (the source-byte identity contract), and
+/// without named repair paths authors reverse-engineer an ad-hoc local-store
+/// rollover. Name both supported ways forward on the refusal itself: the
+/// data-preserving live evolution through the running server, and the
+/// data-discarding backup-then-reseed procedure with the real backup command.
+// @ref LLP 0058#cold-startup-artifact-carrier — "this is not a wedge": the
+// refusal must carry its own repair, not just the expected identity
+// (issues/20260805-doc-comment-artifact-mismatch-no-successor-migration.md).
+fn with_settled_pin_repair(
+    mut error: crate::diagnostic::SnapbackError,
+    database: &Path,
+) -> crate::diagnostic::SnapbackError {
+    if let Value::Object(details) = &mut error.diagnostic.details {
+        details.insert(
+            "repair".to_owned(),
+            json!({
+                "keepData": "restart on the startup carrier matching expectedDeployment (regenerate it from the previous sources if needed), then apply the changed sources through the running server's live reload (`snapback dev` watch reload): the running-server provision moves the pinned deployment forward without touching local data",
+                "reseedFresh": format!(
+                    "to discard local data instead: back up the store with `snapback auth backup --db {} --output <ignored-backup-dir>`, move or delete the database file, then restart on the new carrier to reseed from scratch",
+                    database.display()
+                ),
+                "safety": "the refusal is auth-mode deployment state (LLP 0058), not a runtime or codegen defect; do not hand-edit generated artifacts or hashes to match the pin",
+            }),
+        );
+    }
+    error
+}
+
 /// Run a bounded synchronous startup transaction without occupying a Tokio
 /// worker. CLI composition owns `LocalSnapback` directly until listener bind,
 /// so the request-path `spawn_blocking` helpers cannot move a `'static` mutex
@@ -228,7 +258,10 @@ async fn compose_auth_mode_startup_with_embedded(
                     snapback.preflight_auth_artifacts(carrier, AuthMode::Sessions)
                 })?;
                 carrier.require_deployment(expected).map_err(|error| {
-                    with_expected_deployment(error, Some(expected), Some(&observed))
+                    with_settled_pin_repair(
+                        with_expected_deployment(error, Some(expected), Some(&observed)),
+                        &args.db,
+                    )
                 })?;
                 if carrier.seed.is_some() {
                     return Err(crate::diagnostic::SnapbackError::error(
@@ -748,6 +781,11 @@ pub enum HostCommand {
     Assets {
         #[command(subcommand)]
         command: AssetsCommand,
+    },
+    /// Session operations backed by the existing auth host-op surface.
+    Session {
+        #[command(subcommand)]
+        command: SessionCommand,
     },
     /// Typed local observability reads and the local-only SQL hatch.
     Telemetry {
@@ -1423,6 +1461,18 @@ pub enum AssetsCommand {
     },
 }
 
+#[derive(clap::Subcommand)]
+pub enum SessionCommand {
+    /// Mint an ordinary session for an admitted email address. Requires the
+    /// existing operator credential and process-bound impersonation capability.
+    Mint {
+        #[command(flatten)]
+        target: TargetArgs,
+        #[arg(long)]
+        email: String,
+    },
+}
+
 #[derive(clap::Args)]
 pub struct TargetArgs {
     /// Server base URL (e.g. http://127.0.0.1:4287).
@@ -1650,6 +1700,11 @@ pub async fn run_from_env() -> anyhow::Result<()> {
                     "userId": user,
                 }),
             ),
+        },
+        Some(HostCommand::Session { command }) => match command {
+            SessionCommand::Mint { target, email } => {
+                host_op_via_http(&target, mint_session_request(email))
+            }
         },
         Some(HostCommand::SecretReadMint {
             ready_file,
@@ -2930,6 +2985,12 @@ fn request_requires_impersonation(request: &Value) -> bool {
                 == crate::server::EffectPolicy::ImpersonationCapability
         })
     })
+}
+
+// @ref LLP 0176#g0--baseline-truth-and-mechanical-repair — this CLI primitive
+// is only a closed-argument projection of the existing auth.mintSession host-op.
+fn mint_session_request(email: String) -> Value {
+    json!({ "operation": "auth.mintSession", "args": { "email": email } })
 }
 
 /// POST one host operation and project the envelope to stdout + exit code
@@ -4317,13 +4378,20 @@ fn validated_secret_read_root_path(
     Ok(declared_root)
 }
 
-/// Print the envelope; returns envelope `ok` (missing/false → false).
-fn print_envelope(envelope: &Value) -> bool {
-    println!(
+/// Write only the JSON envelope; returns envelope `ok` (missing/false → false).
+fn write_envelope_to(envelope: &Value, output: &mut dyn std::io::Write) -> std::io::Result<bool> {
+    writeln!(
+        output,
         "{}",
         serde_json::to_string_pretty(envelope).unwrap_or_else(|_| envelope.to_string())
-    );
-    envelope.get("ok").and_then(Value::as_bool).unwrap_or(false)
+    )?;
+    Ok(envelope.get("ok").and_then(Value::as_bool).unwrap_or(false))
+}
+
+/// Print the envelope; returns envelope `ok` (missing/false → false).
+fn print_envelope(envelope: &Value) -> bool {
+    write_envelope_to(envelope, &mut std::io::stdout().lock())
+        .expect("write host-operation envelope to stdout")
 }
 
 /// host.stop: validate the readiness descriptor, verify the descriptor still
@@ -6994,15 +7062,15 @@ mod tests {
         AdminArgs, AdminCommand, Args, AssetsCommand, AuthCommand, AuthConstructionFailure,
         AuthCoordinatorReadinessReceipt, AuthProgramConstructionReceipts,
         BEFORE_STARTUP_TARGET_RESERVATION, Cli, ErrorsCommand, ForkCommand, HostCommand,
-        ManagedPath, NetworkProfileCommand, ReadyFileTarget, ResolvedHttpTarget, TargetArgs,
-        TelemetryCommand, bind_first_available, bind_listener, console_claim_fragment_url,
-        console_fragment_url, fork_secret_disposition, managed_startup_paths,
-        mint_secret_read_via_http, parse_fork_ttl, parse_network_profile_selection, parse_run_args,
-        path_with_filename_suffix, prepare_database_path, prepare_database_path_for_startup,
-        quiet_stop_fork, reject_misdirected_serve_flags, resolve_http_target,
-        runtime_auth_program_readiness, validate_path_disjointness, validated_console_origin,
-        validated_secret_read_root_path, write_ready_file_atomic,
-        write_ready_file_atomic_protected,
+        ManagedPath, NetworkProfileCommand, ReadyFileTarget, ResolvedHttpTarget, SessionCommand,
+        TargetArgs, TelemetryCommand, bind_first_available, bind_listener,
+        console_claim_fragment_url, console_fragment_url, fork_secret_disposition,
+        managed_startup_paths, mint_secret_read_via_http, parse_fork_ttl,
+        parse_network_profile_selection, parse_run_args, path_with_filename_suffix,
+        prepare_database_path, prepare_database_path_for_startup, quiet_stop_fork,
+        reject_misdirected_serve_flags, resolve_http_target, runtime_auth_program_readiness,
+        validate_path_disjointness, validated_console_origin, validated_secret_read_root_path,
+        write_ready_file_atomic, write_ready_file_atomic_protected,
     };
     use crate::instance_lock::TargetInstanceReservation;
     use clap::Parser;
@@ -7995,6 +8063,82 @@ mod tests {
         assert_eq!(restarted.active, AuthMode::Sessions);
     }
 
+    /// issues/20260805-doc-comment-artifact-mismatch-no-successor-migration.md:
+    /// a comment-only source edit rotates the functions bundle identity, and
+    /// the settled restart correctly refuses — but the refusal must name the
+    /// supported repair paths (live evolution through the running server, or
+    /// the `snapback auth backup` backup-then-reseed procedure) instead of
+    /// dead-ending on the identities alone.
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn settled_sessions_pin_refusal_names_supported_repair_paths() {
+        use crate::auth::mode::{AuthProgramReadiness, FUNCTION_V1_PREFIX};
+        use crate::auth::provider::AuthProviderProfile;
+        use crate::local::LocalSnapback;
+        use crate::manifest::AuthMode;
+
+        let directory = tempfile::tempdir().unwrap();
+        let database = directory.path().join("app.sqlite3");
+        let carrier = directory.path().join("startup.json");
+        sessions_startup_carrier(&carrier);
+        let args = Args {
+            db: database.clone(),
+            startup_artifacts: Some(carrier.clone()),
+            ..Args::default()
+        };
+        let mut snapback = LocalSnapback::open(&database).unwrap();
+        let mut runtime = crate::auth::runtime::AuthRuntime::inspect(
+            &mut snapback,
+            Some(&database),
+            AuthProviderProfile::Test,
+        )
+        .unwrap();
+        let readiness = AuthProgramReadiness::new(true, true, true, true, false, false, false);
+        let settled =
+            super::compose_auth_mode_startup(&args, &mut snapback, &mut runtime, &readiness)
+                .await
+                .unwrap();
+        assert_eq!(settled.active, AuthMode::Sessions);
+
+        // The doc-comment edit case: only the functions bundle identity moved.
+        let mut regenerated: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&carrier).unwrap()).unwrap();
+        regenerated["functions"]["bundleHash"] =
+            json!(format!("{FUNCTION_V1_PREFIX}{}", "d".repeat(64)));
+        std::fs::write(&carrier, serde_json::to_vec(&regenerated).unwrap()).unwrap();
+
+        let error =
+            super::compose_auth_mode_startup(&args, &mut snapback, &mut runtime, &readiness)
+                .await
+                .unwrap_err();
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH"
+        );
+        let details = &error.diagnostic.details;
+        assert_ne!(
+            details["expectedDeployment"]["bundleHash"],
+            details["observedDeployment"]["bundleHash"],
+            "the refusal still carries both exact deployment identities"
+        );
+        let repair = &details["repair"];
+        let keep_data = repair["keepData"].as_str().unwrap();
+        assert!(
+            keep_data.contains("running server") && keep_data.contains("watch reload"),
+            "keepData names the live-evolution migration path: {keep_data}"
+        );
+        let reseed = repair["reseedFresh"].as_str().unwrap();
+        assert!(
+            reseed.contains("snapback auth backup --db")
+                && reseed.contains(&database.display().to_string()),
+            "reseedFresh names the exact backup command for this store: {reseed}"
+        );
+        assert!(
+            repair["safety"].as_str().unwrap().contains("LLP 0058"),
+            "safety attributes the pin to auth-mode state"
+        );
+    }
+
     #[cfg(unix)]
     #[tokio::test]
     async fn pending_missing_carrier_quarantines_and_explicit_clear_restores_dev() {
@@ -8478,6 +8622,146 @@ mod tests {
             .is_err(),
             "gc-sweep must never fall back to the ambient wall clock"
         );
+    }
+
+    #[test]
+    fn session_mint_cli_calls_host_op_with_closed_email_args_and_capability() {
+        let dir = tempfile::tempdir().unwrap();
+        let ready = dir.path().join("ready.json");
+        let canonical_ready = std::fs::canonicalize(dir.path())
+            .unwrap()
+            .join("ready.json");
+        let sidecar =
+            crate::admin_impersonation::impersonation_capability_sibling(&canonical_ready).unwrap();
+        let (_registry, operator) =
+            crate::admin_impersonation::ImpersonationCapabilityRegistry::generate(
+                "nonce-session-mint".to_owned(),
+                &crate::auth::crypto::OsRandom,
+            )
+            .unwrap();
+        operator
+            .publish_with(&canonical_ready, |path, bytes| {
+                crate::secure_file::write_owner_only(path, bytes)
+            })
+            .unwrap();
+        let expected_capability = std::fs::read_to_string(&sidecar).unwrap();
+
+        let listener = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = std::thread::spawn(move || {
+            let mut requests = Vec::new();
+            for index in 0..2 {
+                let (mut stream, _) = listener.accept().unwrap();
+                let request = read_http_request(&mut stream);
+                let body = if index == 0 {
+                    health_with_nonce("nonce-session-mint")
+                } else {
+                    json!({
+                        "ok": true,
+                        "operation": "auth.mintSession",
+                        "data": { "tokenType": "Bearer", "token": "sbss_ordinary" },
+                    })
+                };
+                write_http_json(&mut stream, &body);
+                requests.push(request);
+            }
+            requests
+        });
+
+        let mut descriptor = stop_descriptor(Some("nonce-session-mint"));
+        descriptor.server_url = format!("http://{address}");
+        descriptor.target.server_url = Some(descriptor.server_url.clone());
+        descriptor.impersonation_capability_file = Some(sidecar.display().to_string());
+        crate::secure_file::write_owner_only(&ready, &serde_json::to_vec(&descriptor).unwrap())
+            .unwrap();
+
+        let parsed = Cli::parse_from([
+            "snapback",
+            "session",
+            "mint",
+            "--email",
+            "x@example.com",
+            "--ready-file",
+            ready.to_str().unwrap(),
+        ]);
+        let (target, email) = match parsed.command {
+            Some(HostCommand::Session {
+                command: SessionCommand::Mint { target, email },
+            }) => (target, email),
+            other => panic!("expected session mint command, got {other:?}"),
+        };
+        super::post_host_op(&target, super::mint_session_request(email)).unwrap();
+
+        let requests = server.join().unwrap();
+        assert!(requests[0].starts_with("GET /health "));
+        assert!(requests[1].starts_with("POST /_snapback/api/host-ops "));
+        assert!(requests[1].lines().any(|line| {
+            let Some((name, value)) = line.split_once(':') else {
+                return false;
+            };
+            name.eq_ignore_ascii_case(crate::admin_impersonation::IMPERSONATION_CAPABILITY_HEADER)
+                && value.trim() == expected_capability
+        }));
+        let (_, body) = requests[1].split_once("\r\n\r\n").unwrap();
+        assert_eq!(
+            serde_json::from_str::<serde_json::Value>(body).unwrap(),
+            json!({
+                "operation": "auth.mintSession",
+                "args": { "email": "x@example.com" },
+            })
+        );
+    }
+
+    #[test]
+    fn session_mint_cli_output_is_only_the_host_op_session_json() {
+        let impersonation_capability = "sbic_operator_capability_must_not_be_printed";
+        let session_result = json!({
+            "schemaVersion": "snapback.v0",
+            "resultKind": "hostOpsResult",
+            "operation": "auth.mintSession",
+            "ok": true,
+            "data": {
+                "tokenType": "Bearer",
+                "token": "sbss_ordinary_session",
+                "session": { "userId": "user_x" },
+            },
+            "diagnostics": [],
+        });
+        let mut output = Vec::new();
+
+        assert!(super::write_envelope_to(&session_result, &mut output).unwrap());
+
+        let output = String::from_utf8(output).unwrap();
+        assert_eq!(
+            output,
+            format!(
+                "{}\n",
+                serde_json::to_string_pretty(&session_result).unwrap()
+            )
+        );
+        assert!(!output.contains(impersonation_capability));
+        assert_eq!(
+            serde_json::from_str::<serde_json::Value>(&output).unwrap(),
+            session_result
+        );
+    }
+
+    #[test]
+    fn session_mint_cli_requires_email() {
+        let error = Cli::try_parse_from([
+            "snapback",
+            "session",
+            "mint",
+            "--url",
+            "http://127.0.0.1:4287",
+        ])
+        .expect_err("session mint without --email must be refused");
+
+        assert_eq!(
+            error.kind(),
+            clap::error::ErrorKind::MissingRequiredArgument
+        );
+        assert!(error.to_string().contains("--email"));
     }
 
     #[test]

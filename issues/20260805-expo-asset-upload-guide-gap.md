@@ -63,3 +63,19 @@ Evidence: `demos/relay-room-bakeoff/snapback-expo/src/screens/chat-screen.tsx`,
 - `diaries/0058-relay-room-expo-backend-bakeoff.diary.md`
 - LLP 0044 typed assets
 - LLP 0064 Expo Online surface
+
+## Resolution note — guide half (2026-08-05)
+
+`guide/backend/assets.md` now states the owner-principal constraint before the
+upload flow, distinguishes public attempt/delivery policy from anonymous
+transfer authority, and provides a source-transcluded Expo recipe covering
+ImagePicker metadata, `expo/fetch` Blob conversion,
+`useSnapbackAssetUpload.start`, byte progress, `task.done`, ready/error
+handling, and typed `ctx.assets.attach`. It also shows real session custody via
+the shipped `snapback session mint --email` wrapper and a trusted broker that
+returns only the ordinary bearer. `guide/index.md`, the capability aliases,
+and `guide/clients/react-expo.md` cross-index the recipe.
+
+This ticket remains open for the separate product-side acceptance item: when
+the public/owned contradiction is knowable earlier, codegen or reservation
+should reject it before a generic transfer 403.

@@ -48,15 +48,36 @@ exact_available() {
         [ -f "$ROOT/demos/cursors-web/surfaces/contract/node_modules/@exact/contract/package.json" ]
 }
 
+# The dirty fact is scoped to the runtime binary's input set (shared
+# definition: scripts/runtime-build-inputs.txt), not the whole tree, so
+# demo/guide-authoring/LLP/issue edits do not disqualify a prepared binary or
+# force identity-consuming crates to recompile
+# (issues/closed/20260805-whole-tree-dirty-flag-forces-runtime-rebuild.md).
+# A missing definition file falls back to whole-tree status (conservative).
 stamp_snapback_build_identity() {
-    local commit status
+    local commit status inputs_file line
+    local -a input_pathspecs=()
     commit="$(git rev-parse HEAD 2>/dev/null || true)"
     unset SNAPBACK_BUILD_GIT_COMMIT
     export SNAPBACK_BUILD_GIT_DIRTY=true
     if [ -n "$commit" ]; then
         export SNAPBACK_BUILD_GIT_COMMIT="$commit"
-        if status="$(git status --porcelain 2>/dev/null)" && [ -z "$status" ]; then
+        inputs_file="$ROOT/scripts/runtime-build-inputs.txt"
+        if [ -f "$inputs_file" ]; then
+            while IFS= read -r line; do
+                case "$line" in ''|\#*) continue ;; esac
+                input_pathspecs+=("$line")
+            done <"$inputs_file"
+        fi
+        if [ "${#input_pathspecs[@]}" -gt 0 ]; then
+            status="$(git status --porcelain --ignore-submodules=untracked -- "${input_pathspecs[@]}" 2>/dev/null)" || status="(git status failed)"
+        else
+            status="$(git status --porcelain 2>/dev/null)" || status="(git status failed)"
+        fi
+        if [ -z "$status" ]; then
             export SNAPBACK_BUILD_GIT_DIRTY=false
+        else
+            printf '[local-proof] runtime input set is dirty; builds are stamped SNAPBACK_BUILD_GIT_DIRTY=true by:\n%s\n' "$status" >&2
         fi
     fi
 }
@@ -113,6 +134,7 @@ run local-store-publication -- node tests/conformance/local-persistent-store-pub
 run snapshot-batch-parity -- node tests/conformance/snapshot-batch-sbsb1-parity-v1.mjs
 run runtime-package-authority-fixtures -- node --test scripts/runtime-package-authority.test.mjs
 run package-cold-install-fixtures -- node --test scripts/snapback-package-cold-install.test.mjs
+run local-source-package-closure -- node --test scripts/local-source-package-closure.test.mjs
 run result-transform-ship-gate -- node tests/conformance/result-transform-ship-gate-v1.mjs --check
 # @ref LLP 0041#unreviewed-post-round-correction-publication-lease-and-rollback
 # — candidate publication and default-tag promotion are separate operations;
@@ -360,6 +382,7 @@ run rbac-acceptance --requires current-binary-readiness -- node demos/rbac/tests
 run client-errors -- node demos/_kit/tests/client-errors.mjs
 run live-wire-schema -- node demos/_kit/tests/live-wire-schema.mjs
 run provenance-unit -- node demos/_kit/tests/provenance-unit.mjs
+run repo-layout-unit -- node demos/_kit/tests/repo-layout-unit.mjs
 run codegen-regressions -- node demos/_kit/tests/codegen-regressions.mjs
 run exact-resolver-packages -- node demos/_kit/tests/exact-resolver-packages.mjs
 run provider-live-conformance --requires current-binary-readiness -- node demos/_kit/tests/provider-live-conformance.mjs

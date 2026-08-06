@@ -1459,6 +1459,32 @@ export function admittedReactEphemeralDefinition(
   binding: unknown,
   reference: SnapbackEphemeralReference,
 ): PreparedReactEphemeralDefinition;
+/** The exact generation stamp codegen embeds on every generated reference. */
+export interface RegeneratedReferenceGeneration {
+  readonly schemaVersion: string;
+  readonly appId: string;
+  readonly schemaHash: string;
+  readonly bundleHash: string;
+  readonly inputsHash: string;
+}
+export function activeReactBindingDeploymentIdentity(
+  binding: unknown,
+): Readonly<Record<string, unknown>>;
+export function classifyRegeneratedReactReference(
+  binding: unknown,
+  reference: unknown,
+): RegeneratedReferenceGeneration | null;
+export function handoffPreparedReactBindingGeneration(
+  binding: unknown,
+  targetGeneration: RegeneratedReferenceGeneration,
+  options?: {
+    readonly timeoutMs?: number;
+    readonly pollIntervalMs?: number;
+  },
+): Promise<
+  | Readonly<{ ok: true; generation: Readonly<Record<string, unknown>> }>
+  | Readonly<{ ok: false; reason: string; cause?: string; groupId?: string }>
+>;
 
 export { createFileRqsResumeStore } from './rqs-store-file.mjs';
 export {

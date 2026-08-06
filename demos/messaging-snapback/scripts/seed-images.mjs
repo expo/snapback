@@ -12,7 +12,7 @@
 // so every later TUS/finalize step 403s unless the caller is a real
 // identity. The CLI's `--user` flag drives asset.put through the admin
 // host-ops path, which *does* carry an explicit user identity end to end.
-// See issues/20260805-guide-gap-dev-mode-asset-upload-anonymous-caller.md.
+// See issues/closed/20260805-guide-gap-dev-mode-asset-upload-anonymous-caller.md.
 
 import { execFile } from 'node:child_process';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';

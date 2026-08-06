@@ -61,7 +61,7 @@ a bad day.
   printed on every native server boot (`src/cli.rs`, the
   `admin console:` banner) — at least one arm had that line on screen via an
   `stdio: 'inherit'` launcher and still never used it
-  (`issues/20260805-admin-console-undiscovered-by-expo-bakeoffs.md`).
+  (`issues/closed/20260805-admin-console-undiscovered-by-expo-bakeoffs.md`).
   `guide/clients/react-expo.md` — the page these arms actually lived in —
   contains zero mentions of the console.
 - **`defineRelationalQuery` — missed 3/3.** All three arms needed plain
@@ -70,7 +70,7 @@ a bad day.
   the miss as a *positive finding* — praising the "declarative-vs-JS split"
   for joins "the declarative plan vocabulary can't express," which is false
   for plain joins
-  (`issues/20260805-relational-query-undiscovered-by-messaging-bakeoffs.md`).
+  (`issues/closed/20260805-relational-query-undiscovered-by-messaging-bakeoffs.md`).
   A bakeoff artifact now asserts a capability gap that does not exist.
 - **`useSnapbackPresence` — missed 1/3, via a vocabulary split.** Two arms
   found the hook and praised it; the third grepped `useSnapbackEphemeral`
@@ -78,7 +78,7 @@ a bad day.
   client method, concluded "there is no React hook (confirmed by grep, not
   assumption)," and hand-wired the raw subscription. The hook appears in
   `guide/clients/react.md` and never in `guide/realtime/ephemeral-state.md`
-  (`issues/20260805-guide-gap-ephemeral-presence-hook-naming.md`). The agent
+  (`issues/closed/20260805-guide-gap-ephemeral-presence-hook-naming.md`). The agent
   did the right thing methodologically and still got a wrong answer, because
   the corpus's two vocabularies never bridge.
 - **Expo asset upload — correct facts in the wrong places, 3/3.** The
@@ -87,7 +87,7 @@ a bad day.
   needs them; all three arms hit the same 403 wall from three directions and
   built three different workarounds
   (`issues/20260805-expo-asset-upload-guide-gap.md`,
-  `issues/20260805-guide-gap-dev-mode-asset-upload-anonymous-caller.md`).
+  `issues/closed/20260805-guide-gap-dev-mode-asset-upload-anonymous-caller.md`).
 - **Published-closure drift (external arm).** The one arm outside the repo
   (Chessfield, diary 0057, npm `0.1.8`) authored against `ctx.refuse` and
   `custody: 'anonymous-public'` — both marked shipped and current, both

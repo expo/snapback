@@ -9,8 +9,8 @@ examples: [packages/snapback-codegen/relational-authoring.test.mjs, packages/sna
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-03
-reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
+reviewed: 2026-08-05
+reviewed-commit: f3c7d9fbb394a413370a9264f22e72b6f151a25e
 ---
 
 # Relational queries (bounded joins)
@@ -26,6 +26,24 @@ Use `defineRelationalQuery` for the common "each row plus its one related
 row" read: a bounded two-source equi-join with an explicit projection. It is
 a closed plan — no SQL text, no callbacks — and every visibility fact is
 declared, never inferred from field names or read sets.
+
+## Recognize the messaging shape
+
+A conversation list is the same shape as the books/authors example below:
+make `conversationMembers` the bounded root, join its `conversationId` to a
+declared unique conversation key, then project the conversation title and
+membership facts. A message feed can likewise join messages to a distinct,
+uniquely indexed sender table. Use `defineRelationalQuery` when the join is a
+callable/live read, or `defineMaintainedProjection` when that same closed join
+should be a transactionally maintained table.
+
+Choose these declarations before hand-writing a `defineJsLiveQuery` for a
+plain two-source join: codegen proves joined-side uniqueness, visibility, the
+bounded root access, and target support. Stay with a bounded JS handler when
+the result also needs grouping/aggregation, arbitrary post-join logic, more
+than two sources, or a self-join. V1 explicitly refuses the same table as
+both `root` and `joined`; reply-preview self-joins and reaction counts are
+missing capability, not hidden relational options.
 
 ```js source=packages/snapback-codegen/relational-authoring.test.mjs
 export const booksWithAuthors = defineRelationalQuery({

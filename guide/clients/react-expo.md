@@ -4,13 +4,13 @@ id: clients.react-expo
 order: 3
 audience: agent-first
 capabilities: [clients.react-expo]
-authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0114-first-class-react-and-query-groups.spec.md, packages/snapback-client/index.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-client/rqs-store-default.mjs, packages/snapback-client/rqs-store-expo.mjs, packages/snapback-react/index.mjs, demos/partiful-matrix/tests/acceptance/native-react-expo.mjs]
-examples: [demos/partiful-matrix/native/react-expo, packages/snapback-client/webcrypto-fallback.test.mjs, packages/snapback-react/webcrypto-fallback.test.mjs, packages/snapback-client/rqs-store-expo.test.mjs, packages/snapback-client/rqs-resume-expo.test.mjs, demos/rn-durable-store-witness/probe-App.tsx]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0017-admin-console-inspection-surface.rfc.md, llp/0041-packaged-dev-loop.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0176-expo-messaging-golden-path.plan.md, packages/snapback-client/index.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-client/rqs-store-default.mjs, packages/snapback-client/rqs-store-expo.mjs, packages/snapback-react/index.mjs, scripts/install-local-snapback-packages.mjs, demos/partiful-matrix/tests/acceptance/native-react-expo.mjs, demos/_kit/eas-stage-build.mjs]
+examples: [demos/partiful-matrix/native/react-expo, packages/snapback-client/webcrypto-fallback.test.mjs, packages/snapback-react/webcrypto-fallback.test.mjs, packages/snapback-client/rqs-store-expo.test.mjs, packages/snapback-client/rqs-resume-expo.test.mjs, scripts/local-source-package-closure.test.mjs, demos/rn-durable-store-witness/probe-App.tsx, demos/tandem-expo-bakeoff/scripts/build-ios-dev-client, demos/_kit/tests/repo-layout-unit.mjs]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-04
-reviewed-commit: 41c2db8804ba08071c39641cc46251c9084c7a31
+reviewed: 2026-08-05
+reviewed-commit: f3c7d9fbb394a413370a9264f22e72b6f151a25e
 ---
 
 # React Expo Online clients
@@ -32,6 +32,60 @@ store consequence, the offline queue, and reconnect honesty. In particular,
 optimistic mutations work unchanged: for a like/favorite button backed by a
 live feed, use [the optimistic toggle recipe](../recipes/optimistic-toggle.md)
 rather than component state plus a local counter delta.
+
+## Install the client pair from this source checkout
+
+For an Expo app nested anywhere under this checkout, run one command from the
+Snapback repository root:
+
+```sh
+node scripts/install-local-snapback-packages.mjs <expo-app-directory>
+```
+
+The command discovers the complete internal runtime closure from the checkout
+manifests, packs those exact source packages into the app's generated
+`.snapback/local-source-packages/` directory, points the client and React roots
+plus every top-level override at those local tarballs, and runs the Bun version
+pinned by this repository. Commit the app's resulting `package.json` and
+`bun.lock`; rerun the same command with `--frozen-lockfile` in CI or after
+deleting `node_modules`. The command regenerates the local tarballs before each
+install, so do not edit them by hand; treat that directory as generated (and
+ignore it in the app's source-control rules). Keep it present when invoking the
+out-of-checkout EAS staging helper below so the staged app can cold-install
+without reaching back into the repository.
+
+Do not add `@expo/snapback-contract` as a direct app dependency and do not
+hand-maintain one-off overrides. A local client keeps its own exact Contract
+edge, and a nested app is outside the repository workspace, so Bun otherwise
+falls through to the registry and can either fail or mix checkout code with a
+different published generation. Direct directory links also leave runtime
+resolution dependent on symlink behavior; the app-local tarballs install as
+ordinary materialized packages and travel with the existing EAS staging copy.
+The helper keeps the entire Snapback runtime closure local. Registry installs
+remain a separate workflow: use only the published package versions and no
+source paths or local overrides there.
+
+For image messages, use the authenticated
+[Expo ImagePicker asset recipe](../backend/assets.md#upload-from-expo-imagepicker-with-an-ordinary-session).
+It covers the native URI-to-Blob bridge, `useSnapbackAssetUpload`, the
+completed task receipt, and typed attachment; a client with no real session
+cannot finish the multi-request upload under any intent auth mode.
+
+## Debug the backend before writing another probe
+
+The generated [admin console](../operating/admin-console.md) is the shipped
+browser debugger for an Expo/React backend. Open it while `snapback dev` is
+running to browse Data, run and inspect Functions, see Realtime delivery,
+and read Errors, Logs, Capabilities, and the build-matched Guide:
+
+```sh
+snapback admin --ready-file .snapback/dev.ready.json
+```
+
+Use the actual ready-file path printed by your dev process. The console is an
+operator surface, not part of the Expo bundle; the command derives a browser
+credential without exposing the master admin token. Check it before falling
+back to `curl`, raw host operations, or a one-off verification script.
 
 ## Boot: external bearer, prepared binding, provider
 
@@ -296,6 +350,41 @@ completion overtaking the HTTP response and overflow recovery. The earlier
 `issues/closed/20260801-0137-a1expo-f7-rn-connection-cycles.md`; it is no longer
 a current limitation.
 
+## Build an EAS dev client for an app nested inside this repository
+
+`eas build` resolves its project root at the nearest **Git root**, not the
+nearest Expo app. Run it from an app nested inside this monorepo (a
+`demos/<bakeoff>/<arm>`, an internal prototype) and it archives and uploads
+the entire Snapback checkout — the Rust runtime, `vendor/ibex`, every other
+demo, and all workspace `node_modules` — a multi-minute upload for a
+kilobyte-scale app. `.easignore` and `EAS_NO_VCS=1` do **not** change that
+root resolution; this reproduced independently in two bakeoffs
+(`demos/tandem-expo-bakeoff`, `demos/relay-room-bakeoff`), and no first-party
+nested-root configuration is documented for it. The supported pattern is to
+**stage the app outside the checkout and build from the staged copy**, which
+both bakeoffs converged on and the kit now paves:
+
+```sh
+# Stage <app-dir> into an out-of-checkout temp directory, bun install there,
+# and run `eas build` from the staged copy (paid EAS service).
+node demos/_kit/eas-stage-build.mjs demos/tandem-expo-bakeoff/snapback/native-shell \
+  --platform ios --profile development
+
+# Free preflight: stage and report only (file count, size, staged path kept
+# for inspection); never installs dependencies or contacts EAS.
+node demos/_kit/eas-stage-build.mjs <app-dir> --stage-only
+```
+
+The helper excludes `node_modules`, `.expo`, `.git`, and `dist` at every
+depth, refuses any staging directory that is still inside a Git checkout, and
+keeps the small native "shell" pattern workable: the shell carries only
+native dependencies and EAS config while loading the product bundle from the
+parent Metro server (see
+[repo:demos/tandem-expo-bakeoff/scripts/build-ios-dev-client](repo:demos/tandem-expo-bakeoff/scripts/build-ios-dev-client)
+for an arm-selection wrapper). Staging behavior is unit-verified by
+[repo:demos/_kit/tests/repo-layout-unit.mjs](repo:demos/_kit/tests/repo-layout-unit.mjs);
+the EAS build itself is an external paid service and is not CI-verified.
+
 ## Anti-patterns
 
 - **Do not pass `userId`/`authority` to hooks or use the string-name object
@@ -317,3 +406,7 @@ a current limitation.
   contain public generated client artifacts only.
 - **Do not ship emulator port bridging as endpoint security.** It is local
   acceptance infrastructure only.
+- **Do not run `eas build` directly from an app nested in this checkout, and
+  do not try to fix it with `.easignore`.** EAS archives the whole monorepo
+  from the Git root either way; stage outside the checkout with
+  `demos/_kit/eas-stage-build.mjs` (see the nested-build section above).

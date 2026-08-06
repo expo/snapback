@@ -175,7 +175,7 @@ documents—one for `schema.load`, one for `functions.load`. The package wrapper
 expects one JSON document and rejects the two-document success output.
 
 This was the biggest Snapback detour. I filed
-`issues/20260805-managed-dev-multi-json-load.md` and built
+`issues/closed/20260805-managed-dev-multi-json-load.md` and built
 `scripts/dev-server.mjs`, which starts a LAN-reachable dev server and provisions
 through `SnapbackClient.ensureApp`. That launcher works and prints the exact
 `EXPO_PUBLIC_SNAPBACK_ORIGIN=… bun run start` command for Expo Go.
@@ -218,7 +218,7 @@ than the operator `assets put` proof, and the public-immutable lane is suitable
 for this test app, not private chat production.
 
 Relay Room's second-app evidence is now recorded on
-`issues/20260805-guide-gap-dev-mode-asset-upload-anonymous-caller.md` and
+`issues/closed/20260805-guide-gap-dev-mode-asset-upload-anonymous-caller.md` and
 `issues/20260805-expo-asset-upload-guide-gap.md`. The update distinguishes the
 proven operator/image pipeline from the client upload that could not receive
 session custody; it does not claim a device 403 I did not capture.

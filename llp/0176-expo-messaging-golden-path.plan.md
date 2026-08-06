@@ -7,7 +7,10 @@ Ephemeral state, Code generation, Developer experience, Packaging, Local
 server lifecycle, Testing, Competitive evaluation
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-05
-**Revised:** 2026-08-05 (f) — Super-refine round 1 revision (dual-family
+**Revised:** 2026-08-05 (g) — A3/A4 friction tickets resolved: marker-walk
+root resolution in `demos/_kit/repo-layout.mjs` and the paved out-of-checkout
+EAS staging helper `demos/_kit/eas-stage-build.mjs`; ticket pointers updated
+to `issues/closed/`. Earlier same day (f) — Super-refine round 1 revision (dual-family
 review at `llp/reviews/0176-expo-messaging-golden-path.{claude,gpt-5}.md`;
 journal at `.run.md`): reframed G0's dev-session primitive as a thin,
 source-cited wrapper over the existing `auth.mintSession` host-op with an
@@ -216,18 +219,25 @@ the cheaper mechanical fixes.
 
 ### Development and packaging
 
-- **A1 — managed load framing.** `snapback dev` mishandles the two JSON
-  documents emitted by a valid native load. Ticket:
-  `issues/20260805-managed-dev-multi-json-load.md`.
+- **A1 — managed load framing (resolved 2026-08-05).** `snapback dev` now
+  accepts the sequential `schema.load` and `functions.load` JSON documents
+  emitted by a valid native load while refusing a failed envelope or malformed
+  stream. Resolution:
+  `issues/closed/20260805-managed-dev-multi-json-load.md`.
 - **A2 — local package closure.** A file-installed client still resolves its
   exact Contract dependency from the registry. Tickets:
   `issues/20260805-local-source-package-closure-needs-contract-override.md`
   and `issues/20260803-first-npm-latest-promotion.md`.
 - **A3 — nested EAS roots.** EAS resolves the repository Git root instead of
-  the nested app, leading two bakeoffs to invent staging copies. Ticket:
-  `issues/20260805-eas-nested-app-git-root-monorepo-archive.md`.
+  the nested app, leading two bakeoffs to invent staging copies. Resolved
+  2026-08-05: the staging workaround is the paved path
+  (`demos/_kit/eas-stage-build.mjs`, documented in
+  `guide/clients/react-expo.md`). Ticket:
+  `issues/closed/20260805-eas-nested-app-git-root-monorepo-archive.md`.
 - **A4 — nested headless fixtures.** `openHeadlessApp` assumes a one-level demo
-  layout. Ticket: `issues/20260805-headless-app-nested-demo-root.md`.
+  layout. Resolved 2026-08-05: marker-walk root/app resolution in
+  `demos/_kit/repo-layout.mjs`. Ticket:
+  `issues/closed/20260805-headless-app-nested-demo-root.md`.
 - **A5 — edit recovery.** A comment-only source change can alter complete
   artifact identity, correctly refuse the old store, and leave no supported
   successor path. Ticket:
@@ -267,7 +277,7 @@ the cheaper mechanical fixes.
   primitive above), not to invent a second credential or plumbing the asset
   client does not already have. Tickets:
   `issues/20260805-expo-asset-upload-guide-gap.md` and
-  `issues/20260805-guide-gap-dev-mode-asset-upload-anonymous-caller.md`.
+  `issues/closed/20260805-guide-gap-dev-mode-asset-upload-anonymous-caller.md`.
 - **C2 — public delivery headers.** `public-immutable` responses are not
   cross-origin embeddable as documented. Tracked with C1's guide-gap ticket.
 - **C3 — weak React task types.** React re-spells existing asset task types as
@@ -276,7 +286,7 @@ the cheaper mechanical fixes.
   undocumented and repeated by apps. Tracked with the Expo asset guide gap.
 - **D1 — presence vocabulary.** Scoped `useSnapbackPresence` already ships,
   but builders searching for “ephemeral” did not find it. Ticket:
-  `issues/20260805-guide-gap-ephemeral-presence-hook-naming.md`.
+  `issues/closed/20260805-guide-gap-ephemeral-presence-hook-naming.md`.
 - **E1 — provider and application composition.** Two or more experiments
   independently hand-built provider boot and repeated resource scope across
   reads, mutations, presence, and assets. This is the design gap owned by LLP
@@ -719,8 +729,8 @@ after a reviewer round correctly found the earlier text asserted "already
 exists" without anything a reader could check. Their absence from every
 relevant bakeoff is a workload-indexing failure in the guide, not a reason
 to create replacement primitives. Tickets include
-`issues/20260805-admin-console-undiscovered-by-expo-bakeoffs.md` and
-`issues/20260805-relational-query-undiscovered-by-messaging-bakeoffs.md`.
+`issues/closed/20260805-admin-console-undiscovered-by-expo-bakeoffs.md` and
+`issues/closed/20260805-relational-query-undiscovered-by-messaging-bakeoffs.md`.
 
 ### Attractive ideas that should not lead
 

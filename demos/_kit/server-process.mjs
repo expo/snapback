@@ -505,10 +505,14 @@ function resolveLaunchPlans({ serverBinary, cwd, deps, childEnv, expectedIdentit
     process.platform === 'win32' ? 'snapback.exe' : 'snapback',
   );
   // The automatic prebuilt rung engages only when the checkout itself is
-  // pinned (known commit, clean tree): the booted binary's stamp must then
-  // fully verify against it or the child is torn down and the ladder falls
-  // through. A dirty checkout goes straight to `cargo run`, which rebuilds
-  // with the local edits — the prebuilt binary could not contain them.
+  // pinned (known commit, clean runtime input set — the scoped dirtiness of
+  // readCheckoutBinaryIdentity): the booted binary's stamp must then fully
+  // verify against it or the child is torn down and the ladder falls through.
+  // A dirty runtime input set goes straight to `cargo run`, which rebuilds
+  // with the local edits — the prebuilt binary could not contain them. Edits
+  // outside the input set (demo apps, LLPs, issues) cannot change the
+  // binary's bytes and do not forfeit the prebuilt rung
+  // (issues/closed/20260805-whole-tree-dirty-flag-forces-runtime-rebuild.md).
   const checkoutPinned = Boolean(
     expectedIdentity.gitCommit
       && expectedIdentity.gitCommit !== 'unknown'
@@ -518,8 +522,8 @@ function resolveLaunchPlans({ serverBinary, cwd, deps, childEnv, expectedIdentit
     plans.push({ rung: 'prebuilt', command: candidate, fallback: true, requireVerified: true });
   } else if (existsSync(candidate)) {
     console.log(
-      `prebuilt ${candidate} skipped: this checkout is dirty or has no committed ` +
-        'identity to verify it against; using the source-tree `cargo run` rung (LLP 0030 ladder)',
+      `prebuilt ${candidate} skipped: this checkout's runtime input set is dirty or has ` +
+        'no committed identity to verify it against; using the source-tree `cargo run` rung (LLP 0030 ladder)',
     );
   }
   plans.push({ rung: 'cargo' });

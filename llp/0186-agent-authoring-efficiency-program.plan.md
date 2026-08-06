@@ -70,7 +70,7 @@ client HTTP surface always resolves anonymous, so no `authorize()` owner
 can ever satisfy the asset-upload ownership check; the first upload dies
 with a bare TUS 403 and the only in-app resolution was rebuilding the demo
 into sessions mode with a 138-line trusted-local token broker
-(`issues/20260805-guide-gap-dev-mode-asset-upload-anonymous-caller.md`).
+(`issues/closed/20260805-guide-gap-dev-mode-asset-upload-anonymous-caller.md`).
 Both diaries hit this wall independently — it is the single
 highest-signal defect in the set.
 
@@ -274,11 +274,17 @@ Per-iteration costs, weighted by how many times an agent iterates:
   provider binding must resolve or fail with a typed, recoverable signal,
   not an uncaught throw (`20260803-react-hmr-reference-invalid.md`).
 - Acceptance runs on a dirty checkout reuse the prepared binary rather
-  than paying Cargo cost per run: the build-identity dirtiness fact is
-  currently derived from the whole tree and baked in at compile time, so
-  any demo/doc edit flips a `rerun-if-env-changed` input and forces a
-  real recompile — scope it to the runtime binary's input set
-  (`issues/20260805-whole-tree-dirty-flag-forces-runtime-rebuild.md`).
+  than paying Cargo cost per run: LANDED 2026-08-05 — the build-identity
+  dirtiness fact is now scoped to the runtime binary's input set (shared
+  pathspec definition in `scripts/runtime-build-inputs.txt`, read by
+  build.rs, verify-local-proof, bootstrap receipt reuse, and the kit's
+  expected-identity probes), so demo/doc edits no longer flip a
+  `rerun-if-env-changed` input or forfeit the prebuilt rung
+  (`issues/closed/20260805-whole-tree-dirty-flag-forces-runtime-rebuild.md`).
+  Residue: a *commit* of unrelated files still rotates the baked
+  `SNAPBACK_BUILD_GIT_COMMIT` (HEAD) and recompiles the identity crates
+  once per commit; pinning the commit fact to the input set's last
+  touching commit is a possible follow-on.
 - Monorepo/nested-app frictions from the bakeoffs
   (`20260805-headless-app-nested-demo-root.md`,
   `20260805-eas-nested-app-git-root-monorepo-archive.md`).

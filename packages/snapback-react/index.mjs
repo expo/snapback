@@ -15,6 +15,8 @@ import {
   assertPreparedReactBinding,
   canonicalizeClientValueV1,
   canonicalReactStoreKeyV1,
+  classifyRegeneratedReactReference,
+  handoffPreparedReactBindingGeneration,
   preparedReactResultContract,
   preparedReactBindingClient,
   isPreparedReactQueryGroup,
@@ -65,6 +67,31 @@ const preparedGroupReadersByRegistry = new WeakMap();
 function preparedGroupForProvider(provider) {
   return preparedGroupReadersByRegistry.get(provider.registry)?.() ?? null;
 }
+
+// Positive development/HMR identification for the mounted-provider generation
+// handoff. Recovery arms only when the host AFFIRMATIVELY identifies itself
+// as a development environment: Metro/React Native's compile-time `__DEV__`,
+// a live bundler HMR host (`import.meta.hot` / `module.hot`), or an explicit
+// NODE_ENV of 'development'. Absence of production markers is never treated
+// as development, so release builds keep the strict uncaught refusal.
+// @ref LLP 0114#mounted-provider-hmr-generation-handoff-dated-amendment-2026-08-05
+/* global __DEV__ */
+const positiveDevelopmentEnvironment = () => {
+  if (typeof __DEV__ === 'boolean') return __DEV__ === true;
+  if (import.meta.hot != null) return true;
+  if (typeof module !== 'undefined' && module?.hot != null) return true;
+  return typeof process !== 'undefined' && process.env?.NODE_ENV === 'development';
+};
+
+const HANDOFF_DEFERRED_REFERENCE = Symbol('snapback.react.hmr-deferred-reference.v1');
+const HANDOFF_PENDING = Object.freeze({
+  status: 'pending',
+  data: undefined,
+  error: null,
+  connection: 'connecting',
+  freshness: 'unknown',
+  retention: null,
+});
 
 const CONNECTION_ORDER = Object.freeze({
   error: 0,
@@ -327,6 +354,19 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     diagnostic: null,
     activeSubscriptions: 0,
   });
+  // Mounted-provider HMR generation handoff (development only) — LLP 0114
+  // dated amendment 2026-08-05. `generationHandoff` tracks at most one
+  // in-flight or settled handoff; handoff descriptors resolve to real
+  // admitted descriptors once the binding's generation overlay swaps.
+  const developmentHmr = options.developmentHmr ?? null;
+  if (
+    developmentHmr !== null
+    && (typeof developmentHmr !== 'object' || Array.isArray(developmentHmr))
+  ) {
+    throw new TypeError('developmentHmr must be an options object');
+  }
+  let generationHandoff = null;
+  const handoffResolutions = new WeakMap();
 
   const notifyConnection = () => {
     for (const listener of [...connectionListeners]) {
@@ -918,7 +958,24 @@ function createRegistry(binding, providerInstanceId, options = {}) {
 
   const runMutation = async (mutationReference, mutationArgs, optimistic = null) => {
     if (terminal) throw diagnosticError('SNAPBACK_REACT_PROVIDER_CLOSED', 'React provider is closed');
-    const admittedMutation = admittedReactReference(binding, mutationReference, 'Mutation');
+    if (mutationReference?.[HANDOFF_DEFERRED_REFERENCE] === true) {
+      mutationReference = mutationReference.reference;
+    }
+    // Admission stays synchronous on the settled path (the optimistic layer
+    // must install in the same frame as the user action). Only a recoverable
+    // development generation mismatch awaits the handoff; a reference that
+    // still fails afterwards rejects this promise (a handled mutation
+    // outcome), never an uncaught render error.
+    let admittedMutation;
+    try {
+      admittedMutation = admittedReactReference(binding, mutationReference, 'Mutation');
+    } catch (error) {
+      const target = recoverableGeneration(error, mutationReference);
+      if (target === null) throw error;
+      await beginGenerationHandoff(target).promise;
+      if (terminal) throw diagnosticError('SNAPBACK_REACT_PROVIDER_CLOSED', 'React provider is closed');
+      admittedMutation = admittedReactReference(binding, mutationReference, 'Mutation');
+    }
     canonicalizeClientValueV1(mutationArgs);
     const mutationContract = preparedReactResultContract(binding, admittedMutation);
     if (optimistic === null) {
@@ -939,7 +996,16 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       typeof optimistic !== 'object'
       || typeof optimistic.update !== 'function'
     ) throw new TypeError('optimistic mutation options require query, args, and update');
-    const queryReference = admittedReactReference(binding, optimistic.query, 'LiveQuery');
+    let queryReference;
+    try {
+      queryReference = admittedReactReference(binding, optimistic.query, 'LiveQuery');
+    } catch (error) {
+      const target = recoverableGeneration(error, optimistic.query);
+      if (target === null) throw error;
+      await beginGenerationHandoff(target).promise;
+      if (terminal) throw diagnosticError('SNAPBACK_REACT_PROVIDER_CLOSED', 'React provider is closed');
+      queryReference = admittedReactReference(binding, optimistic.query, 'LiveQuery');
+    }
     const queryKey = canonicalReactStoreKeyV1(
       providerInstanceId,
       queryReference,
@@ -1095,6 +1161,9 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     if (!lease || lease.released) return;
     lease.released = true;
     leases.delete(lease);
+    for (const cleanup of lease.cleanups ?? []) {
+      try { cleanup(); } catch { /* observational */ }
+    }
     consumers -= lease.edges.length;
     for (const edge of lease.edges) {
       const store = stores.get(edge.key);
@@ -1128,7 +1197,21 @@ function createRegistry(binding, providerInstanceId, options = {}) {
 
   const subscribeMany = (descriptors, listener, previousLease = null) => {
     if (terminal) throw diagnosticError('SNAPBACK_REACT_PROVIDER_CLOSED', 'React provider is closed');
-    const admitted = descriptors.filter((entry) => !entry.skipped);
+    const admitted = [];
+    const pendingHandoffs = [];
+    for (const entry of descriptors) {
+      if (entry.skipped) continue;
+      if (entry.handoff === undefined) {
+        admitted.push(entry);
+        continue;
+      }
+      // A handoff descriptor may already be resolvable (the atomic rebind
+      // completed between render and subscribe): adopt the real admitted
+      // descriptor now; otherwise park it on the handoff completion.
+      const real = resolveHandoffDescriptor(entry);
+      if (real !== null && !real.skipped) admitted.push(real);
+      else if (real === null) pendingHandoffs.push(entry);
+    }
     const previous = previousLease && !previousLease.released ? previousLease : null;
     const previousEdges = previous?.edges ?? [];
     const projectedConsumers = consumers - previousEdges.length + admitted.length;
@@ -1180,6 +1263,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     const next = {
       id: edgeIdPrefix,
       edges: [],
+      cleanups: [],
       released: false,
       release() { releaseLease(next); },
     };
@@ -1195,6 +1279,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       }
       leases.add(next);
       consumers += next.edges.length;
+      for (const entry of pendingHandoffs) attachHandoffWaiter(next, entry, listener);
       let successorHandle = null;
       if (supersession) supersession.predecessor.handoffPending += 1;
       for (const key of uniqueNew.keys()) {
@@ -1238,6 +1323,14 @@ function createRegistry(binding, providerInstanceId, options = {}) {
 
   const snapshot = (descriptor) => {
     if (descriptor.skipped) return SKIPPED;
+    if (descriptor.handoff !== undefined) {
+      const real = resolveHandoffDescriptor(descriptor);
+      if (real !== null) {
+        return real.skipped ? SKIPPED : (stores.get(real.key)?.snapshot ?? SERVER_PENDING);
+      }
+      if (generationHandoff?.status === 'failed') return generationHandoff.failureSnapshot;
+      return HANDOFF_PENDING;
+    }
     return stores.get(descriptor.key)?.snapshot ?? SERVER_PENDING;
   };
 
@@ -1911,40 +2004,226 @@ function createRegistry(binding, providerInstanceId, options = {}) {
   };
   const unregisterBarrier = client.registerAuthBarrierParticipant(barrierParticipant);
 
+  const admittedDescriptor = (reference, args, groupBoot = null, preparedEntryName = null) => {
+    const preparedEntry = preparedEntryName === null
+      ? null
+      : preparedGroup?.entries.find((entry) => entry.name === preparedEntryName) ?? null;
+    const admitted = admittedReactReference(
+      binding,
+      reference,
+      preparedEntry?.readOnlySnapshot == null ? 'LiveQuery' : ['Query', 'LiveQuery'],
+    );
+    const resultContract = preparedReactResultContract(binding, admitted);
+    if (args === skip) return Object.freeze({
+      skipped: true,
+      reference: admitted,
+      args,
+      key: null,
+      resultContract,
+      groupBoot,
+      preparedEntryName,
+      readOnlySnapshot: preparedEntry?.readOnlySnapshot ?? null,
+      bootDelivery: preparedEntry?.bootDelivery ?? null,
+    });
+    const key = canonicalReactStoreKeyV1(providerInstanceId, admitted, args);
+    return Object.freeze({
+      skipped: false,
+      reference: admitted,
+      args,
+      key,
+      resultContract,
+      groupBoot,
+      preparedEntryName,
+      readOnlySnapshot: preparedEntry?.readOnlySnapshot ?? null,
+      bootDelivery: preparedEntry?.bootDelivery ?? null,
+    });
+  };
+
+  // --- Mounted-provider HMR generation handoff (development only) -----------
+  // @ref LLP 0114#mounted-provider-hmr-generation-handoff-dated-amendment-2026-08-05
+  // — a regenerated same-app reference in a positively identified development
+  // environment becomes a provider-boundary invalidation with an atomic
+  // rebind, never an uncaught render error; every other refusal (foreign
+  // reference, production build) stays strict and loud.
+  const recoverableGeneration = (error, reference) => {
+    if (terminal || error?.code !== 'SNAPBACK_REACT_REFERENCE_INVALID') return null;
+    if (!positiveDevelopmentEnvironment()) return null;
+    return classifyRegeneratedReactReference(binding, reference);
+  };
+
+  const triggerControlledDevelopmentReload = (failure) => {
+    console.error(
+      `${failure.code}: ${failure.message} (reason: ${failure.details?.reason ?? 'unknown'}). `
+      + 'Snapback is triggering a full dev reload so the mounted provider realigns with the '
+      + 'regenerated api module. If no reload mechanism is available on this host, reload '
+      + 'manually (press "r" in the Metro terminal or refresh the page).',
+    );
+    try {
+      if (typeof developmentHmr?.onReloadRequired === 'function') {
+        developmentHmr.onReloadRequired(failure);
+        return;
+      }
+    } catch { /* observational */ }
+    try { globalThis.DevSettings?.reload?.('SNAPBACK_REACT_HMR_REBIND_FAILED'); } catch { /* best effort */ }
+    try { globalThis.location?.reload?.(); } catch { /* best effort */ }
+  };
+
+  const beginGenerationHandoff = (target) => {
+    const key = canonicalizeClientValueV1(target);
+    if (generationHandoff !== null && generationHandoff.key === key) return generationHandoff;
+    const state = {
+      key,
+      status: 'active',
+      failure: null,
+      failureSnapshot: null,
+      waiters: new Set(),
+      promise: null,
+    };
+    // A newer generation supersedes an in-flight handoff (rapid successive
+    // HMR edits): its parked waiters move to the successor so their hooks
+    // still resolve or fail when the newest handoff settles.
+    if (generationHandoff !== null && generationHandoff.status === 'active') {
+      for (const waiter of generationHandoff.waiters) state.waiters.add(waiter);
+      generationHandoff.waiters.clear();
+    }
+    const settle = (outcome) => {
+      if (terminal || generationHandoff !== state) return outcome;
+      if (outcome?.ok === true) {
+        state.status = 'ok';
+      } else {
+        state.status = 'failed';
+        state.failure = diagnostic(
+          'SNAPBACK_REACT_HMR_REBIND_FAILED',
+          'HMR delivered regenerated Snapback references, but the mounted provider could not atomically rebind to the new generation',
+          {
+            reason: outcome?.reason ?? 'handoff-error',
+            ...(outcome?.cause === undefined ? {} : { cause: outcome.cause }),
+          },
+        );
+        state.failureSnapshot = Object.freeze({
+          status: 'error',
+          data: undefined,
+          error: state.failure,
+          connection: 'error',
+          freshness: 'unknown',
+          retention: null,
+        });
+        triggerControlledDevelopmentReload(state.failure);
+      }
+      const waiters = [...state.waiters];
+      state.waiters.clear();
+      for (const waiter of waiters) {
+        try { waiter(); } catch { /* observational */ }
+      }
+      notifyConnection();
+      return outcome;
+    };
+    state.promise = handoffPreparedReactBindingGeneration(binding, target, {
+      ...(Number.isSafeInteger(developmentHmr?.timeoutMs)
+        ? { timeoutMs: developmentHmr.timeoutMs }
+        : {}),
+      ...(Number.isSafeInteger(developmentHmr?.pollIntervalMs)
+        ? { pollIntervalMs: developmentHmr.pollIntervalMs }
+        : {}),
+    }).then(settle, (error) => settle({
+      ok: false,
+      reason: 'handoff-error',
+      cause: error?.code ?? String(error),
+    }));
+    generationHandoff = state;
+    return state;
+  };
+
+  const resolveHandoffDescriptor = (descriptor) => {
+    const resolved = handoffResolutions.get(descriptor);
+    if (resolved) return resolved;
+    try {
+      const real = admittedDescriptor(
+        descriptor.handoff.reference,
+        descriptor.handoff.args,
+        descriptor.handoff.groupBoot,
+        descriptor.handoff.preparedEntryName,
+      );
+      handoffResolutions.set(descriptor, real);
+      return real;
+    } catch {
+      return null;
+    }
+  };
+
+  const handoffDescriptor = (reference, args, groupBoot, preparedEntryName, target) => {
+    beginGenerationHandoff(target);
+    return Object.freeze({
+      skipped: args === skip,
+      handoff: Object.freeze({ reference, args, groupBoot, preparedEntryName }),
+      reference,
+      args,
+      key: null,
+      resultContract: null,
+      groupBoot,
+      preparedEntryName,
+      readOnlySnapshot: null,
+      bootDelivery: null,
+    });
+  };
+
+  const attachHandoffWaiter = (lease, descriptor, listener) => {
+    const state = generationHandoff;
+    const waiter = () => {
+      if (lease.released || terminal) return;
+      const real = resolveHandoffDescriptor(descriptor);
+      if (real !== null && !real.skipped) {
+        try {
+          if (consumers + 1 > CONSUMER_CAP) {
+            throw diagnosticError(
+              'SNAPBACK_REACT_STORE_CAPACITY',
+              `React provider has reached its ${CONSUMER_CAP}-consumer cap`,
+              { cap: CONSUMER_CAP },
+            );
+          }
+          const store = stores.get(real.key) ?? createStore(real);
+          const edgeId = `${lease.id}:handoff${lease.edges.length}`;
+          store.idleEpoch += 1;
+          store.consumers += 1;
+          store.listeners.set(edgeId, listener);
+          lease.edges.push({ key: store.key, edgeId });
+          consumers += 1;
+          startStore(store);
+        } catch (error) {
+          recordDiagnostic(error);
+        }
+      }
+      try { listener(); } catch { /* observational */ }
+    };
+    if (state === null || state.status !== 'active') {
+      queueMicrotask(waiter);
+      return;
+    }
+    state.waiters.add(waiter);
+    lease.cleanups.push(() => state.waiters.delete(waiter));
+  };
+
   const registry = Object.freeze({
     descriptor(reference, args, groupBoot = null, preparedEntryName = null) {
-      const preparedEntry = preparedEntryName === null
-        ? null
-        : preparedGroup?.entries.find((entry) => entry.name === preparedEntryName) ?? null;
-      const admitted = admittedReactReference(
-        binding,
-        reference,
-        preparedEntry?.readOnlySnapshot == null ? 'LiveQuery' : ['Query', 'LiveQuery'],
-      );
-      const resultContract = preparedReactResultContract(binding, admitted);
-      if (args === skip) return Object.freeze({
-        skipped: true,
-        reference: admitted,
-        args,
-        key: null,
-        resultContract,
-        groupBoot,
-        preparedEntryName,
-        readOnlySnapshot: preparedEntry?.readOnlySnapshot ?? null,
-        bootDelivery: preparedEntry?.bootDelivery ?? null,
-      });
-      const key = canonicalReactStoreKeyV1(providerInstanceId, admitted, args);
-      return Object.freeze({
-        skipped: false,
-        reference: admitted,
-        args,
-        key,
-        resultContract,
-        groupBoot,
-        preparedEntryName,
-        readOnlySnapshot: preparedEntry?.readOnlySnapshot ?? null,
-        bootDelivery: preparedEntry?.bootDelivery ?? null,
-      });
+      try {
+        return admittedDescriptor(reference, args, groupBoot, preparedEntryName);
+      } catch (error) {
+        const target = recoverableGeneration(error, reference);
+        if (target === null) throw error;
+        return handoffDescriptor(reference, args, groupBoot, preparedEntryName, target);
+      }
+    },
+    mutationReference(reference) {
+      try {
+        return admittedReactReference(binding, reference, 'Mutation');
+      } catch (error) {
+        const target = recoverableGeneration(error, reference);
+        if (target === null) throw error;
+        beginGenerationHandoff(target);
+        const deferred = { reference };
+        Object.defineProperty(deferred, HANDOFF_DEFERRED_REFERENCE, { value: true });
+        return Object.freeze(deferred);
+      }
     },
     subscribe(descriptor, listener, previousLease = null) {
       return subscribeMany([descriptor], listener, previousLease);
@@ -1992,6 +2271,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         preparedGroupSource: preparedGroup?.source ?? null,
         preparedGroupReason: preparedGroup?.reason ?? null,
         preparedGroupBoot: preparedGroup?.boot ?? null,
+        generationHandoff: generationHandoff?.status ?? null,
       });
     },
     async dispose() {
@@ -2043,6 +2323,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       dirtyPreparedSubscriptions.clear();
       rooms.clear();
       connectionListeners.clear();
+      generationHandoff = null;
       unregisterPreparedFrameGuard();
       try { await unregisterBarrier(); } catch (error) { recordDiagnostic(error); }
     },
@@ -2334,8 +2615,12 @@ export function projectRecordFields(recordId, fields, { idField = '_id' } = {}) 
 
 export function useSnapbackMutation(reference, options = {}) {
   const provider = useProvider();
+  // Registry-owned admission: in a positively identified development/HMR
+  // environment a regenerated same-app reference defers to the generation
+  // handoff instead of throwing through the render tree; runMutation
+  // re-admits at call time.
   const admitted = useMemo(
-    () => admittedReactReference(provider.binding, reference, 'Mutation'),
+    () => provider.registry.mutationReference(reference),
     [provider, reference],
   );
   const optimistic = options?.optimistic ?? null;
@@ -2452,8 +2737,10 @@ export function observeSnapbackPresence(providerValue, reference, options, liste
 
 export async function invokeSnapbackMutation(providerValue, reference, args, options = {}) {
   const provider = assertProvider(providerValue);
-  const admitted = admittedReactReference(provider.binding, reference, 'Mutation');
-  return provider.registry.runMutation(admitted, args, options.optimistic ?? null);
+  // runMutation owns admission (including the development generation-handoff
+  // wait), so adapters get the exact hook-path behavior: a strict rejection
+  // stays a rejected promise here, never a synchronous throw.
+  return provider.registry.runMutation(reference, args, options.optimistic ?? null);
 }
 
 // ---------------------------------------------------------------------------

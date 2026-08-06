@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-05
 **Systems:** Backend (schema/functions), live queries, ephemeral state, assets, React/Expo client
-**Related:** `demos/messaging-snapback`, `issues/20260805-guide-gap-dev-mode-asset-upload-anonymous-caller.md`
+**Related:** `demos/messaging-snapback`, `issues/closed/20260805-guide-gap-dev-mode-asset-upload-anonymous-caller.md`
 
 ## What this is
 
@@ -84,7 +84,7 @@ images, seeded through the actual upload pipeline, not a raw row insert).
 - **The real headline finding: dev-mode asset uploads cannot complete over
   the plain client HTTP surface, for *any* auth mode, and this generalizes
   well past the one browser caveat the guide states.** Filed as
-  `issues/20260805-guide-gap-dev-mode-asset-upload-anonymous-caller.md`
+  `issues/closed/20260805-guide-gap-dev-mode-asset-upload-anonymous-caller.md`
   with the exact mechanism (caller resolves anonymous; owner_principal is a
   required non-optional string; the equality check can therefore never
   pass). This blocked the in-app "add photo" feature from ever completing

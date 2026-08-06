@@ -4,13 +4,13 @@ id: backend.assets
 order: 9
 audience: agent-first
 capabilities: [backend.assets]
-authorities: [llp/0012-headless-integration-contract.spec.md, llp/0044-asset-storage-pipeline.rfc.md, llp/0096-auth-profiles-for-protocol-clients.spec.md, src/assets.rs, src/assets_cut.rs, src/cli.rs, src/local.rs, src/server.rs, packages/snapback-codegen/define.mjs, packages/snapback-vite/allowlist.mjs, tests/acceptance/asset-lifecycle-v1-evidence.md]
-examples: [demos/party-wall, demos/file-drop]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0044-asset-storage-pipeline.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0096-auth-profiles-for-protocol-clients.spec.md, llp/0176-expo-messaging-golden-path.plan.md, src/assets.rs, src/assets_cut.rs, src/cli.rs, src/local.rs, src/server.rs, packages/snapback-codegen/define.mjs, packages/snapback-react/index.d.mts, packages/snapback-vite/allowlist.mjs, tests/acceptance/asset-lifecycle-v1-evidence.md]
+examples: [demos/party-wall, demos/file-drop, demos/tandem-expo-bakeoff]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-04
-reviewed-commit: 4f6b1bc3d98c9b9e3d1a946ff7cbd648854ea1a6
+reviewed: 2026-08-05
+reviewed-commit: f3c7d9fbb394a413370a9264f22e72b6f151a25e
 ---
 
 # Assets
@@ -121,6 +121,49 @@ can land in tables without the declaration emits
 
 ## Upload and attach
 
+**A dev/test server with no real client session can never complete a
+multi-step upload over the ordinary client HTTP surface — for any intent auth
+mode.** Every upload attempt records the non-optional owner principal returned
+by `authorize`. Transfer, finalization, and attachment compare that owner with
+the caller resolved from each request. An anonymous browser, React Native, or
+Expo request has no caller principal, so it can never equal the recorded
+owner. Setting `auth: 'public'` may make attempt creation public; it does not
+make later ownership checks anonymous, and `public-immutable` controls
+delivery rather than upload authority. Passing a `userId` option to the task
+is not authentication.
+
+There are exactly two paved local-development answers:
+
+1. For an operator, fixture, or headless proof, use the admin-impersonated CLI
+   lane: `snapback assets put ... --user <handle>`. This is not an in-app
+   upload path.
+2. For an interactive browser or native app, run the app in settled Sessions
+   auth mode and give it an ordinary session. A trusted local process that
+   already holds the ready-file/operator authority can mint one through the
+   shipped wrapper:
+
+```sh
+snapback session mint --email expo-dev@example.com --ready-file .snapback/dev.ready.json
+```
+
+The command prints a `hostOpsResult` whose `data.token` is the ordinary
+session bearer; it never prints the impersonation capability. In an app, keep
+the command or equivalent `auth.mintSession` host operation behind a trusted
+development broker that authenticates its caller and returns only that
+caller's session. Never put the ready file, admin token, impersonation
+capability, mailbox reader, or a generic mint-for-email endpoint in an Expo
+bundle. Adopt the returned bearer with `createExternalSessionClient` before
+preparing the React provider, as described in
+[native auth](../auth/native-apps.md):
+
+```tsx source=demos/tandem-expo-bakeoff/snapback/src/backend.tsx
+      const client = createExternalSessionClient(origin, { bearerToken: brokerPayload.bearerToken });
+      const binding = await client.prepareReactBinding({
+        generatedManifest: { schema, functions, capabilityManifest },
+      });
+      return { status: 'ready' as const, client, provider: createSnapbackReactProvider(binding) };
+```
+
 The client flow is: create an attempt (the generated reference plus the
 declared byte length — deferred length refuses), transfer bytes over TUS
 1.0.0 (`PATCH /assets/tus/{id}`, checksum every chunk), then finalize.
@@ -157,6 +200,89 @@ id-shaped string written into a `v.assetRef` field fails the commit with
 `SNAPBACK_ASSET_REF_UNVERIFIED` on every write path, and the reverse
 reference edge commits in the same changeset. Deleting an asset refuses
 while typed references remain.
+
+## Upload from Expo ImagePicker with an ordinary session
+
+Once the provider owns the real session above, bridge the native picker URI
+with `expo/fetch` (`import { fetch as expoFetch } from 'expo/fetch'`) and
+import `ImagePicker` from `expo-image-picker`. The messaging bakeoff first
+captures the picker metadata:
+
+```tsx source=demos/tandem-expo-bakeoff/shared/chat-screen.tsx
+  const pickImage = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      allowsEditing: false,
+      mediaTypes: ['images'],
+      quality: 0.82,
+    });
+    const asset = result.canceled ? null : result.assets[0];
+    if (!asset) return;
+    setAttachment({
+      uri: asset.uri,
+      fileName: asset.fileName ?? `message-${Date.now()}.jpg`,
+      mimeType: asset.mimeType ?? 'image/jpeg',
+    });
+    if (process.env.EXPO_OS === 'ios') void Haptics.selectionAsync();
+  };
+```
+
+Its backend hook converts that URI to a Blob with `expoFetch`, starts the
+generated upload reference, exposes byte progress, awaits `task.done`, and
+accepts only the completed `ready` receipt with a non-null `assetId`:
+
+```tsx source=demos/tandem-expo-bakeoff/snapback/src/backend.tsx
+function useImageUpload() {
+  const upload = useSnapbackAssetUpload({ upload: api.messageImageUpload });
+  const [error, setError] = useState<string | null>(null);
+  const progress = upload.state.totalBytes > 0 ? upload.state.bytesTransferred / upload.state.totalBytes : 0;
+  return useMemo(() => ({
+    state: {
+      status: error ? 'error' as const : upload.state.status === 'idle' || upload.state.status === 'ready' ? 'idle' as const : 'uploading' as const,
+      progress,
+      error: error ?? upload.state.diagnostic?.message ?? null,
+    },
+    upload: async (input: { uri: string; mimeType: string; fileName: string }) => {
+      setError(null);
+      try {
+        const response = await expoFetch(input.uri);
+        const blob = await response.blob();
+        const task = upload.start(blob, {
+          declaredContentType: input.mimeType,
+          declaredFilename: input.fileName,
+          previewUrl: input.uri,
+        }) as { done: Promise<{ status: string; assetId: string | null; diagnostic?: { message?: string } | null }> };
+        const result = await task.done;
+        if (result.status !== 'ready' || !result.assetId) {
+          throw new Error(result.diagnostic?.message ?? 'Snapback could not finish the image upload.');
+        }
+        return result.assetId;
+      } catch (cause) {
+        const message = cause instanceof Error ? cause.message : String(cause);
+        setError(message);
+        throw cause;
+      }
+    },
+  }), [error, progress, upload]);
+}
+```
+
+The screen awaits that receipt before calling its ordinary authenticated
+message mutation. The mutation performs the typed attachment; do not write
+the returned id directly into a `v.assetRef` field:
+
+```js source=demos/tandem-expo-bakeoff/snapback/snapback/functions.mjs
+    if (args.imageAssetId) {
+      values.image = await ctx.assets.attach(args.imageAssetId, { upload: 'messageImageUpload' });
+    }
+```
+
+That is the complete custody chain: trusted dev broker mints an ordinary
+session → `createExternalSessionClient` owns it → ImagePicker supplies a URI
+→ `expo/fetch` produces the Blob → `useSnapbackAssetUpload.start` owns the
+TUS task → `task.done` yields the ready asset id → an ordinary authenticated
+mutation calls `ctx.assets.attach`. Render `upload.state.bytesTransferred /
+totalBytes` while active and surface `rejected`/`failed` diagnostics rather
+than treating attempt creation as success.
 
 ## Run lifecycle callbacks
 
@@ -252,13 +378,11 @@ proxy is needed, and a relative URL such as
 
 Two facts shape the browser flow:
 
-- **Authenticated intents need sessions custody.** Dev-mode HTTP asset
-  requests deliberately resolve as anonymous — the asset DTO/TUS carrier has
-  no dev body-authority member, so passing `userId` to the upload task does
-  **not** authenticate the attempt. An intent with `auth: 'authenticated'`
-  therefore requires a real signed-in session in the browser. The `--user`
-  lane under Operate below is the CLI/host-op path (admin authority for
-  agents and fixtures), not a browser path.
+- **Interactive uploads need sessions custody.** The ordinary browser and
+  native HTTP carriers resolve as anonymous when no real session is present,
+  so the owner mismatch described under Upload and attach applies to every
+  intent auth mode. The `--user` lane under Operate below is the CLI/host-op
+  path (admin authority for agents and fixtures), not a browser or Expo path.
 - **The sign-in code arrives through a trusted-local seam.** The dev
   mailbox is admin- and impersonation-gated
   ([sessions guide](../auth/sessions-and-principals.md)), so a browser demo

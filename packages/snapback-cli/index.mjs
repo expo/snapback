@@ -1501,6 +1501,92 @@ function requireNativeSuccess(result, code, operation) {
   return result;
 }
 
+function parseJsonDocumentStream(stdout) {
+  const input = typeof stdout === 'string' ? stdout : String(stdout ?? '');
+  const documents = [];
+  let documentStart = null;
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  const isWhitespace = (character) => (
+    character === ' ' || character === '\t' || character === '\n' || character === '\r'
+  );
+
+  for (let cursor = 0; cursor < input.length; cursor += 1) {
+    const character = input[cursor];
+    if (documentStart === null) {
+      if (isWhitespace(character)) continue;
+      if (character !== '{') {
+        throw new SyntaxError(`native output contained non-JSON content at character ${cursor}`);
+      }
+      documentStart = cursor;
+      depth = 1;
+      continue;
+    }
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (character === '\\') escaped = true;
+      else if (character === '"') inString = false;
+      continue;
+    }
+    if (character === '"') inString = true;
+    else if (character === '{') depth += 1;
+    else if (character === '}') {
+      depth -= 1;
+      if (depth === 0) {
+        try {
+          documents.push(JSON.parse(input.slice(documentStart, cursor + 1)));
+        } catch (cause) {
+          throw new SyntaxError(
+            `native output contained invalid JSON at character ${documentStart}: ${cause.message}`,
+            { cause },
+          );
+        }
+        documentStart = null;
+      }
+    }
+  }
+  if (documentStart !== null) {
+    throw new SyntaxError(
+      `native output ended before the JSON document at character ${documentStart} was complete`,
+    );
+  }
+  if (documents.length === 0) {
+    throw new SyntaxError('native output contained no JSON documents');
+  }
+  return documents;
+}
+
+function requireNativeJsonSuccess(result, code, operation) {
+  requireNativeSuccess(result, code, operation);
+  let documents;
+  try {
+    documents = parseJsonDocumentStream(result.stdout);
+  } catch (cause) {
+    const error = diagnosticError(code, `${operation} failed`, {
+      status: result.status,
+      signal: result.signal,
+      stdout: result.stdout?.slice(0, 4_000) ?? '',
+      stderr: result.stderr?.slice(0, 4_000) ?? '',
+      framingError: cause.message,
+    });
+    error.cause = cause;
+    throw error;
+  }
+  const failed = documents.find((document) => document?.ok === false);
+  if (failed) {
+    throw diagnosticError(code, `${operation} failed`, {
+      status: result.status,
+      signal: result.signal,
+      stdout: result.stdout?.slice(0, 4_000) ?? '',
+      stderr: result.stderr?.slice(0, 4_000) ?? '',
+      failedOperation: failed.operation ?? null,
+      failedEnvelope: failed,
+    });
+  }
+  return documents;
+}
+
 const ARTIFACT_DECODE_EVIDENCE = /(?:unknown|missing|duplicate) field|invalid (?:json|type)|expected (?:struct|map|sequence|string)|did not match any variant|data did not match|SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH|SNAPBACK_STALE_(?:SCHEMA|FUNCTION)_ARTIFACT_(?:KIND|VERSION)/i;
 
 // The auth-mode startup pin refusing a *different* artifact pair is not a
@@ -1592,6 +1678,7 @@ function refineGeneratedArtifactFailure(error, {
   runtime = null,
   runtimeIdentity = null,
   artifacts = [],
+  database = null,
 } = {}) {
   // issues/20260801-0137-a3-restart-evolution-refusal-misattributed-diagnostic:
   // surface the auth-mode startup pin as itself. Wrapping it in the
@@ -1610,7 +1697,13 @@ function refineGeneratedArtifactFailure(error, {
         artifacts: artifacts.map((path) => resolve(path)),
         recovery: {
           sanctionedEvolution: 'run the evolved sources through the running dev server (`snapback dev` watch reload or the reload verb): its app.ensure provision moves the pinned deployment forward',
-          coldStartRepair: 'to cold-start first, restore the generated artifacts matching the pinned deployment, boot, then apply the evolved sources through the running server',
+          coldStartRepair: 'to cold-start first, restore the generated artifacts matching the pinned deployment (regenerate from the previous sources if needed), boot, then apply the evolved sources through the running server',
+          // issues/20260805-doc-comment-artifact-mismatch-no-successor-migration.md:
+          // the discard path is a supported procedure, not author intuition —
+          // name the real backup command and the exact store it targets.
+          freshReseed: 'to discard local data and reseed from scratch instead: back up the store with '
+            + `\`snapback auth backup --db ${database ? resolve(database) : '<database>'} --output <ignored-backup-dir>\`, `
+            + 'move or delete the database file, then restart on the new artifacts',
           safety: 'do not reinstall the runtime or set SNAPBACK_RUNTIME_BINARY; the startup pin is auth-mode state (LLP 0058), not a runtime/codegen mismatch',
         },
       },
@@ -1816,7 +1909,10 @@ export async function loadGenerated(
   }
   if (!skipSchemaFunctions && requestedMode === 'dev') {
     try {
-      requireNativeSuccess(native(binary, [
+      // @ref LLP 0041#cli-commands — `load` projects one hostOpsResult JSON
+      // document per requested host operation, so schema + functions is a
+      // sequential document stream rather than one aggregate envelope.
+      requireNativeJsonSuccess(native(binary, [
         'load', ...targetArgs,
         '--schema', schemaPath,
         '--functions', functionsPath,
@@ -1826,6 +1922,7 @@ export async function loadGenerated(
         binary,
         runtime,
         runtimeIdentity,
+        database,
         artifacts: [schemaPath, functionsPath],
       });
     }
@@ -1874,6 +1971,7 @@ export async function loadGenerated(
           binary,
           runtime,
           runtimeIdentity,
+          database,
           artifacts: [
             schemaPath,
             functionsPath,
@@ -2048,6 +2146,7 @@ export async function runDev(options = {}) {
         binary: runtime.binary,
         runtime,
         runtimeIdentity,
+        database,
         artifacts: startupArtifacts
           ? [startupArtifacts, ...startupArtifactSources]
           : startupArtifactSources,
@@ -2133,6 +2232,7 @@ export async function runDev(options = {}) {
         binary: runtime.binary,
         runtime,
         runtimeIdentity,
+        database,
         artifacts: startupArtifacts
           ? [startupArtifacts, ...startupArtifactSources]
           : startupArtifactSources,
@@ -2442,6 +2542,7 @@ export async function runDev(options = {}) {
         binary: runtime.binary,
         runtime,
         runtimeIdentity,
+        database,
         artifacts: startupArtifacts
           ? [startupArtifacts, ...startupArtifactSources]
           : startupArtifactSources,

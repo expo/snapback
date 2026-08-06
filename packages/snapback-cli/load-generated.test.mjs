@@ -41,13 +41,27 @@ const writeReady = (path, serverUrl) => {
   });
 };
 
-const makeRecordingRuntime = (root) => {
+const makeRecordingRuntime = (root, { loadStdout = null } = {}) => {
   const log = join(root, 'native.log');
   const binary = join(root, 'snapback-recording-runtime');
-  writeFileSync(binary, `#!/bin/sh\nprintf '%s\\n' "$*" >> '${log}'\n`);
+  const stdoutPath = join(root, 'native.stdout');
+  if (loadStdout !== null) writeFileSync(stdoutPath, loadStdout);
+  writeFileSync(binary, `#!/bin/sh
+printf '%s\\n' "$*" >> '${log}'
+if [ "$1" = "load" ] && [ -f '${stdoutPath}' ]; then
+  /bin/cat '${stdoutPath}'
+fi
+`);
   chmodSync(binary, 0o755);
   return { binary, log };
 };
+
+const hostOpsResult = (operation, ok = true) => ({
+  schemaVersion: 'snapback.v0',
+  resultKind: 'hostOpsResult',
+  operation,
+  ok,
+});
 
 const jsonResponse = (body) => new Response(JSON.stringify(body), {
   status: 200,
@@ -83,7 +97,12 @@ try {
       'routes.manifest.json': routes,
     });
     writeReady(readyFile, 'http://snapback-dev-routes.test');
-    const runtime = makeRecordingRuntime(projectRoot);
+    const runtime = makeRecordingRuntime(projectRoot, {
+      loadStdout: [
+        hostOpsResult('schema.load'),
+        hostOpsResult('functions.load'),
+      ].map((document) => JSON.stringify(document, null, 2)).join('\n'),
+    });
     const requests = [];
     globalThis.fetch = async (url, init = {}) => {
       requests.push({ url: String(url), init });
@@ -112,6 +131,80 @@ try {
       new Headers(requests[0].init.headers).get('x-snapback-admin-token'),
       null,
       'legacy dev route ensure remains the established Public provisioning carrier',
+    );
+  }
+
+  {
+    const projectRoot = join(root, 'malformed-native-load-output');
+    const backendRoot = join(projectRoot, 'snapback');
+    writeLegacyGeneratedGraph(backendRoot, {
+      'schema.manifest.json': {
+        artifactKind: 'schemaManifest',
+        appId: 'malformed-native-load-output',
+        auth: { mode: 'dev' },
+      },
+      'functions.manifest.json': {
+        artifactKind: 'functionManifest',
+        appId: 'malformed-native-load-output',
+      },
+    });
+    const runtime = makeRecordingRuntime(projectRoot, {
+      loadStdout: `${JSON.stringify(hostOpsResult('schema.load'))}\nnot-json\n`,
+    });
+
+    await assert.rejects(
+      loadGenerated(
+        runtime.binary,
+        projectRoot,
+        backendRoot,
+        join(projectRoot, '.snapback', 'dev.ready.json'),
+        'dev-admin-token',
+      ),
+      (error) => {
+        assert.equal(error.code, 'SNAPBACK_DEV_SERVER_LOAD_FAILED');
+        assert.equal(error.message, 'schema/function load failed');
+        assert.match(error.diagnostic.details.framingError, /non-JSON content/u);
+        return true;
+      },
+    );
+  }
+
+  {
+    const projectRoot = join(root, 'failed-native-load-envelope');
+    const backendRoot = join(projectRoot, 'snapback');
+    writeLegacyGeneratedGraph(backendRoot, {
+      'schema.manifest.json': {
+        artifactKind: 'schemaManifest',
+        appId: 'failed-native-load-envelope',
+        auth: { mode: 'dev' },
+      },
+      'functions.manifest.json': {
+        artifactKind: 'functionManifest',
+        appId: 'failed-native-load-envelope',
+      },
+    });
+    const runtime = makeRecordingRuntime(projectRoot, {
+      loadStdout: [
+        hostOpsResult('schema.load'),
+        hostOpsResult('functions.load', false),
+      ].map((document) => JSON.stringify(document)).join('\n'),
+    });
+
+    await assert.rejects(
+      loadGenerated(
+        runtime.binary,
+        projectRoot,
+        backendRoot,
+        join(projectRoot, '.snapback', 'dev.ready.json'),
+        'dev-admin-token',
+      ),
+      (error) => {
+        assert.equal(error.code, 'SNAPBACK_DEV_SERVER_LOAD_FAILED');
+        assert.equal(error.message, 'schema/function load failed');
+        assert.equal(error.diagnostic.details.failedOperation, 'functions.load');
+        assert.equal(error.diagnostic.details.failedEnvelope.ok, false);
+        return true;
+      },
     );
   }
 
@@ -341,7 +434,12 @@ try {
       },
     });
     writeReady(readyFile, 'http://snapback-runtime-mismatch.test');
-    const runtime = makeRecordingRuntime(projectRoot);
+    const runtime = makeRecordingRuntime(projectRoot, {
+      loadStdout: [
+        hostOpsResult('schema.load'),
+        hostOpsResult('functions.load'),
+      ].map((document) => JSON.stringify(document)).join('\n'),
+    });
     globalThis.fetch = async () => jsonErrorResponse(422, {
       ok: false,
       diagnostic: {
@@ -409,7 +507,7 @@ try {
     );
   }
 
-  console.log('load-generated.test.mjs: dev routes, sessions provisioning, and runtime/artifact mismatch diagnostics passed');
+  console.log('load-generated.test.mjs: dev load framing, routes, sessions provisioning, and runtime/artifact mismatch diagnostics passed');
 } finally {
   globalThis.fetch = originalFetch;
   rmSync(root, { recursive: true, force: true });

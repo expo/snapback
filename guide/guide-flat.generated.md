@@ -14,8 +14,8 @@ examples: []
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-04
-reviewed-commit: HEAD
+reviewed: 2026-08-05
+reviewed-commit: f3c7d9fbb394a413370a9264f22e72b6f151a25e
 ---
 
 # Capability index
@@ -36,11 +36,12 @@ and `guide-gap`.
 
 | id | What | Aliases | Targets | Maturity | Witness | Authorities | Page |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| backend.schema | Declare tables, fields, indexes, sync | schema, tables, model | local | shipped | `defineSchema` in packages/snapback-codegen/define.mjs | llp/0037, llp/0004 | getting-started/your-first-backend.md |
+| backend.schema | Declare tables, fields, indexes, sync | schema, tables, model, field validators, v.json | local | shipped | `defineSchema` in packages/snapback-codegen/define.mjs | llp/0037, llp/0004 | getting-started/your-first-backend.md |
+| backend.structured-stored-fields | Native stored arrays and unions with write-time element validation, portable indexing, and sync semantics | table array, array field, v.array table field, structured storage, stored arrays, array validator | none | design-only | llp/0115-convex-parity-course-corrections.plan.md (CV-4b; no shipped witness) | llp/0115 | GAP (owner: LLP 0115 CV-4b, review: 2026-08-31); getting-started/your-first-backend.md |
 | backend.functions | Queries, live queries, mutations, and actions; declarative plans or colocated JS handlers with same-file helpers; explicit document/record/value result contracts including result-side `v.doc(table)` schema references; manifest-derived handler/helper `ctx.db` types with a query-read/mutation-write split; generated exact client references and runtime egress validation | query, mutation, endpoint, api, inline handler, result contract, results.documents, results.records, v.doc, GeneratedHandler, GeneratedQueryDatabase | local | shipped | packages/snapback-codegen/define.mjs | llp/0004, llp/0009, llp/0101, llp/0108, llp/0127 | backend/queries.md |
 | backend.runtime-values | Derive deterministic per-invocation time and fresh identifiers inside JavaScript handlers | server time, server clock, timestamp, generated id, UUID, Date.now, Math.random | local | shipped | `runtime.now` in packages/snapback-harness/ctx-bootstrap.js | llp/0051, llp/0065 | backend/trusted-runtime-values.md |
 | backend.standard-patterns | Generate owner CRUD, unique lookup, owner/membership keyset pages | CRUD generator, pagination, callable pagination, membership pages, trusted defaults | local | partial | `defineOwnedCrud` in packages/snapback-codegen/standard-patterns.mjs | llp/0051, llp/0065, llp/0100 | backend/standard-patterns.md |
-| backend.relational-queries | Bounded two-source equi-joins with explicit visibility, closed projections, and transactionally maintained projection tables (`defineRelationalQuery`, `defineMaintainedProjection`, stable capability since 2026-07-26) | joins, relational queries, denormalized reads, materialized views | local | partial | `defineRelationalQuery` in packages/snapback-codegen/define.mjs | llp/0080, llp/0065 | backend/relational-queries.md |
+| backend.relational-queries | Bounded two-source equi-joins with explicit visibility, closed projections, and transactionally maintained projection tables (`defineRelationalQuery`, `defineMaintainedProjection`, stable capability since 2026-07-26) | joins, relational queries, denormalized reads, materialized views, conversation membership, message sender, chat joins, defineRelationalQuery, defineMaintainedProjection | local | partial | `defineRelationalQuery` in packages/snapback-codegen/define.mjs | llp/0080, llp/0065 | backend/relational-queries.md |
 | backend.bounded-children-v1 | Experimental one-visible-parent/one-index-bounded-child-page profile with protected relation incarnations and `sbbc1` AEAD keysets; only contributor source builds with the exact embedded atomic carrier advertise it, while public runtime packages and hosted targets retain a structured GAP | one-to-many, parent children, relation incarnation, bounded child page | local | partial | src/local-relation-activity-publication.v1.json | llp/0104, llp/0108, llp/0101 | GAP (public-package attestation and hosted publication; owner: Charlie, review: 2026-08-31) |
 | backend.snapshot-batch-v1 | Experimental local composition of 2–8 complete `bounded-children.v1` nodes: one pinned authoritative snapshot per invocation, structural parent-authorization dedup, a sealed all-or-nothing tuple, one LLP 0157 `sbsb1` continuation, and cursor-free-first-page `live_replace`; hosted and public-package publication remain nonclaims | snapshot batch, board view, multiple child lists, one snapshot, sbsb1, composite query | local | shipped | `snapshot_batch_three_node_cursor_sealing_and_live_acceptance` in src/local.rs + schemas/capability.manifest.local-dev-sqlite-ibex.json (`snapshot_batch_v1`) | llp/0135, llp/0157, llp/0113 | backend/snapshot-batches.md |
 | backend.single-table-v1 | Experimental host-derived `single_table_v1@1` for an exact public, authority-independent declarative live query over one table. It is single-node-only, never author-assertable, uses the class-scoped 1,024 examined-entry QMK-establishment refusal, preserves whole-result/no-cursor semantics, delivers ordered/limited results by `live_replace`, and retains through Arm A `rqs-authority-independent-snapshot-v1` with no `AuthorizedLease`. Only contributor-source local builds with the exact store publication carrier advertise it; public packages and remote/hosted targets remain structured GAPs. | single table, rqsEligible, qmk1, authority-independent retention, single node | local | shipped | src/local-persistent-store-publication.v1.json + schemas/capability.manifest.local-dev-sqlite-ibex.json (`single_table_v1`) | llp/0157, llp/0166, llp/0110, llp/0113 | sync/offline-and-retention.md |
@@ -54,7 +55,7 @@ and `guide-gap`.
 | backend.query-semantics | Read sets, snapshots, commit versions, conflict validation | consistency, transactions, conflicts | local | shipped | route /query/{name} | llp/0003, llp/0004, llp/0007 | backend/queries.md |
 | backend.sequences | Experimental incarnation-scoped dense sequences through handler `ctx.sequence.allocate(counterName, scopeId)` and generated `AllocateSequence`, with abort-disclosure, commit-order/contention, exact replay, incarnation restart, exhaustion, Relay, Campfire, and mutation-atomic lane-Q qualification. Only the exact contributor-source local target publishes `sequence_allocation_v1`; public packages and hosted targets remain structured GAPs | sequence, counter, ticket number, invoice number, monotonic allocation, maxEncodedBytes | local | partial | src/local-sequence-allocation-publication.v1.json + tests/conformance/sequence-allocation-publication-v1.receipt.json | llp/0135, llp/0128, llp/0113, llp/0157 | GAP (public-package attestation and hosted target qualification/publication; owner: Charlie, review: 2026-09-30); backend/sequences.md |
 | backend.actions | Actions with gated outbound fetch: global `fetch` and target-portable host-mediated `ctx.fetch`, in closed-script module handlers or the inline form | action, fetch, ctx.fetch, side effects, notification, webhook | local | shipped | route /action/{name} | llp/0004, llp/0009, llp/0049 | backend/actions-and-fetch.md |
-| backend.assets | Authenticated asset lifecycle plus the media pipeline on the local target — generated upload intents, TUS 1.0.0 resumable transfer, trusted SHA-256 finalization with GPS-strip canonicalization for images (decode/rewrite) and MP4/QuickTime video (in-place location-atom blanking, no transcoding), declared renditions with ThumbHash placeholders, typed `v.assetRef` attachment, private-strict/private-signed/public-immutable delivery with ranges and best-variant selection, opt-in reference GC, lifecycle callbacks (including sessions execution under the per-app `asset-callbacks` service principal), deletion/GC, receipts, logical consistent-cut export with refuse-partial validation, and instance-wide signing-key rotation (`asset_lifecycle_v1`, `asset_image_finalization_v1`, `asset_image_pipeline_v1`, `asset_reference_gc_v1`, `asset_video_finalization_v1`); the paved browser path (stock `@expo/snapback-vite` relay over the `/assets/*` family, sessions custody, typed generated upload references) is CI-verified; byte-level backup, transcoding, and hosted targets remain nonclaims | files, images, video, upload, object storage, media, browser upload, vite relay, asset export, logical backup, signing key rotation | local | partial | schemas/capability.manifest.local-dev-sqlite-ibex.json (all five asset ids plus `assets.export.cutExport`/`importValidation`) + src/assets.rs + src/assets_cut.rs + src/assets_image.rs + src/assets_video.rs suites + tests/acceptance/asset-conformance-v1.mjs (native CLI export/refuse-partial/rotation; sessions callback authority) + demos/file-drop/tests/acceptance/browser-relay.mjs (relay + sessions + typed upload reference browser path) | llp/0044 | backend/assets.md |
+| backend.assets | Authenticated asset lifecycle plus the media pipeline on the local target — generated upload intents, TUS 1.0.0 resumable transfer, trusted SHA-256 finalization with GPS-strip canonicalization for images (decode/rewrite) and MP4/QuickTime video (in-place location-atom blanking, no transcoding), declared renditions with ThumbHash placeholders, typed `v.assetRef` attachment, private-strict/private-signed/public-immutable delivery with ranges and best-variant selection, opt-in reference GC, lifecycle callbacks (including sessions execution under the per-app `asset-callbacks` service principal), deletion/GC, receipts, logical consistent-cut export with refuse-partial validation, and instance-wide signing-key rotation (`asset_lifecycle_v1`, `asset_image_finalization_v1`, `asset_image_pipeline_v1`, `asset_reference_gc_v1`, `asset_video_finalization_v1`); the paved browser path (stock `@expo/snapback-vite` relay over the `/assets/*` family, sessions custody, typed generated upload references) is CI-verified; byte-level backup, transcoding, and hosted targets remain nonclaims | files, images, video, upload, object storage, media, browser upload, native upload, Expo ImagePicker, expo/fetch, useSnapbackAssetUpload, session mint, vite relay, asset export, logical backup, signing key rotation | local | partial | schemas/capability.manifest.local-dev-sqlite-ibex.json (all five asset ids plus `assets.export.cutExport`/`importValidation`) + src/assets.rs + src/assets_cut.rs + src/assets_image.rs + src/assets_video.rs suites + tests/acceptance/asset-conformance-v1.mjs (native CLI export/refuse-partial/rotation; sessions callback authority) + demos/file-drop/tests/acceptance/browser-relay.mjs (relay + sessions + typed upload reference browser path) | llp/0044 | backend/assets.md |
 | backend.expo-push-seam | Shipped local Expo integration seam: session-bound token custody, atomic rotation and retirement, declaration-checked/host-authorized and paced `ctx.push.send`, crash-safe intent/batch/message ledger, safe pre-transmit recovery, bounded ticket/receipt maintenance, a privacy-bounded generated ledger query, explicit ambiguous redrive risk, structured `notifications.expoPushSeam` facts, and a retained physical-device `ok` receipt witness. The complete hosted conjunction remains a GAP; this is not first-class notification delivery. | device token, expo push token, installation, ctx.push.send, handoff receipt, DeviceNotRegistered | local | shipped | schemas/capability.manifest.local-dev-sqlite-ibex.outbound-actions.json (`expoPushSeam`) + packages/snapback-cli/fake-expo-push.test.mjs + `fake_expo_acceptance_covers_tickets_receipts_dedupe_ambiguity_and_authorization` in src/push.rs + LLP 0143 implementation record (2026-08-03 physical-device witness) | llp/0143, llp/0057, llp/0059, llp/0070 | backend/expo-push.md |
 | backend.notifications | First-class notification and effect delivery; application-authored table ledgers are not this product capability | notifications, push, email, delivery, effects | none | design-only | schemas/capability.manifest.local-dev-sqlite-ibex.json (`notifications: false`; explicit `notifications` gap) | llp/0045 | GAP (owner: Charlie, review: 2026-08-31; issue: issues/20260728-guide-gap-assets-and-notifications-capability-rows.md) |
 | backend.observability-v1 | Shipped local Phase-1 backend telemetry with a generation-bound sibling store, operation-class spans, bounded retention and rollups, typed agent-facing queries, Health/Logs projections, and retained clean-release idle/benchmark evidence; hosted arms and declared product analytics remain later capabilities | telemetry, observability, health, logs, metrics, traces | local | shipped | tests/acceptance/telemetry-phase1-evidence.v1.json | llp/0154 | operating/observability.md |
@@ -64,7 +65,7 @@ and `guide-gap`.
 | backend.jobs-one-off | Experimental transactional one-off durable work (LLP 0070 first slice): `ctx.jobs.enqueue` inside the mutation transaction, a paved default queue, `availableAt = now + delay`, fenced claims with append-only attempt receipts, producer association on job rows plus bounded `enqueues` facts on confirmed mutation receipts, the generated declared job-status live query (codegen emits the capability requirement and acknowledgment), the injected-clock forced drain (`POST /_snapback/api/jobs/drain`), and the secret-read-leased admin inspection lane (`GET /_snapback/api/jobs`, `/jobs/{id}`). `jobs_one_off_v1` stays experimental and no durable-background-work capability class is claimed while LLP 0070 remains pre-Accepted (in Review since 2026-08-03) | one-off jobs, runAfter, scheduler, durable work, enqueue, background jobs, drain, job status, secret-read lease, job drain, drain jobs | local | partial | route /_snapback/api/jobs/drain | llp/0070, llp/0121, llp/0115 | backend/jobs.md |
 | realtime.live-queries | Subscribe to a query; snapshot + replace/delta updates | live, subscription, realtime | local | shipped | route /live/{name}/subscribe | llp/0008 | realtime/live-queries.md |
 | realtime.durable-push | Durable WebSocket push lane; connection axis | websocket, stream, push, connection state, connection disconnect, disconnect client, force disconnect | local | shipped | route /live/{connection_id}/stream | llp/0008, llp/0034 | realtime/live-queries.md |
-| realtime.ephemeral | Typed ephemeral rooms: presence, cursors, TTL | presence, cursors, rooms, ephemeral, ephemeral cleanup, cleanup stale entries, expire ephemeral | local | shipped | route /ephemeral/publish | llp/0013 | realtime/ephemeral-state.md |
+| realtime.ephemeral | Typed ephemeral rooms plus the scoped React presence hook: presence, typing indicators, cursors, TTL | presence, cursors, rooms, ephemeral, React ephemeral hook, useSnapbackPresence, typing, typing indicator, ephemeral cleanup, cleanup stale entries, expire ephemeral | local | shipped | route /ephemeral/publish + `useSnapbackPresence` in packages/snapback-react/index.d.mts | llp/0013, llp/0107, llp/0114 | realtime/ephemeral-state.md |
 | realtime.snapshot-bundles | Resumable-query snapshot bundles: one request evaluates a served route-manifest entry's queries at one commit with per-query resume tokens; register mode arms the pending-registration owner. The contributor local target additionally ships Experimental `mixed_bundle_boot_v2`: a disjoint LLP 0157 `mixed-route.v2` artifact/wire evaluates live and ordinary children at one pinned snapshot, registers only identity-bound live children, and returns plain children honestly read-only. Qualifying legacy RQS entries enter QMK custody only while connected through prove-or-fresh adoption; legacy bytes stay grandfathered under LLP 0090 until that one-transaction switch. `defineRoutes` + `publicInline` feed the Channel A inlined web boot (`snapbackChannelA` in packages/snapback-vite) with anonymous reads for publicInline-class routes; on the Cloudflare arm the routes manifest compiles into the Worker, the gateway serves Channel A HTML, and the coordinator answers read-mode bundles + token resume (register and mixed mode Cloudflare: deferred) | bundle, preload, resumable snapshots, boot, RQS, mixed route, read-only child, registered live child, inlined HTML, routes manifest | local, cloudflare | partial | route /app/bundle + schemas/capability.manifest.local-dev-sqlite-ibex.json (`mixed_bundle_boot_v2`) | llp/0090, llp/0092, llp/0157, llp/0166 | realtime/snapshot-bundles.md |
 | sync.offline | Retained queries, outbox, replay, optimistic overlays (Contract arm: lease-bounded protected retention, derived overlays, `Parity` under LLP 0043's proof rule) | offline, sync, local-first, outbox | local | shipped | route /outbox/{connection_id} | llp/0043, llp/0052 | sync/offline-and-retention.md |
 | sync.offline-js-arm | Experimental JS/React offline substrate: default IndexedDB + Web Locks in capable browsers, durable file storage in capable Node hosts, and in-memory fallback; declared public authority-independent retained queries; durable M2 outbox with exact ordered replay and pending-intent projection. Qualifying legacy RQS entries are grandfathered under LLP 0090 and move to QMK custody only while connected through prove-or-fresh, one atomic same-domain transaction; adoption never relabels bytes or drops pending outbox intent. Node/file and React-stub tests pass, and LLP 0155 proves real-Chrome `SIGKILL` persistence plus two-tab lock refusal/takeover. End-to-end browser React/server retained-current, resync/replay, settlement, observer convergence, and protected-refusal proof remain GAPs; no local execution or `Parity` claim | offline browser, cold boot, restart-safe queue, IndexedDB, default persistence, retainability opt-in, pending intent render | local | partial | `resolveDefaultRqsStore` in packages/snapback-client/rqs-store-default.mjs + `demos/public-dashboard/tests/acceptance/offline-local-first.mjs` (Node/file, same-process) + `demos/zero-bakeoff/stage0/browser/run.mjs` (real-browser carrier substrate only) | llp/0043, llp/0090, llp/0129, llp/0155, llp/0166 | GAP (end-to-end browser product proof; owner: Charlie, review: 2026-08-31; issue: issues/20260801-guide-gap-js-arm-browser-indexeddb-proof.md); sync/offline-and-retention.md |
@@ -93,15 +94,15 @@ and `guide-gap`.
 | clients.contract-keyed-scopes | Binding-time keyed Contract queries with dedup, refcounts, and authority fencing | dynamic query, query args, dedup, selection | local | shipped | `createKeyedSnapbackContractProvider` in packages/snapback-contract/keyed-provider.mjs | llp/0034, llp/0063 | clients/contract-adapter.md |
 | clients.mutation-outcomes | Raw provider settlement facts plus Exact three-fact mutation projection | mutation state, timeout, retry, receipt, ambiguity | local | shipped | `partitime.step1-mutation-projection.v1` in demos/partiful-matrix/tests/acceptance/step1-mutation-projection.mjs | llp/0043, llp/0063 | clients/contract-adapter.md |
 | clients.optimistic-overlays | Derived optimistic mutations + reconciliation | optimistic, overlays, latency | local | shipped | `deriveOptimisticReducer` in packages/snapback-contract/index.mjs | llp/0052 | clients/contract-adapter.md |
-| clients.react | Prepared React provider over one headless store/transport seam: exact generated single/grouped live queries, capability-gated all-live and mixed-route references with one-commit register-mode adoption, explicit per-child registered-live/read-only boot provenance, honest weakest aggregate connection state, explicit live fallback, attach-deadline recovery, sessions authorization adoption, result-validated optimistic mutation rebase/rollback, local managed connection-keyed presence, per-query `freshness`/`retention` offline facts with the `useSnapbackOutbox` queued-intent projection, Strict Mode/HMR sharing, complete cleanup, and retained Signal Desk receipts | react, hooks, useSyncExternalStore, result inference, typed mutation, optimistic rollback, replay advisory, projectRecordFields, optimistic toggle helper, presence, query groups, mixed route, read-only snapshot, bundle prime, registered bundle, hmr, offline freshness, outbox badge | local | shipped | `useSnapbackOutbox` in packages/snapback-react/index.d.mts + mixed group acceptance in packages/snapback-react/package.test.mjs | llp/0012, llp/0064, llp/0074, llp/0090, llp/0101, llp/0114, llp/0106, llp/0107, llp/0129, llp/0157 | clients/react.md |
-| clients.react-expo | React Expo Online surface; independent Android and iOS implementation evidence | react native, expo, android, ios, mobile | local | shipped | `profileId` in demos/partiful-matrix/tests/acceptance/native-react-expo.mjs | llp/0012, llp/0064 | clients/react-expo.md |
+| clients.react | Prepared React provider over one headless store/transport seam: exact generated single/grouped live queries, capability-gated all-live and mixed-route references with one-commit register-mode adoption, explicit per-child registered-live/read-only boot provenance, honest weakest aggregate connection state, explicit live fallback, attach-deadline recovery, sessions authorization adoption, result-validated optimistic mutation rebase/rollback, local managed connection-keyed presence, per-query `freshness`/`retention` offline facts with the `useSnapbackOutbox` queued-intent projection, Strict Mode/HMR sharing, complete cleanup, and retained Signal Desk receipts | react, hooks, useSyncExternalStore, result inference, typed mutation, optimistic rollback, replay advisory, projectRecordFields, optimistic toggle helper, presence, ephemeral hook, useSnapbackPresence, typing indicator, query groups, mixed route, read-only snapshot, bundle prime, registered bundle, hmr, offline freshness, outbox badge | local | shipped | `useSnapbackPresence` in packages/snapback-react/index.d.mts | llp/0012, llp/0064, llp/0074, llp/0090, llp/0101, llp/0114, llp/0106, llp/0107, llp/0129, llp/0157 | clients/react.md |
+| clients.react-expo | React Expo Online surface; independent Android and iOS implementation evidence, with the shipped asset and admin-console paths cross-indexed from the carrier guide | react native, expo, android, ios, mobile, Expo asset upload, Expo ImagePicker, Expo debugging, admin console | local | shipped | `profileId` in demos/partiful-matrix/tests/acceptance/native-react-expo.mjs | llp/0012, llp/0064 | clients/react-expo.md |
 | operating.server-lifecycle | Start/reuse/stop servers safely; ports; provenance; crash detection | run server, ports, bindPortExactly, lifecycle, watchdog, crash, prebuilt binary, seed reset | local | shipped | `startServer` in demos/_kit/server-process.mjs | llp/0010, llp/0030 | testing/acceptance.md |
 | operating.instance-forks | Experimental source-only finite-TTL derived-instance CLI with fork-per-worktree guidance and an opt-in fork-instead-of-seed acceptance path; LLP 0158 is Accepted, but `agent_safe_derived_deployment_fork_v1` is independently unsupported and implementation/guide/harness/fleet evidence are not a capability claim | fork, derived instance, fork per worktree, realistic test data, diff, reap | none | partial | `ForkCommand` in src/cli.rs + `startForkedServer` in demos/_kit/instance-fork.mjs + demos/todo/tests/acceptance/forked-parent.mjs (unpublished source witnesses; public tuple Missing) | llp/0158 | GAP (distinct derived-capability qualification and publication; owner: Charlie, review: 2026-08-31); operating/instance-forks.md |
 | operating.agent-safe-storage | Registered Experimental `agent_safe_storage_v1` identity for the `agentSafe.v1` extension/component-fact vocabulary; it is not the `AgentSafeV1` core aggregate and no target currently supports it | operation envelope, explanation, agent-safe storage, capability facts | none | partial | `AgentSafeCapabilityExtensionV1` in src/manifest.rs (Missing-only public projection) | llp/0162 | GAP (acceptance corpus, review, acceptance, and publication gates; all projections remain Missing; owner: Charlie, review: 2026-08-31) |
 | operating.packaged-dev-loop | Install a native runtime; scaffold, generate, doctor, and watch/load through one CLI. The current packed React/Vite starter and inferred sessions startup pass locally, but the expanded React closure is not yet the byte-verified public `0.1.0` closure. | install, new app, react starter, vite, dev, one command, watch, sessions startup, packaged runtime | local | partial | `runDev` in packages/snapback-cli/index.mjs | llp/0041, llp/0058, llp/0114, llp/0103 | getting-started/the-authoring-loop.md |
 | operating.inspect | Health and inspect projections | inspect, status, debug | local | shipped | route /inspect | llp/0017, llp/0031 | getting-started/the-authoring-loop.md |
 | operating.secrets-config | App secrets/config: declare, set, verify — write-only | secrets, config, api keys, config verification, verify config, config verify | local | shipped | route /_snapback/api/config/status | llp/0036 | operating/secrets-and-config.md |
-| operating.admin-console | Browser inspection surface with master-derived fragment, device approval, and one-time operator claim-link handoffs | admin, console, dashboard, admin link, claim link, remote browser, table inspection, browse table, table scan, inspect rows | local | shipped | route /_snapback/admin | llp/0017 | operating/admin-console.md |
+| operating.admin-console | Shipped browser debugger for Data, Functions, Realtime, Errors, Logs, capabilities, and guide docs, with master-derived fragment, device approval, and one-time operator claim-link handoffs | admin, console, dashboard, admin link, claim link, remote browser, table inspection, browse table, table scan, inspect rows, see backend, debug backend, inspect function, inspect realtime, Expo debugging, React debugging | local | shipped | route /_snapback/admin | llp/0017 | operating/admin-console.md |
 | operating.network-profiles | Named network condition profiles: server-side egress latency injection (mutation ack, live delta, query response lanes) with fail-closed local-only activation, startup-env and admin-API toggles, per-frame socket/poll markers, surface/principal activation provenance, and coalesced live deadlines | latency, slow network, network profile, delay, jitter, local-first testing | local | shipped | route /_snapback/api/debug/network-profile + host_ops.debug.networkProfileSet + demos/zero-bakeoff/protocol/environment.v2.json | llp/0167 | operating/network-profiles.md |
 | operating.host-ops | Host operations over CLI/HTTP | cli, ops, host operations | local | shipped | route /_snapback/api/host-ops | llp/0024 | operating/host-ops.md |
 | operating.diagnostics | Stable SNAPBACK_* codes; exact current-checkout link/launch diagnosis with one binary-selection recovery record; installed disposable vertical-slice doctor | diagnostics, errors, doctor, linker, missing symbols, stale binary, runtime recovery | all | shipped | `runRuntimeLinkProbe` in scripts/runtime-link-smoke.mjs | llp/0010, llp/0031, llp/0041, llp/0074 | operating/diagnostics.md |
@@ -134,8 +135,8 @@ examples: [demos/todo, demos/todo-v2, demos/cursors-web, demos/card-game, demos/
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-04
-reviewed-commit: dab2410b6793ffa5685069a0a4054f0e2b21608a
+reviewed: 2026-08-05
+reviewed-commit: f3c7d9fbb394a413370a9264f22e72b6f151a25e
 ---
 
 <img src="../brand/snapback-mark.svg" alt="Snapback" width="96" />
@@ -248,8 +249,10 @@ you never build around a feature because you didn't know it existed.
   arguments, diagnostics, and transition guidance.
 - [Safe standard patterns](./backend/standard-patterns.md) — owner-scoped CRUD,
   unique lookup, keyset pages, and declarative trusted defaults.
-- [Relational queries](./backend/relational-queries.md) — bounded two-source
-  equi-joins with explicit visibility and closed projections (experimental).
+- [Relational queries](./backend/relational-queries.md) — shipped
+  `defineRelationalQuery` / `defineMaintainedProjection` support for bounded
+  two-source joins, including conversation-membership and message-sender
+  shapes; aggregation and self-joins remain explicit gaps.
 - [Snapshot batches](./backend/snapshot-batches.md) — 2–8 bounded child
   pages evaluated at one snapshot with one coordinated `sbsb1` cursor
   (experimental local target).
@@ -261,10 +264,11 @@ you never build around a feature because you didn't know it existed.
   fixed-width embeddings, pinned `dot`/`l2sq` arithmetic, bounded exact k-NN,
   authorization partitions, and explicit ANN/live/hosted nonclaims
   (experimental).
-- [Assets](./backend/assets.md) — generated upload intents, TUS resumable
-  transfer, trusted SHA-256 finalization, typed `v.assetRef` attachment,
-  private-strict delivery, consistent-cut logical export, and signing-key
-  rotation (local target; byte-level backup remains a nonclaim).
+- [Assets](./backend/assets.md) — generated upload intents, an authenticated
+  Expo ImagePicker-to-Blob recipe, TUS resumable transfer, trusted SHA-256
+  finalization, typed `v.assetRef` attachment, private-strict delivery,
+  consistent-cut logical export, and signing-key rotation (local target;
+  byte-level backup remains a nonclaim).
 - [Versioned seeds](./backend/versioned-seeds.md) — content-addressed fixture
   identity, non-destructive matching, explicit reset-install/clear, and
   migration boundaries (experimental).
@@ -287,8 +291,9 @@ you never build around a feature because you didn't know it existed.
   replace/delta, durable push, the connection axis.
 - [Route snapshot bundles](./realtime/snapshot-bundles.md) — one-commit page
   boot, route manifests, resume tokens, and register-mode handoff.
-- [Ephemeral state](./realtime/ephemeral-state.md) — typed rooms, all
-  collection options and key modes, overlays, recovery, and Contract links.
+- [Ephemeral state](./realtime/ephemeral-state.md) — presence, typing
+  indicators, cursors, typed rooms, and the scoped React
+  `useSnapbackPresence` hook, plus all collection options and recovery.
 
 ### Sync and offline
 - [Offline retention and mutation replay](./sync/offline-and-retention.md) —
@@ -325,7 +330,8 @@ you never build around a feature because you didn't know it existed.
 - [The React client](./clients/react.md) — first-class external-store hook,
   keyed sibling sharing, Strict Mode lifecycle, and settlement state.
 - [React Expo Online clients](./clients/react-expo.md) — the shared React
-  projection on native carriers, per-OS evidence, and Online/Parity honesty.
+  projection on native carriers, per-OS evidence, the admin-console debugging
+  path, authenticated asset uploads, and Online/Parity honesty.
 - [Framework bindings](./clients/framework-bindings.md) — build on the
   external store and own identity, reconnect, error, lifecycle, and teardown.
 
@@ -350,8 +356,9 @@ you never build around a feature because you didn't know it existed.
 - [Diagnostics](./operating/diagnostics.md) — stable codes, assertion
   discipline, exact runtime link/launch doctoring, binary recovery records,
   and bootstrap failure vocabulary.
-- [Admin console](./operating/admin-console.md) — build, launch, develop, and
-  debug through the privileged Contract system app.
+- [Admin console](./operating/admin-console.md) — the shipped browser debugger
+  for seeing backend Data, Functions, Realtime, Errors, Logs, and capability
+  state before reaching for `curl` or raw host operations.
 - [Backend observability](./operating/observability.md) — inspect Health and
   Logs, query typed telemetry from CLI/MCP, and interpret coverage, freshness,
   retention, and shedding honestly.
@@ -2134,8 +2141,8 @@ examples: [demos/todo, demos/todo-v2, demos/signal-desk]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-03
-reviewed-commit: f9ae0083ef41bfc9d07f033da440f96048919613
+reviewed: 2026-08-05
+reviewed-commit: f3c7d9fbb394a413370a9264f22e72b6f151a25e
 ---
 
 # Queries
@@ -2201,9 +2208,12 @@ same public query envelope and must use declared indexes for author-facing
 lookup paths.
 
 Specialized read shapes are their own closed carriers with their own pages —
-cross-reference rather than reimplementing them in a JS handler: bounded
-joins ([relational queries](./relational-queries.md)), index-backed text
-search ([text search](./text-search.md)), exact vector search
+cross-reference rather than reimplementing them in a JS handler. Before using
+`defineJsLiveQuery` for a plain conversation-membership or message-sender
+join, check the shipped `defineRelationalQuery` and
+`defineMaintainedProjection` surfaces
+([relational queries](./relational-queries.md)). Other specialized shapes are
+index-backed text search ([text search](./text-search.md)), exact vector search
 ([vector search](./vector-search.md)), several bounded child lists from one
 snapshot ([snapshot batches](./snapshot-batches.md)), and the generated
 job-status and push-ledger queries ([jobs](./jobs.md),
@@ -3572,13 +3582,13 @@ id: backend.assets
 order: 9
 audience: agent-first
 capabilities: [backend.assets]
-authorities: [llp/0012-headless-integration-contract.spec.md, llp/0044-asset-storage-pipeline.rfc.md, llp/0096-auth-profiles-for-protocol-clients.spec.md, src/assets.rs, src/assets_cut.rs, src/cli.rs, src/local.rs, src/server.rs, packages/snapback-codegen/define.mjs, packages/snapback-vite/allowlist.mjs, tests/acceptance/asset-lifecycle-v1-evidence.md]
-examples: [demos/party-wall, demos/file-drop]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0044-asset-storage-pipeline.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0096-auth-profiles-for-protocol-clients.spec.md, llp/0176-expo-messaging-golden-path.plan.md, src/assets.rs, src/assets_cut.rs, src/cli.rs, src/local.rs, src/server.rs, packages/snapback-codegen/define.mjs, packages/snapback-react/index.d.mts, packages/snapback-vite/allowlist.mjs, tests/acceptance/asset-lifecycle-v1-evidence.md]
+examples: [demos/party-wall, demos/file-drop, demos/tandem-expo-bakeoff]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-04
-reviewed-commit: 4f6b1bc3d98c9b9e3d1a946ff7cbd648854ea1a6
+reviewed: 2026-08-05
+reviewed-commit: f3c7d9fbb394a413370a9264f22e72b6f151a25e
 ---
 
 # Assets
@@ -3689,6 +3699,49 @@ can land in tables without the declaration emits
 
 ## Upload and attach
 
+**A dev/test server with no real client session can never complete a
+multi-step upload over the ordinary client HTTP surface — for any intent auth
+mode.** Every upload attempt records the non-optional owner principal returned
+by `authorize`. Transfer, finalization, and attachment compare that owner with
+the caller resolved from each request. An anonymous browser, React Native, or
+Expo request has no caller principal, so it can never equal the recorded
+owner. Setting `auth: 'public'` may make attempt creation public; it does not
+make later ownership checks anonymous, and `public-immutable` controls
+delivery rather than upload authority. Passing a `userId` option to the task
+is not authentication.
+
+There are exactly two paved local-development answers:
+
+1. For an operator, fixture, or headless proof, use the admin-impersonated CLI
+   lane: `snapback assets put ... --user <handle>`. This is not an in-app
+   upload path.
+2. For an interactive browser or native app, run the app in settled Sessions
+   auth mode and give it an ordinary session. A trusted local process that
+   already holds the ready-file/operator authority can mint one through the
+   shipped wrapper:
+
+```sh
+snapback session mint --email expo-dev@example.com --ready-file .snapback/dev.ready.json
+```
+
+The command prints a `hostOpsResult` whose `data.token` is the ordinary
+session bearer; it never prints the impersonation capability. In an app, keep
+the command or equivalent `auth.mintSession` host operation behind a trusted
+development broker that authenticates its caller and returns only that
+caller's session. Never put the ready file, admin token, impersonation
+capability, mailbox reader, or a generic mint-for-email endpoint in an Expo
+bundle. Adopt the returned bearer with `createExternalSessionClient` before
+preparing the React provider, as described in
+[native auth](../auth/native-apps.md):
+
+```tsx source=demos/tandem-expo-bakeoff/snapback/src/backend.tsx
+      const client = createExternalSessionClient(origin, { bearerToken: brokerPayload.bearerToken });
+      const binding = await client.prepareReactBinding({
+        generatedManifest: { schema, functions, capabilityManifest },
+      });
+      return { status: 'ready' as const, client, provider: createSnapbackReactProvider(binding) };
+```
+
 The client flow is: create an attempt (the generated reference plus the
 declared byte length — deferred length refuses), transfer bytes over TUS
 1.0.0 (`PATCH /assets/tus/{id}`, checksum every chunk), then finalize.
@@ -3725,6 +3778,89 @@ id-shaped string written into a `v.assetRef` field fails the commit with
 `SNAPBACK_ASSET_REF_UNVERIFIED` on every write path, and the reverse
 reference edge commits in the same changeset. Deleting an asset refuses
 while typed references remain.
+
+## Upload from Expo ImagePicker with an ordinary session
+
+Once the provider owns the real session above, bridge the native picker URI
+with `expo/fetch` (`import { fetch as expoFetch } from 'expo/fetch'`) and
+import `ImagePicker` from `expo-image-picker`. The messaging bakeoff first
+captures the picker metadata:
+
+```tsx source=demos/tandem-expo-bakeoff/shared/chat-screen.tsx
+  const pickImage = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      allowsEditing: false,
+      mediaTypes: ['images'],
+      quality: 0.82,
+    });
+    const asset = result.canceled ? null : result.assets[0];
+    if (!asset) return;
+    setAttachment({
+      uri: asset.uri,
+      fileName: asset.fileName ?? `message-${Date.now()}.jpg`,
+      mimeType: asset.mimeType ?? 'image/jpeg',
+    });
+    if (process.env.EXPO_OS === 'ios') void Haptics.selectionAsync();
+  };
+```
+
+Its backend hook converts that URI to a Blob with `expoFetch`, starts the
+generated upload reference, exposes byte progress, awaits `task.done`, and
+accepts only the completed `ready` receipt with a non-null `assetId`:
+
+```tsx source=demos/tandem-expo-bakeoff/snapback/src/backend.tsx
+function useImageUpload() {
+  const upload = useSnapbackAssetUpload({ upload: api.messageImageUpload });
+  const [error, setError] = useState<string | null>(null);
+  const progress = upload.state.totalBytes > 0 ? upload.state.bytesTransferred / upload.state.totalBytes : 0;
+  return useMemo(() => ({
+    state: {
+      status: error ? 'error' as const : upload.state.status === 'idle' || upload.state.status === 'ready' ? 'idle' as const : 'uploading' as const,
+      progress,
+      error: error ?? upload.state.diagnostic?.message ?? null,
+    },
+    upload: async (input: { uri: string; mimeType: string; fileName: string }) => {
+      setError(null);
+      try {
+        const response = await expoFetch(input.uri);
+        const blob = await response.blob();
+        const task = upload.start(blob, {
+          declaredContentType: input.mimeType,
+          declaredFilename: input.fileName,
+          previewUrl: input.uri,
+        }) as { done: Promise<{ status: string; assetId: string | null; diagnostic?: { message?: string } | null }> };
+        const result = await task.done;
+        if (result.status !== 'ready' || !result.assetId) {
+          throw new Error(result.diagnostic?.message ?? 'Snapback could not finish the image upload.');
+        }
+        return result.assetId;
+      } catch (cause) {
+        const message = cause instanceof Error ? cause.message : String(cause);
+        setError(message);
+        throw cause;
+      }
+    },
+  }), [error, progress, upload]);
+}
+```
+
+The screen awaits that receipt before calling its ordinary authenticated
+message mutation. The mutation performs the typed attachment; do not write
+the returned id directly into a `v.assetRef` field:
+
+```js source=demos/tandem-expo-bakeoff/snapback/snapback/functions.mjs
+    if (args.imageAssetId) {
+      values.image = await ctx.assets.attach(args.imageAssetId, { upload: 'messageImageUpload' });
+    }
+```
+
+That is the complete custody chain: trusted dev broker mints an ordinary
+session → `createExternalSessionClient` owns it → ImagePicker supplies a URI
+→ `expo/fetch` produces the Blob → `useSnapbackAssetUpload.start` owns the
+TUS task → `task.done` yields the ready asset id → an ordinary authenticated
+mutation calls `ctx.assets.attach`. Render `upload.state.bytesTransferred /
+totalBytes` while active and surface `rejected`/`failed` diagnostics rather
+than treating attempt creation as success.
 
 ## Run lifecycle callbacks
 
@@ -3820,13 +3956,11 @@ proxy is needed, and a relative URL such as
 
 Two facts shape the browser flow:
 
-- **Authenticated intents need sessions custody.** Dev-mode HTTP asset
-  requests deliberately resolve as anonymous — the asset DTO/TUS carrier has
-  no dev body-authority member, so passing `userId` to the upload task does
-  **not** authenticate the attempt. An intent with `auth: 'authenticated'`
-  therefore requires a real signed-in session in the browser. The `--user`
-  lane under Operate below is the CLI/host-op path (admin authority for
-  agents and fixtures), not a browser path.
+- **Interactive uploads need sessions custody.** The ordinary browser and
+  native HTTP carriers resolve as anonymous when no real session is present,
+  so the owner mismatch described under Upload and attach applies to every
+  intent auth mode. The `--user` lane under Operate below is the CLI/host-op
+  path (admin authority for agents and fixtures), not a browser or Expo path.
 - **The sign-in code arrives through a trusted-local seam.** The dev
   mailbox is admin- and impersonation-gated
   ([sessions guide](../auth/sessions-and-principals.md)), so a browser demo
@@ -4624,8 +4758,8 @@ examples: [packages/snapback-codegen/relational-authoring.test.mjs, packages/sna
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-03
-reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
+reviewed: 2026-08-05
+reviewed-commit: f3c7d9fbb394a413370a9264f22e72b6f151a25e
 ---
 
 # Relational queries (bounded joins)
@@ -4641,6 +4775,24 @@ Use `defineRelationalQuery` for the common "each row plus its one related
 row" read: a bounded two-source equi-join with an explicit projection. It is
 a closed plan — no SQL text, no callbacks — and every visibility fact is
 declared, never inferred from field names or read sets.
+
+## Recognize the messaging shape
+
+A conversation list is the same shape as the books/authors example below:
+make `conversationMembers` the bounded root, join its `conversationId` to a
+declared unique conversation key, then project the conversation title and
+membership facts. A message feed can likewise join messages to a distinct,
+uniquely indexed sender table. Use `defineRelationalQuery` when the join is a
+callable/live read, or `defineMaintainedProjection` when that same closed join
+should be a transactionally maintained table.
+
+Choose these declarations before hand-writing a `defineJsLiveQuery` for a
+plain two-source join: codegen proves joined-side uniqueness, visibility, the
+bounded root access, and target support. Stay with a bounded JS handler when
+the result also needs grouping/aggregation, arbitrary post-join logic, more
+than two sources, or a self-join. V1 explicitly refuses the same table as
+both `root` and `joined`; reply-preview self-joins and reaction counts are
+missing capability, not hidden relational options.
 
 ```js source=packages/snapback-codegen/relational-authoring.test.mjs
 export const booksWithAuthors = defineRelationalQuery({
@@ -7126,8 +7278,8 @@ examples: [packages/snapback-cli/templates/react, demos/chirp, demos/signal-desk
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-04
-reviewed-commit: 8154744c87ed58816703093bd526bd7a40d95a56
+reviewed: 2026-08-05
+reviewed-commit: f3c7d9fbb394a413370a9264f22e72b6f151a25e
 ---
 
 # The React client
@@ -7199,6 +7351,26 @@ window remains recoverable. Hosted, sessions, unknown, and server-refusal
 contexts stay immediate and loud. Set `developmentSync: false` when a local
 tool or test deliberately needs the original immediate mismatch behavior;
 otherwise the bounded retry is automatic even when no callback is supplied.
+
+The same dev loop has a post-mount sibling: Metro or Vite HMR can hot-replace
+the generated api module while the mounted `SnapbackProvider` keeps the
+binding admitted from the previous generation. In a positively identified
+development environment (Metro's `__DEV__`, a bundler HMR host, or
+`NODE_ENV === 'development'` — never mere absence of production markers), a
+regenerated same-app reference presented to hooks becomes a provider-boundary
+invalidation instead of a crash: the provider re-proves the whole new
+generation against the live deployment and swaps admission atomically.
+Unchanged queries keep their data throughout; changed queries show a brief
+`pending` frame, then subscribe under the new contract; a mutation invoked
+during the window settles after the swap. If the rebind cannot complete
+(backend never serves the new generation, or routes/ephemeral declarations
+changed), the provider logs one `SNAPBACK_REACT_HMR_REBIND_FAILED` diagnostic
+and triggers a controlled dev reload (`developmentHmr.onReloadRequired`
+overrides the default `DevSettings.reload`/`location.reload`). Foreign or
+stale references and production builds keep the strict
+`SNAPBACK_REACT_REFERENCE_INVALID` throw — recovery never weakens admission.
+Regression witness: `packages/snapback-react/hmr-generation-handoff.test.mjs`;
+governing design: LLP 0114 (mounted-provider HMR generation handoff).
 
 ## Bind a generated query
 
@@ -7369,11 +7541,16 @@ whose result diverges when replayed over its own output logs one
 `SNAPBACK_REACT_OPTIMISTIC_REPLAY_DIVERGENT` warning per (mutation, query)
 site; production builds skip the check.
 
-## Publish and observe presence
+## Publish and observe ephemeral presence
 
-Pass a generated connection-keyed ephemeral reference. A non-skipped value is
+`useSnapbackPresence` is the React hook for generated **ephemeral**
+collections — including presence, typing indicators, and cursors. Pass a
+generated connection-keyed ephemeral reference. A non-skipped value is
 declarative managed intent: the provider publishes it after the authoritative
-room snapshot and refreshes it within the generated TTL and rate limits.
+room snapshot and refreshes it within the generated TTL and rate limits. The
+[ephemeral-state reference](../realtime/ephemeral-state.md#find-the-react-hook-from-ephemeral-vocabulary)
+shows a conversation-scoped typing example; there is no separate
+`useSnapbackEphemeral` hook.
 
 ```ts fragment reason="presence fields come from the generated ephemeral declaration"
 const presence = useSnapbackPresence(ephemeral.incidentPresence, {
@@ -7603,13 +7780,13 @@ id: clients.react-expo
 order: 3
 audience: agent-first
 capabilities: [clients.react-expo]
-authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0114-first-class-react-and-query-groups.spec.md, packages/snapback-client/index.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-client/rqs-store-default.mjs, packages/snapback-client/rqs-store-expo.mjs, packages/snapback-react/index.mjs, demos/partiful-matrix/tests/acceptance/native-react-expo.mjs]
-examples: [demos/partiful-matrix/native/react-expo, packages/snapback-client/webcrypto-fallback.test.mjs, packages/snapback-react/webcrypto-fallback.test.mjs, packages/snapback-client/rqs-store-expo.test.mjs, packages/snapback-client/rqs-resume-expo.test.mjs, demos/rn-durable-store-witness/probe-App.tsx]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0017-admin-console-inspection-surface.rfc.md, llp/0041-packaged-dev-loop.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0176-expo-messaging-golden-path.plan.md, packages/snapback-client/index.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-client/rqs-store-default.mjs, packages/snapback-client/rqs-store-expo.mjs, packages/snapback-react/index.mjs, scripts/install-local-snapback-packages.mjs, demos/partiful-matrix/tests/acceptance/native-react-expo.mjs, demos/_kit/eas-stage-build.mjs]
+examples: [demos/partiful-matrix/native/react-expo, packages/snapback-client/webcrypto-fallback.test.mjs, packages/snapback-react/webcrypto-fallback.test.mjs, packages/snapback-client/rqs-store-expo.test.mjs, packages/snapback-client/rqs-resume-expo.test.mjs, scripts/local-source-package-closure.test.mjs, demos/rn-durable-store-witness/probe-App.tsx, demos/tandem-expo-bakeoff/scripts/build-ios-dev-client, demos/_kit/tests/repo-layout-unit.mjs]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-04
-reviewed-commit: 41c2db8804ba08071c39641cc46251c9084c7a31
+reviewed: 2026-08-05
+reviewed-commit: f3c7d9fbb394a413370a9264f22e72b6f151a25e
 ---
 
 # React Expo Online clients
@@ -7631,6 +7808,60 @@ store consequence, the offline queue, and reconnect honesty. In particular,
 optimistic mutations work unchanged: for a like/favorite button backed by a
 live feed, use [the optimistic toggle recipe](../recipes/optimistic-toggle.md)
 rather than component state plus a local counter delta.
+
+## Install the client pair from this source checkout
+
+For an Expo app nested anywhere under this checkout, run one command from the
+Snapback repository root:
+
+```sh
+node scripts/install-local-snapback-packages.mjs <expo-app-directory>
+```
+
+The command discovers the complete internal runtime closure from the checkout
+manifests, packs those exact source packages into the app's generated
+`.snapback/local-source-packages/` directory, points the client and React roots
+plus every top-level override at those local tarballs, and runs the Bun version
+pinned by this repository. Commit the app's resulting `package.json` and
+`bun.lock`; rerun the same command with `--frozen-lockfile` in CI or after
+deleting `node_modules`. The command regenerates the local tarballs before each
+install, so do not edit them by hand; treat that directory as generated (and
+ignore it in the app's source-control rules). Keep it present when invoking the
+out-of-checkout EAS staging helper below so the staged app can cold-install
+without reaching back into the repository.
+
+Do not add `@expo/snapback-contract` as a direct app dependency and do not
+hand-maintain one-off overrides. A local client keeps its own exact Contract
+edge, and a nested app is outside the repository workspace, so Bun otherwise
+falls through to the registry and can either fail or mix checkout code with a
+different published generation. Direct directory links also leave runtime
+resolution dependent on symlink behavior; the app-local tarballs install as
+ordinary materialized packages and travel with the existing EAS staging copy.
+The helper keeps the entire Snapback runtime closure local. Registry installs
+remain a separate workflow: use only the published package versions and no
+source paths or local overrides there.
+
+For image messages, use the authenticated
+[Expo ImagePicker asset recipe](../backend/assets.md#upload-from-expo-imagepicker-with-an-ordinary-session).
+It covers the native URI-to-Blob bridge, `useSnapbackAssetUpload`, the
+completed task receipt, and typed attachment; a client with no real session
+cannot finish the multi-request upload under any intent auth mode.
+
+## Debug the backend before writing another probe
+
+The generated [admin console](../operating/admin-console.md) is the shipped
+browser debugger for an Expo/React backend. Open it while `snapback dev` is
+running to browse Data, run and inspect Functions, see Realtime delivery,
+and read Errors, Logs, Capabilities, and the build-matched Guide:
+
+```sh
+snapback admin --ready-file .snapback/dev.ready.json
+```
+
+Use the actual ready-file path printed by your dev process. The console is an
+operator surface, not part of the Expo bundle; the command derives a browser
+credential without exposing the master admin token. Check it before falling
+back to `curl`, raw host operations, or a one-off verification script.
 
 ## Boot: external bearer, prepared binding, provider
 
@@ -7895,6 +8126,41 @@ completion overtaking the HTTP response and overflow recovery. The earlier
 `issues/closed/20260801-0137-a1expo-f7-rn-connection-cycles.md`; it is no longer
 a current limitation.
 
+## Build an EAS dev client for an app nested inside this repository
+
+`eas build` resolves its project root at the nearest **Git root**, not the
+nearest Expo app. Run it from an app nested inside this monorepo (a
+`demos/<bakeoff>/<arm>`, an internal prototype) and it archives and uploads
+the entire Snapback checkout — the Rust runtime, `vendor/ibex`, every other
+demo, and all workspace `node_modules` — a multi-minute upload for a
+kilobyte-scale app. `.easignore` and `EAS_NO_VCS=1` do **not** change that
+root resolution; this reproduced independently in two bakeoffs
+(`demos/tandem-expo-bakeoff`, `demos/relay-room-bakeoff`), and no first-party
+nested-root configuration is documented for it. The supported pattern is to
+**stage the app outside the checkout and build from the staged copy**, which
+both bakeoffs converged on and the kit now paves:
+
+```sh
+# Stage <app-dir> into an out-of-checkout temp directory, bun install there,
+# and run `eas build` from the staged copy (paid EAS service).
+node demos/_kit/eas-stage-build.mjs demos/tandem-expo-bakeoff/snapback/native-shell \
+  --platform ios --profile development
+
+# Free preflight: stage and report only (file count, size, staged path kept
+# for inspection); never installs dependencies or contacts EAS.
+node demos/_kit/eas-stage-build.mjs <app-dir> --stage-only
+```
+
+The helper excludes `node_modules`, `.expo`, `.git`, and `dist` at every
+depth, refuses any staging directory that is still inside a Git checkout, and
+keeps the small native "shell" pattern workable: the shell carries only
+native dependencies and EAS config while loading the product bundle from the
+parent Metro server (see
+[repo:demos/tandem-expo-bakeoff/scripts/build-ios-dev-client](repo:demos/tandem-expo-bakeoff/scripts/build-ios-dev-client)
+for an arm-selection wrapper). Staging behavior is unit-verified by
+[repo:demos/_kit/tests/repo-layout-unit.mjs](repo:demos/_kit/tests/repo-layout-unit.mjs);
+the EAS build itself is an external paid service and is not CI-verified.
+
 ## Anti-patterns
 
 - **Do not pass `userId`/`authority` to hooks or use the string-name object
@@ -7916,6 +8182,10 @@ a current limitation.
   contain public generated client artifacts only.
 - **Do not ship emulator port bridging as endpoint security.** It is local
   acceptance infrastructure only.
+- **Do not run `eas build` directly from an app nested in this checkout, and
+  do not try to fix it with `.easignore`.** EAS archives the whole monorepo
+  from the Git root either way; stage outside the checkout with
+  `demos/_kit/eas-stage-build.mjs` (see the nested-build section above).
 
 ---
 
@@ -8760,13 +9030,13 @@ id: getting-started.your-first-backend
 order: 1
 audience: agent-first
 capabilities: [backend.schema, backend.functions, backend.seed, backend.provisioning, backend.codegen]
-authorities: [llp/0004-application-data-api.rfc.md, llp/0037-schema-source-of-truth.decision.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0174-authoring-incidents-at-security-fences.research.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/inline-handlers.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/index.mjs]
+authorities: [llp/0004-application-data-api.rfc.md, llp/0037-schema-source-of-truth.decision.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0115-convex-parity-course-corrections.plan.md, llp/0174-authoring-incidents-at-security-fences.research.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/inline-handlers.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/index.mjs]
 examples: [demos/todo/snapback, demos/todo-v2/snapback, demos/signal-desk/snapback, packages/snapback-codegen/inline-result-contracts.test.mjs]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-03
-reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
+reviewed: 2026-08-05
+reviewed-commit: f3c7d9fbb394a413370a9264f22e72b6f151a25e
 ---
 
 # Your first backend
@@ -8833,6 +9103,19 @@ The core validators: `v.string()`, `v.principal()`, `v.id(table)`,
 partial: specialized validators — typed asset references (`v.assetRef`,
 [assets](../backend/assets.md)), result-side `v.doc(table)` references
 ([queries](../backend/queries.md)) — are taught with their features.
+
+**Array-shaped table fields are a workaround, not a shipped structured-field
+capability.** A table field cannot use `v.array(...)` directly. The immediate
+workaround is to store the value as opaque `v.json()`, then narrow every
+function result that exposes it with the appropriate `v.array(...)` result
+validator. That result contract validates the returned JSON shape; it does
+not add write-time item validation, array indexing, portable structured-field
+semantics, or sync-aware array behavior to the stored column. Native stored
+arrays/unions remain the explicit
+[`backend.structured-stored-fields` GAP](../capabilities.md) owned by
+[LLP 0115 CV-4b](repo:llp/0115-convex-parity-course-corrections.plan.md#cv-4-structured-collection-validators-split-arguments-then-storage).
+Do not describe the `v.json()` pairing as that missing capability.
+
 `defineSchema` also takes an
 options object:
 `ephemeral:` (a `defineEphemeral(...)` — see the
@@ -9647,7 +9930,7 @@ id: operating.host-ops
 order: 2
 audience: agent-first
 capabilities: [operating.host-ops]
-authorities: [llp/0024-agent-operating-surface.spec.md, src/host_ops.rs, src/server.rs, tests/host_ops_v0.rs]
+authorities: [llp/0024-agent-operating-surface.spec.md, src/cli.rs, src/host_ops.rs, src/server.rs, tests/host_ops_v0.rs]
 examples: [demos/todo]
 status: current
 targets: [local]
@@ -9727,6 +10010,10 @@ The endpoint serves thirty request spellings:
 | `errors.transition` | Resolve/ignore state transition for one issue. |
 | `debug.networkProfileGet` | Return the active network condition profile and its activation provenance. |
 | `debug.networkProfileSet` | Activate a built-in named profile or an inline profile through the shared activation gate. |
+
+`snapback session mint --email <address> --ready-file <path>` projects
+`auth.mintSession` through the same target and authority handling and prints only
+the resulting `hostOpsResult` JSON.
 
 `host.start` and `host.stop` are CLI-only lifecycle verbs today—a running
 server cannot safely own starting/stopping itself; over HTTP they fail as
@@ -10190,16 +10477,23 @@ version, and build profile; older binaries that predate the command may still
 be classified runnable via `--help`, but their actual stamp remains honestly
 unknown.
 
-A dirty worktree triggers the same posture at server spawn: the kit skips
-a prebuilt `target/debug/snapback` it cannot verify against a committed
-identity ("this checkout is dirty or has no committed identity") and
-falls back to the `cargo run` rung, which costs a rebuild-check on every
-boot (~30 s). That is provenance working as designed, not a fault. If
-you accept the local binary knowingly — a test loop on an intentionally
-dirty tree — the sanctioned escape is the same explicit override the
-diagnostic quotes: `SNAPBACK_SERVER_BINARY=<path>`. The override's
-unpinned identity stays visible in the spawn record, so acceptance is
-always a recorded choice, never an ambient default.
+Dirtiness here is scoped to the runtime binary's input set — the shared
+pathspec list in `scripts/runtime-build-inputs.txt` (Rust sources and
+manifests, `vendor/ibex`, and the build-embedded corpora). Uncommitted
+edits to your app under `demos/`, or to LLPs, issues, and diaries, cannot
+change the binary's bytes and do not count: a prepared binary stays
+verified and reusable while you iterate on an app. A dirty *input set*
+triggers the refusal posture at server spawn: the kit skips a prebuilt
+`target/debug/snapback` it cannot verify against a committed identity
+("this checkout's runtime input set is dirty or has no committed
+identity") and falls back to the `cargo run` rung, which costs a
+rebuild-check on every boot (~30 s). That is provenance working as
+designed, not a fault. If you accept the local binary knowingly — a test
+loop on intentionally dirty runtime sources — the sanctioned escape is
+the same explicit override the diagnostic quotes:
+`SNAPBACK_SERVER_BINARY=<path>`. The override's unpinned identity stays
+visible in the spawn record, so acceptance is always a recorded choice,
+never an ambient default.
 
 When `SNAPBACK_IBEX_RUNTIME_LINK_FAILED` names compatibility symbols such as
 `ex_hermes_create_no_eval`, do not delete Cargo output or rebuild Hermes
@@ -11426,13 +11720,13 @@ id: realtime.ephemeral-state
 order: 2
 audience: agent-first
 capabilities: [realtime.ephemeral]
-authorities: [llp/0013-ephemeral-realtime-state.rfc.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/index.mjs, packages/snapback-contract/index.mjs]
-examples: [demos/cursors-web, demos/todo-v2/snapback/schema.mjs]
+authorities: [llp/0013-ephemeral-realtime-state.rfc.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0114-first-class-react-and-query-groups.spec.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/index.mjs, packages/snapback-contract/index.mjs, packages/snapback-react/index.d.mts]
+examples: [demos/cursors-web, demos/todo-v2/snapback/schema.mjs, demos/improvement-sweep/arms/a2-snapback-web/evidence/app/App.tsx]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-03
-reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
+reviewed: 2026-08-05
+reviewed-commit: f3c7d9fbb394a413370a9264f22e72b6f151a25e
 ---
 
 # Ephemeral realtime state
@@ -11449,6 +11743,52 @@ reads, or enter history/audit, put it in a durable table instead.
 Start with the [presence-cursors recipe](../recipes/presence-cursors.md) when
 building a feature. Use this page when choosing collection options or handling
 recovery.
+
+## Find the React hook from ephemeral vocabulary
+
+In the schema and headless client this feature is named **ephemeral**. In the
+React client the scoped hook is named **`useSnapbackPresence`**. The names are
+two views of the same generated ephemeral collection: use the hook for online
+presence, conversation-scoped typing indicators, cursors, and other managed
+React values. There is no separate `useSnapbackEphemeral` hook.
+
+`scope` is the room boundary, so a conversation id gives one typing room per
+conversation. `value: skip` observes without publishing; a value publishes and
+refreshes it for the declared TTL. The first-party React provider owns the
+subscription, heartbeat, cleanup, reconnect, and authority transition:
+
+```tsx source=demos/improvement-sweep/arms/a2-snapback-web/evidence/app/App.tsx
+  // presence: managed value while the view is mounted on this channel
+  const presence = useSnapbackPresence(api.ephemeral.chatPresence, {
+    scope: { channelId: channelId ?? 'lobby' },
+    value: { name: displayName },
+    ttlMs: 8_000,
+  });
+  const online = new Map<string, true>();
+  if (presence.status === 'ready' || presence.status === 'stale') {
+    for (const entry of presence.entries) online.set(entry.value.name, true);
+  }
+
+  // typing: managed value only while recent keystrokes exist
+  const [draft, setDraft] = useState('');
+  const [typing, setTyping] = useState(false);
+  const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const typingState = useSnapbackPresence(api.ephemeral.chatTyping, {
+    scope: { channelId: channelId ?? 'lobby' },
+    value: typing ? { name: displayName } : skip,
+    ttlMs: 2_000,
+  });
+  const typers = (typingState.status === 'ready' || typingState.status === 'stale')
+    ? typingState.entries
+        .filter((entry) => entry.key !== typingState.selfKey)
+        .map((entry) => entry.value.name)
+    : [];
+```
+
+See [the React client](../clients/react.md#publish-and-observe-ephemeral-presence)
+for the hook's state and lifecycle contract. Reach for the lower-level
+`subscribeEphemeral` overlay below only in headless code or when you
+deliberately need imperative publish/delete control.
 
 ## Declare the complete collection contract
 

@@ -9,8 +9,8 @@ examples: [demos/todo, demos/todo-v2, demos/signal-desk]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-03
-reviewed-commit: f9ae0083ef41bfc9d07f033da440f96048919613
+reviewed: 2026-08-05
+reviewed-commit: f3c7d9fbb394a413370a9264f22e72b6f151a25e
 ---
 
 # Queries
@@ -76,9 +76,12 @@ same public query envelope and must use declared indexes for author-facing
 lookup paths.
 
 Specialized read shapes are their own closed carriers with their own pages —
-cross-reference rather than reimplementing them in a JS handler: bounded
-joins ([relational queries](./relational-queries.md)), index-backed text
-search ([text search](./text-search.md)), exact vector search
+cross-reference rather than reimplementing them in a JS handler. Before using
+`defineJsLiveQuery` for a plain conversation-membership or message-sender
+join, check the shipped `defineRelationalQuery` and
+`defineMaintainedProjection` surfaces
+([relational queries](./relational-queries.md)). Other specialized shapes are
+index-backed text search ([text search](./text-search.md)), exact vector search
 ([vector search](./vector-search.md)), several bounded child lists from one
 snapshot ([snapshot batches](./snapshot-batches.md)), and the generated
 job-status and push-ledger queries ([jobs](./jobs.md),

@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "zerobugs-source-digests.v1",
+  "pin": {
+    "repository": "rocicorp/mono",
+    "commit": "25c2c7308d3eb674d2d895022c9da11ef0c742fb",
+    "sparsePaths": [
+      "apps/zbugs",
+      "packages/zero"
+    ]
+  },
+  "date": "2026-08-05",
+  "files": {
+    "apps/zbugs/shared/schema.ts": "fe133321f46388216ae2f2cca81885f89701801da55e0b268fd28047fd7a5283",
+    "apps/zbugs/shared/queries.ts": "0b6de72bc611018375b2203fb5aa93ee7c1f4da5daa55a8d3c701b4920d11d3e",
+    "apps/zbugs/shared/mutators.ts": "04c16cd6db135a680cd54cc1c2b515c70f38070311a9826177d9da11cc930283",
+    "apps/zbugs/server/server-mutators.ts": "beaa49424b32cbb4967f8fd41b3ec8a25fda78f9a0ba53df41d6d8db7381e169",
+    "apps/zbugs/api/index.ts": "a61c90fbf8ce5fbd06318d3918670ddde3cccac76dc8fde1b44921e57fd5e61f",
+    "apps/zbugs/server/machine-routes.ts": "aac9ab66a519b8990a851a41aaa13667fc9b7f9ece30a6812f6000ab4491ce9a",
+    "apps/zbugs/src/server/upload.ts": "86c61e90ffe29bd1c72a149014802233b0bfb862653b8ea6f012980bd61aea33",
+    "apps/zbugs/SYNTHETIC_DATA.md": "f3d88a5c28787735c73716000a538b52512dc9ebefcfd5b0743154926687fecf",
+    "apps/zbugs/package.json": "9aaf45eb9321a52512a6f117278bbba3802ceef4b7637760fe10e979c245fbac",
+    "packages/zero/package.json": "294663587988855fd71edd7bad911f41fce5024004bb9c92b5d0619bdef0fb61"
+  }
+}

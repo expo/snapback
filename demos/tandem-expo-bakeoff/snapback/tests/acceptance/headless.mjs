@@ -1,21 +1,27 @@
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+// 2026-08-05: this suite keeps a local copy of the server/provisioning
+// lifecycle because it exercises a different provisioning path than the
+// shared helper — closed startup artifacts, host-ops `app.reset` seeding, and
+// a real auth-code exchange via the impersonation mailbox — which
+// `openHeadlessApp`'s `ensureApp` flow does not cover. The nested-layout root
+// bug that originally forced the copy is fixed: `demos/_kit/headless-app.mjs`
+// now resolves the repository root by marker walk
+// (demos/_kit/repo-layout.mjs; issues/closed/20260805-headless-app-nested-demo-root.md),
+// and this suite consumes that shared resolution below instead of counting
+// `..` segments. New nested suites should reach for `openHeadlessApp` first.
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
 import { createAssetClient } from '../../../../../packages/snapback-client/assets.mjs';
 import { AuthCoordinator, createMemoryAuthCustodyStorage } from '@expo/snapback-contract';
 import { SnapbackClient } from '../../../../_kit/client.mjs';
 import { assert, assertEqual, assertThrows, createSuite, runAcceptance } from '../../../../_kit/harness.mjs';
+import { resolveHeadlessAppLayout } from '../../../../_kit/repo-layout.mjs';
 import { startServer } from '../../../../_kit/server-process.mjs';
 import api from '../../snapback/generated/api.mjs';
 
 const ADA = 'user_ada';
 const suite = createSuite('tandem snapback / headless', { expectedChecks: 8 });
-const acceptanceDir = dirname(fileURLToPath(import.meta.url));
-const appDir = resolve(acceptanceDir, '..', '..');
-const repoRoot = resolve(appDir, '..', '..', '..');
-const backendDir = join(appDir, 'snapback');
-const generatedDir = join(backendDir, 'generated');
+const { appDir, backendDir, generatedDir, repoRoot } = resolveHeadlessAppLayout(import.meta.url);
 const readJson = (path) => JSON.parse(readFileSync(path, 'utf8'));
 const generated = (name) => readJson(join(generatedDir, name));
 const scratch = mkdtempSync(join(tmpdir(), 'tandem-snapback-'));

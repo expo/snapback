@@ -9,8 +9,8 @@ examples: [packages/snapback-cli/templates/react, demos/chirp, demos/signal-desk
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-04
-reviewed-commit: 8154744c87ed58816703093bd526bd7a40d95a56
+reviewed: 2026-08-05
+reviewed-commit: f3c7d9fbb394a413370a9264f22e72b6f151a25e
 ---
 
 # The React client
@@ -82,6 +82,26 @@ window remains recoverable. Hosted, sessions, unknown, and server-refusal
 contexts stay immediate and loud. Set `developmentSync: false` when a local
 tool or test deliberately needs the original immediate mismatch behavior;
 otherwise the bounded retry is automatic even when no callback is supplied.
+
+The same dev loop has a post-mount sibling: Metro or Vite HMR can hot-replace
+the generated api module while the mounted `SnapbackProvider` keeps the
+binding admitted from the previous generation. In a positively identified
+development environment (Metro's `__DEV__`, a bundler HMR host, or
+`NODE_ENV === 'development'` — never mere absence of production markers), a
+regenerated same-app reference presented to hooks becomes a provider-boundary
+invalidation instead of a crash: the provider re-proves the whole new
+generation against the live deployment and swaps admission atomically.
+Unchanged queries keep their data throughout; changed queries show a brief
+`pending` frame, then subscribe under the new contract; a mutation invoked
+during the window settles after the swap. If the rebind cannot complete
+(backend never serves the new generation, or routes/ephemeral declarations
+changed), the provider logs one `SNAPBACK_REACT_HMR_REBIND_FAILED` diagnostic
+and triggers a controlled dev reload (`developmentHmr.onReloadRequired`
+overrides the default `DevSettings.reload`/`location.reload`). Foreign or
+stale references and production builds keep the strict
+`SNAPBACK_REACT_REFERENCE_INVALID` throw — recovery never weakens admission.
+Regression witness: `packages/snapback-react/hmr-generation-handoff.test.mjs`;
+governing design: LLP 0114 (mounted-provider HMR generation handoff).
 
 ## Bind a generated query
 
@@ -252,11 +272,16 @@ whose result diverges when replayed over its own output logs one
 `SNAPBACK_REACT_OPTIMISTIC_REPLAY_DIVERGENT` warning per (mutation, query)
 site; production builds skip the check.
 
-## Publish and observe presence
+## Publish and observe ephemeral presence
 
-Pass a generated connection-keyed ephemeral reference. A non-skipped value is
+`useSnapbackPresence` is the React hook for generated **ephemeral**
+collections — including presence, typing indicators, and cursors. Pass a
+generated connection-keyed ephemeral reference. A non-skipped value is
 declarative managed intent: the provider publishes it after the authoritative
-room snapshot and refreshes it within the generated TTL and rate limits.
+room snapshot and refreshes it within the generated TTL and rate limits. The
+[ephemeral-state reference](../realtime/ephemeral-state.md#find-the-react-hook-from-ephemeral-vocabulary)
+shows a conversation-scoped typing example; there is no separate
+`useSnapbackEphemeral` hook.
 
 ```ts fragment reason="presence fields come from the generated ephemeral declaration"
 const presence = useSnapbackPresence(ephemeral.incidentPresence, {
