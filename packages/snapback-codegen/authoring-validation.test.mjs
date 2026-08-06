@@ -8,7 +8,12 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { generate } from './index.mjs';
 
-const defineUrl = pathToFileURL(join(dirname(fileURLToPath(import.meta.url)), 'define.mjs')).href;
+const packageDir = dirname(fileURLToPath(import.meta.url));
+const defineUrl = pathToFileURL(join(packageDir, 'define.mjs')).href;
+const guideManifest = JSON.parse(readFileSync(
+  join(packageDir, '..', '..', 'guide', 'guide-manifest.generated.json'),
+  'utf8',
+));
 const dirs = [];
 const validSchema = `
 import { defineSchema, defineTable, v } from '${defineUrl}';
@@ -367,10 +372,13 @@ export const createTodo = defineMutation({
   assert.equal(contradiction.details.runtimeRefusal, 'SNAPBACK_ARG_MISSING');
   assert.deepEqual(
     contradiction.details.remediations.map((remediation) => remediation.kind),
-    ['makeArgumentRequired', 'splitOperation', 'consumeViaArgOpt'],
+    ['makeArgumentRequired', 'splitOperation', 'consumeViaArgOpt', 'guidePointer'],
+  );
+  const policyOptions = contradiction.details.remediations.filter(
+    (remediation) => remediation.kind !== 'guidePointer',
   );
   assert(
-    contradiction.details.remediations.every((remediation) => (
+    policyOptions.every((remediation) => (
       remediation.riskClass === 'policy'
       && remediation.machineApplicable === false
       && remediation.requiresApproval === true
@@ -378,6 +386,42 @@ export const createTodo = defineMutation({
     )),
     `repairs must remain human policy choices: ${JSON.stringify(contradiction.details.remediations)}`,
   );
+  const guidePointer = contradiction.details.remediations.find(
+    (remediation) => remediation.kind === 'guidePointer',
+  );
+  assert.deepEqual(
+    {
+      pageId: guidePointer.pageId,
+      path: guidePointer.path,
+      anchor: guidePointer.anchor,
+      riskClass: guidePointer.riskClass,
+      machineApplicable: guidePointer.machineApplicable,
+      requiresApproval: guidePointer.requiresApproval,
+      authorityEffect: guidePointer.authorityEffect,
+      precondition: guidePointer.precondition,
+    },
+    {
+      pageId: 'backend.mutations',
+      path: 'guide/backend/mutations.md',
+      anchor: 'define-the-write-boundary',
+      riskClass: 'policy',
+      machineApplicable: false,
+      requiresApproval: true,
+      authorityEffect: 'none',
+      precondition: {
+        function: 'createTodo',
+        argument: 'replyToId',
+        planSite: 'insert replyToId',
+      },
+    },
+  );
+  assert.equal(
+    guideManifest.pages[guidePointer.pageId]?.path,
+    guidePointer.path,
+    'optional-arg guidePointer resolves through the generated guide manifest',
+  );
+  assert.equal(typeof guidePointer.reason, 'string');
+  assert.equal(guidePointer.reason.includes('\n'), false, 'guidePointer reason stays one line');
 
   // Runtime front-run linkage: the committed LLP 0051 D5 conformance case
   // carries the same serialized ValueExpr::Arg node and pins the refusal.

@@ -13,6 +13,10 @@ import {
 
 const packageDir = dirname(fileURLToPath(import.meta.url));
 const defineUrl = pathToFileURL(join(packageDir, 'define.mjs')).href;
+const guideManifest = JSON.parse(readFileSync(
+  join(packageDir, '..', '..', 'guide', 'guide-manifest.generated.json'),
+  'utf8',
+));
 const dirs = [];
 
 function backend(schema, functions) {
@@ -215,11 +219,14 @@ assert.throws(
     assert.match(warning.message, /guide\/auth\/sessions-and-principals\.md#choose-each-functions-auth-requirement/u);
     assert.equal(warning.sourceSpan.file, 'functions.mjs');
     assert(warning.sourceSpan.line > 0);
+    const policyOptions = warning.details.remediations.filter(
+      (remediation) => remediation.kind === 'setFunctionAuthRequirement',
+    );
     assert.deepEqual(
-      warning.details.remediations.map(({ requirement }) => requirement),
+      policyOptions.map(({ requirement }) => requirement),
       ['public', 'optional-user', 'authenticated'],
     );
-    assert(warning.details.remediations.every((remediation) => (
+    assert(policyOptions.every((remediation) => (
       remediation.kind === 'setFunctionAuthRequirement'
       && remediation.riskClass === 'policy'
       && remediation.machineApplicable === false
@@ -228,6 +235,43 @@ assert.throws(
       && remediation.precondition.authMode === 'sessions'
       && remediation.precondition.authoredRequirement === 'omitted'
     )));
+    const guidePointer = warning.details.remediations.find(
+      (remediation) => remediation.kind === 'guidePointer',
+    );
+    assert.deepEqual(
+      {
+        pageId: guidePointer.pageId,
+        path: guidePointer.path,
+        anchor: guidePointer.anchor,
+        riskClass: guidePointer.riskClass,
+        machineApplicable: guidePointer.machineApplicable,
+        requiresApproval: guidePointer.requiresApproval,
+        authorityEffect: guidePointer.authorityEffect,
+        precondition: guidePointer.precondition,
+      },
+      {
+        pageId: 'auth.sessions-and-principals',
+        path: 'guide/auth/sessions-and-principals.md',
+        anchor: 'choose-each-functions-auth-requirement',
+        riskClass: 'policy',
+        machineApplicable: false,
+        requiresApproval: true,
+        authorityEffect: 'none',
+        precondition: {
+          function: warning.function,
+          authMode: 'sessions',
+          authoredRequirement: 'omitted',
+          effectiveLegacyRequirement: 'optional-user',
+        },
+      },
+    );
+    assert.equal(
+      guideManifest.pages[guidePointer.pageId]?.path,
+      guidePointer.path,
+      'auth guidePointer resolves through the generated guide manifest',
+    );
+    assert.equal(typeof guidePointer.reason, 'string');
+    assert.equal(guidePointer.reason.includes('\n'), false, 'guidePointer reason stays one line');
   }
   const functions = readJson(join(dir, 'generated', 'functions.manifest.json'));
   assert(functions.functions.every(({ authRequirement }) => authRequirement === 'optional-user'));

@@ -2093,6 +2093,21 @@ export async function generateInProcess(backendDir, options = {}) {
               precondition,
               description: `Add auth: 'authenticated' to ${name} when invocation must require a resolved user.`,
             },
+            // @ref LLP 0178#2-diagnostic-shape — policy-choice diagnostics
+            // may route to the governing guide, but never guess one patch.
+            {
+              kind: 'guidePointer',
+              pageId: 'auth.sessions-and-principals',
+              path: 'guide/auth/sessions-and-principals.md',
+              anchor: 'choose-each-functions-auth-requirement',
+              reason: 'Choose the explicit function auth requirement that matches the intended caller policy.',
+              riskClass: 'policy',
+              machineApplicable: false,
+              requiresApproval: true,
+              authorityEffect: 'none',
+              precondition,
+              description: 'Read the sessions and principals guide before choosing the function auth requirement.',
+            },
           ],
         },
       });
@@ -2159,6 +2174,21 @@ export async function generateInProcess(backendDir, options = {}) {
                 authorityEffect: 'none',
                 precondition,
                 description: `Consume ${argument} with argOpt("${argument}") — an omitted property evaluates to null (wrap with coalesce(argOpt(...), lit(default)) for a default); a null write requires the target field to be declared optional.`,
+              },
+              // @ref LLP 0178#2-diagnostic-shape — policy-choice diagnostics
+              // may route to the governing guide, but never guess one patch.
+              {
+                kind: 'guidePointer',
+                pageId: 'backend.mutations',
+                path: 'guide/backend/mutations.md',
+                anchor: 'define-the-write-boundary',
+                reason: 'Choose whether callers must supply the argument or the plan must consume its omission branch.',
+                riskClass: 'policy',
+                machineApplicable: false,
+                requiresApproval: true,
+                authorityEffect: 'none',
+                precondition,
+                description: 'Read the mutation guide before choosing the required-argument or omission-safe policy.',
               },
             ],
           },
