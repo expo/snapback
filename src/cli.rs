@@ -1335,6 +1335,19 @@ pub enum ForkCommand {
         #[arg(long)]
         fork_root: Option<PathBuf>,
     },
+    /// Extend one fork's finite expiry within the configured maximum total
+    /// lifetime. Renewal never shortens or clears the expiry and never
+    /// resurrects an already-expired fork.
+    Renew {
+        fork_id: String,
+        /// Finite duration from now, such as 30m or 2h.
+        #[arg(long)]
+        ttl: String,
+        #[arg(long, default_value = ".")]
+        app_root: PathBuf,
+        #[arg(long)]
+        fork_root: Option<PathBuf>,
+    },
     /// Deterministically stop and delete forks expired at the supplied clock.
     Reap {
         #[arg(long)]
@@ -2137,18 +2150,48 @@ fn now_ms() -> u64 {
 }
 
 async fn wait_for_derived_fork_expiry(
+    database: Option<PathBuf>,
     lineage: Option<crate::instance_fork::DerivedForkLineageV1>,
 ) -> (crate::instance_fork::DerivedForkLineageV1, u64) {
     let Some(lineage) = lineage else {
         return std::future::pending().await;
     };
-    let Some(expires_at_ms) = lineage.expires_at_ms else {
+    let Some(mut expires_at_ms) = lineage.expires_at_ms else {
         return std::future::pending().await;
     };
     loop {
         let observed_at_ms = now_ms();
         if observed_at_ms >= expires_at_ms {
-            return (lineage, observed_at_ms);
+            // A completed `fork renew` moves the database lineage, which is
+            // the expiry authority — the boot-time copy is only a schedule.
+            // Mid-renewal reads (sentinel window, carrier rewrite) fail
+            // transiently, so retry briefly before accepting expiry.
+            let mut renewed_to = None;
+            if let Some(database) = database.as_deref() {
+                for _ in 0..40 {
+                    match crate::instance_fork::refreshed_lineage(database) {
+                        Ok(Some(current))
+                            if current
+                                .expires_at_ms
+                                .is_some_and(|expiry| expiry > observed_at_ms) =>
+                        {
+                            renewed_to = current.expires_at_ms;
+                            break;
+                        }
+                        Ok(_) => break,
+                        Err(_) => {
+                            tokio::time::sleep(std::time::Duration::from_millis(250)).await;
+                        }
+                    }
+                }
+            }
+            match renewed_to {
+                Some(new_expiry) => {
+                    expires_at_ms = new_expiry;
+                    continue;
+                }
+                None => return (lineage, observed_at_ms),
+            }
         }
         let delay_ms = expires_at_ms.saturating_sub(observed_at_ms).clamp(1, 1_000);
         tokio::time::sleep(std::time::Duration::from_millis(delay_ms)).await;
@@ -3045,6 +3088,30 @@ where
                 Some(&app_root),
                 None,
                 json!({ "forkId": fork_id, "stoppedPid": stopped_pid, "dropped": true }),
+            );
+            print_envelope(&serde_json::to_value(envelope)?);
+            Ok(())
+        }
+        ForkCommand::Renew {
+            fork_id,
+            ttl,
+            app_root,
+            fork_root: requested_root,
+        } => {
+            let app_root = std::fs::canonicalize(app_root)?;
+            let root = fork_root(&app_root, requested_root)?;
+            let ttl_ms = parse_fork_ttl(&ttl)?;
+            let renewed_at_ms = clock();
+            let receipt = startup_blocking(|| {
+                crate::instance_fork::renew_managed(&root, &fork_id, renewed_at_ms, ttl_ms)
+            })?;
+            let entry = crate::instance_fork::managed_entry(&root, &fork_id)?;
+            let envelope = fork_envelope(
+                "fork.renew",
+                entry.lineage.app_id.clone(),
+                Some(&app_root),
+                None,
+                json!({ "receipt": receipt, "registry": entry }),
             );
             print_envelope(&serde_json::to_value(envelope)?);
             Ok(())
@@ -5844,7 +5911,7 @@ async fn run_composed(
         );
     }
     println!("admin console: http://{local_addr}/_snapback/admin");
-    if let Some(db_path) = database_path {
+    if let Some(db_path) = &database_path {
         println!("sqlite database: {}", db_path.display());
     }
     // @ref LLP 0017#security-defaults — be explicit about how admin is gated.
@@ -5935,7 +6002,8 @@ async fn run_composed(
         .bind(listener)?
         .serve_with_graceful_shutdown(shutdown_signal());
     tokio::pin!(server);
-    let fork_expiry = wait_for_derived_fork_expiry(derived_fork_lineage);
+    let fork_expiry =
+        wait_for_derived_fork_expiry(database_path.clone(), derived_fork_lineage);
     tokio::pin!(fork_expiry);
     let (server_result, expired_fork_shutdown): (anyhow::Result<()>, bool) = tokio::select! {
         result = &mut server => (result.map_err(anyhow::Error::new), false),

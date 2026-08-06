@@ -17,6 +17,8 @@ use uuid::Uuid;
 
 pub const STAGING_SENTINEL: &str = ".snapback-fork-staging.v1";
 pub const MINT_RECEIPT_FILE: &str = "fork-mint-receipt.json";
+pub const RENEW_INTENT_FILE: &str = "fork-renew-intent.json";
+pub const RENEW_RECEIPT_FILE: &str = "fork-renew-receipt.json";
 pub const REGISTRY_DIRECTORY: &str = ".snapback-fork-registry";
 const LINEAGE_META_KEY: &str = "instance_fork_lineage_v1";
 const QUARANTINE_META_KEY: &str = "instance_fork_quarantine_v1";
@@ -24,6 +26,14 @@ const EGRESS_TABLE: &str = "_snapback_fork_egress_attempts_v1";
 
 pub const SERVER_EXPIRED_CODE: &str = "SNAPBACK_FORK_SERVER_EXPIRED";
 pub const RESOURCE_LIMIT_REFUSED_CODE: &str = "SNAPBACK_FORK_RESOURCE_LIMIT_REFUSED";
+pub const RENEW_EXPIRED_CODE: &str = "SNAPBACK_FORK_RENEW_EXPIRED";
+
+/// Provisional maximum total lifetime for a managed fork, binding creation
+/// through every renewal (LLP 0185 Phase 3 item 6's "configured maximum").
+/// The concrete bound is an author decision pending LLP 0185 OQ1; renewals
+/// past it refuse with [`RESOURCE_LIMIT_REFUSED_CODE`] rather than silently
+/// extending forever.
+pub const MANAGED_FORK_MAX_LIFETIME_MS: u64 = 7 * 86_400_000;
 
 #[cfg(test)]
 thread_local! {
@@ -646,6 +656,18 @@ pub struct ForkDiffReceiptV1 {
     pub table_counts: BTreeMap<String, u64>,
     pub coverage: Vec<String>,
     pub omissions: Vec<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ForkRenewReceiptV1 {
+    pub schema_version: String,
+    pub fork_id: String,
+    pub renewed_at_ms: u64,
+    pub previous_expires_at_ms: u64,
+    pub expires_at_ms: u64,
+    pub created_at_ms: u64,
+    pub max_lifetime_ms: u64,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -1802,6 +1824,229 @@ pub fn clear_stale_registry_entry_locked(
     }
 }
 
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct ForkRenewIntentV1 {
+    format_version: u32,
+    lineage: DerivedForkLineageV1,
+    previous_expires_at_ms: u64,
+    renewed_at_ms: u64,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum RenewCut {
+    AfterSentinelWrite,
+    AfterIntentWrite,
+    AfterDatabaseUpdate,
+    AfterReceiptRewrite,
+    AfterRegistryRewrite,
+    AfterRenewReceipt,
+    AfterIntentRemoval,
+}
+
+fn maybe_renew_cut(cut_at: Option<RenewCut>, point: RenewCut) -> SnapbackResult<()> {
+    if cut_at == Some(point) {
+        Err(fork_error(
+            "SNAPBACK_FORK_TEST_CRASH_CUT",
+            format!("injected crash after {point:?}"),
+        ))
+    } else {
+        Ok(())
+    }
+}
+
+/// Extend one managed fork's finite expiry (LLP 0185 Phase 3 item 6).
+/// Renewal requires the exact registry-bound identity, refuses an already-
+/// expired fork (expiry is authority, not advisory metadata to resurrect),
+/// must strictly move the expiry later — it can never shorten or clear it —
+/// and is bounded by [`MANAGED_FORK_MAX_LIFETIME_MS`] from creation. The
+/// three expiry carriers (database lineage, mint receipt, registry entry)
+/// update behind a staging sentinel plus a renewal-intent file so a crash at
+/// any point recovers to one consistent expiry via [`recover`].
+pub fn renew_managed(
+    fork_root: &Path,
+    fork_id: &str,
+    now_ms: u64,
+    ttl_ms: u64,
+) -> SnapbackResult<ForkRenewReceiptV1> {
+    renew_managed_with_cut(fork_root, fork_id, now_ms, ttl_ms, None)
+}
+
+fn renew_managed_with_cut(
+    fork_root: &Path,
+    fork_id: &str,
+    now_ms: u64,
+    ttl_ms: u64,
+    cut_at: Option<RenewCut>,
+) -> SnapbackResult<ForkRenewReceiptV1> {
+    let _lock = lock_cleanup(fork_root, fork_id)?;
+    let target = managed_target(fork_root, fork_id)?;
+    let lineage = target.receipt.lineage.clone();
+    let previous_expires_at_ms = lineage.expires_at_ms.ok_or_else(|| {
+        fork_error(
+            "SNAPBACK_FORK_TTL_INVALID",
+            "only finite managed forks can renew",
+        )
+    })?;
+    if previous_expires_at_ms <= now_ms {
+        return Err(fork_error(
+            RENEW_EXPIRED_CODE,
+            "renewal refused: the fork is already past its finite expiry; reap it and create a fresh fork",
+        )
+        .with_details(json!({
+            "forkId": lineage.fork_id,
+            "expiresAtMs": previous_expires_at_ms,
+            "observedAtMs": now_ms,
+        })));
+    }
+    let expires_at_ms = now_ms
+        .checked_add(ttl_ms)
+        .filter(|expiry| *expiry <= crate::manifest::PORTABLE_TIMESTAMP_MAX_MS)
+        .ok_or_else(|| {
+            fork_error(
+                "SNAPBACK_FORK_TTL_INVALID",
+                "renewed expiry exceeds the portable clock",
+            )
+        })?;
+    if expires_at_ms <= previous_expires_at_ms {
+        return Err(fork_error(
+            "SNAPBACK_FORK_TTL_INVALID",
+            "renewal must move the finite expiry later; it never shortens or clears it",
+        )
+        .with_details(json!({
+            "expiresAtMs": previous_expires_at_ms,
+            "requestedExpiresAtMs": expires_at_ms,
+        })));
+    }
+    if expires_at_ms.saturating_sub(lineage.created_at_ms) > MANAGED_FORK_MAX_LIFETIME_MS {
+        return Err(fork_error(
+            RESOURCE_LIMIT_REFUSED_CODE,
+            "renewal refused: requested expiry exceeds the configured maximum fork lifetime",
+        )
+        .with_details(json!({
+            "resource": "renewal-lifetime",
+            "createdAtMs": lineage.created_at_ms,
+            "requestedExpiresAtMs": expires_at_ms,
+            "maxLifetimeMs": MANAGED_FORK_MAX_LIFETIME_MS,
+        })));
+    }
+
+    let mut renewed = lineage;
+    renewed.expires_at_ms = Some(expires_at_ms);
+    let sentinel = target.destination.join(STAGING_SENTINEL);
+    File::create(&sentinel)
+        .and_then(|file| file.sync_all())
+        .map_err(|error| io_error("write fork renewal sentinel", error))?;
+    sync_directory(&target.destination)?;
+    maybe_renew_cut(cut_at, RenewCut::AfterSentinelWrite)?;
+    let intent = ForkRenewIntentV1 {
+        format_version: 1,
+        lineage: renewed.clone(),
+        previous_expires_at_ms,
+        renewed_at_ms: now_ms,
+    };
+    write_json_sync(&target.destination.join(RENEW_INTENT_FILE), &intent)?;
+    sync_directory(&target.destination)?;
+    maybe_renew_cut(cut_at, RenewCut::AfterIntentWrite)?;
+    apply_renewal(
+        fork_root,
+        &target.destination,
+        &target.database,
+        &intent,
+        true,
+        cut_at,
+    )
+}
+
+/// Carry a validated renewal intent through every expiry carrier. Idempotent:
+/// the crash-recovery path re-runs it from the durable intent file, where the
+/// advisory registry stays best-effort (`registry_authoritative = false`)
+/// per [`recover`]'s posture, while a live renewal must leave the registry in
+/// exact lineage agreement or fail so recovery can finish the job.
+fn apply_renewal(
+    fork_root: &Path,
+    destination: &Path,
+    database: &Path,
+    intent: &ForkRenewIntentV1,
+    registry_authoritative: bool,
+    cut_at: Option<RenewCut>,
+) -> SnapbackResult<ForkRenewReceiptV1> {
+    let renewed = &intent.lineage;
+    let lineage_json = serde_json::to_string(renewed)
+        .map_err(|error| fork_error("SNAPBACK_FORK_LINEAGE_INVALID", error.to_string()))?;
+    let conn = Connection::open(database)?;
+    conn.execute(
+        "UPDATE _snapback_meta SET value=?2 WHERE key=?1",
+        params![LINEAGE_META_KEY, lineage_json],
+    )?;
+    sync_sqlite_set(database, &conn, None)?;
+    drop(conn);
+    maybe_renew_cut(cut_at, RenewCut::AfterDatabaseUpdate)?;
+
+    let receipt_path = destination.join(MINT_RECEIPT_FILE);
+    let mut mint: ForkMintReceiptV1 = serde_json::from_slice(
+        &fs::read(&receipt_path).map_err(|error| io_error("read fork receipt for renewal", error))?,
+    )
+    .map_err(|_| {
+        fork_error(
+            "SNAPBACK_FORK_RECEIPT_INVALID",
+            "fork mint receipt is malformed",
+        )
+    })?;
+    mint.lineage = renewed.clone();
+    write_json_sync(&receipt_path, &mint)?;
+    maybe_renew_cut(cut_at, RenewCut::AfterReceiptRewrite)?;
+
+    // The registry entry must return to exact lineage equality or
+    // managed_target refuses the fork; a pre-crash or corrupt entry is
+    // rebuilt fresh, the same posture recovery already takes.
+    let registry_result = (|| -> SnapbackResult<()> {
+        let registry = registry_path(fork_root, &renewed.fork_id);
+        let registry_directory = fork_root.join(REGISTRY_DIRECTORY);
+        fs::create_dir_all(&registry_directory)
+            .map_err(|error| io_error("create fork registry for renewal", error))?;
+        let mut entry = fs::read(&registry)
+            .ok()
+            .and_then(|bytes| serde_json::from_slice::<ForkRegistryEntryV1>(&bytes).ok())
+            .unwrap_or_else(|| registry_entry("published", destination, &mint));
+        entry.lineage = renewed.clone();
+        write_json_sync(&registry, &entry)?;
+        sync_directory(&registry_directory)
+    })();
+    if registry_authoritative {
+        registry_result?;
+    }
+    maybe_renew_cut(cut_at, RenewCut::AfterRegistryRewrite)?;
+
+    let receipt = ForkRenewReceiptV1 {
+        schema_version: "snapback.fork-renew.v1".to_owned(),
+        fork_id: renewed.fork_id.clone(),
+        renewed_at_ms: intent.renewed_at_ms,
+        previous_expires_at_ms: intent.previous_expires_at_ms,
+        expires_at_ms: renewed.expires_at_ms.expect("renewed lineage is finite"),
+        created_at_ms: renewed.created_at_ms,
+        max_lifetime_ms: MANAGED_FORK_MAX_LIFETIME_MS,
+    };
+    write_json_sync(&destination.join(RENEW_RECEIPT_FILE), &receipt)?;
+    maybe_renew_cut(cut_at, RenewCut::AfterRenewReceipt)?;
+    fs::remove_file(destination.join(RENEW_INTENT_FILE))
+        .map_err(|error| io_error("remove fork renewal intent", error))?;
+    maybe_renew_cut(cut_at, RenewCut::AfterIntentRemoval)?;
+    fs::remove_file(destination.join(STAGING_SENTINEL))
+        .map_err(|error| io_error("remove fork renewal sentinel", error))?;
+    sync_directory(destination)?;
+    Ok(receipt)
+}
+
+/// Re-read the lineage currently persisted in a fork database, ignoring the
+/// staging sentinel. The serving watchdog uses this at its expiry deadline so
+/// a completed renewal extends the running server instead of being ignored.
+pub fn refreshed_lineage(
+    database_path: &Path,
+) -> SnapbackResult<Option<DerivedForkLineageV1>> {
+    Ok(inspect_evidence(database_path)?.map(|runtime| runtime.lineage))
+}
+
 pub fn expired_managed(fork_root: &Path, now_ms: u64) -> SnapbackResult<Vec<ForkRegistryEntryV1>> {
     if now_ms > crate::manifest::PORTABLE_TIMESTAMP_MAX_MS {
         return Err(fork_error(
@@ -2055,6 +2300,42 @@ pub fn recover(parent: &Path, destination: &Path) -> SnapbackResult<()> {
                 "SNAPBACK_FORK_EVIDENCE_INCOMPLETE",
                 "published fork database is missing",
             ));
+        }
+        // A crash-interrupted renewal leaves its durable intent behind the
+        // sentinel; completing it restores all three expiry carriers to the
+        // intent's one lineage before the fork becomes bootable again.
+        let intent_path = destination.join(RENEW_INTENT_FILE);
+        if intent_path.exists() {
+            let intent: ForkRenewIntentV1 = serde_json::from_slice(
+                &fs::read(&intent_path)
+                    .map_err(|error| io_error("read fork renewal intent", error))?,
+            )
+            .map_err(|_| {
+                fork_error(
+                    "SNAPBACK_FORK_RECEIPT_INVALID",
+                    "fork renewal intent is malformed",
+                )
+            })?;
+            let mut expected = receipt.lineage.clone();
+            expected.expires_at_ms = intent.lineage.expires_at_ms;
+            if intent.format_version != 1
+                || intent.lineage.promotable
+                || intent.lineage.expires_at_ms.is_none()
+                || intent.lineage != expected
+            {
+                return Err(fork_error(
+                    "SNAPBACK_FORK_EVIDENCE_MISMATCH",
+                    "fork renewal intent does not identify this fork",
+                ));
+            }
+            apply_renewal(parent, destination, &database, &intent, false, None)?;
+            if inspect_evidence(&database)?.is_none() {
+                return Err(fork_error(
+                    "SNAPBACK_FORK_EVIDENCE_INCOMPLETE",
+                    "renewed fork lost its local lineage evidence",
+                ));
+            }
+            return Ok(());
         }
         // @ref LLP 0158#design-sketch — keep quarantine
         // present through the complete local-evidence check; a recovery crash
@@ -3075,6 +3356,156 @@ mod tests {
                 .code,
             "SNAPBACK_FORK_NOT_FOUND"
         );
+    }
+
+    #[test]
+    fn renewal_moves_every_expiry_carrier_and_never_shortens_clears_or_resurrects() {
+        let directory = tempfile::tempdir().unwrap();
+        let source = source_database(directory.path());
+        let root = directory.path().join("forks");
+        fs::create_dir(&root).unwrap();
+        let destination = root.join("fork-a");
+        let receipt =
+            publish_managed(&source, &destination, "app-a", "parent-a", 100, 200_000, false)
+                .unwrap();
+        let fork_id = receipt.lineage.fork_id.clone();
+        let database = destination.join("app.sqlite3");
+
+        // Boot refuses at the original expiry before renewal.
+        assert_eq!(
+            inspect_boot_at(&database, 250_000).unwrap_err().diagnostic.code,
+            SERVER_EXPIRED_CODE
+        );
+
+        let renewed = renew_managed(&root, &fork_id, 150, 299_850).unwrap();
+        assert_eq!(renewed.schema_version, "snapback.fork-renew.v1");
+        assert_eq!(renewed.previous_expires_at_ms, 200_000);
+        assert_eq!(renewed.expires_at_ms, 300_000);
+        assert_eq!(renewed.created_at_ms, 100);
+        assert_eq!(renewed.max_lifetime_ms, MANAGED_FORK_MAX_LIFETIME_MS);
+
+        // Every carrier agrees and the moved expiry is real boot authority.
+        let target = managed_target(&root, &fork_id).unwrap();
+        assert_eq!(target.entry.lineage.expires_at_ms, Some(300_000));
+        assert_eq!(target.receipt.lineage.expires_at_ms, Some(300_000));
+        assert!(inspect_boot_at(&database, 250_000).unwrap().is_some());
+        assert!(expired_managed(&root, 200_000).unwrap().is_empty());
+        assert_eq!(expired_managed(&root, 300_000).unwrap().len(), 1);
+        let durable: ForkRenewReceiptV1 =
+            serde_json::from_slice(&fs::read(destination.join(RENEW_RECEIPT_FILE)).unwrap())
+                .unwrap();
+        assert_eq!(durable, renewed);
+
+        // Shortening or holding the expiry is refused outright.
+        assert_eq!(
+            renew_managed(&root, &fork_id, 200, 100_000)
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_FORK_TTL_INVALID"
+        );
+        // The configured maximum binds creation through every renewal.
+        let over_limit = renew_managed(
+            &root,
+            &fork_id,
+            200,
+            MANAGED_FORK_MAX_LIFETIME_MS,
+        )
+        .unwrap_err();
+        assert_eq!(over_limit.diagnostic.code, RESOURCE_LIMIT_REFUSED_CODE);
+        assert_eq!(over_limit.diagnostic.details["resource"], "renewal-lifetime");
+        assert_eq!(
+            over_limit.diagnostic.details["maxLifetimeMs"],
+            MANAGED_FORK_MAX_LIFETIME_MS
+        );
+        // Overflow and unknown identity stay in the named vocabulary.
+        assert_eq!(
+            renew_managed(&root, &fork_id, 200, u64::MAX)
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_FORK_TTL_INVALID"
+        );
+        assert_eq!(
+            renew_managed(&root, &Uuid::now_v7().to_string(), 200, 1_000)
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_FORK_NOT_FOUND"
+        );
+        // An already-expired fork is never resurrected.
+        assert_eq!(
+            renew_managed(&root, &fork_id, 300_000, 1_000)
+                .unwrap_err()
+                .diagnostic
+                .code,
+            RENEW_EXPIRED_CODE
+        );
+        // After every refusal the carriers still hold the last good expiry.
+        assert_eq!(
+            managed_target(&root, &fork_id)
+                .unwrap()
+                .entry
+                .lineage
+                .expires_at_ms,
+            Some(300_000)
+        );
+    }
+
+    #[test]
+    fn renewal_crash_matrix_recovers_to_one_consistent_expiry() {
+        let cuts = [
+            (RenewCut::AfterSentinelWrite, 200_000),
+            (RenewCut::AfterIntentWrite, 300_000),
+            (RenewCut::AfterDatabaseUpdate, 300_000),
+            (RenewCut::AfterReceiptRewrite, 300_000),
+            (RenewCut::AfterRegistryRewrite, 300_000),
+            (RenewCut::AfterRenewReceipt, 300_000),
+            (RenewCut::AfterIntentRemoval, 300_000),
+        ];
+        for (cut, expected_expiry) in cuts {
+            let directory = tempfile::tempdir().unwrap();
+            let source = source_database(directory.path());
+            let root = directory.path().join("forks");
+            fs::create_dir(&root).unwrap();
+            let destination = root.join("fork-a");
+            let receipt =
+                publish_managed(&source, &destination, "app-a", "parent-a", 100, 200_000, false)
+                    .unwrap();
+            let fork_id = receipt.lineage.fork_id.clone();
+            let database = destination.join("app.sqlite3");
+
+            let error = renew_managed_with_cut(&root, &fork_id, 150, 299_850, Some(cut))
+                .unwrap_err();
+            assert_eq!(error.diagnostic.code, "SNAPBACK_FORK_TEST_CRASH_CUT", "{cut:?}");
+            // The torn window fails closed for serving.
+            assert_eq!(
+                inspect_boot_at(&database, 151).unwrap_err().diagnostic.code,
+                "SNAPBACK_FORK_PUBLICATION_PARTIAL",
+                "{cut:?}"
+            );
+
+            recover(&root, &destination).unwrap();
+            assert!(
+                !destination.join(STAGING_SENTINEL).exists()
+                    && !destination.join(RENEW_INTENT_FILE).exists(),
+                "{cut:?}: recovery leaves no renewal residue"
+            );
+            let target = managed_target(&root, &fork_id).unwrap();
+            assert_eq!(
+                target.entry.lineage.expires_at_ms,
+                Some(expected_expiry),
+                "{cut:?}: every carrier recovers to one deterministic expiry"
+            );
+            assert_eq!(target.receipt.lineage.expires_at_ms, Some(expected_expiry));
+            assert!(inspect_boot_at(&database, 151).unwrap().is_some(), "{cut:?}");
+            let receipt_exists = destination.join(RENEW_RECEIPT_FILE).exists();
+            assert_eq!(
+                receipt_exists,
+                expected_expiry == 300_000,
+                "{cut:?}: a completed renewal has its receipt, an undone one does not"
+            );
+        }
     }
 
     #[test]

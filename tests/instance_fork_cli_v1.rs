@@ -978,6 +978,136 @@ fn dead_server_and_missing_ready_file_settle_deterministically() {
     assert!(dropped["data"]["stoppedPid"].as_u64().is_some());
 }
 
+/// LLP 0185 Phase 3 item 6: `fork renew` extends a live fork's finite expiry
+/// end to end — the running server honors the moved expiry instead of dying
+/// on its boot-time schedule — while shortening, exceeding the configured
+/// maximum lifetime, and renewing unknown forks all refuse deterministically.
+#[test]
+fn executable_fork_renew_extends_a_live_fork_within_the_maximum() {
+    let directory = tempfile::tempdir().expect("renew fixture");
+    let source = parent_with_schema(directory.path());
+    let app_root = directory.path().join("app");
+    std::fs::create_dir(&app_root).unwrap();
+    let fork_root = directory.path().join("forks");
+    let mut cleanup = ForkCleanup {
+        fork_root: fork_root.clone(),
+        app_root: app_root.clone(),
+        fork_ids: Vec::new(),
+    };
+
+    let created = fork_create(&source, &app_root, &fork_root, "5s", false);
+    cleanup.track(fork_id(&created));
+    let original_expiry = created["data"]["receipt"]["lineage"]["expiresAtMs"]
+        .as_u64()
+        .expect("original expiry");
+    let server_url = created["target"]["serverUrl"]
+        .as_str()
+        .expect("fork server URL")
+        .to_owned();
+
+    let mut renew = snapback();
+    renew.args([
+        "fork",
+        "renew",
+        fork_id(&created),
+        "--ttl",
+        "5m",
+        "--app-root",
+        app_root.to_str().unwrap(),
+        "--fork-root",
+        fork_root.to_str().unwrap(),
+    ]);
+    let renewed = successful(renew, "fork renew");
+    let receipt = &renewed["data"]["receipt"];
+    assert_eq!(receipt["schemaVersion"], "snapback.fork-renew.v1");
+    assert_eq!(receipt["previousExpiresAtMs"].as_u64(), Some(original_expiry));
+    let new_expiry = receipt["expiresAtMs"].as_u64().expect("renewed expiry");
+    assert!(new_expiry > original_expiry);
+    assert_eq!(
+        renewed["data"]["registry"]["lineage"]["expiresAtMs"].as_u64(),
+        Some(new_expiry),
+        "the registry carrier moved with the renewal"
+    );
+
+    // Refusals are deterministic and change nothing.
+    let shorten = snapback()
+        .args([
+            "fork",
+            "renew",
+            fork_id(&created),
+            "--ttl",
+            "1ms",
+            "--app-root",
+            app_root.to_str().unwrap(),
+            "--fork-root",
+            fork_root.to_str().unwrap(),
+        ])
+        .output()
+        .expect("run shortening renew");
+    assert!(!shorten.status.success());
+    assert!(
+        String::from_utf8_lossy(&shorten.stderr).contains("SNAPBACK_FORK_TTL_INVALID"),
+        "{}",
+        String::from_utf8_lossy(&shorten.stderr)
+    );
+    let over_limit = snapback()
+        .args([
+            "fork",
+            "renew",
+            fork_id(&created),
+            "--ttl",
+            "30d",
+            "--app-root",
+            app_root.to_str().unwrap(),
+            "--fork-root",
+            fork_root.to_str().unwrap(),
+        ])
+        .output()
+        .expect("run over-limit renew");
+    assert!(!over_limit.status.success());
+    assert!(
+        String::from_utf8_lossy(&over_limit.stderr)
+            .contains("SNAPBACK_FORK_RESOURCE_LIMIT_REFUSED"),
+        "{}",
+        String::from_utf8_lossy(&over_limit.stderr)
+    );
+
+    // The live server outlives its boot-time expiry because renewal moved
+    // the database lineage, which the expiry watchdog re-reads.
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .expect("wall clock")
+        .as_millis() as u64;
+    if original_expiry.saturating_add(1_500) > now {
+        std::thread::sleep(Duration::from_millis(
+            original_expiry.saturating_add(1_500) - now,
+        ));
+    }
+    assert_eq!(
+        health(&server_url)["ok"], true,
+        "a renewed fork server keeps serving past its boot-time expiry"
+    );
+
+    // Reap at the superseded expiry finds nothing to do.
+    let mut reap = snapback();
+    reap.args([
+        "fork",
+        "reap",
+        "--now-ms",
+        &original_expiry.to_string(),
+        "--app-root",
+        app_root.to_str().unwrap(),
+        "--fork-root",
+        fork_root.to_str().unwrap(),
+    ]);
+    let reaped = successful(reap, "reap at superseded expiry");
+    assert_eq!(
+        reaped["data"]["receipt"]["reapedForkIds"],
+        serde_json::json!([]),
+        "the renewed fork is not reap-eligible at its superseded expiry"
+    );
+}
+
 #[test]
 fn executable_fork_recover_repairs_one_finite_partial_publication() {
     let directory = tempfile::tempdir().expect("fork recovery fixture");
