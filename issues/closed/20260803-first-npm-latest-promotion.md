@@ -249,3 +249,24 @@ the published versions.
   not stage tarballs, create a 0.1.11 ledger, publish or move any dist-tag, or
   run public-registry/G4 smoke proofs. A landed fixture/lineage reconciliation
   and fresh complete green candidate proof are required before retry.
+
+- **2026-08-06 — 0.1.11 successor attempt 5 BLOCKED before staging; nothing
+  published.** The attempt fetched and pinned clean `origin/main`
+  `cdc0fe03e8d75c4a1d1d25f79fe820f20b772ef7`, confirmed npm authentication
+  as `ccheever`, and observed `latest: 0.1.10` with no 0.1.11 on all ten
+  names. The complete 134-gate proof selected Exact and ran fail-fast under
+  repository-pinned Node 24.18.0. Twenty-one gates passed, including the
+  repaired capability-maturity and agent-safe-publication gates and governed
+  client-bundle metrology (56 profiles, no frozen-ceiling regressions), before
+  `relation-activity-publication` failed: all three governed publication
+  carriers name `src/storage.rs` digest `1c2a8eef...`, while the candidate's
+  tracked file hashes to `975d8201...`. Focused checks confirmed the same
+  mismatch at `sequence-allocation-publication` and
+  `local-persistent-store-publication`. The batch commit `d2bd5fbbd` refreshed
+  the carriers against an intermediate tree and then changed `src/storage.rs`
+  again in the same commit. The recurrence is reopened at
+  `issues/20260806-publication-carrier-lineage-drift.md`. Per this log's
+  central-gate rule, the attempt did not stage tarballs, create a 0.1.11
+  ledger, publish or move any dist-tag, or run public-registry/G4 smoke proofs.
+  A landed carrier rebind and fresh complete green candidate proof are required
+  before retry.
