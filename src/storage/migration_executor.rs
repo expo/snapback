@@ -15,8 +15,9 @@ use super::{
     KeysetAfter, LocalDatabase, MIGRATION_SCAN_MAX_BATCH_BYTES, MIGRATION_SCAN_MAX_BATCH_ROWS,
     MigrationKeysetScanBatch, MigrationKeysetScanCheckpointV1, MigrationKeysetScanRequestV1,
     MigrationScanCeilingsV1, MigrationScanValidatorStateV1, MigrationScanValidatorV1, QueryPlan,
-    create_index, create_or_update_table, current_version_on, eval_expr, next_storage_version,
-    now_millis, quote_ident, save_retention_floor_on, schema_table, set_version, sqlite_type,
+    create_index, create_or_update_table, current_version_on,
+    ensure_managed_version_integrity_indexes, eval_expr, next_storage_version, now_millis,
+    quote_ident, save_retention_floor_on, schema_table, set_version, sqlite_type,
     timestamp_to_sql_millis, version_to_sql_integer,
 };
 use crate::commit_envelope::{
@@ -2034,6 +2035,7 @@ impl LocalDatabase {
                         ),
                         [],
                     )?;
+                    ensure_managed_version_integrity_indexes(&tx, table)?;
                 }
             }
             // Publish the successor schema manifest and its additive DDL.
@@ -2436,6 +2438,7 @@ impl LocalDatabase {
                         ),
                         [],
                     )?;
+                    ensure_managed_version_integrity_indexes(&tx, table)?;
                 }
                 staged_restored.push(table.clone());
             }
@@ -7447,6 +7450,37 @@ mod tests {
         assert!(
             !super::super::sqlite_table_exists(&db.conn, "items__retired_g1")
                 .expect("retired lookup"),
+        );
+        let runtime_indexes: Vec<(String, String)> = {
+            let mut statement = db
+                .conn
+                .prepare(
+                    "SELECT name, tbl_name FROM sqlite_schema
+                     WHERE type = 'index'
+                       AND (name GLOB '_snapback_version_domain_*'
+                            OR name GLOB '_snapback_version_head_*')
+                     ORDER BY name",
+                )
+                .expect("prepare runtime-index inventory");
+            statement
+                .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))
+                .expect("query runtime-index inventory")
+                .collect::<Result<Vec<_>, _>>()
+                .expect("collect runtime-index inventory")
+        };
+        assert_eq!(
+            runtime_indexes,
+            vec![
+                (
+                    "_snapback_version_domain_items".to_owned(),
+                    "items".to_owned()
+                ),
+                (
+                    "_snapback_version_head_items".to_owned(),
+                    "items".to_owned()
+                ),
+            ],
+            "staged publication must leave only final-name runtime indexes"
         );
     }
 
