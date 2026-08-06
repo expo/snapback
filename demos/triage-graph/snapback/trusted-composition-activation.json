@@ -2,7 +2,7 @@
   "format": "snapback.trusted-composition-activation.v1",
   "activation": {
     "format": "snapback.composition-activation.v1",
-    "databaseId": "019fd7da-3660-7c11-9996-3f61d4c57b7b",
+    "databaseId": "019fd869-b1cb-7951-b3e3-08d130028458",
     "deploymentId": "triage-graph-p3-controlled-run",
     "targetProfileId": "local-dev-sqlite-ibex",
     "authMode": "sessions",
@@ -15,7 +15,7 @@
     },
     "proofKeyManifestDigest": "sha256:e8a3e1e6546701d3491e6ee54e53c09f952e57a0bf5277260c0849f6f6477615"
   },
-  "activationHash": "sha256:b74c0ce19570ce7ce5052b05d34ccbd1319dedc6132530037c6e97cdf37127c3",
+  "activationHash": "sha256:4943944477e3967745003ed75f3d5c534924ea916a91aa6ee283c2172fdf3c53",
   "proofKeys": {
     "format": "snapback.completeness-proof-keys.v1",
     "keys": [
