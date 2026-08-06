@@ -8121,6 +8121,21 @@ pub(crate) fn migration_keyset_scan_batch_on(
         .collect::<Vec<_>>();
     let mut rows = statement.query(params_from_iter(values.iter()))?;
 
+    // A NonNull validator must observe and count its target NULLs. This is a
+    // migration-fact exception only: all non-target fields and every ordinary
+    // application read retain the strict declared representation decoder.
+    //
+    // @ref LLP 0081#3-typed-migration-steps — ValidateRequired emits bounded
+    //   violation facts before MakeRequired; decoding cannot erase that fact.
+    let staged_nullable_fields = request
+        .validators
+        .iter()
+        .filter_map(|validator| match validator {
+            MigrationScanValidatorV1::NonNull { field } => Some(field.as_str()),
+            MigrationScanValidatorV1::Unique { .. } => None,
+        })
+        .collect::<Vec<_>>();
+
     let mut batch_rows = 0_u64;
     let mut batch_bytes = 0_u64;
     let mut fetched = 0_u32;
@@ -8128,7 +8143,12 @@ pub(crate) fn migration_keyset_scan_batch_on(
     let mut last_row: Option<Value> = None;
     while let Some(row) = rows.next()? {
         fetched += 1;
-        let document = row_to_document(row, table, &columns)?;
+        let document = row_to_document_with_staged_nullable_fields(
+            row,
+            table,
+            &columns,
+            &staged_nullable_fields,
+        )?;
         let id = document
             .get("_id")
             .and_then(Value::as_str)
@@ -19182,7 +19202,7 @@ pub(crate) fn row_to_document(
     table: &TableManifest,
     columns: &[String],
 ) -> SnapbackResult<Value> {
-    row_to_document_with_staged_nullable_field(row, table, columns, None)
+    row_to_document_with_staged_nullable_fields(row, table, columns, &[])
 }
 
 /// Decode one executor-owned migration page while a newly added required
@@ -19194,11 +19214,11 @@ pub(crate) fn row_to_document(
 /// @ref LLP 0081#4-execution-journaling-and-crash-recovery — staged required
 ///   columns are added nullable and become authoritative only after backfill,
 ///   verification, and the publication transaction.
-fn row_to_document_with_staged_nullable_field(
+fn row_to_document_with_staged_nullable_fields(
     row: &rusqlite::Row<'_>,
     table: &TableManifest,
     columns: &[String],
-    staged_nullable_field: Option<&str>,
+    staged_nullable_fields: &[&str],
 ) -> SnapbackResult<Value> {
     let mut document = Map::new();
     for (index, column) in columns.iter().enumerate() {
@@ -19224,7 +19244,7 @@ fn row_to_document_with_staged_nullable_field(
                 table.field(column),
                 &table.name,
                 column,
-                staged_nullable_field == Some(column.as_str()),
+                staged_nullable_fields.contains(&column.as_str()),
             )?
         };
         document.insert(column.clone(), value);
@@ -20898,6 +20918,70 @@ mod guarded_commit_tests {
                 "batch size {batch_rows}: resumed digests must equal one-shot"
             );
         }
+    }
+
+    // @ref LLP 0081#3-typed-migration-steps — ValidateRequired must count its
+    //   exact target NULLs as closed facts while unrelated required-field
+    //   corruption still fails through the ordinary strict decoder.
+    #[test]
+    fn migration_non_null_scan_allows_only_its_exact_validation_targets() {
+        let db = migration_scan_database();
+        db.conn
+            .execute("ALTER TABLE scanned ADD COLUMN other TEXT", [])
+            .expect("add a second physically nullable staged column");
+
+        let mut effective = db.schema().clone();
+        let table = effective
+            .tables
+            .iter_mut()
+            .find(|table| table.name == "scanned")
+            .expect("scanned table");
+        table
+            .fields
+            .iter_mut()
+            .find(|field| field.name == "v")
+            .expect("v field")
+            .optional = false;
+        table.fields.push(FieldManifest {
+            name: "other".to_owned(),
+            field_type: FieldType::String,
+            optional: false,
+        });
+
+        let request = MigrationKeysetScanRequestV1 {
+            table: "scanned".to_owned(),
+            index: None,
+            validators: vec![MigrationScanValidatorV1::NonNull {
+                field: "v".to_owned(),
+            }],
+            digest: None,
+            ceilings: MigrationScanCeilingsV1 {
+                max_batch_rows: 1024,
+                max_batch_bytes: 1024 * 1024,
+                max_batch_millis: 10_000,
+            },
+        };
+
+        let error = migration_keyset_scan_batch_on(&db.conn, &effective, &request, None)
+            .expect_err("an unrelated required NULL remains corrupt");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_STORAGE_FIELD_CORRUPT");
+        assert_eq!(error.diagnostic.details["field"], "other");
+
+        db.conn
+            .execute("UPDATE scanned SET other = 'ready'", [])
+            .expect("repair unrelated field");
+        let outcome = migration_keyset_scan_batch_on(&db.conn, &effective, &request, None)
+            .expect("the exact NonNull target is observable");
+        let violations = outcome
+            .checkpoint
+            .validators
+            .iter()
+            .find_map(|state| match state {
+                MigrationScanValidatorStateV1::NonNull { violations, .. } => Some(*violations),
+                MigrationScanValidatorStateV1::Unique { .. } => None,
+            })
+            .expect("NonNull result");
+        assert_eq!(violations, 2, "both staged v NULLs are counted");
     }
 
     // @ref LLP 0081#3-typed-migration-steps — scan refusals are typed and

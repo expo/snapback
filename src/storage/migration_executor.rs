@@ -32,7 +32,7 @@ use crate::manifest::{BinaryOp, HandlerInput, SchemaManifest, TableManifest, Una
 use crate::migration::{
     MigrationAdmissionV1, MigrationApprovalV1, MigrationAudienceV1, MigrationExecutionStrategy,
     MigrationPlanArtifactV1, MigrationStep, admission_digest, approval_digest,
-    validate_approval_shape, validate_plan_artifact,
+    validate_approval_shape, validate_plan_artifact, validate_plan_artifact_seal,
 };
 use rusqlite::types::Value as SqlValue;
 use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior, params};
@@ -387,6 +387,56 @@ fn in_place_written_columns(artifact: &MigrationPlanArtifactV1) -> Vec<(String, 
         }
     }
     columns
+}
+
+/// A manifest-absent field is not necessarily a fresh physical destination:
+/// logical retirement deliberately retains its column through the rollback
+/// window. A fresh operation therefore refuses any AddField destination that
+/// already exists physically. A resume may accept an existing column only
+/// when this exact operation journaled the corresponding AddField in the same
+/// transaction that created it; an ops/fence row alone grants no exception.
+///
+/// @ref LLP 0081#3-typed-migration-steps — v1 in-place backfill/copy targets
+///   a new destination; retained predecessor bytes cannot become its seed.
+fn enforce_fresh_add_field_destinations(
+    tx: &Transaction<'_>,
+    artifact: &MigrationPlanArtifactV1,
+    operation_id: &str,
+) -> SnapbackResult<()> {
+    let committed_steps = journal_entries_on(tx, operation_id)?
+        .into_iter()
+        .filter_map(|entry| {
+            let step_id = entry.step_id?;
+            match entry.state {
+                MigrationExecState::Executing { step, .. }
+                    if step == step_id && entry.plan_id == artifact.plan_id =>
+                {
+                    Some(step_id)
+                }
+                _ => None,
+            }
+        })
+        .collect::<BTreeSet<_>>();
+    for record in &artifact.body.steps {
+        let MigrationStep::AddField { table, field, .. } = &record.step else {
+            continue;
+        };
+        let physically_exists = super::physical_columns(tx, table)?.contains_key(field);
+        let committed_by_this_step = committed_steps.contains(&record.id);
+        if physically_exists && !committed_by_this_step {
+            return Err(precondition_failed(format!(
+                "step {} requires fresh physical destination {table}.{field}, but that column already exists; use fresh successor storage rather than re-adopting retained bytes",
+                record.id
+            )));
+        }
+        if !physically_exists && committed_by_this_step {
+            return Err(journal_corrupt(format!(
+                "step {} is journaled as committed but physical destination {table}.{field} is absent",
+                record.id
+            )));
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -1395,9 +1445,48 @@ impl LocalDatabase {
             rehearsal,
         } = request;
         let predecessor_schema = self.schema.clone();
+        let existing_state = latest_state_on(&self.conn, &approval.operation_id)?;
+        let resuming_operation = existing_state.is_some();
+        let plan_semantics_already_consumed = existing_state.as_ref().is_some_and(|state| {
+            state.is_terminal()
+                || matches!(
+                    state,
+                    MigrationExecState::PublishedHeld
+                        | MigrationExecState::RollingBack
+                        | MigrationExecState::CleanupPending { .. }
+                )
+        });
 
         // ---- Static validation and semantic admission (no writes). -------
-        validate_plan_artifact(artifact, &predecessor_schema, successor_schema)?;
+        if plan_semantics_already_consumed {
+            // The exact digest-bound artifact already passed semantic
+            // admission against its predecessor. After publication the live
+            // manifest is the successor, so re-running predecessor-relative
+            // lifecycle checks would reject a legitimate publication,
+            // rollback, cleanup, or terminal replay. Recompute the seal here;
+            // the stored operation binding below still requires the exact
+            // plan digest. Pre-publication resumes re-run the complete
+            // semantic check against the still-authoritative predecessor.
+            validate_plan_artifact_seal(artifact)?;
+        } else if !resuming_operation
+            && completed_predecessor_identity(&self.conn, &artifact.plan_digest)?
+                .is_some_and(|prior| prior != approval.operation_id)
+        {
+            // Recompute the seal before trusting its digest as a replay key.
+            // The same reviewed plan under a new operation is stale even
+            // though the live successor makes predecessor-relative AddField
+            // checks fail for a second reason; preserve the stable stale-plan
+            // diagnostic and require a fresh preview.
+            validate_plan_artifact_seal(artifact)?;
+            return Err(SnapbackError::error(
+                "SNAPBACK_MIGRATION_PLAN_STALE",
+                "storage",
+                "this plan already completed under a prior operation; a new operation requires \
+                 a new preview against the successor state",
+            ));
+        } else {
+            validate_plan_artifact(artifact, &predecessor_schema, successor_schema)?;
+        }
         validate_approval_shape(approval)?;
         if approval.plan_digest != artifact.plan_digest {
             return Err(SnapbackError::error(
@@ -1441,6 +1530,18 @@ impl LocalDatabase {
                 }
             }
         }
+        // This binding is needed before terminal replay because a released
+        // replay adopts the caller-supplied successor into the serving handle.
+        // Never let a valid receipt become authority for divergent schema
+        // bytes merely because execution already completed.
+        let successor_identity = schema_identity(successor_schema)?;
+        if artifact.body.successor_schema_hash != successor_identity {
+            return Err(SnapbackError::error(
+                "SNAPBACK_MIGRATION_PLAN_STALE",
+                "storage",
+                "the staged successor schema does not match the plan's successor binding",
+            ));
+        }
         // Replay is keyed by operationId + audience and answers BEFORE any
         // staleness comparison: a completed operation returns its prior
         // receipt even though the target now holds the successor schema
@@ -1468,7 +1569,6 @@ impl LocalDatabase {
             }
             return Ok(receipt);
         }
-        let resuming_operation = latest_state_on(&self.conn, &approval.operation_id)?.is_some();
         let predecessor_identity = schema_identity(&predecessor_schema)?;
         if !resuming_operation && artifact.body.predecessor_schema_hash != predecessor_identity {
             return Err(SnapbackError::error(
@@ -1479,14 +1579,6 @@ impl LocalDatabase {
                      re-approve",
                     artifact.body.predecessor_schema_hash, predecessor_identity
                 ),
-            ));
-        }
-        let successor_identity = schema_identity(successor_schema)?;
-        if artifact.body.successor_schema_hash != successor_identity {
-            return Err(SnapbackError::error(
-                "SNAPBACK_MIGRATION_PLAN_STALE",
-                "storage",
-                "the staged successor schema does not match the plan's successor binding",
             ));
         }
         validate_supported_steps(artifact)?;
@@ -1507,18 +1599,6 @@ impl LocalDatabase {
                 "SNAPBACK_MIGRATION_EXECUTOR_UNAVAILABLE",
                 "storage",
                 format!("operation {other} already owns this app; only one migration at a time"),
-            ));
-        }
-        // The same plan under a new approval is a new operation and is
-        // stale against a completed predecessor identity.
-        if completed_predecessor_identity(&self.conn, &artifact.plan_digest)?
-            .is_some_and(|prior| prior != approval.operation_id)
-        {
-            return Err(SnapbackError::error(
-                "SNAPBACK_MIGRATION_PLAN_STALE",
-                "storage",
-                "this plan already completed under a prior operation; a new operation requires \
-                 a new preview against the successor state",
             ));
         }
         if approval.expires_at_ms < now_ms && !resuming_operation {
@@ -1555,6 +1635,7 @@ impl LocalDatabase {
             // reviewed bounds refuses and requires a new preview/approval.
             enforce_admission_ceilings(&tx, &predecessor_schema, artifact)?;
             enforce_publication_timestamp_floor(&tx, &predecessor_schema, artifact)?;
+            enforce_fresh_add_field_destinations(&tx, artifact, &approval.operation_id)?;
             // A republished predecessor advanced its storage generation
             // (LLP 0081 §6): a plan bound to the pre-rollback generation is
             // stale and requires a fresh preview.
@@ -3312,11 +3393,11 @@ impl LocalDatabase {
                 let mut rows = statement.query(super::params_from_iter(values.iter()))?;
                 let mut out = Vec::new();
                 while let Some(row) = rows.next()? {
-                    out.push(super::row_to_document_with_staged_nullable_field(
+                    out.push(super::row_to_document_with_staged_nullable_fields(
                         row,
                         table,
                         &columns,
-                        Some(field),
+                        &[field],
                     )?);
                 }
                 out
@@ -5258,6 +5339,68 @@ mod tests {
         })
     }
 
+    fn install_barriered_operation_for_test(
+        db: &mut LocalDatabase,
+        plan: &MigrationPlanArtifactV1,
+        approval: &MigrationApprovalV1,
+    ) {
+        ensure_migration_host_authority(&mut db.conn, 1).expect("migration host authority");
+        let input_version = db.current_version().expect("input version");
+        let tx = db
+            .conn
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .expect("barrier transaction");
+        ensure_migration_tables(&tx).expect("migration tables");
+        upsert_meta(&tx, META_MIGRATION_LEASE_EPOCH, "1").expect("lease epoch");
+        upsert_meta(
+            &tx,
+            META_MIGRATION_FENCE,
+            &serde_json::to_string(&MigrationFenceV1 {
+                operation_id: approval.operation_id.clone(),
+                lease_epoch: 1,
+                closed_at_ms: 1,
+            })
+            .expect("fence JSON"),
+        )
+        .expect("persist fence");
+        tx.execute(
+            "INSERT INTO _snapback_migration_ops(
+               operation_id,audience_json,plan_digest,state_json,lease_epoch,
+               cancel_requested,approval_digest
+             ) VALUES(?1,?2,?3,?4,1,0,?5)",
+            params![
+                approval.operation_id,
+                serde_json::to_string(&approval.audience).expect("audience JSON"),
+                plan.plan_digest,
+                serde_json::to_string(&MigrationExecState::Barriered).expect("state JSON"),
+                approval_digest(approval).expect("approval digest"),
+            ],
+        )
+        .expect("operation row");
+        let journal = JournalHandle {
+            tx: &tx,
+            operation_id: approval.operation_id.clone(),
+            plan_id: plan.plan_id.clone(),
+            lease_epoch: 1,
+            input_version,
+            host_operation_identity: OnceCell::new(),
+        };
+        let at = now_millis();
+        journal
+            .append(JournalAppend {
+                at_ms: at,
+                ..JournalAppend::of(&MigrationExecState::Admitted)
+            })
+            .expect("admitted row");
+        journal
+            .append(JournalAppend {
+                at_ms: at,
+                ..JournalAppend::of(&MigrationExecState::Barriered)
+            })
+            .expect("barriered row");
+        tx.commit().expect("commit barrier");
+    }
+
     #[test]
     fn llp0163_migration_journal_transactions_use_retry_stable_host_children() {
         let mut db = seeded_db();
@@ -5677,6 +5820,203 @@ mod tests {
         }
     }
 
+    // @ref LLP 0081#3-typed-migration-steps — ValidateRequired reports its
+    //   staged NULL facts through the migration step contract; the effective
+    //   successor decoder must not preempt them as storage corruption.
+    #[test]
+    fn validate_required_reports_staged_nulls_as_typed_step_failure() {
+        let mut db = seeded_db();
+        let mut body = fixture_plan(
+            &predecessor_schema(),
+            &successor_schema(),
+            default_ceilings(),
+        )
+        .body;
+        body.constants
+            .values
+            .insert("noteDefault".to_owned(), Value::Null);
+        let plan = MigrationPlanArtifactV1::seal(body).expect("reseal null backfill");
+        let validation_step_id = plan.body.steps[2].id.clone();
+        let approval = approval_for(&plan, now_millis());
+
+        let error = apply_fixture(&mut db, &plan, &approval)
+            .expect_err("ValidateRequired must reject staged NULLs");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_MIGRATION_STEP_FAILED");
+        assert!(
+            error
+                .diagnostic
+                .message
+                .contains(&format!("validation step {validation_step_id} failed"))
+        );
+        assert!(error.diagnostic.message.contains("\"violations\":2"));
+    }
+
+    // @ref LLP 0081#4-execution-journaling-and-crash-recovery — terminal
+    //   replay after reopen trusts the exact admitted plan bytes, but still
+    //   verifies the caller-supplied successor before adopting it in memory.
+    #[test]
+    fn terminal_replay_after_reopen_requires_the_exact_successor() {
+        let temp = tempfile::tempdir().expect("temporary database directory");
+        let path = temp.path().join("migration.sqlite");
+        let mut db = LocalDatabase::open(&path).expect("open file-backed database");
+        db.apply_schema(predecessor_schema())
+            .expect("apply predecessor schema");
+        db.seed(SeedData {
+            tables: BTreeMap::from([(
+                "items".to_owned(),
+                vec![
+                    json!({ "title": "one" })
+                        .as_object()
+                        .cloned()
+                        .expect("seed object"),
+                ],
+            )]),
+        })
+        .expect("seed predecessor");
+        let plan = fixture_plan(
+            &predecessor_schema(),
+            &successor_schema(),
+            default_ceilings(),
+        );
+        let approval = approval_for(&plan, now_millis());
+        let receipt = apply_fixture(&mut db, &plan, &approval).expect("initial apply");
+        drop(db);
+
+        let mut reopened = LocalDatabase::open(&path).expect("reopen published database");
+        let published_schema = reopened.schema().clone();
+        let mut divergent = successor_schema();
+        divergent.tables[0].fields.push(FieldManifest {
+            name: "unapproved".to_owned(),
+            field_type: FieldType::String,
+            optional: true,
+        });
+        let (_, resolved) = audience();
+        let error = reopened
+            .migrate_apply(MigrationApplyRequest {
+                artifact: &plan,
+                approval: &approval,
+                successor_schema: &divergent,
+                audience: &resolved,
+                now_ms: now_millis(),
+                rehearsal: None,
+            })
+            .expect_err("terminal replay must refuse divergent successor bytes");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_MIGRATION_PLAN_STALE");
+        assert_eq!(reopened.schema(), &published_schema);
+
+        let replay = apply_fixture(&mut reopened, &plan, &approval)
+            .expect("exact terminal replay after reopen");
+        assert_eq!(replay, receipt);
+        assert_eq!(reopened.schema(), &successor_schema());
+    }
+
+    // @ref LLP 0081#4-execution-journaling-and-crash-recovery — a real
+    //   reopen at published-held loads the successor manifest under the
+    //   durable fence, validates the supplied artifact seal/bindings without
+    //   pretending that successor is the predecessor, and only exact replay
+    //   may perform the release transition.
+    #[test]
+    fn published_held_reopen_releases_only_the_exact_artifact() {
+        let temp = tempfile::tempdir().expect("temporary database directory");
+        let path = temp.path().join("published-held.sqlite");
+        let mut db = LocalDatabase::open(&path).expect("open file-backed database");
+        db.apply_schema(predecessor_schema())
+            .expect("apply predecessor schema");
+        db.seed(SeedData {
+            tables: BTreeMap::from([(
+                "items".to_owned(),
+                vec![
+                    json!({ "title": "one" })
+                        .as_object()
+                        .cloned()
+                        .expect("seed object"),
+                ],
+            )]),
+        })
+        .expect("seed predecessor");
+        let plan = fixture_plan(
+            &predecessor_schema(),
+            &successor_schema(),
+            default_ceilings(),
+        );
+        let approval = approval_for(&plan, now_millis());
+        arm_migration_kill_point("released", 0);
+        let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            apply_fixture(&mut db, &plan, &approval)
+        }));
+        disarm_migration_kill_point();
+        assert!(outcome.is_err(), "release kill point must fire");
+        drop(db);
+
+        let mut reopened = LocalDatabase::open(&path).expect("reopen published-held database");
+        assert_eq!(reopened.schema(), &successor_schema());
+        assert!(reopened.migration_fence().expect("fence read").is_some());
+        assert!(matches!(
+            latest_state_for_test(&reopened, &approval.operation_id).expect("state read"),
+            Some(MigrationExecState::PublishedHeld)
+        ));
+
+        let mut divergent_body = plan.body.clone();
+        divergent_body.ceilings.max_writes += 1;
+        let divergent = MigrationPlanArtifactV1::seal(divergent_body).expect("reseal divergent");
+        let mut divergent_approval = approval.clone();
+        divergent_approval.plan_digest = divergent.plan_digest.clone();
+        let (_, resolved) = audience();
+        let successor = successor_schema();
+        let error = reopened
+            .migrate_apply(MigrationApplyRequest {
+                artifact: &divergent,
+                approval: &divergent_approval,
+                successor_schema: &successor,
+                audience: &resolved,
+                now_ms: now_millis(),
+                rehearsal: None,
+            })
+            .expect_err("divergent artifact cannot release a held publication");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_CLIENT_MUTATION_ID_REUSED");
+        assert!(reopened.migration_fence().expect("fence read").is_some());
+        assert!(matches!(
+            latest_state_for_test(&reopened, &approval.operation_id).expect("state read"),
+            Some(MigrationExecState::PublishedHeld)
+        ));
+
+        let receipt = apply_fixture(&mut reopened, &plan, &approval)
+            .expect("exact artifact releases after reopen");
+        assert_eq!(receipt.state, MigrationExecState::Released);
+        assert!(reopened.migration_fence().expect("fence read").is_none());
+    }
+
+    // @ref LLP 0081#4-execution-journaling-and-crash-recovery — a resume
+    //   derives physical staging authority from the exact AddField journal
+    //   transaction, never from the operation/fence row alone.
+    #[test]
+    fn resumed_add_field_requires_its_exact_committed_step() {
+        let mut db = seeded_db();
+        let plan = fixture_plan(
+            &predecessor_schema(),
+            &successor_schema(),
+            default_ceilings(),
+        );
+        let approval = approval_for(&plan, now_millis());
+        install_barriered_operation_for_test(&mut db, &plan, &approval);
+        db.conn
+            .execute("ALTER TABLE items ADD COLUMN note TEXT", [])
+            .expect("simulate ambient column creation after the barrier");
+
+        let error = apply_fixture(&mut db, &plan, &approval)
+            .expect_err("a barriered row alone cannot adopt an ambient column");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_MIGRATION_PRECONDITION_FAILED"
+        );
+        assert!(error.diagnostic.message.contains("already exists"));
+        assert!(db.migration_fence().expect("fence read").is_some());
+        assert!(matches!(
+            latest_state_for_test(&db, &approval.operation_id).expect("state read"),
+            Some(MigrationExecState::Barriered)
+        ));
+    }
+
     // A transition outside the enumerated relation is refused as corruption.
     #[test]
     fn transition_outside_the_relation_is_corruption() {
@@ -5724,6 +6064,28 @@ mod tests {
     // approval binding, expiry.
     #[test]
     fn admission_refusals_hold() {
+        // Logical retirement can leave a manifest-hidden physical column.
+        // Fresh AddField admission refuses those retained bytes instead of
+        // silently re-adopting them as a new destination; only the same
+        // operation's crash-resume may observe its already-added column.
+        let mut db = seeded_db();
+        db.conn
+            .execute("ALTER TABLE items ADD COLUMN note TEXT", [])
+            .expect("simulate a retained retired column");
+        let plan = fixture_plan(
+            &predecessor_schema(),
+            &successor_schema(),
+            default_ceilings(),
+        );
+        let approval = approval_for(&plan, now_millis());
+        let error = apply_fixture(&mut db, &plan, &approval)
+            .expect_err("fresh admission must refuse a retained physical destination");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_MIGRATION_PRECONDITION_FAILED"
+        );
+        assert!(error.diagnostic.message.contains("already exists"));
+
         // Resource-ceiling drift refuses at admission.
         let mut db = seeded_db();
         let mut tight = default_ceilings();
