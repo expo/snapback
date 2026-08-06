@@ -8,7 +8,7 @@
 //! @ref LLP 0146#d7-typed-remediations-and-type-aware-suggestion — unknown
 //!   identifiers and argument shapes name typed candidates from served truth,
 //!   with a bounded process-local summary for repeated misses.
-//! @ref LLP 0144#axis-i-disclosure-posture — suggestions contain served
+//! @ref LLP 0144#axis-i--disclosure-posture — suggestions contain served
 //!   schema/function metadata only, never rejected values or secret bytes.
 
 use crate::diagnostic::SnapbackError;

@@ -102,7 +102,7 @@ host-op registries. Owner: `ccheever`; label gaps `guide-gap`.
 | operating.host-ops | Host operations over CLI/HTTP | cli, ops, host operations | local | shipped | route /_snapback/api/host-ops | llp/0024 | operating/host-ops.md |
 | operating.agent-controls | Build/instance control discovery | controls list, controls describe, catalog | local | shipped | route /_snapback/api/control-catalog | llp/0184 | operating/agent-controls.md |
 | operating.data-patch | Preview/apply one validated existing-row correction with per-row CAS, a single-use token, normal live notification, and explicit dev authority | data patch, direct edit, patch row, correct row, expected version, row version, apply token, devUser, devAdminBypass | local | shipped | tests/data_patch_v1.rs | llp/0184, llp/0024, llp/0017 | operating/data-patch.md |
-| operating.diagnostics | Stable SNAPBACK_* codes; exact current-checkout link/launch diagnosis with one binary-selection recovery record; installed disposable vertical-slice doctor | diagnostics, errors, doctor, linker, missing symbols, stale binary, runtime recovery | all | shipped | `runRuntimeLinkProbe` in scripts/runtime-link-smoke.mjs | llp/0010, llp/0031, llp/0041, llp/0074 | operating/diagnostics.md |
+| operating.diagnostics | Stable SNAPBACK_* codes; exact current-checkout link/launch diagnosis with one binary-selection recovery record; installed disposable vertical-slice doctor; local served-generation candidates and bounded repeated-miss hints for unknown operations/functions/fields and wrong argument shapes (suggestion only—no remediation carrier or automatic apply while LLP 0146 OQ6 is open) | diagnostics, errors, doctor, linker, missing symbols, stale binary, runtime recovery, did you mean, candidate fields, candidate functions, repeated miss, wrong argument shape | all | shipped | `runRuntimeLinkProbe` in scripts/runtime-link-smoke.mjs + `unknown_function_details` in src/authoring_suggestion.rs + tests/host_ops_v0.rs | llp/0010, llp/0031, llp/0041, llp/0074, llp/0146 | operating/diagnostics.md |
 | operating.declaration-conformance | Per-invocation declared-vs-captured read/write report and local strict opt-in, plus `snapback verify` aggregation over explicitly registered acceptance paths: authoritative under-declarations and missing reports fail, universally extra declarations warn, and observed incomplete/unsupported provenance stays an explicit partial rather than a verdict. The Cloudflare target refuses `strictDeclarations: true` at compiled-schema load and `/app/ensure` with `SNAPBACK_STRICT_DECLARATIONS_TARGET_UNSUPPORTED`; it never admits the flag unenforced. Automatic discovery of every repository acceptance path, app-data-plane ring wiring, complete mutation-envelope provenance, and authoritative Cloudflare capture/reporting remain GAPs | declaration drift, undeclared read, undeclared write, strict declarations, conformance, coverage, missingReads, read set, write set | local | partial | `aggregateConformance` in packages/snapback-cli/verify.mjs | llp/0146, llp/0127, llp/0010 | GAP (guide page for the conformance report and strict opt-in; owner: ccheever, review: 2026-08-31) |
 | operating.verify | Five-stage CLI done-oracle with source-regenerated artifact identity, digest-bound runtime readiness, local admission plus registered-path D1 aggregation, generated capability resolution, registered acceptance execution, identity/test-byte-bound receipt, ordered next actions, and mechanically unique recommendation. Live-target admission, automatic acceptance-path discovery, `acceptance.run`, product-completeness claims, and CV-14 semantic-review custody are explicit nonclaims | verify, done oracle, receipt, recommended next, test bytes, readiness | local | partial | `runVerify` in packages/snapback-cli/verify.mjs | llp/0146, llp/0010 | testing/verify.md |
 | operating.served-guide | Server embeds guide pages + hash-bound flat.md and serves the root /llms.txt index | docs endpoint, llms.txt, served docs | all | shipped | route /llms.txt | llp/0061 | index.md |
@@ -11635,13 +11635,13 @@ id: operating.diagnostics
 order: 3
 audience: agent-first
 capabilities: [operating.diagnostics]
-authorities: [llp/0010-agent-dx-and-acceptance.spec.md, src/diagnostic.rs, packages/snapback-codegen/index.mjs, packages/snapback-cli/runtime-recovery.mjs, demos/_kit/harness.mjs, scripts/ibex-doctor, scripts/runtime-link-smoke.mjs, scripts/bootstrap-ibex-runtime]
-examples: [demos/todo/tests/acceptance/headless.mjs, packages/snapback-codegen/authoring-validation.test.mjs]
+authorities: [llp/0010-agent-dx-and-acceptance.spec.md, llp/0146-agentic-authoring-affordances.rfc.md, src/diagnostic.rs, src/authoring_suggestion.rs, packages/snapback-codegen/index.mjs, packages/snapback-cli/runtime-recovery.mjs, demos/_kit/harness.mjs, scripts/ibex-doctor, scripts/runtime-link-smoke.mjs, scripts/bootstrap-ibex-runtime]
+examples: [demos/todo/tests/acceptance/headless.mjs, packages/snapback-codegen/authoring-validation.test.mjs, tests/host_ops_v0.rs]
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-05
-reviewed-commit: 4a6000ac6f17a8c94bc2aecf573c0654e850b758
+reviewed: 2026-08-06
+reviewed-commit: HEAD
 ---
 
 # Diagnostics and local doctoring
@@ -11671,6 +11671,44 @@ Public unauthenticated projections intentionally drop `message` and
 `details`, because they can contain source paths, handler text, arguments, or
 operator context. Error envelopes expose the diagnostic at
 `error.diagnostic`; some terminal mutation paths also attach a receipt.
+
+## Use candidates from the served generation
+
+After the existing authorization gate admits a caller, local unknown-operation,
+unknown-function, unknown-field, and wrong-argument-shape refusals add
+authoring help to the same `details` object:
+
+- `candidateOperations` contains only currently served host operations;
+- `candidateFunctions` names served function ids/names, kinds, exported names,
+  and argument-contract hashes, filtered to the route's expected function
+  kinds;
+- `candidateFields` names served schema or argument fields with their expected
+  type and required/optional posture;
+- `expectedArgumentContract` carries the complete served argument contract for
+  an argument refusal; and
+- `artifactHash` or `servedShapeHash` identifies the generation that produced
+  the suggestion.
+
+Treat these as generation-bound suggestions, not aliases and not commands to
+apply. Candidates contain served schema metadata only: the rejected spelling,
+argument value, row value, and secrets are not echoed. A caller that cannot
+pass the existing auth gate receives the existing uniform refusal and learns
+no function-existence candidates.
+
+`localMissSummary` is a bounded process-local hint. `sameMissCount` and
+`repeated` tell you that this process has seen the same category, generation,
+and rejected identifier before; `capacity` is 128 and counts cap at 255. The
+runtime retains only a hash of the miss, evicts least-recently-used entries,
+does not persist the summary, and does not promote popular mistakes into
+aliases. Regenerate or reload your artifacts when the diagnostic's generation
+does not match the artifact you used.
+
+LLP 0146 OQ6 is still open. No `remediations` wire member or
+machine-applicable repair endpoint exists, and the ControlCatalog
+`remediation` field remains null/absent. Until the LLP 0094/0095 carrier
+decision lands, do not synthesize an automatic repair from these candidates;
+in particular, never apply an identifier replacement without an operation
+that atomically verifies the suggestion's artifact hash.
 
 ## Assert on codes, not prose
 

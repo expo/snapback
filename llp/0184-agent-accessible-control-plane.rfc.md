@@ -1467,3 +1467,8 @@ classifications in this record's commit. The LLP 0146 D7 remediation
 projection remains conditional on 0146, per §Authority and scope. The
 diagnostic-inventory drift the program introduced (28 new `SNAPBACK_*`
 codes) was classified at `ec5859b7b`.
+
+2026-08-06: LLP 0146's OQ6-independent served-generation suggestion substrate
+and data-only draft kind registry landed; this catalog's `remediation` field
+remains `null`/absent until the LLP 0094/0095-owned carrier and registry
+question is ruled.
