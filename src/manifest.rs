@@ -9898,7 +9898,7 @@ fn local_persistent_store_publication_verified_for(
         && carrier.schema_source_sha256
             == BTreeMap::from([(
                 "packages/snapback-codegen/index.mjs".to_owned(),
-                "sha256:c86390ca1d827a63eceb056e6f2c3603d67d5328562fabb73fee74251cd4f7d2"
+                "sha256:59e43608c4d0a91355bbfab1d3f243cb12b6aef104c62a4fa484d3b2f58f31b4"
                     .to_owned(),
             )])
         && carrier.client_source_sha256
