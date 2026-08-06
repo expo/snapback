@@ -241,6 +241,7 @@ const inventories = [
       'effect-ceiling.test.mjs',
       'function-id.test.mjs',
       'generated-mutation-ir.test.mjs',
+      'guide-pointer.test.mjs',
       'identifier-validation.test.mjs',
       'inline-helper-sharing.test.mjs',
       'inline-result-contracts.test.mjs',
@@ -601,7 +602,10 @@ const total = results.reduce((sum, result) => sum + result.count, 0);
 // gains the upgrade-required tombstone, dependent hold, and re-entry suite.
 // 216 -> 217 (2026-08-06, LLP 0179 S1): @expo/snapback-react gains the
 // generated-surface canonical-store/room, replacement, and cleanup suite.
-assert.equal(total, 217, 'reviewed package/admin test count changed');
+// 217 -> 218 (2026-08-06, LLP 0178/LLP 0187 T2): @expo/snapback-codegen's
+// guidePointer remediation-kind suite landed in the configured test script
+// without a canonical inventory entry; registered here.
+assert.equal(total, 218, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }
