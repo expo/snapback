@@ -7832,7 +7832,7 @@ order: 3
 audience: agent-first
 capabilities: [clients.react-expo]
 authorities: [llp/0012-headless-integration-contract.spec.md, llp/0017-admin-console-inspection-surface.rfc.md, llp/0041-packaged-dev-loop.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0176-expo-messaging-golden-path.plan.md, llp/0181-zero-configuration-expo.rfc.md, packages/snapback-client/index.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-client/rqs-store-default.mjs, packages/snapback-client/rqs-store-expo.mjs, packages/snapback-expo/app-binding.mjs, packages/snapback-expo/config-plugin.cjs, packages/snapback-expo/index.mjs, packages/snapback-expo/provider.mjs, packages/snapback-react/index.mjs, scripts/install-local-snapback-packages.mjs, demos/partiful-matrix/tests/acceptance/native-react-expo.mjs, demos/_kit/eas-stage-build.mjs]
-examples: [demos/partiful-matrix/native/react-expo, packages/snapback-client/webcrypto-fallback.test.mjs, packages/snapback-expo/provider.test.mjs, packages/snapback-react/webcrypto-fallback.test.mjs, packages/snapback-client/rqs-store-expo.test.mjs, packages/snapback-client/rqs-resume-expo.test.mjs, scripts/local-source-package-closure.test.mjs, demos/rn-durable-store-witness/probe-App.tsx, demos/tandem-expo-bakeoff/scripts/build-ios-dev-client, demos/_kit/tests/repo-layout-unit.mjs]
+examples: [demos/expo-golden-path-fixture, demos/partiful-matrix/native/react-expo, packages/snapback-client/webcrypto-fallback.test.mjs, packages/snapback-expo/provider.test.mjs, packages/snapback-react/webcrypto-fallback.test.mjs, packages/snapback-client/rqs-store-expo.test.mjs, packages/snapback-client/rqs-resume-expo.test.mjs, scripts/local-source-package-closure.test.mjs, demos/rn-durable-store-witness/probe-App.tsx, demos/tandem-expo-bakeoff/scripts/build-ios-dev-client, demos/_kit/tests/repo-layout-unit.mjs]
 status: current
 targets: [local]
 maturity: shipped
@@ -7882,6 +7882,13 @@ install, so do not edit them by hand; treat that directory as generated (and
 ignore it in the app's source-control rules). Keep it present when invoking the
 out-of-checkout EAS staging helper below so the staged app can cold-install
 without reaching back into the repository.
+
+The tarball filenames are content-addressed. On a clean clone, the tracked
+manifest and lock may name predecessor archives that are correctly absent from
+the ignored directory; rerunning the helper rotates only its own local paths
+and integrity records while retaining every unrelated locked package. Do not
+work around a missing predecessor archive by deleting `bun.lock` or allowing
+Bun to regenerate the registry graph.
 
 Do not add `@expo/snapback-contract` as a direct app dependency and do not
 hand-maintain one-off overrides. A local client keeps its own exact Contract
@@ -7939,12 +7946,30 @@ authority is never anonymous success. AppState lifecycle signals quiesce and
 resume the existing React owner rather than introducing an Expo cache or sync
 protocol.
 
-This E0 surface deliberately stops at the environment admission seam. Until
-the E1 supervisor lands, the default development resolver reports
-`SNAPBACK_APP_BINDING_UNAVAILABLE`; tests and advanced multi-target shells can
-inject a `SnapbackExpoEnvironmentV1` whose binding still passes the same
-source-specific admission. Release binding selection and attestation are E3,
-not ambient runtime URL configuration.
+For the default local-development path, run the owning supervisor from the app
+directory and select the carrier explicitly:
+
+```sh
+snapback dev snapback --expo --expo-dir . --expo-platform ios
+snapback dev snapback --expo --expo-dir . --expo-platform android
+```
+
+The supervisor starts backend, Metro, and the no-store bootstrap exchange on
+host loopback, then emits the origin Expo Go should open. Android prefers and
+verifies one `adb reverse` rule for each owned listener, so the app still dials
+`127.0.0.1`; `10.0.2.2` is only a `routing: "port-forward"` fallback and never
+permission for a LAN listener. The provider obtains the expiring binding and
+ordinary Sessions authority through this supervised seam—neither is placed in
+the app descriptor, public Expo configuration, Metro bundle, or source map.
+
+Supervised binding admission tolerates at most 60 seconds of the host issuer's
+clock running ahead of the simulator/emulator clock. Expiry remains strict; a
+larger skew refuses with `SNAPBACK_APP_BINDING_NOT_YET_VALID`, in which case
+fix the clocks and restart the supervisor. Release binding selection and
+attestation remain separate from this local path, not ambient runtime URL
+configuration. Tests and advanced multi-target shells may inject a
+`SnapbackExpoEnvironmentV1`, but its binding still passes the same
+source-specific admission.
 
 ## Use the low-level provider when you own environment wiring
 

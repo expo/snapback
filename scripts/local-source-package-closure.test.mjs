@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import {
   cpSync,
   mkdirSync,
@@ -8,6 +9,7 @@ import {
   readdirSync,
   realpathSync,
   rmSync,
+  writeFileSync,
 } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import test from 'node:test';
@@ -112,6 +114,77 @@ test('nested Expo fixture cold-installs one all-local Expo/client/React closure'
         .map((specifier) => specifier.split('/').at(-1))
         .sort(),
       'a successful install removes predecessor/provisional tarballs',
+    );
+    const unrelatedPackageRecords = lock.split('\n').filter((line) => (
+      /^ {4}"[^"]+": \[/u.test(line)
+      && !line.startsWith('    "@expo/snapback-')
+    ));
+
+    // A tracked fixture does not commit its content-addressed tarballs. Model
+    // a fresh clone whose manifest/lock still name a predecessor source pack:
+    // the helper must rotate its own lock paths before Bun consults them.
+    const predecessorDigest = '0'.repeat(64);
+    const predecessorSpecifiers = Object.fromEntries(
+      Object.entries(firstReceipt.localSpecifiers).map(([name, specifier]) => [
+        name,
+        specifier.replace(/\.[0-9a-f]{64}\.tgz$/u, `.${predecessorDigest}.tgz`),
+      ]),
+    );
+    const staleManifest = JSON.parse(readFileSync(join(appRoot, 'package.json'), 'utf8'));
+    for (const [name, predecessor] of Object.entries(predecessorSpecifiers)) {
+      if (Object.hasOwn(staleManifest.dependencies, name)) {
+        staleManifest.dependencies[name] = predecessor;
+      }
+      staleManifest.overrides[name] = predecessor;
+    }
+    writeFileSync(
+      join(appRoot, 'package.json'),
+      `${JSON.stringify(staleManifest, null, 2)}\n`,
+    );
+    let staleLock = readFileSync(join(appRoot, 'bun.lock'), 'utf8');
+    for (const [name, current] of Object.entries(firstReceipt.localSpecifiers)) {
+      const predecessor = predecessorSpecifiers[name];
+      staleLock = staleLock
+        .split(current.slice('file:'.length))
+        .join(predecessor.slice('file:'.length));
+    }
+    writeFileSync(join(appRoot, 'bun.lock'), staleLock);
+    rmSync(join(appRoot, 'node_modules'), { recursive: true, force: true });
+    rmSync(join(appRoot, '.snapback', 'local-source-packages'), {
+      recursive: true,
+      force: true,
+    });
+    const migrated = runInstaller(appRoot, join(temporary, 'bun-cache-migrated'));
+    assert.equal(migrated.status, 0, migrated.stderr || migrated.stdout);
+    assert.doesNotMatch(
+      `${migrated.stdout}\n${migrated.stderr}`,
+      /(?:Ignoring lockfile|failed to parse lockfile|Failed to resolve root)/iu,
+      'rotation keeps the existing Bun lock valid',
+    );
+    const migratedReceipt = JSON.parse(migrated.stdout.trim().split('\n').at(-1));
+    assert.deepEqual(migratedReceipt.artifactDigests, firstReceipt.artifactDigests);
+    const migratedLock = readFileSync(join(appRoot, 'bun.lock'), 'utf8');
+    assert.doesNotMatch(migratedLock, new RegExp(predecessorDigest, 'u'));
+    for (const specifier of Object.values(firstReceipt.localSpecifiers)) {
+      assert.match(migratedLock, new RegExp(specifier.slice('file:'.length), 'u'));
+    }
+    for (const [name, specifier] of Object.entries(firstReceipt.localSpecifiers)) {
+      const artifact = readFileSync(join(appRoot, specifier.slice('file:'.length)));
+      const integrity = `sha512-${createHash('sha512').update(artifact).digest('base64')}`;
+      const recordPrefix = `${JSON.stringify(name)}: [${JSON.stringify(
+        `${name}@${specifier.slice('file:'.length)}`,
+      )}`;
+      const record = migratedLock.split('\n').find((line) => line.trimStart().startsWith(recordPrefix));
+      assert(record, `${name} lock record was reconstructed`);
+      assert.match(record, new RegExp(integrity.replace(/[+]/gu, '\\+'), 'u'));
+    }
+    assert.deepEqual(
+      migratedLock.split('\n').filter((line) => (
+        /^ {4}"[^"]+": \[/u.test(line)
+        && !line.startsWith('    "@expo/snapback-')
+      )),
+      unrelatedPackageRecords,
+      'rotation leaves every unrelated package record byte-for-byte unchanged',
     );
 
     const imported = spawnSync(process.execPath, [

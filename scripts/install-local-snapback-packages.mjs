@@ -146,6 +146,10 @@ function sha256(path) {
   return createHash('sha256').update(readFileSync(path)).digest('hex');
 }
 
+function sha512Integrity(path) {
+  return `sha512-${createHash('sha512').update(readFileSync(path)).digest('base64')}`;
+}
+
 function localPackageFilename(name) {
   return `${name.slice(INTERNAL_PREFIX.length).replace(/[^a-z0-9._-]/gu, '-')}.tgz`;
 }
@@ -224,18 +228,119 @@ function cleanupSupersededLocalPackages(configuration) {
 }
 
 function writeJsonAtomically(path, value) {
+  writeTextAtomically(path, `${JSON.stringify(value, null, 2)}\n`);
+}
+
+function writeTextAtomically(path, value) {
   const temporary = `${path}.snapback-source-${process.pid}`;
   try {
-    writeFileSync(temporary, `${JSON.stringify(value, null, 2)}\n`, { flag: 'wx' });
+    writeFileSync(temporary, value, { flag: 'wx' });
     renameSync(temporary, path);
   } finally {
     rmSync(temporary, { force: true });
   }
 }
 
+function localArtifactSpecifier(name, value) {
+  if (typeof value !== 'string' || !value.startsWith('file:')) return null;
+  const relativePath = value.slice('file:'.length);
+  const base = localPackageFilename(name).replace(/\.tgz$/u, '');
+  const escapedBase = base.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
+  return new RegExp(
+    `^\\.snapback/local-source-packages/${escapedBase}(?:\\.[0-9a-f]{64})?\\.tgz$`,
+    'u',
+  ).test(relativePath) ? relativePath : null;
+}
+
+function localLockPackageMetadata(sourcePackage, closure) {
+  const metadata = {};
+  for (const section of RUNTIME_DEPENDENCY_SECTIONS) {
+    const declared = sourcePackage.manifest[section];
+    if (!declared || Object.keys(declared).length === 0) continue;
+    metadata[section] = Object.fromEntries(Object.entries(declared).map(([name, value]) => [
+      name,
+      closure.has(name) ? closure.get(name).manifest.version : value,
+    ]));
+  }
+  const optionalPeers = Object.keys(sourcePackage.manifest.peerDependencies ?? {})
+    .filter((name) => sourcePackage.manifest.peerDependenciesMeta?.[name]?.optional === true);
+  if (optionalPeers.length > 0) metadata.optionalPeers = optionalPeers;
+  for (const field of ['bin', 'cpu', 'os']) {
+    if (sourcePackage.manifest[field] !== undefined) {
+      metadata[field] = sourcePackage.manifest[field];
+    }
+  }
+  return metadata;
+}
+
+function localLockPackageRecord(name, relativePath, sourcePackage, closure, artifactPath) {
+  return `    ${JSON.stringify(name)}: [${JSON.stringify(`${name}@${relativePath}`)}, ${JSON.stringify(
+    localLockPackageMetadata(sourcePackage, closure),
+  )}, ${JSON.stringify(sha512Integrity(artifactPath))}],`;
+}
+
+// Bun consults existing package records before reconciling changed file
+// specifiers. In a fresh clone the content-addressed tarballs are intentionally
+// ignored, so a tracked lock that names an older source pack otherwise fails
+// ENOENT before Bun can rotate it. Rewrite only helper-owned paths and their
+// exact dependency/integrity tuples, leaving the registry graph byte-for-byte
+// unchanged and the lock valid for Bun's normal verification.
+function reconcileLocalLockfile(
+  appRoot,
+  previousManifest,
+  localSpecifiers,
+  closure,
+  artifacts,
+) {
+  const lockPath = join(appRoot, 'bun.lock');
+  if (!existsSync(lockPath)) return;
+  const replacements = new Map();
+  const rotatedRecords = new Map();
+  for (const [name, nextSpecifier] of localSpecifiers) {
+    const nextPath = localArtifactSpecifier(name, nextSpecifier);
+    if (nextPath === null) fail(`generated an invalid local package specifier for ${name}`);
+    for (const section of APP_DEPENDENCY_SECTIONS) {
+      const previousPath = localArtifactSpecifier(name, previousManifest[section]?.[name]);
+      if (previousPath !== null && previousPath !== nextPath) {
+        replacements.set(previousPath, nextPath);
+        rotatedRecords.set(name, nextPath);
+      }
+    }
+    const overridePath = localArtifactSpecifier(name, previousManifest.overrides?.[name]);
+    if (overridePath !== null && overridePath !== nextPath) {
+      replacements.set(overridePath, nextPath);
+      rotatedRecords.set(name, nextPath);
+    }
+  }
+  if (replacements.size === 0) return;
+  const original = readFileSync(lockPath, 'utf8');
+  let reconciled = original;
+  for (const [previousPath, nextPath] of replacements) {
+    reconciled = reconciled.split(previousPath).join(nextPath);
+  }
+  const recordReplacements = new Map([...rotatedRecords].map(([name, nextPath]) => [
+    `    ${JSON.stringify(name)}: [${JSON.stringify(`${name}@${nextPath}`)}`,
+    localLockPackageRecord(
+      name,
+      nextPath,
+      closure.get(name),
+      closure,
+      artifacts.get(name).artifactPath,
+    ),
+  ]));
+  reconciled = reconciled.split('\n').map((line) => {
+    for (const [prefix, replacement] of recordReplacements) {
+      if (line.startsWith(prefix)) return replacement;
+    }
+    return line;
+  }).join('\n');
+  if (reconciled !== original) writeTextAtomically(lockPath, reconciled);
+}
+
 export function configureLocalClientClosure(appInput) {
   const { appRoot, manifestPath } = assertAppRoot(appInput);
   const manifest = readJson(manifestPath, 'consumer package manifest');
+  const previousManifest = structuredClone(manifest);
   const closure = resolveLocalClientClosure();
   const packed = packLocalClosure(appRoot, closure);
   const directPackages = new Set(ROOT_PACKAGES);
@@ -269,6 +374,13 @@ export function configureLocalClientClosure(appInput) {
     manifest.overrides[name] = specifier;
   }
 
+  reconcileLocalLockfile(
+    appRoot,
+    previousManifest,
+    localSpecifiers,
+    closure,
+    packed.artifacts,
+  );
   if (Object.keys(manifest.overrides).length === 0) delete manifest.overrides;
   writeJsonAtomically(manifestPath, manifest);
 

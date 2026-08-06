@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "bd89cebabf4932f34060f0a6a6f494a537c0be51"
+    "commit": "8b821028a86723ed0395bce1b1c46c18ccbc2c63"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -1728,6 +1728,7 @@
         "demos/_kit/eas-stage-build.mjs"
       ],
       "examples": [
+        "demos/expo-golden-path-fixture",
         "demos/partiful-matrix/native/react-expo",
         "packages/snapback-client/webcrypto-fallback.test.mjs",
         "packages/snapback-expo/provider.test.mjs",
@@ -1741,7 +1742,7 @@
       ],
       "reviewed": "2026-08-05",
       "reviewedCommit": "f3c7d9fbb394a413370a9264f22e72b6f151a25e",
-      "sha256": "0bfd5643855d63ee286604d3bf52fdb8baeb32dd3a5fe568da441acbc8f2f2d3",
+      "sha256": "c8ef99c01805ef9fc4d941853eec12f901dd41aa2b0448e70c003ce37fc039e1",
       "snippets": [
         {
           "lang": "tsx",
@@ -3164,5 +3165,5 @@
     "routes": 116,
     "hostOps": 37
   },
-  "contentHash": "40792fd2969c6c44fb0681c5259f21ef44378269df46c4f3a7a2441ed60fff5c"
+  "contentHash": "c9e7d83cd19830969a21c86d9219287a7deb83a9edb97396aa2065599115552f"
 }

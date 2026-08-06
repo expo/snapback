@@ -13,6 +13,7 @@ const TARGET_KEYS = ['app', 'functions', 'origin', 'routing', 'schema'];
 const CAPABILITY_KEYS = ['offered'];
 const DEV_PROVENANCE_KEYS = ['expiresAt', 'issuedAt', 'supervisorGeneration'];
 const RELEASE_PROVENANCE_KEYS = ['buildReceipt', 'environment', 'releaseChannel'];
+const SUPERVISED_ISSUANCE_CLOCK_SKEW_MS = 60_000;
 
 function isRecord(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -431,12 +432,13 @@ export async function admitAppBindingV1(candidate, app, {
         { deliveredBy: delivery?.channel ?? null },
       );
     }
-    if (Date.parse(candidate.provenance.issuedAt) > now) {
+    if (Date.parse(candidate.provenance.issuedAt) > now + SUPERVISED_ISSUANCE_CLOCK_SKEW_MS) {
       bindingFailure(
         'SNAPBACK_APP_BINDING_NOT_YET_VALID',
-        'The supervised development binding is not valid before its issuance time',
+        'The supervised development binding is outside the admitted issuance clock-skew window',
         {
           issuedAt: candidate.provenance.issuedAt,
+          allowedClockSkewMs: SUPERVISED_ISSUANCE_CLOCK_SKEW_MS,
           supervisorGeneration: candidate.provenance.supervisorGeneration,
         },
         [remediation(

@@ -1,9 +1,10 @@
-# 0063 — Expo G1 iOS golden path
+# 0063 — Expo G1 simulator/emulator golden path
 
 **Date:** 2026-08-06
-**Systems:** Expo SDK 57, `@expo/snapback-expo`, AppDescriptor, supervised development, iOS simulator
+**Systems:** Expo SDK 57, `@expo/snapback-expo`, AppDescriptor, supervised development, iOS simulator, Android emulator
 **Related:** `demos/expo-golden-path-fixture/`, LLP 0176 G1, LLP 0179,
-LLP 0181, `demos/expo-golden-path-fixture/receipts/20260806-g1-ios-simulator.md`
+LLP 0181, `demos/expo-golden-path-fixture/receipts/20260806-g1-ios-simulator.md`,
+`demos/expo-golden-path-fixture/receipts/20260806-g1-android-emulator.md`
 
 ## What was built
 
@@ -72,5 +73,80 @@ surface was materially rougher than mature package-only client setup.
 The Air's dedicated iOS 26.4 simulator showed provider `ready`, live query
 `ready`/`live`, the seeded row, the mutation row, and `G1_IOS_PASS`. The raw
 supervisor stream closed with backend, Metro, and bootstrap all reclaimed.
-This is only LLP 0176 G1's iOS-simulator half; Android and any physical-device
-or LLP 0064 claim remain open.
+At that point this was only LLP 0176 G1's iOS-simulator half; Android and any
+physical-device or LLP 0064 claim remained open.
+
+## 2026-08-06 — Android emulator half
+
+### What was built and proved
+
+The iOS fixture was made platform-neutral rather than forked. Its Android arm
+uses `android-emulator` as the mutation source and renders/emits
+`G1_ANDROID_PASS`; the seed text and app metadata are now neutral across both
+platforms. The provider surface is unchanged: the app still passes only
+`app={app}`, with no URL, bearer, session-mint call, or transport choice.
+
+On the fleet M4 Mac mini, a real Android 16 / API 36 AVD cold-opened Expo Go
+57.0.3 through `snapback dev --expo --expo-platform android`. Three explicit
+`adb reverse` rules made backend, Metro, and bootstrap app-local at
+`127.0.0.1`. All three host listeners independently enumerated as IPv4
+loopback. The provider adopted ordinary Sessions authority, saw the seed,
+sent the ordinary mutation, saw the row return through the live query, and
+rendered `G1_ANDROID_PASS`.
+
+### Differences from iOS
+
+- iOS was same-host loopback and needed no forwarding rules. Android made the
+  routing ownership more visible: the supervisor had to install, enumerate,
+  and later reclaim three `adb reverse` rules. The binding correctly called
+  this `port-forward` even though the application still dialed loopback.
+- The Android launch path needed SDK tools added to `PATH`, a headless AVD,
+  and an Expo Go APK download/install. The one-time Expo Go developer-menu
+  introduction also had to be dismissed before a clean screenshot.
+- The AVD clock lagged the mini by about 21 seconds. A slow first bundle hid
+  that difference; a cached cold launch was fast enough to expose strict
+  `issuedAt` admission as a real race.
+- The mini had no sibling prepared Ibex checkout, so bootstrap initialized
+  vendored Ibex and paid the Hermes fallback build. This was much slower than
+  the Air's prepared-runtime path but left reusable fleet capacity behind.
+
+### Defects and friction
+
+The public HTTPS clone was valuable precisely because it did not inherit
+ignored state. It revealed that the local-package installer's predecessor
+retention fixed repeat installs but not clean clones: the tracked fixture lock
+named ignored tarballs that were absent, and Bun failed before rotating them.
+The fix now updates only helper-owned paths and their dependency/integrity
+records while preserving the unrelated locked graph byte-for-byte. The test
+models missing predecessor artifacts and rejects Bun's lockfile-ignore
+fallback.
+
+The second defect was the host/emulator clock race. The Expo binding validator
+now admits at most 60 seconds of issuer-ahead skew only for supervised
+`local-supervised-ipc` issuance. Expiry stays strict and release admission is
+unchanged. The final receipt launched while device time was still before the
+binding's `issuedAt`, so this fix was exercised rather than merely unit-tested.
+
+The fixture also had two receipt-quality papercuts: an iOS-specific seed label
+on Android, and a promise/live-update ordering race that could render
+"awaiting live echo" after the live row was already visible. Both were made
+platform-neutral/monotone before the final screenshot.
+
+These were product/runtime or fixture defects, not missing guide knowledge, so
+this section does not file a `guide-gap` ticket.
+
+### Comparison and result
+
+Compared with a conventional React plus Convex or Supabase Expo app, Android
+required more host plumbing, but that plumbing stayed outside application
+code and was unusually auditable: route selection, literal listeners,
+forwarding rules, authority, application markers, and reclamation shared one
+supervisor receipt. The setup path is still rougher than a mature hosted
+client's package-plus-environment-variable flow, especially on a new machine;
+the final authoring surface is smaller because endpoint and session wiring do
+not leak into the screen.
+
+The Android receipt closed with backend, Metro, bootstrap, and all three port
+forwards reclaimed; the emulator and adb daemon were stopped. With the prior
+iOS half, LLP 0176 G1's no-URL boot exit evidence is complete for
+simulator/emulator. No physical-device or LLP 0064 claim follows.
