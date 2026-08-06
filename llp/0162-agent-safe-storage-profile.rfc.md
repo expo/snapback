@@ -517,7 +517,10 @@ client outbox and per-auth settlement bounds), and reclassifies retained state
 inside every terminal or pending writer transaction before publication. Exact
 loss-response range re-service remains available; a fifth range refuses with
 `SNAPBACK_OPERATION_RANGE_EXHAUSTED` and requires a fresh authenticated epoch.
-Suppression and tombstone corruption also refuse rather than replaying a
+An identity-null intent may bind that successor only after durable
+same-principal comparison; missing or different principal custody leaves it
+pending rather than failed or cross-authority-submitted. Suppression and
+tombstone epoch/counter corruption also refuse rather than replaying a
 mismatched record. C28 must pass fresh correctness, performance, review, and
 author-acceptance gates; every related capability remains `Missing`.
 
@@ -854,7 +857,10 @@ already committed successor before any of its counters is admitted. A client
 that exhausts its current range while offline queues further intents locally
 as uncovered and refreshes at reconnect; a fifth same-epoch range refuses
 `SNAPBACK_OPERATION_RANGE_EXHAUSTED`, so continued admission requires a fresh
-authenticated session/epoch and range. These are stable, disclosed
+authenticated session/epoch and range. An uncovered identity-null intent may
+atomically adopt that successor descriptor/range only if its durable principal
+id matches the newly authenticated principal; otherwise it remains pending
+with `uncovered-reauth-required`. These are stable, disclosed
 degradations owned by the dated LLP 0043/0012/0095 amendments.
 An epoch **closes** only when both hold: its issuer is
 terminated or revoked, so no new first attempts can be minted under it, and
@@ -901,7 +907,8 @@ LLP 0043's republish-the-stored-result rule and lands in the same dated LLP
 only guard: when an identity's last durable record would otherwise be
 reclaimed while its epoch is still open, a payload-free **identity
 tombstone** (a domain-separated full-identity digest, a separately
-domain-separated authorization-facts digest, and terminal outcome class) is retained until
+domain-separated authorization-facts digest, its counter projection, and
+terminal outcome class) is retained until
 the audience floor has advanced past the epoch — so a reclaimed identity in
 an open epoch can never re-execute as novel. Lookup precedence is defined:
 suppression record, then compact envelope or tombstone (`result-expired`),

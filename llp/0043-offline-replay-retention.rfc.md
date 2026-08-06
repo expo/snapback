@@ -834,13 +834,17 @@ client outbox and per-auth settlement limits. Smaller ranges, fewer ranges,
 and shorter windows are valid. Exact response-loss recovery may re-serve the
 already committed unadmitted successor; a fifth range refuses atomically with
 `SNAPBACK_OPERATION_RANGE_EXHAUSTED` and continued admission requires a fresh
-authenticated session/epoch. An admitted result that has not been
+authenticated session/epoch. An identity-null intent may atomically adopt that
+fresh descriptor/range only after its durable principal id matches the fresh
+authenticated principal; otherwise it remains pending with
+`uncovered-reauth-required`. An admitted result that has not been
 receipt-proven acknowledged has no time-based eviction and therefore holds its
 epoch open. On ACK, the replay payload is immediately eligible for reclamation;
 if the epoch floor has not passed it, reclamation writes a payload-free
 tombstone atomically. That tombstone retains separate domain-separated digests
-of the complete identity and its authorization facts, plus outcome and receipt
-digest; exact agreement returns `result-expired`, authorization divergence
+of the complete identity and its authorization facts, plus the counter
+projection, outcome, and receipt digest; exact agreement returns
+`result-expired`, authorization divergence
 returns `SNAPBACK_AUTH_STALE_RESULT`, and other identity divergence returns
 `SNAPBACK_CLIENT_MUTATION_ID_REUSED`. The tombstone is deleted only when the
 per-audience floor advances over the contiguous closed epoch prefix; closing a

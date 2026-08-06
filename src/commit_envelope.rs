@@ -664,6 +664,11 @@ pub struct OperationIdentityTombstoneV1 {
     pub auth_facts_digest: String,
     pub audience: String,
     pub epoch_id: String,
+    /// Retained SQL projection used to enforce client-range counter
+    /// uniqueness. Keeping the scalar in the closed tombstone lets lookup
+    /// validate SQL/JSON coherence without retaining the identity payload.
+    #[schemars(required)]
+    pub counter: Option<u64>,
     pub terminal_outcome: OperationTerminalOutcomeV1,
     #[schemars(pattern(SHA256_PATTERN))]
     pub receipt_digest: String,

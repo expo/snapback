@@ -51,6 +51,12 @@
       "pattern": "^sha256:[0-9a-f]{64}$",
       "type": "string"
     },
+    "counter": {
+      "description": "Retained SQL projection used to enforce client-range counter\nuniqueness. Keeping the scalar in the closed tombstone lets lookup\nvalidate SQL/JSON coherence without retaining the identity payload.",
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
     "epochId": {
       "type": "string"
     },
@@ -88,6 +94,7 @@
     "authFactsDigest",
     "audience",
     "epochId",
+    "counter",
     "terminalOutcome",
     "receiptDigest",
     "retainedAtMs"

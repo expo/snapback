@@ -427,13 +427,21 @@ export function createIndexedDbRqsResumeStore({
       );
     },
 
-    async outboxAssignOperationIdentity(id, authorityCohortKey, range = null) {
+    async outboxAssignOperationIdentity(
+      id,
+      authorityCohortKey,
+      range = null,
+      authorityDescriptor = undefined,
+      authorityPrincipalId = undefined,
+    ) {
       return outboxWrite((state) => outboxOps.assignOperationIdentity(
         state,
         id,
         now(),
         authorityCohortKey,
         range,
+        authorityDescriptor,
+        authorityPrincipalId,
       ));
     },
 

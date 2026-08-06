@@ -46,7 +46,7 @@ not authorize capability publication.
 | LLP 0162 row | State through 2026-08-04 | Required closure |
 | --- | --- | --- |
 | 1 — atomic envelope | Partial | Public issuance, four-adapter activation, and crash cuts are landed. C28 additionally requires both writer seams to reclassify retained state transactionally and proves a post-prune direct replay rolls back app/journal publication. Fresh integrated proof remains. |
-| 2 — retry settlement | Partial | Range issue/refresh and atomic client custody are landed. C28 adds two-digest tombstone comparison, contiguous floor advancement, four-range/1,024-identity epoch capacity, exact lost-response re-service, and atomic fifth-range refusal. Recreated-branch and fresh integrated proof remain. |
+| 2 — retry settlement | Partial | Range issue/refresh and atomic client custody are landed. C28 adds two-digest/counter-coherent tombstones, contiguous floor advancement, four-range/1,024-identity epoch capacity, exact lost-response re-service, atomic fifth-range refusal, and same-principal fresh-authority recovery without terminalizing stranded intent. Recreated-branch and fresh integrated proof remain. |
 | 3 — provenance/explanation | Partial | Public/admin transport and protected custody are wired. The public lane now revalidates the active artifact, current function/grant/profile policy, derived audience, current and retained historical owners, and every closed fact for exact generated owner-create/update envelopes. Create's private mint observation is exact-site-bound and stripped before projection; generated delete is recognized but remains a current-row-absent refusal. Complete positive evaluators, if justified, for aggregate/non-row, hand-written/opaque, predicate, membership, effect-bearing, and remaining policy classes. |
 | 4 — coverage honesty | Partial | The local target now names 23 physical writer families with no grouped row. Exactly four ordinary/host adapters are envelope-mapped; every other family has an executable exclusion reason, and non-envelope app writers refuse after arming. Raw/cached/trigger/system-field/DDL bypass, exact four-writer publication, target-vs-app-effective, crash/reopen, retry, and ordinary/host asymmetry fixtures are green. An authenticated managed-admission AdminWrite command accepts only the versioned local target/profile pair and idempotently publishes that exact manifest; open, range issuance, and capability inspection do not invoke it. Complete-target exclusions, fixed-Air, remaining corpus, review, and acceptance gates keep the row Partial and the command uninvoked by default. |
 | 5 — fork isolation | Partial | F0b and the derived post-fork-parent-write fixture cover the copied-instance leg; managed custody and `branch.execute.v1` run real mutations/actions only on the server-derived current-head workspace. The carrier admits exact multiple operations, retains mutation facts atomically with app rows/journal/version, and pins canonical schema/function-bundle identities. Exact retries survive parent drift; novel requests refuse before handler bytes. Final integrated correctness/review remains. |
@@ -78,11 +78,14 @@ C28 is the prospective correction: payload-free tombstones retain separately
 domain-separated full-identity and authorization-facts digests; floors advance
 only over contiguous closed epoch prefixes; one client epoch owns at most four
 contiguous 256-counter ranges (1,024 identities, aligned with the existing
-client outbox and per-auth settlement bounds); and terminal/pending insertion
+client outbox and per-auth settlement bounds); identity-null intent rebinds to
+a fresh authority only after a durable same-principal comparison; and
+terminal/pending insertion
 transactions re-run the retained classifier before publication. The focused
-corpus covers diagnostic separation, SQL/JSON corruption, direct-writer
-rollback, later-before-earlier closure, exact response-loss recovery, and
-atomic capacity refusal. C27's reviews are not post-C28 acceptance reviews. No
+corpus covers diagnostic separation, SQL/JSON counter corruption, terminal and
+pending direct-writer refusal/rollback, later-before-earlier closure, exact
+response-loss recovery, atomic capacity refusal, and same-principal successor
+recovery. C27's reviews are not post-C28 acceptance reviews. No
 capability state changes in this record.
 
 ## Dated implementation evidence — 2026-08-04

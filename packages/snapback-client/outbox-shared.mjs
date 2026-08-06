@@ -139,9 +139,12 @@ export function normalizeOutboxRecordInput(record) {
     userId: stringOrNull(record.userId),
     readSet: Array.isArray(record.readSet) ? record.readSet : [],
     correlation: record.correlation ?? null,
-    // The authority descriptor captured at enqueue (LLP 0043 §Auth posture):
-    // replay sends THIS stored descriptor, never a newly observed one.
+    // The authority descriptor captured at enqueue (LLP 0043 §Auth posture).
+    // It is immutable after identity assignment. An uncovered intent may
+    // atomically adopt a fresh descriptor only after the client proves the
+    // authenticated principal is unchanged.
     authorityDescriptor: record.authorityDescriptor ?? null,
+    operationAuthorityPrincipalId: stringOrNull(record.operationAuthorityPrincipalId),
     // The captured replay environment, when one exists (LLP 0008 pins the
     // wire to {generatedIds, now} = the ctx-answer ledger). The plain JS arm
     // runs no local execution, so it usually captures none; a composing
@@ -526,7 +529,15 @@ export const outboxOps = {
   /// Bind an uncovered pending intent at reconnect in the same durable cut
   /// that installs/advances the range. A crash leaves either the original
   /// uncovered record or the fully assigned record and advanced counter.
-  assignOperationIdentity(state, id, now, authorityCohortKey, range = null) {
+  assignOperationIdentity(
+    state,
+    id,
+    now,
+    authorityCohortKey,
+    range = null,
+    authorityDescriptor = undefined,
+    authorityPrincipalId = undefined,
+  ) {
     const key = custodyKey(authorityCohortKey);
     let working = range === null ? state : installRange(state, key, range);
     const existing = working.records[id];
@@ -537,6 +548,10 @@ export const outboxOps = {
     const allocated = allocateIdentity(working, key, now);
     const stored = {
       ...existing,
+      ...(authorityDescriptor === undefined ? {} : { authorityDescriptor }),
+      ...(authorityPrincipalId === undefined
+        ? {}
+        : { operationAuthorityPrincipalId: stringOrNull(authorityPrincipalId) }),
       operationIssuance: allocated.issuance,
       operationCoverageDisposition: allocated.disposition,
     };

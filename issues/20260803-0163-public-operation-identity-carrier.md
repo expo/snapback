@@ -386,7 +386,10 @@ coherence; advances floors only over the contiguous closed epoch prefix; and
 caps a client epoch at four 256-counter ranges / 1,024 identities, aligned with
 the client outbox and per-auth settlement limits. Exact response-loss
 re-service remains available; the fifth range refuses atomically and requires a
-fresh authenticated epoch.
+fresh authenticated epoch. Capacity-stranded identity-null intent adopts that
+fresh authority/range only after durable same-principal comparison; missing or
+different principal custody leaves it pending and never cross-authority
+submits it.
 
 Both `record_operation_in` and `record_pending_operation_in` now run the shared
 retained suppression/compact/tombstone/floor classifier inside their
@@ -394,7 +397,9 @@ publication transaction, before authentication, capacity, or insertion. This
 prevents direct callers from republishing a reclaimed identity and makes any
 refusal roll back staged app and journal writes. Focused C28 corpus covers the
 diagnostic split, corruption, direct-writer rollback, out-of-order epoch
-closure, bounded successor issuance, and lost-response recovery. The C27
+closure, bounded successor issuance, counter corruption, pending-writer
+tombstone refusal, lost-response recovery, and same-principal fresh-authority
+continuation. The C27
 review does not qualify C28; fixed-Air performance and fresh independent review
 remain mandatory, so this issue stays Open, LLP 0163 stays Draft, and every
 related capability stays `Missing`.

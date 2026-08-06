@@ -294,7 +294,13 @@ export function createMemoryRqsResumeStore({
       return structuredClone(applied.result);
     },
 
-    async outboxAssignOperationIdentity(id, authorityCohortKey, range = null) {
+    async outboxAssignOperationIdentity(
+      id,
+      authorityCohortKey,
+      range = null,
+      authorityDescriptor = undefined,
+      authorityPrincipalId = undefined,
+    ) {
       if (!requireWriter()) return false;
       const applied = outboxOps.assignOperationIdentity(
         state.outbox,
@@ -302,6 +308,8 @@ export function createMemoryRqsResumeStore({
         now(),
         authorityCohortKey,
         range,
+        authorityDescriptor,
+        authorityPrincipalId,
       );
       state.outbox = applied.state;
       return structuredClone(applied.result);

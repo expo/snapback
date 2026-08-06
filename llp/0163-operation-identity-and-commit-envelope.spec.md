@@ -627,13 +627,19 @@ range fields are non-authorizing continuity assertions. The server derives the
 audience from the authority and durable client-store identity, then chooses the
 epoch, counter bounds, expiry, and authenticator digest. Refresh must present the
 latest recorded range. A response lost after issuance is recoverable by
-re-serving that exact range only while the epoch has admitted no identity;
-after admission, missing durable custody refuses rather than risking counter
-reuse.
+re-serving that exact latest range only while that range has admitted no
+identity; after admission from that range, missing durable custody refuses
+rather than risking counter reuse.
 Each range contains 256 counters and one epoch may own at most four contiguous
 ranges (1,024 identities in aggregate). The fifth range refuses atomically
 with `SNAPBACK_OPERATION_RANGE_EXHAUSTED`; the client retains uncovered intent
 locally and obtains a fresh authenticated epoch before admission continues.
+An uncovered intent has no server-admitted operation identity, so after an
+authenticated session rotates the client may atomically bind it to the fresh
+descriptor/range only when the durable predecessor principal id equals the
+fresh authenticated principal id. A missing or different principal keeps the
+intent pending with `uncovered-reauth-required`; it is never terminalized or
+submitted across principals.
 
 `MutationRequest.operationIssuance` extends `clientMutationId` through the
 existing retry settlement path. The transport rejects issuance without that
@@ -799,21 +805,29 @@ direct writer insertion could bypass a tombstone after ACK plus compact
 pruning.
 
 C28 gives each tombstone separate domain-separated full-identity and
-authorization-facts digests, validates its SQL/JSON epoch projection, and
+authorization-facts digests, validates its SQL/JSON epoch and counter
+projections, and
 preserves the exact/auth-stale/other-divergence diagnostic split after compact
 pruning. Floors advance only over the contiguous closed prefix. Client epochs
 are capped at four contiguous 256-counter ranges, aligned with the existing
 1,024-record client outbox and per-auth settlement bound; exact lost-response
-re-service remains available and a fifth range refuses. Both terminal and
-pending writer insertions run the retained suppression/compact/tombstone/floor
+re-service remains available and a fifth range refuses. Capacity-stranded
+uncovered intent can adopt a fresh authority/range only under a durable
+same-principal comparison; a missing or different principal remains pending.
+Both terminal and pending writer insertions run the retained
+suppression/compact/tombstone/floor
 classifier inside their publication transaction before authentication,
 capacity, or insertion. Suppression replay also validates the retained record
 against its identity and SQL projection.
 
 Focused corpus covers digest golden vectors; input, audience, principal, and
-authority divergence after compact pruning; SQL/JSON corruption; direct-writer
-rollback; a later ready epoch closing while an earlier epoch remains open;
-bounded successor issuance, exact response-loss recovery, and atomic capacity
-refusal. This repair is not a capability claim: LLP 0163 remains `Draft`, and
+authority divergence after compact pruning; SQL/JSON counter corruption;
+terminal and pending direct-writer tombstone refusal; rollback; a later ready
+epoch closing while an earlier epoch remains open; bounded successor issuance,
+exact response-loss recovery, atomic capacity refusal, and same-principal fresh
+authority continuation. Pre-C28 tombstones lack the required comparison fields
+and therefore fail closed as ledger-invalid rather than replaying; because the
+capability is still Missing, no published active lane can have created them.
+This repair is not a capability claim: LLP 0163 remains `Draft`, and
 every related capability remains `Missing` pending fresh full correctness,
 fixed-Air performance, independent review, and named-author acceptance.

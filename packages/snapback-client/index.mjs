@@ -152,6 +152,12 @@ const isOperationRangeCapacityError = (error) => (
   || error?.code === 'SNAPBACK_OPERATION_RANGE_EXHAUSTED'
 );
 
+const isOperationRangeRecoveryBlockedError = (error) => (
+  isOperationRangeCapacityError(error)
+  || error?.diagnostic?.code === 'SNAPBACK_OPERATION_RANGE_REAUTH_REQUIRED'
+  || error?.code === 'SNAPBACK_OPERATION_RANGE_REAUTH_REQUIRED'
+);
+
 const operationOutcomeFromError = (error) => {
   const outcome = error?.diagnostic?.details?.outcome;
   return outcome === 'committed' || outcome === 'refused' ? outcome : 'unknown';
@@ -6165,23 +6171,52 @@ export class SnapbackClient {
             error.code = 'SNAPBACK_OPERATION_RANGE_AUDIENCE_INVALID';
             throw error;
           }
+          let replayAuthorityDescriptor = record.authorityDescriptor;
+          let replayAuthorityPrincipalId = record.operationAuthorityPrincipalId ?? null;
+          if (this.authProtocols.authClient != null) {
+            const session = await this.authSession();
+            const currentDescriptor = requireAuthorityDescriptor(
+              session?.authorityDescriptor,
+              'SNAPBACK_AUTHORITY_DESCRIPTOR_INVALID',
+            );
+            const currentPrincipalId = session?.activeMode === 'sessions'
+              && session?.authority?.isAuthenticated === true
+              && typeof session?.authority?.userId === 'string'
+              ? session.authority.userId
+              : null;
+            if (
+              replayAuthorityPrincipalId === null
+              || currentPrincipalId === null
+              || currentPrincipalId !== replayAuthorityPrincipalId
+            ) {
+              const error = new Error(
+                'SNAPBACK_OPERATION_RANGE_REAUTH_REQUIRED: uncovered intent cannot cross principals',
+              );
+              error.code = 'SNAPBACK_OPERATION_RANGE_REAUTH_REQUIRED';
+              throw error;
+            }
+            replayAuthorityDescriptor = currentDescriptor;
+            replayAuthorityPrincipalId = currentPrincipalId;
+          }
           const authorityCohortKey = this.#operationIdentityCohortKey(
             clientAudienceId,
             record.userId,
-            record.authorityDescriptor,
+            replayAuthorityDescriptor,
           );
           const range = await this.#refreshOperationIdentityRange(
             store,
             authorityCohortKey,
             clientAudienceId,
             record.userId,
-            record.authorityDescriptor,
+            replayAuthorityDescriptor,
             null,
           );
           record = await store.outboxAssignOperationIdentity(
             record.id,
             authorityCohortKey,
             range,
+            replayAuthorityDescriptor,
+            replayAuthorityPrincipalId,
           );
           if (!record?.operationIssuance) {
             const error = new Error(
@@ -6300,13 +6335,15 @@ export class SnapbackClient {
           });
           break;
         }
-        if (isOperationRangeCapacityError(error)) {
+        if (isOperationRangeRecoveryBlockedError(error)) {
           stopped = true;
           this.#recordOutboxDiagnostic({
             code: 'SNAPBACK_OPERATION_RANGE_UNCOVERED_QUEUED',
             mutation: record.function,
             clientMutationId: record.id,
-            disposition: 'uncovered-range-exhausted',
+            disposition: isOperationRangeCapacityError(error)
+              ? 'uncovered-range-exhausted'
+              : 'uncovered-reauth-required',
           });
           break;
         }
@@ -6483,6 +6520,31 @@ export class SnapbackClient {
     if (settlementIdentity !== null) body.settlementIdentity = settlementIdentity;
     if (settlementClaims !== null) body.settlementClaims = settlementClaims;
     if (boundedSkew !== null) body.boundedSkew = boundedSkew;
+    let operationAuthorityPrincipalId = typeof userId === 'string' ? userId : null;
+    if (
+      operationIdentityEnabled
+      && body.authorityDescriptor
+      && this.authProtocols.authClient != null
+    ) {
+      const session = await this.authSession();
+      const currentDescriptor = requireAuthorityDescriptor(
+        session?.authorityDescriptor,
+        'SNAPBACK_AUTHORITY_DESCRIPTOR_INVALID',
+      );
+      const currentPrincipalId = session?.activeMode === 'sessions'
+        && session?.authority?.isAuthenticated === true
+        && typeof session?.authority?.userId === 'string'
+        ? session.authority.userId
+        : null;
+      if (!sameAuthorityDescriptor(currentDescriptor, body.authorityDescriptor)) {
+        const error = new Error(
+          'SNAPBACK_OPERATION_RANGE_REAUTH_REQUIRED: mutation descriptor is not current',
+        );
+        error.code = 'SNAPBACK_OPERATION_RANGE_REAUTH_REQUIRED';
+        throw error;
+      }
+      operationAuthorityPrincipalId = currentPrincipalId;
+    }
     const durableMutationRecord = clientMutationId ? {
       id: clientMutationId,
       function: name,
@@ -6491,6 +6553,7 @@ export class SnapbackClient {
       readSet,
       correlation,
       authorityDescriptor: body.authorityDescriptor ?? null,
+      operationAuthorityPrincipalId,
       ctxLedger: ctxLedger ?? null,
       expectedGeneration: generation,
       settlementLane: settlementLane ?? 'replay-accept',

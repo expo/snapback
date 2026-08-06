@@ -549,7 +549,13 @@ export function createFileRqsResumeStore({
       });
     },
 
-    async outboxAssignOperationIdentity(id, authorityCohortKey, range = null) {
+    async outboxAssignOperationIdentity(
+      id,
+      authorityCohortKey,
+      range = null,
+      authorityDescriptor = undefined,
+      authorityPrincipalId = undefined,
+    ) {
       requireOpen();
       return serialized(async () => (await outboxWrite(
         (outbox) => outboxOps.assignOperationIdentity(
@@ -558,6 +564,8 @@ export function createFileRqsResumeStore({
           now(),
           authorityCohortKey,
           range,
+          authorityDescriptor,
+          authorityPrincipalId,
         ),
       )).result);
     },

@@ -32,7 +32,7 @@ const TEST_AUTHORITY_DESCRIPTOR = Object.freeze({
 });
 const TEST_SESSION_USER_ID = '018f0d90-7b25-7a22-8c33-445566778899';
 
-const sessionHandshake = (authorityDescriptor) => ({
+const sessionHandshake = (authorityDescriptor, userId = TEST_SESSION_USER_ID) => ({
   protocolVersion: 1,
   serverStartupNonce: 'outbox-recovery-test',
   authorizationStreamIncarnation: '018f0d90-7b26-7a22-8c33-445566778899',
@@ -71,7 +71,7 @@ const sessionHandshake = (authorityDescriptor) => ({
   transports: ['bearer'],
   authority: {
     kind: 'humanSession',
-    userId: TEST_SESSION_USER_ID,
+    userId,
     sessionId: '018f0d90-7b27-7a22-8c33-445566778899',
     isAuthenticated: true,
   },
@@ -787,6 +787,107 @@ test('server epoch-capacity refusal keeps uncovered intent queued for fresh auth
   [retained] = await store.outboxRecords();
   assert.equal(retained.status, 'pending');
   assert.equal(retained.operationIssuance, null);
+});
+
+test('fresh same-principal authority atomically covers capacity-stranded intent', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const descriptorA = TEST_AUTHORITY_DESCRIPTOR;
+  const descriptorB = {
+    descriptorVersion: 1,
+    authorityInstanceId: '018f0d90-7b24-7a22-8c33-4455667788bb',
+    sessionGeneration: 2,
+  };
+  let currentDescriptor = descriptorA;
+  let currentPrincipalId = TEST_SESSION_USER_ID;
+  const issuedAtMs = Date.now();
+  const mutationBodies = [];
+  globalThis.fetch = async (url, init = {}) => {
+    const target = String(url);
+    if (target.endsWith('/auth/session')) {
+      return Response.json(sessionHandshake(currentDescriptor, currentPrincipalId));
+    }
+    const body = JSON.parse(init.body);
+    if (target.endsWith('/client-mutations/identity-range')) {
+      assert.deepEqual(body.authorityDescriptor, currentDescriptor);
+      if (currentDescriptor.authorityInstanceId === descriptorA.authorityInstanceId) {
+        return Response.json({
+          diagnostic: {
+            code: 'SNAPBACK_OPERATION_RANGE_EXHAUSTED',
+            message: 'predecessor epoch reached its finite v1 counter capacity',
+          },
+        }, { status: 409 });
+      }
+      return Response.json({
+        schemaVersion: 1,
+        range: {
+          schemaVersion: 1,
+          audience: 'audience-successor',
+          authorityInstanceId: descriptorB.authorityInstanceId,
+          epochId: 'epoch-successor',
+          epochSequence: 2,
+          rangeStart: 0,
+          rangeEndExclusive: 256,
+          issuedAtMs,
+          expiresAtMs: issuedAtMs + 60_000,
+          authorityAuthenticatorDigest: `sha256:${'e'.repeat(64)}`,
+        },
+      });
+    }
+    mutationBodies.push(body);
+    return Response.json({
+      result: { ok: true },
+      version: 2,
+      authorityDescriptor: descriptorB,
+    });
+  };
+  const client = new SnapbackClient('https://operation-successor.example', {
+    bearerToken: 'sbs_predecessor_authority',
+    authClientProtocol: 1,
+    rqsStore: store,
+    operationIdentityProtocol: 1,
+  });
+  const queued = await client.mutate('createThing', {
+    args: { title: 'same principal, fresh authority' },
+    authorityDescriptor: descriptorA,
+  });
+  assert.equal(queued.queued, true);
+  let [retained] = await store.outboxRecords();
+  assert.equal(retained.operationIssuance, null);
+  assert.equal(retained.operationAuthorityPrincipalId, TEST_SESSION_USER_ID);
+
+  currentDescriptor = descriptorB;
+  currentPrincipalId = '018f0d90-7b25-7a22-8c33-4455667788cc';
+  client.clearAuthSession();
+  const crossPrincipal = await client.replayQueuedMutations();
+  assert.deepEqual(
+    {
+      replayed: crossPrincipal.replayed,
+      failed: crossPrincipal.failed,
+      remaining: crossPrincipal.remaining,
+      stopped: crossPrincipal.stopped,
+    },
+    { replayed: 0, failed: 0, remaining: 1, stopped: true },
+  );
+  [retained] = await store.outboxRecords();
+  assert.equal(retained.status, 'pending');
+  assert.equal(retained.operationIssuance, null);
+  assert.deepEqual(retained.authorityDescriptor, descriptorA);
+
+  currentPrincipalId = TEST_SESSION_USER_ID;
+  client.clearAuthSession();
+  const replay = await client.replayQueuedMutations();
+  assert.deepEqual(
+    { replayed: replay.replayed, failed: replay.failed, remaining: replay.remaining },
+    { replayed: 1, failed: 0, remaining: 0 },
+  );
+  [retained] = await store.outboxRecords();
+  assert.equal(retained.status, 'settled');
+  assert.deepEqual(retained.authorityDescriptor, descriptorB);
+  assert.equal(retained.operationIssuance.epoch_id, 'epoch-successor');
+  assert.equal(mutationBodies.length, 1);
+  assert.deepEqual(mutationBodies[0].authorityDescriptor, descriptorB);
+  assert.equal(mutationBodies[0].operationIssuance.epoch_id, 'epoch-successor');
 });
 
 test('authority rotation allocates a disjoint range without rebinding old queued identity', async (t) => {

@@ -1139,8 +1139,8 @@ pub fn issue_client_range_in(
         }
         // A response can be lost after the server commits issuance but before
         // the client atomically installs it. Re-serve that exact latest range
-        // only while no identity from its epoch has ever been admitted. Once
-        // any operation exists, omitting prior custody must fail closed.
+        // only while no identity from that range has been admitted. Once the
+        // range is used, omitting prior custody must fail closed.
         (Some((start, end, issued, expires, digest)), None) => {
             if range_has_admitted_identity(*start, *end)? {
                 return Err(refused(
@@ -2143,9 +2143,9 @@ pub fn lookup_operation(
     // @ref LLP 0043#dated-c28-lifecycle-reconciliation-2026-08-05 — a
     // payload-free tombstone remains complete collision authority after the
     // compact envelope leaves.
-    let tombstone: Option<(String, String, i64, String)> = conn
+    let tombstone: Option<(String, String, i64, Option<i64>, String)> = conn
         .query_row(
-            "SELECT audience, epoch_id, epoch_sequence, tombstone_json
+            "SELECT audience, epoch_id, epoch_sequence, counter, tombstone_json
              FROM _snapback_operation_tombstones_v1
              WHERE stream_id=?1 AND originator_class=?2 AND operation_id=?3",
             params![
@@ -2153,10 +2153,20 @@ pub fn lookup_operation(
                 originator(proposed.key.originator_class),
                 proposed.key.operation_id,
             ],
-            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+            |row| {
+                Ok((
+                    row.get(0)?,
+                    row.get(1)?,
+                    row.get(2)?,
+                    row.get(3)?,
+                    row.get(4)?,
+                ))
+            },
         )
         .optional()?;
-    if let Some((row_audience, row_epoch_id, row_epoch_sequence, tombstone)) = tombstone {
+    if let Some((row_audience, row_epoch_id, row_epoch_sequence, row_counter, tombstone)) =
+        tombstone
+    {
         let tombstone: OperationIdentityTombstoneV1 =
             decode(&tombstone, "stored operation tombstone")?;
         let referenced_epoch_sequence: Option<i64> = conn
@@ -2177,6 +2187,9 @@ pub fn lookup_operation(
             || tombstone.epoch_id.is_empty()
             || row_audience != tombstone.audience
             || row_epoch_id != tombstone.epoch_id
+            || optional_i64(tombstone.counter, "stored tombstone counter")? != row_counter
+            || (proposed.key.originator_class == OperationOriginatorClassV1::Client)
+                != tombstone.counter.is_some()
             || referenced_epoch_sequence != Some(row_epoch_sequence)
             || !valid_sha256(&tombstone.identity_digest)
             || !valid_sha256(&tombstone.auth_facts_digest)
@@ -2311,6 +2324,7 @@ pub fn acknowledge_and_reclaim_in(
         auth_facts_digest: operation_auth_facts_digest(identity)?,
         audience: identity.bound_facts.audience.clone(),
         epoch_id,
+        counter: issuance_parts(identity).1,
         terminal_outcome: record.terminal_outcome,
         receipt_digest: record.receipt_digest.clone(),
         retained_at_ms: acknowledged_at_ms,
@@ -2319,9 +2333,7 @@ pub fn acknowledge_and_reclaim_in(
         "INSERT INTO _snapback_operation_tombstones_v1(
            stream_id, originator_class, operation_id, audience, epoch_id,
            epoch_sequence, counter, tombstone_json
-         ) VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
-         ON CONFLICT(stream_id, originator_class, operation_id) DO UPDATE SET
-           tombstone_json=excluded.tombstone_json",
+         ) VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
         params![
             identity.key.stream_id,
             originator(identity.key.originator_class),
@@ -4280,6 +4292,24 @@ mod tests {
         );
         tx.rollback().expect("discard tombstone corruption");
 
+        let tx = conn
+            .transaction()
+            .expect("tombstone counter corruption probe");
+        tx.execute(
+            "UPDATE _snapback_operation_tombstones_v1 SET counter=counter + 1
+             WHERE stream_id=?1 AND originator_class='client' AND operation_id=?2",
+            params![first.key.stream_id, first.key.operation_id],
+        )
+        .expect("stage tombstone counter corruption");
+        assert_eq!(
+            lookup_operation(&tx, &first)
+                .expect_err("counter-corrupt tombstone never settles")
+                .diagnostic
+                .code,
+            "SNAPBACK_OPERATION_LEDGER_INVALID"
+        );
+        tx.rollback().expect("discard tombstone counter corruption");
+
         let tx = conn.transaction().expect("ack second");
         acknowledge_and_reclaim_in(&tx, &second, 201).expect("ack second");
         assert!(
@@ -4575,8 +4605,8 @@ mod tests {
             OperationLookupV1::ExactReplay(_)
         ));
 
-        // Once an identity from the epoch is admitted, a response-loss retry
-        // without the durable previous range refuses instead of forking.
+        // Once an identity from the latest range is admitted, a response-loss
+        // retry without the durable previous range refuses instead of forking.
         let tx = conn.transaction().expect("missing continuity refusal");
         assert_eq!(
             issue_client_range_in(&tx, "stream-issued", audience, authority, None, 14,)
@@ -5401,6 +5431,61 @@ mod tests {
             "SNAPBACK_HOST_OPERATION_IDENTITY_INVALID"
         );
         record_operation_in(&tx, &envelope(host.clone(), 0, 0)).expect("host operation");
+        let mut pending_guard = host.clone();
+        pending_guard.key.operation_id = derive_host_operation_id("migration:pending-guard", 0);
+        pending_guard.issuance = OperationIssuanceV1::HostIncarnation {
+            epoch_id: "host-epoch-1".to_owned(),
+            upstream_identity: "migration:pending-guard".to_owned(),
+            commit_ordinal: 0,
+            authority_authenticator_digest: sha('e'),
+        };
+        record_operation_in(&tx, &envelope(pending_guard.clone(), 0, 0))
+            .expect("terminal predecessor for pending guard");
+        acknowledge_and_reclaim_in(&tx, &pending_guard, 12)
+            .expect("retain pending-guard tombstone");
+        assert!(
+            prune_compact_envelope_in(&tx, &pending_guard)
+                .expect("prune pending-guard compact envelope")
+        );
+        let mut pending_envelope = envelope(pending_guard.clone(), 1, 0);
+        pending_envelope.snapshot.association = SnapshotAssociationKindV1::ProducedCommit;
+        pending_envelope.recorded_at_ms = 13;
+        pending_envelope.receipt.state = OperationReceiptStateV1::Pending;
+        pending_envelope.receipt.payload = RetainedEnvelopeDetailV1::InlineRedacted {
+            detail: json!({"migrationId":"pending-guard"}),
+        };
+        let pending_payload =
+            serde_json::to_value(&pending_envelope.receipt.payload).expect("pending payload");
+        pending_envelope.receipt.receipt_digest =
+            pending_operation_receipt_digest(&pending_payload).expect("pending digest");
+        let pending_lifecycle = PendingOperationLifecycleV1 {
+            schema_version: 1,
+            lane: "migration".to_owned(),
+            identity: pending_guard.clone(),
+            publication: pending_envelope.snapshot.clone(),
+            pending_receipt_digest: pending_envelope.receipt.receipt_digest.clone(),
+            pending_payload,
+            pending_at_ms: pending_envelope.recorded_at_ms,
+        };
+        assert_eq!(
+            record_pending_operation_in(&tx, &pending_envelope, &pending_lifecycle, 8)
+                .expect_err("pending writer cannot reuse a tombstoned host identity")
+                .diagnostic
+                .code,
+            "SNAPBACK_OPERATION_ALREADY_RECORDED"
+        );
+        let (pending_rows, tombstones): (u64, u64) = tx
+            .query_row(
+                "SELECT
+                   (SELECT COUNT(*) FROM _snapback_operation_pending_v1
+                     WHERE stream_id=?1 AND originator_class='host' AND operation_id=?2),
+                   (SELECT COUNT(*) FROM _snapback_operation_tombstones_v1
+                     WHERE stream_id=?1 AND originator_class='host' AND operation_id=?2)",
+                params![pending_guard.key.stream_id, pending_guard.key.operation_id],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .expect("pending guard retained state");
+        assert_eq!((pending_rows, tombstones), (0, 1));
         let mut live_ticket = host.clone();
         live_ticket.key.operation_id = derive_host_operation_id("promotion:ticket-1", 0);
         live_ticket.issuance = OperationIssuanceV1::HostIncarnation {
