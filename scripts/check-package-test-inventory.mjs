@@ -558,9 +558,10 @@ const total = results.reduce((sum, result) => sum + result.count, 0);
 // gains composed and non-executing CLI help acceptance coverage.
 // 203 -> 204 (2026-08-05, LLP 0129 Phase 2b): the desktop-sidecar package
 // gains its descriptor/capability/publication contract suite.
-// 204 -> 205 (2026-08-05, LLP 0184 Phase 0): @expo/snapback-cli gains the
-// MCP client configuration acceptance suite. The 753191e46 landing added the
-// file and package test-script entry but omitted this canonical inventory.
+// 204 -> 205 (2026-08-05, LLP 0176 G0 reconciliation): @expo/snapback-cli's
+// agent-setup.test.mjs (landed 753191e46 with its test-script entry) is
+// registered here — that landing added the file without updating this
+// canonical inventory; caught while landing the G0 lane.
 assert.equal(total, 205, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
