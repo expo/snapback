@@ -86,16 +86,16 @@ documentation absence never appears as success.
 ## Generated inventory
 
 <!-- BEGIN GENERATED CONTROL CATALOG: CONTROL CATALOG INVENTORY -->
-The embedded build catalog contains **111 operations** at digest `sha256:5bbf88591517e38e1334718c0b162b0e809c50eab17be072d70d3cbfd7932455`. The counts and inventory below are generated; do not edit them by hand.
+The embedded build catalog contains **112 operations** at digest `sha256:d50a314a6ad6ea12926715ac43d09cb68a19bd6e150716ad4690f3b6331bba59`. The counts and inventory below are generated; do not edit them by hand.
 
 | Axis | Value | Count |
 | --- | --- | ---: |
 | surfaceAccess | `apiOnly` | 39 |
 | surfaceAccess | `cliOnly` | 29 |
 | surfaceAccess | `mcpOnly` | 3 |
-| surfaceAccess | `native` | 36 |
+| surfaceAccess | `native` | 37 |
 | surfaceAccess | `none` | 4 |
-| operability | `direct` | 79 |
+| operability | `direct` | 80 |
 | operability | `internal` | 11 |
 | operability | `mediated` | 7 |
 | operability | `unavailable` | 14 |
@@ -181,6 +181,7 @@ The embedded build catalog contains **111 operations** at digest `sha256:5bbf885
 | `direct_runner.query` | `apiOnly` | `direct` | `shipped` | — | — | — |
 | `direct_runner.unknown` | `apiOnly` | `unavailable` | `shipped` | — | — | — |
 | `ephemeral.cleanup` | `apiOnly` | `direct` | `shipped` | — | — | — |
+| `ephemeral.operatorDelete` | `native` | `direct` | `shipped` | snapback ephemeral operator-delete | snapback_ephemeral_operator_delete | realtime/ephemeral-state.md#delete-one-entry-as-an-operator |
 | `errors.issue` | `native` | `direct` | `shipped` | snapback errors issue | snapback_errors_issue | operating/host-ops.md |
 | `errors.issues` | `native` | `direct` | `shipped` | snapback errors issues | snapback_errors_issues | operating/host-ops.md |
 | `errors.transition` | `native` | `direct` | `shipped` | snapback errors transition | snapback_errors_transition | operating/host-ops.md |
