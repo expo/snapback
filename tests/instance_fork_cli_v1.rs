@@ -399,6 +399,237 @@ fn executable_fork_lifecycle_is_detached_exact_and_reap_safe() {
     assert!(source.is_file(), "reap never changes the parent database");
 }
 
+struct ParentServer {
+    child: std::process::Child,
+    ready: PathBuf,
+    token: String,
+    server_url: String,
+}
+
+impl ParentServer {
+    fn start(database: &Path, directory: &Path) -> Self {
+        let ready = directory.join("parent.ready.json");
+        let log = File::create(directory.join("parent-runtime.log")).expect("parent log");
+        let error_log = log.try_clone().expect("parent log clone");
+        let child = snapback()
+            .args([
+                "start",
+                "--db",
+                database.to_str().unwrap(),
+                "--port",
+                "0",
+                "--ready-file",
+                ready.to_str().unwrap(),
+            ])
+            .stdout(Stdio::from(log))
+            .stderr(Stdio::from(error_log))
+            .spawn()
+            .expect("spawn parent server");
+        let deadline = std::time::Instant::now() + Duration::from_secs(20);
+        while !ready.is_file() {
+            assert!(
+                std::time::Instant::now() < deadline,
+                "parent server never wrote its ready descriptor"
+            );
+            std::thread::sleep(Duration::from_millis(50));
+        }
+        let descriptor: Value =
+            serde_json::from_slice(&std::fs::read(&ready).expect("parent ready file"))
+                .expect("parent ready JSON");
+        let token = std::fs::read_to_string(
+            descriptor["adminTokenFile"]
+                .as_str()
+                .expect("parent admin token file"),
+        )
+        .expect("parent admin token")
+        .trim()
+        .to_owned();
+        let server_url = descriptor["serverUrl"]
+            .as_str()
+            .expect("parent server URL")
+            .to_owned();
+        assert_eq!(health(&server_url)["ok"], true);
+        ParentServer {
+            child,
+            ready,
+            token,
+            server_url,
+        }
+    }
+
+    fn run(&self, function: &str, args: &str, operation: &str) -> Value {
+        let mut command = snapback();
+        command.args([
+            "run",
+            "--ready-file",
+            self.ready.to_str().unwrap(),
+            "--token",
+            &self.token,
+            function,
+            "--args",
+            args,
+            "--user",
+            "acceptance-user",
+        ]);
+        successful(command, operation)
+    }
+}
+
+impl Drop for ParentServer {
+    fn drop(&mut self) {
+        let _ = self.child.kill();
+        let _ = self.child.wait();
+    }
+}
+
+fn todo_titles(database: &Path) -> Vec<String> {
+    let conn = rusqlite::Connection::open(database).expect("open database read-only");
+    let mut statement = conn
+        .prepare("SELECT title FROM todos ORDER BY title")
+        .expect("prepare todo title query");
+    let titles = statement
+        .query_map([], |row| row.get::<_, String>(0))
+        .expect("query todo titles")
+        .collect::<Result<Vec<_>, _>>()
+        .expect("collect todo titles");
+    titles
+}
+
+/// LLP 0185 Phase 3 item 1: writes committed to a live parent after the fork
+/// point never appear in the existing fork, and fork-local writes never reach
+/// the parent. This is the end-to-end complement to the module-level
+/// `parent_commits_after_the_fork_point_are_invisible_to_the_published_fork`.
+#[test]
+fn live_parent_writes_after_fork_point_never_appear_in_the_fork() {
+    let directory = tempfile::tempdir().expect("live-parent fixture");
+    let source = directory.path().join("parent.sqlite3");
+    let repo = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let todo_root = repo.join("demos/todo");
+    let schema: SchemaManifest = serde_json::from_slice(
+        &std::fs::read(todo_root.join("snapback/generated/schema.manifest.json"))
+            .expect("generated Todo schema"),
+    )
+    .expect("Todo schema manifest");
+    let mut parent_db = LocalDatabase::open(&source).expect("parent database");
+    parent_db.apply_schema(schema).expect("apply parent schema");
+    drop(parent_db);
+
+    let parent = ParentServer::start(&source, directory.path());
+    let mut load = snapback();
+    load.args([
+        "load",
+        "--ready-file",
+        parent.ready.to_str().unwrap(),
+        "--token",
+        &parent.token,
+        "--functions",
+        todo_root
+            .join("snapback/generated/functions.manifest.json")
+            .to_str()
+            .unwrap(),
+    ]);
+    successful(load, "load parent functions");
+    parent.run(
+        "createTodo",
+        r#"{"title":"before-fork"}"#,
+        "parent pre-fork mutation",
+    );
+
+    let fork_root = directory.path().join("forks");
+    let mut cleanup = ForkCleanup {
+        fork_root: fork_root.clone(),
+        app_root: todo_root.clone(),
+        fork_ids: Vec::new(),
+    };
+    // Forking from the ready descriptor exercises the live-parent source
+    // path: the copy is taken from a hot database under an active server.
+    let created = fork_create(&parent.ready, &todo_root, &fork_root, "5m", false);
+    cleanup.track(fork_id(&created));
+    let fork_database = data_path(&created, "database");
+    let fork_point = created["data"]["receipt"]["lineage"]["forkPointVersion"]
+        .as_u64()
+        .expect("fork point version");
+
+    parent.run(
+        "createTodo",
+        r#"{"title":"after-fork"}"#,
+        "parent post-fork mutation",
+    );
+    assert_eq!(
+        todo_titles(&source),
+        vec!["after-fork".to_owned(), "before-fork".to_owned()],
+        "the live parent committed its post-fork write"
+    );
+    assert_eq!(
+        todo_titles(&fork_database),
+        vec!["before-fork".to_owned()],
+        "a parent write committed after the fork point never appears in the fork"
+    );
+
+    let fork_ready = data_path(&created, "readyFile");
+    let fork_descriptor: Value =
+        serde_json::from_slice(&std::fs::read(&fork_ready).expect("fork ready file"))
+            .expect("fork ready JSON");
+    let fork_token = std::fs::read_to_string(
+        fork_descriptor["adminTokenFile"]
+            .as_str()
+            .expect("fork admin token file"),
+    )
+    .expect("fork admin token")
+    .trim()
+    .to_owned();
+    let mut fork_mutation = snapback();
+    fork_mutation.args([
+        "run",
+        "--ready-file",
+        fork_ready.to_str().unwrap(),
+        "--token",
+        &fork_token,
+        "createTodo",
+        "--args",
+        r#"{"title":"fork-local"}"#,
+        "--user",
+        "acceptance-user",
+    ]);
+    successful(fork_mutation, "fork-local mutation");
+    assert_eq!(
+        todo_titles(&fork_database),
+        vec!["before-fork".to_owned(), "fork-local".to_owned()],
+        "the fork accepts its own writes at its own head"
+    );
+    assert_eq!(
+        todo_titles(&source),
+        vec!["after-fork".to_owned(), "before-fork".to_owned()],
+        "fork-local writes never reach the parent"
+    );
+
+    let mut diff = snapback();
+    diff.args([
+        "fork",
+        "diff",
+        fork_id(&created),
+        "--app-root",
+        todo_root.to_str().unwrap(),
+        "--fork-root",
+        fork_root.to_str().unwrap(),
+    ]);
+    let diff = successful(diff, "fork diff after divergence");
+    let receipt = &diff["data"]["receipt"];
+    assert_eq!(receipt["forkPointVersion"].as_u64(), Some(fork_point));
+    let rows = receipt["rows"].as_array().expect("diff rows");
+    assert_eq!(
+        rows.len(),
+        1,
+        "the diff attributes exactly the fork-local write, never post-fork parent progress"
+    );
+    assert_eq!(rows[0]["table"], "todos");
+    assert_eq!(
+        rows[0]["postImage"]["title"], "fork-local",
+        "diff row is the fork-local todo: {}",
+        rows[0]
+    );
+}
+
 #[test]
 fn executable_fork_recover_repairs_one_finite_partial_publication() {
     let directory = tempfile::tempdir().expect("fork recovery fixture");

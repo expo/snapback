@@ -2135,6 +2135,76 @@ mod tests {
     }
 
     #[test]
+    fn parent_commits_after_the_fork_point_are_invisible_to_the_published_fork() {
+        let directory = tempfile::tempdir().unwrap();
+        let source = source_database(directory.path());
+        let parent = Connection::open(&source).unwrap();
+        parent
+            .execute_batch(
+                "CREATE TABLE notes(id TEXT PRIMARY KEY, body TEXT NOT NULL);
+                 INSERT INTO notes(id,body) VALUES('kept','fork point');
+                 INSERT INTO notes(id,body) VALUES('mutated','fork point');
+                 INSERT INTO notes(id,body) VALUES('doomed','fork point');",
+            )
+            .unwrap();
+
+        let destination = directory.path().join("fork");
+        let receipt =
+            publish_managed(&source, &destination, "app-a", "parent-a", 100, 200_000, false)
+                .unwrap();
+        assert_eq!(receipt.lineage.fork_point_version, 0);
+
+        // Every kind of committed parent progress after the fork point:
+        // update, insert, delete, new schema, and journal/version advance.
+        parent
+            .execute_batch(
+                "UPDATE notes SET body='parent advanced' WHERE id='mutated';
+                 DELETE FROM notes WHERE id='doomed';
+                 INSERT INTO notes(id,body) VALUES('after','parent only');
+                 CREATE TABLE post_fork_table(id TEXT PRIMARY KEY);
+                 UPDATE _snapback_version SET version=7 WHERE id=1;
+                 INSERT INTO _snapback_changes(version,table_name,row_id,op,row_json,changed_at_ms)
+                 VALUES(7,'notes','after','insert','{\"_id\":\"after\"}',150);",
+            )
+            .unwrap();
+
+        let database = destination.join("app.sqlite3");
+        let fork = Connection::open(&database).unwrap();
+        let body = |id: &str| {
+            fork.query_row("SELECT body FROM notes WHERE id=?1", [id], |row| {
+                row.get::<_, String>(0)
+            })
+        };
+        assert_eq!(body("kept").unwrap(), "fork point");
+        assert_eq!(body("mutated").unwrap(), "fork point");
+        assert_eq!(body("doomed").unwrap(), "fork point");
+        assert_eq!(
+            fork.query_row("SELECT COUNT(*) FROM notes WHERE id='after'", [], |row| {
+                row.get::<_, u64>(0)
+            })
+            .unwrap(),
+            0,
+            "a derived deployment is a pinned copy, not a view of parent head"
+        );
+        assert!(!table_exists(&fork, "post_fork_table").unwrap());
+        assert_eq!(
+            fork.query_row("SELECT version FROM _snapback_version WHERE id=1", [], |row| {
+                row.get::<_, u64>(0)
+            })
+            .unwrap(),
+            receipt.lineage.fork_point_version,
+            "parent version advance never moves the fork's committed head"
+        );
+        drop(fork);
+        let diff = diff_receipt(&database).unwrap();
+        assert!(
+            diff.rows.is_empty(),
+            "post-fork parent journal entries never attribute into the fork diff"
+        );
+        assert_eq!(diff.observed_head_version, receipt.lineage.fork_point_version);
+    }
+
+    #[test]
     fn parent_credential_and_cursor_corpus_is_refused_by_minted_fork() {
         let directory = tempfile::tempdir().unwrap();
         let source = source_database(directory.path());
