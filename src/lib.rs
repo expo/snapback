@@ -148,6 +148,7 @@ pub mod server;
 #[doc(hidden)]
 pub mod service_profile;
 pub(crate) mod snapshot_batch_cursor;
+pub(crate) mod snapshot_batch_cursor_v2;
 #[doc(hidden)]
 pub mod storage;
 #[doc(hidden)]
