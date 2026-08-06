@@ -2336,6 +2336,23 @@ fn fork_envelope_with_diagnostics(
     }
 }
 
+/// The honest asset-custody fact for one fork directory: a fork of an
+/// asset-bearing parent carries a digest-verified private blob tree from the
+/// same cut; a fork of an asset-free parent simply has none.
+fn fork_asset_custody(destination: &Path) -> &'static str {
+    let blobs = destination.join("assets").join("blobs");
+    match std::fs::read_dir(&blobs) {
+        Ok(mut entries) => {
+            if entries.next().is_some() {
+                "fork-private-same-cut"
+            } else {
+                "no-assets"
+            }
+        }
+        Err(_) => "no-assets",
+    }
+}
+
 fn fork_secret_disposition(with_secrets: bool, database: &Path) -> &'static str {
     if crate::config::ConfigStore::path_for_database(database).is_file() {
         "copied-explicitly"
@@ -2938,7 +2955,7 @@ where
                         "assets": "disabled"
                     },
                     "egressPolicy": "deny-all-v1",
-                    "assetCustody": "refuse-asset-bearing-source",
+                    "assetCustody": fork_asset_custody(&destination),
                     "secrets": fork_secret_disposition(with_secrets, &database),
                     "automaticReap": {
                         "observedAtMs": created_at_ms,
@@ -3082,6 +3099,7 @@ where
                     "assets": "inert",
                 },
                 "egressPosture": "deny-all-v1",
+                "assetCustody": fork_asset_custody(&target.destination),
                 "diffSummary": diff_summary,
             });
             let envelope = fork_envelope_with_diagnostics(

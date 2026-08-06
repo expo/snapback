@@ -6,7 +6,16 @@
 experience, Developer experience, CLI, Documentation, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-03
-**Revised:** 2026-08-05 (LLP 0185 Phase 4 first slice: opt-in
+**Revised:** 2026-08-05 (LLP 0185 Phase 5: implemented OQ5's decided
+same-cut fork-private asset custody — durable asset metadata now copies with
+a digest- and length-verified private blob-tree copy taken from the staged
+metadata cut, in-flight attempts/work-ledger claims scrub, signing keys keep
+rotating; torn cuts (missing or digest-mismatched blobs) and unclassified
+stores/digest algorithms refuse before publication with
+`SNAPBACK_FORK_ASSET_CUT_INCOMPLETE` / `SNAPBACK_FORK_ASSET_CUT_UNSUPPORTED`;
+admission byte-accounts the blob tree; `assetCustody` reports
+`fork-private-same-cut` / `no-assets`. Live in-fork upload/GC proof and any
+shared/content-addressed store remain F2/hosted scope.); 2026-08-05 (LLP 0185 Phase 4 first slice: opt-in
 `--retain-base` retained post-mint base snapshot (digest-bound
 `snapback.fork-base.v1` evidence, byte-accounted at admission) and the exact
 net base-to-head receipt `snapback.fork-net-diff.v1` via `fork diff --net` —
@@ -930,7 +939,7 @@ historical spike and the remaining follow-ons:
 | `DenyAll` egress quarantine | **Built** — closed host-op classification plus manual cron/job, provider, maintenance, and telemetry guards; bounded payload-free markers; unknown future host ops refuse | `src/instance_fork.rs`, `src/local.rs`, `src/runtime.rs`, `src/server.rs`, `src/storage.rs`, `src/admin.rs` |
 | `CaptureOnly` effect capture | **Open shared follow-on** — 0097 ledger/keying and simulated-result mediation remain unwired for derived deployments | `src/branches.rs`; LLP 0097/0164 |
 | Identity scrub-and-mint | **Built** — transactional custody scrub, auth/data-stream rotation, fork stamp, fresh admin/auth/resume sidecars, negative credential corpus | `src/instance_fork.rs` |
-| Asset custody | **Decided and built as refusal** — any occupied refuse-class asset table returns `SNAPBACK_FORK_CUSTODY_REFUSED`; fork-private same-cut copy is additive work and shared-store indirection is F2 | `src/instance_fork.rs` |
+| Asset custody | **Built as same-cut fork-private copy** (2026-08-05) — the staged metadata cut enumerates its blobs, each copies digest-verified into the fork's own tree or publication refuses (no metadata-only success); attempts/work-ledger scrub, signing keys rotate; shared-store indirection stays F2 | `src/instance_fork.rs::copy_fork_private_assets` |
 | Fork registry, TTL, reaping | **Built** — advisory UUID registry, finite timestamps, exact drop, caller-clock deterministic reap, create-time automatic reap, boot/periodic server self-expiry, bounded intent-journaled renewal with a max-lifetime cap, per-fork cleanup locking, and stale-registry completion | `src/instance_fork.rs`, `src/cli.rs` |
 | Recovery and inspection | **Built** — exact-destination local-evidence recovery, bounded status/diff summary, process health, isolation posture, and JSON-first shell scalar overlays | `src/instance_fork.rs::recover`, `src/cli.rs::fork_command` |
 | Diff receipt | **Built** for attributed app-row journal entries with explicit coverage/omissions and same-snapshot floor/head/row capture; it refuses after a retention gap and is not an exact net diff | `src/instance_fork.rs::diff_receipt` |
@@ -1057,7 +1066,7 @@ outer fields. The fork-owned `data` shapes are:
 
 | Operation | Fork-owned `data` fields |
 | --- | --- |
-| `fork.create` | `receipt` (`ForkMintReceiptV1`), `registry` (`ForkRegistryEntryV1`), `database`, `readyFile`, `runtimeLog` (paths); `workerPolicy` with `cron`, `jobs`, and `assets`, each currently `"disabled"`; `egressPolicy: "deny-all-v1"`; `assetCustody: "refuse-asset-bearing-source"`; `secrets` = `"scrubbed"`, `"copied-explicitly"`, or `"copy-requested-source-absent"`; additive `automaticReap.{observedAtMs,reapedForkIds}` |
+| `fork.create` | `receipt` (`ForkMintReceiptV1`), `registry` (`ForkRegistryEntryV1`), `database`, `readyFile`, `runtimeLog` (paths); `workerPolicy` with `cron`, `jobs`, and `assets`, each currently `"disabled"`; `egressPolicy: "deny-all-v1"`; `assetCustody`: `"fork-private-same-cut"` or `"no-assets"` (2026-08-05; formerly the constant `"refuse-asset-bearing-source"`); `secrets` = `"scrubbed"`, `"copied-explicitly"`, or `"copy-requested-source-absent"`; additive `automaticReap.{observedAtMs,reapedForkIds}` |
 | `fork.list` | `forkRoot` path; `forks` array of registry entries, sorted by `lineage.forkId` |
 | `fork.inspect` | `status` with `schemaVersion: "snapback.fork-status.v1"`, lineage identity/fork point/expiry, `processHealth`, database/ready/admin-token paths, `secretDisposition`, inert `workerPosture`, `egressPosture: "deny-all-v1"`, and bounded `diffSummary` (`snapback.fork-diff-summary.v1`; counts/coverage/omissions, never full rows) |
 | `fork.diff` | `receipt` (`ForkDiffReceiptV1`); `writtenTo` path or `null` |

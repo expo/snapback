@@ -30,6 +30,8 @@ pub const SERVER_EXPIRED_CODE: &str = "SNAPBACK_FORK_SERVER_EXPIRED";
 pub const RESOURCE_LIMIT_REFUSED_CODE: &str = "SNAPBACK_FORK_RESOURCE_LIMIT_REFUSED";
 pub const RENEW_EXPIRED_CODE: &str = "SNAPBACK_FORK_RENEW_EXPIRED";
 pub const NET_DIFF_UNAVAILABLE_CODE: &str = "SNAPBACK_FORK_NET_DIFF_UNAVAILABLE";
+pub const ASSET_CUT_INCOMPLETE_CODE: &str = "SNAPBACK_FORK_ASSET_CUT_INCOMPLETE";
+pub const ASSET_CUT_UNSUPPORTED_CODE: &str = "SNAPBACK_FORK_ASSET_CUT_UNSUPPORTED";
 pub const DIFF_ORACLE_MISMATCH_CODE: &str = "SNAPBACK_FORK_DIFF_ORACLE_MISMATCH";
 
 /// Maximum total lifetime for a managed fork, binding creation through every
@@ -376,45 +378,51 @@ pub const TABLE_CUSTODY: &[CustodyRule] = &[
         name: "_snapback_job_push_grants_v1",
         disposition: CustodyDisposition::Copy,
     },
+    // Asset custody (LLP 0185 Phase 5, implementing LLP 0158 OQ5's decided
+    // posture): durable asset metadata copies together with a digest-verified
+    // fork-private blob-tree copy taken from the same consistent cut;
+    // in-flight upload attempts and work-ledger claims are parent-operational
+    // state and scrub; signing keys rotate so parent-signed URLs never
+    // validate in the fork.
     CustodyRule {
         name: "_snapback_asset_records_v1",
-        disposition: CustodyDisposition::Refuse,
+        disposition: CustodyDisposition::Copy,
     },
     CustodyRule {
         name: "_snapback_asset_attempts_v1",
-        disposition: CustodyDisposition::Refuse,
+        disposition: CustodyDisposition::Scrub,
     },
     CustodyRule {
         name: "_snapback_asset_blobs_v1",
-        disposition: CustodyDisposition::Refuse,
+        disposition: CustodyDisposition::Copy,
     },
     CustodyRule {
         name: "_snapback_asset_renditions_v1",
-        disposition: CustodyDisposition::Refuse,
+        disposition: CustodyDisposition::Copy,
     },
     CustodyRule {
         name: "_snapback_asset_reference_edges_v1",
-        disposition: CustodyDisposition::Refuse,
+        disposition: CustodyDisposition::Copy,
     },
     CustodyRule {
         name: "_snapback_asset_publications_v1",
-        disposition: CustodyDisposition::Refuse,
+        disposition: CustodyDisposition::Copy,
     },
     CustodyRule {
         name: "_snapback_asset_work_ledger_v1",
-        disposition: CustodyDisposition::Refuse,
+        disposition: CustodyDisposition::Scrub,
     },
     CustodyRule {
         name: "_snapback_asset_receipts_v1",
-        disposition: CustodyDisposition::Refuse,
+        disposition: CustodyDisposition::Copy,
     },
     CustodyRule {
         name: "_snapback_asset_intent_generations_v1",
-        disposition: CustodyDisposition::Refuse,
+        disposition: CustodyDisposition::Copy,
     },
     CustodyRule {
         name: "_snapback_asset_intent_artifacts_v1",
-        disposition: CustodyDisposition::Refuse,
+        disposition: CustodyDisposition::Copy,
     },
     CustodyRule {
         name: "_snapback_asset_signing_keys_v1",
@@ -422,7 +430,7 @@ pub const TABLE_CUSTODY: &[CustodyRule] = &[
     },
     CustodyRule {
         name: "_snapback_asset_seed_fixtures_v1",
-        disposition: CustodyDisposition::Refuse,
+        disposition: CustodyDisposition::Copy,
     },
     CustodyRule {
         name: "_snapback_seed_installations_v1",
@@ -562,6 +570,10 @@ pub const SIDECAR_CUSTODY: &[CustodyRule] = &[
     CustodyRule {
         name: "*.telemetry and SQLite companions",
         disposition: CustodyDisposition::Scrub,
+    },
+    CustodyRule {
+        name: "assets/blobs tree",
+        disposition: CustodyDisposition::Copy,
     },
     CustodyRule {
         name: "target reservations and ready capability siblings",
@@ -2248,7 +2260,14 @@ pub fn enforce_creation_limits(
         })));
     }
     let copies = if retain_base { 2 } else { 1 };
-    let estimated_fork_bytes = database_set_size(source_database)?.saturating_mul(copies);
+    let parent_assets = source_database
+        .parent()
+        .unwrap_or_else(|| Path::new("."))
+        .join("assets")
+        .join("blobs");
+    let estimated_fork_bytes = database_set_size(source_database)?
+        .saturating_mul(copies)
+        .saturating_add(directory_tree_bytes(&parent_assets)?);
     if estimated_fork_bytes > limits.max_fork_bytes {
         return Err(fork_error(
             RESOURCE_LIMIT_REFUSED_CODE,
@@ -2758,6 +2777,7 @@ fn publish_with_options(
         with_secrets,
         expires_at_ms,
     )?;
+    copy_fork_private_assets(source_database, &staging, &staging_database)?;
     if retain_base {
         retain_base_snapshot(&staging, &staging_database, &receipt, now_ms)?;
     }
@@ -2791,6 +2811,108 @@ fn publish_with_options(
     sync_directory(destination)?;
     maybe_cut(cut_at, PublicationCut::AfterPublishedDirectorySync)?;
     Ok(receipt)
+}
+
+/// Same-cut fork-private asset custody (LLP 0185 Phase 5). The staged
+/// database is the frozen metadata cut; every blob it names must copy into
+/// the fork's own assets tree, digest- and length-verified, or publication
+/// refuses — there is never a metadata-only success naming missing or
+/// parent-controlled blobs. Unknown stores and digest algorithms fail
+/// closed (the future-family rule applied to custody).
+fn copy_fork_private_assets(
+    source_database: &Path,
+    staging: &Path,
+    staging_database: &Path,
+) -> SnapbackResult<()> {
+    let conn = Connection::open(staging_database)?;
+    if !table_exists(&conn, "_snapback_asset_blobs_v1")? {
+        return Ok(());
+    }
+    let mut statement = conn.prepare(
+        "SELECT physical_key, store, digest_algorithm, digest, byte_length
+           FROM _snapback_asset_blobs_v1 ORDER BY physical_key",
+    )?;
+    let blobs = statement
+        .query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, String>(3)?,
+                row.get::<_, u64>(4)?,
+            ))
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
+    if blobs.is_empty() {
+        return Ok(());
+    }
+    let parent_blobs = source_database
+        .parent()
+        .unwrap_or_else(|| Path::new("."))
+        .join("assets")
+        .join("blobs");
+    let fork_blobs = staging.join("assets").join("blobs");
+    fs::create_dir_all(&fork_blobs)
+        .map_err(|error| io_error("create fork asset blob tree", error))?;
+    fs::create_dir_all(staging.join("assets").join("staging"))
+        .map_err(|error| io_error("create fork asset staging tree", error))?;
+    for (physical_key, store, digest_algorithm, digest, byte_length) in blobs {
+        if store != "local-fs" {
+            return Err(fork_error(
+                ASSET_CUT_UNSUPPORTED_CODE,
+                "only local-fs asset custody has a proven fork-private copy; other stores remain refusal-scope",
+            )
+            .with_details(json!({ "physicalKey": physical_key, "store": store })));
+        }
+        if digest_algorithm != "sha256" {
+            return Err(fork_error(
+                ASSET_CUT_UNSUPPORTED_CODE,
+                "unclassified asset digest algorithm fails closed",
+            )
+            .with_details(json!({
+                "physicalKey": physical_key,
+                "digestAlgorithm": digest_algorithm,
+            })));
+        }
+        validate_direct_child_name(&physical_key, "assetPhysicalKey")?;
+        let source_path = parent_blobs.join(&physical_key);
+        let bytes = match fs::read(&source_path) {
+            Ok(bytes) => bytes,
+            Err(error) if error.kind() == ErrorKind::NotFound => {
+                return Err(fork_error(
+                    ASSET_CUT_INCOMPLETE_CODE,
+                    "a blob named by the metadata cut is missing from the parent store; refusing a torn asset custody cut",
+                )
+                .with_details(json!({ "physicalKey": physical_key })));
+            }
+            Err(error) => return Err(io_error("read parent asset blob", error)),
+        };
+        let observed = {
+            use sha2::Digest as _;
+            let mut hasher = sha2::Sha256::new();
+            hasher.update(&bytes);
+            format!("{:x}", hasher.finalize())
+        };
+        if bytes.len() as u64 != byte_length || observed != digest {
+            return Err(fork_error(
+                ASSET_CUT_INCOMPLETE_CODE,
+                "a parent blob does not match the digest the metadata cut recorded; refusing a torn asset custody cut",
+            )
+            .with_details(json!({
+                "physicalKey": physical_key,
+                "expectedDigest": digest,
+                "observedDigest": observed,
+                "expectedBytes": byte_length,
+                "observedBytes": bytes.len(),
+            })));
+        }
+        let target = fork_blobs.join(&physical_key);
+        fs::write(&target, &bytes)
+            .map_err(|error| io_error("write fork asset blob", error))?;
+        sync_file(&target, "sync fork asset blob")?;
+    }
+    sync_directory(&fork_blobs)?;
+    Ok(())
 }
 
 /// Copy the freshly minted database as the fork's immutable base snapshot,
@@ -2967,7 +3089,7 @@ mod tests {
             TABLE_CUSTODY.len(),
             "table custody entries are unique"
         );
-        assert_eq!(SIDECAR_CUSTODY.len(), 8);
+        assert_eq!(SIDECAR_CUSTODY.len(), 9);
         assert_eq!(
             SIDECAR_CUSTODY
                 .iter()
@@ -2979,10 +3101,15 @@ mod tests {
         );
     }
 
-    #[test]
-    fn asset_bearing_source_refuses_until_private_tree_copy_exists() {
-        let directory = tempfile::tempdir().unwrap();
-        let source = source_database(directory.path());
+    fn blob_digest(bytes: &[u8]) -> String {
+        use sha2::Digest as _;
+        let mut hasher = sha2::Sha256::new();
+        hasher.update(bytes);
+        format!("{:x}", hasher.finalize())
+    }
+
+    fn asset_bearing_parent(directory: &Path, blob_bytes: &[u8]) -> PathBuf {
+        let source = source_database(directory);
         let conn = Connection::open(&source).unwrap();
         conn.execute(
             "INSERT INTO _snapback_asset_records_v1(
@@ -2992,20 +3119,108 @@ mod tests {
             [],
         )
         .unwrap();
+        conn.execute(
+            "INSERT INTO _snapback_asset_blobs_v1(
+               blob_id,app_id,store,physical_key,digest_algorithm,digest,
+               canonicalization_policy,byte_length,reference_count,record_json,updated_at_ms
+             ) VALUES('blob-a','app-a','local-fs','blob-a-key','sha256',?1,'none',?2,1,'{}',1)",
+            params![blob_digest(blob_bytes), blob_bytes.len() as u64],
+        )
+        .unwrap();
+        drop(conn);
+        let blobs = directory.join("assets").join("blobs");
+        fs::create_dir_all(&blobs).unwrap();
+        fs::write(blobs.join("blob-a-key"), blob_bytes).unwrap();
+        source
+    }
+
+    #[test]
+    fn asset_bearing_source_forks_with_same_cut_private_custody() {
+        let directory = tempfile::tempdir().unwrap();
+        let bytes = b"asset bytes under fork custody";
+        let source = asset_bearing_parent(directory.path(), bytes);
+        let destination = directory.path().join("fork");
+        publish(&source, &destination, "app-a", "parent-a", 42, None).unwrap();
+
+        let fork_blob = destination.join("assets").join("blobs").join("blob-a-key");
+        assert_eq!(fs::read(&fork_blob).unwrap(), bytes, "byte-identical private copy");
+        let conn = Connection::open(destination.join("app.sqlite3")).unwrap();
+        assert_eq!(
+            conn.query_row("SELECT COUNT(*) FROM _snapback_asset_blobs_v1", [], |row| row
+                .get::<_, u64>(0))
+                .unwrap(),
+            1,
+            "the metadata cut copies with its blobs"
+        );
+        drop(conn);
+
+        // Custody independence both ways: deleting the parent blob leaves the
+        // fork's copy intact, and rewriting the fork's copy never touches the
+        // parent store.
+        let parent_blob = directory.path().join("assets").join("blobs").join("blob-a-key");
+        fs::remove_file(&parent_blob).unwrap();
+        assert_eq!(fs::read(&fork_blob).unwrap(), bytes);
+        fs::write(&fork_blob, b"fork-local rewrite").unwrap();
+        assert!(!parent_blob.exists());
+    }
+
+    #[test]
+    fn torn_or_unclassified_asset_cuts_refuse_before_publication() {
+        // A blob the metadata names but the parent store lost: refuse, and
+        // recovery leaves no staging residue or bootable half-fork.
+        let missing = tempfile::tempdir().unwrap();
+        let source = asset_bearing_parent(missing.path(), b"gone");
+        fs::remove_file(missing.path().join("assets/blobs/blob-a-key")).unwrap();
+        let destination = missing.path().join("fork");
+        let error = publish(&source, &destination, "app-a", "parent-a", 42, None).unwrap_err();
+        assert_eq!(error.diagnostic.code, ASSET_CUT_INCOMPLETE_CODE);
+        assert_eq!(error.diagnostic.details["physicalKey"], "blob-a-key");
+        recover(missing.path(), &destination).unwrap();
+        assert!(!destination.exists(), "no metadata-only fork survives");
+
+        // Bytes that no longer match the recorded digest: refuse with both
+        // digests named.
+        let tampered = tempfile::tempdir().unwrap();
+        let source = asset_bearing_parent(tampered.path(), b"original bytes");
+        fs::write(
+            tampered.path().join("assets/blobs/blob-a-key"),
+            b"tampered bytes!",
+        )
+        .unwrap();
         let error = publish(
             &source,
-            &directory.path().join("fork"),
+            &tampered.path().join("fork"),
             "app-a",
             "parent-a",
             42,
             None,
         )
         .unwrap_err();
-        assert_eq!(error.diagnostic.code, "SNAPBACK_FORK_CUSTODY_REFUSED");
-        assert_eq!(
-            error.diagnostic.details["table"],
-            "_snapback_asset_records_v1"
-        );
+        assert_eq!(error.diagnostic.code, ASSET_CUT_INCOMPLETE_CODE);
+        assert!(error.diagnostic.details["observedDigest"].is_string());
+
+        // Unknown store and unknown digest algorithm both fail closed.
+        for (column, value) in [("store", "s3-compatible"), ("digest_algorithm", "blake3")] {
+            let unknown = tempfile::tempdir().unwrap();
+            let source = asset_bearing_parent(unknown.path(), b"payload");
+            let conn = Connection::open(&source).unwrap();
+            conn.execute(
+                &format!("UPDATE _snapback_asset_blobs_v1 SET {column}=?1"),
+                [value],
+            )
+            .unwrap();
+            drop(conn);
+            let error = publish(
+                &source,
+                &unknown.path().join("fork"),
+                "app-a",
+                "parent-a",
+                42,
+                None,
+            )
+            .unwrap_err();
+            assert_eq!(error.diagnostic.code, ASSET_CUT_UNSUPPORTED_CODE, "{column}");
+        }
     }
 
     #[test]

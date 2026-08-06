@@ -83,6 +83,15 @@ and none of this closes a row on its own.
   schema divergence, sibling no-op fork, tampered base. Open Phase 4 tail:
   filters, pagination/streaming, human projection, LLP 0163 attribution,
   and LLP 0165's authorizer-backed completeness upgrade.
+- **Asset custody (LLP 0185 Phase 5, 2026-08-05):** same-cut fork-private
+  blob custody is implemented and negative-tested — byte-identical
+  digest-verified copies, custody independence both directions, torn-cut
+  refusal (missing blob, digest mismatch) with recovery leaving no
+  metadata-only fork, and unclassified store/digest algorithms failing
+  closed. Open legs: live in-fork upload/deletion/GC proof through the
+  full upload machinery, and platform copy-behavior measurement beyond the
+  dev host; shared/content-addressed custody stays F2/hosted per LLP 0158
+  OQ5.
 - **Row 8 (resource containment):** create admission (fork-count, per-fork
   bytes, total bytes), diff-work bound, and renewal max-lifetime cap all
   refuse deterministically with observed usage
