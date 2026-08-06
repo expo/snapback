@@ -10,7 +10,9 @@
     "provider-bindings.d.ts",
     "contract-data.manifest.json",
     "app.descriptor.json",
+    "app.descriptor.9d659c17a1bb688bc5ec59cc7e95380667eeb96e56aa385b39d2ce81128d01a5.json",
     "app.binding.mjs",
+    "app.binding.1e9ed4d4a0875ad30b2d508ae7cf33d1862a8566b24fd1351b79b939465d73b6.mjs",
     "app.mjs",
     "app.d.ts",
     "api.mjs",
@@ -95,7 +97,7 @@
   "cronJobs": [],
   "custody": {
     "consumer-committed": 0,
-    "regenerable-cache": 82,
+    "regenerable-cache": 84,
     "review-manifest": 1
   },
   "ephemeralCollections": [
@@ -127,7 +129,7 @@
       "sha256": "sha256:077faf2141f9e5d18090f2b49c919820d78a2b51d6dc49c504afa115cc7eb94d"
     },
     {
-      "bytes": 1565,
+      "bytes": 1547,
       "consumer": "client-bundler",
       "custody": "regenerable-cache",
       "logicalKind": "typed-api",
@@ -136,10 +138,22 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:05cabb30419e1a426629cd3f6dbd96815f31b65407ca6dfaa04c2bccb414fbf0"
+      "sha256": "sha256:6688c1b798365b233cb95be51720c08c3576832c79918ef7caf16cc3bb8ee1ab"
     },
     {
-      "bytes": 2212,
+      "bytes": 2203,
+      "consumer": "client-bundler",
+      "custody": "regenerable-cache",
+      "logicalKind": "typed-app-descriptor",
+      "path": "app.binding.1e9ed4d4a0875ad30b2d508ae7cf33d1862a8566b24fd1351b79b939465d73b6.mjs",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:679af1f2aa5b5fe465b300649c3c1873b67feda5d86e969b7d6bfb9c461ecd04"
+    },
+    {
+      "bytes": 680,
       "consumer": "client-bundler",
       "custody": "regenerable-cache",
       "logicalKind": "typed-app-descriptor",
@@ -148,7 +162,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:bb2465ad2d8d12c6611c650db3766971206784a28f9d1ca59e09e984c9d1e966"
+      "sha256": "sha256:d85e99ab12cc6fcb04b6836cdb2c779a2d6e23b0b2fbae1763b6eec0f3df2a55"
     },
     {
       "bytes": 3640,
@@ -164,6 +178,18 @@
     },
     {
       "bytes": 72396,
+      "consumer": "client-bundler",
+      "custody": "regenerable-cache",
+      "logicalKind": "app-descriptor",
+      "path": "app.descriptor.9d659c17a1bb688bc5ec59cc7e95380667eeb96e56aa385b39d2ce81128d01a5.json",
+      "regeneration": {
+        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
+        "rule": "complete-inputs-hash"
+      },
+      "sha256": "sha256:ec87b6a6d2b8ebfa81a5aff297c423b75933eb2dd5e2c0aa54dc62bc7cd0d0d5"
+    },
+    {
+      "bytes": 72396,
       "consumer": "inspection",
       "custody": "regenerable-cache",
       "logicalKind": "app-descriptor",
@@ -175,7 +201,7 @@
       "sha256": "sha256:ec87b6a6d2b8ebfa81a5aff297c423b75933eb2dd5e2c0aa54dc62bc7cd0d0d5"
     },
     {
-      "bytes": 613,
+      "bytes": 595,
       "consumer": "client-bundler",
       "custody": "regenerable-cache",
       "logicalKind": "typed-app-descriptor",
@@ -184,7 +210,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:96fc6df98890e2565a4c091209f0251ffab9270e4bb0cb5f7f415abcc2419a98"
+      "sha256": "sha256:ba5409ce7802ae40fd16a0ee3c2fa6fd212b662034d6409915286a6f93790e62"
     },
     {
       "bytes": 14904,
@@ -1209,12 +1235,13 @@
     "counts": {
       "custody": {
         "consumerCommitted": 0,
-        "regenerableCache": 82,
+        "regenerableCache": 84,
         "reviewManifest": 1,
-        "total": 83
+        "total": 85
       },
       "degradedResults": 0,
       "ephemeralCollections": 1,
+      "implicitAuthRequirements": 13,
       "operations": {
         "action": 0,
         "live": 10,
@@ -1225,9 +1252,219 @@
       },
       "seedRows": 10,
       "tables": 4,
-      "warnings": 0
+      "warnings": 13
     },
     "degradedResults": [],
+    "implicitAuthRequirements": [
+      {
+        "allowed": [
+          "public",
+          "optional-user",
+          "authenticated"
+        ],
+        "code": "SNAPBACK_AUTH_REQUIREMENT_IMPLICIT",
+        "effectiveLegacyRequirement": "optional-user",
+        "guideAnchor": "guide/auth/sessions-and-principals.md#choose-each-functions-auth-requirement",
+        "operation": "addComment",
+        "source": {
+          "column": 14,
+          "line": 417,
+          "path": "functions.mjs"
+        }
+      },
+      {
+        "allowed": [
+          "public",
+          "optional-user",
+          "authenticated"
+        ],
+        "code": "SNAPBACK_AUTH_REQUIREMENT_IMPLICIT",
+        "effectiveLegacyRequirement": "optional-user",
+        "guideAnchor": "guide/auth/sessions-and-principals.md#choose-each-functions-auth-requirement",
+        "operation": "addTask",
+        "source": {
+          "column": 14,
+          "line": 193,
+          "path": "functions.mjs"
+        }
+      },
+      {
+        "allowed": [
+          "public",
+          "optional-user",
+          "authenticated"
+        ],
+        "code": "SNAPBACK_AUTH_REQUIREMENT_IMPLICIT",
+        "effectiveLegacyRequirement": "optional-user",
+        "guideAnchor": "guide/auth/sessions-and-principals.md#choose-each-functions-auth-requirement",
+        "operation": "allActivity",
+        "source": {
+          "column": 14,
+          "line": 148,
+          "path": "functions.mjs"
+        }
+      },
+      {
+        "allowed": [
+          "public",
+          "optional-user",
+          "authenticated"
+        ],
+        "code": "SNAPBACK_AUTH_REQUIREMENT_IMPLICIT",
+        "effectiveLegacyRequirement": "optional-user",
+        "guideAnchor": "guide/auth/sessions-and-principals.md#choose-each-functions-auth-requirement",
+        "operation": "allComments",
+        "source": {
+          "column": 14,
+          "line": 147,
+          "path": "functions.mjs"
+        }
+      },
+      {
+        "allowed": [
+          "public",
+          "optional-user",
+          "authenticated"
+        ],
+        "code": "SNAPBACK_AUTH_REQUIREMENT_IMPLICIT",
+        "effectiveLegacyRequirement": "optional-user",
+        "guideAnchor": "guide/auth/sessions-and-principals.md#choose-each-functions-auth-requirement",
+        "operation": "allTasks",
+        "source": {
+          "column": 14,
+          "line": 146,
+          "path": "functions.mjs"
+        }
+      },
+      {
+        "allowed": [
+          "public",
+          "optional-user",
+          "authenticated"
+        ],
+        "code": "SNAPBACK_AUTH_REQUIREMENT_IMPLICIT",
+        "effectiveLegacyRequirement": "optional-user",
+        "guideAnchor": "guide/auth/sessions-and-principals.md#choose-each-functions-auth-requirement",
+        "operation": "createIncident",
+        "source": {
+          "column": 14,
+          "line": 150,
+          "path": "functions.mjs"
+        }
+      },
+      {
+        "allowed": [
+          "public",
+          "optional-user",
+          "authenticated"
+        ],
+        "code": "SNAPBACK_AUTH_REQUIREMENT_IMPLICIT",
+        "effectiveLegacyRequirement": "optional-user",
+        "guideAnchor": "guide/auth/sessions-and-principals.md#choose-each-functions-auth-requirement",
+        "operation": "generateBrief",
+        "source": {
+          "column": 14,
+          "line": 499,
+          "path": "functions.mjs"
+        }
+      },
+      {
+        "allowed": [
+          "public",
+          "optional-user",
+          "authenticated"
+        ],
+        "code": "SNAPBACK_AUTH_REQUIREMENT_IMPLICIT",
+        "effectiveLegacyRequirement": "optional-user",
+        "guideAnchor": "guide/auth/sessions-and-principals.md#choose-each-functions-auth-requirement",
+        "operation": "listActivity",
+        "source": {
+          "column": 14,
+          "line": 61,
+          "path": "functions.mjs"
+        }
+      },
+      {
+        "allowed": [
+          "public",
+          "optional-user",
+          "authenticated"
+        ],
+        "code": "SNAPBACK_AUTH_REQUIREMENT_IMPLICIT",
+        "effectiveLegacyRequirement": "optional-user",
+        "guideAnchor": "guide/auth/sessions-and-principals.md#choose-each-functions-auth-requirement",
+        "operation": "listComments",
+        "source": {
+          "column": 14,
+          "line": 53,
+          "path": "functions.mjs"
+        }
+      },
+      {
+        "allowed": [
+          "public",
+          "optional-user",
+          "authenticated"
+        ],
+        "code": "SNAPBACK_AUTH_REQUIREMENT_IMPLICIT",
+        "effectiveLegacyRequirement": "optional-user",
+        "guideAnchor": "guide/auth/sessions-and-principals.md#choose-each-functions-auth-requirement",
+        "operation": "listIncidents",
+        "source": {
+          "column": 14,
+          "line": 38,
+          "path": "functions.mjs"
+        }
+      },
+      {
+        "allowed": [
+          "public",
+          "optional-user",
+          "authenticated"
+        ],
+        "code": "SNAPBACK_AUTH_REQUIREMENT_IMPLICIT",
+        "effectiveLegacyRequirement": "optional-user",
+        "guideAnchor": "guide/auth/sessions-and-principals.md#choose-each-functions-auth-requirement",
+        "operation": "listTasks",
+        "source": {
+          "column": 14,
+          "line": 45,
+          "path": "functions.mjs"
+        }
+      },
+      {
+        "allowed": [
+          "public",
+          "optional-user",
+          "authenticated"
+        ],
+        "code": "SNAPBACK_AUTH_REQUIREMENT_IMPLICIT",
+        "effectiveLegacyRequirement": "optional-user",
+        "guideAnchor": "guide/auth/sessions-and-principals.md#choose-each-functions-auth-requirement",
+        "operation": "setStatus",
+        "source": {
+          "column": 14,
+          "line": 455,
+          "path": "functions.mjs"
+        }
+      },
+      {
+        "allowed": [
+          "public",
+          "optional-user",
+          "authenticated"
+        ],
+        "code": "SNAPBACK_AUTH_REQUIREMENT_IMPLICIT",
+        "effectiveLegacyRequirement": "optional-user",
+        "guideAnchor": "guide/auth/sessions-and-principals.md#choose-each-functions-auth-requirement",
+        "operation": "toggleTask",
+        "source": {
+          "column": 14,
+          "line": 382,
+          "path": "functions.mjs"
+        }
+      }
+    ],
     "inputsHash": "snapback.v1:sessions:inputs:sha256:92548958da88265e942fa3bd4aee3e50960548dee903ff816f46401fa11ad0ce",
     "schemaVersion": "snapback.codegen-summary.v1",
     "seed": {

@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "d44da2a9a183086b52378a00caf14b85739d665e"
+    "commit": "692e013e9e1c192d092b3f262b392c339ef8663b"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -530,6 +530,8 @@
         "llp/0057-auth-provider-protocol.spec.md",
         "llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md",
         "llp/0059-session-projection-and-client-barrier.spec.md",
+        "llp/0172-explicit-function-authorization.rfc.md",
+        "packages/snapback-codegen/index.mjs",
         "src/auth/mode.rs",
         "packages/snapback-client/index.mjs",
         "demos/card-game/snapback/functions.mjs",
@@ -540,7 +542,7 @@
       ],
       "reviewed": "2026-08-03",
       "reviewedCommit": "c442237dedd412d1fe66a85c7a0ed463eba1e013",
-      "sha256": "b39aa5f9de694190e59e95745e6bb2ffa435e5b43bb1abfd4d09eab063585924",
+      "sha256": "883b7d6f51e46a019bfcb65c2ce6477e9be02fed7bb008e4a3ba4912c959b919",
       "snippets": [
         {
           "lang": "js",
@@ -3178,5 +3180,5 @@
     "routes": 117,
     "hostOps": 37
   },
-  "contentHash": "46c3e477793c2f42827ea34db2293121d4bf95b5f3be8a22e5193eb8abd4123e"
+  "contentHash": "3414742859355b52a0371bc4c2da9f4333cb20320afce54b62ee27d580ca2b86"
 }

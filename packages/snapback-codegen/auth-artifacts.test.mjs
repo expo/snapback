@@ -6,6 +6,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import {
   computeArtifactIdentityStrings,
+  formatCodegenSummary,
   generate,
   targetArtifactAuthProblems,
 } from './index.mjs';
@@ -47,6 +48,22 @@ export const listTodos = defineLiveQuery({
 export const createTodo = defineMutation({
   auth: 'authenticated',
   plan: insert('todos', { title: lit('created') }),
+});
+`;
+const omittedAuthFunctions = `
+import { defineAction, defineMutation, insert, lit } from '${defineUrl}';
+export const omittedPlan = defineMutation({
+  plan: insert('todos', { title: lit('implicit plan') }),
+});
+export const omittedJavaScript = defineAction({
+  args: {},
+  writes: [],
+  js: { source: 'omitted-handler.mjs', exportName: 'omittedJavaScript' },
+});
+export const omittedTypeScript = defineAction({
+  args: {},
+  writes: [],
+  js: { source: 'omitted-handler.ts', exportName: 'omittedTypeScript' },
 });
 `;
 
@@ -155,6 +172,71 @@ assert.throws(
   });
   assert.equal(contract.schemaVersion, 'snapback.v1');
   assert.equal(artifacts.schemaVersion, 'snapback.v1');
+  assert.equal(
+    result.diagnostics.some(({ code }) => code === 'SNAPBACK_AUTH_REQUIREMENT_IMPLICIT'),
+    false,
+    'every explicit sessions requirement suppresses the compatibility advisory',
+  );
+  assert.deepEqual(result.summary.implicitAuthRequirements, []);
+}
+
+// @ref LLP 0172#3-compatibility-phases — Phase W preserves the legacy
+// optional-user result while making each sessions-mode omission visible.
+// JavaScript and TypeScript handler bodies share the same function-definition
+// diagnostic because auth belongs to the generated operation, not its body.
+{
+  const dir = backend(sessionsSchema, omittedAuthFunctions);
+  writeFileSync(
+    join(dir, 'omitted-handler.mjs'),
+    'globalThis.__snapbackHandlers = { async omittedJavaScript() { return null; } };\n',
+  );
+  writeFileSync(
+    join(dir, 'omitted-handler.ts'),
+    'globalThis.__snapbackHandlers = { async omittedTypeScript(): Promise<null> { return null; } };\n',
+  );
+  const result = await generate(dir);
+  assert.equal(result.ok, true, JSON.stringify(result.diagnostics));
+  const warnings = result.diagnostics.filter(
+    ({ code }) => code === 'SNAPBACK_AUTH_REQUIREMENT_IMPLICIT',
+  );
+  assert.deepEqual(
+    warnings.map(({ function: functionName }) => functionName).sort(),
+    ['omittedJavaScript', 'omittedPlan', 'omittedTypeScript'],
+  );
+  for (const warning of warnings) {
+    assert.equal(warning.severity, 'warning');
+    assert.equal(warning.subsystem, 'auth');
+    assert.equal(warning.details.function, warning.function);
+    assert.equal(warning.details.authMode, 'sessions');
+    assert.equal(warning.details.effectiveLegacyRequirement, 'optional-user');
+    assert.deepEqual(warning.details.allowed, ['public', 'optional-user', 'authenticated']);
+    assert.match(warning.message, /sessions-mode functions must explicitly set auth/u);
+    assert.match(warning.message, /auth: 'public'.*auth: 'optional-user'.*auth: 'authenticated'/u);
+    assert.match(warning.message, /guide\/auth\/sessions-and-principals\.md#choose-each-functions-auth-requirement/u);
+    assert.equal(warning.sourceSpan.file, 'functions.mjs');
+    assert(warning.sourceSpan.line > 0);
+    assert.deepEqual(
+      warning.details.remediations.map(({ requirement }) => requirement),
+      ['public', 'optional-user', 'authenticated'],
+    );
+    assert(warning.details.remediations.every((remediation) => (
+      remediation.kind === 'setFunctionAuthRequirement'
+      && remediation.riskClass === 'policy'
+      && remediation.machineApplicable === false
+      && remediation.requiresApproval === true
+      && remediation.precondition.function === warning.function
+      && remediation.precondition.authMode === 'sessions'
+      && remediation.precondition.authoredRequirement === 'omitted'
+    )));
+  }
+  const functions = readJson(join(dir, 'generated', 'functions.manifest.json'));
+  assert(functions.functions.every(({ authRequirement }) => authRequirement === 'optional-user'));
+  assert.equal(result.summary.counts.implicitAuthRequirements, 3);
+  assert.deepEqual(
+    result.summary.implicitAuthRequirements.map(({ operation }) => operation),
+    ['omittedJavaScript', 'omittedPlan', 'omittedTypeScript'],
+  );
+  assert.match(formatCodegenSummary(result.summary), /auth omittedPlan: functions\.mjs:/u);
 }
 
 {
@@ -170,6 +252,25 @@ assert.throws(
   assert.doesNotMatch(schema.schemaHash, /snapback\.v1:/);
   assert.doesNotMatch(functions.bundleHash, /snapback\.v1:/);
   assert.doesNotMatch(schema.inputsHash, /snapback\.v1:/);
+}
+
+{
+  const dir = backend(devSchema, `
+import { defineMutation, insert, lit } from '${defineUrl}';
+export const omittedInDev = defineMutation({
+  plan: insert('todos', { title: lit('trusted local') }),
+});
+`);
+  const result = await generate(dir);
+  assert.equal(result.ok, true, JSON.stringify(result.diagnostics));
+  assert.equal(
+    result.diagnostics.some(({ code }) => code === 'SNAPBACK_AUTH_REQUIREMENT_IMPLICIT'),
+    false,
+    'dev mode is the documented compatibility suppression context',
+  );
+  assert.deepEqual(result.summary.implicitAuthRequirements, []);
+  const functions = readJson(join(dir, 'generated', 'functions.manifest.json'));
+  assert.equal(functions.functions[0].authRequirement, 'optional-user');
 }
 
 {

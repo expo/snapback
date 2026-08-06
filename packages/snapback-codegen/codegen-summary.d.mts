@@ -33,6 +33,15 @@ export interface DegradedResultEntry {
   readonly remediation: string;
 }
 
+export interface ImplicitAuthRequirementEntry {
+  readonly code: 'SNAPBACK_AUTH_REQUIREMENT_IMPLICIT';
+  readonly operation: string;
+  readonly source: CodegenSourceSpan;
+  readonly effectiveLegacyRequirement: 'optional-user';
+  readonly allowed: readonly ['public', 'optional-user', 'authenticated'];
+  readonly guideAnchor: string;
+}
+
 export interface CodegenSummary {
   readonly schemaVersion: 'snapback.codegen-summary.v1';
   readonly appId: string;
@@ -55,9 +64,11 @@ export interface CodegenSummary {
       total: number;
     }>;
     warnings: number;
+    implicitAuthRequirements: number;
     degradedResults: number;
     seedRows?: number | null;
   }>;
+  readonly implicitAuthRequirements: readonly ImplicitAuthRequirementEntry[];
   readonly degradedResults: readonly DegradedResultEntry[];
   readonly seed?: Readonly<{ version: string; digest: `sha256:${string}`; rows: number | null }>;
 }
