@@ -188,7 +188,7 @@ export function buildAppDataCatalog(backendRoot) {
   };
 }
 
-const CONTROL_TOOLS = [
+export const CONTROL_TOOLS = [
   {
     name: 'snapback_start',
     operation: 'host.start',

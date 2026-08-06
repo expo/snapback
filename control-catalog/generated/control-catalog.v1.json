@@ -1,0 +1,4479 @@
+{
+  "schemaVersion": "snapback.control-catalog.v1",
+  "catalogDigest": "sha256:919b2ba9fea2c3edb02f8311352a2d61c9e2ef07240a9b19b66947735b5a6736",
+  "buildIdentity": {
+    "sourceCommit": "bc65b59006140016131764c4b9650942c6bdd7d7",
+    "dirty": true
+  },
+  "generatedAtCommit": "bc65b59006140016131764c4b9650942c6bdd7d7",
+  "entries": [
+    {
+      "operation": "acceptance.run",
+      "title": "Run the local acceptance suite (unbuilt)",
+      "intents": [],
+      "status": "unbuilt",
+      "domain": "hostOps",
+      "surfaceAccess": "mcpOnly",
+      "operability": "unavailable",
+      "unavailableReason": {
+        "owner": "llp/0024-agent-operating-surface",
+        "ticketOrDesignPointer": "llp/0024-agent-operating-surface.spec.md",
+        "note": "The shipped, exposed-but-unbuilt MCP tool (snapback_acceptance_run) returns SNAPBACK_HOST_OP_UNIMPLEMENTED. Supported, LLP 0024-pinned future operation — not internal."
+      },
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "None",
+        "routePolicy": "AdminWrite",
+        "effect": "None",
+        "responseSensitivity": "SensitiveApplicationData"
+      },
+      "behavior": {
+        "readOnly": true,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": null,
+        "mcp": "snapback_acceptance_run",
+        "hostOps": "acceptance.run",
+        "http": "POST /_snapback/api/host-ops",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0024-agent-operating-surface"
+      ],
+      "sources": [
+        "src/host_ops.rs",
+        "packages/snapback-cli/mcp-control.mjs"
+      ],
+      "cliDeferralReason": "Not yet classified."
+    },
+    {
+      "operation": "admin.link.exchange",
+      "title": "admin.link.exchange",
+      "intents": [],
+      "status": "shipped",
+      "domain": "systemApi",
+      "surfaceAccess": "cliOnly",
+      "operability": "mediated",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "routePolicy": "AdminRead",
+        "effect": "None",
+        "responseSensitivity": "CredentialSecret"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": true
+      },
+      "projections": {
+        "cli": "snapback admin link",
+        "mcp": null,
+        "hostOps": null,
+        "http": "POST /_snapback/api/console/claim/exchange",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0031-server-route-taxonomy"
+      ],
+      "sources": [
+        "src/server.rs route_registry()"
+      ],
+      "mcpDeferralReason": "See admin.link.mint."
+    },
+    {
+      "operation": "admin.link.mint",
+      "title": "admin.link.mint",
+      "intents": [],
+      "status": "shipped",
+      "domain": "systemApi",
+      "surfaceAccess": "cliOnly",
+      "operability": "mediated",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "routePolicy": "AdminWrite",
+        "effect": "None",
+        "responseSensitivity": "CredentialSecret"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": true
+      },
+      "projections": {
+        "cli": "snapback admin link",
+        "mcp": null,
+        "hostOps": null,
+        "http": "POST /_snapback/api/console/claim",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0031-server-route-taxonomy"
+      ],
+      "sources": [
+        "src/server.rs route_registry()"
+      ],
+      "mcpDeferralReason": "No MCP tool yet; a one-time operator claim link is a human-redemption artifact (LLP 0184 §Product contract's cliOnly/mediated worked example)."
+    },
+    {
+      "operation": "admin.link.revoke",
+      "title": "admin.link.revoke",
+      "intents": [],
+      "status": "shipped",
+      "domain": "systemApi",
+      "surfaceAccess": "cliOnly",
+      "operability": "mediated",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "routePolicy": "AdminWrite",
+        "effect": "None",
+        "responseSensitivity": "CredentialSecret"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": true
+      },
+      "projections": {
+        "cli": "snapback admin link --revoke <claim>",
+        "mcp": null,
+        "hostOps": null,
+        "http": "POST /_snapback/api/console/claim/revoke",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0031-server-route-taxonomy"
+      ],
+      "sources": [
+        "src/server.rs route_registry()"
+      ],
+      "mcpDeferralReason": "See admin.link.mint."
+    },
+    {
+      "operation": "admin.link.status",
+      "title": "admin.link.status",
+      "intents": [],
+      "status": "shipped",
+      "domain": "systemApi",
+      "surfaceAccess": "cliOnly",
+      "operability": "mediated",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "routePolicy": "AdminWrite",
+        "effect": "None",
+        "responseSensitivity": "CredentialSecret"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": true
+      },
+      "projections": {
+        "cli": "snapback admin link --status <claim>",
+        "mcp": null,
+        "hostOps": null,
+        "http": "POST /_snapback/api/console/claim/status",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0031-server-route-taxonomy"
+      ],
+      "sources": [
+        "src/server.rs route_registry()"
+      ],
+      "mcpDeferralReason": "See admin.link.mint."
+    },
+    {
+      "operation": "app.ensure.provision",
+      "title": "app.ensure.provision",
+      "intents": [],
+      "status": "shipped",
+      "domain": "appEnsureProvisionException",
+      "surfaceAccess": "apiOnly",
+      "operability": "direct",
+      "mcpDeferralReason": "Not yet classified.",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "routePolicy": "AdminWrite",
+        "effect": "Provisioning",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": true
+      },
+      "projections": {
+        "cli": null,
+        "mcp": null,
+        "hostOps": null,
+        "http": "POST /app/ensure",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0031-server-route-taxonomy"
+      ],
+      "sources": [
+        "src/server.rs operation_registry()"
+      ]
+    },
+    {
+      "operation": "app.inspect",
+      "title": "Inspect the running app",
+      "intents": [],
+      "status": "shipped",
+      "domain": "hostOps",
+      "surfaceAccess": "native",
+      "operability": "direct",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "None",
+        "routePolicy": "AdminWrite",
+        "effect": "None",
+        "responseSensitivity": "SensitiveApplicationData"
+      },
+      "behavior": {
+        "readOnly": true,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": "snapback host inspect",
+        "mcp": "snapback_inspect",
+        "hostOps": "app.inspect",
+        "http": "POST /_snapback/api/host-ops",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": "operating/host-ops.md",
+      "authorities": [
+        "llp/0024-agent-operating-surface"
+      ],
+      "sources": [
+        "src/host_ops.rs",
+        "packages/snapback-cli/mcp-control.mjs"
+      ]
+    },
+    {
+      "operation": "app.reset",
+      "title": "Reset local app state",
+      "intents": [],
+      "status": "shipped",
+      "domain": "hostOps",
+      "surfaceAccess": "native",
+      "operability": "direct",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted",
+          "primary-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "None",
+        "routePolicy": "AdminWrite",
+        "effect": "None",
+        "responseSensitivity": "SensitiveApplicationData",
+        "projectionCredentials": {
+          "hostedAdapter": "AdminWrite (POST /_snapback/api/app/reset)"
+        }
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": true,
+        "approvalPosture": "confirmFirst",
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": "snapback host reset",
+        "mcp": "snapback_reset",
+        "hostOps": "app.reset",
+        "http": "POST /_snapback/api/host-ops",
+        "adminClient": null,
+        "console": null,
+        "hostedAdapter": "app.reset"
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0024-agent-operating-surface"
+      ],
+      "sources": [
+        "src/host_ops.rs",
+        "packages/snapback-cli/mcp-control.mjs",
+        "cloudflare/src/gateway.js:172"
+      ]
+    },
+    {
+      "operation": "app.seed.clear.v1",
+      "title": "app.seed.clear.v1",
+      "intents": [],
+      "status": "shipped",
+      "domain": "hostOps",
+      "surfaceAccess": "apiOnly",
+      "operability": "direct",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "None",
+        "routePolicy": "AdminWrite",
+        "effect": "None",
+        "responseSensitivity": "SensitiveApplicationData"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": null,
+        "mcp": null,
+        "hostOps": "app.seed.clear.v1",
+        "http": "POST /_snapback/api/host-ops",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0024-agent-operating-surface"
+      ],
+      "sources": [
+        "src/host_ops.rs",
+        "packages/snapback-cli/mcp-control.mjs"
+      ]
+    },
+    {
+      "operation": "app.seed.ensure.v1",
+      "title": "app.seed.ensure.v1",
+      "intents": [],
+      "status": "shipped",
+      "domain": "hostOps",
+      "surfaceAccess": "apiOnly",
+      "operability": "direct",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "None",
+        "routePolicy": "AdminWrite",
+        "effect": "None",
+        "responseSensitivity": "SensitiveApplicationData"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": null,
+        "mcp": null,
+        "hostOps": "app.seed.ensure.v1",
+        "http": "POST /_snapback/api/host-ops",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0024-agent-operating-surface"
+      ],
+      "sources": [
+        "src/host_ops.rs",
+        "packages/snapback-cli/mcp-control.mjs"
+      ]
+    },
+    {
+      "operation": "app.seed.preview.v1",
+      "title": "app.seed.preview.v1",
+      "intents": [],
+      "status": "shipped",
+      "domain": "hostOps",
+      "surfaceAccess": "apiOnly",
+      "operability": "direct",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "None",
+        "routePolicy": "AdminWrite",
+        "effect": "None",
+        "responseSensitivity": "SensitiveApplicationData"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": null,
+        "mcp": null,
+        "hostOps": "app.seed.preview.v1",
+        "http": "POST /_snapback/api/host-ops",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0024-agent-operating-surface"
+      ],
+      "sources": [
+        "src/host_ops.rs",
+        "packages/snapback-cli/mcp-control.mjs"
+      ]
+    },
+    {
+      "operation": "app.seed.reset-install.v1",
+      "title": "app.seed.reset-install.v1",
+      "intents": [],
+      "status": "shipped",
+      "domain": "hostOps",
+      "surfaceAccess": "apiOnly",
+      "operability": "direct",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "None",
+        "routePolicy": "AdminWrite",
+        "effect": "None",
+        "responseSensitivity": "SensitiveApplicationData"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": null,
+        "mcp": null,
+        "hostOps": "app.seed.reset-install.v1",
+        "http": "POST /_snapback/api/host-ops",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0024-agent-operating-surface"
+      ],
+      "sources": [
+        "src/host_ops.rs",
+        "packages/snapback-cli/mcp-control.mjs"
+      ]
+    },
+    {
+      "operation": "asset.delete",
+      "title": "asset.delete",
+      "intents": [],
+      "status": "shipped",
+      "domain": "hostOps",
+      "surfaceAccess": "cliOnly",
+      "operability": "direct",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "None",
+        "routePolicy": "AdminWrite",
+        "effect": "None",
+        "responseSensitivity": "SensitiveApplicationData"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": "snapback assets delete",
+        "mcp": null,
+        "hostOps": "asset.delete",
+        "http": "POST /_snapback/api/host-ops",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0024-agent-operating-surface"
+      ],
+      "sources": [
+        "src/host_ops.rs",
+        "packages/snapback-cli/mcp-control.mjs"
+      ],
+      "mcpDeferralReason": "Assets family; see asset.put."
+    },
+    {
+      "operation": "asset.ensureSeedFixture",
+      "title": "asset.ensureSeedFixture",
+      "intents": [],
+      "status": "shipped",
+      "domain": "hostOps",
+      "surfaceAccess": "cliOnly",
+      "operability": "direct",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "None",
+        "routePolicy": "AdminWrite",
+        "effect": "None",
+        "responseSensitivity": "SensitiveApplicationData"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": "snapback assets ensure-seed-fixture",
+        "mcp": null,
+        "hostOps": "asset.ensureSeedFixture",
+        "http": "POST /_snapback/api/host-ops",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0024-agent-operating-surface"
+      ],
+      "sources": [
+        "src/host_ops.rs",
+        "packages/snapback-cli/mcp-control.mjs"
+      ],
+      "mcpDeferralReason": "Assets family; see asset.put."
+    },
+    {
+      "operation": "asset.exportCut",
+      "title": "asset.exportCut",
+      "intents": [],
+      "status": "shipped",
+      "domain": "hostOps",
+      "surfaceAccess": "cliOnly",
+      "operability": "direct",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "None",
+        "routePolicy": "AdminWrite",
+        "effect": "None",
+        "responseSensitivity": "SensitiveApplicationData"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": "snapback assets export-cut",
+        "mcp": null,
+        "hostOps": "asset.exportCut",
+        "http": "POST /_snapback/api/host-ops",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0024-agent-operating-surface"
+      ],
+      "sources": [
+        "src/host_ops.rs",
+        "packages/snapback-cli/mcp-control.mjs"
+      ],
+      "mcpDeferralReason": "Assets family; see asset.put."
+    },
+    {
+      "operation": "asset.gcSweep",
+      "title": "asset.gcSweep",
+      "intents": [],
+      "status": "shipped",
+      "domain": "hostOps",
+      "surfaceAccess": "cliOnly",
+      "operability": "direct",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "None",
+        "routePolicy": "AdminWrite",
+        "effect": "None",
+        "responseSensitivity": "SensitiveApplicationData"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": "snapback assets gc-sweep",
+        "mcp": null,
+        "hostOps": "asset.gcSweep",
+        "http": "POST /_snapback/api/host-ops",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0024-agent-operating-surface"
+      ],
+      "sources": [
+        "src/host_ops.rs",
+        "packages/snapback-cli/mcp-control.mjs"
+      ],
+      "mcpDeferralReason": "Assets family; see asset.put."
+    },
+    {
+      "operation": "asset.importCut",
+      "title": "asset.importCut",
+      "intents": [],
+      "status": "shipped",
+      "domain": "hostOps",
+      "surfaceAccess": "cliOnly",
+      "operability": "direct",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "None",
+        "routePolicy": "AdminWrite",
+        "effect": "None",
+        "responseSensitivity": "SensitiveApplicationData"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": "snapback assets import-cut",
+        "mcp": null,
+        "hostOps": "asset.importCut",
+        "http": "POST /_snapback/api/host-ops",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0024-agent-operating-surface"
+      ],
+      "sources": [
+        "src/host_ops.rs",
+        "packages/snapback-cli/mcp-control.mjs"
+      ],
+      "mcpDeferralReason": "Assets family; see asset.put."
+    },
+    {
+      "operation": "asset.inspect",
+      "title": "asset.inspect",
+      "intents": [],
+      "status": "shipped",
+      "domain": "hostOps",
+      "surfaceAccess": "cliOnly",
+      "operability": "direct",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "None",
+        "routePolicy": "AdminWrite",
+        "effect": "None",
+        "responseSensitivity": "SensitiveApplicationData"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": "snapback assets inspect",
+        "mcp": null,
+        "hostOps": "asset.inspect",
+        "http": "POST /_snapback/api/host-ops",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0024-agent-operating-surface"
+      ],
+      "sources": [
+        "src/host_ops.rs",
+        "packages/snapback-cli/mcp-control.mjs"
+      ],
+      "mcpDeferralReason": "Assets family; see asset.put."
+    },
+    {
+      "operation": "asset.list",
+      "title": "asset.list",
+      "intents": [],
+      "status": "shipped",
+      "domain": "hostOps",
+      "surfaceAccess": "cliOnly",
+      "operability": "direct",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "None",
+        "routePolicy": "AdminWrite",
+        "effect": "None",
+        "responseSensitivity": "SensitiveApplicationData"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": "snapback assets list",
+        "mcp": null,
+        "hostOps": "asset.list",
+        "http": "POST /_snapback/api/host-ops",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0024-agent-operating-surface"
+      ],
+      "sources": [
+        "src/host_ops.rs",
+        "packages/snapback-cli/mcp-control.mjs"
+      ],
+      "mcpDeferralReason": "Assets family; see asset.put."
+    },
+    {
+      "operation": "asset.put",
+      "title": "asset.put",
+      "intents": [],
+      "status": "shipped",
+      "domain": "hostOps",
+      "surfaceAccess": "cliOnly",
+      "operability": "direct",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "None",
+        "routePolicy": "AdminWrite",
+        "effect": "None",
+        "responseSensitivity": "SensitiveApplicationData"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": "snapback assets put",
+        "mcp": null,
+        "hostOps": "asset.put",
+        "http": "POST /_snapback/api/host-ops",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0024-agent-operating-surface"
+      ],
+      "sources": [
+        "src/host_ops.rs",
+        "packages/snapback-cli/mcp-control.mjs"
+      ],
+      "mcpDeferralReason": "Assets: full typed CLI, zero MCP tools today — the RFC's (cliOnly, direct) worked example (§Product contract). MCP projection is a Phase 2 P1 item."
+    },
+    {
+      "operation": "asset.retry",
+      "title": "asset.retry",
+      "intents": [],
+      "status": "shipped",
+      "domain": "hostOps",
+      "surfaceAccess": "cliOnly",
+      "operability": "direct",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "None",
+        "routePolicy": "AdminWrite",
+        "effect": "None",
+        "responseSensitivity": "SensitiveApplicationData"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": "snapback assets retry",
+        "mcp": null,
+        "hostOps": "asset.retry",
+        "http": "POST /_snapback/api/host-ops",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0024-agent-operating-surface"
+      ],
+      "sources": [
+        "src/host_ops.rs",
+        "packages/snapback-cli/mcp-control.mjs"
+      ],
+      "mcpDeferralReason": "Assets family; see asset.put."
+    },
+    {
+      "operation": "asset.rotateSigningKey",
+      "title": "asset.rotateSigningKey",
+      "intents": [],
+      "status": "shipped",
+      "domain": "hostOps",
+      "surfaceAccess": "cliOnly",
+      "operability": "direct",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "None",
+        "routePolicy": "AdminWrite",
+        "effect": "None",
+        "responseSensitivity": "SensitiveApplicationData"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": "snapback assets rotate-signing-key",
+        "mcp": null,
+        "hostOps": "asset.rotateSigningKey",
+        "http": "POST /_snapback/api/host-ops",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0024-agent-operating-surface"
+      ],
+      "sources": [
+        "src/host_ops.rs",
+        "packages/snapback-cli/mcp-control.mjs"
+      ],
+      "mcpDeferralReason": "Assets family; see asset.put."
+    },
+    {
+      "operation": "auth.mailbox.read",
+      "title": "Read the dev-mailbox capture (operator only)",
+      "intents": [],
+      "status": "shipped",
+      "domain": "systemApi",
+      "surfaceAccess": "apiOnly",
+      "operability": "direct",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "routePolicy": "AdminWrite",
+        "effect": "none",
+        "responseSensitivity": "CredentialSecret"
+      },
+      "behavior": {
+        "readOnly": true,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": true,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": null,
+        "mcp": null,
+        "hostOps": null,
+        "http": "GET /_snapback/api/auth/mailbox",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0031-server-route-taxonomy"
+      ],
+      "sources": [
+        "src/server.rs route_registry()"
+      ],
+      "pinned": true,
+      "pinReason": "responseSensitivity CredentialSecret: usage-evidence promotion to native/cliOnly/mcpOnly is refused outright regardless of call volume (§Product contract's promotion-refusal rule). This row stays apiOnly until an authored override passes the same secret-carrier review config.set requires."
+    },
+    {
+      "operation": "auth.mintSession",
+      "title": "auth.mintSession",
+      "intents": [],
+      "status": "shipped",
+      "domain": "hostOps",
+      "surfaceAccess": "apiOnly",
+      "operability": "direct",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "routePolicy": "AdminWrite",
+        "effect": "Unavailable",
+        "responseSensitivity": "CredentialSecret"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": null,
+        "mcp": null,
+        "hostOps": "auth.mintSession",
+        "http": "POST /_snapback/api/host-ops",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0024-agent-operating-surface"
+      ],
+      "sources": [
+        "src/host_ops.rs",
+        "packages/snapback-cli/mcp-control.mjs"
+      ]
+    },
+    {
+      "operation": "auth.rescueCollidingTable",
+      "title": "auth.rescueCollidingTable",
+      "intents": [],
+      "status": "shipped",
+      "domain": "hostOps",
+      "surfaceAccess": "apiOnly",
+      "operability": "direct",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "routePolicy": "AdminWrite",
+        "effect": "ImpersonationCapability",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": null,
+        "mcp": null,
+        "hostOps": "auth.rescueCollidingTable",
+        "http": "POST /_snapback/api/host-ops",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0024-agent-operating-surface"
+      ],
+      "sources": [
+        "src/host_ops.rs",
+        "packages/snapback-cli/mcp-control.mjs"
+      ]
+    },
+    {
+      "operation": "capability.manifest.read",
+      "title": "Read the app's capability manifest (hosted)",
+      "intents": [
+        "what does this app support",
+        "capability manifest",
+        "hosted capability report"
+      ],
+      "status": "shipped",
+      "domain": "hostedAdapter",
+      "surfaceAccess": "apiOnly",
+      "operability": "direct",
+      "availability": {
+        "targets": [
+          "derived-hosted",
+          "primary-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "public",
+        "effect": "none",
+        "responseSensitivity": "PublicProjection",
+        "projectionCredentials": {
+          "hostedAdapter": "public (GET /capability)"
+        }
+      },
+      "behavior": {
+        "readOnly": true,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": true,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": null,
+        "mcp": null,
+        "hostOps": null,
+        "http": "GET /inspect",
+        "adminClient": null,
+        "console": null,
+        "hostedAdapter": "capability.manifest.read"
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0184-agent-accessible-control-plane §Design/3a"
+      ],
+      "sources": [
+        "cloudflare/src/gateway.js:102"
+      ]
+    },
+    {
+      "operation": "cli.auth.backup",
+      "title": "Create an offline physical auth backup",
+      "intents": [
+        "back up auth keys",
+        "offline auth backup"
+      ],
+      "status": "shipped",
+      "domain": "cliOnlyDeclared",
+      "surfaceAccess": "cliOnly",
+      "operability": "direct",
+      "mcpDeferralReason": "Filesystem-custody operation with no safe non-local carrier defined; not MCP-projected (LLP 0184 v1 posture, analogous to config.set's stdin/fd-only carrier).",
+      "availability": {
+        "targets": [
+          "local"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "effect": "none",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": true,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": true,
+        "openWorld": false,
+        "persistsAcrossRestart": true
+      },
+      "projections": {
+        "cli": "snapback auth backup",
+        "mcp": null,
+        "hostOps": null,
+        "http": null,
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0184-agent-accessible-control-plane"
+      ],
+      "sources": [
+        "src/cli.rs:802 HostCommand::Auth",
+        "src/cli.rs:1216 AuthCommand::Backup"
+      ]
+    },
+    {
+      "operation": "cli.auth.restore",
+      "title": "Restore an offline physical auth backup",
+      "intents": [
+        "restore auth keys",
+        "restore from backup"
+      ],
+      "status": "shipped",
+      "domain": "cliOnlyDeclared",
+      "surfaceAccess": "cliOnly",
+      "operability": "direct",
+      "mcpDeferralReason": "Filesystem-custody operation with no safe non-local carrier defined; not MCP-projected.",
+      "availability": {
+        "targets": [
+          "local"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "effect": "none",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": true,
+        "approvalPosture": "confirmFirst",
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": true
+      },
+      "projections": {
+        "cli": "snapback auth restore",
+        "mcp": null,
+        "hostOps": null,
+        "http": null,
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0184-agent-accessible-control-plane"
+      ],
+      "sources": [
+        "src/cli.rs:1223 AuthCommand::Restore"
+      ]
+    },
+    {
+      "operation": "cli.buildIdentity",
+      "title": "Print this executable's independently stamped build identity",
+      "intents": [
+        "what build is this",
+        "build identity",
+        "version and commit"
+      ],
+      "status": "shipped",
+      "domain": "cliOnlyDeclared",
+      "surfaceAccess": "cliOnly",
+      "operability": "direct",
+      "mcpDeferralReason": "No MCP tool yet; app.inspect's data already carries build identity for the running process, so a dedicated MCP tool has not been justified by usage evidence.",
+      "availability": {
+        "targets": [
+          "local"
+        ]
+      },
+      "policy": {
+        "authority": "none",
+        "effect": "none",
+        "responseSensitivity": "PublicProjection"
+      },
+      "behavior": {
+        "readOnly": true,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": true,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": "snapback build-identity",
+        "mcp": null,
+        "hostOps": null,
+        "http": null,
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0184-agent-accessible-control-plane"
+      ],
+      "sources": [
+        "src/cli.rs:819 HostCommand::BuildIdentity"
+      ]
+    },
+    {
+      "operation": "cli.fork.create",
+      "title": "Create a finite-TTL derived deployment",
+      "intents": [
+        "fork the database",
+        "derived instance",
+        "ephemeral copy of the app",
+        "scratch database for testing"
+      ],
+      "status": "shipped",
+      "domain": "cliOnlyDeclared",
+      "surfaceAccess": "cliOnly",
+      "operability": "direct",
+      "mcpDeferralReason": "No MCP tool yet; fork lifecycle is a local filesystem/process operation with no control-MCP projection designed (LLP 0184 Phase 2 candidate).",
+      "availability": {
+        "targets": [
+          "local"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "effect": "provisioning",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": true
+      },
+      "projections": {
+        "cli": "snapback fork create",
+        "mcp": null,
+        "hostOps": null,
+        "http": null,
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0184-agent-accessible-control-plane"
+      ],
+      "sources": [
+        "src/cli.rs:807 HostCommand::Fork",
+        "src/cli.rs:1234 ForkCommand::Create"
+      ]
+    },
+    {
+      "operation": "cli.fork.diff",
+      "title": "Render a fork's app-row-only post-fork journal receipt",
+      "intents": [
+        "diff a fork",
+        "what changed in this fork"
+      ],
+      "status": "shipped",
+      "domain": "cliOnlyDeclared",
+      "surfaceAccess": "cliOnly",
+      "operability": "direct",
+      "mcpDeferralReason": "No MCP tool yet (LLP 0184 Phase 2 candidate).",
+      "availability": {
+        "targets": [
+          "local"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "effect": "none",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": true,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": true,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": "snapback fork diff",
+        "mcp": null,
+        "hostOps": null,
+        "http": null,
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0184-agent-accessible-control-plane"
+      ],
+      "sources": [
+        "src/cli.rs:1265 ForkCommand::Diff"
+      ]
+    },
+    {
+      "operation": "cli.fork.drop",
+      "title": "Stop and delete one registry-bound fork",
+      "intents": [
+        "delete a fork",
+        "tear down a derived deployment"
+      ],
+      "status": "shipped",
+      "domain": "cliOnlyDeclared",
+      "surfaceAccess": "cliOnly",
+      "operability": "direct",
+      "mcpDeferralReason": "No MCP tool yet (LLP 0184 Phase 2 candidate).",
+      "availability": {
+        "targets": [
+          "local"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "effect": "none",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": true,
+        "approvalPosture": "confirmFirst",
+        "idempotent": true,
+        "openWorld": false,
+        "persistsAcrossRestart": true
+      },
+      "projections": {
+        "cli": "snapback fork drop",
+        "mcp": null,
+        "hostOps": null,
+        "http": null,
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0184-agent-accessible-control-plane"
+      ],
+      "sources": [
+        "src/cli.rs:1275 ForkCommand::Drop"
+      ]
+    },
+    {
+      "operation": "cli.fork.list",
+      "title": "List derived-deployment lifecycle records",
+      "intents": [
+        "list forks",
+        "show derived deployments"
+      ],
+      "status": "shipped",
+      "domain": "cliOnlyDeclared",
+      "surfaceAccess": "cliOnly",
+      "operability": "direct",
+      "mcpDeferralReason": "No MCP tool yet (LLP 0184 Phase 2 candidate).",
+      "availability": {
+        "targets": [
+          "local"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "effect": "none",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": true,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": true,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": "snapback fork list",
+        "mcp": null,
+        "hostOps": null,
+        "http": null,
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0184-agent-accessible-control-plane"
+      ],
+      "sources": [
+        "src/cli.rs:1258 ForkCommand::List"
+      ]
+    },
+    {
+      "operation": "cli.fork.reap",
+      "title": "Stop and delete every fork expired at a supplied clock",
+      "intents": [
+        "clean up expired forks",
+        "reap forks"
+      ],
+      "status": "shipped",
+      "domain": "cliOnlyDeclared",
+      "surfaceAccess": "cliOnly",
+      "operability": "direct",
+      "mcpDeferralReason": "No MCP tool yet (LLP 0184 Phase 2 candidate).",
+      "availability": {
+        "targets": [
+          "local"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "effect": "none",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": true,
+        "approvalPosture": "confirmFirst",
+        "idempotent": true,
+        "openWorld": false,
+        "persistsAcrossRestart": true
+      },
+      "projections": {
+        "cli": "snapback fork reap",
+        "mcp": null,
+        "hostOps": null,
+        "http": null,
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0184-agent-accessible-control-plane"
+      ],
+      "sources": [
+        "src/cli.rs:1283 ForkCommand::Reap"
+      ]
+    },
+    {
+      "operation": "cli.migrate.apply",
+      "title": "Execute an approved migration plan",
+      "intents": [
+        "apply a migration",
+        "run a migration"
+      ],
+      "status": "shipped",
+      "domain": "cliOnlyDeclared",
+      "surfaceAccess": "cliOnly",
+      "operability": "direct",
+      "mcpDeferralReason": "No MCP tool yet (LLP 0081-owned local workflow); schema migration apply is not a v1 agent-direct operation by design.",
+      "availability": {
+        "targets": [
+          "local"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "effect": "none",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": true,
+        "approvalPosture": "humanApprovalRequired",
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": true
+      },
+      "projections": {
+        "cli": "snapback migrate apply",
+        "mcp": null,
+        "hostOps": null,
+        "http": null,
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0184-agent-accessible-control-plane"
+      ],
+      "sources": [
+        "src/cli.rs:1150 MigrateCommand::Apply"
+      ]
+    },
+    {
+      "operation": "cli.migrate.approve",
+      "title": "Record a local authenticated operator approval of a migration plan",
+      "intents": [
+        "approve a migration"
+      ],
+      "status": "shipped",
+      "domain": "cliOnlyDeclared",
+      "surfaceAccess": "cliOnly",
+      "operability": "direct",
+      "mcpDeferralReason": "No MCP tool yet (LLP 0081-owned local workflow).",
+      "availability": {
+        "targets": [
+          "local"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "effect": "none",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": true
+      },
+      "projections": {
+        "cli": "snapback migrate approve",
+        "mcp": null,
+        "hostOps": null,
+        "http": null,
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0184-agent-accessible-control-plane"
+      ],
+      "sources": [
+        "src/cli.rs:1131 MigrateCommand::Approve"
+      ]
+    },
+    {
+      "operation": "cli.migrate.cancel",
+      "title": "Request migration cancellation at the next admitted boundary",
+      "intents": [
+        "cancel a migration"
+      ],
+      "status": "shipped",
+      "domain": "cliOnlyDeclared",
+      "surfaceAccess": "cliOnly",
+      "operability": "direct",
+      "mcpDeferralReason": "No MCP tool yet (LLP 0081-owned local workflow).",
+      "availability": {
+        "targets": [
+          "local"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "effect": "none",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": true,
+        "openWorld": false,
+        "persistsAcrossRestart": true
+      },
+      "projections": {
+        "cli": "snapback migrate cancel",
+        "mcp": null,
+        "hostOps": null,
+        "http": null,
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0184-agent-accessible-control-plane"
+      ],
+      "sources": [
+        "src/cli.rs:1190 MigrateCommand::Cancel"
+      ]
+    },
+    {
+      "operation": "cli.migrate.preview",
+      "title": "Compute a deterministic migration plan and observation",
+      "intents": [
+        "preview a schema migration",
+        "plan a migration"
+      ],
+      "status": "shipped",
+      "domain": "cliOnlyDeclared",
+      "surfaceAccess": "cliOnly",
+      "operability": "direct",
+      "mcpDeferralReason": "No MCP tool yet; migration authoring is a local file-based workflow (LLP 0081) with no control-MCP projection designed.",
+      "availability": {
+        "targets": [
+          "local"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "effect": "none",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": true,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": true,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": "snapback migrate preview",
+        "mcp": null,
+        "hostOps": null,
+        "http": null,
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0184-agent-accessible-control-plane"
+      ],
+      "sources": [
+        "src/cli.rs:1092 MigrateCommand",
+        "src/cli.rs:1095 MigrateCommand::Preview"
+      ]
+    },
+    {
+      "operation": "cli.migrate.rehearse",
+      "title": "Execute an approved migration plan as a rehearsal",
+      "intents": [
+        "rehearse a migration",
+        "dry-run a migration on a restore"
+      ],
+      "status": "shipped",
+      "domain": "cliOnlyDeclared",
+      "surfaceAccess": "cliOnly",
+      "operability": "direct",
+      "mcpDeferralReason": "No MCP tool yet (LLP 0081-owned local workflow).",
+      "availability": {
+        "targets": [
+          "local"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "effect": "none",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": true
+      },
+      "projections": {
+        "cli": "snapback migrate rehearse",
+        "mcp": null,
+        "hostOps": null,
+        "http": null,
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0184-agent-accessible-control-plane"
+      ],
+      "sources": [
+        "src/cli.rs:1172 MigrateCommand::Rehearse"
+      ]
+    },
+    {
+      "operation": "cli.migrate.rollback",
+      "title": "Roll back a migration (not yet available on this profile)",
+      "intents": [
+        "roll back a migration"
+      ],
+      "status": "unbuilt",
+      "domain": "cliOnlyDeclared",
+      "surfaceAccess": "cliOnly",
+      "operability": "unavailable",
+      "mcpDeferralReason": "Unavailable operation; no MCP tool.",
+      "availability": {
+        "targets": [
+          "local"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "effect": "unavailable",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": true,
+        "approvalPosture": "humanApprovalRequired",
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": true
+      },
+      "projections": {
+        "cli": "snapback migrate rollback",
+        "mcp": null,
+        "hostOps": null,
+        "http": null,
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0184-agent-accessible-control-plane"
+      ],
+      "sources": [
+        "src/cli.rs:1206 MigrateCommand::Rollback"
+      ],
+      "unavailableReason": {
+        "owner": "llp/0081-declarative-schema-evolution",
+        "ticketOrDesignPointer": "llp/0081-declarative-schema-evolution.spec.md",
+        "note": "Refuses with SNAPBACK_MIGRATION_ROLLBACK_UNAVAILABLE per src/cli.rs's own doc comment; not yet available on this profile."
+      }
+    },
+    {
+      "operation": "cli.migrate.verify",
+      "title": "Check a migration receipt against the journal",
+      "intents": [
+        "verify a migration"
+      ],
+      "status": "shipped",
+      "domain": "cliOnlyDeclared",
+      "surfaceAccess": "cliOnly",
+      "operability": "direct",
+      "mcpDeferralReason": "No MCP tool yet (LLP 0081-owned local workflow).",
+      "availability": {
+        "targets": [
+          "local"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "effect": "none",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": true,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": true,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": "snapback migrate verify",
+        "mcp": null,
+        "hostOps": null,
+        "http": null,
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0184-agent-accessible-control-plane"
+      ],
+      "sources": [
+        "src/cli.rs:1198 MigrateCommand::Verify"
+      ]
+    },
+    {
+      "operation": "cli.telemetry.query",
+      "title": "Local-only read-only SQL over telemetry visibility views",
+      "intents": [
+        "run SQL against telemetry",
+        "query telemetry with SQL",
+        "custom telemetry query"
+      ],
+      "status": "shipped",
+      "domain": "cliOnlyDeclared",
+      "surfaceAccess": "cliOnly",
+      "operability": "direct",
+      "mcpDeferralReason": "Local-only, never networked (src/cli.rs's TelemetryCommand::Query doc comment); bounded max_rows/max_steps/max_time_ms/max_bytes budgets are a CLI-process safety property this row does not yet have an MCP-safe equivalent for.",
+      "availability": {
+        "targets": [
+          "local"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "effect": "none",
+        "responseSensitivity": "SensitiveApplicationData"
+      },
+      "behavior": {
+        "readOnly": true,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": true,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": "snapback telemetry query",
+        "mcp": null,
+        "hostOps": null,
+        "http": null,
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0184-agent-accessible-control-plane"
+      ],
+      "sources": [
+        "src/cli.rs:1001 TelemetryCommand::Query",
+        "src/telemetry_query.rs"
+      ]
+    },
+    {
+      "operation": "client-mutations.purge",
+      "title": "client-mutations.purge",
+      "intents": [],
+      "status": "shipped",
+      "domain": "systemApi",
+      "surfaceAccess": "apiOnly",
+      "operability": "internal",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "routePolicy": "AdminWrite",
+        "effect": "None",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": true
+      },
+      "projections": {
+        "cli": null,
+        "mcp": null,
+        "hostOps": null,
+        "http": "POST /_snapback/api/client-mutations/purge",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0031-server-route-taxonomy"
+      ],
+      "sources": [
+        "src/server.rs route_registry()"
+      ],
+      "internalReason": "Internal client-mutation-log retention maintenance; not an author/operator-invoked action today."
+    },
+    {
+      "operation": "config.plan",
+      "title": "config.plan",
+      "intents": [],
+      "status": "shipped",
+      "domain": "systemApi",
+      "surfaceAccess": "apiOnly",
+      "operability": "direct",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "routePolicy": "AdminRead",
+        "effect": "None",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": true,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": true,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": null,
+        "mcp": null,
+        "hostOps": null,
+        "http": "GET /_snapback/api/config/plan",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0031-server-route-taxonomy"
+      ],
+      "sources": [
+        "src/server.rs route_registry()"
+      ],
+      "mcpDeferralReason": "See config.status."
+    },
+    {
+      "operation": "config.set",
+      "title": "config.set",
+      "intents": [],
+      "status": "shipped",
+      "domain": "systemApi",
+      "surfaceAccess": "cliOnly",
+      "operability": "direct",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "routePolicy": "AdminWrite",
+        "effect": "None",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": true
+      },
+      "projections": {
+        "cli": null,
+        "mcp": null,
+        "hostOps": null,
+        "http": "POST /_snapback/api/config/set",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0031-server-route-taxonomy"
+      ],
+      "sources": [
+        "src/server.rs route_registry()"
+      ],
+      "mcpDeferralReason": "No MCP secret carrier is defined (§Product contract): stdin/fd is a CLI-process carrier with no MCP equivalent. Promoting to native requires a defined, security-owner-approved MCP secret carrier first."
+    },
+    {
+      "operation": "config.status",
+      "title": "config.status",
+      "intents": [],
+      "status": "shipped",
+      "domain": "systemApi",
+      "surfaceAccess": "apiOnly",
+      "operability": "direct",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted",
+          "primary-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "routePolicy": "AdminRead",
+        "effect": "None",
+        "responseSensitivity": "OperatorMetadata",
+        "projectionCredentials": {
+          "hostedAdapter": "AdminRead (GET|HEAD /_snapback/api/config/status)"
+        }
+      },
+      "behavior": {
+        "readOnly": true,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": true,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": null,
+        "mcp": null,
+        "hostOps": null,
+        "http": "GET /_snapback/api/config/status",
+        "adminClient": null,
+        "console": null,
+        "hostedAdapter": "config.status.read"
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0031-server-route-taxonomy"
+      ],
+      "sources": [
+        "src/server.rs route_registry()",
+        "cloudflare/src/gateway.js:125"
+      ],
+      "mcpDeferralReason": "No `snapback config` CLI subcommand exists today; gated HTTP twin only until Phase 1's projection lands (§Product contract/P3)."
+    },
+    {
+      "operation": "config.unset",
+      "title": "config.unset",
+      "intents": [],
+      "status": "shipped",
+      "domain": "systemApi",
+      "surfaceAccess": "native",
+      "operability": "direct",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "routePolicy": "AdminWrite",
+        "effect": "None",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": true
+      },
+      "projections": {
+        "cli": null,
+        "mcp": null,
+        "hostOps": null,
+        "http": "POST /_snapback/api/config/unset",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0031-server-route-taxonomy"
+      ],
+      "sources": [
+        "src/server.rs route_registry()"
+      ]
+    },
+    {
+      "operation": "config.verify",
+      "title": "config.verify",
+      "intents": [],
+      "status": "shipped",
+      "domain": "systemApi",
+      "surfaceAccess": "apiOnly",
+      "operability": "direct",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "routePolicy": "AdminWrite",
+        "effect": "None",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": true
+      },
+      "projections": {
+        "cli": null,
+        "mcp": null,
+        "hostOps": null,
+        "http": "POST /_snapback/api/config/verify",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0031-server-route-taxonomy"
+      ],
+      "sources": [
+        "src/server.rs route_registry()"
+      ],
+      "mcpDeferralReason": "See config.status."
+    },
+    {
+      "operation": "connection.disconnect",
+      "title": "connection.disconnect",
+      "intents": [],
+      "status": "shipped",
+      "domain": "systemApi",
+      "surfaceAccess": "apiOnly",
+      "operability": "direct",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "routePolicy": "AdminWrite",
+        "effect": "None",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": true
+      },
+      "projections": {
+        "cli": null,
+        "mcp": null,
+        "hostOps": null,
+        "http": "POST /_snapback/api/connections/{connection_id}/disconnect",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0031-server-route-taxonomy"
+      ],
+      "sources": [
+        "src/server.rs route_registry()"
+      ]
+    },
+    {
+      "operation": "console.approval.approve",
+      "title": "console.approval.approve",
+      "intents": [],
+      "status": "shipped",
+      "domain": "systemApi",
+      "surfaceAccess": "cliOnly",
+      "operability": "mediated",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "routePolicy": "AdminWrite",
+        "effect": "None",
+        "responseSensitivity": "CredentialSecret"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": true
+      },
+      "projections": {
+        "cli": "snapback admin approve",
+        "mcp": null,
+        "hostOps": null,
+        "http": "POST /_snapback/api/console/approval/approve",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0031-server-route-taxonomy"
+      ],
+      "sources": [
+        "src/server.rs route_registry()"
+      ],
+      "mcpDeferralReason": "See console.approval.request."
+    },
+    {
+      "operation": "console.approval.poll",
+      "title": "console.approval.poll",
+      "intents": [],
+      "status": "shipped",
+      "domain": "systemApi",
+      "surfaceAccess": "cliOnly",
+      "operability": "mediated",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "routePolicy": "AdminRead",
+        "effect": "None",
+        "responseSensitivity": "CredentialSecret"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": true
+      },
+      "projections": {
+        "cli": "snapback admin approve",
+        "mcp": null,
+        "hostOps": null,
+        "http": "POST /_snapback/api/console/approval/poll",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0031-server-route-taxonomy"
+      ],
+      "sources": [
+        "src/server.rs route_registry()"
+      ],
+      "mcpDeferralReason": "See console.approval.request."
+    },
+    {
+      "operation": "console.approval.request",
+      "title": "console.approval.request",
+      "intents": [],
+      "status": "shipped",
+      "domain": "systemApi",
+      "surfaceAccess": "cliOnly",
+      "operability": "mediated",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "routePolicy": "AdminRead",
+        "effect": "None",
+        "responseSensitivity": "CredentialSecret"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": true
+      },
+      "projections": {
+        "cli": "snapback admin approve",
+        "mcp": null,
+        "hostOps": null,
+        "http": "POST /_snapback/api/console/approval/request",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0031-server-route-taxonomy"
+      ],
+      "sources": [
+        "src/server.rs route_registry()"
+      ],
+      "mcpDeferralReason": "No MCP tool yet; approving a short-lived console-displayed code is a human action by design (src/cli.rs AdminCommand::Approve)."
+    },
+    {
+      "operation": "console.credential",
+      "title": "console.credential",
+      "intents": [],
+      "status": "shipped",
+      "domain": "systemApi",
+      "surfaceAccess": "apiOnly",
+      "operability": "internal",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "routePolicy": "AdminWrite",
+        "effect": "None",
+        "responseSensitivity": "CredentialSecret"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": true
+      },
+      "projections": {
+        "cli": null,
+        "mcp": null,
+        "hostOps": null,
+        "http": "POST /_snapback/api/console/credential",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0031-server-route-taxonomy"
+      ],
+      "sources": [
+        "src/server.rs route_registry()"
+      ],
+      "internalReason": "Browser-console session-credential bootstrap machinery consumed by AdminClient's own private #restoreReachabilityCredential/#renewConsoleCredential methods, not an author/operator action a client invokes directly."
+    },
+    {
+      "operation": "console.reachability.bind",
+      "title": "console.reachability.bind",
+      "intents": [],
+      "status": "shipped",
+      "domain": "systemApi",
+      "surfaceAccess": "apiOnly",
+      "operability": "internal",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "routePolicy": "AdminWrite",
+        "effect": "None",
+        "responseSensitivity": "CredentialSecret"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": true
+      },
+      "projections": {
+        "cli": null,
+        "mcp": null,
+        "hostOps": null,
+        "http": "POST /_snapback/api/console/reachability/bind",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0031-server-route-taxonomy"
+      ],
+      "sources": [
+        "src/server.rs route_registry()"
+      ],
+      "internalReason": "Console session-bootstrap plumbing; see console.credential."
+    },
+    {
+      "operation": "console.reachability.drop",
+      "title": "console.reachability.drop",
+      "intents": [],
+      "status": "shipped",
+      "domain": "systemApi",
+      "surfaceAccess": "apiOnly",
+      "operability": "internal",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "routePolicy": "AdminWrite",
+        "effect": "None",
+        "responseSensitivity": "CredentialSecret"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": true
+      },
+      "projections": {
+        "cli": null,
+        "mcp": null,
+        "hostOps": null,
+        "http": "POST /_snapback/api/console/reachability/drop",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0031-server-route-taxonomy"
+      ],
+      "sources": [
+        "src/server.rs route_registry()"
+      ],
+      "internalReason": "Console session-bootstrap plumbing; see console.credential."
+    },
+    {
+      "operation": "console.reachability.register",
+      "title": "console.reachability.register",
+      "intents": [],
+      "status": "shipped",
+      "domain": "systemApi",
+      "surfaceAccess": "apiOnly",
+      "operability": "internal",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "routePolicy": "AdminWrite",
+        "effect": "None",
+        "responseSensitivity": "CredentialSecret"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": true
+      },
+      "projections": {
+        "cli": null,
+        "mcp": null,
+        "hostOps": null,
+        "http": "POST /_snapback/api/console/reachability/register",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0031-server-route-taxonomy"
+      ],
+      "sources": [
+        "src/server.rs route_registry()"
+      ],
+      "internalReason": "Console session-bootstrap plumbing; see console.credential."
+    },
+    {
+      "operation": "console.reachability.renew",
+      "title": "console.reachability.renew",
+      "intents": [],
+      "status": "shipped",
+      "domain": "systemApi",
+      "surfaceAccess": "apiOnly",
+      "operability": "internal",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "routePolicy": "AdminWrite",
+        "effect": "None",
+        "responseSensitivity": "CredentialSecret"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": true
+      },
+      "projections": {
+        "cli": null,
+        "mcp": null,
+        "hostOps": null,
+        "http": "POST /_snapback/api/console/reachability/renew",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0031-server-route-taxonomy"
+      ],
+      "sources": [
+        "src/server.rs route_registry()"
+      ],
+      "internalReason": "Console session-bootstrap plumbing; see console.credential."
+    },
+    {
+      "operation": "cron.runOne",
+      "title": "cron.runOne",
+      "intents": [],
+      "status": "shipped",
+      "domain": "systemApi",
+      "surfaceAccess": "apiOnly",
+      "operability": "direct",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "System",
+        "routePolicy": "AdminWrite",
+        "effect": "None",
+        "responseSensitivity": "SensitiveApplicationData"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": true
+      },
+      "projections": {
+        "cli": null,
+        "mcp": null,
+        "hostOps": null,
+        "http": "POST /_snapback/api/cron/{name}/run",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0031-server-route-taxonomy"
+      ],
+      "sources": [
+        "src/server.rs route_registry()"
+      ]
+    },
+    {
+      "operation": "cron.status.read",
+      "title": "Read cron ledger/activation status (hosted)",
+      "intents": [
+        "cron status",
+        "is cron running",
+        "hosted cron ledger"
+      ],
+      "status": "shipped",
+      "domain": "hostedAdapter",
+      "surfaceAccess": "apiOnly",
+      "operability": "direct",
+      "availability": {
+        "targets": [
+          "derived-hosted",
+          "primary-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "routePolicy": "AdminRead",
+        "effect": "none",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": true,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": true,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": null,
+        "mcp": null,
+        "hostOps": null,
+        "http": "GET|HEAD /_snapback/api/cron/status",
+        "adminClient": null,
+        "console": null,
+        "hostedAdapter": "cron.status.read"
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0184-agent-accessible-control-plane §Design/3a"
+      ],
+      "sources": [
+        "cloudflare/src/gateway.js:134"
+      ]
+    },
+    {
+      "operation": "cron.tick",
+      "title": "cron.tick",
+      "intents": [],
+      "status": "shipped",
+      "domain": "systemApi",
+      "surfaceAccess": "apiOnly",
+      "operability": "direct",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted",
+          "primary-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "System",
+        "routePolicy": "AdminWrite",
+        "effect": "None",
+        "responseSensitivity": "SensitiveApplicationData",
+        "projectionCredentials": {
+          "hostedAdapter": "AdminWrite (POST /_snapback/api/cron/run)"
+        }
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": true
+      },
+      "projections": {
+        "cli": null,
+        "mcp": null,
+        "hostOps": null,
+        "http": "POST /_snapback/api/cron/tick",
+        "adminClient": null,
+        "console": null,
+        "hostedAdapter": "cron.run.trigger"
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0031-server-route-taxonomy"
+      ],
+      "sources": [
+        "src/server.rs route_registry()",
+        "cloudflare/src/gateway.js:140"
+      ]
+    },
+    {
+      "operation": "data.scan",
+      "title": "data.scan",
+      "intents": [],
+      "status": "shipped",
+      "domain": "systemApi",
+      "surfaceAccess": "apiOnly",
+      "operability": "direct",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "routePolicy": "AdminRead",
+        "effect": "None",
+        "responseSensitivity": "SensitiveApplicationData"
+      },
+      "behavior": {
+        "readOnly": true,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": true,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": null,
+        "mcp": null,
+        "hostOps": null,
+        "http": "GET /_snapback/api/data/{table}",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0031-server-route-taxonomy"
+      ],
+      "sources": [
+        "src/server.rs route_registry()"
+      ]
+    },
+    {
+      "operation": "debug.networkProfileGet",
+      "title": "Read the active network condition profile",
+      "intents": [],
+      "status": "shipped",
+      "domain": "hostOps",
+      "surfaceAccess": "native",
+      "operability": "direct",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "routePolicy": "AdminRead",
+        "effect": "None",
+        "responseSensitivity": "OperatorMetadata",
+        "projectionCredentials": {
+          "hostedAdapter": "AdminRead (GET|HEAD /_snapback/api/debug/network-profile)"
+        }
+      },
+      "behavior": {
+        "readOnly": true,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": "snapback network-profile get",
+        "mcp": "snapback_network_profile_get",
+        "hostOps": "debug.networkProfileGet",
+        "http": "POST /_snapback/api/host-ops",
+        "adminClient": null,
+        "console": null,
+        "hostedAdapter": "debug.networkProfile.read"
+      },
+      "guide": "operating/network-profiles.md#read-the-active-profile",
+      "authorities": [
+        "llp/0024-agent-operating-surface"
+      ],
+      "sources": [
+        "src/host_ops.rs",
+        "packages/snapback-cli/mcp-control.mjs",
+        "cloudflare/src/gateway.js:149"
+      ]
+    },
+    {
+      "operation": "debug.networkProfileSet",
+      "title": "Set the active network condition profile",
+      "intents": [],
+      "status": "shipped",
+      "domain": "hostOps",
+      "surfaceAccess": "native",
+      "operability": "direct",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "routePolicy": "AdminWrite",
+        "effect": "None",
+        "responseSensitivity": "OperatorMetadata",
+        "projectionCredentials": {
+          "hostedAdapter": "AdminWrite (POST|PUT|PATCH|DELETE /_snapback/api/debug/network-profile)"
+        }
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": "snapback network-profile set",
+        "mcp": "snapback_network_profile_set",
+        "hostOps": "debug.networkProfileSet",
+        "http": "POST /_snapback/api/host-ops",
+        "adminClient": null,
+        "console": null,
+        "hostedAdapter": "debug.networkProfile.write"
+      },
+      "guide": "operating/network-profiles.md#set-a-profile",
+      "authorities": [
+        "llp/0024-agent-operating-surface"
+      ],
+      "sources": [
+        "src/host_ops.rs",
+        "packages/snapback-cli/mcp-control.mjs",
+        "cloudflare/src/gateway.js:149"
+      ]
+    },
+    {
+      "operation": "direct_runner.action",
+      "title": "direct_runner.action",
+      "intents": [],
+      "status": "shipped",
+      "domain": "systemApi",
+      "surfaceAccess": "apiOnly",
+      "operability": "direct",
+      "mcpDeferralReason": "Not yet classified.",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "ClientAsserted",
+        "routePolicy": "AdminWrite",
+        "effect": "FunctionKind",
+        "responseSensitivity": "SensitiveApplicationData"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": true
+      },
+      "projections": {
+        "cli": null,
+        "mcp": null,
+        "hostOps": null,
+        "http": "OPERATION /_snapback/api/functions/{name}/run",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0031-server-route-taxonomy"
+      ],
+      "sources": [
+        "src/server.rs operation_registry()"
+      ]
+    },
+    {
+      "operation": "direct_runner.mutation",
+      "title": "direct_runner.mutation",
+      "intents": [],
+      "status": "shipped",
+      "domain": "systemApi",
+      "surfaceAccess": "apiOnly",
+      "operability": "direct",
+      "mcpDeferralReason": "Not yet classified.",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "ClientAsserted",
+        "routePolicy": "AdminWrite",
+        "effect": "FunctionKind",
+        "responseSensitivity": "SensitiveApplicationData"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": true
+      },
+      "projections": {
+        "cli": null,
+        "mcp": null,
+        "hostOps": null,
+        "http": "OPERATION /_snapback/api/functions/{name}/run",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0031-server-route-taxonomy"
+      ],
+      "sources": [
+        "src/server.rs operation_registry()"
+      ]
+    },
+    {
+      "operation": "direct_runner.query",
+      "title": "direct_runner.query",
+      "intents": [],
+      "status": "shipped",
+      "domain": "systemApi",
+      "surfaceAccess": "apiOnly",
+      "operability": "direct",
+      "mcpDeferralReason": "Not yet classified.",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "ClientAsserted",
+        "routePolicy": "AdminRead",
+        "effect": "FunctionKind",
+        "responseSensitivity": "SensitiveApplicationData"
+      },
+      "behavior": {
+        "readOnly": true,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": null,
+        "mcp": null,
+        "hostOps": null,
+        "http": "OPERATION /_snapback/api/functions/{name}/run",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0031-server-route-taxonomy"
+      ],
+      "sources": [
+        "src/server.rs operation_registry()"
+      ]
+    },
+    {
+      "operation": "direct_runner.unknown",
+      "title": "direct_runner.unknown",
+      "intents": [],
+      "status": "shipped",
+      "domain": "systemApi",
+      "surfaceAccess": "apiOnly",
+      "operability": "unavailable",
+      "unavailableReason": {
+        "owner": "src/server.rs",
+        "ticketOrDesignPointer": null,
+        "note": "The unrecognized-function-kind branch; carries EffectPolicy::Unavailable on its own registration."
+      },
+      "mcpDeferralReason": "Not yet classified.",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "ClientAsserted",
+        "routePolicy": "AdminWrite",
+        "effect": "FunctionKind",
+        "responseSensitivity": "SensitiveApplicationData"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": true
+      },
+      "projections": {
+        "cli": null,
+        "mcp": null,
+        "hostOps": null,
+        "http": "OPERATION /_snapback/api/functions/{name}/run",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0031-server-route-taxonomy"
+      ],
+      "sources": [
+        "src/server.rs operation_registry()"
+      ]
+    },
+    {
+      "operation": "ephemeral.cleanup",
+      "title": "ephemeral.cleanup",
+      "intents": [],
+      "status": "shipped",
+      "domain": "systemApi",
+      "surfaceAccess": "apiOnly",
+      "operability": "direct",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "routePolicy": "AdminWrite",
+        "effect": "None",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": true
+      },
+      "projections": {
+        "cli": null,
+        "mcp": null,
+        "hostOps": null,
+        "http": "POST /_snapback/api/ephemeral/cleanup",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0031-server-route-taxonomy"
+      ],
+      "sources": [
+        "src/server.rs route_registry()"
+      ]
+    },
+    {
+      "operation": "errors.issue",
+      "title": "Inspect one error issue",
+      "intents": [],
+      "status": "shipped",
+      "domain": "hostOps",
+      "surfaceAccess": "native",
+      "operability": "direct",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "routePolicy": "AdminSecretRead",
+        "effect": "None",
+        "responseSensitivity": "SensitiveApplicationData"
+      },
+      "behavior": {
+        "readOnly": true,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": "snapback errors issue",
+        "mcp": "snapback_errors_issue",
+        "hostOps": "errors.issue",
+        "http": "POST /_snapback/api/host-ops",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": "operating/host-ops.md",
+      "authorities": [
+        "llp/0024-agent-operating-surface"
+      ],
+      "sources": [
+        "src/host_ops.rs",
+        "packages/snapback-cli/mcp-control.mjs"
+      ]
+    },
+    {
+      "operation": "errors.issues",
+      "title": "List error issues",
+      "intents": [],
+      "status": "shipped",
+      "domain": "hostOps",
+      "surfaceAccess": "native",
+      "operability": "direct",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "routePolicy": "AdminRead",
+        "effect": "None",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": true,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": "snapback errors issues",
+        "mcp": "snapback_errors_issues",
+        "hostOps": "errors.issues",
+        "http": "POST /_snapback/api/host-ops",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": "operating/host-ops.md",
+      "authorities": [
+        "llp/0024-agent-operating-surface"
+      ],
+      "sources": [
+        "src/host_ops.rs",
+        "packages/snapback-cli/mcp-control.mjs"
+      ]
+    },
+    {
+      "operation": "errors.transition",
+      "title": "Transition error issue state",
+      "intents": [],
+      "status": "shipped",
+      "domain": "hostOps",
+      "surfaceAccess": "native",
+      "operability": "direct",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "routePolicy": "AdminWrite",
+        "effect": "None",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": "snapback errors transition",
+        "mcp": "snapback_errors_transition",
+        "hostOps": "errors.transition",
+        "http": "POST /_snapback/api/host-ops",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": "operating/host-ops.md",
+      "authorities": [
+        "llp/0024-agent-operating-surface"
+      ],
+      "sources": [
+        "src/host_ops.rs",
+        "packages/snapback-cli/mcp-control.mjs"
+      ]
+    },
+    {
+      "operation": "function.explain",
+      "title": "function.explain",
+      "intents": [],
+      "status": "shipped",
+      "domain": "hostOps",
+      "surfaceAccess": "apiOnly",
+      "operability": "direct",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "None",
+        "routePolicy": "AdminRead",
+        "effect": "None",
+        "responseSensitivity": "SensitiveApplicationData"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": null,
+        "mcp": null,
+        "hostOps": "function.explain",
+        "http": "POST /_snapback/api/host-ops",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0024-agent-operating-surface"
+      ],
+      "sources": [
+        "src/host_ops.rs",
+        "packages/snapback-cli/mcp-control.mjs"
+      ]
+    },
+    {
+      "operation": "function.run",
+      "title": "Run one generated function",
+      "intents": [],
+      "status": "shipped",
+      "domain": "hostOps",
+      "surfaceAccess": "native",
+      "operability": "direct",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "routePolicy": "AdminWrite",
+        "effect": "none",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": true,
+        "approvalPosture": "confirmFirst",
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": "snapback host run",
+        "mcp": "snapback_run_function",
+        "hostOps": "function.run",
+        "http": "POST /_snapback/api/host-ops",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0024-agent-operating-surface"
+      ],
+      "sources": [
+        "src/host_ops.rs",
+        "packages/snapback-cli/mcp-control.mjs"
+      ]
+    },
+    {
+      "operation": "functions.load",
+      "title": "Load the generated function manifest",
+      "intents": [],
+      "status": "shipped",
+      "domain": "hostOps",
+      "surfaceAccess": "native",
+      "operability": "direct",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "None",
+        "routePolicy": "AdminWrite",
+        "effect": "None",
+        "responseSensitivity": "SensitiveApplicationData"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": true,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": "snapback host load --functions <path>",
+        "mcp": "snapback_load_functions",
+        "hostOps": "functions.load",
+        "http": "POST /_snapback/api/host-ops",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0024-agent-operating-surface"
+      ],
+      "sources": [
+        "src/host_ops.rs",
+        "packages/snapback-cli/mcp-control.mjs"
+      ]
+    },
+    {
+      "operation": "functions.reload",
+      "title": "functions.reload",
+      "intents": [],
+      "status": "unbuilt",
+      "domain": "hostOps",
+      "surfaceAccess": "apiOnly",
+      "operability": "unavailable",
+      "unavailableReason": {
+        "owner": "llp/0024-agent-operating-surface",
+        "ticketOrDesignPointer": "llp/0024-agent-operating-surface.spec.md",
+        "note": "Pinned by LLP 0024, not yet built anywhere. Returns SNAPBACK_HOST_OP_UNIMPLEMENTED."
+      },
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "None",
+        "routePolicy": "AdminWrite",
+        "effect": "None",
+        "responseSensitivity": "SensitiveApplicationData"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": null,
+        "mcp": null,
+        "hostOps": "functions.reload",
+        "http": "POST /_snapback/api/host-ops",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0024-agent-operating-surface"
+      ],
+      "sources": [
+        "src/host_ops.rs",
+        "packages/snapback-cli/mcp-control.mjs"
+      ]
+    },
+    {
+      "operation": "health",
+      "title": "health",
+      "intents": [],
+      "status": "shipped",
+      "domain": "systemApi",
+      "surfaceAccess": "apiOnly",
+      "operability": "direct",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "routePolicy": "AdminRead",
+        "effect": "None",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": true,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": true,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": null,
+        "mcp": null,
+        "hostOps": null,
+        "http": "GET /_snapback/api/health",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0031-server-route-taxonomy"
+      ],
+      "sources": [
+        "src/server.rs route_registry()"
+      ]
+    },
+    {
+      "operation": "health.read",
+      "title": "Coordinator health/build-identity check (hosted)",
+      "intents": [
+        "is the hosted server healthy",
+        "hosted build identity",
+        "health check"
+      ],
+      "status": "shipped",
+      "domain": "hostedAdapter",
+      "surfaceAccess": "apiOnly",
+      "operability": "direct",
+      "availability": {
+        "targets": [
+          "derived-hosted",
+          "primary-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "public",
+        "effect": "none",
+        "responseSensitivity": "PublicProjection"
+      },
+      "behavior": {
+        "readOnly": true,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": true,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": null,
+        "mcp": null,
+        "hostOps": null,
+        "http": "GET /health",
+        "adminClient": null,
+        "console": null,
+        "hostedAdapter": "health.read"
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0184-agent-accessible-control-plane §Design/3a"
+      ],
+      "sources": [
+        "cloudflare/src/gateway.js:122"
+      ]
+    },
+    {
+      "operation": "host.restart",
+      "title": "Restart the local Snapback server",
+      "intents": [],
+      "status": "shipped",
+      "domain": "hostOps",
+      "surfaceAccess": "mcpOnly",
+      "operability": "direct",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "None",
+        "routePolicy": "AdminWrite",
+        "effect": "None",
+        "responseSensitivity": "SensitiveApplicationData",
+        "projectionCredentials": {
+          "http": "AdminCredential (refuses this operation entirely: SNAPBACK_HOST_OP_CLI_ONLY)",
+          "mcp": "local process/filesystem access plus the startup nonce — no admin credential gate (LLP 0184 §Design/2's disclosed, temporary, named exception; closed in Phase 2's host.restart vertical slice)"
+        }
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": true,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": null,
+        "mcp": "snapback_restart",
+        "hostOps": "host.restart",
+        "http": "POST /_snapback/api/host-ops",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0024-agent-operating-surface"
+      ],
+      "sources": [
+        "src/host_ops.rs",
+        "packages/snapback-cli/mcp-control.mjs"
+      ],
+      "cliDeferralReason": "Nothing prevents a `snapback restart` CLI command composing Start/Stop the same way `snapback_restart` does; not implemented yet. Phase 2 lands it (LLP 0184 §Product contract).",
+      "composedFrom": [
+        "host.stop",
+        "host.start"
+      ]
+    },
+    {
+      "operation": "host.start",
+      "title": "Start or attach to the local Snapback server",
+      "intents": [],
+      "status": "shipped",
+      "domain": "hostOps",
+      "surfaceAccess": "cliOnly",
+      "operability": "direct",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "None",
+        "routePolicy": "AdminWrite",
+        "effect": "None",
+        "responseSensitivity": "SensitiveApplicationData"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": true,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": "snapback host start",
+        "mcp": "snapback_start",
+        "hostOps": "host.start",
+        "http": "POST /_snapback/api/host-ops",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0024-agent-operating-surface"
+      ],
+      "sources": [
+        "src/host_ops.rs",
+        "packages/snapback-cli/mcp-control.mjs"
+      ],
+      "mcpDeferralReason": "snapback_start exists but is a distinct MCP-only projection today (this row's own HTTP/CLI path is the source of truth for surfaceAccess derivation; see host.restart below for the composed case)."
+    },
+    {
+      "operation": "host.stop",
+      "title": "Stop the local Snapback server",
+      "intents": [],
+      "status": "shipped",
+      "domain": "hostOps",
+      "surfaceAccess": "cliOnly",
+      "operability": "direct",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "None",
+        "routePolicy": "AdminWrite",
+        "effect": "None",
+        "responseSensitivity": "SensitiveApplicationData"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": true,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": "snapback host stop",
+        "mcp": "snapback_stop",
+        "hostOps": "host.stop",
+        "http": "POST /_snapback/api/host-ops",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0024-agent-operating-surface"
+      ],
+      "sources": [
+        "src/host_ops.rs",
+        "packages/snapback-cli/mcp-control.mjs"
+      ],
+      "mcpDeferralReason": "Analogous to host.start."
+    },
+    {
+      "operation": "hostCall.dispatch",
+      "title": "Re-entrant handler-isolate host call (internal)",
+      "intents": [],
+      "status": "shipped",
+      "domain": "hostedAdapter",
+      "surfaceAccess": "none",
+      "operability": "internal",
+      "availability": {
+        "targets": [
+          "derived-hosted",
+          "primary-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "system",
+        "effect": "none",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": null,
+        "mcp": null,
+        "hostOps": null,
+        "http": "POST /_snapback/host-call",
+        "adminClient": null,
+        "console": null,
+        "hostedAdapter": "hostCall.dispatch"
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0184-agent-accessible-control-plane §Design/3a"
+      ],
+      "sources": [
+        "cloudflare/src/gateway.js:110"
+      ],
+      "internalReason": "System-to-system re-entrant call from the handler isolate back to its owning coordinator, gated by a per-invocation host-call token, not an author/operator action."
+    },
+    {
+      "operation": "inspect",
+      "title": "inspect",
+      "intents": [],
+      "status": "shipped",
+      "domain": "systemApi",
+      "surfaceAccess": "apiOnly",
+      "operability": "direct",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "routePolicy": "AdminWrite",
+        "effect": "None",
+        "responseSensitivity": "SensitiveApplicationData"
+      },
+      "behavior": {
+        "readOnly": true,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": true,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": null,
+        "mcp": null,
+        "hostOps": null,
+        "http": "GET /_snapback/api/inspect",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0031-server-route-taxonomy"
+      ],
+      "sources": [
+        "src/server.rs route_registry()"
+      ]
+    },
+    {
+      "operation": "jobs.drain",
+      "title": "jobs.drain",
+      "intents": [],
+      "status": "shipped",
+      "domain": "systemApi",
+      "surfaceAccess": "apiOnly",
+      "operability": "direct",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "System",
+        "routePolicy": "AdminWrite",
+        "effect": "None",
+        "responseSensitivity": "SensitiveApplicationData"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": true
+      },
+      "projections": {
+        "cli": null,
+        "mcp": null,
+        "hostOps": null,
+        "http": "POST /_snapback/api/jobs/drain",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0031-server-route-taxonomy"
+      ],
+      "sources": [
+        "src/server.rs route_registry()"
+      ]
+    },
+    {
+      "operation": "jobs.list",
+      "title": "jobs.list",
+      "intents": [],
+      "status": "shipped",
+      "domain": "systemApi",
+      "surfaceAccess": "apiOnly",
+      "operability": "direct",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "routePolicy": "AdminRead",
+        "effect": "None",
+        "responseSensitivity": "SensitiveApplicationData"
+      },
+      "behavior": {
+        "readOnly": true,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": true,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": null,
+        "mcp": null,
+        "hostOps": null,
+        "http": "GET /_snapback/api/jobs",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0031-server-route-taxonomy"
+      ],
+      "sources": [
+        "src/server.rs route_registry()"
+      ]
+    },
+    {
+      "operation": "jobs.show",
+      "title": "jobs.show",
+      "intents": [],
+      "status": "shipped",
+      "domain": "systemApi",
+      "surfaceAccess": "apiOnly",
+      "operability": "direct",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "routePolicy": "AdminRead",
+        "effect": "None",
+        "responseSensitivity": "SensitiveApplicationData"
+      },
+      "behavior": {
+        "readOnly": true,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": true,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": null,
+        "mcp": null,
+        "hostOps": null,
+        "http": "GET /_snapback/api/jobs/{id}",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0031-server-route-taxonomy"
+      ],
+      "sources": [
+        "src/server.rs route_registry()"
+      ]
+    },
+    {
+      "operation": "object.evict",
+      "title": "Evict a hosted durable object",
+      "intents": [
+        "evict hosted object",
+        "force reload hosted durable object"
+      ],
+      "status": "shipped",
+      "domain": "hostedAdapter",
+      "surfaceAccess": "apiOnly",
+      "operability": "direct",
+      "availability": {
+        "targets": [
+          "derived-hosted",
+          "primary-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "routePolicy": "AdminWrite",
+        "effect": "none",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": true,
+        "approvalPosture": "confirmFirst",
+        "idempotent": true,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": null,
+        "mcp": null,
+        "hostOps": null,
+        "http": "POST /_snapback/api/object/evict",
+        "adminClient": null,
+        "console": null,
+        "hostedAdapter": "object.evict"
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0184-agent-accessible-control-plane §Design/3a"
+      ],
+      "sources": [
+        "cloudflare/src/gateway.js:172"
+      ]
+    },
+    {
+      "operation": "push.maintenance",
+      "title": "push.maintenance",
+      "intents": [],
+      "status": "shipped",
+      "domain": "systemApi",
+      "surfaceAccess": "apiOnly",
+      "operability": "internal",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "System",
+        "routePolicy": "AdminWrite",
+        "effect": "None",
+        "responseSensitivity": "SensitiveApplicationData"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": true
+      },
+      "projections": {
+        "cli": null,
+        "mcp": null,
+        "hostOps": null,
+        "http": "POST /_snapback/api/push/maintenance",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0031-server-route-taxonomy"
+      ],
+      "sources": [
+        "src/server.rs route_registry()"
+      ],
+      "internalReason": "Push-notification maintenance sweep; internal scheduled/system maintenance, not an author/operator-invoked action today."
+    },
+    {
+      "operation": "receipts",
+      "title": "receipts",
+      "intents": [],
+      "status": "shipped",
+      "domain": "systemApi",
+      "surfaceAccess": "apiOnly",
+      "operability": "direct",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "routePolicy": "AdminRead",
+        "effect": "None",
+        "responseSensitivity": "SensitiveApplicationData"
+      },
+      "behavior": {
+        "readOnly": true,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": true,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": null,
+        "mcp": null,
+        "hostOps": null,
+        "http": "GET /_snapback/api/receipts",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0031-server-route-taxonomy"
+      ],
+      "sources": [
+        "src/server.rs route_registry()"
+      ]
+    },
+    {
+      "operation": "route.unknown.refuse",
+      "title": "Unrecognized reserved-namespace root (refusal)",
+      "intents": [],
+      "status": "shipped",
+      "domain": "hostedAdapter",
+      "surfaceAccess": "none",
+      "operability": "internal",
+      "availability": {
+        "targets": [
+          "derived-hosted",
+          "primary-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "public",
+        "effect": "none",
+        "responseSensitivity": "PublicProjection",
+        "projectionCredentials": {
+          "hostedAdapter": "public (ANY /_snapback/*)"
+        }
+      },
+      "behavior": {
+        "readOnly": true,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": true,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": null,
+        "mcp": null,
+        "hostOps": null,
+        "http": "ANY /_snapback",
+        "adminClient": null,
+        "console": null,
+        "hostedAdapter": "route.unknown.refuse"
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0184-agent-accessible-control-plane §Design/3a"
+      ],
+      "sources": [
+        "cloudflare/src/gateway.js:178"
+      ],
+      "internalReason": "Unconditional refusal branch, not an invocable operation."
+    },
+    {
+      "operation": "schema.load",
+      "title": "Load the generated schema manifest",
+      "intents": [],
+      "status": "shipped",
+      "domain": "hostOps",
+      "surfaceAccess": "native",
+      "operability": "direct",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "None",
+        "routePolicy": "AdminWrite",
+        "effect": "None",
+        "responseSensitivity": "SensitiveApplicationData"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": true,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": "snapback host load --schema <path>",
+        "mcp": "snapback_load_schema",
+        "hostOps": "schema.load",
+        "http": "POST /_snapback/api/host-ops",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0024-agent-operating-surface"
+      ],
+      "sources": [
+        "src/host_ops.rs",
+        "packages/snapback-cli/mcp-control.mjs"
+      ]
+    },
+    {
+      "operation": "schema.reload",
+      "title": "schema.reload",
+      "intents": [],
+      "status": "unbuilt",
+      "domain": "hostOps",
+      "surfaceAccess": "apiOnly",
+      "operability": "unavailable",
+      "unavailableReason": {
+        "owner": "llp/0024-agent-operating-surface",
+        "ticketOrDesignPointer": "llp/0024-agent-operating-surface.spec.md",
+        "note": "Pinned by LLP 0024, not yet built anywhere. Returns SNAPBACK_HOST_OP_UNIMPLEMENTED."
+      },
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "None",
+        "routePolicy": "AdminWrite",
+        "effect": "None",
+        "responseSensitivity": "SensitiveApplicationData"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": null,
+        "mcp": null,
+        "hostOps": "schema.reload",
+        "http": "POST /_snapback/api/host-ops",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0024-agent-operating-surface"
+      ],
+      "sources": [
+        "src/host_ops.rs",
+        "packages/snapback-cli/mcp-control.mjs"
+      ]
+    },
+    {
+      "operation": "secretRead.mint",
+      "title": "secretRead.mint",
+      "intents": [],
+      "status": "shipped",
+      "domain": "systemApi",
+      "surfaceAccess": "cliOnly",
+      "operability": "direct",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "routePolicy": "AdminWrite",
+        "effect": "SecretReadMintProof",
+        "responseSensitivity": "CredentialSecret"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": true
+      },
+      "projections": {
+        "cli": "snapback secret-read-mint",
+        "mcp": null,
+        "hostOps": null,
+        "http": "POST /_snapback/api/admin-secret-read/mint",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0031-server-route-taxonomy"
+      ],
+      "sources": [
+        "src/server.rs route_registry()"
+      ],
+      "mcpDeferralReason": "Ready-file-only local operator authority (src/cli.rs HostCommand::SecretReadMint doc comment: 'can never be discovered from a URL'); no MCP projection."
+    },
+    {
+      "operation": "telemetry.events",
+      "title": "Read a bounded telemetry event page",
+      "intents": [],
+      "status": "shipped",
+      "domain": "hostOps",
+      "surfaceAccess": "native",
+      "operability": "direct",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "routePolicy": "AdminSecretRead",
+        "effect": "None",
+        "responseSensitivity": "SensitiveApplicationData"
+      },
+      "behavior": {
+        "readOnly": true,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": "snapback telemetry events",
+        "mcp": "snapback_telemetry_events",
+        "hostOps": "telemetry.events",
+        "http": "POST /_snapback/api/host-ops",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": "operating/host-ops.md",
+      "authorities": [
+        "llp/0024-agent-operating-surface"
+      ],
+      "sources": [
+        "src/host_ops.rs",
+        "packages/snapback-cli/mcp-control.mjs"
+      ]
+    },
+    {
+      "operation": "telemetry.export",
+      "title": "Export one bounded telemetry page",
+      "intents": [],
+      "status": "shipped",
+      "domain": "hostOps",
+      "surfaceAccess": "native",
+      "operability": "direct",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "routePolicy": "AdminSecretRead",
+        "effect": "None",
+        "responseSensitivity": "SensitiveApplicationData"
+      },
+      "behavior": {
+        "readOnly": true,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": "snapback telemetry export",
+        "mcp": "snapback_telemetry_export",
+        "hostOps": "telemetry.export",
+        "http": "POST /_snapback/api/host-ops",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": "operating/host-ops.md",
+      "authorities": [
+        "llp/0024-agent-operating-surface"
+      ],
+      "sources": [
+        "src/host_ops.rs",
+        "packages/snapback-cli/mcp-control.mjs"
+      ]
+    },
+    {
+      "operation": "telemetry.stats",
+      "title": "Read aggregate telemetry health",
+      "intents": [],
+      "status": "shipped",
+      "domain": "hostOps",
+      "surfaceAccess": "native",
+      "operability": "direct",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "routePolicy": "AdminRead",
+        "effect": "None",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": true,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": "snapback telemetry stats",
+        "mcp": "snapback_telemetry_stats",
+        "hostOps": "telemetry.stats",
+        "http": "POST /_snapback/api/host-ops",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": "operating/host-ops.md",
+      "authorities": [
+        "llp/0024-agent-operating-surface"
+      ],
+      "sources": [
+        "src/host_ops.rs",
+        "packages/snapback-cli/mcp-control.mjs"
+      ]
+    },
+    {
+      "operation": "test.<subpath-determined-by-coordinator>",
+      "title": "Testing-only generic seam prefix",
+      "intents": [],
+      "status": "shipped",
+      "domain": "hostedAdapter",
+      "surfaceAccess": "none",
+      "operability": "internal",
+      "availability": {
+        "targets": [
+          "derived-hosted",
+          "primary-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "system",
+        "effect": "none",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": true,
+        "approvalPosture": "open",
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": null,
+        "mcp": null,
+        "hostOps": null,
+        "http": "POST /_snapback/test/*",
+        "adminClient": null,
+        "console": null,
+        "hostedAdapter": "test.<subpath-determined-by-coordinator>"
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0184-agent-accessible-control-plane §Design/3a"
+      ],
+      "sources": [
+        "cloudflare/src/gateway.js:156"
+      ],
+      "internalReason": "SNAPBACK_TESTING=1 profile-gated testing seam; not an author/operator action."
+    },
+    {
+      "operation": "test.corruptMeta",
+      "title": "Testing-only startup metadata corruption seam",
+      "intents": [],
+      "status": "shipped",
+      "domain": "hostedAdapter",
+      "surfaceAccess": "none",
+      "operability": "internal",
+      "availability": {
+        "targets": [
+          "derived-hosted",
+          "primary-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "system",
+        "effect": "none",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": true,
+        "approvalPosture": "open",
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": null,
+        "mcp": null,
+        "hostOps": null,
+        "http": "POST /_snapback/test/corrupt-meta",
+        "adminClient": null,
+        "console": null,
+        "hostedAdapter": "test.corruptMeta"
+      },
+      "guide": null,
+      "authorities": [
+        "llp/0184-agent-accessible-control-plane §Design/3a"
+      ],
+      "sources": [
+        "cloudflare/src/gateway.js:156"
+      ],
+      "internalReason": "SNAPBACK_TESTING=1 profile-gated testing seam, categorically absent from production deploys; not an author/operator action."
+    }
+  ]
+}
