@@ -24,6 +24,7 @@ const TABLE = Symbol('snapback.table');
 const EPHEMERAL_COLLECTION = Symbol('snapback.ephemeralCollection');
 const EPHEMERAL = Symbol('snapback.ephemeral');
 const ASSET_UPLOAD = Symbol('snapback.assetUpload');
+const COMMAND = Symbol('snapback.command');
 const SURFACE = Symbol('snapback.surface');
 const SURFACE_BINDING = Symbol('snapback.surfaceBinding');
 const PUSH_SEAM = Symbol('snapback.pushSeam');
@@ -1699,6 +1700,33 @@ export function defineEphemeral(collections) {
     assert(collection && collection[EPHEMERAL_COLLECTION], `ephemeral collection ${name} must be ephemeral.collection(...)`);
   }
   return { [EPHEMERAL]: true, collections };
+}
+
+// ---------------------------------------------------------------------------
+// Asset-bearing commands
+// ---------------------------------------------------------------------------
+// @ref LLP 0180#declaration — a v1 command is closed data: exactly one
+// ordinary mutation plus zero or one declared asset input. It carries no
+// callback, transaction, authority, or generic workflow vocabulary.
+export function defineCommand(spec) {
+  exactObject(spec, 'defineCommand()', new Set(['mutation', 'assets']));
+  const assets = spec.assets ?? {};
+  assert(assets && typeof assets === 'object' && !Array.isArray(assets), 'defineCommand() assets must be an object');
+  for (const [inputName, asset] of Object.entries(assets)) {
+    assert(isUserIdentifier(inputName), `defineCommand() asset input ${inputName} is not a portable identifier`);
+    exactObject(asset, `defineCommand() asset ${inputName}`, new Set(['intent', 'mutationArg', 'optional']));
+    assert(asset.intent?.[ASSET_UPLOAD] === true, `defineCommand() asset ${inputName}.intent must be a defineAssetUpload export`);
+    assert(isUserIdentifier(asset.mutationArg), `defineCommand() asset ${inputName}.mutationArg must be a portable identifier`);
+    assert(typeof asset.optional === 'boolean', `defineCommand() asset ${inputName}.optional must be boolean`);
+  }
+  return {
+    [COMMAND]: true,
+    __kind: 'AssetBearingCommand',
+    // Preserve invalid zero/many declarations as closed data so the
+    // generation validation lane can return a stable command refusal.
+    mutation: spec.mutation ?? null,
+    assets: { ...assets },
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -3797,6 +3825,10 @@ export function defineAssetUpload(spec) {
 
 export function isAssetUploadDef(value) {
   return !!(value && value[ASSET_UPLOAD]);
+}
+
+export function isCommandDef(value) {
+  return !!(value && value[COMMAND]);
 }
 
 export function isSurfaceDef(value) {

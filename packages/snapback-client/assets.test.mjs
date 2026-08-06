@@ -493,6 +493,16 @@ const client = { baseUrl, subscribeLive: () => {} };
       parent: externalParent,
       authorization: 'Bearer bearer_external_1',
     });
+    const staleStart = state.requests.length;
+    const staleTask = new SnapbackAssetClient(externalParent).start({
+      upload: AVATAR_UPLOAD_REF,
+      file: makeFile('stale-command-cohort'),
+      externalTransportGeneration: externalParent.__authTransportGeneration + 1,
+    });
+    const stale = await staleTask.done;
+    assert.equal(stale.status, 'failed');
+    assert.equal(stale.diagnostic.code, 'SNAPBACK_CLIENT_AUTHORITY_STALE');
+    assert.equal(state.requests.length, staleStart, 'a stale command cohort dispatches no asset request');
     await runCustodyLifecycle({
       label: 'anonymous-public',
       parent: anonymousParent,

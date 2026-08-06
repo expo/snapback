@@ -8,7 +8,8 @@ LLP 0181, `demos/expo-golden-path-fixture/receipts/20260806-g1-ios-simulator.md`
 `demos/expo-golden-path-fixture/receipts/20260806-g1-android-emulator.md`,
 LLP 0176 G2,
 `demos/expo-golden-path-fixture/receipts/20260806-g2-ios-simulator.md`,
-`demos/expo-golden-path-fixture/receipts/20260806-g2-android-emulator.md`
+`demos/expo-golden-path-fixture/receipts/20260806-g2-android-emulator.md`,
+LLP 0176 G3, LLP 0180
 
 ## What was built
 
@@ -348,3 +349,63 @@ without a worktree; the Android prepared checkout is clean on
 bootstrap, reverse rule, or adb daemon remained. This completes LLP 0176 G2
 for headless React plus iOS simulator and Android emulator only; it makes no
 physical-device, release, LAN-carrier, or LLP 0064 claim.
+
+## 2026-08-06 — LLP 0180 command core and G3 headless acceptance
+
+### What changed
+
+The messaging backend now declares one `send` command over an optional image
+upload and one ordinary `sendMessage` mutation. The conversation surface binds
+its resource and seeded sender fields, leaving text and image source as the
+same typed call. Headless real-runtime acceptance exercises text, one image,
+finalized-but-unattached residue, and anonymous refusal at the distinct
+mutation and asset boundaries.
+
+### What felt good
+
+- The descriptor remained inspection data. Its new `commands` namespace names
+  the ordinary mutation, optional upload intent, mapping, and passthrough
+  inputs without moving the command into `mutations` or inventing a command
+  endpoint.
+- The client wrapper could reuse the existing asset task and ordinary mutation
+  attempt. React's direct hook and surface callable share those provider-owned
+  children; the wrapper only projects phases and terminal outcomes.
+- One optional asset mapping made text and image sends genuinely the same call
+  shape. The mutation stayed the sole row/attachment commit, which made the
+  no-false-atomicity test straightforward.
+
+### What felt bad or surprising
+
+- The first real-runtime run exposed a contract gap below codegen: generated
+  mutation arguments could now carry `AssetRef`, but Rust manifest admission
+  still rejected that result-value contract in the argument lane. Extending
+  the existing argument validator fixed the actual boundary; a fresh
+  digest-bound runtime readiness receipt was necessary before trusting the
+  acceptance server.
+- LLP 0044 currently exposes finalized asset identity but no authoritative
+  global “unattached everywhere” fact. A proved same-authority mutation
+  refusal can therefore report only `inferred`; ambiguity and authority
+  replacement are `unknown`. The task cannot honestly offer “safe to delete.”
+- Anonymous text reaches the mutation boundary, while anonymous image send is
+  rejected earlier by asset owner custody. Keeping those diagnostics and the
+  absent mutation child visible was more useful than flattening both into one
+  command error.
+
+The surface guide was updated in the same change because its S1-era statement
+that commands were reserved had become actively wrong. This was feature drift
+caused by the implementation itself, not missing knowledge encountered while
+following the prior guide, so no separate `guide-gap` ticket was filed.
+
+### Comparison and boundary
+
+Compared with a React plus Convex or Supabase screen that hand-sequences
+storage upload and row mutation, the typed command removes application-level
+sequencing and gives retry/ambiguity one explicit task. Snapback also makes
+the non-atomic seam unusually visible: finalized storage can outlive a failed
+row mutation. That honesty costs a richer result than a normal rejected
+promise, but prevents an ambiguous send from looking safe to repeat.
+
+This entry covers the command core and headless G3 acceptance only. Expo picker
+and content-URI adapters, platform receipts, offline/restart custody,
+multi-asset commands, attempt grants, and anonymous claim-on-attach remain out
+of scope.

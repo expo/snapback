@@ -88,6 +88,7 @@ const inventories = [
       'browser-closure.test.mjs',
       'bundle.test.mjs',
       'carrier-capability-honesty.test.mjs',
+      'commands.test.mjs',
       'demand-broker.test.mjs',
       'ephemeral-room.test.mjs',
       'evaluation-floor.test.mjs',
@@ -169,12 +170,14 @@ const inventories = [
     packageDir: 'packages/snapback-react',
     testDir: '.',
     suffix: '.test.mjs',
+    scriptNames: ['pretest', 'test'],
     expectedFiles: [
       'assets.test.mjs',
       'authorization-denial.test.mjs',
       'binding-development-sync.test.mjs',
       'cold-boot-binding-indexeddb.test.mjs',
       'cold-boot-binding.test.mjs',
+      'commands.test.mjs',
       'hmr-generation-handoff.test.mjs',
       'lifecycle.test.mjs',
       'offline.test.mjs',
@@ -605,7 +608,9 @@ const total = results.reduce((sum, result) => sum + result.count, 0);
 // 217 -> 218 (2026-08-06, LLP 0178/LLP 0187 T2): @expo/snapback-codegen's
 // guidePointer remediation-kind suite landed in the configured test script
 // without a canonical inventory entry; registered here.
-assert.equal(total, 218, 'reviewed package/admin test count changed');
+// 218 -> 220 (2026-08-06, LLP 0180 / LLP 0179 S2): the client and React
+// packages gain the command phase/outcome and named-projection suites.
+assert.equal(total, 220, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }

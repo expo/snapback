@@ -16,12 +16,38 @@ import type {
   AssetTaskSnapshot,
   AssetUploadTask,
 } from '@expo/snapback-client/assets';
+import type {
+  AssetBearingCommandDescriptorV1,
+  AssetBearingCommandReferenceV1,
+  CommandArgs,
+  CommandOutcome,
+  CommandResidue,
+  CommandResult,
+  CommandTask,
+  CommandTaskSnapshot,
+  MutationAttemptSnapshot,
+  SnapbackCommandDiagnostic,
+  TypedRemediation,
+} from '@expo/snapback-client/commands';
 
 export type {
   AssetFileLike,
   AssetTaskSnapshot,
   AssetUploadTask,
 } from '@expo/snapback-client/assets';
+export type {
+  AssetBearingCommandDescriptorV1,
+  AssetBearingCommandReferenceV1,
+  CommandArgs,
+  CommandOutcome,
+  CommandResidue,
+  CommandResult,
+  CommandTask,
+  CommandTaskSnapshot,
+  MutationAttemptSnapshot,
+  SnapbackCommandDiagnostic,
+  TypedRemediation,
+} from '@expo/snapback-client/commands';
 
 export type SnapbackDiagnostic = Readonly<{
   schemaVersion: 'snapback.client-diagnostic.v1';
@@ -232,6 +258,7 @@ export interface SnapbackSurfaceDescriptor<
   Params = any,
   Reads = any,
   Mutations = any,
+  Commands = any,
   Presence = any,
   Assets = any,
 > {
@@ -240,17 +267,19 @@ export interface SnapbackSurfaceDescriptor<
   readonly params: Readonly<Record<string, unknown>>;
   readonly reads: Reads;
   readonly mutations: Mutations;
+  readonly commands: Commands;
   readonly presence: Presence;
   readonly assets: Assets;
   readonly __params?: Params;
 }
-export type SurfaceParams<Surface> = Surface extends SnapbackSurfaceDescriptor<infer Params, any, any, any, any>
+export type SurfaceParams<Surface> = Surface extends SnapbackSurfaceDescriptor<infer Params, any, any, any, any, any>
   ? Params
   : never;
-type SurfaceReads<Surface> = Surface extends SnapbackSurfaceDescriptor<any, infer Reads, any, any, any> ? Reads : never;
-type SurfaceMutations<Surface> = Surface extends SnapbackSurfaceDescriptor<any, any, infer Mutations, any, any> ? Mutations : never;
-type SurfacePresence<Surface> = Surface extends SnapbackSurfaceDescriptor<any, any, any, infer Presence, any> ? Presence : never;
-type SurfaceAssets<Surface> = Surface extends SnapbackSurfaceDescriptor<any, any, any, any, infer Assets> ? Assets : never;
+type SurfaceReads<Surface> = Surface extends SnapbackSurfaceDescriptor<any, infer Reads, any, any, any, any> ? Reads : never;
+type SurfaceMutations<Surface> = Surface extends SnapbackSurfaceDescriptor<any, any, infer Mutations, any, any, any> ? Mutations : never;
+type SurfaceCommands<Surface> = Surface extends SnapbackSurfaceDescriptor<any, any, any, infer Commands, any, any> ? Commands : never;
+type SurfacePresence<Surface> = Surface extends SnapbackSurfaceDescriptor<any, any, any, any, infer Presence, any> ? Presence : never;
+type SurfaceAssets<Surface> = Surface extends SnapbackSurfaceDescriptor<any, any, any, any, any, infer Assets> ? Assets : never;
 type SurfaceMemberReference<Member> = Member extends SnapbackSurfaceMember<infer Reference, any> ? Reference : never;
 type SurfaceMemberInput<Member> = Member extends SnapbackSurfaceMember<any, infer Input> ? Input : never;
 export type SurfaceOptions<Surface extends SnapbackSurfaceDescriptor> = Readonly<{
@@ -274,6 +303,11 @@ export type SurfaceResult<Surface extends SnapbackSurfaceDescriptor> = Readonly<
   mutations: Readonly<{
     [Name in keyof SurfaceMutations<Surface>]: SurfaceMemberReference<SurfaceMutations<Surface>[Name]> extends MutationReference
       ? (input: SurfaceMemberInput<SurfaceMutations<Surface>[Name]>) => Promise<FunctionResult<SurfaceMemberReference<SurfaceMutations<Surface>[Name]>>>
+      : never
+  }>;
+  commands: Readonly<{
+    [Name in keyof SurfaceCommands<Surface>]: SurfaceMemberReference<SurfaceCommands<Surface>[Name]> extends AssetBearingCommandReferenceV1
+      ? (input: SurfaceMemberInput<SurfaceCommands<Surface>[Name]>) => CommandTask<CommandResult<SurfaceMemberReference<SurfaceCommands<Surface>[Name]>>>
       : never
   }>;
   presence: Readonly<{
@@ -306,6 +340,7 @@ export interface BoundSnapbackSurface<Surface extends SnapbackSurfaceDescriptor>
     }>
   }>;
   readonly mutations: SurfaceResult<Surface>['mutations'];
+  readonly commands: SurfaceResult<Surface>['commands'];
   readonly assets: SurfaceResult<Surface>['assets'];
   update(params: SurfaceParams<Surface>, options?: SurfaceOptions<Surface>): void;
   subscribe(listener: () => void): () => void;
@@ -328,6 +363,7 @@ export function observeSnapbackSurface<Surface extends SnapbackSurfaceDescriptor
   snapshot(): SurfaceResult<Surface>;
   readonly reads: BoundSnapbackSurface<Surface>['reads'];
   readonly mutations: BoundSnapbackSurface<Surface>['mutations'];
+  readonly commands: BoundSnapbackSurface<Surface>['commands'];
   readonly assets: BoundSnapbackSurface<Surface>['assets'];
   update(params: SurfaceParams<Surface>, options?: SurfaceOptions<Surface>): void;
   dispose(): Promise<void>;
@@ -420,6 +456,9 @@ export function useSnapbackMutation<
     }>;
   }>,
 ): (args: FunctionArgs<Ref>) => Promise<FunctionResult<Ref>>;
+export function useSnapbackCommand<Command extends AssetBearingCommandReferenceV1>(
+  reference: Command,
+): (args: CommandArgs<Command>) => CommandTask<CommandResult<Command>>;
 
 export type SnapbackConnectionState = Readonly<{
   status: SnapbackConnection;
@@ -518,6 +557,11 @@ export function invokeSnapbackMutation<
     }>;
   }>,
 ): Promise<FunctionResult<Ref>>;
+export function invokeSnapbackCommand<Command extends AssetBearingCommandReferenceV1>(
+  provider: SnapbackReactProvider,
+  reference: Command,
+  args: CommandArgs<Command>,
+): CommandTask<CommandResult<Command>>;
 
 export function bindSnapbackAppLifecycle(
   appState: {

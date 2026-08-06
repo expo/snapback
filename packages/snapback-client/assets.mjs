@@ -347,7 +347,11 @@ export class SnapbackAssetClient {
    * wins; the dev-lane header is the no-credential fallback and never
    * overrides a real credential.
    */
-  #custodyHeaders(userId) {
+  #custodyHeaders(
+    userId,
+    authorityCapture = undefined,
+    externalTransportGeneration = undefined,
+  ) {
     // @ref LLP 0096#2-per-profile-contract — the parent client's auth/rr
     // offer repeats on every asset boundary; the offer is not a credential.
     const authClientProtocol = this.#client.authProtocols?.authClient ?? null;
@@ -368,13 +372,44 @@ export class SnapbackAssetClient {
     const fence = this.#client.authorityFence;
     if (fence) {
       try {
-        const bearer = fence.credentialFor(fence.capture()).bearer;
+        const capture = authorityCapture === undefined ? fence.capture() : authorityCapture;
+        const current = typeof fence.isCurrent === 'function'
+          ? fence.isCurrent(capture) === true
+          : authorityCapture === undefined;
+        if (capture === null || !current) {
+          const error = new Error('asset task authority was replaced');
+          error.code = 'SNAPBACK_CLIENT_AUTHORITY_STALE';
+          error.diagnostic = {
+            code: error.code,
+            message: error.message,
+            details: { effectCommitted: false },
+          };
+          throw error;
+        }
+        const bearer = fence.credentialFor(capture).bearer;
         if (bearer) return bearerHeaders(bearer);
-      } catch {
+      } catch (error) {
+        if (authorityCapture !== undefined) throw error;
         // No current credential — fall through to the dev-lane posture.
       }
     }
     const external = this.#client.bearerToken;
+    if (
+      externalTransportGeneration !== undefined
+      && (
+        this.#client.__externalBearerTransition !== null
+        || this.#client.__authTransportGeneration !== externalTransportGeneration
+      )
+    ) {
+      const error = new Error('asset task external authority was replaced');
+      error.code = 'SNAPBACK_CLIENT_AUTHORITY_STALE';
+      error.diagnostic = {
+        code: error.code,
+        message: error.message,
+        details: { effectCommitted: false },
+      };
+      throw error;
+    }
     if (typeof external === 'string' && external.length > 0) {
       return bearerHeaders(external);
     }
@@ -393,10 +428,14 @@ export class SnapbackAssetClient {
     return {};
   }
 
-  async #json(method, path, body, { userId = null } = {}) {
+  async #json(method, path, body, {
+    userId = null,
+    authorityCapture = undefined,
+    externalTransportGeneration = undefined,
+  } = {}) {
     const headers = {
       'content-type': 'application/json',
-      ...this.#custodyHeaders(userId),
+      ...this.#custodyHeaders(userId, authorityCapture, externalTransportGeneration),
     };
     const response = await fetch(`${this.#client.baseUrl}${path}`, {
       method,
@@ -425,6 +464,8 @@ export class SnapbackAssetClient {
     declaredFilename = null,
     declaredContentType = null,
     previewUrl = null,
+    authorityCapture = undefined,
+    externalTransportGeneration = undefined,
   }) {
     assertFileLike(file);
     const identity = intentIdentity(upload);
@@ -442,6 +483,8 @@ export class SnapbackAssetClient {
       offset: 0,
       wholeHash: createHash('sha256'),
       transfer: null,
+      authorityCapture,
+      externalTransportGeneration,
     });
     void this.#start(task);
     return task;
@@ -463,7 +506,11 @@ export class SnapbackAssetClient {
           declaredContentType: state.declaredContentType,
           ...(state.retryOfAssetId ? { retryOfAssetId: state.retryOfAssetId } : {}),
         },
-        { userId: state.userId },
+        {
+          userId: state.userId,
+          authorityCapture: state.authorityCapture,
+          externalTransportGeneration: state.externalTransportGeneration,
+        },
       );
       state.transfer = created.transfer;
       task._apply({
@@ -541,7 +588,11 @@ export class SnapbackAssetClient {
             method: 'HEAD',
             headers: {
               'tus-resumable': TUS_VERSION,
-              ...this.#custodyHeaders(state.userId),
+              ...this.#custodyHeaders(
+                state.userId,
+                state.authorityCapture,
+                state.externalTransportGeneration,
+              ),
             },
           },
         );
@@ -589,7 +640,11 @@ export class SnapbackAssetClient {
               'upload-offset': String(state.offset),
               // The conformance requirement: every PATCH carries a checksum.
               'upload-checksum': `sha256 ${sha256Base64(bytes)}`,
-              ...this.#custodyHeaders(state.userId),
+              ...this.#custodyHeaders(
+                state.userId,
+                state.authorityCapture,
+                state.externalTransportGeneration,
+              ),
             },
             body: bytes,
           },
@@ -614,7 +669,11 @@ export class SnapbackAssetClient {
           lifecycleGeneration: 1,
           declaredDigest: state.wholeHash.digest('hex'),
         },
-        { userId: state.userId },
+        {
+          userId: state.userId,
+          authorityCapture: state.authorityCapture,
+          externalTransportGeneration: state.externalTransportGeneration,
+        },
       );
       const availability = finalized.task.availability;
       task._apply({
@@ -646,7 +705,11 @@ export class SnapbackAssetClient {
             lifecycleGeneration: 1,
             discardAsset,
           },
-          { userId: this.#tasks.get(task)?.userId ?? null },
+          {
+            userId: this.#tasks.get(task)?.userId ?? null,
+            authorityCapture: this.#tasks.get(task)?.authorityCapture,
+            externalTransportGeneration: this.#tasks.get(task)?.externalTransportGeneration,
+          },
         );
       }
     } finally {

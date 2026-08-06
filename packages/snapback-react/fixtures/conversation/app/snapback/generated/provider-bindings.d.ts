@@ -17,6 +17,8 @@ export type AddReactionArgs = { "conversationId": string; "emoji": string; "mess
 export type AddReactionResult = { "reactionId": string };
 export type RemoveReactionArgs = { "reactionId": string };
 export type RemoveReactionResult = { "removed": boolean };
+export type SendMessageArgs = { "body"?: string; "conversationId": string; "image"?: string; "senderId": string };
+export type SendMessageResult = { "messageId": string };
 export type SendReplyArgs = { "conversationId": string; "replyToId": string; "senderId": string; "text": string };
 export type SendReplyResult = { "messageId": string };
 export type SendTextArgs = { "conversationId": string; "senderId": string; "text": string };
@@ -33,6 +35,7 @@ export interface ProviderQueryBindings {
 export interface ProviderMutationBindings {
   "addReaction": { args: AddReactionArgs; result: AddReactionResult };
   "removeReaction": { args: RemoveReactionArgs; result: RemoveReactionResult };
+  "sendMessage": { args: SendMessageArgs; result: SendMessageResult };
   "sendReply": { args: SendReplyArgs; result: SendReplyResult };
   "sendText": { args: SendTextArgs; result: SendTextResult };
 }

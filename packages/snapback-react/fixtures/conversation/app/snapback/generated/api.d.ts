@@ -212,6 +212,7 @@ export interface GeneratedFunctionContexts {
   messagesForConversation: GeneratedQueryContext;
   reactionsForConversation: GeneratedQueryContext;
   removeReaction: GeneratedMutationContext<GeneratedAuthenticatedAuthContext>;
+  sendMessage: GeneratedMutationContext<GeneratedAuthenticatedAuthContext>;
   sendReply: GeneratedMutationContext<GeneratedAuthenticatedAuthContext>;
   sendText: GeneratedMutationContext<GeneratedAuthenticatedAuthContext>;
   users: GeneratedQueryContext;
@@ -228,6 +229,7 @@ export interface GeneratedApi {
   messagesForConversation: FunctionReference<'messagesForConversation', 'LiveQuery', { conversationId: Id<'conversations'> }, ReadonlyArray<GeneratedDataModel["messages"]>>;
   reactionsForConversation: FunctionReference<'reactionsForConversation', 'LiveQuery', { conversationId: Id<'conversations'> }, ReadonlyArray<GeneratedDataModel["reactions"]>>;
   removeReaction: FunctionReference<'removeReaction', 'Mutation', { reactionId: Id<'reactions'> }, { "removed": boolean }>;
+  sendMessage: FunctionReference<'sendMessage', 'Mutation', { conversationId: Id<'conversations'>; senderId: Id<'users'>; body?: string; image?: string }, { "messageId": Id<"messages"> }>;
   sendReply: FunctionReference<'sendReply', 'Mutation', { conversationId: Id<'conversations'>; senderId: Id<'users'>; text: string; replyToId: Id<'messages'> }, { "messageId": Id<"messages"> }>;
   sendText: FunctionReference<'sendText', 'Mutation', { conversationId: Id<'conversations'>; senderId: Id<'users'>; text: string }, { "messageId": Id<"messages"> }>;
   users: FunctionReference<'users', 'LiveQuery', Record<string, never>, ReadonlyArray<GeneratedDataModel["users"]>>;
@@ -243,6 +245,6 @@ export interface GeneratedAssetUploadDefaults {
 }
 export declare const defaults: GeneratedAssetUploadDefaults;
 export declare const api: GeneratedApi;
-export { app, addReaction, conversationDetails, membershipsForConversation, messagesForConversation, reactionsForConversation, removeReaction, sendReply, sendText, users } from './app';
+export { app, addReaction, conversationDetails, membershipsForConversation, messagesForConversation, reactionsForConversation, removeReaction, sendMessage, sendReply, sendText, users } from './app';
 export type { AppDescriptorV1, CapabilityRequirement, CommandDescriptor, GeneratedAppDescriptorV1, SurfaceDescriptor } from './app';
 export default api;

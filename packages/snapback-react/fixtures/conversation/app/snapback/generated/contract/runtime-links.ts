@@ -8,6 +8,7 @@ export interface SnapbackContractLinks {
   messagesForConversation(args: { conversationId: string }): unknown;
   reactionsForConversation(args: { conversationId: string }): unknown;
   removeReaction(args: { reactionId: string }): unknown;
+  sendMessage(args: { conversationId: string; senderId: string; body?: string; image?: string }): unknown;
   sendReply(args: { conversationId: string; senderId: string; text: string; replyToId: string }): unknown;
   sendText(args: { conversationId: string; senderId: string; text: string }): unknown;
   users(args: Record<string, never>): unknown;

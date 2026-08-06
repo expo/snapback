@@ -327,9 +327,6 @@ export function validatorResultValue(validator, {
       value = scalar('vector', { dimensions: fieldType.Vector.dimensions });
     }
     else if (fieldType && typeof fieldType === 'object' && fieldType.AssetRef) {
-      if (args) {
-        throw new TypeError('v.assetRef() is a stored/result validator, not an argument validator');
-      }
       value = scalar('assetRef');
     }
     else if (fieldType && typeof fieldType === 'object' && fieldType.RelationIncarnation) {

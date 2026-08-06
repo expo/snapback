@@ -9,6 +9,7 @@ import React, {
 } from 'react';
 
 import {
+  admittedReactCommand,
   admittedReactEphemeralDefinition,
   admittedReactQueryGroup,
   admittedReactReference,
@@ -23,6 +24,7 @@ import {
   isPreparedReactQueryGroup,
   consumePreparedReactQueryGroup,
   abandonConsumedReactQueryGroup,
+  createCommandClient,
 } from '@expo/snapback-client';
 export { bindSnapbackAppLifecycle } from '@expo/snapback-client';
 import { createAssetClient } from '@expo/snapback-client/assets';
@@ -1161,6 +1163,36 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     }
   };
 
+  const runCommandMutation = async (mutationReference, mutationArgs, {
+    clientMutationId,
+    authorityCapture,
+  }) => {
+    if (terminal) throw diagnosticError('SNAPBACK_REACT_PROVIDER_CLOSED', 'React provider is closed');
+    let admittedMutation;
+    try {
+      admittedMutation = admittedReactReference(binding, mutationReference, 'Mutation');
+    } catch (error) {
+      const target = recoverableGeneration(error, mutationReference);
+      if (target === null) throw error;
+      await beginGenerationHandoff(target).promise;
+      if (terminal) throw diagnosticError('SNAPBACK_REACT_PROVIDER_CLOSED', 'React provider is closed');
+      admittedMutation = admittedReactReference(binding, mutationReference, 'Mutation');
+    }
+    canonicalizeClientValueV1(mutationArgs);
+    const output = await client.mutate(admittedMutation, {
+      args: mutationArgs,
+      clientMutationId,
+      authorityCapture,
+      queue: false,
+      ...(preparedDevUserId === null ? {} : { userId: preparedDevUserId }),
+    });
+    return validateResultContract(
+      preparedReactResultContract(binding, admittedMutation),
+      output.result,
+      { violationCode: 'SNAPBACK_REACT_COMMAND_RESULT_INVALID' },
+    );
+  };
+
   const releaseLease = (lease) => {
     if (!lease || lease.released) return;
     lease.released = true;
@@ -2248,6 +2280,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     },
     subscribeMany,
     runMutation,
+    runCommandMutation,
     createPresenceToken,
     presenceDescriptor,
     subscribePresence,
@@ -2669,6 +2702,21 @@ export function useSnapbackMutation(reference, options = {}) {
   );
 }
 
+// @ref LLP 0180#react-and-surface-projections — the hook is a named
+// projection of the same provider-owned asset and mutation children used by
+// surfaces. It owns no command transport or authority lane of its own.
+export function useSnapbackCommand(reference) {
+  const provider = useProvider();
+  const admitted = useMemo(
+    () => admittedReactCommand(provider.binding, reference),
+    [provider, reference],
+  );
+  return useCallback(
+    (args) => commandClientFor(provider).start(admitted, args),
+    [provider, admitted],
+  );
+}
+
 export function useSnapbackConnection() {
   const provider = useProvider();
   return useSyncExternalStore(
@@ -2854,7 +2902,7 @@ function resolveSurfaceBindingValue(value, params, inputValues) {
   surfaceRefusal('SNAPBACK_REACT_SURFACE_INVALID', `unsupported generated surface binding ${String(value.kind)}`);
 }
 
-function surfaceMemberArgs(member, params, inputs = {}) {
+function surfaceMemberArgs(member, params, inputs = {}, { command = false } = {}) {
   const expected = Object.keys(member.inputs).sort();
   const actual = Object.keys(inputs ?? {}).sort();
   const required = expected.filter((name) => member.inputs[name].optional !== true);
@@ -2868,7 +2916,12 @@ function surfaceMemberArgs(member, params, inputs = {}) {
       { expected, required, actual },
     );
   }
-  canonicalizeClientValueV1(inputs);
+  const portableInputs = command
+    ? Object.fromEntries(Object.entries(inputs).filter(([name]) => (
+      member.inputs[name]?.contract?.kind !== 'commandAssetSource'
+    )))
+    : inputs;
+  canonicalizeClientValueV1(portableInputs);
   return Object.fromEntries(Object.entries(member.bindings).map(([target, value]) => (
     [target, resolveSurfaceBindingValue(value, params, inputs)]
   )));
@@ -2908,6 +2961,7 @@ function surfaceSnapshot(binding) {
     state: Object.freeze(state),
     presence: Object.freeze(presence),
     mutations: binding.mutations,
+    commands: binding.commands,
     assets: binding.assets,
     descriptor: binding.surface,
   });
@@ -2969,6 +3023,7 @@ export function bindSnapbackSurface(providerValue, surfaceReference, params, opt
     presenceViews: new WeakMap(),
     lastSnapshot: null,
     mutations: null,
+    commands: null,
     assets: null,
     readEntries: null,
     readDescriptors: null,
@@ -3007,6 +3062,15 @@ export function bindSnapbackSurface(providerValue, surfaceReference, params, opt
         member.reference,
         surfaceMemberArgs(member, binding.params, inputs),
         null,
+      );
+    }]),
+  ));
+  binding.commands = Object.freeze(Object.fromEntries(
+    Object.entries(surface.commands ?? {}).map(([name, member]) => [name, (inputs = {}) => {
+      assertSurfaceGenerationCurrent(binding);
+      return commandClientFor(provider).start(
+        member.reference,
+        surfaceMemberArgs(member, binding.params, inputs, { command: true }),
       );
     }]),
   ));
@@ -3068,6 +3132,7 @@ export function bindSnapbackSurface(providerValue, surfaceReference, params, opt
     descriptor: surface,
     reads,
     mutations: binding.mutations,
+    commands: binding.commands,
     assets: binding.assets,
     [SURFACE_REACT_LIFECYCLE]: Object.freeze({
       activate() {
@@ -3144,6 +3209,7 @@ export function observeSnapbackSurface(provider, surface, params, options, liste
     snapshot: binding.snapshot,
     reads: binding.reads,
     mutations: binding.mutations,
+    commands: binding.commands,
     assets: binding.assets,
     update: binding.update,
     async dispose() {
@@ -3182,6 +3248,12 @@ export async function invokeSnapbackMutation(providerValue, reference, args, opt
   // wait), so adapters get the exact hook-path behavior: a strict rejection
   // stays a rejected promise here, never a synchronous throw.
   return provider.registry.runMutation(reference, args, options.optimistic ?? null);
+}
+
+export function invokeSnapbackCommand(providerValue, reference, args) {
+  const provider = assertProvider(providerValue);
+  const admitted = admittedReactCommand(provider.binding, reference);
+  return commandClientFor(provider).start(admitted, args);
 }
 
 // ---------------------------------------------------------------------------
@@ -3328,6 +3400,23 @@ const BLANKED_UPLOAD = Object.freeze({
 const IDLE_UPLOAD = Object.freeze({ ...BLANKED_UPLOAD, status: 'idle' });
 
 let assetRegistries;
+
+let commandClients;
+
+function commandClientFor(provider) {
+  commandClients ??= new WeakMap();
+  let commands = commandClients.get(provider);
+  if (commands) return commands;
+  const client = preparedReactBindingClient(provider.binding);
+  commands = createCommandClient(client, {
+    assets: assetRegistryFor(provider).assets,
+    invokeMutation: (reference, args, options) => (
+      provider.registry.runCommandMutation(reference, args, options)
+    ),
+  });
+  commandClients.set(provider, commands);
+  return commands;
+}
 
 function assetRegistryFor(provider) {
   assetRegistries ??= new WeakMap();

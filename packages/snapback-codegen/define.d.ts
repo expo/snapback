@@ -769,6 +769,18 @@ export interface AssetUploadSpec {
 }
 export declare function defineAssetUpload(spec: AssetUploadSpec): unknown;
 export declare function isAssetUploadDef(value: unknown): boolean;
+export interface AssetBearingCommandSpec {
+  readonly mutation: unknown;
+  readonly assets?: Record<string, Readonly<{
+    readonly intent: unknown;
+    readonly mutationArg: string;
+    readonly optional: boolean;
+  }>>;
+}
+/** Closed LLP 0180 command declaration: one ordinary mutation and at most one
+ * asset input. Codegen derives the public inputs and validates the mapping. */
+export declare function defineCommand(spec: AssetBearingCommandSpec): unknown;
+export declare function isCommandDef(value: unknown): boolean;
 export declare function defineCron(jobs: Record<string, unknown>): unknown;
 export declare function defineConfig(entries: Record<string, unknown>): unknown;
 export declare function runMutation(name: string, args?: Record<string, ValueExpr>, opts?: { bindResultAs?: string }): unknown;

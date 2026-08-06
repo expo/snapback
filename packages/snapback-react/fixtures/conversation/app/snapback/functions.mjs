@@ -4,6 +4,7 @@ import {
   bind,
   bindingRef,
   defineAssetUpload,
+  defineCommand,
   defineLiveQuery,
   defineMutation,
   defineSurface,
@@ -158,6 +159,35 @@ export const removeReaction = defineMutation({
   returns: returnExpr(record({ removed: lit(true) })),
 });
 
+export const sendMessage = defineMutation({
+  args: {
+    conversationId: v.id('conversations'),
+    senderId: v.id('users'),
+    body: v.optional(v.string()),
+    image: v.optional(v.assetRef({ upload: 'messageImageUpload' })),
+  },
+  auth: 'authenticated',
+  plan: insert('messages', {
+    conversationId: arg('conversationId'),
+    senderId: arg('senderId'),
+    kind: lit('command'),
+    sentAt: runtimeNow(),
+  }, { bindIdAs: 'messageId' }),
+  result: results.value(v.object({ messageId: v.id('messages') })),
+  returns: returnExpr(record({ messageId: bindingRef('messageId') })),
+});
+
+export const send = defineCommand({
+  mutation: sendMessage,
+  assets: {
+    image: {
+      intent: messageImageUpload,
+      mutationArg: 'image',
+      optional: true,
+    },
+  },
+});
+
 // @ref LLP 0179#closed-grammar — conversationId is declared once and every
 // child records its inspectable substitution. The generated react callables
 // therefore never accept conversationId again.
@@ -190,6 +220,14 @@ export const conversation = defineSurface({
     }),
     removeReaction: bind(removeReaction, {
       reactionId: input('reactionId'),
+    }),
+  },
+  commands: {
+    send: bind(send, {
+      conversationId: param('conversationId'),
+      senderId: 'user-ada',
+      body: input('body'),
+      image: input('image'),
     }),
   },
   assets: {
