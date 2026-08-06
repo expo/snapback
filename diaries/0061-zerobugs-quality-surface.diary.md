@@ -161,3 +161,23 @@ replacement); the only new app code is the acceptance-gated binding mutation
 and guards, all counted under W-IDENTITY. The broad fixture inspector now
 closes permanently once actor binding begins, so Lane 1's loader convenience
 cannot become a ZB4 leak.
+
+## 2026-08-06 — Lane 3: the 19-query corpus, and a third repo bug
+
+Lane 3 landed: all 19 frozen queries on the shared list-predicate engine
+(read models + all-label intersection + maintained search documents), with
+an independent parity oracle recomputing pinned semantics from raw fixture
+JSON — 16/16 live checks PASS including bidirectional keyset walks,
+permalink not-found proofs, crew-only internal visibility, and gated child
+roots.
+
+Two capability boundaries surfaced honestly: route-cut query groups accept
+`routeParam` bindings only from generated declarative queries, so the
+control's JS-authored graph queries cannot join a route cut (recorded under
+W-QGROUP; a generated D2 graph would restore it); and the third real repo
+bug of this program — anonymous-public custody sent legacy `auth` body
+fields because the wire-body strip was gated on a handshake that anonymous
+custody deliberately skips. Sessions servers refused every anonymous public
+query. One-line client fix + regression; the control's actor matrix caught
+it because it exercises anonymous alongside five bound actors on every
+protected surface.
