@@ -1,9 +1,9 @@
 # main red: agent-safe publication checker vs the conversation fixture's regenerated closure
 
-**Status:** Open
+**Status:** Resolved
 **Systems:** Packaging, Testing, React
 
-`scripts/verify-local-proof` fails at the `agent-safe-publication-fixtures`
+`scripts/verify-local-proof` failed at the `agent-safe-publication-fixtures`
 gate (`node --test tests/agent_safe_publication_checker_v1.mjs`) on current
 main (observed at `02c481e44`, 2026-08-06 ~09:00 PDT):
 
@@ -29,3 +29,19 @@ Filed rather than fixed here because that lane is actively landing S2/G3
 work and this inventory is theirs to keep coherent (LLP 0184's close-out
 found it while running the full local proof; every other executed proof gate
 before this fail-fast point was green).
+
+## Resolution — 2026-08-06
+
+Resolved in this commit. The reviewed qualification-C leaf inventory now
+restores the conversation fixture stanza that the later `8743cf3cc` generated
+fan-out accidentally dropped, rotates the binding and descriptor identities to
+the current generated closure, and admits the three generated `sendMessage`
+Contract/schema projections introduced by `17e7ca8ca`. The production checker
+and its fail-closed add/delete/rename/mode rules were not weakened.
+
+The new leaves were inspected before admission: they contain only an ordinary
+authenticated `app:sendMessage` mutation projection and a closed argument
+schema, with a static `messages`-insert effect ceiling and no embedded secrets,
+admin operation, outbound action, endpoint, or credential class. The full
+agent-safe publication checker and the sibling generated-artifact regeneration
+gate pass.
