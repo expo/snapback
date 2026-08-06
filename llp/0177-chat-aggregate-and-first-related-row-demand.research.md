@@ -136,7 +136,7 @@ The current baseline is not ambiguous:
 So `defineRelationalQuery` does **not** admit this self-join in v1. The
 distinct-table join profile remains shipped and was also undiscovered by the
 bakeoffs; that separate guide failure is tracked by
-`issues/20260805-relational-query-undiscovered-by-messaging-bakeoffs.md`.
+`issues/closed/20260805-relational-query-undiscovered-by-messaging-bakeoffs.md`.
 
 Reply preview is concrete evidence for a narrow LLP 0080 follow-up: determine
 whether its existing bounded two-source proof can safely admit distinct

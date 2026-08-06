@@ -1,6 +1,6 @@
 # The shipped admin console was never discovered by three independent Expo/messaging builds
 
-**Status:** Open
+**Status:** Resolved
 **Impact:** 4
 **Urgency:** 3
 **Ease:** 4
@@ -59,3 +59,15 @@ already-shipped console does nothing for that score.
   otherwise reach for `curl`/raw host-operations debugging.
 - `snapback dev`'s (or its Expo-profile successor's) boot output includes the
   console launch command or URL.
+
+## Resolution — 2026-08-05
+
+The shipped surface is now indexed by the workload vocabulary that missed it:
+`guide/index.md` names its Data/Functions/Realtime/Errors/Logs debugging uses,
+`guide/capabilities.md` adds "see/debug backend" plus Expo/React aliases, and
+`guide/clients/react-expo.md` places the `snapback admin --ready-file ...`
+path before the boot code with a direct link to the complete console guide.
+
+The existing native server startup already prints the admin-console URL, and
+the packaged `snapback dev` loop forwards that server output. No new console
+capability or second debugging surface was introduced.

@@ -1,6 +1,6 @@
 # guide-gap: dev-mode asset uploads always 403 past the create step, and public-immutable delivery is not actually pasteable cross-origin
 
-**Status:** Open
+**Status:** Resolved
 **Impact:** 3
 **Urgency:** 2
 **Ease:** 3
@@ -119,6 +119,17 @@ upload identity is itself the authoring failure. Full notes are in
   or make `public-immutable` (and `private-signed`) delivery routes exempt
   from the blanket `StaticPublic` CORP header so the documented claim holds.
 
+## Resolution note — part 1 guide half (2026-08-05)
+
+`guide/backend/assets.md` now says near the top of Upload and attach that an
+ordinary browser or native client with no real session cannot complete a
+multi-step upload for any intent auth mode: anonymous transfer cannot equal a
+recorded owner principal. It names both paved development paths — operator
+`assets put --user` and an ordinary session minted by the shipped
+`snapback session mint --email` wrapper — and the Expo guide links directly to
+the authenticated ImagePicker recipe. The old browser-only/authenticated-only
+caveat is generalized to browser, React Native, and Expo carriers.
+
 ## Resolution (part 2)
 
 2026-08-05: Resolved the delivery-header half without changing the separately
@@ -128,3 +139,9 @@ set and emits `Cross-Origin-Resource-Policy: cross-origin` on both lanes.
 Other `StaticPublic` routes retain `same-origin`; targeted response-control
 tests pin both the positive delivery behavior and the negative operator-page
 counter-case.
+
+## Closed
+
+2026-08-05: Both halves are resolved — the guide states the upload-authority
+boundary and paved session paths (part 1), and pasteable delivery is
+cross-origin embeddable again (part 2, landed 56bdd5b13).

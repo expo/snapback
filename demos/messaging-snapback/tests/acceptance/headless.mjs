@@ -97,7 +97,7 @@ await runAcceptance(suite, async () => {
     // upload can never satisfy this app's per-owner asset checks. The paved
     // dev/test path for a real caller identity is the CLI's admin-impersonated
     // `assets put --user`, exactly like seed-images.mjs uses.
-    // See issues/20260805-guide-gap-dev-mode-asset-upload-anonymous-caller.md.
+    // See issues/closed/20260805-guide-gap-dev-mode-asset-upload-anonymous-caller.md.
     const { execFile } = await import('node:child_process');
     const { promisify } = await import('node:util');
     const { mkdtempSync, rmSync, writeFileSync } = await import('node:fs');

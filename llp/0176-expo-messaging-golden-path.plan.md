@@ -277,7 +277,7 @@ the cheaper mechanical fixes.
   primitive above), not to invent a second credential or plumbing the asset
   client does not already have. Tickets:
   `issues/20260805-expo-asset-upload-guide-gap.md` and
-  `issues/20260805-guide-gap-dev-mode-asset-upload-anonymous-caller.md`.
+  `issues/closed/20260805-guide-gap-dev-mode-asset-upload-anonymous-caller.md`.
 - **C2 — public delivery headers.** `public-immutable` responses are not
   cross-origin embeddable as documented. Tracked with C1's guide-gap ticket.
 - **C3 — weak React task types.** React re-spells existing asset task types as
@@ -286,7 +286,7 @@ the cheaper mechanical fixes.
   undocumented and repeated by apps. Tracked with the Expo asset guide gap.
 - **D1 — presence vocabulary.** Scoped `useSnapbackPresence` already ships,
   but builders searching for “ephemeral” did not find it. Ticket:
-  `issues/20260805-guide-gap-ephemeral-presence-hook-naming.md`.
+  `issues/closed/20260805-guide-gap-ephemeral-presence-hook-naming.md`.
 - **E1 — provider and application composition.** Two or more experiments
   independently hand-built provider boot and repeated resource scope across
   reads, mutations, presence, and assets. This is the design gap owned by LLP
@@ -729,8 +729,8 @@ after a reviewer round correctly found the earlier text asserted "already
 exists" without anything a reader could check. Their absence from every
 relevant bakeoff is a workload-indexing failure in the guide, not a reason
 to create replacement primitives. Tickets include
-`issues/20260805-admin-console-undiscovered-by-expo-bakeoffs.md` and
-`issues/20260805-relational-query-undiscovered-by-messaging-bakeoffs.md`.
+`issues/closed/20260805-admin-console-undiscovered-by-expo-bakeoffs.md` and
+`issues/closed/20260805-relational-query-undiscovered-by-messaging-bakeoffs.md`.
 
 ### Attractive ideas that should not lead
 

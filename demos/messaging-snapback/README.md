@@ -70,7 +70,7 @@ fails a caller/owner match — for any auth mode, not just `authenticated`.
 Seeded and CLI-uploaded photos work (they go through
 `snapback assets put --user <handle>`, which does carry a real identity).
 Full mechanism and a suggested guide fix in
-[`issues/20260805-guide-gap-dev-mode-asset-upload-anonymous-caller.md`](../../issues/20260805-guide-gap-dev-mode-asset-upload-anonymous-caller.md).
+[`issues/closed/20260805-guide-gap-dev-mode-asset-upload-anonymous-caller.md`](../../issues/closed/20260805-guide-gap-dev-mode-asset-upload-anonymous-caller.md).
 
 ## Proof
 

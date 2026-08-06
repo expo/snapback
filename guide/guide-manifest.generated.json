@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "e1c2417c1aa6fd9deb755172d04fb5aef333712a"
+    "commit": "f3c7d9fbb394a413370a9264f22e72b6f151a25e"
   },
   "nav": {
     ".": [
@@ -710,23 +710,27 @@
       "authorities": [
         "llp/0012-headless-integration-contract.spec.md",
         "llp/0044-asset-storage-pipeline.rfc.md",
+        "llp/0064-native-client-surfaces.rfc.md",
         "llp/0096-auth-profiles-for-protocol-clients.spec.md",
+        "llp/0176-expo-messaging-golden-path.plan.md",
         "src/assets.rs",
         "src/assets_cut.rs",
         "src/cli.rs",
         "src/local.rs",
         "src/server.rs",
         "packages/snapback-codegen/define.mjs",
+        "packages/snapback-react/index.d.mts",
         "packages/snapback-vite/allowlist.mjs",
         "tests/acceptance/asset-lifecycle-v1-evidence.md"
       ],
       "examples": [
         "demos/party-wall",
-        "demos/file-drop"
+        "demos/file-drop",
+        "demos/tandem-expo-bakeoff"
       ],
-      "reviewed": "2026-08-04",
-      "reviewedCommit": "4f6b1bc3d98c9b9e3d1a946ff7cbd648854ea1a6",
-      "sha256": "9491184c32f63bda691f470ce3b92d95f6f54c243c2570c4b31b0f7e35b5b7f8",
+      "reviewed": "2026-08-05",
+      "reviewedCommit": "f3c7d9fbb394a413370a9264f22e72b6f151a25e",
+      "sha256": "688a5f07813e224a08f1cd65b20c0c89f76059a2cd1a40eb9b03d52a3c615c74",
       "snippets": [
         {
           "lang": "js",
@@ -751,9 +755,29 @@
           "source": "packages/snapback-codegen/asset-upload-authoring.test.mjs"
         },
         {
+          "lang": "tsx",
+          "class": "transcluded",
+          "source": "demos/tandem-expo-bakeoff/snapback/src/backend.tsx"
+        },
+        {
           "lang": "js",
           "class": "transcluded",
           "source": "tests/acceptance/fixtures/asset-conformance/handlers.mjs"
+        },
+        {
+          "lang": "tsx",
+          "class": "transcluded",
+          "source": "demos/tandem-expo-bakeoff/shared/chat-screen.tsx"
+        },
+        {
+          "lang": "tsx",
+          "class": "transcluded",
+          "source": "demos/tandem-expo-bakeoff/snapback/src/backend.tsx"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/tandem-expo-bakeoff/snapback/snapback/functions.mjs"
         },
         {
           "lang": "js",
@@ -1022,9 +1046,9 @@
         "demos/todo-v2",
         "demos/signal-desk"
       ],
-      "reviewed": "2026-08-03",
-      "reviewedCommit": "f9ae0083ef41bfc9d07f033da440f96048919613",
-      "sha256": "28ca6d2a48b56b9fa464c8f21d89daa072c6cbeb6ab31d99cdafc7448279b168",
+      "reviewed": "2026-08-05",
+      "reviewedCommit": "f3c7d9fbb394a413370a9264f22e72b6f151a25e",
+      "sha256": "b35e238819659f0f679d9934978d1656717450735281147d68a0286538a16753",
       "snippets": [
         {
           "lang": "js",
@@ -1068,9 +1092,9 @@
         "packages/snapback-codegen/relational-authoring.test.mjs",
         "packages/snapback-codegen/relation-activity-authoring.test.mjs"
       ],
-      "reviewed": "2026-08-03",
-      "reviewedCommit": "c442237dedd412d1fe66a85c7a0ed463eba1e013",
-      "sha256": "f2b7e571f65289c75df44427b08bb43c32bb6863cc99f23c132b31cbf735eeab",
+      "reviewed": "2026-08-05",
+      "reviewedCommit": "f3c7d9fbb394a413370a9264f22e72b6f151a25e",
+      "sha256": "4b2c35d8a96cc48f86faae62e0f8688e43ab7c079d592303a84a61d9d25a7cd8",
       "snippets": [
         {
           "lang": "js",
@@ -1448,9 +1472,9 @@
         "packages/snapback-react/index.mjs"
       ],
       "examples": [],
-      "reviewed": "2026-08-04",
-      "reviewedCommit": "HEAD",
-      "sha256": "96cca9fc828c2bf0c0fb655a4d2232ff83639d2b40698cc6650e1fbbb06f7984",
+      "reviewed": "2026-08-05",
+      "reviewedCommit": "f3c7d9fbb394a413370a9264f22e72b6f151a25e",
+      "sha256": "d25196af330f3ef8484966953aaae10edc35b046cd27567cd0913c7c9078c0c6",
       "snippets": []
     },
     "clients.app-cli": {
@@ -1675,6 +1699,7 @@
       ],
       "authorities": [
         "llp/0012-headless-integration-contract.spec.md",
+        "llp/0017-admin-console-inspection-surface.rfc.md",
         "llp/0064-native-client-surfaces.rfc.md",
         "llp/0114-first-class-react-and-query-groups.spec.md",
         "llp/0176-expo-messaging-golden-path.plan.md",
@@ -1696,9 +1721,9 @@
         "demos/tandem-expo-bakeoff/scripts/build-ios-dev-client",
         "demos/_kit/tests/repo-layout-unit.mjs"
       ],
-      "reviewed": "2026-08-04",
-      "reviewedCommit": "41c2db8804ba08071c39641cc46251c9084c7a31",
-      "sha256": "c03029734acd20197671b071312aa6d1a2e11cfa26f1447fa9bbf02e353e3a03",
+      "reviewed": "2026-08-05",
+      "reviewedCommit": "f3c7d9fbb394a413370a9264f22e72b6f151a25e",
+      "sha256": "d25786f205d82cc4df7fc1a2fbdb420e05ed10f793b7742941b948da4947e472",
       "snippets": [
         {
           "lang": "ts",
@@ -1765,9 +1790,9 @@
         "packages/snapback-react/offline.test.mjs",
         "packages/snapback-react/exact-result-types.fixture.ts"
       ],
-      "reviewed": "2026-08-04",
-      "reviewedCommit": "8154744c87ed58816703093bd526bd7a40d95a56",
-      "sha256": "dc5a467d2ccdf2294d32d50652af02e620239b970398ff4539a01c0a3ca289d4",
+      "reviewed": "2026-08-05",
+      "reviewedCommit": "f3c7d9fbb394a413370a9264f22e72b6f151a25e",
+      "sha256": "75ad6c86424692ca4163d3da2a705a3f54f5155e9b303fd63f50aeeb735d0920",
       "snippets": [
         {
           "lang": "ts",
@@ -2026,6 +2051,7 @@
         "llp/0037-schema-source-of-truth.decision.md",
         "llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md",
         "llp/0108-inline-handlers-and-result-contracts.spec.md",
+        "llp/0115-convex-parity-course-corrections.plan.md",
         "llp/0174-authoring-incidents-at-security-fences.research.md",
         "packages/snapback-codegen/define.mjs",
         "packages/snapback-codegen/inline-handlers.mjs",
@@ -2038,9 +2064,9 @@
         "demos/signal-desk/snapback",
         "packages/snapback-codegen/inline-result-contracts.test.mjs"
       ],
-      "reviewed": "2026-08-03",
-      "reviewedCommit": "6e5d69d1037c6042fb9338221dfb489e00f5f78a",
-      "sha256": "ffe0b6eb9260fb91e2c478a067c5b7aaca5213a394a6324f14164b2380f8f7a8",
+      "reviewed": "2026-08-05",
+      "reviewedCommit": "f3c7d9fbb394a413370a9264f22e72b6f151a25e",
+      "sha256": "923b681505b39e44b9597672c2d936c05e4023aa449d2188d7c0efbd6f0db28d",
       "snippets": [
         {
           "lang": "js",
@@ -2124,9 +2150,9 @@
         "demos/card-game",
         "demos/partiful-matrix"
       ],
-      "reviewed": "2026-08-04",
-      "reviewedCommit": "dab2410b6793ffa5685069a0a4054f0e2b21608a",
-      "sha256": "3ba6fac05048c058b00b7e19e196578bb74c351a889ea6b1c06f76ade26eb5ff",
+      "reviewed": "2026-08-05",
+      "reviewedCommit": "f3c7d9fbb394a413370a9264f22e72b6f151a25e",
+      "sha256": "2888ba12f68322f2e9deca472674c3f21a79aab9d9ad75e8b54eaa42506b7a16",
       "snippets": [
         {
           "lang": "json",
@@ -2421,19 +2447,28 @@
       ],
       "authorities": [
         "llp/0013-ephemeral-realtime-state.rfc.md",
+        "llp/0107-react-presence-and-optimistic-lifecycle.spec.md",
+        "llp/0114-first-class-react-and-query-groups.spec.md",
         "packages/snapback-codegen/define.mjs",
         "packages/snapback-codegen/index.mjs",
         "packages/snapback-client/index.mjs",
-        "packages/snapback-contract/index.mjs"
+        "packages/snapback-contract/index.mjs",
+        "packages/snapback-react/index.d.mts"
       ],
       "examples": [
         "demos/cursors-web",
-        "demos/todo-v2/snapback/schema.mjs"
+        "demos/todo-v2/snapback/schema.mjs",
+        "demos/improvement-sweep/arms/a2-snapback-web/evidence/app/App.tsx"
       ],
-      "reviewed": "2026-08-03",
-      "reviewedCommit": "6e5d69d1037c6042fb9338221dfb489e00f5f78a",
-      "sha256": "8ba0760d9beb6756d6581f8cb83f9ff36bfe09574d82315d50e6bc32bb0eeef6",
+      "reviewed": "2026-08-05",
+      "reviewedCommit": "f3c7d9fbb394a413370a9264f22e72b6f151a25e",
+      "sha256": "99c5fb3832e80de4ca5bd8b862c26e533e6a14b7c4be5bec825e24846d617137",
       "snippets": [
+        {
+          "lang": "tsx",
+          "class": "transcluded",
+          "source": "demos/improvement-sweep/arms/a2-snapback-web/evidence/app/App.tsx"
+        },
         {
           "lang": "js",
           "class": "transcluded",
@@ -3047,6 +3082,7 @@
       "backend.bounded-children-v1",
       "backend.notifications",
       "backend.sequences",
+      "backend.structured-stored-fields",
       "backend.write-activity-v1",
       "clients.non-js",
       "clients.poll-hosted",
@@ -3062,5 +3098,5 @@
     "routes": 111,
     "hostOps": 37
   },
-  "contentHash": "c34969bf6150a082c25ce6be8cbc60d295b124b7d320f298c31be1b421f2d5fd"
+  "contentHash": "4f92c587a6413eeb15c2c1ead25f4840e451972be2391fbb0a01f02ce5720f3e"
 }
