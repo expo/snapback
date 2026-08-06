@@ -1347,3 +1347,11 @@ codegen bytes. The coded publication finalizer accepted the retained 16 PASS /
 chains, regenerated the Rust-owned projection, and passed their conformance
 checks. This is carrier reconciliation attributable to the combined main wave,
 not a new capability claim or an implementation change.
+
+After those embedded carriers were committed, the coded bootstrap rebuilt and
+handler-VM-qualified source `6a0fd33b4c5a0c89f3dd8de6cbf921c75b456d34`.
+The Latency producer then admitted `single_table_v1` normally and passed 5/5
+against binary SHA-256
+`84bfe5833e64a5f30967fb53abfa19ef1d870c56fbce5e745e3cbad94d3af039`;
+the retained source list binds the generated activation and artifact bytes
+created by that controlled run.
