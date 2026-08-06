@@ -1,0 +1,173 @@
+{
+  "schemaVersion": "snapback.fleet-observatory.move1-exit.v1",
+  "date": "2026-08-06",
+  "authority": [
+    "LLP 0157#move-1-workload-exit-llp-0155-normative-transcription",
+    "LLP 0157#d4--capability-classification",
+    "LLP 0155 OQ9",
+    "LLP 0155 OQ13",
+    "LLP 0138#status"
+  ],
+  "source": {
+    "revision": "8743cf3cce87e7c56c7751a4223c60446213c472",
+    "dirty": true,
+    "files": [
+      {
+        "path": "tests/acceptance/fleet-observatory-move1-v1.mjs",
+        "sha256": "5103eb90dbf716de70a847cb8317f87e3523580d28df1e046d08ab68f2141593"
+      },
+      {
+        "path": "demos/fleet-observatory-move1/snapback/schema.mjs",
+        "sha256": "e272991635a2446d8689c402d0092e9cd117221181e48d7ea20469192f1d614d"
+      },
+      {
+        "path": "demos/fleet-observatory-move1/snapback/functions.mjs",
+        "sha256": "becf570f05d83927bcfa1fa2b5a4204434937e55e3d892f75224b85498920f07"
+      },
+      {
+        "path": "demos/fleet-observatory-move1/snapback/trusted-composition-activation.json",
+        "sha256": "483ac879d174da0d4c3a6c601045fc7b5176da067f1cd8798d7aa6566f13b3f4"
+      },
+      {
+        "path": "demos/fleet-observatory-move1/snapback/generated/artifacts.json",
+        "sha256": "be14e0e168ef316093e907623480faaa9ab63575cfd84540bb0e15c9ad6578c5"
+      },
+      {
+        "path": "demos/fleet-observatory-move1/demo.snapback.json",
+        "sha256": "bea43efd1af27a6df9ef53059175a97c0136af712256d49aacffb38f2509f0c5"
+      },
+      {
+        "path": "demos/fleet-observatory-move1/fixture.mjs",
+        "sha256": "07139982add1f07d7e0ebafabd800f7f655aab3e74b81b51d752930f56becb14"
+      },
+      {
+        "path": "demos/fleet-observatory-move1/src/App.tsx",
+        "sha256": "690b8b19d1b269be69a1e0cf6591ce01dd3190d4934df76015da37af280b2576"
+      },
+      {
+        "path": "demos/fleet-observatory-move1/workload-manifest.2026-08-06.v1.json",
+        "sha256": "b37cfc5301de2f963dc1235036196a9e8be273427025bc5b1ea82c9a33f5a2f2"
+      },
+      {
+        "path": "packages/snapback-client/index.mjs",
+        "sha256": "d0ce03b98637070016675519362dfc6297ce34daa0d46a6f0d0b02ec2d4dac67"
+      },
+      {
+        "path": "packages/snapback-client/materialization-store.mjs",
+        "sha256": "34ebc65b3632869e39fd9587bd79a36e0a85316c4c660d8f1b12497668652310"
+      },
+      {
+        "path": "packages/snapback-client/materialization-store-runtime.mjs",
+        "sha256": "525ffb0bee554a6b9c2e65256e0668ebfbcc23c43b0d4ae046c399aed410c049"
+      },
+      {
+        "path": "packages/snapback-client/store-policy.mjs",
+        "sha256": "e13f08a294206d9b78a5bdff18ffd6ddf65c34d07724cdbcb1e860a20288687d"
+      },
+      {
+        "path": "packages/snapback-client/store-runtime.mjs",
+        "sha256": "07f7d68a8e9a34cd1232a21b54c7a486a86d6414b21cc9b1d0f47daa6b092731"
+      }
+    ]
+  },
+  "controlledRun": {
+    "status": "BLOCKED",
+    "reason": "SNAPBACK_FLEET_SANDBOX_SOCKET_BLOCKED: snapback server exited before verified readiness (1):\nError: failed to bind Snapback server to 127.0.0.1:0: Operation not permitted (os error 1)\n"
+  },
+  "manifestDecision": "refreeze-fresh-successor-manifest",
+  "budgetFreeze": null,
+  "footprintHydration": null,
+  "summary": {
+    "pass": 1,
+    "blocked": 7,
+    "total": 8,
+    "capabilityClaimsChanged": false,
+    "carrierGapChanged": false,
+    "predecessorEvidenceRewritten": false
+  },
+  "gates": [
+    {
+      "gate": "required screens consume generated composites rather than JavaScript collection joins",
+      "status": "PASS",
+      "evidence": {
+        "route": "fleetObservatory",
+        "screen": "demos/fleet-observatory-move1/src/App.tsx",
+        "generatedReadCount": 1,
+        "profile": "snapshot-batch.v2",
+        "nodeClasses": [
+          "relational_query_v1",
+          "bounded_children_v1"
+        ],
+        "nodeTakes": [
+          100,
+          100
+        ],
+        "parentAuthorizationGroups": 1,
+        "retention": "none",
+        "requiredCapabilities": [
+          "snapshot_batch_v2",
+          "relational_query_v1",
+          "bounded_children_v1"
+        ],
+        "predecessorEvidenceRewritten": false,
+        "manifestDecision": "refreeze-fresh-successor-manifest"
+      }
+    },
+    {
+      "gate": "the client retains only desired bounded query results",
+      "status": "BLOCKED",
+      "evidence": {
+        "controlledServerRun": false
+      },
+      "reason": "SNAPBACK_FLEET_SANDBOX_SOCKET_BLOCKED: snapback server exited before verified readiness (1):\nError: failed to bind Snapback server to 127.0.0.1:0: Operation not permitted (os error 1)\n"
+    },
+    {
+      "gate": "pagination neither duplicates nor skips an untouched root",
+      "status": "BLOCKED",
+      "evidence": {
+        "controlledServerRun": false
+      },
+      "reason": "SNAPBACK_FLEET_SANDBOX_SOCKET_BLOCKED: snapback server exited before verified readiness (1):\nError: failed to bind Snapback server to 127.0.0.1:0: Operation not permitted (os error 1)\n"
+    },
+    {
+      "gate": "20 query changes leak no predecessor rows",
+      "status": "BLOCKED",
+      "evidence": {
+        "controlledServerRun": false
+      },
+      "reason": "SNAPBACK_FLEET_SANDBOX_SOCKET_BLOCKED: snapback server exited before verified readiness (1):\nError: failed to bind Snapback server to 127.0.0.1:0: Operation not permitted (os error 1)\n"
+    },
+    {
+      "gate": "the 250,000-event fixture converges to exactly 100 active matches from the 1,000-update burst",
+      "status": "BLOCKED",
+      "evidence": {
+        "controlledServerRun": false
+      },
+      "reason": "SNAPBACK_FLEET_SANDBOX_SOCKET_BLOCKED: snapback server exited before verified readiness (1):\nError: failed to bind Snapback server to 127.0.0.1:0: Operation not permitted (os error 1)\n"
+    },
+    {
+      "gate": "an implicit incomplete prefix is impossible to consume as complete",
+      "status": "BLOCKED",
+      "evidence": {
+        "controlledServerRun": false
+      },
+      "reason": "SNAPBACK_FLEET_SANDBOX_SOCKET_BLOCKED: snapback server exited before verified readiness (1):\nError: failed to bind Snapback server to 127.0.0.1:0: Operation not permitted (os error 1)\n"
+    },
+    {
+      "gate": "Mallory receives no protected source or result rows",
+      "status": "BLOCKED",
+      "evidence": {
+        "controlledServerRun": false
+      },
+      "reason": "SNAPBACK_FLEET_SANDBOX_SOCKET_BLOCKED: snapback server exited before verified readiness (1):\nError: failed to bind Snapback server to 127.0.0.1:0: Operation not permitted (os error 1)\n"
+    },
+    {
+      "gate": "inspection explains every retained row and completeness transition",
+      "status": "BLOCKED",
+      "evidence": {
+        "controlledServerRun": false
+      },
+      "reason": "SNAPBACK_FLEET_SANDBOX_SOCKET_BLOCKED: snapback server exited before verified readiness (1):\nError: failed to bind Snapback server to 127.0.0.1:0: Operation not permitted (os error 1)\n"
+    }
+  ]
+}

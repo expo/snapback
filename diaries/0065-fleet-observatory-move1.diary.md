@@ -50,3 +50,12 @@ The source-level codegen and demo tests are part of the application commit.
 The following commit adds the listener-backed 250,000-row workload run,
 inspection/footprint measurements, and retained receipt; its results will be
 appended here without rewriting this build record.
+
+The in-sandbox attempt completed activation preparation and static gate 1,
+then the real binary was denied its loopback listener with `Operation not
+permitted` at `127.0.0.1:0`. The harness retained that outcome as 1 PASS / 7
+BLOCKED and `--require-qualified` correctly rejected it. No byte, row, or
+hydration number was invented. An orchestrator with loopback access must run
+the harness once, then run its qualified `--check`; that rerun replaces this
+blocked checkpoint with the authoritative measurements and activation/binary
+bindings.
