@@ -226,6 +226,7 @@ function policyFromOperation(op) {
 function applyOverride(entry, override) {
   if (!override) return entry;
   if (override.operability) entry.operability = override.operability;
+  if (override.mediatedHandoff) entry.mediatedHandoff = override.mediatedHandoff;
   if (override.intents) entry.intents = override.intents;
   if (override.availability) entry.availability = override.availability;
   if (override.surfaceAccessOverride) entry.surfaceAccess = override.surfaceAccessOverride;
@@ -634,6 +635,26 @@ for (const entry of entries) {
 for (const entry of entries) {
   if (entry.behavior.destructive && !entry.behavior.approvalPosture) {
     completenessErrors.push(`${entry.operation}: destructive:true requires a non-null approvalPosture (rule 8).`);
+  }
+}
+
+// --- Rule 6: mediated rows publish a resumable, negative-leak handoff -------
+
+for (const entry of entries) {
+  if (entry.operability !== 'mediated') continue;
+  const handoff = entry.mediatedHandoff;
+  const required = ['plan', 'initiate', 'status', 'resume', 'protectedArtifact', 'negativeLeakTests'];
+  const missing = required.filter((field) => {
+    if (!handoff || !(field in handoff)) return true;
+    return field === 'negativeLeakTests'
+      ? !Array.isArray(handoff[field]) || handoff[field].length === 0
+      : typeof handoff[field] !== 'string' || handoff[field].trim() === '';
+  });
+  if (missing.length > 0) {
+    completenessErrors.push(
+      `${entry.operation}: operability mediated requires plan/initiate/status/resume, ` +
+        `protectedArtifact, and negativeLeakTests; missing ${missing.join(', ')} (rule 6).`,
+    );
   }
 }
 

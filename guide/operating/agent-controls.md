@@ -86,7 +86,7 @@ documentation absence never appears as success.
 ## Generated inventory
 
 <!-- BEGIN GENERATED CONTROL CATALOG: CONTROL CATALOG INVENTORY -->
-The embedded build catalog contains **114 operations** at digest `sha256:bb7a38241f6a013d9d25aa624b439fb291c1ea0629116599acb7d0d2f16305dd`. The counts and inventory below are generated; do not edit them by hand.
+The embedded build catalog contains **114 operations** at digest `sha256:28b55da600e070409ad63bbac8bce0cd15dc62fc6aa32031bd451c308bf5aab2`. The counts and inventory below are generated; do not edit them by hand.
 
 | Axis | Value | Count |
 | --- | --- | ---: |
@@ -104,7 +104,7 @@ The embedded build catalog contains **114 operations** at digest `sha256:bb7a382
 | --- | --- | --- | --- | --- | --- | --- |
 | `acceptance.run` | `mcpOnly` | `unavailable` | `unbuilt` | — | snapback_acceptance_run | — |
 | `admin.link.exchange` | `cliOnly` | `mediated` | `shipped` | snapback admin link | — | — |
-| `admin.link.mint` | `cliOnly` | `mediated` | `shipped` | snapback admin link | — | — |
+| `admin.link.mint` | `cliOnly` | `mediated` | `shipped` | snapback admin link | — | operating/admin-console.md#hand-a-one-time-link-from-an-agent-terminal-to-a-remote-browser |
 | `admin.link.revoke` | `cliOnly` | `mediated` | `shipped` | snapback admin link --revoke <claim> | — | — |
 | `admin.link.status` | `cliOnly` | `mediated` | `shipped` | snapback admin link --status <claim> | — | — |
 | `app.ensure.provision` | `apiOnly` | `direct` | `shipped` | — | — | — |
