@@ -1,0 +1,264 @@
+{
+  "schemaVersion": "zerobugs-control-composition.v1",
+  "id": "zerobugs-control-composition",
+  "version": 1,
+  "status": "supported-local-control",
+  "claimBoundary": "Declared supported companion composition over Snapback local-dev-sqlite-ibex; not a native arbitrary-route, OAuth, notification, asset-adapter, hosted, or whole-product capability claim.",
+  "runtime": {
+    "name": "bun",
+    "version": "1.3.12",
+    "entrypoint": "composition/server.mts",
+    "hostEnv": "ZERBUGS_GATEWAY_HOST",
+    "portEnv": "ZERBUGS_GATEWAY_PORT",
+    "readyFileEnv": "ZERBUGS_GATEWAY_READY_FILE"
+  },
+  "routes": [
+    {
+      "method": "GET",
+      "path": "/api/login/github",
+      "input": {
+        "query": {
+          "redirect": "optional bounded relative URL or allowlisted absolute URL"
+        }
+      },
+      "output": "302 deterministic local OAuth authorization redirect",
+      "auth": "anonymous start; HttpOnly SameSite=Lax state cookie; state, PKCE challenge, 10-minute expiry, redirect allowlist",
+      "bound": "query URL <= Bun request-line bound; redirect <= URL parser bound",
+      "support": "LOCAL/DEV PARTIAL: deterministic fixture identity; no real GitHub exchange"
+    },
+    {
+      "method": "GET",
+      "path": "/api/login/github/callback",
+      "input": {
+        "query": {
+          "code": "local fixture code",
+          "state": "opaque state",
+          "code_challenge": "stored PKCE challenge"
+        }
+      },
+      "output": "302 allowlisted redirect plus HttpOnly SameSite=Lax server-session cookie",
+      "auth": "state cookie + one-use in-memory state + PKCE + githubID to frozen identityBinding to admin-gated session mint",
+      "bound": "10-minute state; session Max-Age 30 days",
+      "support": "LOCAL/DEV PARTIAL; public-TLS and real provider exchange are ZB7 GAP"
+    },
+    {
+      "method": "POST",
+      "path": "/api/push",
+      "input": "exact zerobugs.mutation.v1 envelope; closed 16-mutator allowlist",
+      "output": "zerobugs.result.v1 mutation envelope",
+      "auth": "valid bearer/server-session required; generated mutator re-enforces principal/role/ownership",
+      "bound": "1 MiB JSON; args generated-ref validated; clientID/mutationID 1..256; the adapter injects those two exact identities into the eight effect-producing generated calls"
+    },
+    {
+      "method": "POST",
+      "path": "/api/mutate",
+      "input": "exact zerobugs.mutation.v1 envelope; closed 16-mutator allowlist",
+      "output": "zerobugs.result.v1 mutation envelope",
+      "auth": "valid bearer/server-session required; generated mutator re-enforces principal/role/ownership",
+      "bound": "1 MiB JSON; args generated-ref validated; clientID/mutationID 1..256; the adapter injects those two exact identities into the eight effect-producing generated calls"
+    },
+    {
+      "method": "POST",
+      "path": "/api/get-queries",
+      "input": "exact zerobugs.query.v1 envelope; closed 19-query allowlist",
+      "output": "zerobugs.result.v1 query envelope",
+      "auth": "anonymous or valid bearer/server-session; presented invalid bearer is 401; generated query owns fact release",
+      "bound": "1 MiB JSON; args generated-ref validated"
+    },
+    {
+      "method": "POST",
+      "path": "/api/query",
+      "input": "exact zerobugs.query.v1 envelope; closed 19-query allowlist",
+      "output": "zerobugs.result.v1 query envelope",
+      "auth": "anonymous or valid bearer/server-session; presented invalid bearer is 401; generated query owns fact release",
+      "bound": "1 MiB JSON; args generated-ref validated"
+    },
+    {
+      "method": "POST",
+      "path": "/api/upload/presigned-url",
+      "input": {
+        "body": {
+          "contentType": "one of five image MIME types",
+          "size": "integer 1..10485760"
+        }
+      },
+      "output": {
+        "url": "one-hour signed local PUT capability",
+        "key": "opaque zba_ key",
+        "deliveryUrl": "public immutable companion URL"
+      },
+      "auth": "valid bound bearer/server-session required; capability binds source user, key, MIME, exact size, purpose, expiry",
+      "bound": "16 KiB JSON; 10 MiB asset maximum; byte-signature/MIME match at PUT; SVG is gateway-validated then stored through the native opaque intent because native trusted detection does not classify SVG"
+    },
+    {
+      "method": "GET+POST",
+      "path": "/api/unsubscribe",
+      "input": "GET token query is read-only confirmation; POST exact token JSON/form body",
+      "output": "generic HTML confirmation/success; bad, expired, forged, unknown-user, or replayed tokens share one refusal shape",
+      "auth": "HMAC-SHA256 capability binds purpose, source user, source issue, expiry; POST mints that bound fixture session and atomically consumes digest plus Lane 4 set-false path",
+      "bound": "16 KiB POST; token <=2048; one successful use"
+    },
+    {
+      "method": "GET",
+      "path": "/p/:projectName/issue/:id.md",
+      "input": "numeric positive safe-integer shortID or nonempty source id; optional bearer/server-session",
+      "output": "text/markdown zerobugs-machine-issue.v1; 308 canonical lower-case project/shortID; Markdown 401/404",
+      "auth": "anonymous public; crew internal; ordinary users remain public-only; presented invalid bearer 401",
+      "bound": "at most 1000 most-recent comments, rendered oldest-to-newest; authenticated responses private,no-store"
+    }
+  ],
+  "auxiliaryRoutes": [
+    {
+      "method": "GET",
+      "path": "/health",
+      "purpose": "gateway and exact Snapback release identity"
+    },
+    {
+      "method": "OPTIONS+PUT",
+      "path": "/api/upload/:key",
+      "purpose": "public CORS preflight plus signed one-hour local upload capability; exact MIME/length/magic enforcement"
+    },
+    {
+      "method": "GET",
+      "path": "/assets/:key",
+      "purpose": "public immutable delivery over native public asset rendition"
+    },
+    {
+      "method": "POST",
+      "path": "/__capture/loops",
+      "purpose": "local-only idempotent Loops capture"
+    },
+    {
+      "method": "POST",
+      "path": "/__capture/discord",
+      "purpose": "local-only idempotent Discord capture"
+    },
+    {
+      "method": "GET",
+      "path": "/__capture/receipts",
+      "purpose": "local harness receipt inspection"
+    }
+  ],
+  "allowlists": {
+    "queries": [
+      "allLabels",
+      "allUsers",
+      "allProjects",
+      "user",
+      "crewUser",
+      "labels",
+      "labelsOrderByName",
+      "issuePreloadV2",
+      "userPref",
+      "usersForProject",
+      "commentsPage",
+      "comment",
+      "issueDetail",
+      "issueListV2",
+      "listIssueByID",
+      "emojiChange",
+      "prevNext",
+      "issueList",
+      "userPicker"
+    ],
+    "mutators": [
+      "issue.create",
+      "issue.update",
+      "issue.delete",
+      "issue.addLabel",
+      "issue.removeLabel",
+      "notification.update",
+      "emoji.addToIssue",
+      "emoji.addToComment",
+      "emoji.remove",
+      "comment.add",
+      "comment.edit",
+      "comment.remove",
+      "label.create",
+      "label.createAndAddToIssue",
+      "viewState.set",
+      "userPref.set"
+    ]
+  },
+  "ownedSecrets": {
+    "environmentNames": [
+      "ZERBUGS_UNSUBSCRIBE_HMAC_SECRET",
+      "ZERBUGS_UPLOAD_HMAC_SECRET",
+      "ZERBUGS_CAPTURE_ADAPTER_AUTH",
+      "ZERBUGS_LOOPS_TRANSACTIONAL_ID"
+    ],
+    "snapbackConfigNames": [
+      "loopsApiKey",
+      "discordWebhookToken",
+      "captureAdapterAuth"
+    ],
+    "testDefaults": "Available only when ZERBUGS_TEST_DEFAULTS=1; values are never logged or written to receipts"
+  },
+  "healthIdentity": {
+    "endpoint": "/health",
+    "gatewayFields": [
+      "id",
+      "version",
+      "runtime.name",
+      "runtime.version",
+      "startupNonce"
+    ],
+    "snapbackServerFields": [
+      "crateVersion",
+      "gitCommit",
+      "gitDirty",
+      "buildProfile",
+      "startupNonce"
+    ],
+    "snapbackReleaseFields": [
+      "appId",
+      "schemaVersion",
+      "inputsHash",
+      "schemaHash",
+      "bundleHash",
+      "targetProfileId"
+    ]
+  },
+  "snapbackRelease": {
+    "appId": "zerobugs-control",
+    "schemaVersion": "snapback.v1",
+    "inputsHash": "snapback.v1:sessions:inputs:sha256:fc70057e0f736feb5cd8c35837eff291ce9df1102f5dc92f3d09da18272fb8b1",
+    "schemaHash": "snapback.v1:sessions:schema:sha256:556a1db53ffa60f7f7d8075fae3e6ae8c046f0ae28f262e29aaf74a3ad61f7bc",
+    "bundleHash": "snapback.v1:sessions:function:sha256:71c0388b762244a7b55d30b2dc60419067aa54f34c1613b665d4023c9f44c133",
+    "targetProfileId": "local-dev-sqlite-ibex"
+  },
+  "cleanupOwnership": {
+    "gatewayProcess": "process named by gateway ready receipt; harness sends SIGTERM and verifies port closure",
+    "readyFile": "ZERBUGS_GATEWAY_READY_FILE; gateway removes on graceful shutdown",
+    "captureFiles": [
+      "ZERBUGS_CAPTURE_DIR/loops.jsonl",
+      "ZERBUGS_CAPTURE_DIR/discord.jsonl"
+    ],
+    "appTables": [
+      "notificationIntent",
+      "notificationAttempt",
+      "unsubscribeTokenUse",
+      "assetAttachment"
+    ],
+    "nativeAssets": "assetAttachment.asset typed reverse references; deleting the alias removes the app edge and native GC owns blob reclamation",
+    "snapbackServer": "owned by the supervising Lane 5 harness, not the gateway"
+  },
+  "effectDelivery": {
+    "entrypoint": "composition/effects/deliver.mts",
+    "invocation": "one bounded tick, never a daemon",
+    "authority": "frozen crew-admin ordinary session; handlers re-resolve identityBinding",
+    "egress": "Snapback action ctx.fetch restricted to loopback gateway capture paths with declared secret handles",
+    "deliverySemantics": "durable intent; leased per-target attempts; Loops Idempotency-Key is exact clientID:mutationID:email for gateway mutations; stable Discord companion key; delivered/ambiguous terminal fence; definite pre-send/provider refusal retryable",
+    "faults": [
+      "fail-before-send",
+      "fail-after-send-before-receipt"
+    ],
+    "deviation": "The experimental native one-off-job slice does not reconcile ambiguous terminal/domain state, so the supported control uses this per-tick companion worker and makes no native durable-background or exactly-once provider claim. Direct native mutations that bypass the frozen gateway lack clientID/mutationID handler custody and therefore retain a replay-stable runtime intent key; only this manifest's adapters claim the frozen provider-key shape."
+  },
+  "gaps": [
+    "ZB7: real GitHub OAuth over public TLS and production redirect registration",
+    "ZB7: real Loops/Discord providers and hosted secret rotation",
+    "ZB7: hosted composition deployment and production asset origin/CORS",
+    "Native experimental jobs: ambiguous terminal/domain reconciliation"
+  ]
+}

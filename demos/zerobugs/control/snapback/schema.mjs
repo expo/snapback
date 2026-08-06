@@ -280,6 +280,7 @@ export const notificationAttempt = defineTable({
   started: v.number(),
   finished: v.optional(v.number()),
   errorCode: v.optional(v.string()),
+  providerReceiptID: v.optional(v.string()),
   ambiguous: v.boolean(),
 })
   .index('by_intent_channel_recipient_attempt', [
@@ -289,6 +290,40 @@ export const notificationAttempt = defineTable({
     'attempt',
   ], { unique: true })
   .index('by_state_started', ['state', 'started']);
+
+// C-GATEWAY: one consumed row closes the signed unsubscribe capability after
+// its first successful use. The token digest, rather than the token itself,
+// is retained so neither the HMAC nor its claims become an app-data secret.
+export const unsubscribeTokenUse = defineTable({
+  tokenDigest: v.string(),
+  userID: v.id('user'),
+  issueID: v.id('issue'),
+  usedAt: v.number(),
+})
+  .index('by_token_digest', ['tokenDigest'], { unique: true })
+  .index('by_user_issue', ['userID', 'issueID', 'usedAt']);
+
+// C-ASSET: Snapback owns asset objects, upload attempts, and reverse edges.
+// The companion additionally needs a source-shaped opaque key so its frozen
+// presign response can resolve public delivery and enumerate cleanup. The
+// typed reference keeps this alias inside the native asset lifecycle.
+// @ref LLP 0044#typed-references-and-atomic-attachment — the companion key
+// names a stable native asset identity; the row is committed only by attach.
+export const assetAttachment = defineTable({
+  key: v.string(),
+  owner: v.principal(),
+  // Explicitly restriction-less because the gateway has two closed native
+  // intents: detectable image formats and the server-validated SVG-as-opaque
+  // adapter. Bare v.assetRef() derives one default intent on the current
+  // surface and therefore cannot represent this two-intent alias.
+  asset: v.assetRef({upload: null}),
+  contentType: v.string(),
+  size: v.integer(),
+  created: v.number(),
+})
+  .index('by_key', ['key'], { unique: true })
+  .index('by_owner_created', ['owner', 'created', 'key'])
+  .assetSharing({ kind: 'public-read' });
 
 export default defineSchema(
   {
@@ -310,6 +345,8 @@ export default defineSchema(
     searchEpoch,
     notificationIntent,
     notificationAttempt,
+    unsubscribeTokenUse,
+    assetAttachment,
   },
   { auth: { mode: 'sessions' } },
 );
