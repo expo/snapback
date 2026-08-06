@@ -1533,6 +1533,25 @@ attribution, behavior train, and ceiling comparison. This corrects input
 provenance without loosening a ceiling or permitting a historical ledger to
 change.
 
+#### 2026-08-06 amendment — LLP 0179 conversation-surface rollover
+
+LLP 0179 S1 and LLP 0176 G2 deliberately add generated surface admission and
+the `useSurface` projection to the two React application workloads. The
+resulting 17.7 kB minified / 5.9 kB gzip step in `react-external` and
+`external-react-application` is new feature mass attributable to landing
+`c7a8b90312ac979830df6948023689af169166a3`; it is not part of the earlier
+Move-3 size ruling.
+
+`baseline.conversation-surface.v1.json` is therefore a declared prospective
+rollover for exactly those two profiles. It SHA-256-binds the independently
+valid Move-3 and operation-lifecycle predecessors, records complete
+before/after attribution, and runs the client, React surface, Expo provider,
+and generated-descriptor behavior train. Every unrelated active ceiling and
+both predecessor receipts remain immutable. This disposition records the
+cost of the accepted S1 capability; it does not weaken the separately
+commissioned static-capability-composition remediation in
+`issues/20260805-static-capability-composition.md`.
+
 #### 2026-08-04 rowless token-resume ordering rollover
 
 LLP 0091's valid rowless rung-1/rung-2 resume can deliver its durable

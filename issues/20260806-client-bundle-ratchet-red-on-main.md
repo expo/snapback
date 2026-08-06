@@ -1,6 +1,6 @@
 # `main` is red on the client bundle ratchet: react-external profiles grew ~35%
 
-**Status:** Open — needs a size disposition (blessed rollover vs. new review)
+**Status:** Resolved in the wave-drift pass — prospective G2 rollover retained
 **Impact:** 4
 **Urgency:** 4
 **Ease:** 3
@@ -90,3 +90,22 @@ all three produced misleading failures before the real one surfaced:
    --bin snapback` to completion, then bootstrap again — the probe is then
    incremental (~2 min). Note the probe passes its own `--target-dir`, so
    `CARGO_TARGET_DIR` does not warm it.
+
+## Disposition — 2026-08-06
+
+This is **new growth**, not unminted coverage from the 2026-08-05 Move-3
+ruling. Commit `c7a8b90312ac979830df6948023689af169166a3` added LLP 0179 S1's
+admitted surface descriptor and `useSurface` implementation. Module
+attribution and the exact changed-profile set agree: the material step occurs
+only in `react-external` and `external-react-application`, the two workloads
+that select the new React surface capability. The smaller 1–2% rows remain
+under their existing tolerances and ceilings.
+
+The fix-forward declares `llp-0179-conversation-surface.v1` and mints
+`baseline.conversation-surface.v1.json` prospectively for exactly those two
+profiles. It binds the complete immutable predecessors, records the exact
+landing and governing LLPs, and runs the client, React surface, Expo provider,
+and generated-descriptor behavior train before freezing. No historical
+receipt or unrelated ceiling is edited. The static-capability-composition
+lane commissioned by the prior size ruling remains open; this rollover does
+not claim that remediation is complete.

@@ -2,27 +2,27 @@
   "format": "snapback.trusted-composition-activation.v1",
   "activation": {
     "format": "snapback.composition-activation.v1",
-    "databaseId": "019fd660-eedb-75b1-9eb3-cc54cf24fcdc",
+    "databaseId": "019fd707-ef7d-7632-89eb-97a0737a8296",
     "deploymentId": "triage-graph-p3-controlled-run",
     "targetProfileId": "local-dev-sqlite-ibex",
     "authMode": "sessions",
     "expectedGeneration": {
       "schemaVersion": "snapback.v1",
       "appId": "triage-graph",
-      "schemaHash": "snapback.v1:sessions:schema:sha256:c19cf0793b4c457f5ea4a66b2be35f0d56ec27db1f3b1562c76c21c4f0a6c245",
-      "bundleHash": "snapback.v1:sessions:function:sha256:f714fa5ee7ef641c7fc0c95bb41e75f951a6c741fdc40f6a95b27ceace015d13",
-      "inputsHash": "snapback.v1:sessions:inputs:sha256:8732f9cd3f9029a1198992bfb689054c40f0d3db7658092ec6c42684ebe225c9"
+      "schemaHash": "snapback.v1:sessions:schema:sha256:d1bb951d8a97ae4b3b4b9a8bd4d17c83b41f5831d3f2ec9af7d4a47bfc60d031",
+      "bundleHash": "snapback.v1:sessions:function:sha256:a107701635e1b2bfa2ff0ceeae5ba95d5e9c9dd585ee01541265583859f3dcd4",
+      "inputsHash": "snapback.v1:sessions:inputs:sha256:0589081c604803e5bd4d2c2277be71161b57fbf220239688c20d47bfd94e9c5f"
     },
-    "proofKeyManifestDigest": "sha256:d1036ef7fbb13036673f9e4965f2239773c5a86a37b88499e857a9e409b350d3"
+    "proofKeyManifestDigest": "sha256:626403bf2fb837c0ec9dc2364ac075287ce33d0212e6c3953046247fdf6f06aa"
   },
-  "activationHash": "sha256:6a84b5665e8bd5cf8036c16e7176578957611c3d8f4ede8c9c64929a1cb8b612",
+  "activationHash": "sha256:285390c680ebfbd8e8312e796afedb0bdc11fa57d0bfef3739888e307ae8baa2",
   "proofKeys": {
     "format": "snapback.completeness-proof-keys.v1",
     "keys": [
       {
-        "proofKeyId": "sbpk1.fVP_FxSh3SHnno-0QwfHlQ",
+        "proofKeyId": "sbpk1.xcPZhiltq9N7uQmWr2F2jQ",
         "algorithm": "Ed25519",
-        "publicKeyBase64url": "yxi5EjM1Tie48bbtjqsJgJYFQHLy160-xAIYLPkjfMs"
+        "publicKeyBase64url": "0JKfDlzA3QufSk5OicqBqj3EwyWlkyQP6zeIvKB3DfQ"
       }
     ]
   }

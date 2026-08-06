@@ -419,6 +419,10 @@ const OPERATION_LIFECYCLE_REVIEW_TAIL_ROLLOVER_PROFILE_IDS = Object.freeze([
   'public-subpath-rqs-store-expo',
   'public-subpath-rqs-store-file',
 ]);
+const CONVERSATION_SURFACE_ROLLOVER_PROFILE_IDS = Object.freeze([
+  'external-react-application',
+  'react-external',
+]);
 const ROLLOVER_LEDGER_SPECS = Object.freeze([
   Object.freeze({
     filename: 'baseline.local-persistent-store.v1.json',
@@ -773,6 +777,41 @@ const ROLLOVER_LEDGER_SPECS = Object.freeze([
       ['node', ['packages/snapback-react/package.test.mjs']],
       ['node', ['packages/snapback-client/outbox-store.test.mjs']],
       ['node', ['packages/snapback-client/rqs-store-file.test.mjs']],
+    ]),
+  }),
+  Object.freeze({
+    filename: 'baseline.conversation-surface.v1.json',
+    profileFilename: 'conversation-surface-profiles.v1.json',
+    workloadVersion: 'llp-0179-conversation-surface.v1',
+    profileIds: CONVERSATION_SURFACE_ROLLOVER_PROFILE_IDS,
+    predecessors: Object.freeze([
+      Object.freeze({
+        filename: 'baseline.operation-lifecycle-review-tail.v1.json',
+        profileIds: Object.freeze(['external-react-application']),
+      }),
+      Object.freeze({
+        filename: 'baseline.move3-single-table-lifecycle.v1.json',
+        profileIds: Object.freeze(['react-external']),
+      }),
+    ]),
+    authorities: Object.freeze([
+      'LLP 0063#workstream-8--performance-and-packaging-budgets',
+      'LLP 0145#phase-a--establish-a-size-ratchet',
+      'LLP 0179#react-projection',
+      'LLP 0176#g2--conversation-surface',
+    ]),
+    rationale: Object.freeze({
+      date: '2026-08-06',
+      landing: 'c7a8b90312ac979830df6948023689af169166a3',
+      summary: 'LLP 0179 S1 and LLP 0176 G2 deliberately add admitted surface descriptors and the useSurface projection to the two React application closures. This is new spec-governed capability mass, not part of the earlier Move-3 size ruling. The prospective rollover advances only the two measured React closures that select the capability; both predecessors and every unrelated active ceiling remain immutable.',
+    }),
+    beforeAfterProfileIds: CONVERSATION_SURFACE_ROLLOVER_PROFILE_IDS,
+    behaviorCommands: Object.freeze([
+      ['node', ['packages/snapback-client/package.test.mjs']],
+      ['node', ['packages/snapback-react/package.test.mjs']],
+      ['node', ['packages/snapback-react/surface.test.mjs']],
+      ['node', ['packages/snapback-expo/provider.test.mjs']],
+      ['node', ['packages/snapback-codegen/app-descriptor.test.mjs']],
     ]),
   }),
 ]);

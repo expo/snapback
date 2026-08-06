@@ -2,102 +2,42 @@
   "schemaVersion": "snapback.local-persistent-store.bundle-attribution.v1",
   "date": "2026-08-04",
   "source": {
-    "revision": "2048ba89f99b8c7198536d5b54e4a422162ae212",
+    "revision": "b22d1f7299c2597f39a4ec5ee8670a7ff00a80a1",
     "dirty": true,
     "dirtyPaths": [
-      "demos/access-desk/snapback/generated/artifacts.json",
-      "demos/all-aboard/snapback/generated/artifacts.json",
-      "demos/all-aboard/tests/egress-probe/generated/artifacts.json",
-      "demos/campfire/snapback/generated/artifacts.json",
-      "demos/card-game/snapback/generated/artifacts.json",
-      "demos/catalog-lens/snapback/generated/artifacts.json",
-      "demos/chirp/snapback/generated/artifacts.json",
-      "demos/competitive-checkpoint/snapback/generated/artifacts.json",
-      "demos/cursors-web/snapback/generated/artifacts.json",
-      "demos/dispatch-board/snapback/generated/artifacts.json",
-      "demos/expo-golden-path-fixture/.gitignore",
-      "demos/expo-golden-path-fixture/App.tsx",
-      "demos/expo-golden-path-fixture/README.md",
-      "demos/expo-golden-path-fixture/app.json",
-      "demos/expo-golden-path-fixture/bun.lock",
-      "demos/expo-golden-path-fixture/package.json",
-      "demos/expo-golden-path-fixture/receipts/20260806-g1-ios-simulator.md",
-      "demos/expo-golden-path-fixture/receipts/20260806-g1-ios-simulator.png",
-      "demos/expo-golden-path-fixture/receipts/20260806-g1-ios-supervisor.jsonl",
-      "demos/expo-golden-path-fixture/snapback/functions.mjs",
-      "demos/expo-golden-path-fixture/snapback/generated/artifacts.json",
-      "demos/expo-golden-path-fixture/snapback/schema.mjs",
-      "demos/expo-golden-path-fixture/snapback/seed.json",
-      "demos/expo-golden-path-fixture/tsconfig.json",
-      "demos/file-drop/snapback/generated/artifacts.json",
-      "demos/graffiti/snapback/generated/artifacts.json",
       "demos/latency-kanban/snapback/generated/artifacts.json",
-      "demos/messaging-snapback/snapback/generated/artifacts.json",
-      "demos/partiful-matrix/snapback/generated/artifacts.json",
-      "demos/party-wall/snapback/generated/artifacts.json",
-      "demos/public-dashboard/snapback/generated/artifacts.json",
-      "demos/pulse-monitor/snapback/generated/artifacts.json",
-      "demos/rbac/snapback/generated/artifacts.json",
-      "demos/shindig/snapback/generated/artifacts.json",
-      "demos/signal-desk/snapback/generated/artifacts.json",
-      "demos/team-chat/snapback/generated/app.binding.mjs",
-      "demos/team-chat/snapback/generated/artifacts.json",
+      "demos/latency-kanban/snapback/trusted-composition-activation.json",
       "demos/todo-v2/snapback/generated-remote-service/artifacts.json",
       "demos/todo-v2/snapback/generated/artifacts.json",
       "demos/todo/snapback/generated/artifacts.json",
       "demos/triage-graph/snapback/generated/artifacts.json",
       "demos/triage-graph/snapback/trusted-composition-activation.json",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/api.mjs",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.binding.d1aca4350d6a9e8c4ecb09e7a6f89b960a4cceb641d463f776df3165fc1b9aa4.mjs",
       "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.binding.mjs",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.d.ts",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.descriptor.df620a428979e57b53910496294f109545d3031f6e3abcf4feffce7801006b1e.json",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.descriptor.json",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.mjs",
       "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/artifacts.json",
-      "demos/zero-bakeoff/apps/field-notebook/snapback/generated/api.mjs",
-      "demos/zero-bakeoff/apps/field-notebook/snapback/generated/app.binding.01d3771d58ba5d29a4e180c8052eade9250e4e8eab7b1c2bd6f21598e8d529d9.mjs",
-      "demos/zero-bakeoff/apps/field-notebook/snapback/generated/app.binding.mjs",
-      "demos/zero-bakeoff/apps/field-notebook/snapback/generated/app.descriptor.74d17a82aa5a8e4289760b1dce6e4f3bc14d0a8f48cc58a262a24149ee556a07.json",
-      "demos/zero-bakeoff/apps/field-notebook/snapback/generated/app.mjs",
-      "demos/zero-bakeoff/apps/field-notebook/snapback/generated/artifacts.json",
-      "demos/zerobugs/.gitignore",
-      "demos/zerobugs/control/PLAN.md",
-      "demos/zerobugs/control/package.json",
-      "demos/zerobugs/control/snapback/functions.mjs",
-      "demos/zerobugs/control/snapback/generated/artifacts.json",
-      "demos/zerobugs/control/snapback/schema.mjs",
-      "demos/zerobugs/control/tests/acceptance/lane4-live.mts",
-      "demos/zerobugs/control/tests/lane3-list-engine.test.mts",
-      "demos/zerobugs/control/tests/lane4-domain.test.mts",
-      "demos/zerobugs/control/tests/lane4-oracle.mts",
-      "demos/zerobugs/manifest/large-seed42-v1.receipt.json",
-      "diaries/0061-zerobugs-quality-surface.diary.md",
-      "diaries/0063-expo-g1-ios-golden-path.diary.md",
-      "issues/20260803-0163-public-operation-identity-carrier.md",
-      "issues/20260803-agent-safe-storage-acceptance-tail.md",
-      "issues/closed/20260805-expo-supervisor-metro-ipv6-loopback.md",
-      "issues/closed/20260805-generated-app-identity-query-breaks-metro.md",
-      "issues/closed/20260806-expo-hydrated-descriptor-canonicalization.md",
-      "issues/closed/20260806-expo-provider-react-native-root-import.md",
-      "issues/closed/20260806-local-source-closure-stale-tarball.md",
-      "llp/0162-agent-safe-storage-profile.rfc.md",
-      "llp/0176-expo-messaging-golden-path.plan.md",
-      "packages/snapback-app-cli/auth.mjs",
-      "packages/snapback-cli/expo-dev-loop.test.mjs",
-      "packages/snapback-cli/expo-dev.mjs",
-      "packages/snapback-cli/fixtures/comparator/app/snapback/generated/app.binding.mjs",
-      "packages/snapback-cli/fixtures/comparator/app/snapback/generated/artifacts.json",
-      "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/app.binding.mjs",
-      "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/artifacts.json",
-      "packages/snapback-client/index.mjs",
-      "packages/snapback-client/react-binding.mjs",
-      "packages/snapback-codegen/app-descriptor.test.mjs",
-      "packages/snapback-codegen/index.mjs",
-      "packages/snapback-codegen/review-surface.mjs",
-      "packages/snapback-codegen/review-surface.test.mjs",
-      "packages/snapback-expo/provider.mjs",
-      "packages/snapback-expo/provider.test.mjs",
-      "scripts/install-local-snapback-packages.mjs",
-      "scripts/local-source-package-closure.test.mjs",
-      "src/storage.rs",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/contract-data.manifest.json",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/functions.manifest.json",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/provider-bindings.json",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/provider-introspection.json",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/schema.manifest.json",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/trusted-composition-activation.json",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/trusted-composition-activation.json",
+      "tests/acceptance/contention-calendar-rung2-v1-evidence.md",
+      "tests/acceptance/contention-calendar-rung2-v1.mjs",
+      "tests/acceptance/fixtures/contention-calendar/rung2-exit.2026-08-04.r1.v1.json",
+      "tests/acceptance/fixtures/latency-kanban/move3-exit.2026-08-04.r2.v1.json",
       "tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-04.v1.json",
       "tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-04.v1.json",
-      "tests/acceptance/triage-graph-move1-v1-evidence.md"
+      "tests/acceptance/latency-kanban-move3-v1-evidence.md",
+      "tests/acceptance/latency-kanban-move3-v1.mjs",
+      "tests/acceptance/triage-graph-move1-v1-evidence.md",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.binding.668acbd5a981a31debf6bc4fc66263df80e07c506e9c7658593d05098f801bdf.mjs",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.descriptor.a690d18c8dbfb7290ba6341c2db6c802590ca4163a6d739bb1b149e301a653e4.json"
     ],
     "files": [
       {
@@ -154,15 +94,15 @@
       },
       {
         "path": "packages/snapback-client/index.mjs",
-        "sha256": "181ec97aa4eab7589a60850bd2c836034f5855c14c358498c6e58ed7ad59b4e4"
+        "sha256": "542adf3dd63b3131bcd30559324346c9aff0cf599d7d6b5e938885204301f7be"
       },
       {
         "path": "packages/snapback-client/rqs-store.mjs",
-        "sha256": "3cb522184c438da256a5b44fdec353f86e4c3c55a668aea6c092596273e15c23"
+        "sha256": "1f8cd7e5aad078e86abdda7fca5bb50fe6c23a9b12120eb2b35484918b17fc10"
       },
       {
         "path": "packages/snapback-client/rqs-store-file.mjs",
-        "sha256": "aeca6460ac061b35ec5c2e4c0ff5bc0e9f662770fd1da427f79481378a7f4038"
+        "sha256": "f7ac4801c6542ed92203af4ce7e6849d3ca93eaca4fe1c429085c361604c0eb4"
       },
       {
         "path": "packages/snapback-contract/auth-coordinator.mjs",
@@ -190,11 +130,11 @@
       },
       {
         "path": "tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-04.v1.json",
-        "sha256": "eae429a2a025dfdb88b983dc55d59d5d2acca67f37e82eee7a4042876dcd60a7"
+        "sha256": "ba687f3f1b091a5d6b54e096d23a33d494af0ff13a444366875d712555a43d59"
       },
       {
         "path": "tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-04.v1.json",
-        "sha256": "2e39db8ddb825e774e9fe7db70c6d50033216c7a059b9fca80bd70b92b0b8375"
+        "sha256": "6441c929f63103849432f8e818cc2a39f7a9657b0f7fdb66261d1987dfcdc0c2"
       }
     ]
   },
@@ -218,38 +158,38 @@
     "external": []
   },
   "output": {
-    "minifiedBytes": 647495,
-    "gzipBytes": 178503,
-    "brotliBytes": 145082,
-    "sha256": "4e411f9bc9b4d9856912a497da15a2a43e50c19709e9af27a7a166b8fe834a2c"
+    "minifiedBytes": 655980,
+    "gzipBytes": 181419,
+    "brotliBytes": 146748,
+    "sha256": "10ede35c01f79bf4aa94bb628c00ff0fc5869fa7a75e89de6248d70bbcfb0b51"
   },
   "modules": [
     {
       "module": "materialization-store",
       "path": "packages/snapback-client/materialization-store.mjs",
       "sourceBytes": 85606,
-      "minifiedModuleOwnBytes": 45531,
+      "minifiedModuleOwnBytes": 45508,
       "sourceSha256": "e490cd25fba95521c3e0fc2f79d83bbead1f3b33f4e6fa1ab155e4e058c0717e"
     },
     {
       "module": "materialization-bridge",
       "path": "packages/snapback-client/materialization-bridge.mjs",
       "sourceBytes": 17969,
-      "minifiedModuleOwnBytes": 10599,
+      "minifiedModuleOwnBytes": 10598,
       "sourceSha256": "5e8681971300b089e29b43b1ecd1bf4b3f7ad0ce7966e2dfc5a6f69d4cda27a1"
     },
     {
       "module": "registration-ledger",
       "path": "packages/snapback-client/registration-ledger.mjs",
       "sourceBytes": 38537,
-      "minifiedModuleOwnBytes": 19308,
+      "minifiedModuleOwnBytes": 19275,
       "sourceSha256": "620ee29ef2cbf27a1c08d65ec99049618743668bf1009b2c84e880e72b785989"
     },
     {
       "module": "demand-broker",
       "path": "packages/snapback-client/demand-broker.mjs",
       "sourceBytes": 30790,
-      "minifiedModuleOwnBytes": 15788,
+      "minifiedModuleOwnBytes": 15847,
       "sourceSha256": "bcae730e18c5a9f45b74ea205c32837d37a1e162bfd029674471e807076755ba"
     },
     {
@@ -288,7 +228,7 @@
       "sourceSha256": "a28a5013b99f7373f991c9decb4bfbc7c4ccc77bee47642bd2d0b831fd83e3f9"
     }
   ],
-  "totalMeasuredModuleOwnBytes": 112221,
+  "totalMeasuredModuleOwnBytes": 112223,
   "browserClosureQualification": {
     "status": "PASS",
     "materializationStoreResolved": true,

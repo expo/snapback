@@ -26,12 +26,24 @@
     "cc.cleanup": "cleanup"
   },
   "source": {
-    "revision": "85dcbd3ab941ccc1efcab7a99862e0baa7899f07",
+    "revision": "b22d1f7299c2597f39a4ec5ee8670a7ff00a80a1",
     "dirty": true,
     "dirtyPaths": [
+      "demos/latency-kanban/snapback/generated/artifacts.json",
+      "demos/latency-kanban/snapback/trusted-composition-activation.json",
+      "demos/todo-v2/snapback/generated-remote-service/artifacts.json",
+      "demos/todo-v2/snapback/generated/artifacts.json",
+      "demos/todo/snapback/generated/artifacts.json",
+      "demos/triage-graph/snapback/generated/artifacts.json",
+      "demos/triage-graph/snapback/trusted-composition-activation.json",
       "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/api.mjs",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.binding.d1aca4350d6a9e8c4ecb09e7a6f89b960a4cceb641d463f776df3165fc1b9aa4.mjs",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.binding.mjs",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.d.ts",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.descriptor.df620a428979e57b53910496294f109545d3031f6e3abcf4feffce7801006b1e.json",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.descriptor.json",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.mjs",
       "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/artifacts.json",
-      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/capability.manifest.json",
       "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/contract-data.manifest.json",
       "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/functions.manifest.json",
       "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/provider-bindings.json",
@@ -39,17 +51,20 @@
       "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/schema.manifest.json",
       "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/trusted-composition-activation.json",
       "demos/zero-bakeoff/apps/contention-calendar/snapback/trusted-composition-activation.json",
-      "scripts/check-agent-safe-publication.mjs",
-      "scripts/generated-artifact-policy.mjs",
-      "tests/acceptance/contention-calendar-rung2-v1-evidence.md",
       "tests/acceptance/contention-calendar-rung2-v1.mjs",
-      "tests/acceptance/fixtures/contention-calendar/rung2-exit.2026-08-04.r1.v1.json",
-      "tests/agent_safe_publication_checker_v1.mjs"
+      "tests/acceptance/fixtures/latency-kanban/move3-exit.2026-08-04.r2.v1.json",
+      "tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-04.v1.json",
+      "tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-04.v1.json",
+      "tests/acceptance/latency-kanban-move3-v1-evidence.md",
+      "tests/acceptance/latency-kanban-move3-v1.mjs",
+      "tests/acceptance/triage-graph-move1-v1-evidence.md",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.binding.668acbd5a981a31debf6bc4fc66263df80e07c506e9c7658593d05098f801bdf.mjs",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.descriptor.a690d18c8dbfb7290ba6341c2db6c802590ca4163a6d739bb1b149e301a653e4.json"
     ],
     "files": [
       {
         "path": "tests/acceptance/contention-calendar-rung2-v1.mjs",
-        "sha256": "283f63068a2aee22239536328652c056a8ddacea1202f518b65ed71c4df04fdf"
+        "sha256": "2cbf45933415b67581ad3e34decc6dd38898b61a3f852875b15ab455c25ae042"
       },
       {
         "path": "issues/closed/20260804-move4-rung2-program.md",
@@ -93,31 +108,31 @@
       },
       {
         "path": "demos/zero-bakeoff/apps/contention-calendar/snapback/trusted-composition-activation.json",
-        "sha256": "3ad7ed9d69493ca40aed9233ebcad221a5abd5eafd052d1c14d849ab0534778e"
+        "sha256": "da7bc755861c58e67c6ed36e7817e2adc9fd811639735b40caeb391d9d78ed31"
       },
       {
         "path": "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/trusted-composition-activation.json",
-        "sha256": "cacbeb3ff0961c90d5e86a88bdf41afb01e596fdadb8617eff7b5d8f5f27c706"
+        "sha256": "5f8aa63031e58e3933d221d8a99a3a0093d08a3f92faa69d721e2ea8ea3235e5"
       },
       {
         "path": "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/artifacts.json",
-        "sha256": "527ecd7a439626042cab8727f321ff9006cb17480369e7b07903bfb9deb8f21b"
+        "sha256": "5538035b0c86152213fafe12ceeb65fe4d1322192bbb2d8cfb385139c0715778"
       },
       {
         "path": "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/api.d.ts",
-        "sha256": "0c6c55f4e7821d481e05862db4d17949de441b91517e1acb5310b2dad0a64b0f"
+        "sha256": "43561d34068428e2cb5d0c6c91434e81887b9540e74449a9d2b3a1b9481e15cd"
       },
       {
         "path": "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/api.mjs",
-        "sha256": "0ab373c6e48afa4ec49a777b6f91bed7b0ad5b1bb6ee98934543172845fb6163"
+        "sha256": "41d390516ead01bd49d6d2eb7dff9c5d9e45b01fb5fabf00a12eba3e056d4063"
       },
       {
         "path": "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/functions.manifest.json",
-        "sha256": "efabbe2900fb8901a12c513dd25b8ef87d5f665408efc43f0a971ac3ebf524fa"
+        "sha256": "baa2898c0090380730dc24d3e8b78bd35c4a8734dd33d48a013775210ad12d61"
       },
       {
         "path": "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/schema.manifest.json",
-        "sha256": "247810300ff7bf99e2ce4fec20e058298e97e4d503ff987221b7815fd32514c3"
+        "sha256": "b16b498d760f1285d2a46c988ac1f618ac17106e0af4eb3d290805e023f7e4f0"
       },
       {
         "path": "demos/_kit/generated-artifacts.mjs",
@@ -125,7 +140,7 @@
       },
       {
         "path": "demos/_kit/server-process.mjs",
-        "sha256": "ad85ce40108a1d91a574d8083b1342b85c724ae3c0a56c13c7f3f7c7aad07afd"
+        "sha256": "1636e0703134b022ad59fafe3e0770e5c48eb7943bca3fb454488f9e14348229"
       },
       {
         "path": "packages/snapback-client/generated-mutation-ir.mjs",
@@ -133,7 +148,7 @@
       },
       {
         "path": "packages/snapback-client/index.mjs",
-        "sha256": "432c51b87d3a61d0407ab05b2b2286b5277228050d835b3d120df075e69af0fa"
+        "sha256": "542adf3dd63b3131bcd30559324346c9aff0cf599d7d6b5e938885204301f7be"
       },
       {
         "path": "packages/snapback-client/ir-evaluator.mjs",
@@ -145,15 +160,15 @@
       },
       {
         "path": "packages/snapback-client/outbox-shared.mjs",
-        "sha256": "7a0b70c66377f99ec03ac43740d45a9ed9721a76e29c8597d689245249cab01c"
+        "sha256": "9b71471ac94776f4a95a5190e00d053d80d70fc93b775ca90eb2355670c915b9"
       },
       {
         "path": "packages/snapback-client/rqs-store-file.mjs",
-        "sha256": "0c8dae3e1f339444f640ab78f299a20ff03888e43ffe850f8061506c8bf97831"
+        "sha256": "f7ac4801c6542ed92203af4ce7e6849d3ca93eaca4fe1c429085c361604c0eb4"
       },
       {
         "path": "packages/snapback-codegen/index.mjs",
-        "sha256": "372758c16b31ff1fd4c77be74acfa572da9ac3eb9ad595df6f6575bd7a112312"
+        "sha256": "0c2039c6b2de172bc831d5f6a7b27826366b82d80c77ad48ef86741923016228"
       },
       {
         "path": "llp/0133-local-settlement.spec.md",
@@ -169,12 +184,12 @@
     "status": "PASS",
     "activation": {
       "format": "snapback.composition-activation-preparation.v1",
-      "activationHash": "sha256:140e27718374f2cc405c2e480adc0359607a4a4675dade19768afb38b932d49a",
+      "activationHash": "sha256:c7c1eb160eeebd6ed0bcf6b503455905a939adc6642fa1a0a1608b220dfd1272",
       "deploymentId": "contention-calendar-rung2-exit"
     },
     "runtime": {
-      "serverBinary": "../snapback-ship-trackb-20260804-integration/target/debug/snapback",
-      "serverBinarySha256": "5174fdb768b4aa30dd12f896f1941e3cfb7322deb16ca90f6da473948f51326b",
+      "serverBinary": "target/debug/snapback",
+      "serverBinarySha256": "9fbab0bc2d13f4d3658a491f6cc0a90ec8b2e98aad8c10f0954ebb5fcc571ce9",
       "launchRung": "configured"
     }
   },
@@ -185,12 +200,12 @@
         "generatedPlan": {
           "functionId": "contention-calendar:reserve",
           "implementationHash": "sha256:f1b9530e4bf51e34e95c941fc68431d8d0fae6ef8b020d70e979ee51dca8f11f",
-          "operationHash": "sha256:29f08ccccc61afb445a3d46615d0f95692ab30b75c5df25be83ba6be19065af1",
+          "operationHash": "sha256:dba3db1081810d35637cf6698bdeb245f7f03306c808216a956bc068ef94b2c0",
           "activation": {
             "appId": "contention-calendar",
-            "bundleHash": "sha256:8590a5c2fd5cc6e5",
-            "inputsHash": "8b114f8658a79e89c9a204f63f466284a13752f247adcac9179b23614ba2aa07",
-            "schemaHash": "sha256:452f084e7eaeb8ee",
+            "bundleHash": "sha256:723adaa7771bac4c",
+            "inputsHash": "43800d9e818ee1b98b859dcaa79112a7a77339665f19ec8fd2f0ae389ab755c3",
+            "schemaHash": "sha256:5672641b4c4097ac",
             "schemaVersion": "snapback.v0"
           },
           "steps": [
@@ -235,7 +250,7 @@
           {
             "identity": {
               "kind": "provisional",
-              "intentId": "mut_01kz9pecfne50939gv93yv2ad2"
+              "intentId": "mut_01kzbgw9hyf39sw4g9gw4henrb"
             },
             "fields": {
               "idempotencyKey": "intent:alice:room-00:slot-final",
@@ -251,7 +266,7 @@
           {
             "identity": {
               "kind": "canonical",
-              "id": "reservations_01kz9pecetex88k030dgjx5x5y"
+              "id": "reservations_01kzbgw9h3eegs09bs0nyxxdt4"
             },
             "fields": {
               "idempotencyKey": "baseline-canonical",
@@ -269,7 +284,7 @@
           {
             "identity": {
               "kind": "provisional",
-              "intentId": "mut_01kz9pecg1ejkt0fdm77t4dq1n"
+              "intentId": "mut_01kzbgw9j9es0r62yxs9smk0q0"
             },
             "fields": {
               "idempotencyKey": "intent:bob:room-00:slot-final",
@@ -285,7 +300,7 @@
           {
             "identity": {
               "kind": "canonical",
-              "id": "reservations_01kz9pecetex88k030dgjx5x5y"
+              "id": "reservations_01kzbgw9h3eegs09bs0nyxxdt4"
             },
             "fields": {
               "idempotencyKey": "baseline-canonical",
@@ -300,8 +315,8 @@
           }
         ],
         "inputToPaintMs": [
-          11.99,
-          10.645
+          11.472,
+          9.778
         ],
         "canonicalIdsForged": 0,
         "parallelPendingCollections": 0
@@ -314,12 +329,12 @@
         "committed": 1,
         "rejected": 1,
         "loserCode": "SNAPBACK_UNIQUE_CONSTRAINT_VIOLATION",
-        "canonicalRowId": "reservations_01kz9pech1ec8vjg2vsps0bb1r",
-        "winnerClientMutationId": "mut_01kz9pecfne50939gv93yv2ad2",
+        "canonicalRowId": "reservations_01kzbgw9k7e60vzcgzd5ggx6wj",
+        "winnerClientMutationId": "mut_01kzbgw9hyf39sw4g9gw4henrb",
         "idMap": [
           {
-            "speculative": "id_01kz9pecfneepabqd99027xrg0",
-            "authoritative": "reservations_01kz9pech1ec8vjg2vsps0bb1r",
+            "speculative": "id_01kzbgw9hyfej9x9xzekrm90j4",
+            "authoritative": "reservations_01kzbgw9k7e60vzcgzd5ggx6wj",
             "site": "plan/steps/0/insert/row-id",
             "occurrence": 0,
             "disposition": "mapped"
@@ -331,7 +346,7 @@
     "loserCorrection": {
       "status": "PASS",
       "evidence": {
-        "loserClientMutationId": "mut_01kz9pecg1ejkt0fdm77t4dq1n",
+        "loserClientMutationId": "mut_01kzbgw9j9es0r62yxs9smk0q0",
         "retiredOnlyLosingLayer": true,
         "alternative": "room-01|slot-final",
         "aliceVisibleSlotRows": 1,
@@ -342,16 +357,16 @@
     "retryIdempotence": {
       "status": "PASS",
       "evidence": {
-        "clientMutationId": "mut_01kz9pecmve4rvnga922ewgp1k",
+        "clientMutationId": "mut_01kzbgw9qne20vw7tgp7rbg6q2",
         "wireAttempts": 2,
         "replayed": 1,
         "canonicalApplications": 1,
-        "originalResult": "reservations_01kz9pecn6emg9s01grbg1xcqk",
-        "replayedResult": "reservations_01kz9pecn6emg9s01grbg1xcqk",
+        "originalResult": "reservations_01kzbgw9r2fggb4gk2wvr0hnrd",
+        "replayedResult": "reservations_01kzbgw9r2fggb4gk2wvr0hnrd",
         "originalIdMap": [
           {
-            "speculative": "id_01kz9pecmvfg5v0haag477bh59",
-            "authoritative": "reservations_01kz9pecn6emg9s01grbg1xcqk",
+            "speculative": "id_01kzbgw9qnfnmamwj3s414591v",
+            "authoritative": "reservations_01kzbgw9r2fggb4gk2wvr0hnrd",
             "site": "plan/steps/0/insert/row-id",
             "occurrence": 0,
             "disposition": "mapped"
@@ -359,8 +374,8 @@
         ],
         "replayedIdMap": [
           {
-            "speculative": "id_01kz9pecmvfg5v0haag477bh59",
-            "authoritative": "reservations_01kz9pecn6emg9s01grbg1xcqk",
+            "speculative": "id_01kzbgw9qnfnmamwj3s414591v",
+            "authoritative": "reservations_01kzbgw9r2fggb4gk2wvr0hnrd",
             "site": "plan/steps/0/insert/row-id",
             "occurrence": 0,
             "disposition": "mapped"
@@ -374,8 +389,8 @@
       "evidence": {
         "committed": 2,
         "canonicalIds": [
-          "reservations_01kz9pecm5fjrth9xe010xjjf7",
-          "reservations_01kz9pecm2f3gvbmc8s32dm7cp"
+          "reservations_01kzbgw9q2e91axf3f1xcjy7eb",
+          "reservations_01kzbgw9ptf88sa090jvmbkv7t"
         ],
         "resourceSlotKeys": [
           "room-03|slot-n",
@@ -412,7 +427,7 @@
           "one SQLite database"
         ],
         "serverAliveBeforeTeardown": true,
-        "temporaryRoot": "snapback-contention-calendar-rung2-2EEK8K"
+        "temporaryRoot": "snapback-contention-calendar-rung2-xi43ou"
       }
     }
   },
