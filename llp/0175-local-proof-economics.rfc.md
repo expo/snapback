@@ -28,7 +28,9 @@ runs retain the complete inventory.) 2026-08-06 (ship-review corrections:
 required Exact mode reaches frozen surface installs from a clean checkout;
 Contract and harness owners select their direct fixtures; telemetry
 exact-current release/promotion wiring is recorded honestly as an open
-blocker; obsolete cadence prose removed.)
+blocker; obsolete cadence prose removed; main-push affected runs use
+commit-unique concurrency so a replaced pending run cannot create an uncovered
+diff gap.)
 **Related:** LLP 0010, LLP 0032, LLP 0109, LLP 0115, LLP 0145, LLP 0154,
 issues/closed/20260802-local-proof-is-cancelled-before-it-can-finish-on-main.md,
 issues/closed/20260802-verify-local-proof-stops-at-the-first-failure.md,
@@ -344,10 +346,12 @@ interactions.
 The canonical `local-proof` workflow now runs this complete inventory every
 six hours and on manual dispatch under a non-cancelling latest-main concurrency
 group. Pull requests and `main` pushes use affected selection instead; pull
-request updates cancel their superseded affected run. The workflow plans
-selection before installing Bun, Chrome, Rust, Cargo audit, or the large Ibex
-submodule and skips those setup costs when the selected closure does not need
-them. Both the selection receipt and gate JSONL are retained on green or red.
+request updates cancel their superseded affected run, while each `main` push
+uses a commit-unique concurrency group so GitHub cannot replace a pending diff
+with a later event that does not contain it. The workflow plans selection
+before installing Bun, Chrome, Rust, Cargo audit, or the large Ibex submodule
+and skips those setup costs when the selected closure does not need them. Both
+the selection receipt and gate JSONL are retained on green or red.
 
 Telemetry Phase 1 was the first slice to establish this latest-main pattern.
 Its separate six-hour/manual workflow still produces one clean Linux evidence

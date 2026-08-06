@@ -274,6 +274,16 @@ assert.match(
 );
 assert.match(
   localProof,
+  /group:[^\n]*schedule[^\n]*workflow_dispatch[^\n]*latest-main[^\n]*event_name == 'push'[^\n]*github\.sha[^\n]*github\.ref/u,
+  'main push proofs must use a commit-unique group while scheduled complete and PR runs may coalesce',
+);
+assert.match(
+  localProof,
+  /cancel-in-progress:[^\n]*github\.event_name == 'pull_request'/u,
+  'only superseded pull-request affected proofs may be cancelled',
+);
+assert.match(
+  localProof,
   /node scripts\/select-local-proof\.mjs[\s\S]*requires_native[\s\S]*scripts\/verify-local-proof --selection-receipt/u,
   'CI must plan once, condition heavyweight setup, and reopen the exact selector receipt',
 );
