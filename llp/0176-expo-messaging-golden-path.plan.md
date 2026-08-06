@@ -216,9 +216,11 @@ the cheaper mechanical fixes.
 
 ### Development and packaging
 
-- **A1 — managed load framing.** `snapback dev` mishandles the two JSON
-  documents emitted by a valid native load. Ticket:
-  `issues/20260805-managed-dev-multi-json-load.md`.
+- **A1 — managed load framing (resolved 2026-08-05).** `snapback dev` now
+  accepts the sequential `schema.load` and `functions.load` JSON documents
+  emitted by a valid native load while refusing a failed envelope or malformed
+  stream. Resolution:
+  `issues/closed/20260805-managed-dev-multi-json-load.md`.
 - **A2 — local package closure.** A file-installed client still resolves its
   exact Contract dependency from the registry. Tickets:
   `issues/20260805-local-source-package-closure-needs-contract-override.md`

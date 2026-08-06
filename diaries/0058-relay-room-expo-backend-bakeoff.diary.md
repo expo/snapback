@@ -175,7 +175,7 @@ documents—one for `schema.load`, one for `functions.load`. The package wrapper
 expects one JSON document and rejects the two-document success output.
 
 This was the biggest Snapback detour. I filed
-`issues/20260805-managed-dev-multi-json-load.md` and built
+`issues/closed/20260805-managed-dev-multi-json-load.md` and built
 `scripts/dev-server.mjs`, which starts a LAN-reachable dev server and provisions
 through `SnapbackClient.ensureApp`. That launcher works and prints the exact
 `EXPO_PUBLIC_SNAPBACK_ORIGIN=… bun run start` command for Expo Go.

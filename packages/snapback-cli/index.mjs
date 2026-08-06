@@ -1501,6 +1501,92 @@ function requireNativeSuccess(result, code, operation) {
   return result;
 }
 
+function parseJsonDocumentStream(stdout) {
+  const input = typeof stdout === 'string' ? stdout : String(stdout ?? '');
+  const documents = [];
+  let documentStart = null;
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  const isWhitespace = (character) => (
+    character === ' ' || character === '\t' || character === '\n' || character === '\r'
+  );
+
+  for (let cursor = 0; cursor < input.length; cursor += 1) {
+    const character = input[cursor];
+    if (documentStart === null) {
+      if (isWhitespace(character)) continue;
+      if (character !== '{') {
+        throw new SyntaxError(`native output contained non-JSON content at character ${cursor}`);
+      }
+      documentStart = cursor;
+      depth = 1;
+      continue;
+    }
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (character === '\\') escaped = true;
+      else if (character === '"') inString = false;
+      continue;
+    }
+    if (character === '"') inString = true;
+    else if (character === '{') depth += 1;
+    else if (character === '}') {
+      depth -= 1;
+      if (depth === 0) {
+        try {
+          documents.push(JSON.parse(input.slice(documentStart, cursor + 1)));
+        } catch (cause) {
+          throw new SyntaxError(
+            `native output contained invalid JSON at character ${documentStart}: ${cause.message}`,
+            { cause },
+          );
+        }
+        documentStart = null;
+      }
+    }
+  }
+  if (documentStart !== null) {
+    throw new SyntaxError(
+      `native output ended before the JSON document at character ${documentStart} was complete`,
+    );
+  }
+  if (documents.length === 0) {
+    throw new SyntaxError('native output contained no JSON documents');
+  }
+  return documents;
+}
+
+function requireNativeJsonSuccess(result, code, operation) {
+  requireNativeSuccess(result, code, operation);
+  let documents;
+  try {
+    documents = parseJsonDocumentStream(result.stdout);
+  } catch (cause) {
+    const error = diagnosticError(code, `${operation} failed`, {
+      status: result.status,
+      signal: result.signal,
+      stdout: result.stdout?.slice(0, 4_000) ?? '',
+      stderr: result.stderr?.slice(0, 4_000) ?? '',
+      framingError: cause.message,
+    });
+    error.cause = cause;
+    throw error;
+  }
+  const failed = documents.find((document) => document?.ok === false);
+  if (failed) {
+    throw diagnosticError(code, `${operation} failed`, {
+      status: result.status,
+      signal: result.signal,
+      stdout: result.stdout?.slice(0, 4_000) ?? '',
+      stderr: result.stderr?.slice(0, 4_000) ?? '',
+      failedOperation: failed.operation ?? null,
+      failedEnvelope: failed,
+    });
+  }
+  return documents;
+}
+
 const ARTIFACT_DECODE_EVIDENCE = /(?:unknown|missing|duplicate) field|invalid (?:json|type)|expected (?:struct|map|sequence|string)|did not match any variant|data did not match|SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH|SNAPBACK_STALE_(?:SCHEMA|FUNCTION)_ARTIFACT_(?:KIND|VERSION)/i;
 
 // The auth-mode startup pin refusing a *different* artifact pair is not a
@@ -1816,7 +1902,10 @@ export async function loadGenerated(
   }
   if (!skipSchemaFunctions && requestedMode === 'dev') {
     try {
-      requireNativeSuccess(native(binary, [
+      // @ref LLP 0041#cli-commands — `load` projects one hostOpsResult JSON
+      // document per requested host operation, so schema + functions is a
+      // sequential document stream rather than one aggregate envelope.
+      requireNativeJsonSuccess(native(binary, [
         'load', ...targetArgs,
         '--schema', schemaPath,
         '--functions', functionsPath,
