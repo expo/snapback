@@ -165,6 +165,28 @@ async function connectCdp(url: string) {
   const socket = new WebSocket(url);
   const pending = new Map<number, {resolve(value: unknown): void; reject(error: Error): void; timer: ReturnType<typeof setTimeout>}>();
   let nextId = 1;
+  const traceStart = Date.now();
+  const trace = (line: string) => {
+    if (!globalThis.process.env.ZB6B_CDP_TRACE) return;
+    globalThis.process.stderr.write(`[cdp +${Date.now() - traceStart}ms] ${line}\n`);
+  };
+  socket.addEventListener('message', async event => {
+    if (!globalThis.process.env.ZB6B_CDP_TRACE) return;
+    const payload = typeof event.data === 'string' ? event.data : await event.data.text();
+    const message = JSON.parse(payload) as {id?: number; method?: string; params?: any};
+    if (message.id) {trace(`<- reply id=${message.id}`); return;}
+    const method = message.method ?? '';
+    if (/^(Page\.frame(Navigated|StartedLoading|StoppedLoading)|Runtime\.executionContext|Target\.|Inspector\.)/.test(method)) {
+      const detail = method === 'Runtime.executionContextCreated'
+        ? ` ctx=${message.params?.context?.id} origin=${message.params?.context?.origin}`
+        : method === 'Runtime.executionContextDestroyed'
+          ? ` ctx=${message.params?.executionContextId}`
+          : method.startsWith('Page.frame')
+            ? ` url=${message.params?.frame?.url ?? ''}`
+            : '';
+      trace(`event ${method}${detail}`);
+    }
+  });
   socket.addEventListener('message', async event => {
     const payload = typeof event.data === 'string' ? event.data : await event.data.text();
     const message = JSON.parse(payload) as {id?: number; result?: unknown; error?: {message?: string}};
@@ -182,10 +204,12 @@ async function connectCdp(url: string) {
   });
   const send = (method: string, params: Record<string, unknown> = {}, sessionId?: string) => {
     const id = nextId++;
+    trace(`-> id=${id} ${method}`);
     socket.send(JSON.stringify(sessionId ? {id, method, params, sessionId} : {id, method, params}));
     return new Promise<any>((resolveCommand, rejectCommand) => {
       const timer = setTimeout(() => {
         pending.delete(id);
+        trace(`!! timeout id=${id} ${method}`);
         rejectCommand(new Error(`CDP command timed out: ${method}`));
       }, 30_000);
       pending.set(id, {resolve: resolveCommand, reject: rejectCommand, timer});
@@ -452,13 +476,6 @@ async function main(): Promise<void> {
     const openExpected = oracleIssueList(fixture, openContext, 'ordinary-user').map(sourceID);
 
     await page.navigate(`${origin}/p/zero`);
-      await sleep(6_000);
-      await page.clickText('Login').catch(() => {});
-      await sleep(10_000);
-      globalThis.process.stdout.write(`PAUSE_STACK ${JSON.stringify(await page.pauseStack())}\n`);
-      throw new Error('pause probe complete');
-    }
-    await page.navigate(`${origin}/p/zero`);
     await page.wait(`document.querySelector('.issue-list-scroll')?.dataset.windowPhase==='ready'`, 'anonymous list boot');
     await page.clickText('Login');
     await page.wait(`document.querySelector('.logged-in-user-name')?.textContent.trim().length>0`, 'ordinary login');
@@ -580,13 +597,19 @@ async function main(): Promise<void> {
     await check('comment-permalink-hydrates-target-window-and-scrolls-to-target', async () => {
       await page.navigate(`${origin}/p/zero/issue/9183001#comment-${internalComment.id}`);
       await page.wait(`document.querySelector('[data-vrow-key="${internalComment.id}"]')`, 'permalink comment row');
-      assert(await page.eval(`(() => {const row=document.querySelector('[data-vrow-key="${internalComment.id}"]'); const rect=row.getBoundingClientRect(); return rect.bottom>0&&rect.top<innerHeight})()`));
+      // The scroll restore runs from an effect once the permalink window
+      // settles, so the in-viewport fact is awaited rather than asserted
+      // against the first frame that renders the row.
+      await page.wait(`(() => {const row=document.querySelector('[data-vrow-key="${internalComment.id}"]'); if(!row) return false; const rect=row.getBoundingClientRect(); return rect.bottom>0&&rect.top<innerHeight})()`, 'permalink comment scrolled into view');
     });
 
     let createdUrl = '';
     await check('composer-paints-optimistically-settles-and-surfaces-a-real-duplicate-refusal', async () => {
       await page.navigate(`${origin}/p/zero`);
       await page.wait(`document.querySelector('.primary-cta')`, 'list after crew switch');
+      // The composer CTA is login-checked; clicking before custody restore
+      // settles opens the not-logged-in modal instead of the composer.
+      await page.wait(`document.querySelector('[data-session-phase="authenticated"]')`, 'crew custody restored before composing');
       await page.eval(`Object.defineProperty(globalThis.crypto,'getRandomValues',{configurable:true,value(array){array.fill(7);return array}})`);
       await page.emulateLatency(900);
       await page.click('.primary-cta');

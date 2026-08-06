@@ -261,3 +261,36 @@ gate.
   `assets-watch-authorization`, `lifecycle-disposal`, `bearer-rotation`,
   `auth-exchange-concurrency`, `sender-proof`, `sender-transport`,
   `hosted-browser`, `logout-v3-bridge`, and `browser-closure`.
+
+## 2026-08-06 resolution — landed with live browser verification
+
+The parked fix branch (`fix/auth-custody-barrier-deadlock`, 09465f82f) was
+rebased onto current main and landed after the blocking "CDP wedge" was fully
+explained and shown to be unrelated to this change.
+
+**The wedge was a control-app render loop, not the auth fix.** The Lane 6b
+suite with the auth fix applied passes every auth-bearing check in real
+Chrome — ordinary login through the coordinator barrier, authenticated
+full-reload custody adoption from IndexedDB, logout blanking, and crew
+re-login — before reaching the comment-permalink step. That step armed an
+unbounded React sync-update loop in `demos/zerobugs/control` (per-render
+`AdapterResult` identity churn feeding an avatar-preload effect that set
+state with a fresh object every commit), which starved the renderer's task
+queue so `Runtime.evaluate` could never run. The earlier `Debugger.pause`
+"no app frames" observation was an artifact of enabling the debugger
+mid-spin. The loop was proven with in-page counters (86,260 Combobox renders
+/ 43,119 avatar-effect firings during ~13 s of wedge) and fixed separately in
+the control app in the same push.
+
+Verification at landing, on the rebased branch:
+
+- full `@expo/snapback-contract` `npm test` passes;
+- all nine auth-focused `@expo/snapback-client` test files pass, including
+  the queued-lock deadlock regression, the bounded-attempt spin regression,
+  and the three `authExchange` interleavings;
+- `./ref-check --verbose` passes;
+- the Lane 6b live suite emits a green `zerobugs-lane6b-live.v1` receipt,
+  `expectedChecks: 12`, `executedChecks: 12`, all checks `pass`.
+
+The previously parked branch is superseded by this landing; do not re-land
+09465f82f.
