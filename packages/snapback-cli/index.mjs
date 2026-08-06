@@ -1678,6 +1678,7 @@ function refineGeneratedArtifactFailure(error, {
   runtime = null,
   runtimeIdentity = null,
   artifacts = [],
+  database = null,
 } = {}) {
   // issues/20260801-0137-a3-restart-evolution-refusal-misattributed-diagnostic:
   // surface the auth-mode startup pin as itself. Wrapping it in the
@@ -1696,7 +1697,13 @@ function refineGeneratedArtifactFailure(error, {
         artifacts: artifacts.map((path) => resolve(path)),
         recovery: {
           sanctionedEvolution: 'run the evolved sources through the running dev server (`snapback dev` watch reload or the reload verb): its app.ensure provision moves the pinned deployment forward',
-          coldStartRepair: 'to cold-start first, restore the generated artifacts matching the pinned deployment, boot, then apply the evolved sources through the running server',
+          coldStartRepair: 'to cold-start first, restore the generated artifacts matching the pinned deployment (regenerate from the previous sources if needed), boot, then apply the evolved sources through the running server',
+          // issues/20260805-doc-comment-artifact-mismatch-no-successor-migration.md:
+          // the discard path is a supported procedure, not author intuition —
+          // name the real backup command and the exact store it targets.
+          freshReseed: 'to discard local data and reseed from scratch instead: back up the store with '
+            + `\`snapback auth backup --db ${database ? resolve(database) : '<database>'} --output <ignored-backup-dir>\`, `
+            + 'move or delete the database file, then restart on the new artifacts',
           safety: 'do not reinstall the runtime or set SNAPBACK_RUNTIME_BINARY; the startup pin is auth-mode state (LLP 0058), not a runtime/codegen mismatch',
         },
       },
@@ -1915,6 +1922,7 @@ export async function loadGenerated(
         binary,
         runtime,
         runtimeIdentity,
+        database,
         artifacts: [schemaPath, functionsPath],
       });
     }
@@ -1963,6 +1971,7 @@ export async function loadGenerated(
           binary,
           runtime,
           runtimeIdentity,
+          database,
           artifacts: [
             schemaPath,
             functionsPath,
@@ -2137,6 +2146,7 @@ export async function runDev(options = {}) {
         binary: runtime.binary,
         runtime,
         runtimeIdentity,
+        database,
         artifacts: startupArtifacts
           ? [startupArtifacts, ...startupArtifactSources]
           : startupArtifactSources,
@@ -2222,6 +2232,7 @@ export async function runDev(options = {}) {
         binary: runtime.binary,
         runtime,
         runtimeIdentity,
+        database,
         artifacts: startupArtifacts
           ? [startupArtifacts, ...startupArtifactSources]
           : startupArtifactSources,
@@ -2531,6 +2542,7 @@ export async function runDev(options = {}) {
         binary: runtime.binary,
         runtime,
         runtimeIdentity,
+        database,
         artifacts: startupArtifacts
           ? [startupArtifacts, ...startupArtifactSources]
           : startupArtifactSources,

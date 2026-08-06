@@ -5,7 +5,10 @@
 **Systems:** Product, Application data API, Relational queries, Client SDK, React, Local sync, Offline sync, Optimistic updates, Auth, HTTP surface, Search, Notifications, Assets, Storage, Deployment, Performance, Developer experience, Testing
 **Author:** Codex (gpt-5.6-sol) / Charlie Cheever
 **Date:** 2026-08-05
-**Revised:** 2026-08-05 (authorial review, Codex gpt-5.6-sol: narrows this to an umbrella RFC; replaces unsupported fixed performance margins with a pre-implementation freeze protocol; makes projected-fact reuse a staged candidate rather than an admitted capability; defines production edges as a supported composition profile; corrects the client-value comparison; and lets the current-surface control report rather than predetermine outcomes) · 2026-08-05 (design-partner revision, Claude Fable 5: adds the current-surface control arm, staged projected-fact investigation, server-backed windowing, authoring-delta evidence, and refusal-union ownership) · 2026-08-05 (initial draft)
+**Revised:** 2026-08-05 (Stage 0 execution, Codex gpt-5.6-sol / Claude Fable
+5: narrows the D5 `Date.now()` replacement claim to the issue create/update,
+emoji add, and comment add server overrides after pin re-verification) ·
+2026-08-05 (authorial review, Codex gpt-5.6-sol: narrows this to an umbrella RFC; replaces unsupported fixed performance margins with a pre-implementation freeze protocol; makes projected-fact reuse a staged candidate rather than an admitted capability; defines production edges as a supported composition profile; corrects the client-value comparison; and lets the current-surface control report rather than predetermine outcomes) · 2026-08-05 (design-partner revision, Claude Fable 5: adds the current-surface control arm, staged projected-fact investigation, server-backed windowing, authoring-delta evidence, and refusal-union ownership) · 2026-08-05 (initial draft)
 **Related:** LLP 0000, LLP 0004, LLP 0005, LLP 0008, LLP 0012, LLP 0016, LLP 0031, LLP 0043, LLP 0045, LLP 0046, LLP 0053, LLP 0057, LLP 0060, LLP 0065, LLP 0070, LLP 0072, LLP 0073, LLP 0080, LLP 0100, LLP 0107, LLP 0108, LLP 0110, LLP 0114, LLP 0128, LLP 0129, LLP 0133, LLP 0134, LLP 0135, LLP 0138, LLP 0144, LLP 0153, LLP 0155, LLP 0157, LLP 0166, LLP 0170, LLP 0172, LLP 0173, LLP 0182
 
 ## Summary
@@ -392,8 +395,9 @@ capabilities remain server-only rather than invoking arbitrary application JS
 in the browser.
 
 The pinned Zero app chooses many row ids on the client and its server mutators
-preserve those ids, while server mutators replace timestamps with trusted
-`Date.now()` values. Thus even Zero's immediate result is speculative; it does
+preserve those ids, while server overrides replace client timestamps with
+trusted `Date.now()` values on the issue create/update, emoji add, and comment
+add paths (view-state and notification timestamps remain client-supplied). Thus even Zero's immediate result is speculative; it does
 not make every predicted value authoritative. Snapback's current Lane L instead
 re-derives runtime ids/time and maps provisional ids by default, while Lane Q
 and explicit application arguments have different continuity. Exact
@@ -797,8 +801,19 @@ new target is necessary. Portability remains part of the desired outcome.
 
 ## Status
 
-Draft. Next, author feedback should settle the benchmark/claim contract and
-name owners for D1–D8. Because the program touches query semantics, protected
+Draft. Stage 0 (freeze and reconcile) was executed on 2026-08-05: LLP 0182's
+claims were re-verified against the pin and 0182 is Active with four factual
+corrections (`demos/zerobugs/stage0/0182-claim-verification.v1.md`); the D1
+acceptance manifest is frozen with performance margins explicitly deferred to
+`acceptance.v2` pending variability trials
+(`demos/zerobugs/manifest/acceptance.v1.md`); the exact demand inventory and
+workstream owner/dependency/timebox plan are recorded
+(`demos/zerobugs/stage0/inventory.v1.md`,
+`demos/zerobugs/stage0/program-plan.v1.md`). Author decisions still open:
+OQ13 orchestration ownership, the proposed durable-disconnected-intent
+primary-improvement candidate (manifest §13), and owner-Spec authors for
+D2/D3/D4/D6. Next, author feedback should settle the benchmark/claim contract
+and name owners for D1–D8. Because the program touches query semantics, protected
 client state, browser writes, production identity, effects, and hosting, the
 RFC should receive an LLP 0005 review loop scaled to foundational product work
 before acceptance. Its independent mechanisms should be reviewed in their

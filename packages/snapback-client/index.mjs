@@ -59,12 +59,15 @@ export {
   RESULT_CONTRACT_LIMITS_V1,
 } from '@expo/snapback-contract/result-contract-validator';
 export {
+  activeReactBindingDeploymentIdentity,
   admittedReactEphemeralDefinition,
   admittedReactQueryGroup,
   admittedReactReference,
   abandonConsumedReactQueryGroup,
   assertPreparedReactBinding,
+  classifyRegeneratedReactReference,
   consumePreparedReactQueryGroup,
+  handoffPreparedReactBindingGeneration,
   isPreparedReactQueryGroup,
   prepareReactQueryGroupForBinding,
   preparedReactResultContract,

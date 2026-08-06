@@ -1,0 +1,588 @@
+{
+  "schemaVersion": "zerobugs-acceptance.v1",
+  "manifestId": "zerobugs-acceptance.v1",
+  "date": "2026-08-05",
+  "status": {
+    "workloadAndMethod": "frozen",
+    "performanceMargins": "deferred-to-acceptance.v2",
+    "primaryImprovementCandidate": "proposed-pending-charlie-ratification"
+  },
+  "marginsDeferred": true,
+  "canonicalProse": "acceptance.v1.md",
+  "canonicalInventory": "../stage0/inventory.v1.json",
+  "pin": {
+    "repository": "rocicorp/mono",
+    "commit": "25c2c7308d3eb674d2d895022c9da11ef0c742fb",
+    "sparsePaths": [
+      "apps/zbugs",
+      "packages/zero"
+    ],
+    "packages": {
+      "zero": "1.10.0",
+      "@rocicorp/zero-virtual": "0.6.3"
+    },
+    "digestFile": "../stage0/source-digests.v1.json",
+    "inventoryFile": "../stage0/inventory.v1.json",
+    "claimVerificationFile": "../stage0/0182-claim-verification.v1.md"
+  },
+  "fixtures": [
+    {
+      "id": "normal-seed-v1",
+      "base": "inventory.v1.json#/fixtureTargetDemand/ordinarySeed",
+      "parameters": {
+        "users": 14,
+        "projectCsvRows": 0,
+        "migrationProjects": 1,
+        "issues": 516,
+        "publicIssues": 516,
+        "internalIssues": 0,
+        "openIssues": 155,
+        "closedIssues": 361,
+        "comments": 924,
+        "labels": 30,
+        "issueLabels": 603,
+        "viewState": 0,
+        "emoji": 0,
+        "userPref": 0,
+        "issueNotifications": 0
+      },
+      "extensions": [
+        "policy-extension-v1"
+      ]
+    },
+    {
+      "id": "large-seed42-v1",
+      "base": "inventory.v1.json#/fixtureTargetDemand/syntheticGenerator",
+      "parameters": {
+        "seed": 42,
+        "generationInstant": "2026-08-05T00:00:00.000Z",
+        "generateOnceAndShareArtifact": true,
+        "generatorDefaults": {
+          "NUM_ISSUES": 1000000,
+          "NUM_PROJECTS": 100,
+          "NUM_USERS": 100,
+          "COMMENTS_PER_ISSUE": 3.0,
+          "LABELS_PER_ISSUE": 1.5,
+          "SHARD_SIZE": 500000,
+          "OUTPUT_DIR": "db/seed-data/synthetic/",
+          "SEED": 42,
+          "SKIP_USERS": false
+        },
+        "numUsers": 100,
+        "numProjects": 100,
+        "labels": 4810,
+        "issues": 1000000,
+        "comments": 2527886,
+        "issueLabels": 2000370,
+        "totalRowsAcrossGeneratedTables": 5533266,
+        "generatedTables": [
+          "user",
+          "project",
+          "label",
+          "issue",
+          "comment",
+          "issueLabel"
+        ],
+        "dateDeterministic": false
+      },
+      "extensions": [
+        "large-overlay-v1",
+        "policy-extension-v1"
+      ]
+    },
+    {
+      "id": "hot-recent-v1",
+      "base": "large-seed42-v1",
+      "parameters": {
+        "projectSelection": "greatest issue count, tie by project id",
+        "workingSetSelection": "first 1000 issues by modified desc, id desc",
+        "openLoop": true,
+        "mutationOrder": "inventory.v1.json#/mutationDemand/mutators array order",
+        "resetBetweenCycles": true,
+        "adaptiveArrivals": false
+      },
+      "extensions": []
+    }
+  ],
+  "fixtureExtensions": [
+    {
+      "id": "policy-extension-v1",
+      "purpose": "add the internal role-visibility and protected-child fixture absent from the ordinary seed",
+      "tables": [
+        "issue",
+        "comment",
+        "emoji",
+        "viewState",
+        "userPref",
+        "issueNotifications"
+      ],
+      "sharedAcrossArms": true
+    },
+    {
+      "id": "large-overlay-v1",
+      "purpose": "deterministically provision the four tables omitted by the pinned synthetic generator",
+      "tables": [
+        "viewState",
+        "emoji",
+        "userPref",
+        "issueNotifications"
+      ],
+      "hashNamespace": "zerobugs-acceptance.v1",
+      "hashAlgorithm": "SHA-256",
+      "hashInputEncoding": "UTF-8 fields separated by one NUL byte",
+      "idRule": "zbav1_ plus first 24 lowercase digest hex characters",
+      "timestampRule": "generationEpochMs minus lexicographic natural-key rank",
+      "notificationSubscribedRule": "true exactly when first digest byte is even",
+      "emojiValue": "👍",
+      "emojiAnnotation": "thumbs up",
+      "userPrefKey": "zerobugs-acceptance.v1",
+      "userPrefValueRule": "first 32 lowercase digest hex characters",
+      "workingSetSize": 1000,
+      "sharedAcrossArms": true
+    }
+  ],
+  "actors": [
+    {
+      "id": "anonymous",
+      "binding": "no row and no credential",
+      "initialRole": null
+    },
+    {
+      "id": "ordinary-user",
+      "binding": "lexicographically first role=user row",
+      "initialRole": "user"
+    },
+    {
+      "id": "creator",
+      "binding": "lexicographically second role=user row",
+      "initialRole": "user"
+    },
+    {
+      "id": "assignee",
+      "binding": "lexicographically third role=user row",
+      "initialRole": "user"
+    },
+    {
+      "id": "crew-admin",
+      "binding": "lexicographically first role=crew row",
+      "initialRole": "crew"
+    },
+    {
+      "id": "removed-member",
+      "binding": "lexicographically second role=crew row",
+      "initialRole": "crew",
+      "transitionRole": "user"
+    },
+    {
+      "id": "attacker",
+      "binding": "no trusted row or credential",
+      "initialRole": null
+    }
+  ],
+  "revocationTransitions": [
+    "logout",
+    "jwt-expiry",
+    "user-switch",
+    "crew-to-user-role-change",
+    "public-to-internal-visibility-change",
+    "out-of-band-permission-change",
+    "auth-policy-activation",
+    "reset-import-declared-restore",
+    "revocation-crossing-queued-write"
+  ],
+  "browserProfile": {
+    "id": "chrome-arm64-v1",
+    "product": "Google Chrome",
+    "version": "150.0.7871.187",
+    "architecture": "arm64",
+    "exactBuildRequiredForComparativeEvidence": true,
+    "freshProfileForColdPaths": true
+  },
+  "machineProfile": {
+    "id": "m5max-18c-128g-v1",
+    "platform": "darwin-arm64",
+    "cpu": "Apple M5 Max, 18-core",
+    "memoryGiB": 128,
+    "os": "macOS 26.5.2",
+    "sameMachineForLocalComparison": true
+  },
+  "networkProfiles": [
+    {
+      "id": "normal",
+      "kind": "llp-0167-egress",
+      "mutationAckDelayMs": 0,
+      "liveDeltaDelayMs": 0,
+      "queryResponseDelayMs": 0,
+      "jitterMs": 0,
+      "comparativeUse": "baseline"
+    },
+    {
+      "id": "optimistic",
+      "kind": "llp-0167-egress",
+      "mutationAckDelayMs": 1000,
+      "liveDeltaDelayMs": 1000,
+      "queryResponseDelayMs": 0,
+      "jitterMs": 0,
+      "comparativeUse": "mutation lifecycle separation"
+    },
+    {
+      "id": "demo-slow",
+      "kind": "llp-0167-egress",
+      "mutationAckDelayMs": 2000,
+      "liveDeltaDelayMs": 2000,
+      "queryResponseDelayMs": 2000,
+      "jitterMs": 250,
+      "comparativeUse": "diagnostic-only"
+    },
+    {
+      "id": "offline-disconnected",
+      "kind": "connectivity-scenario",
+      "comparativeUse": "retained-read-and-durable-intent"
+    }
+  ],
+  "targetProfiles": [
+    {
+      "id": "local-loopback",
+      "comparative": true
+    },
+    {
+      "id": "cold-online",
+      "comparative": true
+    },
+    {
+      "id": "hosted-public-tls",
+      "comparative": false,
+      "selectionStatus": "must-be-named-in-next-manifest-version-before-attempt"
+    }
+  ],
+  "criticalInteractions": [
+    {
+      "id": "cold-route-readiness",
+      "description": "Fresh-profile navigation to route shell, first useful rows, and explicit readiness/completeness state.",
+      "startEvent": "navigation request issued from a fresh browser profile after target readiness proof",
+      "endEvent": "route shell, first useful rows, and explicit complete/incomplete/currentness state painted; submarks retained",
+      "paths": [
+        "cold-online",
+        "hosted"
+      ]
+    },
+    {
+      "id": "retained-route-readiness",
+      "description": "Disconnected route paint from declared retained state after browser restart.",
+      "startEvent": "navigation request issued after browser restart with declared retained state and network disconnected",
+      "endEvent": "retained route painted with freshness, authority-lease, and completeness labels",
+      "paths": [
+        "local-retained",
+        "offline-disconnected"
+      ]
+    },
+    {
+      "id": "warm-filter",
+      "description": "Warm issue-list filter transition.",
+      "startEvent": "scripted filter input or change event committed",
+      "endEvent": "correct stable issue window and completeness state painted",
+      "paths": [
+        "local",
+        "hosted"
+      ]
+    },
+    {
+      "id": "warm-sort",
+      "description": "Warm issue-list ordering transition.",
+      "startEvent": "sort selection event committed",
+      "endEvent": "correctly ordered stable window painted",
+      "paths": [
+        "local",
+        "hosted"
+      ]
+    },
+    {
+      "id": "warm-navigation",
+      "description": "Warm list navigation with scroll and completeness state.",
+      "startEvent": "list navigation action dispatched",
+      "endEvent": "destination window painted with scroll and completeness state",
+      "paths": [
+        "local",
+        "hosted"
+      ]
+    },
+    {
+      "id": "detail-open",
+      "description": "Open issue detail and required relationships.",
+      "startEvent": "issue link activation dispatched",
+      "endEvent": "detail root and required relation states painted, with relation completion submarks retained",
+      "paths": [
+        "local",
+        "cold-online",
+        "hosted"
+      ]
+    },
+    {
+      "id": "permalink-jump",
+      "description": "Navigate to an issue or comment outside the current virtual window.",
+      "startEvent": "out-of-window issue or comment permalink navigation dispatched",
+      "endEvent": "target row painted in its loaded window or authoritative missing state painted",
+      "paths": [
+        "local",
+        "cold-online",
+        "hosted"
+      ]
+    },
+    {
+      "id": "mutation-paint",
+      "description": "Local optimistic overlay or honest pending state.",
+      "startEvent": "user activation dispatches one admitted mutation",
+      "endEvent": "local optimistic overlay or honest pending state painted",
+      "paths": [
+        "local-optimistic",
+        "offline-disconnected"
+      ]
+    },
+    {
+      "id": "mutation-authoritative-result",
+      "description": "Authoritative accepted or refused result and settlement presentation.",
+      "startEvent": "user activation dispatches one admitted mutation",
+      "endEvent": "authoritative accepted or refused outcome delivered and settlement state painted",
+      "paths": [
+        "local-normal",
+        "local-optimistic",
+        "hosted",
+        "authority"
+      ]
+    },
+    {
+      "id": "observer-convergence",
+      "description": "Independent observer converges to canonical mutation result.",
+      "startEvent": "authoritative commit or refusal recorded",
+      "endEvent": "independent observer paints canonical result and actor/observer versions agree",
+      "paths": [
+        "local-normal",
+        "local-optimistic",
+        "hosted",
+        "convergence"
+      ]
+    },
+    {
+      "id": "virtual-window-scroll",
+      "description": "Cross a virtual issue/comment window boundary without row or scroll corruption.",
+      "startEvent": "scripted scroll crosses current issue or comment window demand boundary",
+      "endEvent": "newly demanded stable rows painted and spacer/scroll position reconciled without duplicate or skipped unchanged rows",
+      "paths": [
+        "local",
+        "hosted"
+      ]
+    }
+  ],
+  "performanceReporting": {
+    "separatePathDistributions": [
+      "process-startup",
+      "cold-online",
+      "warm-local",
+      "hosted",
+      "authority",
+      "observer-convergence"
+    ],
+    "minimumIndependentTrialsPerArmFixturePathProfile": 5,
+    "warmupTraversalsPerWarmTrial": 1,
+    "rawSamplesRequired": true,
+    "aggregates": [
+      "sample-count",
+      "error-count",
+      "median",
+      "nearest-rank-p95",
+      "min",
+      "max",
+      "inter-run-dispersion"
+    ],
+    "browserFacts": [
+      "long-tasks",
+      "main-thread-busy-time",
+      "memory-if-exposed",
+      "console-errors",
+      "page-errors",
+      "request-errors",
+      "disconnects",
+      "retries",
+      "refusals",
+      "timeouts"
+    ]
+  },
+  "margins": {
+    "deferred": true,
+    "freezeInSchemaVersion": "zerobugs-acceptance.v2",
+    "requiredEvidence": [
+      "repeated Zero-arm trials",
+      "repeated current-Snapback-control trials",
+      "observed run-to-run variability envelope",
+      "path-specific user-visible regression judgment"
+    ],
+    "numericValuesPresent": false,
+    "currentControlSlownessMayLoosenZeroRelativeMargin": false,
+    "postStage1ChangeRule": "new-versioned-benchmark-original-result-remains-visible"
+  },
+  "defectPolicies": [
+    {
+      "inventoryFinding": 3,
+      "id": "child-parent-visibility",
+      "requiredBehavior": "declared-intended-policy",
+      "zeroContext": "commentsPage, comment, and emojiChange lack parent issue visibility gating",
+      "passBehavior": "parent visibility proof gates rows, membership, existence, completeness, order, and hydration"
+    },
+    {
+      "inventoryFinding": 8,
+      "id": "durable-notification-delivery",
+      "requiredBehavior": "declared-intended-policy",
+      "zeroContext": "post-commit closures are non-durable; Discord lacks idempotency",
+      "passBehavior": "durable post-commit intent, stable idempotency, retry state, terminal receipt or explicit ambiguity"
+    },
+    {
+      "inventoryFinding": 9,
+      "id": "safe-unsubscribe",
+      "requiredBehavior": "declared-intended-policy",
+      "zeroContext": "state-changing GET authorized by cleartext email and issue short id",
+      "passBehavior": "read-only GET confirmation plus signed purpose-bound expiring token authorized idempotent POST"
+    },
+    {
+      "inventoryFinding": 10,
+      "id": "server-enforced-asset-policy",
+      "requiredBehavior": "declared-intended-policy",
+      "zeroContext": "size browser-only, bucket policy absent, PUT unchecked, secret prefix logged",
+      "passBehavior": "server-bound MIME/size policy, checked PUT, pinned delivery/CORS, metadata cleanup, no credential logging"
+    }
+  ],
+  "capabilityFactIds": [
+    "relational-graph.issue-list",
+    "relational-graph.issue-detail",
+    "projected-facts.public-exact",
+    "projected-facts.public-compatible",
+    "projected-facts.principal-private-exact",
+    "projected-facts.protected-or-subsuming",
+    "local-graph-evaluation",
+    "retained-read",
+    "windowed-query.issue-list",
+    "windowed-query.comments",
+    "windowed-query.permalink",
+    "derived-search.issue-comment-membership",
+    "identity.github-oauth",
+    "route.machine-issue",
+    "route.unsubscribe-safe",
+    "asset.image-policy",
+    "effect.email-durable",
+    "effect.webhook-durable",
+    "target.local",
+    "target.hosted",
+    "backup",
+    "restore",
+    "release-identity",
+    "cleanup",
+    "network-profile.active"
+  ],
+  "primaryImprovementCandidate": {
+    "id": "durable-disconnected-intent",
+    "status": "PROPOSED — requires Charlie's ratification before Stage 1",
+    "inventoryMutations": [
+      "issue.create",
+      "comment.add"
+    ],
+    "fixtures": [
+      "normal-seed-v1",
+      "large-seed42-v1",
+      "hot-recent-v1"
+    ],
+    "terminationPoints": [
+      "before-send",
+      "after-enqueue-before-authoritative-result"
+    ],
+    "successThreshold": "every scenario preserves intent through full browser-process restart, reconstructs declared speculation, settles exactly once after reconnect, and converges an independent observer with zero lost/duplicate rows or effects; revocation instead safely rejects and redacts without unauthorized state or effect",
+    "withoutRatificationStrongestClaim": "parity"
+  },
+  "gates": [
+    {
+      "id": "ZB0",
+      "name": "source fidelity and anti-reduction",
+      "manifestHooks": [
+        "sections 1-3",
+        "section 8",
+        "sections 9-11"
+      ]
+    },
+    {
+      "id": "ZB1",
+      "name": "relational and window correctness",
+      "manifestHooks": [
+        "sections 2-5",
+        "section 7",
+        "section 10"
+      ]
+    },
+    {
+      "id": "ZB2",
+      "name": "retained and local data",
+      "manifestHooks": [
+        "sections 4-7",
+        "sections 9-10"
+      ]
+    },
+    {
+      "id": "ZB3",
+      "name": "optimistic programs and durable intent",
+      "manifestHooks": [
+        "sections 2-5",
+        "sections 7-8",
+        "section 10",
+        "section 13"
+      ]
+    },
+    {
+      "id": "ZB4",
+      "name": "authorization and information flow",
+      "manifestHooks": [
+        "sections 4-6",
+        "section 8",
+        "section 10",
+        "section 12"
+      ]
+    },
+    {
+      "id": "ZB5",
+      "name": "performance, scale, and custody",
+      "manifestHooks": [
+        "section 4",
+        "sections 6-7",
+        "section 9"
+      ]
+    },
+    {
+      "id": "ZB6",
+      "name": "authoring and diagnostics",
+      "manifestHooks": [
+        "sections 9-11"
+      ]
+    },
+    {
+      "id": "ZB7",
+      "name": "production and recovery",
+      "manifestHooks": [
+        "section 6",
+        "section 8",
+        "sections 10-12"
+      ]
+    }
+  ],
+  "evidence": {
+    "directory": "../evidence",
+    "rule": "one immutable artifact per provider attempt",
+    "jsonNamePattern": "<arm>.<gate>.<attempt>.json",
+    "firstAttemptImmutable": true,
+    "remediationAppendsAttempt": true,
+    "secretsForbidden": true
+  },
+  "amendmentRule": {
+    "semanticChangeCreatesNewVersion": true,
+    "sourceOrPackageChangeCreatesNewVersion": true,
+    "afterReceiptReferenceV1FilesAreImmutable": true,
+    "successorLinksPredecessorAndExplainsDelta": true,
+    "afterFirstStage1MarginOrInteractionChangeCreatesNewBenchmark": true,
+    "originalEvidenceAndResultRemainVisible": true
+  }
+}

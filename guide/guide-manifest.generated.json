@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "870acf4c6b7d5447941341f1f1bc5cde4492c216"
+    "commit": "e1c2417c1aa6fd9deb755172d04fb5aef333712a"
   },
   "nav": {
     ".": [
@@ -1677,12 +1677,14 @@
         "llp/0012-headless-integration-contract.spec.md",
         "llp/0064-native-client-surfaces.rfc.md",
         "llp/0114-first-class-react-and-query-groups.spec.md",
+        "llp/0176-expo-messaging-golden-path.plan.md",
         "packages/snapback-client/index.mjs",
         "packages/snapback-client/react-binding.mjs",
         "packages/snapback-client/rqs-store-default.mjs",
         "packages/snapback-client/rqs-store-expo.mjs",
         "packages/snapback-react/index.mjs",
-        "demos/partiful-matrix/tests/acceptance/native-react-expo.mjs"
+        "demos/partiful-matrix/tests/acceptance/native-react-expo.mjs",
+        "demos/_kit/eas-stage-build.mjs"
       ],
       "examples": [
         "demos/partiful-matrix/native/react-expo",
@@ -1690,11 +1692,13 @@
         "packages/snapback-react/webcrypto-fallback.test.mjs",
         "packages/snapback-client/rqs-store-expo.test.mjs",
         "packages/snapback-client/rqs-resume-expo.test.mjs",
-        "demos/rn-durable-store-witness/probe-App.tsx"
+        "demos/rn-durable-store-witness/probe-App.tsx",
+        "demos/tandem-expo-bakeoff/scripts/build-ios-dev-client",
+        "demos/_kit/tests/repo-layout-unit.mjs"
       ],
       "reviewed": "2026-08-04",
       "reviewedCommit": "41c2db8804ba08071c39641cc46251c9084c7a31",
-      "sha256": "60e5d6006cce3123653743b314c6ffef912d5265cf0b5373cf92e7af14be12fd",
+      "sha256": "c03029734acd20197671b071312aa6d1a2e11cfa26f1447fa9bbf02e353e3a03",
       "snippets": [
         {
           "lang": "ts",
@@ -1763,7 +1767,7 @@
       ],
       "reviewed": "2026-08-04",
       "reviewedCommit": "8154744c87ed58816703093bd526bd7a40d95a56",
-      "sha256": "4eda21c9d00e769483300783cf4f8c5c762c698a5e5045e9ad3b94e276138663",
+      "sha256": "dc5a467d2ccdf2294d32d50652af02e620239b970398ff4539a01c0a3ca289d4",
       "snippets": [
         {
           "lang": "ts",
@@ -2200,7 +2204,7 @@
       ],
       "reviewed": "2026-08-05",
       "reviewedCommit": "4a6000ac6f17a8c94bc2aecf573c0654e850b758",
-      "sha256": "376323db9d3688aa78a94fae52de7eaf2d98ab6d809eb8386ea3f0dad7a16361",
+      "sha256": "da7f40e6b84fc63365dc0ad40bd772d904f087b200c96d0b44b425ad21363765",
       "snippets": [
         {
           "lang": "js",
@@ -2254,6 +2258,7 @@
       ],
       "authorities": [
         "llp/0024-agent-operating-surface.spec.md",
+        "src/cli.rs",
         "src/host_ops.rs",
         "src/server.rs",
         "tests/host_ops_v0.rs"
@@ -2263,7 +2268,7 @@
       ],
       "reviewed": "2026-08-03",
       "reviewedCommit": "6e5d69d1037c6042fb9338221dfb489e00f5f78a",
-      "sha256": "3863bc76b7774d6338607b02621b801327a676c27485a63e3a38ede4177666f7",
+      "sha256": "caa57c175845a135939c97cb6997bdd19672895145016eb026ff460134965607",
       "snippets": [
         {
           "lang": "json",
@@ -3057,5 +3062,5 @@
     "routes": 111,
     "hostOps": 37
   },
-  "contentHash": "91d2e67ae26f18b4d45fa9970cb1960894fd534b385b1ea40c57bc815b8e69cd"
+  "contentHash": "c34969bf6150a082c25ce6be8cbc60d295b124b7d320f298c31be1b421f2d5fd"
 }

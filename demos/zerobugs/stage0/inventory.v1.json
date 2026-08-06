@@ -1,0 +1,1142 @@
+{
+  "schemaVersion": "zerobugs-inventory.v1",
+  "pin": {
+    "repo": "rocicorp/mono",
+    "commit": "25c2c7308d3eb674d2d895022c9da11ef0c742fb",
+    "sparsePaths": ["apps/zbugs", "packages/zero"]
+  },
+  "date": "2026-08-05",
+  "scope": {
+    "queryCount": 19,
+    "inlineUseQueryGraphCount": 0,
+    "mutatorCount": 16,
+    "httpEndpointCount": 9,
+    "citationBase": "apps/zbugs/",
+    "sources": ["shared/queries.ts", "shared/mutators.ts", "api/index.ts"]
+  },
+  "schemaDemand": {
+    "tableCount": 10,
+    "tables": [
+      {
+        "name": "user",
+        "role": "GitHub identity, presentation, global role, and server-only email identity",
+        "primaryKey": {"zero": ["id"], "postgres": ["id"]},
+        "columns": [
+          {"name": "id", "zeroType": "string", "postgresType": "varchar NOT NULL", "zeroOptional": false, "postgresOptional": false, "exposure": "Zero and PostgreSQL", "sources": ["shared/schema.ts", "db/drizzle-schema.ts"]},
+          {"name": "login", "zeroType": "string", "postgresType": "varchar NOT NULL", "zeroOptional": false, "postgresOptional": false, "exposure": "Zero and PostgreSQL", "sources": ["shared/schema.ts", "db/drizzle-schema.ts"]},
+          {"name": "name", "zeroType": "string", "postgresType": "varchar", "zeroOptional": true, "postgresOptional": true, "exposure": "Zero and PostgreSQL", "sources": ["shared/schema.ts", "db/drizzle-schema.ts"]},
+          {"name": "avatar", "zeroType": "string", "postgresType": "varchar", "zeroOptional": false, "postgresOptional": true, "exposure": "Zero and PostgreSQL; nullability differs", "sources": ["shared/schema.ts", "db/drizzle-schema.ts"]},
+          {"name": "role", "zeroType": "enum('crew','user')", "postgresType": "varchar NOT NULL DEFAULT 'user'", "zeroOptional": false, "postgresOptional": false, "exposure": "Zero and PostgreSQL", "sources": ["shared/schema.ts", "shared/auth.ts", "db/drizzle-schema.ts"]},
+          {"name": "githubID", "zeroType": null, "postgresType": "integer NOT NULL", "zeroOptional": null, "postgresOptional": false, "exposure": "PostgreSQL and logical publication, omitted from Zero schema", "sources": ["db/drizzle-schema.ts", "db/migrations/0000_init.sql"]},
+          {"name": "email", "zeroType": null, "postgresType": "varchar", "zeroOptional": null, "postgresOptional": true, "exposure": "server-only PostgreSQL; omitted from Zero publication and Zero schema", "sources": ["db/drizzle-schema.ts", "db/migrations/0000_init.sql"]}
+        ],
+        "indexes": [
+          {"name": "user_pkey", "unique": true, "fields": ["id"], "purpose": "primary key", "sources": ["db/drizzle-schema.ts"]},
+          {"name": "user_githubid_idx", "unique": true, "fields": ["githubID"], "purpose": "OAuth identity lookup", "sources": ["db/drizzle-schema.ts"]},
+          {"name": "user_login_idx", "unique": true, "fields": ["login"], "purpose": "login equality and creator/assignee filters", "sources": ["db/drizzle-schema.ts"]}
+        ],
+        "sources": ["shared/schema.ts", "db/drizzle-schema.ts", "db/migrations/0000_init.sql"]
+      },
+      {
+        "name": "project",
+        "role": "issue namespace and per-project UI/search configuration",
+        "primaryKey": {"zero": ["id"], "postgres": ["id"]},
+        "columns": [
+          {"name": "id", "zeroType": "string", "postgresType": "varchar NOT NULL", "zeroOptional": false, "postgresOptional": false, "sources": ["shared/schema.ts", "db/drizzle-schema.ts"]},
+          {"name": "name", "zeroType": "string", "postgresType": "varchar NOT NULL", "zeroOptional": false, "postgresOptional": false, "sources": ["shared/schema.ts", "db/drizzle-schema.ts"]},
+          {"name": "lowerCaseName", "zeroType": "string", "postgresType": "varchar NOT NULL DEFAULT ''", "zeroOptional": false, "postgresOptional": false, "derived": "BEFORE INSERT OR UPDATE trigger lower(name)", "sources": ["shared/schema.ts", "db/drizzle-schema.ts", "db/migrations/0002_project_lower_case_name.sql"]},
+          {"name": "issueCountEstimate", "zeroType": "number", "postgresType": "integer", "zeroOptional": true, "postgresOptional": true, "sources": ["shared/schema.ts", "db/drizzle-schema.ts"]},
+          {"name": "supportsSearch", "zeroType": "boolean", "postgresType": "boolean DEFAULT true", "zeroOptional": false, "postgresOptional": true, "exposure": "nullability differs; the UI hides search when false but the query itself does not consult this field", "sources": ["shared/schema.ts", "db/drizzle-schema.ts", "src/pages/list/list-page.tsx"]},
+          {"name": "markURL", "zeroType": "string", "postgresType": "varchar", "zeroOptional": true, "postgresOptional": true, "sources": ["shared/schema.ts", "db/drizzle-schema.ts"]},
+          {"name": "logoURL", "zeroType": "string", "postgresType": "varchar", "zeroOptional": true, "postgresOptional": true, "sources": ["shared/schema.ts", "db/drizzle-schema.ts"]}
+        ],
+        "indexes": [
+          {"name": "project_pkey", "unique": true, "fields": ["id"], "purpose": "primary key", "sources": ["db/drizzle-schema.ts"]},
+          {"name": "project_lower_case_name_idx", "unique": true, "fields": ["lowerCaseName"], "purpose": "project restriction by case-folded name", "sources": ["db/drizzle-schema.ts", "db/migrations/0002_project_lower_case_name.sql"]}
+        ],
+        "sources": ["shared/schema.ts", "db/drizzle-schema.ts", "db/migrations/0001_add_project.sql", "db/migrations/0002_project_lower_case_name.sql", "db/migrations/0005_project_config_options.sql"]
+      },
+      {
+        "name": "issue",
+        "role": "project-scoped issue root",
+        "primaryKey": {"zero": ["id"], "postgres": ["id"]},
+        "columns": [
+          {"name": "id", "zeroType": "string", "postgresType": "varchar NOT NULL", "zeroOptional": false, "postgresOptional": false, "sources": ["shared/schema.ts", "db/drizzle-schema.ts"]},
+          {"name": "shortID", "zeroType": "number", "postgresType": "integer GENERATED BY DEFAULT AS IDENTITY START 3000", "zeroOptional": true, "postgresOptional": true, "sources": ["shared/schema.ts", "db/drizzle-schema.ts"]},
+          {"name": "title", "zeroType": "string", "postgresType": "varchar(128) NOT NULL", "zeroOptional": false, "postgresOptional": false, "sources": ["shared/schema.ts", "db/drizzle-schema.ts"]},
+          {"name": "open", "zeroType": "boolean", "postgresType": "boolean NOT NULL", "zeroOptional": false, "postgresOptional": false, "sources": ["shared/schema.ts", "db/drizzle-schema.ts"]},
+          {"name": "modified", "zeroType": "number", "postgresType": "double precision DEFAULT epoch_ms(now)", "zeroOptional": false, "postgresOptional": true, "derived": "BEFORE INSERT OR UPDATE trigger replaces the submitted value", "sources": ["shared/schema.ts", "db/drizzle-schema.ts", "db/migrations/0000_init.sql"]},
+          {"name": "created", "zeroType": "number", "postgresType": "double precision DEFAULT epoch_ms(now)", "zeroOptional": false, "postgresOptional": true, "derived": "BEFORE INSERT trigger replaces the submitted value", "sources": ["shared/schema.ts", "db/drizzle-schema.ts", "db/migrations/0000_init.sql"]},
+          {"name": "projectID", "zeroType": "string", "postgresType": "varchar NOT NULL DEFAULT 'iCNlS2qEpzYWEes1RTf-D'", "zeroOptional": false, "postgresOptional": false, "sources": ["shared/schema.ts", "db/drizzle-schema.ts"]},
+          {"name": "creatorID", "zeroType": "string", "postgresType": "varchar NOT NULL", "zeroOptional": false, "postgresOptional": false, "sources": ["shared/schema.ts", "db/drizzle-schema.ts"]},
+          {"name": "assigneeID", "zeroType": "string", "postgresType": "varchar", "zeroOptional": true, "postgresOptional": true, "sources": ["shared/schema.ts", "db/drizzle-schema.ts"]},
+          {"name": "description", "zeroType": "string", "postgresType": "varchar(10240) DEFAULT ''", "zeroOptional": false, "postgresOptional": true, "exposure": "nullability differs", "sources": ["shared/schema.ts", "db/drizzle-schema.ts"]},
+          {"name": "visibility", "zeroType": "enum('internal','public')", "postgresType": "varchar NOT NULL DEFAULT 'public'", "zeroOptional": false, "postgresOptional": false, "sources": ["shared/schema.ts", "db/drizzle-schema.ts"]}
+        ],
+        "indexes": [
+          {"name": "issue_pkey", "unique": true, "fields": ["id"], "sources": ["db/drizzle-schema.ts"]},
+          {"name": "issue_project_idx", "unique": true, "fields": ["id", "projectID"], "purpose": "composite issueLabel foreign key", "sources": ["db/drizzle-schema.ts"]},
+          {"name": "issue_shortID_idx", "unique": false, "fields": ["shortID"], "purpose": "short permalink lookup", "sources": ["db/drizzle-schema.ts"]},
+          {"name": "issue_created_idx", "unique": false, "fields": ["created"], "purpose": "created ordering", "sources": ["db/drizzle-schema.ts"]},
+          {"name": "issue_projectID_open_assigneeID_modified_idx", "unique": false, "fields": ["projectID", "open", "assigneeID", "modified", "id"], "sources": ["db/drizzle-schema.ts", "db/migrations/0003_index_rework_for_gigagbugs.sql"]},
+          {"name": "issue_projectID_open_creatorID_modified_idx", "unique": false, "fields": ["projectID", "open", "creatorID", "modified", "id"], "sources": ["db/drizzle-schema.ts", "db/migrations/0003_index_rework_for_gigagbugs.sql"]},
+          {"name": "issue_projectID_open_modified_idx", "unique": false, "fields": ["projectID", "open", "modified", "id"], "sources": ["db/drizzle-schema.ts", "db/migrations/0003_index_rework_for_gigagbugs.sql"]},
+          {"name": "issue_projectID_assigneeID_modified_idx", "unique": false, "fields": ["projectID", "assigneeID", "modified", "id"], "sources": ["db/drizzle-schema.ts", "db/migrations/0004_status_all_index_changes_for_gigabugs.sql"]},
+          {"name": "issue_projectID_creatorID_modified_idx", "unique": false, "fields": ["projectID", "creatorID", "modified", "id"], "sources": ["db/drizzle-schema.ts", "db/migrations/0004_status_all_index_changes_for_gigabugs.sql"]},
+          {"name": "issue_projectID_modified_idx", "unique": false, "fields": ["projectID", "modified", "id"], "sources": ["db/drizzle-schema.ts", "db/migrations/0004_status_all_index_changes_for_gigabugs.sql"]},
+          {"name": "issue_creatorID_idx", "unique": false, "fields": ["creatorID", "id"], "sources": ["db/drizzle-schema.ts"]},
+          {"name": "issue_assigneeID_idx", "unique": false, "fields": ["assigneeID", "id"], "sources": ["db/drizzle-schema.ts"]}
+        ],
+        "physicalRules": [
+          {"rule": "issue_set_last_modified", "effect": "replace modified with database epoch milliseconds before every insert/update", "sources": ["db/migrations/0000_init.sql"]},
+          {"rule": "issue_set_created_on_insert", "effect": "replace created with database epoch milliseconds before insert", "sources": ["db/migrations/0000_init.sql"]}
+        ],
+        "sources": ["shared/schema.ts", "db/drizzle-schema.ts", "db/migrations/0000_init.sql", "db/migrations/0003_index_rework_for_gigagbugs.sql", "db/migrations/0004_status_all_index_changes_for_gigabugs.sql"]
+      },
+      {
+        "name": "viewState",
+        "role": "per-user issue viewed timestamp overlay",
+        "primaryKey": {"zero": ["userID", "issueID"], "postgres": ["userID", "issueID"]},
+        "columns": [
+          {"name": "issueID", "zeroType": "string", "postgresType": "varchar NOT NULL", "zeroOptional": false, "postgresOptional": false, "sources": ["shared/schema.ts", "db/drizzle-schema.ts"]},
+          {"name": "userID", "zeroType": "string", "postgresType": "varchar NOT NULL", "zeroOptional": false, "postgresOptional": false, "sources": ["shared/schema.ts", "db/drizzle-schema.ts"]},
+          {"name": "viewed", "zeroType": "number", "postgresType": "double precision", "zeroOptional": false, "postgresOptional": true, "exposure": "nullability differs", "sources": ["shared/schema.ts", "db/drizzle-schema.ts"]}
+        ],
+        "indexes": [{"name": "viewState_pkey", "unique": true, "fields": ["userID", "issueID"], "sources": ["db/drizzle-schema.ts"]}],
+        "sources": ["shared/schema.ts", "db/drizzle-schema.ts"]
+      },
+      {
+        "name": "comment",
+        "role": "issue discussion",
+        "primaryKey": {"zero": ["id"], "postgres": ["id"]},
+        "columns": [
+          {"name": "id", "zeroType": "string", "postgresType": "varchar NOT NULL", "zeroOptional": false, "postgresOptional": false, "sources": ["shared/schema.ts", "db/drizzle-schema.ts"]},
+          {"name": "issueID", "zeroType": "string", "postgresType": "varchar", "zeroOptional": false, "postgresOptional": true, "exposure": "nullability differs", "sources": ["shared/schema.ts", "db/drizzle-schema.ts"]},
+          {"name": "created", "zeroType": "number", "postgresType": "double precision", "zeroOptional": false, "postgresOptional": true, "derived": "BEFORE INSERT trigger replaces the submitted value", "sources": ["shared/schema.ts", "db/drizzle-schema.ts", "db/migrations/0000_init.sql"]},
+          {"name": "body", "zeroType": "string", "postgresType": "text NOT NULL", "zeroOptional": false, "postgresOptional": false, "sources": ["shared/schema.ts", "db/drizzle-schema.ts"]},
+          {"name": "creatorID", "zeroType": "string", "postgresType": "varchar", "zeroOptional": false, "postgresOptional": true, "exposure": "nullability differs", "sources": ["shared/schema.ts", "db/drizzle-schema.ts"]}
+        ],
+        "indexes": [
+          {"name": "comment_pkey", "unique": true, "fields": ["id"], "sources": ["db/drizzle-schema.ts"]},
+          {"name": "comment_issueid_idx", "unique": false, "fields": ["issueID"], "purpose": "parent lookup; the application orders by created,id after this prefix but no matching composite physical index is declared", "sources": ["db/drizzle-schema.ts"]}
+        ],
+        "physicalRules": [
+          {"rule": "comment_set_created_on_insert", "effect": "replace created with database epoch milliseconds", "sources": ["db/migrations/0000_init.sql"]},
+          {"rule": "update_issue_modified_time_on_comment", "effect": "after comment insert, update parent issue.modified", "sources": ["db/migrations/0000_init.sql"]},
+          {"rule": "check_comment_body_length", "effect": "maximum 64 KiB; special issue duuW9Nyj5cTNLlimp9Qje maximum 1024 characters", "sources": ["db/migrations/0000_init.sql"]},
+          {"rule": "delete_emoji_on_comment_delete", "effect": "delete emoji rows whose subjectID is the deleted comment id", "sources": ["db/migrations/0000_init.sql"]}
+        ],
+        "sources": ["shared/schema.ts", "db/drizzle-schema.ts", "db/migrations/0000_init.sql"]
+      },
+      {
+        "name": "label",
+        "role": "project label vocabulary",
+        "primaryKey": {"zero": ["id"], "postgres": ["id"]},
+        "columns": [
+          {"name": "id", "zeroType": "string", "postgresType": "varchar NOT NULL", "zeroOptional": false, "postgresOptional": false, "sources": ["shared/schema.ts", "db/drizzle-schema.ts"]},
+          {"name": "name", "zeroType": "string", "postgresType": "varchar NOT NULL", "zeroOptional": false, "postgresOptional": false, "sources": ["shared/schema.ts", "db/drizzle-schema.ts"]},
+          {"name": "projectID", "zeroType": "string", "postgresType": "varchar NOT NULL DEFAULT 'iCNlS2qEpzYWEes1RTf-D'", "zeroOptional": false, "postgresOptional": false, "sources": ["shared/schema.ts", "db/drizzle-schema.ts"]}
+        ],
+        "indexes": [
+          {"name": "label_pkey", "unique": true, "fields": ["id"], "sources": ["db/drizzle-schema.ts"]},
+          {"name": "label_project_idx", "unique": true, "fields": ["id", "projectID"], "purpose": "composite issueLabel foreign key", "sources": ["db/drizzle-schema.ts"]},
+          {"name": "label_name_project_idx", "unique": true, "fields": ["projectID", "name"], "purpose": "project/name filtering and uniqueness", "sources": ["db/drizzle-schema.ts", "db/migrations/0007_red_omega_sentinel.sql"]}
+        ],
+        "sources": ["shared/schema.ts", "db/drizzle-schema.ts", "db/migrations/0007_red_omega_sentinel.sql"]
+      },
+      {
+        "name": "issueLabel",
+        "role": "many-to-many issue/label through row with project consistency",
+        "primaryKey": {"zero": ["labelID", "issueID"], "postgres": ["labelID", "issueID"]},
+        "columns": [
+          {"name": "issueID", "zeroType": "string", "postgresType": "varchar NOT NULL", "zeroOptional": false, "postgresOptional": false, "sources": ["shared/schema.ts", "db/drizzle-schema.ts"]},
+          {"name": "labelID", "zeroType": "string", "postgresType": "varchar NOT NULL", "zeroOptional": false, "postgresOptional": false, "sources": ["shared/schema.ts", "db/drizzle-schema.ts"]},
+          {"name": "projectID", "zeroType": "string", "postgresType": "varchar NOT NULL DEFAULT 'iCNlS2qEpzYWEes1RTf-D'", "zeroOptional": false, "postgresOptional": false, "sources": ["shared/schema.ts", "db/drizzle-schema.ts"]}
+        ],
+        "indexes": [
+          {"name": "issueLabel_pkey", "unique": true, "fields": ["labelID", "issueID"], "sources": ["db/drizzle-schema.ts"]},
+          {"name": "issuelabel_issueid_idx", "unique": false, "fields": ["issueID"], "purpose": "issue-to-label traversal", "sources": ["db/drizzle-schema.ts"]}
+        ],
+        "sources": ["shared/schema.ts", "db/drizzle-schema.ts"]
+      },
+      {
+        "name": "emoji",
+        "role": "polymorphic issue/comment reaction",
+        "primaryKey": {"zero": ["id"], "postgres": ["id"]},
+        "columns": [
+          {"name": "id", "zeroType": "string", "postgresType": "varchar NOT NULL", "zeroOptional": false, "postgresOptional": false, "sources": ["shared/schema.ts", "db/drizzle-schema.ts"]},
+          {"name": "value", "zeroType": "string", "postgresType": "varchar NOT NULL", "zeroOptional": false, "postgresOptional": false, "sources": ["shared/schema.ts", "db/drizzle-schema.ts"]},
+          {"name": "annotation", "zeroType": "string", "postgresType": "varchar", "zeroOptional": false, "postgresOptional": true, "exposure": "nullability differs", "sources": ["shared/schema.ts", "db/drizzle-schema.ts"]},
+          {"name": "subjectID", "zeroType": "string", "postgresType": "varchar NOT NULL", "zeroOptional": false, "postgresOptional": false, "sources": ["shared/schema.ts", "db/drizzle-schema.ts"]},
+          {"name": "creatorID", "zeroType": "string", "postgresType": "varchar", "zeroOptional": false, "postgresOptional": true, "exposure": "nullability differs", "sources": ["shared/schema.ts", "db/drizzle-schema.ts"]},
+          {"name": "created", "zeroType": "number", "postgresType": "double precision DEFAULT epoch_ms(now)", "zeroOptional": false, "postgresOptional": true, "derived": "BEFORE INSERT trigger replaces the submitted value", "sources": ["shared/schema.ts", "db/drizzle-schema.ts", "db/migrations/0000_init.sql"]}
+        ],
+        "indexes": [
+          {"name": "emoji_pkey", "unique": true, "fields": ["id"], "sources": ["db/drizzle-schema.ts"]},
+          {"name": "emoji_created_idx", "unique": false, "fields": ["created"], "sources": ["db/drizzle-schema.ts"]},
+          {"name": "emoji_subject_id_idx", "unique": false, "fields": ["subjectID"], "purpose": "reaction traversal", "sources": ["db/drizzle-schema.ts"]},
+          {"name": "emoji_subjectID_creatorID_value_key", "unique": true, "fields": ["value", "subjectID", "creatorID"], "purpose": "one reaction value per creator/subject", "sources": ["db/drizzle-schema.ts"]}
+        ],
+        "physicalRules": [
+          {"rule": "emoji_check_subject_id", "effect": "require subjectID to exist in issue or comment and attempt to update the containing issue.modified on insert/update", "sources": ["db/migrations/0000_init.sql"]},
+          {"rule": "emoji_set_created_on_insert", "effect": "replace created with database epoch milliseconds", "sources": ["db/migrations/0000_init.sql"]},
+          {"rule": "delete_emoji_on_issue_delete/delete_emoji_on_comment_delete", "effect": "polymorphic cleanup by trigger because subjectID has no foreign key", "sources": ["db/migrations/0000_init.sql"]}
+        ],
+        "sources": ["shared/schema.ts", "db/drizzle-schema.ts", "db/migrations/0000_init.sql"]
+      },
+      {
+        "name": "userPref",
+        "role": "per-user string preference overlay",
+        "primaryKey": {"zero": ["userID", "key"], "postgres": ["key", "userID"], "note": "logical and physical key field order differ"},
+        "columns": [
+          {"name": "key", "zeroType": "string", "postgresType": "varchar NOT NULL", "zeroOptional": false, "postgresOptional": false, "sources": ["shared/schema.ts", "db/drizzle-schema.ts"]},
+          {"name": "userID", "zeroType": "string", "postgresType": "varchar NOT NULL", "zeroOptional": false, "postgresOptional": false, "sources": ["shared/schema.ts", "db/drizzle-schema.ts"]},
+          {"name": "value", "zeroType": "string", "postgresType": "varchar NOT NULL", "zeroOptional": false, "postgresOptional": false, "sources": ["shared/schema.ts", "db/drizzle-schema.ts"]}
+        ],
+        "indexes": [{"name": "userPref_pkey", "unique": true, "fields": ["key", "userID"], "sources": ["db/drizzle-schema.ts"]}],
+        "sources": ["shared/schema.ts", "db/drizzle-schema.ts", "db/migrations/0000_init.sql"]
+      },
+      {
+        "name": "issueNotifications",
+        "role": "per-user issue subscription state",
+        "primaryKey": {"zero": ["userID", "issueID"], "postgres": ["userID", "issueID"]},
+        "columns": [
+          {"name": "userID", "zeroType": "string", "postgresType": "varchar NOT NULL", "zeroOptional": false, "postgresOptional": false, "sources": ["shared/schema.ts", "db/drizzle-schema.ts"]},
+          {"name": "issueID", "zeroType": "string", "postgresType": "varchar NOT NULL", "zeroOptional": false, "postgresOptional": false, "sources": ["shared/schema.ts", "db/drizzle-schema.ts"]},
+          {"name": "subscribed", "zeroType": "boolean", "postgresType": "boolean DEFAULT true", "zeroOptional": false, "postgresOptional": true, "exposure": "nullability differs", "sources": ["shared/schema.ts", "db/drizzle-schema.ts"]},
+          {"name": "created", "zeroType": "number", "postgresType": "double precision DEFAULT epoch_ms(now)", "zeroOptional": false, "postgresOptional": true, "sources": ["shared/schema.ts", "db/drizzle-schema.ts"]}
+        ],
+        "indexes": [{"name": "issueNotifications_pkey", "unique": true, "fields": ["userID", "issueID"], "sources": ["db/drizzle-schema.ts"]}],
+        "sources": ["shared/schema.ts", "db/drizzle-schema.ts"]
+      }
+    ],
+    "relationships": [
+      {"name": "user.createdIssues", "kind": "to-many", "from": ["user.id"], "to": ["issue.creatorID"], "sources": ["shared/schema.ts"]},
+      {"name": "user.assignedIssues", "kind": "to-many", "from": ["user.id"], "to": ["issue.assigneeID"], "sources": ["shared/schema.ts"]},
+      {"name": "project.issues", "kind": "to-many", "from": ["project.id"], "to": ["issue.projectID"], "sources": ["shared/schema.ts"]},
+      {"name": "project.labels", "kind": "to-many", "from": ["project.id"], "to": ["label.projectID"], "sources": ["shared/schema.ts"]},
+      {"name": "issue.project", "kind": "to-one", "from": ["issue.projectID"], "to": ["project.id"], "physicalForeignKey": true, "sources": ["shared/schema.ts", "db/drizzle-schema.ts"]},
+      {"name": "issue.issueLabels", "kind": "to-many", "from": ["issue.id"], "to": ["issueLabel.issueID"], "sources": ["shared/schema.ts"]},
+      {"name": "issue.labels", "kind": "many-to-many", "through": "issueLabel", "hops": [["issue.id", "issueLabel.issueID"], ["issueLabel.labelID", "label.id"]], "sources": ["shared/schema.ts"]},
+      {"name": "issue.comments", "kind": "to-many", "from": ["issue.id"], "to": ["comment.issueID"], "physicalForeignKey": "comment.issueID ON DELETE CASCADE", "sources": ["shared/schema.ts", "db/drizzle-schema.ts"]},
+      {"name": "issue.creator", "kind": "to-one", "from": ["issue.creatorID"], "to": ["user.id"], "physicalForeignKey": true, "sources": ["shared/schema.ts", "db/drizzle-schema.ts"]},
+      {"name": "issue.assignee", "kind": "optional-to-one", "from": ["issue.assigneeID"], "to": ["user.id"], "physicalForeignKey": true, "sources": ["shared/schema.ts", "db/drizzle-schema.ts"]},
+      {"name": "issue.viewState", "kind": "to-many-per-user", "from": ["issue.id"], "to": ["viewState.issueID"], "principalPredicate": "viewState.userID = JWT sub in consuming queries", "physicalForeignKeys": ["viewState.issueID -> issue.id ON DELETE CASCADE", "viewState.userID -> user.id ON DELETE CASCADE"], "sources": ["shared/schema.ts", "shared/queries.ts", "db/drizzle-schema.ts"]},
+      {"name": "issue.emoji", "kind": "polymorphic-to-many", "from": ["issue.id"], "to": ["emoji.subjectID"], "physicalIntegrity": "trigger, not foreign key", "sources": ["shared/schema.ts", "db/migrations/0000_init.sql"]},
+      {"name": "issue.notificationState", "kind": "declared-to-one-per-user", "from": ["issue.id"], "to": ["issueNotifications.issueID"], "principalPredicate": "issueNotifications.userID = JWT sub in issueDetail", "cardinalityWarning": "issueID alone is not unique; physical cardinality is to-many until the principal predicate is applied", "sources": ["shared/schema.ts", "shared/queries.ts", "db/drizzle-schema.ts"]},
+      {"name": "comment.creator", "kind": "to-one", "from": ["comment.creatorID"], "to": ["user.id"], "physicalForeignKey": true, "sources": ["shared/schema.ts", "db/drizzle-schema.ts"]},
+      {"name": "comment.emoji", "kind": "polymorphic-to-many", "from": ["comment.id"], "to": ["emoji.subjectID"], "physicalIntegrity": "trigger, not foreign key", "sources": ["shared/schema.ts", "db/migrations/0000_init.sql"]},
+      {"name": "comment.issue", "kind": "to-one", "from": ["comment.issueID"], "to": ["issue.id"], "physicalForeignKey": "ON DELETE CASCADE", "sources": ["shared/schema.ts", "db/drizzle-schema.ts"]},
+      {"name": "issueLabel.issue", "kind": "to-one", "from": ["issueLabel.issueID"], "to": ["issue.id"], "physicalForeignKey": "(issueID,projectID) -> issue(id,projectID) ON DELETE CASCADE", "sources": ["shared/schema.ts", "db/drizzle-schema.ts"]},
+      {"name": "issueLabel.label", "kind": "to-one", "from": ["issueLabel.labelID"], "to": ["label.id"], "physicalForeignKey": "(labelID,projectID) -> label(id,projectID)", "sources": ["shared/schema.ts", "db/drizzle-schema.ts"]},
+      {"name": "label.project", "kind": "to-one", "from": ["label.projectID"], "to": ["project.id"], "physicalForeignKey": true, "sources": ["shared/schema.ts", "db/drizzle-schema.ts"]},
+      {"name": "emoji.creator", "kind": "optional-to-one", "from": ["emoji.creatorID"], "to": ["user.id"], "physicalForeignKey": "ON DELETE CASCADE", "sources": ["shared/schema.ts", "db/drizzle-schema.ts"]},
+      {"name": "emoji.issue", "kind": "polymorphic-to-one", "from": ["emoji.subjectID"], "to": ["issue.id"], "physicalIntegrity": "trigger", "sources": ["shared/schema.ts", "db/migrations/0000_init.sql"]},
+      {"name": "emoji.comment", "kind": "polymorphic-to-one", "from": ["emoji.subjectID"], "to": ["comment.id"], "physicalIntegrity": "trigger", "sources": ["shared/schema.ts", "db/migrations/0000_init.sql"]}
+    ],
+    "indexRelevantOrderingFields": [
+      {"table": "issue", "fields": ["modified", "id"], "use": "default list/preload stable order; project/open/creator/assignee prefix variants exist", "sources": ["shared/queries.ts", "db/drizzle-schema.ts"]},
+      {"table": "issue", "fields": ["created", "id"], "use": "selectable list order; only a single-column created index exists, with id supplied as application tie-breaker", "sources": ["shared/queries.ts", "db/drizzle-schema.ts"]},
+      {"table": "comment", "fields": ["issueID", "created", "id"], "use": "bidirectional thread keyset order; physical schema indexes only issueID", "sources": ["shared/queries.ts", "db/drizzle-schema.ts"]},
+      {"table": "label", "fields": ["projectID", "name"], "use": "project label name order/uniqueness", "sources": ["shared/queries.ts", "db/drizzle-schema.ts"]},
+      {"table": "project", "fields": ["lowerCaseName"], "use": "case-folded project restriction", "sources": ["shared/queries.ts", "db/drizzle-schema.ts"]},
+      {"table": "user", "fields": ["login"], "use": "creator/assignee equality and picker filter; unique", "sources": ["shared/queries.ts", "db/drizzle-schema.ts"]},
+      {"table": "issue", "fields": ["shortID"], "use": "detail and machine-route permalink lookup", "sources": ["shared/queries.ts", "server/machine-routes.ts", "db/drizzle-schema.ts"]}
+    ],
+    "logicalPublication": {
+      "publication": "zero_zbugs",
+      "tables": ["issue", "viewState", "comment", "label", "issueLabel", "emoji", "userPref", "issueNotifications", "user", "project"],
+      "userPublishedColumns": ["id", "login", "name", "avatar", "role", "githubID"],
+      "userZeroSchemaColumns": ["id", "login", "name", "avatar", "role"],
+      "sources": ["db/migrations/0000_init.sql", "db/migrations/0001_add_project.sql", "shared/schema.ts"]
+    },
+    "sources": ["shared/schema.ts", "db/drizzle-schema.ts", "db/migrations/0000_init.sql"]
+  },
+  "graphDemand": {
+    "projectionFieldSets": {
+      "user": ["id", "login", "name", "avatar", "role"],
+      "project": ["id", "name", "lowerCaseName", "issueCountEstimate", "supportsSearch", "markURL", "logoURL"],
+      "issue": ["id", "shortID", "title", "open", "modified", "created", "projectID", "creatorID", "assigneeID", "description", "visibility"],
+      "viewState": ["issueID", "userID", "viewed"],
+      "comment": ["id", "issueID", "created", "body", "creatorID"],
+      "label": ["id", "name", "projectID"],
+      "issueLabel": ["issueID", "labelID", "projectID"],
+      "emoji": ["id", "value", "annotation", "subjectID", "creatorID", "created"],
+      "userPref": ["key", "userID", "value"],
+      "issueNotifications": ["userID", "issueID", "subscribed", "created"],
+      "rule": "Every root and projected relation uses the complete applicable Zero field set above; the source contains no select/field projection.",
+      "sources": ["shared/schema.ts", "shared/queries.ts"]
+    },
+    "profile": {
+      "status": "PROPOSED by LLP 0183 D2; this inventory is not admission",
+      "classes": ["bounded-root-window", "equality-to-one", "bounded-to-many", "exists-semi-join", "principal-bound-relation", "search-membership", "closed-nested-projection"],
+      "outsideClasses": ["unbounded-root", "unbounded-child-expansion", "raw-ILIKE-search-including-child-exists", "ordering-without-explicit-unique-tie-breaker", "nullable-or-zero-limit-can-remove-bound"],
+      "sources": ["shared/queries.ts"]
+    },
+    "inlineUseQueryGraphs": {
+      "count": 0,
+      "finding": "Every React useQuery call invokes a named member of queries; no inline query graph was found.",
+      "sources": ["src/debug/query-users.tsx", "src/pages/list/list-page.tsx", "src/pages/issue/issue-page.tsx", "src/pages/issue/comments.tsx", "src/components/filter.tsx", "src/components/label-picker.tsx", "src/components/nav.tsx", "src/components/user-picker.tsx", "src/hooks/use-can-edit.ts", "src/hooks/use-user-pref.ts"]
+    },
+    "queries": [
+      {
+        "name": "allLabels",
+        "status": "active/preload",
+        "args": "undefined",
+        "root": "label",
+        "filters": [],
+        "relationships": [],
+        "ordering": {"fields": [], "tieBreaker": null, "note": "no application-declared order"},
+        "window": {"kind": "unbounded", "take": null, "cursor": null},
+        "projection": {"rootFields": ["id", "name", "projectID"], "relations": {}},
+        "d2": {"inside": ["closed-nested-projection"], "outside": ["unbounded-root"]},
+        "sources": ["shared/queries.ts", "src/zero-preload.ts"]
+      },
+      {
+        "name": "allUsers",
+        "status": "active/preload/debug",
+        "args": "undefined",
+        "root": "user",
+        "filters": [],
+        "relationships": [],
+        "ordering": {"fields": [], "tieBreaker": null, "note": "no application-declared order"},
+        "window": {"kind": "unbounded", "take": null, "cursor": null},
+        "projection": {"rootFields": ["id", "login", "name", "avatar", "role"], "relations": {}},
+        "d2": {"inside": ["closed-nested-projection"], "outside": ["unbounded-root"]},
+        "sources": ["shared/queries.ts", "src/zero-preload.ts", "src/debug/query-users.tsx"]
+      },
+      {
+        "name": "allProjects",
+        "status": "active/preload",
+        "args": "undefined",
+        "root": "project",
+        "filters": [],
+        "relationships": [],
+        "ordering": {"fields": [], "tieBreaker": null, "note": "no application-declared order"},
+        "window": {"kind": "unbounded", "take": null, "cursor": null},
+        "projection": {"rootFields": ["id", "name", "lowerCaseName", "issueCountEstimate", "supportsSearch", "markURL", "logoURL"], "relations": {}},
+        "d2": {"inside": ["closed-nested-projection"], "outside": ["unbounded-root"]},
+        "sources": ["shared/queries.ts", "src/zero-preload.ts", "src/pages/list/list-page.tsx", "src/components/nav.tsx"]
+      },
+      {
+        "name": "user",
+        "status": "active",
+        "args": {"type": "string", "binding": "userID"},
+        "root": "user",
+        "filters": [{"kind": "equality", "field": "id", "value": "args userID"}],
+        "relationships": [],
+        "ordering": {"fields": [], "tieBreaker": "primary-key equality"},
+        "window": {"kind": "one", "take": 1, "cursor": null},
+        "projection": {"rootFields": ["id", "login", "name", "avatar", "role"], "relations": {}},
+        "d2": {"inside": ["bounded-root-window", "closed-nested-projection"], "outside": []},
+        "sources": ["shared/queries.ts", "src/components/nav.tsx"]
+      },
+      {
+        "name": "crewUser",
+        "status": "active",
+        "args": {"type": "string", "binding": "userID"},
+        "root": "user",
+        "filters": [{"kind": "equality", "field": "id", "value": "args userID"}, {"kind": "equality", "field": "role", "value": "crew"}],
+        "relationships": [],
+        "ordering": {"fields": [], "tieBreaker": "primary-key equality"},
+        "window": {"kind": "one", "take": 1, "cursor": null},
+        "projection": {"rootFields": ["id", "login", "name", "avatar", "role"], "relations": {}},
+        "d2": {"inside": ["bounded-root-window", "closed-nested-projection"], "outside": []},
+        "sources": ["shared/queries.ts", "src/hooks/use-can-edit.ts"]
+      },
+      {
+        "name": "labels",
+        "status": "active",
+        "args": {"projectName": "string"},
+        "root": "label",
+        "filters": [{"kind": "scalar-exists/semi-join", "path": "label.project", "predicate": "project.lowerCaseName = toLocaleLowerCase(args.projectName)"}],
+        "relationships": [{"path": "project", "mode": "existence only", "cardinality": "to-one", "projected": false}],
+        "ordering": {"fields": [], "tieBreaker": null, "note": "no application-declared order"},
+        "window": {"kind": "unbounded", "take": null, "cursor": null},
+        "projection": {"rootFields": ["id", "name", "projectID"], "relations": {}},
+        "d2": {"inside": ["exists-semi-join", "closed-nested-projection"], "outside": ["unbounded-root"]},
+        "sources": ["shared/queries.ts", "src/components/filter.tsx"]
+      },
+      {
+        "name": "labelsOrderByName",
+        "status": "active",
+        "args": {"projectName": "string", "orderBy": "enum('asc','desc')"},
+        "root": "label",
+        "filters": [{"kind": "scalar-exists/semi-join", "path": "label.project", "predicate": "project.lowerCaseName = toLocaleLowerCase(args.projectName)"}],
+        "relationships": [{"path": "project", "mode": "existence only", "cardinality": "to-one", "projected": false}],
+        "ordering": {"fields": [{"field": "name", "direction": "args.orderBy"}], "tieBreaker": null, "note": "(projectID,name) is physically unique under the project filter, but no explicit id tie-breaker is in the graph"},
+        "window": {"kind": "unbounded", "take": null, "cursor": null},
+        "projection": {"rootFields": ["id", "name", "projectID"], "relations": {}},
+        "d2": {"inside": ["exists-semi-join", "closed-nested-projection"], "outside": ["unbounded-root", "ordering-without-explicit-unique-tie-breaker"]},
+        "sources": ["shared/queries.ts", "src/components/label-picker.tsx"]
+      },
+      {
+        "name": "issuePreloadV2",
+        "status": "active/preload",
+        "args": {"projectName": "string"},
+        "root": "issue",
+        "filters": [
+          {"kind": "scalar-exists/semi-join", "path": "issue.project", "predicate": "project.lowerCaseName = toLocaleLowerCase(args.projectName)"},
+          {"kind": "role visibility", "predicate": "JWT role crew OR issue.visibility = 'public'"},
+          {"kind": "principal relation predicate", "path": "viewState", "predicate": "viewState.userID = JWT sub; anonymous uses empty OR (always false)"}
+        ],
+        "relationships": [
+          {"path": "labels", "cardinality": "many-to-many", "limit": null, "order": []},
+          {"path": "viewState", "cardinality": "to-many filtered to at most one by composite key", "limit": null, "order": [], "principalBound": true},
+          {"path": "creator", "cardinality": "to-one"},
+          {"path": "assignee", "cardinality": "optional-to-one"},
+          {"path": "emoji", "cardinality": "to-many", "limit": null, "order": []},
+          {"path": "emoji.creator", "cardinality": "to-one"},
+          {"path": "comments", "cardinality": "to-many", "limit": 10, "order": [{"field": "created", "direction": "desc"}], "tieBreaker": null},
+          {"path": "comments.creator", "cardinality": "to-one"},
+          {"path": "comments.emoji", "cardinality": "to-many", "limit": null, "order": []},
+          {"path": "comments.emoji.creator", "cardinality": "to-one"}
+        ],
+        "ordering": {"fields": [{"field": "modified", "direction": "desc"}, {"field": "id", "direction": "desc"}], "tieBreaker": "id"},
+        "window": {"kind": "bounded prefix", "take": 1000, "cursor": null},
+        "projection": {"rootFields": ["id", "shortID", "title", "open", "modified", "created", "projectID", "creatorID", "assigneeID", "description", "visibility"], "relations": {"labels": "full label[]", "viewState": "full viewState[] (0..1 under predicate)", "creator": "full user?", "assignee": "full user?", "emoji": "full emoji[] + creator", "comments": "10 newest full comment[] + creator + emoji.creator"}},
+        "d2": {"inside": ["bounded-root-window", "equality-to-one", "bounded-to-many", "exists-semi-join", "principal-bound-relation", "closed-nested-projection"], "outside": ["unbounded-child-expansion at labels, emoji, comments.emoji", "comments child order has no id tie-breaker"]},
+        "sources": ["shared/queries.ts", "src/zero-preload.ts"]
+      },
+      {
+        "name": "userPref",
+        "status": "active",
+        "args": {"type": "string", "binding": "key"},
+        "root": "userPref",
+        "filters": [{"kind": "equality", "field": "key", "value": "args key"}, {"kind": "principal equality", "field": "userID", "value": "JWT sub (undefined when anonymous)"}],
+        "relationships": [],
+        "ordering": {"fields": [], "tieBreaker": "composite-key equality"},
+        "window": {"kind": "one", "take": 1, "cursor": null},
+        "projection": {"rootFields": ["key", "userID", "value"], "relations": {}},
+        "d2": {"inside": ["bounded-root-window", "principal-bound-relation (root-predicate analogue)", "closed-nested-projection"], "outside": []},
+        "sources": ["shared/queries.ts", "src/hooks/use-user-pref.ts"]
+      },
+      {
+        "name": "usersForProject",
+        "status": "active",
+        "args": {"disabled": "boolean", "login": "optional string", "projectName": "string", "filter": "optional enum('crew','creators','assignees')"},
+        "root": "user",
+        "filters": [
+          {"kind": "branch", "when": "disabled && login", "predicate": "user.login = args.login"},
+          {"kind": "branch", "when": "!previous branch && filter = crew", "predicate": "user.role = 'crew' AND NOT(user.login LIKE 'rocibot%')"},
+          {"kind": "branch", "when": "filter = creators", "predicate": "EXISTS user.createdIssues issue WHERE EXISTS issue.project project WHERE project.lowerCaseName = lower(args.projectName)"},
+          {"kind": "branch", "when": "filter = assignees", "predicate": "EXISTS user.assignedIssues issue WHERE EXISTS issue.project project WHERE project.lowerCaseName = lower(args.projectName)"},
+          {"kind": "none", "when": "disabled without login, or no filter"}
+        ],
+        "relationships": [{"path": "createdIssues.project or assignedIssues.project", "mode": "nested existence only", "projected": false}],
+        "ordering": {"fields": [], "tieBreaker": null},
+        "window": {"kind": "unbounded", "take": null, "cursor": null},
+        "projection": {"rootFields": ["id", "login", "name", "avatar", "role"], "relations": {}},
+        "d2": {"inside": ["exists-semi-join", "closed-nested-projection"], "outside": ["unbounded-root", "LIKE-prefix plus boolean NOT callback predicate is not one of D2's named finite nodes unless separately admitted"]},
+        "sources": ["shared/queries.ts", "src/components/user-picker.tsx"]
+      },
+      {
+        "name": "commentsPage",
+        "status": "active/windowed",
+        "args": {"issueID": "string", "limit": "number", "start": "null or {id:string,created:number}", "dir": "enum('forward','backward')", "inclusive": "boolean"},
+        "root": "comment",
+        "filters": [{"kind": "equality", "field": "issueID", "value": "args.issueID"}, {"kind": "keyset start", "value": "args.start", "inclusive": "args.inclusive"}],
+        "relationships": [{"path": "creator", "cardinality": "to-one"}, {"path": "emoji", "cardinality": "to-many", "limit": null}, {"path": "emoji.creator", "cardinality": "to-one"}],
+        "ordering": {"fields": [{"field": "created", "direction": "asc forward / desc backward"}, {"field": "id", "direction": "same as created"}], "tieBreaker": "id"},
+        "window": {"kind": "bidirectional keyset", "take": "args.limit", "cursor": "{created,id}", "returnOrder": "query order is reversed for backward pages; the virtualizer composes the window", "ui": "minPageSize 20; newest-comment watcher uses backward limit 1"},
+        "projection": {"rootFields": ["id", "issueID", "created", "body", "creatorID"], "relations": {"creator": "full user?", "emoji": "full emoji[] + creator"}},
+        "d2": {"inside": ["bounded-root-window when limit is positive and admitted", "equality-to-one", "closed-nested-projection"], "outside": ["unbounded emoji child expansion", "numeric limit has no application-declared maximum", "no parent issue visibility/semi-join"]},
+        "sources": ["shared/queries.ts", "src/pages/issue/comments.tsx"]
+      },
+      {
+        "name": "comment",
+        "status": "active/permalink",
+        "args": {"type": "string", "binding": "comment id"},
+        "root": "comment",
+        "filters": [{"kind": "equality", "field": "id", "value": "args id"}],
+        "relationships": [{"path": "creator", "cardinality": "to-one"}, {"path": "emoji", "cardinality": "to-many", "limit": null}, {"path": "emoji.creator", "cardinality": "to-one"}],
+        "ordering": {"fields": [], "tieBreaker": "primary-key equality"},
+        "window": {"kind": "one", "take": 1, "cursor": null, "ui": "single-row lookup supplies the comment window virtualizer permalink target"},
+        "projection": {"rootFields": ["id", "issueID", "created", "body", "creatorID"], "relations": {"creator": "full user?", "emoji": "full emoji[] + creator"}},
+        "d2": {"inside": ["bounded-root-window", "equality-to-one", "closed-nested-projection"], "outside": ["unbounded emoji child expansion", "no parent issue visibility/semi-join"]},
+        "sources": ["shared/queries.ts", "src/pages/issue/comments.tsx"]
+      },
+      {
+        "name": "issueDetail",
+        "status": "active/detail",
+        "args": {"idField": "enum('shortID','id')", "id": "string or number"},
+        "root": "issue",
+        "filters": [{"kind": "dynamic-field equality", "field": "args.idField", "value": "args.id"}, {"kind": "role visibility", "predicate": "JWT role crew OR issue.visibility = 'public'"}, {"kind": "principal relation predicate", "path": "notificationState", "predicate": "userID = JWT sub; anonymous always false"}, {"kind": "principal relation predicate", "path": "viewState", "predicate": "userID = JWT sub; anonymous always false"}],
+        "relationships": [
+          {"path": "project", "cardinality": "to-one"},
+          {"path": "emoji", "cardinality": "to-many", "limit": null},
+          {"path": "emoji.creator", "cardinality": "to-one"},
+          {"path": "creator", "cardinality": "to-one"},
+          {"path": "assignee", "cardinality": "optional-to-one"},
+          {"path": "labels", "cardinality": "many-to-many", "limit": null},
+          {"path": "notificationState", "cardinality": "declared to-one, physically many until userID predicate", "principalBound": true},
+          {"path": "viewState", "cardinality": "many relation narrowed with one()", "principalBound": true},
+          {"path": "comments", "cardinality": "to-many", "limit": 50, "order": [{"field": "created", "direction": "desc"}, {"field": "id", "direction": "desc"}]},
+          {"path": "comments.creator", "cardinality": "to-one"},
+          {"path": "comments.emoji", "cardinality": "to-many", "limit": null},
+          {"path": "comments.emoji.creator", "cardinality": "to-one"}
+        ],
+        "ordering": {"fields": [], "tieBreaker": "id or shortID equality"},
+        "window": {"kind": "one root plus relation preloads", "take": 1, "cursor": null, "childWindow": "50 newest comments, ordered created desc,id desc"},
+        "projection": {"rootFields": ["id", "shortID", "title", "open", "modified", "created", "projectID", "creatorID", "assigneeID", "description", "visibility"], "relations": {"project": "full project?", "emoji": "full emoji[] + creator", "creator": "full user?", "assignee": "full user?", "labels": "full label[]", "notificationState": "full issueNotifications?", "viewState": "full viewState?", "comments": "50 newest full comment[] + creator + emoji.creator"}},
+        "d2": {"inside": ["bounded-root-window", "equality-to-one", "bounded-to-many", "principal-bound-relation", "closed-nested-projection"], "outside": ["unbounded labels, issue emoji, and comment emoji children"]},
+        "sources": ["shared/queries.ts", "src/pages/issue/issue-page.tsx"]
+      },
+      {
+        "name": "issueListV2",
+        "status": "active/windowed central list",
+        "args": {"listContext": {"open": "boolean|null", "projectName": "optional string", "assignee": "string|null", "creator": "string|null", "labels": "string[]|null", "textFilter": "string|null", "sortField": "enum('modified','created')", "sortDirection": "enum('asc','desc')"}, "limit": "number|null", "start": "null or {id,created,modified}", "dir": "enum('forward','backward')", "inclusive": "optional boolean"},
+        "root": "issue",
+        "filters": [
+          {"kind": "scalar-exists/semi-join", "path": "project", "predicate": "project.lowerCaseName = lower(projectName default 'Zero')"},
+          {"kind": "optional equality", "field": "open", "predicate": "issue.open = listContext.open when non-null"},
+          {"kind": "search disjunction", "predicate": "title ILIKE escaped %text% OR description ILIKE escaped %text% OR EXISTS comments WHERE body ILIKE escaped %text%"},
+          {"kind": "repeated all-selected-label semi-join", "predicate": "for every selected label name, EXISTS issueLabels WHERE EXISTS label(name = selected) WHERE EXISTS project(lowerCaseName = selected project)", "multiplicity": "one nested exists subtree per labels[] element"},
+          {"kind": "optional scalar-exists", "path": "creator", "predicate": "creator.login = listContext.creator"},
+          {"kind": "optional scalar-exists", "path": "assignee", "predicate": "assignee.login = listContext.assignee"},
+          {"kind": "role visibility", "predicate": "JWT role crew OR issue.visibility = 'public'"},
+          {"kind": "principal relation predicate", "path": "viewState", "predicate": "viewState.userID = JWT sub; anonymous always false"},
+          {"kind": "keyset start", "value": "args.start", "inclusive": "args.inclusive defaults false"}
+        ],
+        "relationships": [{"path": "viewState", "cardinality": "to-many narrowed with one()", "principalBound": true}, {"path": "labels", "cardinality": "many-to-many", "limit": null}, {"path": "project/creator/assignee/issueLabels.label.project", "mode": "existence only", "projected": false}],
+        "ordering": {"fields": [{"field": "listContext.sortField (modified or created)", "direction": "listContext.sortDirection forward, inverted backward"}, {"field": "id", "direction": "same"}], "tieBreaker": "id"},
+        "window": {"kind": "bidirectional keyset", "take": "args.limit when truthy", "cursor": "args.start supplies id plus both candidate sort fields", "risk": "null or 0 limit removes the root bound; no maximum is declared", "ui": "useZeroVirtualizer supplies positive pages, permalink lookup, scroll-state persistence, spacers, completeness and not-found state"},
+        "projection": {"rootFields": ["id", "shortID", "title", "open", "modified", "created", "projectID", "creatorID", "assigneeID", "description", "visibility"], "relations": {"viewState": "full viewState?", "labels": "full label[]"}},
+        "d2": {"inside": ["bounded-root-window for positive admitted limit", "exists-semi-join", "principal-bound-relation", "search-membership candidate", "closed-nested-projection"], "outside": ["raw ILIKE search and comment-body exists must lower to D6 search membership", "unbounded labels child", "nullable-or-zero-limit-can-remove-bound", "number/array argument bounds are not declared"]},
+        "sources": ["shared/queries.ts", "src/pages/list/list-page.tsx"]
+      },
+      {
+        "name": "listIssueByID",
+        "status": "active/list permalink",
+        "args": {"listContext": "same object as issueListV2", "idField": "enum('shortID','id')", "idValue": "string or number"},
+        "root": "issue",
+        "filters": [{"kind": "all issueListV2 filters except cursor/limit", "value": "same listContext"}, {"kind": "dynamic-field equality", "field": "args.idField", "value": "args.idValue"}],
+        "relationships": [{"path": "viewState", "cardinality": "principal-bound one"}, {"path": "labels", "cardinality": "many-to-many", "limit": null}],
+        "ordering": {"fields": [{"field": "listContext.sortField", "direction": "listContext.sortDirection"}, {"field": "id", "direction": "same"}], "tieBreaker": "id"},
+        "window": {"kind": "one", "take": 1, "cursor": null, "ui": "find target row and its sort tuple before the virtualizer loads around it"},
+        "projection": {"rootFields": ["id", "shortID", "title", "open", "modified", "created", "projectID", "creatorID", "assigneeID", "description", "visibility"], "relations": {"viewState": "full viewState?", "labels": "full label[]"}},
+        "d2": {"inside": ["bounded-root-window", "exists-semi-join", "principal-bound-relation", "closed-nested-projection"], "outside": ["inherits issueListV2 raw search and unbounded labels child"]},
+        "sources": ["shared/queries.ts", "src/pages/list/list-page.tsx"]
+      },
+      {
+        "name": "emojiChange",
+        "status": "active/live reaction watcher",
+        "args": {"type": "string", "binding": "subjectID"},
+        "root": "emoji",
+        "filters": [{"kind": "equality", "field": "subjectID", "value": "args subjectID"}],
+        "relationships": [{"path": "creator", "cardinality": "to-one", "one": true}],
+        "ordering": {"fields": [], "tieBreaker": null},
+        "window": {"kind": "unbounded subject reactions", "take": null, "cursor": null},
+        "projection": {"rootFields": ["id", "value", "annotation", "subjectID", "creatorID", "created"], "relations": {"creator": "full user?"}},
+        "d2": {"inside": ["equality-to-one", "closed-nested-projection"], "outside": ["unbounded-root", "no parent issue/comment visibility semi-join"]},
+        "sources": ["shared/queries.ts", "src/pages/issue/issue-page.tsx"]
+      },
+      {
+        "name": "prevNext",
+        "status": "DEPRECATED",
+        "args": {"listContext": "listContext|null", "issue": "{id,created,modified}|null", "dir": "enum('next','prev')"},
+        "root": "issue",
+        "filters": [{"kind": "all buildListQuery filters", "note": "null listContext becomes empty OR (always false)"}, {"kind": "keyset start", "value": "args.issue when non-null"}],
+        "relationships": [{"path": "viewState", "cardinality": "principal-bound one"}, {"path": "labels", "cardinality": "many-to-many", "limit": null}],
+        "ordering": {"fields": [{"field": "listContext.sortField", "direction": "forward for next, inverted for prev"}, {"field": "id", "direction": "same"}], "tieBreaker": "id"},
+        "window": {"kind": "one row after/before keyset", "take": 1, "cursor": "args.issue"},
+        "projection": {"rootFields": ["id", "shortID", "title", "open", "modified", "created", "projectID", "creatorID", "assigneeID", "description", "visibility"], "relations": {"viewState": "full viewState?", "labels": "full label[]"}},
+        "d2": {"inside": ["bounded-root-window", "exists-semi-join", "principal-bound-relation", "closed-nested-projection"], "outside": ["inherits issueListV2 raw search and unbounded labels child"]},
+        "sources": ["shared/queries.ts", "src/pages/issue/issue-page.tsx"]
+      },
+      {
+        "name": "issueList",
+        "status": "DEPRECATED",
+        "args": {"listContext": "listContext", "limit": "number"},
+        "root": "issue",
+        "filters": [{"kind": "all issueListV2 filters", "value": "same listContext; forward from beginning"}],
+        "relationships": [{"path": "viewState", "cardinality": "principal-bound one"}, {"path": "labels", "cardinality": "many-to-many", "limit": null}],
+        "ordering": {"fields": [{"field": "listContext.sortField", "direction": "listContext.sortDirection"}, {"field": "id", "direction": "same"}], "tieBreaker": "id"},
+        "window": {"kind": "forward prefix", "take": "args.limit when truthy", "cursor": null, "risk": "0 removes the limit and no maximum is declared"},
+        "projection": {"rootFields": ["id", "shortID", "title", "open", "modified", "created", "projectID", "creatorID", "assigneeID", "description", "visibility"], "relations": {"viewState": "full viewState?", "labels": "full label[]"}},
+        "d2": {"inside": ["bounded-root-window for positive admitted limit", "exists-semi-join", "principal-bound-relation", "closed-nested-projection"], "outside": ["inherits issueListV2 raw search and unbounded labels child", "zero/unbounded numeric limit"]},
+        "sources": ["shared/queries.ts"]
+      },
+      {
+        "name": "userPicker",
+        "status": "DEPRECATED",
+        "args": {"disabled": "boolean", "login": "string|null", "filter": "null or enum('crew','creators')"},
+        "root": "user",
+        "filters": [{"kind": "branch", "when": "disabled && login", "predicate": "login = args.login"}, {"kind": "branch", "when": "filter crew", "predicate": "role = crew AND NOT(login LIKE 'rocibot%')"}, {"kind": "branch", "when": "filter creators", "predicate": "EXISTS createdIssues with no project restriction"}, {"kind": "none", "when": "no branch"}],
+        "relationships": [{"path": "createdIssues", "mode": "existence only", "projected": false}],
+        "ordering": {"fields": [], "tieBreaker": null},
+        "window": {"kind": "unbounded", "take": null, "cursor": null},
+        "projection": {"rootFields": ["id", "login", "name", "avatar", "role"], "relations": {}},
+        "d2": {"inside": ["exists-semi-join", "closed-nested-projection"], "outside": ["unbounded-root", "LIKE-prefix plus boolean NOT callback predicate"]},
+        "sources": ["shared/queries.ts"]
+      }
+    ],
+    "sources": ["shared/queries.ts", "src/pages/list/list-page.tsx", "src/pages/issue/comments.tsx", "src/pages/issue/issue-page.tsx"]
+  },
+  "factCustodyDemand": {
+    "d3RiskClasses": [
+      {"class": 1, "name": "authority-independent public exact projection", "workloadFacts": ["public project", "public issue", "label", "public comment", "public issue/comment emoji", "user presentation"], "sources": ["shared/schema.ts", "shared/queries.ts"]},
+      {"class": 2, "name": "authority-independent public compatible projection", "workloadFacts": ["the same public issue base row appears under list, preload, detail, and machine-route relationship widths"], "sources": ["shared/queries.ts", "server/machine-routes.ts"]},
+      {"class": 3, "name": "per-principal private exact projection", "workloadFacts": ["viewState", "userPref", "issueNotifications"], "partition": "JWT sub and policy identity; anonymous branches yield no private rows", "sources": ["shared/queries.ts"]},
+      {"class": 4, "name": "protected or projection-subsuming reuse", "workloadFacts": ["internal issues and their related graph for crew", "wider/narrower issue graph reuse", "search/list membership affected by visibility"], "sources": ["shared/queries.ts", "shared/auth.ts"]}
+    ],
+    "queries": [
+      {"name": "allLabels", "publicFacts": ["all label base rows"], "privateOverlays": [], "protectedFacts": [], "projectionWidth": "label-base", "sources": ["shared/queries.ts"]},
+      {"name": "allUsers", "publicFacts": ["all Zero-exposed user fields, including global role"], "privateOverlays": [], "protectedFacts": [], "projectionWidth": "user-base", "sources": ["shared/queries.ts"]},
+      {"name": "allProjects", "publicFacts": ["all project base rows and configuration fields"], "privateOverlays": [], "protectedFacts": [], "projectionWidth": "project-base", "sources": ["shared/queries.ts"]},
+      {"name": "user", "publicFacts": ["caller-selected user's full Zero-exposed row"], "privateOverlays": [], "protectedFacts": [], "projectionWidth": "user-base", "principalBinding": "none; argument need not equal JWT sub", "sources": ["shared/queries.ts"]},
+      {"name": "crewUser", "publicFacts": ["caller-selected user's full row only if role=crew"], "privateOverlays": [], "protectedFacts": [], "projectionWidth": "user-base", "principalBinding": "none; this publicly reveals crew membership for an id", "sources": ["shared/queries.ts"]},
+      {"name": "labels", "publicFacts": ["full label rows for a public project-name membership"], "privateOverlays": [], "protectedFacts": [], "projectionWidth": "label-base", "sources": ["shared/queries.ts"]},
+      {"name": "labelsOrderByName", "publicFacts": ["full label rows for a public project-name membership"], "privateOverlays": [], "protectedFacts": [], "projectionWidth": "label-base", "sources": ["shared/queries.ts"]},
+      {"name": "issuePreloadV2", "publicFacts": ["public issue base rows", "labels", "creator/assignee users", "issue emoji and creators", "ten newest comments with creators and emoji"], "privateOverlays": ["JWT-sub-filtered viewState array"], "protectedFacts": ["the same graph for internal issues is returned only when JWT role=crew"], "projectionWidth": "issue-preload-wide", "sources": ["shared/queries.ts"]},
+      {"name": "userPref", "publicFacts": [], "privateOverlays": ["one userPref keyed by JWT sub and requested key"], "protectedFacts": [], "projectionWidth": "userPref-base", "sources": ["shared/queries.ts"]},
+      {"name": "usersForProject", "publicFacts": ["user rows selected by login/global crew status or existence of project creator/assignee edges"], "privateOverlays": [], "protectedFacts": [], "projectionWidth": "user-base", "note": "filtering is not itself role-protected", "sources": ["shared/queries.ts"]},
+      {"name": "commentsPage", "publicFacts": ["as implemented, any comments for a caller-supplied issueID plus creator and emoji graph"], "privateOverlays": [], "protectedFacts": ["protected-by-domain comments are not mechanically gated by parent issue visibility in this query"], "projectionWidth": "comment-rich", "visibilityRisk": "direct query can observe comments/emoji for an internal issue if the id is known", "sources": ["shared/queries.ts", "shared/auth.ts"]},
+      {"name": "comment", "publicFacts": ["as implemented, any caller-selected comment plus creator and emoji graph"], "privateOverlays": [], "protectedFacts": ["protected-by-domain comment is not mechanically gated by parent issue visibility"], "projectionWidth": "comment-rich", "visibilityRisk": "direct id lookup bypasses issue visibility", "sources": ["shared/queries.ts", "shared/auth.ts"]},
+      {"name": "issueDetail", "publicFacts": ["public issue base plus project, creator, assignee, labels, issue emoji, and fifty newest rich comments"], "privateOverlays": ["JWT-sub-filtered notificationState", "JWT-sub-filtered viewState"], "protectedFacts": ["the same base and child graph for internal issues is returned only when JWT role=crew"], "projectionWidth": "issue-detail-widest", "sources": ["shared/queries.ts"]},
+      {"name": "issueListV2", "publicFacts": ["public issue base, label graph, list/search membership and keyset order"], "privateOverlays": ["JWT-sub-filtered single viewState"], "protectedFacts": ["internal issue rows, memberships and order positions for JWT role=crew"], "projectionWidth": "issue-list-narrow-relations", "sources": ["shared/queries.ts"]},
+      {"name": "listIssueByID", "publicFacts": ["one public issue under the complete current list predicate plus labels"], "privateOverlays": ["JWT-sub-filtered single viewState"], "protectedFacts": ["one internal issue under list predicate for JWT role=crew"], "projectionWidth": "issue-list-narrow-relations", "sources": ["shared/queries.ts"]},
+      {"name": "emojiChange", "publicFacts": ["as implemented, all emoji for a caller-selected subject plus creators"], "privateOverlays": [], "protectedFacts": ["protected-by-domain reaction rows are not mechanically gated by their issue/comment parent"], "projectionWidth": "emoji-rich", "visibilityRisk": "subject lookup has no issue visibility predicate", "sources": ["shared/queries.ts", "shared/auth.ts"]},
+      {"name": "prevNext", "publicFacts": ["one public issue membership adjacent in the selected list order"], "privateOverlays": ["JWT-sub-filtered viewState"], "protectedFacts": ["internal adjacency and row for JWT role=crew"], "projectionWidth": "issue-list-narrow-relations", "sources": ["shared/queries.ts"]},
+      {"name": "issueList", "publicFacts": ["public issue list membership and labels"], "privateOverlays": ["JWT-sub-filtered viewState"], "protectedFacts": ["internal list rows for JWT role=crew"], "projectionWidth": "issue-list-narrow-relations", "sources": ["shared/queries.ts"]},
+      {"name": "userPicker", "publicFacts": ["user rows by login/global crew/creator existence"], "privateOverlays": [], "protectedFacts": [], "projectionWidth": "user-base", "sources": ["shared/queries.ts"]}
+    ],
+    "projectionWidthGroups": [
+      {"entity": "issue", "baseColumnFact": "All issue queries select every Zero-exposed issue column; width changes are nested-relationship width, not base-column selection.", "widths": [{"name": "list", "queries": ["issueListV2", "listIssueByID", "prevNext", "issueList"], "relations": ["labels", "principal viewState"]}, {"name": "preload", "queries": ["issuePreloadV2"], "relations": ["list-like base plus creator, assignee, issue emoji.creator, 10 comments.creator/emoji.creator"]}, {"name": "detail", "queries": ["issueDetail"], "relations": ["project, creator, assignee, labels, principal notificationState/viewState, issue emoji.creator, 50 comments.creator/emoji.creator"]}, {"name": "machine", "queries": ["issueForMdQuery (route-internal, not shared query registry)"], "relations": ["project, creator, assignee, labels, issue emoji.creator; separate 1000-comment query"]}], "sources": ["shared/queries.ts", "server/machine-routes.ts"]},
+      {"entity": "comment", "baseColumnFact": "Root and nested occurrences select all Zero-exposed comment fields.", "widths": [{"name": "rich", "queries": ["commentsPage", "comment", "issuePreloadV2.comments", "issueDetail.comments"], "relations": ["creator", "emoji.creator"], "difference": "root/window position and caps differ, nested field width does not"}], "sources": ["shared/queries.ts"]},
+      {"entity": "user", "baseColumnFact": "Direct and related occurrences all expose id, login, name, avatar, role; PostgreSQL githubID/email are not in the Zero result.", "widths": [{"name": "zero-user-base", "queries": ["allUsers", "user", "crewUser", "usersForProject", "userPicker", "all creator/assignee/reaction creator relations"]}], "sources": ["shared/schema.ts", "shared/queries.ts", "db/drizzle-schema.ts"]},
+      {"entity": "project/label/emoji", "baseColumnFact": "Each occurrence uses its full Zero base row; graph width changes only through nested relations.", "sources": ["shared/schema.ts", "shared/queries.ts"]}
+    ],
+    "custodyBoundaries": [
+      {"boundary": "public/private split", "demand": "public base graph must not be unioned with viewState, userPref, or issueNotifications across principals", "sources": ["shared/queries.ts"]},
+      {"boundary": "role visibility", "demand": "internal issue membership, order, search existence, relations and completeness depend on verified JWT role=crew", "sources": ["shared/queries.ts", "shared/auth.ts"]},
+      {"boundary": "logout/user switch", "demand": "private facts and role-protected facts must retire when the client token changes; the pinned UI recreates ZeroProvider options after clearing the JWT cookie", "sources": ["src/components/login-provider.tsx", "src/zero-init.tsx"]},
+      {"boundary": "unguarded child roots", "demand": "commentsPage, comment and emojiChange require an owner decision: add parent-visibility proof or record their current direct-observation behavior as intentional", "sources": ["shared/queries.ts", "shared/auth.ts"]}
+    ],
+    "sources": ["shared/queries.ts", "shared/schema.ts", "shared/auth.ts", "server/machine-routes.ts"]
+  },
+  "mutationDemand": {
+    "classificationStatus": "PRELIMINARY — LLP 0129 owns admission; these labels inventory demand and do not admit any verb or browser authority.",
+    "currentIRCeilingUsedForClassification": ["Insert", "Get", "Guard", "Patch"],
+    "classes": {
+      "current-ir": "expressible in current Insert/Get/Guard/Patch IR and locally executable without special application-minted values",
+      "explicit-value-or-lane-q": "database program uses current verbs but exact optimistic continuity depends on explicit application values such as client nanoid/Date.now, or on current queued-intent Lane Q",
+      "server-only": "correctly server-only with honest pending behavior",
+      "new-verb": "full operation is inexpressible without at least one new deterministic verb such as Delete, Upsert, or bounded Branch"
+    },
+    "summary": {"current-ir": 2, "explicit-value-or-lane-q": 3, "server-only": 0, "new-verb": 11},
+    "mutators": [
+      {
+        "name": "issue.create",
+        "args": {"id": "string", "title": "string", "description": "optional string", "created": "number", "modified": "number", "projectID": "optional string"},
+        "reads": ["after inserting, assertUserCanSeeIssue reads issue by id and user by creatorID", "updateIssueNotification reads issueNotifications by (creatorID,issueID)"],
+        "guards": ["logged in", "creator can see the newly inserted issue"],
+        "branches": ["description defaults to empty string", "projectID defaults to ZERO_PROJECT_ID", "subscribe helper upserts only when no existing preference because forceUpdate=false"],
+        "writes": ["insert issue {id,projectID,title,description,created,creatorID=JWT sub,modified,open=true,visibility=public}", "upsert issueNotifications {userID=creatorID,issueID,subscribed=true,created}"],
+        "multiTable": true,
+        "physicalEffects": ["database triggers replace issue.created and issue.modified with database time"],
+        "idTimestampChoice": {"client": "UI supplies nanoid id and separate Date.now created/modified", "server": "keeps client id; replaces both timestamps with two Date.now calls; PostgreSQL triggers then replace both again with database time", "notificationCreated": "server Date.now value passed through helper"},
+        "serverDifference": {"override": true, "authorityRechecks": "runs the same logged-in/visibility/read guards against the server transaction", "postCommitEffect": "create-issue notification tasks"},
+        "preliminaryClass": "new-verb",
+        "classificationReason": "Insert/Get/Guard are present, but the full atomic program includes conditional notification Upsert/Branch.",
+        "sources": ["shared/mutators.ts", "server/server-mutators.ts", "src/pages/issue/issue-composer.tsx", "db/migrations/0000_init.sql"]
+      },
+      {
+        "name": "issue.update",
+        "args": {"id": "string", "title": "optional string", "description": "optional string", "open": "optional boolean", "assigneeID": "optional string|null", "visibility": "optional enum('internal','public')", "modified": "number"},
+        "reads": ["assertIsCreatorOrAdmin reads issue for non-crew; crew branch skips this read", "read old issue after authorization", "each notification helper reads issue, target user, and existing issueNotifications row"],
+        "guards": ["logged in via creator/admin helper", "JWT role crew OR JWT sub equals issue.creatorID", "generic not-authorized error when old issue absent"],
+        "branches": ["patch carries only supplied optional fields", "isAssigneeChange compares supplied assigneeID with old value", "any truthy assigneeID invokes subscribe helper even when unchanged", "changed non-null previous assignee invokes unsubscribe helper", "notification helper conditionally upserts"],
+        "writes": ["patch issue with args", "possibly upsert new/current assignee issueNotifications subscribed=true", "possibly upsert previous assignee issueNotifications subscribed=false"],
+        "multiTable": true,
+        "physicalEffects": ["database trigger replaces issue.modified with database time"],
+        "idTimestampChoice": {"client": "UI supplies Date.now modified", "server": "keeps id/application patch values but replaces modified with Date.now; database trigger replaces modified again", "notificationCreated": "server Date.now passed as modified"},
+        "serverDifference": {"override": true, "authorityRechecks": "same shared guards", "postCommitEffect": "update-issue notification with original update payload; modified is ignored when formatting changes"},
+        "preliminaryClass": "new-verb",
+        "classificationReason": "base Get/Guard/Patch fits current IR, but assignee-dependent bounded branches and notification Upserts do not.",
+        "sources": ["shared/mutators.ts", "server/server-mutators.ts", "src/pages/issue/issue-page.tsx", "db/migrations/0000_init.sql"]
+      },
+      {
+        "name": "issue.delete",
+        "args": "issue id string",
+        "reads": ["assertIsCreatorOrAdmin reads issue for non-crew; crew skips read"],
+        "guards": ["logged in", "crew OR issue creator"],
+        "branches": ["admin fast path"],
+        "writes": ["delete issue by id"],
+        "multiTable": "physical cascades delete comments, issueLabels, viewState, issueNotifications; triggers delete issue/comment-subject emoji",
+        "physicalEffects": ["comment and join/private rows cascade", "emoji cleanup is trigger-driven"],
+        "idTimestampChoice": {"client": "existing id", "server": "unchanged", "timestamp": null},
+        "serverDifference": {"override": false, "authorityRechecks": "shared mutator executes authoritatively", "postCommitEffect": null},
+        "preliminaryClass": "new-verb",
+        "classificationReason": "requires Delete plus bounded dependent physical deletes.",
+        "sources": ["shared/mutators.ts", "db/drizzle-schema.ts", "db/migrations/0000_init.sql"]
+      },
+      {
+        "name": "issue.addLabel",
+        "args": {"issueID": "string", "labelID": "string", "projectID": "optional string"},
+        "reads": ["assertIsCreatorOrAdmin reads issue for non-crew"],
+        "guards": ["logged in", "crew OR issue creator", "composite foreign keys require issue and label to share projectID"],
+        "branches": ["projectID defaults to ZERO_PROJECT_ID", "admin fast path"],
+        "writes": ["insert issueLabel {issueID,labelID,projectID}"],
+        "multiTable": false,
+        "idTimestampChoice": {"client": "existing issue/label ids", "server": "unchanged", "timestamp": null},
+        "serverDifference": {"override": true, "authorityRechecks": "same shared guard", "postCommitEffect": "update-issue notification with update={id}; formatted change list is empty"},
+        "preliminaryClass": "current-ir",
+        "classificationReason": "bounded Get/Guard/Insert; post-commit notification remains server authority and is not speculative.",
+        "sources": ["shared/mutators.ts", "server/server-mutators.ts", "db/drizzle-schema.ts"]
+      },
+      {
+        "name": "issue.removeLabel",
+        "args": {"issueID": "string", "labelID": "string"},
+        "reads": ["assertIsCreatorOrAdmin reads issue for non-crew"],
+        "guards": ["logged in", "crew OR issue creator"],
+        "branches": ["admin fast path"],
+        "writes": ["delete issueLabel by composite primary key labelID,issueID"],
+        "multiTable": false,
+        "idTimestampChoice": {"client": "existing ids", "server": "unchanged", "timestamp": null},
+        "serverDifference": {"override": true, "authorityRechecks": "same shared guard", "postCommitEffect": "update-issue notification with update={id}; formatted change list is empty"},
+        "preliminaryClass": "new-verb",
+        "classificationReason": "requires Delete.",
+        "sources": ["shared/mutators.ts", "server/server-mutators.ts"]
+      },
+      {
+        "name": "notification.update",
+        "args": {"issueID": "string", "subscribed": "enum('subscribe','unsubscribe')", "created": "number"},
+        "reads": ["assertUserCanSeeIssue reads issue and current user", "read issueNotifications by (JWT sub,issueID)"],
+        "guards": ["logged in", "public issue OR current user is creator OR current user role crew"],
+        "branches": ["forceUpdate=true makes subscribe always upsert", "unsubscribe always upserts false"],
+        "writes": ["upsert issueNotifications with subscribed boolean and client created"],
+        "multiTable": false,
+        "idTimestampChoice": {"client": "UI supplies Date.now created", "server": "no override; client-created timestamp is authoritative database input"},
+        "serverDifference": {"override": false, "authorityRechecks": "shared reads/guards execute on server", "postCommitEffect": null},
+        "preliminaryClass": "new-verb",
+        "classificationReason": "requires Upsert and a bounded subscribe/unsubscribe branch.",
+        "sources": ["shared/mutators.ts", "src/pages/issue/issue-page.tsx"]
+      },
+      {
+        "name": "emoji.addToIssue",
+        "args": {"id": "string", "unicode": "string", "annotation": "string", "subjectID": "string", "created": "number in shared/client form; omitted from server endpoint form"},
+        "reads": ["assertUserCanSeeIssue reads issue and actor user", "after insert, notification helper reads issue, actor user, and existing issueNotifications"],
+        "guards": ["logged in", "public issue OR actor is issue creator OR actor role crew", "database trigger requires subjectID to resolve"],
+        "branches": ["static issue-subject path", "notification subscribe upsert only when no existing preference because forceUpdate=false"],
+        "writes": ["insert emoji {id,value=unicode,annotation,subjectID,creatorID=JWT sub,created}", "possibly upsert actor issueNotifications subscribed=true"],
+        "multiTable": true,
+        "physicalEffects": ["emoji trigger replaces created and attempts to update containing issue.modified"],
+        "idTimestampChoice": {"client": "UI supplies nanoid id and Date.now created", "server": "keeps client id, replaces created with Date.now; database trigger replaces created again", "notificationCreated": "server Date.now"},
+        "serverDifference": {"override": true, "authorityRechecks": "same visibility guards", "postCommitEffect": "add-emoji-to-issue notification with emoji unicode"},
+        "preliminaryClass": "new-verb",
+        "classificationReason": "base Get/Guard/Insert needs explicit values, but the full program also needs conditional notification Upsert/Branch.",
+        "sources": ["shared/mutators.ts", "server/server-mutators.ts", "src/components/emoji-panel.tsx", "db/migrations/0000_init.sql"]
+      },
+      {
+        "name": "emoji.addToComment",
+        "args": {"id": "string", "unicode": "string", "annotation": "string", "subjectID": "string", "created": "number in shared/client form; omitted from server endpoint form"},
+        "reads": ["assertUserCanSeeComment reads comment by id, then parent issue and actor user"],
+        "guards": ["logged in", "public parent issue OR actor is issue creator OR actor role crew", "database trigger requires subjectID to resolve"],
+        "branches": ["static comment-subject path"],
+        "writes": ["insert emoji {id,value=unicode,annotation,subjectID,creatorID=JWT sub,created}"],
+        "multiTable": false,
+        "physicalEffects": ["emoji trigger replaces created and attempts to update containing issue.modified"],
+        "idTimestampChoice": {"client": "UI supplies nanoid id and Date.now created", "server": "keeps client id and replaces created with Date.now; database trigger replaces created again"},
+        "serverDifference": {"override": true, "authorityRechecks": "same parent visibility guards; then reads comment again to find issueID", "postCommitEffect": "add-emoji-to-comment notification with comment id and emoji unicode"},
+        "preliminaryClass": "explicit-value-or-lane-q",
+        "classificationReason": "bounded Get/Guard/Insert fits current verbs; exact local row identity/time depends on explicit client values or Lane Q settlement policy.",
+        "sources": ["shared/mutators.ts", "server/server-mutators.ts", "src/components/emoji-panel.tsx", "db/migrations/0000_init.sql"]
+      },
+      {
+        "name": "emoji.remove",
+        "args": "emoji id string",
+        "reads": ["assertIsCreatorOrAdmin reads emoji for non-crew"],
+        "guards": ["logged in", "crew OR emoji creator"],
+        "branches": ["admin fast path"],
+        "writes": ["delete emoji by id"],
+        "multiTable": false,
+        "physicalEffects": ["no delete trigger updates issue.modified; the update helper is invoked only by emoji insert/update trigger"],
+        "idTimestampChoice": {"client": "existing id", "server": "unchanged", "timestamp": null},
+        "serverDifference": {"override": false, "authorityRechecks": "shared guard executes authoritatively", "postCommitEffect": null},
+        "preliminaryClass": "new-verb",
+        "classificationReason": "requires Delete.",
+        "sources": ["shared/mutators.ts", "db/migrations/0000_init.sql"]
+      },
+      {
+        "name": "comment.add",
+        "args": {"id": "string", "issueID": "string", "body": "string", "created": "number in shared/client form; omitted from server endpoint form"},
+        "reads": ["assertUserCanSeeIssue reads issue and actor user", "notification helper reads issue, actor user, and existing issueNotifications"],
+        "guards": ["logged in", "public issue OR actor is issue creator OR actor role crew", "database body-length trigger"],
+        "branches": ["notification subscribe upsert only when no existing preference"],
+        "writes": ["insert comment {id,issueID,creatorID=JWT sub,body,created}", "possibly upsert actor issueNotifications subscribed=true"],
+        "multiTable": true,
+        "physicalEffects": ["comment trigger replaces created", "after insert trigger updates parent issue.modified"],
+        "idTimestampChoice": {"client": "UI supplies nanoid id and Date.now created", "server": "keeps client id, replaces created with Date.now; database trigger replaces created again", "notificationCreated": "server Date.now"},
+        "serverDifference": {"override": true, "authorityRechecks": "same visibility guards", "postCommitEffect": "add-comment notification with body and comment permalink"},
+        "preliminaryClass": "new-verb",
+        "classificationReason": "base Get/Guard/Insert needs explicit values, but the full program includes conditional notification Upsert/Branch.",
+        "sources": ["shared/mutators.ts", "server/server-mutators.ts", "src/pages/issue/comment-composer.tsx", "db/migrations/0000_init.sql"]
+      },
+      {
+        "name": "comment.edit",
+        "args": {"id": "string", "body": "string"},
+        "reads": ["assertIsCreatorOrAdmin reads comment for non-crew"],
+        "guards": ["logged in", "crew OR comment creator", "database body-length trigger"],
+        "branches": ["admin fast path"],
+        "writes": ["patch comment body by id"],
+        "multiTable": false,
+        "physicalEffects": ["editing a comment does not update issue.modified; the migration trigger does that only after comment insert"],
+        "idTimestampChoice": {"client": "existing id", "server": "unchanged", "timestamp": null},
+        "serverDifference": {"override": true, "authorityRechecks": "same shared guard; reads patched comment to obtain issueID", "postCommitEffect": "edit-comment notification with new body and comment permalink"},
+        "preliminaryClass": "current-ir",
+        "classificationReason": "bounded Get/Guard/Patch; effect remains server-only after commit.",
+        "sources": ["shared/mutators.ts", "server/server-mutators.ts", "src/pages/issue/comment-composer.tsx", "db/migrations/0000_init.sql"]
+      },
+      {
+        "name": "comment.remove",
+        "args": "comment id string",
+        "reads": ["assertIsCreatorOrAdmin reads comment for non-crew"],
+        "guards": ["logged in", "crew OR comment creator"],
+        "branches": ["admin fast path"],
+        "writes": ["delete comment by id"],
+        "multiTable": "trigger deletes emoji rows whose subjectID is comment id",
+        "physicalEffects": ["comment emoji cleanup; no notification and no issue.modified update"],
+        "idTimestampChoice": {"client": "existing id", "server": "unchanged", "timestamp": null},
+        "serverDifference": {"override": false, "authorityRechecks": "shared guard executes authoritatively", "postCommitEffect": null},
+        "preliminaryClass": "new-verb",
+        "classificationReason": "requires Delete plus bounded dependent cleanup.",
+        "sources": ["shared/mutators.ts", "src/pages/issue/comment.tsx", "db/migrations/0000_init.sql"]
+      },
+      {
+        "name": "label.create",
+        "args": {"id": "string", "name": "string", "projectID": "optional string"},
+        "reads": [],
+        "guards": ["logged in", "JWT role must be crew (isAdmin)"],
+        "branches": ["projectID defaults to ZERO_PROJECT_ID"],
+        "writes": ["insert label {id,name,projectID}"],
+        "multiTable": false,
+        "idTimestampChoice": {"client": "caller supplies id; no current pinned UI call site", "server": "unchanged", "timestamp": null},
+        "serverDifference": {"override": false, "authorityRechecks": "shared role guard executes authoritatively", "postCommitEffect": null},
+        "preliminaryClass": "explicit-value-or-lane-q",
+        "classificationReason": "Guard/Insert fits current verbs; exact label identity is an explicit application value.",
+        "sources": ["shared/mutators.ts"]
+      },
+      {
+        "name": "label.createAndAddToIssue",
+        "args": {"issueID": "string", "labelID": "string", "labelName": "string", "projectID": "optional string"},
+        "reads": [],
+        "guards": ["logged in", "JWT role must be crew", "composite foreign keys enforce shared project"],
+        "branches": ["projectID defaults to ZERO_PROJECT_ID"],
+        "writes": ["insert label {id=labelID,name=labelName,projectID}", "insert issueLabel {issueID,labelID,projectID}"],
+        "multiTable": true,
+        "idTimestampChoice": {"client": "UI supplies nanoid labelID", "server": "unchanged", "timestamp": null},
+        "serverDifference": {"override": false, "authorityRechecks": "shared crew guard executes authoritatively", "postCommitEffect": null},
+        "preliminaryClass": "explicit-value-or-lane-q",
+        "classificationReason": "bounded two-Insert program plus Guard fits the current verbs; exact new label identity is explicit application input.",
+        "sources": ["shared/mutators.ts", "src/pages/issue/issue-page.tsx"]
+      },
+      {
+        "name": "viewState.set",
+        "args": {"issueID": "string", "viewed": "number"},
+        "reads": [],
+        "guards": ["logged in"],
+        "branches": ["upsert insert-or-replace path is implicit"],
+        "writes": ["upsert viewState {issueID,userID=JWT sub,viewed}"],
+        "multiTable": false,
+        "idTimestampChoice": {"client": "UI supplies Date.now viewed after a one-second dwell", "server": "no override; client value is authoritative database input"},
+        "serverDifference": {"override": false, "authorityRechecks": "shared login guard executes authoritatively", "postCommitEffect": null},
+        "preliminaryClass": "new-verb",
+        "classificationReason": "requires Upsert.",
+        "sources": ["shared/mutators.ts", "src/pages/issue/issue-page.tsx"]
+      },
+      {
+        "name": "userPref.set",
+        "args": {"key": "string", "value": "string"},
+        "reads": [],
+        "guards": ["logged in"],
+        "branches": ["upsert insert-or-replace path is implicit"],
+        "writes": ["upsert userPref {key,value,userID=JWT sub}"],
+        "multiTable": false,
+        "idTimestampChoice": {"client": "no generated id/time", "server": "unchanged"},
+        "serverDifference": {"override": false, "authorityRechecks": "shared login guard executes authoritatively", "postCommitEffect": null},
+        "preliminaryClass": "new-verb",
+        "classificationReason": "requires Upsert.",
+        "sources": ["shared/mutators.ts", "src/hooks/use-user-pref.ts"]
+      }
+    ],
+    "serverOverrideCoverage": {
+      "overridden": ["issue.create", "issue.update", "issue.addLabel", "issue.removeLabel", "emoji.addToIssue", "emoji.addToComment", "comment.add", "comment.edit"],
+      "inherited": ["issue.delete", "notification.update", "emoji.remove", "comment.remove", "label.create", "label.createAndAddToIssue", "viewState.set", "userPref.set"],
+      "postCommitMechanism": "notify reads and formats inside the authoritative transaction, appends closures, handleMutateRequest commits, then the API awaits Promise.allSettled(tasks) before replying; failures are discarded and no durable outbox is present",
+      "sources": ["server/server-mutators.ts", "api/index.ts", "server/notify.ts"]
+    },
+    "sources": ["shared/mutators.ts", "server/server-mutators.ts", "shared/auth.ts", "db/migrations/0000_init.sql"]
+  },
+  "routeDemand": {
+    "endpoints": [
+      {
+        "method": "GET",
+        "path": "/api/login/github",
+        "kind": "OAuth start route registered by @fastify/oauth2",
+        "input": {"query": {"redirect": "optional string"}},
+        "output": "redirect to GitHub authorization flow; plugin-managed OAuth state",
+        "auth": "anonymous start",
+        "sources": ["api/index.ts", "src/routes.tsx"]
+      },
+      {
+        "method": "GET",
+        "path": "/api/login/github/callback",
+        "kind": "OAuth callback and JWT mint",
+        "input": {"query": {"redirect": "optional URI-encoded string", "code/state": "OAuth plugin managed"}},
+        "output": "upsert/update GitHub user, set client-readable jwt cookie for 30 days, redirect to decoded redirect or /",
+        "auth": "GitHub authorization-code result; no pre-existing app JWT",
+        "statusBehavior": "uncaught provider/database/signing errors use Fastify error handling",
+        "sources": ["api/index.ts"]
+      },
+      {
+        "method": "POST",
+        "path": "/api/push",
+        "kind": "backward-compatible Zero mutation endpoint alias",
+        "input": {"query": "Record<string,string>", "body": "ReadonlyJSONValue mutation protocol envelope", "headers": "optional Authorization: Bearer <JWT>"},
+        "output": "handleMutateRequest protocol response after post-commit tasks settle or reject",
+        "auth": "bearer optional at route; individual mutators reject anonymous access",
+        "sources": ["api/index.ts"]
+      },
+      {
+        "method": "POST",
+        "path": "/api/mutate",
+        "kind": "Zero mutation endpoint",
+        "input": {"query": "Record<string,string>", "body": "ReadonlyJSONValue mutation protocol envelope", "headers": "optional Authorization: Bearer <JWT>"},
+        "output": "handleMutateRequest protocol response after Promise.allSettled(postCommitTasks)",
+        "auth": "bearer optional at route; verified JWT supplies userID/context; individual mutators enforce login/role/ownership",
+        "sources": ["api/index.ts", "src/zero-init.tsx"]
+      },
+      {
+        "method": "POST",
+        "path": "/api/get-queries",
+        "kind": "backward-compatible Zero custom-query endpoint alias",
+        "input": {"query": "Record<string,string>", "body": "ReadonlyJSONValue query protocol envelope", "headers": "optional Authorization: Bearer <JWT>"},
+        "output": "handleQueryRequest protocol response",
+        "auth": "anonymous or bearer; query definition applies role/principal predicates",
+        "sources": ["api/index.ts"]
+      },
+      {
+        "method": "POST",
+        "path": "/api/query",
+        "kind": "Zero custom-query endpoint",
+        "input": {"query": "Record<string,string>", "body": "ReadonlyJSONValue query protocol envelope", "headers": "optional Authorization: Bearer <JWT>"},
+        "output": "handleQueryRequest protocol response",
+        "auth": "anonymous or bearer; invalid bearer is 401; verified JWT sub/role becomes query context",
+        "sources": ["api/index.ts", "src/zero-init.tsx"]
+      },
+      {
+        "method": "POST",
+        "path": "/api/upload/presigned-url",
+        "kind": "S3 PUT presign",
+        "input": {"body": {"contentType": "string"}, "headers": "Authorization: Bearer <JWT> required"},
+        "output": {"success": {"url": "S3 signed PUT URL", "key": "nanoid"}, "errors": ["401 Authentication required", "500 error message"]},
+        "auth": "any logged-in user; no issue/project authorization or size input",
+        "sources": ["api/index.ts", "src/server/upload.ts"]
+      },
+      {
+        "method": "GET",
+        "path": "/api/unsubscribe",
+        "kind": "email unsubscribe with a database mutation",
+        "input": {"query": {"id": "issue shortID string parsed base 10", "email": "required exact email"}},
+        "output": {"success": "text/html link confirming unsubscribe", "errors": ["400 Email is required", "400 Invalid issue ID", "401 Unauthorized when email is absent from user table", "404 Issue not found"]},
+        "auth": "no JWT, signature, or one-time token; possession/knowledge of a stored email and issue shortID is sufficient",
+        "write": "INSERT issueNotifications subscribed=false ON CONFLICT(userID,issueID) DO UPDATE",
+        "sources": ["api/index.ts", "server/notify.ts"]
+      },
+      {
+        "method": "GET",
+        "path": "/p/:projectName/issue/:id.md",
+        "kind": "machine-readable issue Markdown",
+        "input": {"path": {"projectName": "string used for canonicalization", "id": "nonempty numeric safe integer shortID or non-digit string id"}, "headers": "optional Authorization: Bearer <JWT>"},
+        "output": {"success": "text/markdown issue metadata, description, reactions, and oldest-to-newest comments (most recent 1000 fetched then reversed)", "redirect": "308 to canonical lower-case project/shortID path", "errors": ["401 Markdown on invalid authorization", "404 Markdown for absent/unauthorized/malformed id"]},
+        "auth": "anonymous sees public issues; verified crew sees internal issues; ordinary user JWT still sees public only",
+        "cache": "authenticated requests private,no-store; anonymous success public s-maxage=300 stale-while-revalidate=3600; anonymous 404 s-maxage=60; canonical redirect s-maxage=300",
+        "sources": ["server/machine-routes.ts", "server/machine-md.ts", "shared/issue-id.ts"]
+      }
+    ],
+    "deploymentRouting": [
+      {"rule": "Vite dev forwards every /api* and /p/*.md request to Fastify", "sources": ["vite.config.ts"]},
+      {"rule": "Vercel rewrites /api/(.*) and machine Markdown paths to the single /api function", "sources": ["vercel.json"]},
+      {"rule": "Accept:text/markdown or named crawler/user-agent requests for human issue paths redirect to .md; legacy /issue routes map to Zero project", "sources": ["vercel.json"]}
+    ],
+    "sources": ["api/index.ts", "server/machine-routes.ts", "src/server/upload.ts"]
+  },
+  "authDemand": {
+    "actors": [
+      {"name": "anonymous", "credentials": "no bearer/JWT", "read": "public issue graphs, public roots, and machine Markdown; no private overlays", "write": "shared mutators reject; unsubscribe remains available by email+shortID", "sources": ["shared/queries.ts", "shared/auth.ts", "api/index.ts"]},
+      {"name": "logged-in user", "roleClaim": "user", "read": "same public issue query visibility plus own overlays; direct user/label/project roots", "write": "create issue/comment/reaction; own created issue/comment/reaction edit/delete; own preferences, view state and subscriptions", "sources": ["shared/auth.ts", "shared/queries.ts", "shared/mutators.ts"]},
+      {"name": "issue creator", "roleClaim": "user or crew", "read": "query layer gives non-crew creators no special internal visibility", "write": "creator/admin guard allows editing/deleting own issue; visibility helper allows creator to comment/react/subscribe to own internal issue", "sources": ["shared/auth.ts", "shared/queries.ts", "shared/mutators.ts"]},
+      {"name": "crew/admin", "roleClaim": "crew", "read": "internal and public issue graphs", "write": "admin fast path for issue/comment/emoji edit/delete; only actor allowed to create labels", "sources": ["shared/auth.ts", "shared/queries.ts", "shared/mutators.ts"]},
+      {"name": "assignee", "roleClaim": "user or crew", "read": "no special visibility unless crew; assignee filter is public graph logic", "write": "no special edit authority; assignment automatically subscribes the assignee when the issue update runs", "sources": ["shared/auth.ts", "shared/mutators.ts"]}
+    ],
+    "jwt": {
+      "claims": {"sub": "string app user id", "role": "crew|user", "name": "GitHub login string", "iat": "seconds", "exp": "seconds"},
+      "mint": "GitHub OAuth callback reads role from PostgreSQL user row, signs with PRIVATE_JWK algorithm, and sets 30-day expiration",
+      "verify": "Authorization header must begin Bearer; VITE_PUBLIC_JWK verifies signature then jwtDataSchema validates claims",
+      "transport": "callback writes cookie jwt path=/, SameSite=Strict, Secure except localhost; no httpOnly option is set and client JavaScript reads it and sends it as Bearer",
+      "sources": ["shared/auth.ts", "api/index.ts", "src/jwt.ts", "src/zero-init.tsx"]
+    },
+    "identityLifecycle": [
+      {"surface": "login", "behavior": "GitHub profile by githubID; existing email updated, new user inserted with generated nanoid; server DB role controls JWT role", "sources": ["api/index.ts"]},
+      {"surface": "logout", "behavior": "client removes jwt cookie and sets loginState undefined; no server logout/revocation endpoint", "sources": ["src/components/login-provider.tsx", "src/jwt.ts"]},
+      {"surface": "user switch", "behavior": "changing loginState changes ZeroProvider userID/auth/context options; explicit local-store wipe behavior is delegated to Zero and is not implemented in application code", "sources": ["src/components/login-provider.tsx", "src/zero-init.tsx"]},
+      {"surface": "expiry", "behavior": "client decode path treats exp earlier than local current time as logged out; server verifies JWT expiration", "sources": ["src/jwt.ts", "api/index.ts"]}
+    ],
+    "permissionRules": [
+      {"scope": "schema", "rule": "No row-permission declaration exists in shared/schema.ts; named queries and mutator code carry application policy.", "sources": ["shared/schema.ts", "shared/queries.ts", "shared/mutators.ts"]},
+      {"scope": "issue query visibility", "rule": "applyIssuePermissions returns all issues only for role=crew; everyone else, including anonymous and ordinary creator, gets visibility=public.", "sources": ["shared/queries.ts"]},
+      {"scope": "issue mutation visibility", "rule": "assertUserCanSeeIssue allows public, issue creator, or crew; this is broader for an ordinary internal-issue creator than the query rule.", "sources": ["shared/auth.ts"]},
+      {"scope": "ownership", "rule": "issue/comment/emoji edit or delete requires creatorID=JWT sub unless crew; absent and unauthorized use a generic message for non-crew.", "sources": ["shared/auth.ts", "shared/mutators.ts"]},
+      {"scope": "label administration", "rule": "label.create and label.createAndAddToIssue require crew.", "sources": ["shared/mutators.ts"]},
+      {"scope": "private overlays", "rule": "viewState, userPref and notification mutations derive userID from JWT sub; queries filter the same principal.", "sources": ["shared/queries.ts", "shared/mutators.ts"]},
+      {"scope": "project visibility", "rule": "projects have no visibility/member table; issue visibility is global public/internal and crew role is global, while projectName only scopes issue/label membership.", "sources": ["shared/schema.ts", "shared/queries.ts"]},
+      {"scope": "child visibility gap", "rule": "commentsPage, comment and emojiChange do not traverse to a permission-gated issue; direct ids can affect observable rows independently of issue visibility.", "sources": ["shared/queries.ts", "shared/auth.ts"]},
+      {"scope": "machine route", "rule": "issue first passes the same role/public gate; only then a separate ungated comment query runs in the same transaction.", "sources": ["server/machine-routes.ts"]},
+      {"scope": "notifications", "rule": "email recipients for internal issues are restricted to crew even if a non-crew creator has a subscription row; Discord is public issues only.", "sources": ["server/notify.ts"]}
+    ],
+    "sources": ["shared/auth.ts", "shared/queries.ts", "shared/mutators.ts", "api/index.ts", "src/components/login-provider.tsx", "src/zero-init.tsx"]
+  },
+  "effectDemand": {
+    "deliveryModel": {
+      "transactionPhase": "notify runs before commit to read authoritative transactional rows, gather recipients, format payloads, and append closures",
+      "deliveryPhase": "after handleMutateRequest completes its commit, API awaits Promise.allSettled for all closures before sending the mutation response",
+      "durability": "no outbox/queue/receipt table; process loss after commit can lose delivery; task failures are intentionally ignored",
+      "idempotency": "Loops email uses Idempotency-Key clientID:mutationID:email; Discord has no idempotency key and swallows network/non-2xx failures",
+      "sources": ["server/notify.ts", "server/server-mutators.ts", "api/index.ts", "server/email.ts", "server/discord.ts"]
+    },
+    "triggers": [
+      {"mutator": "issue.create", "kind": "create-issue", "emailTitle": "<actor.login> reported an issue", "message": "issue.title + clipped issue.description", "link": "issue shortID URL", "actorRecipient": "included", "discord": "public issue only", "sources": ["server/server-mutators.ts", "server/notify.ts"]},
+      {"mutator": "issue.update", "kind": "update-issue", "emailTitle": "<actor.login> updated an issue", "message": "issue.title + supplied changes for open/assignee/visibility/title/description + clipped current description", "link": "issue shortID URL", "actorRecipient": "excluded", "discord": "public issue only", "sources": ["server/server-mutators.ts", "server/notify.ts"]},
+      {"mutator": "issue.addLabel", "kind": "update-issue", "emailTitle": "<actor.login> updated an issue", "message": "issue.title + clipped description; no label change line because update payload is only {id}", "link": "issue shortID URL", "actorRecipient": "excluded", "discord": "public issue only", "sources": ["server/server-mutators.ts", "server/notify.ts"]},
+      {"mutator": "issue.removeLabel", "kind": "update-issue", "emailTitle": "<actor.login> updated an issue", "message": "issue.title + clipped description; no label change line", "link": "issue shortID URL", "actorRecipient": "excluded", "discord": "public issue only", "sources": ["server/server-mutators.ts", "server/notify.ts"]},
+      {"mutator": "emoji.addToIssue", "kind": "add-emoji-to-issue", "emailTitle": "<actor.login> reacted to an issue", "message": "issue.title + emoji", "link": "issue shortID URL", "actorRecipient": "excluded", "discord": "public issue only", "sources": ["server/server-mutators.ts", "server/notify.ts"]},
+      {"mutator": "emoji.addToComment", "kind": "add-emoji-to-comment", "emailTitle": "<actor.login> reacted to a comment", "message": "clipped current comment.body + emoji", "link": "issue shortID URL (no comment fragment)", "actorRecipient": "excluded", "discord": "public issue only", "sources": ["server/server-mutators.ts", "server/notify.ts"]},
+      {"mutator": "comment.add", "kind": "add-comment", "emailTitle": "<actor.login> commented on an issue", "message": "issue.title + clipped submitted comment body", "link": "issue URL#comment-<commentID>", "actorRecipient": "excluded", "discord": "public issue only", "sources": ["server/server-mutators.ts", "server/notify.ts"]},
+      {"mutator": "comment.edit", "kind": "edit-comment", "emailTitle": "<actor.login> edited a comment", "message": "issue.title + clipped submitted comment body", "link": "issue URL#comment-<commentID>", "actorRecipient": "excluded", "discord": "public issue only", "sources": ["server/server-mutators.ts", "server/notify.ts"]}
+    ],
+    "recipientSelection": {
+      "email": "distinct valid trimmed emails from subscribed=true issueNotifications joined to user and issue; actor excluded except create; null/invalid email removed; internal issue recipients must have role=crew",
+      "unsubscribe": "per-recipient link contains cleartext encoded email plus issue shortID",
+      "discord": "one webhook task per triggering mutation only when issue.visibility=public",
+      "sources": ["server/notify.ts"]
+    },
+    "emailPayload": {
+      "provider": "POST https://app.loops.so/api/v1/transactional",
+      "headers": ["Authorization Bearer LOOPS_EMAIL_API_KEY", "Content-Type application/json", "Idempotency-Key clientID:mutationID:email"],
+      "body": ["email", "LOOPS_TRANSACTIONAL_ID", "addToAudience=true", "Message-ID/In-Reply-To/References thread headers", "subject=#shortID truncated title", "message", "link", "unsubscribe", "attachments"],
+      "missingConfig": "logs and skips",
+      "sources": ["server/email.ts"]
+    },
+    "discordPayload": {"provider": "DISCORD_WEBHOOK_URL", "body": {"content": "**title**\\nmessage\\n<link>"}, "failure": "logs and returns; no thrown retry signal", "sources": ["server/discord.ts"]},
+    "nonTriggers": {"mutators": ["issue.delete", "notification.update", "emoji.remove", "comment.remove", "label.create", "label.createAndAddToIssue", "viewState.set", "userPref.set"], "sources": ["server/server-mutators.ts", "shared/mutators.ts"]},
+    "sources": ["server/notify.ts", "server/email.ts", "server/discord.ts", "server/server-mutators.ts", "api/index.ts"]
+  },
+  "assetDemand": {
+    "flow": [
+      {"step": 1, "actor": "browser", "operation": "validate MIME against five allowed image types and size <=10 MiB; require loginState", "sources": ["src/components/image-upload-area.tsx", "shared/consts.ts"]},
+      {"step": 2, "actor": "browser -> app API", "operation": "POST /api/upload/presigned-url with bearer and {contentType}", "sources": ["src/components/image-upload-area.tsx", "api/index.ts"]},
+      {"step": 3, "actor": "app API", "operation": "validate MIME, mint nanoid key, sign S3 PutObject for bucket zbugs-image-uploads and exact ContentType, expiry 3600 seconds", "sources": ["src/server/upload.ts"]},
+      {"step": 4, "actor": "browser -> S3", "operation": "PUT raw File with Content-Type to signed URL", "sources": ["src/components/image-upload-area.tsx"]},
+      {"step": 5, "actor": "browser", "operation": "construct https://zbugs-image-uploads.s3.amazonaws.com/<key>, insert Markdown ![filename](url) into issue description/comment editor", "sources": ["src/components/image-upload-area.tsx", "src/pages/issue/issue-composer.tsx", "src/pages/issue/comment-composer.tsx"]}
+    ],
+    "allowedContentTypes": {"values": ["image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml"], "sources": ["shared/consts.ts"]},
+    "bucketPolicyDemand": [
+      {"demand": "authenticated application credentials must be allowed to presign PutObject for zbugs-image-uploads", "sources": ["src/server/upload.ts"]},
+      {"demand": "bucket CORS must allow browser PUT from application origins with Content-Type", "sourceStatus": "required by flow but no CORS configuration is pinned", "sources": ["src/components/image-upload-area.tsx", "src/server/upload.ts"]},
+      {"demand": "anonymous/public GET must work at the constructed virtual-host URL", "sourceStatus": "required by delivery URL but no bucket policy is pinned", "sources": ["src/components/image-upload-area.tsx"]}
+    ],
+    "authorization": "presign requires any valid logged-in JWT; object key is random but not bound to user/project/issue; delivery is public",
+    "metadataAndLifecycle": "no asset metadata table, ownership record, delete/reclamation path, processing state, checksum, or database transaction coupling; only Markdown URL is stored",
+    "sizeEnforcement": "10 MiB exists only in browser/dropzone validation; presign input has no size and S3 command has no content-length condition",
+    "errorSemantics": "browser awaits PUT fetch but does not check response.ok before inserting Markdown",
+    "configuration": ["AWS_REGION", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"],
+    "credentialLogging": "upload module logs AWS_ACCESS_KEY_ID and the first ten characters of AWS_SECRET_ACCESS_KEY to stderr at module initialization",
+    "sources": ["src/server/upload.ts", "src/components/image-upload-area.tsx", "shared/consts.ts", "api/index.ts"]
+  },
+  "fixtureTargetDemand": {
+    "ordinarySeed": {
+      "name": "GitHub CSV seed plus migration-created Zero project",
+      "rows": {"user": 14, "projectCsv": 0, "migrationProject": 1, "issue": 516, "comment": 924, "label": 30, "issueLabel": 603, "viewState": 0, "emoji": 0, "userPref": 0, "issueNotifications": 0},
+      "actorDistribution": {"crew": 7, "user": 7},
+      "issueDistribution": {"public": 516, "internal": 0, "open": 155, "closed": 361, "projectID": "all iCNlS2qEpzYWEes1RTf-D"},
+      "defaultDataDir": "db/seed-data/github/",
+      "sources": ["db/seed-data/github/user.csv", "db/seed-data/github/project.csv", "db/seed-data/github/issue.csv", "db/seed-data/github/comment.csv", "db/seed-data/github/label.csv", "db/seed-data/github/issueLabel.csv", "scripts/seed.ts", "db/migrations/0001_add_project.sql"]
+    },
+    "syntheticGenerator": {
+      "generatedTables": ["user", "project", "label", "issue", "comment", "issueLabel"],
+      "notGenerated": ["viewState", "emoji", "userPref", "issueNotifications"],
+      "defaults": {"NUM_ISSUES": 1000000, "NUM_PROJECTS": 100, "NUM_USERS": 100, "COMMENTS_PER_ISSUE": 3.0, "LABELS_PER_ISSUE": 1.5, "SHARD_SIZE": 500000, "OUTPUT_DIR": "db/seed-data/synthetic/", "SEED": 42, "SKIP_USERS": false},
+      "knobs": [
+        {"name": "NUM_ISSUES", "effect": "issue count", "sources": ["scripts/generate-synthetic.ts"]},
+        {"name": "NUM_PROJECTS", "effect": "maximum projects spread across sorted category templates", "sources": ["scripts/generate-synthetic.ts"]},
+        {"name": "NUM_USERS", "effect": "user pool; first 10 users are crew regardless of total", "sources": ["scripts/generate-synthetic.ts"]},
+        {"name": "COMMENTS_PER_ISSUE", "effect": "scale of deterministic floored exponential comment-count distribution", "sources": ["scripts/generate-synthetic.ts"]},
+        {"name": "LABELS_PER_ISSUE", "effect": "NONE on generated rows; used only in a log message", "sources": ["scripts/generate-synthetic.ts"]},
+        {"name": "SHARD_SIZE", "effect": "CSV rows per shard", "sources": ["scripts/generate-synthetic.ts"]},
+        {"name": "OUTPUT_DIR", "effect": "output directory", "sources": ["scripts/generate-synthetic.ts"]},
+        {"name": "SEED", "effect": "xoshiro128** and Faker reproducibility; change for append batches", "sources": ["scripts/generate-synthetic.ts"]},
+        {"name": "SKIP_USERS", "effect": "omit user CSV for batches that share sequential user ids", "sources": ["scripts/generate-synthetic.ts"]}
+      ],
+      "defaultDeterministicOutput": {"users": 100, "projects": 100, "labels": 4810, "issues": 1000000, "comments": 2527886, "issueLabels": 2000370, "totalRowsAcrossGeneratedTables": 5533266, "calculation": "direct evaluation of the pinned deterministic generator control flow at defaults without writing CSVs"},
+      "distributions": [
+        {"entity": "projects", "distribution": "projectForIssue uses floor(r^2 * projectCount), producing a skew toward low project indexes", "sources": ["scripts/generate-synthetic.ts"]},
+        {"entity": "comments", "distribution": "floor(-COMMENTS_PER_ISSUE * ln(1-r*0.9999)); default deterministic mean 2.527886 and max 27, not 3.0", "sources": ["scripts/generate-synthetic.ts"]},
+        {"entity": "issue labels", "distribution": "uniform integer 1..min(3, project label count), with duplicate avoidance; LABELS_PER_ISSUE is ignored; default output mean 2.00037", "sources": ["scripts/generate-synthetic.ts"]},
+        {"entity": "issues", "distribution": "70% open draw, 70% assigned draw, 90% public draw; created across four years and modified between created and generation time", "sources": ["scripts/generate-synthetic.ts"]},
+        {"entity": "users", "distribution": "usr_0000... ids; first ten crew, remaining users; generated GitHub ids/emails", "sources": ["scripts/generate-synthetic.ts"]}
+      ],
+      "templateInputs": {"files": 10, "projectsPerFile": 10, "labelsAcrossGeneratedProjects": 4810, "summaryJsonWarning": "summary.json lists only three categories/30 projects and is stale; generator reads the ten category files and ignores summary.json"},
+      "sources": ["SYNTHETIC_DATA.md", "scripts/generate-synthetic.ts", "db/seed-data/templates/summary.json", "db/seed-data/templates/api-service.json", "db/seed-data/templates/data-platform.json", "db/seed-data/templates/developer-tools.json", "db/seed-data/templates/embedded-iot.json", "db/seed-data/templates/game-media.json", "db/seed-data/templates/infrastructure.json", "db/seed-data/templates/ml-ai.json", "db/seed-data/templates/mobile-app.json", "db/seed-data/templates/security.json", "db/seed-data/templates/web-frontend.json"]
+    },
+    "templateGenerator": {
+      "defaults": {"NUM_PROJECTS": 100, "START_CATEGORY": 1, "model": "claude-sonnet-4-20250514"},
+      "required": "ANTHROPIC_API_KEY",
+      "shape": "10 categories; project count divided across categories; 8 API calls per category; title templates in 2x100 batches and comment templates in 3x50 batches",
+      "sources": ["scripts/generate-templates.ts", "SYNTHETIC_DATA.md"]
+    },
+    "seeder": {
+      "tableOrder": ["user", "project", "issue", "comment", "label", "issueLabel"],
+      "knobs": {"ZERO_UPSTREAM_DB": "required PostgreSQL URL", "ZERO_SEED_DATA_DIR": "default db/seed-data/github/", "ZERO_SEED_FORCE": "truncate/reseed when true unless append", "ZERO_SEED_RESET": "clear resumable progress", "ZERO_SEED_APPEND": "skip already-seeded check/truncation and append"},
+      "algorithm": "discover and persist schema objects; disable triggers; drop foreign keys and non-PK indexes; set maintenance_work_mem=2GB/work_mem=256MB; COPY each sorted shard without one outer transaction; recreate indexes/FKs; enable triggers; ANALYZE; resumable _seed_progress table",
+      "documentationMismatch": "SYNTHETIC_DATA says db-seed-synthetic sets ZERO_SEED_BULK=true, but package.json sets only ZERO_SEED_DATA_DIR and seed.ts has no ZERO_SEED_BULK branch; the bulk algorithm is unconditional.",
+      "sources": ["scripts/seed.ts", "package.json", "SYNTHETIC_DATA.md"]
+    },
+    "pregeneratedLargeFixture": {
+      "name": "gigabugs_v3 approximately 1 GB",
+      "download": "public S3 base https://rocinante-dev.s3.us-east-1.amazonaws.com/gigabugs_v3",
+      "shards": {"user": 1, "project": 1, "label": 1, "issue": 8, "comment": 8, "issueLabel": 1},
+      "rowCounts": "not pinned; downloader names files but contains no manifest/counts",
+      "sources": ["README.md", "db/seed-data/gigabugs/getData.sh"]
+    },
+    "postgresDockerTopology": {
+      "image": "postgres:16.2-alpine",
+      "services": [
+        {"name": "postgres_primary", "hostPort": 6434, "containerPort": 5432, "volume": "zbugs_pgdata_upstream", "settings": ["wal_level=logical", "max_wal_senders=10", "max_replication_slots=5", "hot_standby=on", "hot_standby_feedback=on"], "sources": ["docker/docker-compose.yml"]},
+        {"name": "postgres_replica", "hostPort": 6435, "containerPort": 5432, "volume": "zbugs_pgdata_sync", "settings": ["wal_level=logical", "max_wal_senders=10", "max_replication_slots=5", "hot_standby=on", "hot_standby_feedback=on"], "sources": ["docker/docker-compose.yml"]}
+      ],
+      "sharedConfig": {"user": "user", "database": "postgres", "password": "password", "shmSize": "1g", "restart": "always", "healthcheck": "pg_isready every 10s, timeout 5s, retries 5"},
+      "replicationWiring": "compose declares two independently initialized PostgreSQL services but no streaming-replica primary_conninfo/standby setup; Zero cache configuration must assign their roles externally",
+      "logicalPublication": "zero_zbugs publishes the ten workload tables, with a user column list",
+      "sources": ["docker/docker-compose.yml", "db/migrations/0000_init.sql", "db/migrations/0001_add_project.sql"]
+    },
+    "applicationTopology": {
+      "database": "application server uses ZERO_UPSTREAM_DB through postgres.js/zeroPostgresJS",
+      "sync": "zero-cache-dev/zero-cache runner; README identifies /tmp/zbugs-sync-replica.db as the local SQLite replica artifact",
+      "webApi": "Vite React SPA plus Fastify routes; Vercel rewrite manifest is present",
+      "productionStatement": "README says continuously deployed from trunk to AWS as Zero dogfood",
+      "versions": {"zbugs": "0.0.0 private", "Zero": "workspace package at pin (LLP 0182 records 1.10.0)", "zeroVirtual": "0.6.3", "PostgreSQL": "16.2-alpine", "NodeRequirement": "20+"},
+      "cleanup": "docker down, remove both volumes, remove /tmp/zbugs-sync-replica.db*",
+      "sources": ["README.md", "package.json", "server/db.ts", "vite.config.ts", "vercel.json"]
+    },
+    "scalePosture": [
+      {"fact": "default generator is a deterministic multi-million-row stress fixture, now exactly inventoried as 5,533,266 generated rows under pinned code/default templates", "sources": ["scripts/generate-synthetic.ts"]},
+      {"fact": "the generator does not seed the four private/reaction tables, so large-data qualification needs additional overlay/hot-fanout fixtures", "sources": ["scripts/generate-synthetic.ts", "shared/schema.ts"]},
+      {"fact": "ordinary GitHub seed has zero internal issues, so it cannot exercise role-visibility negative delivery", "sources": ["db/seed-data/github/issue.csv"]},
+      {"fact": "the pinned k6 UI profile is fixed at 10 VUs and 10 shared iterations in Chromium; each iteration performs 10 navigation/filter/issue/assignee loops against https://zbugs.vercel.app/?keepalive=1, and the only threshold is checks rate=1.0", "sources": ["k6/script.js"]},
+      {"fact": "the pin does not define a D8 hot data/mutation/fanout envelope or a latency threshold", "sources": ["SYNTHETIC_DATA.md", "k6/script.js"]},
+      {"fact": "PostgreSQL indexes are optimized primarily for project/open/creator/assignee + modified,id; created list order and comment created,id windows lack matching full composite indexes", "sources": ["db/drizzle-schema.ts", "shared/queries.ts"]}
+    ],
+    "sources": ["SYNTHETIC_DATA.md", "scripts/generate-synthetic.ts", "scripts/seed.ts", "docker/docker-compose.yml", "README.md", "package.json"]
+  }
+}

@@ -7187,6 +7187,26 @@ contexts stay immediate and loud. Set `developmentSync: false` when a local
 tool or test deliberately needs the original immediate mismatch behavior;
 otherwise the bounded retry is automatic even when no callback is supplied.
 
+The same dev loop has a post-mount sibling: Metro or Vite HMR can hot-replace
+the generated api module while the mounted `SnapbackProvider` keeps the
+binding admitted from the previous generation. In a positively identified
+development environment (Metro's `__DEV__`, a bundler HMR host, or
+`NODE_ENV === 'development'` — never mere absence of production markers), a
+regenerated same-app reference presented to hooks becomes a provider-boundary
+invalidation instead of a crash: the provider re-proves the whole new
+generation against the live deployment and swaps admission atomically.
+Unchanged queries keep their data throughout; changed queries show a brief
+`pending` frame, then subscribe under the new contract; a mutation invoked
+during the window settles after the swap. If the rebind cannot complete
+(backend never serves the new generation, or routes/ephemeral declarations
+changed), the provider logs one `SNAPBACK_REACT_HMR_REBIND_FAILED` diagnostic
+and triggers a controlled dev reload (`developmentHmr.onReloadRequired`
+overrides the default `DevSettings.reload`/`location.reload`). Foreign or
+stale references and production builds keep the strict
+`SNAPBACK_REACT_REFERENCE_INVALID` throw — recovery never weakens admission.
+Regression witness: `packages/snapback-react/hmr-generation-handoff.test.mjs`;
+governing design: LLP 0114 (mounted-provider HMR generation handoff).
+
 ## Bind a generated query
 
 Pass a generated operation reference and its exact arguments. The reference
@@ -7590,8 +7610,8 @@ id: clients.react-expo
 order: 3
 audience: agent-first
 capabilities: [clients.react-expo]
-authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0114-first-class-react-and-query-groups.spec.md, packages/snapback-client/index.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-client/rqs-store-default.mjs, packages/snapback-client/rqs-store-expo.mjs, packages/snapback-react/index.mjs, demos/partiful-matrix/tests/acceptance/native-react-expo.mjs]
-examples: [demos/partiful-matrix/native/react-expo, packages/snapback-client/webcrypto-fallback.test.mjs, packages/snapback-react/webcrypto-fallback.test.mjs, packages/snapback-client/rqs-store-expo.test.mjs, packages/snapback-client/rqs-resume-expo.test.mjs, demos/rn-durable-store-witness/probe-App.tsx]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0176-expo-messaging-golden-path.plan.md, packages/snapback-client/index.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-client/rqs-store-default.mjs, packages/snapback-client/rqs-store-expo.mjs, packages/snapback-react/index.mjs, demos/partiful-matrix/tests/acceptance/native-react-expo.mjs, demos/_kit/eas-stage-build.mjs]
+examples: [demos/partiful-matrix/native/react-expo, packages/snapback-client/webcrypto-fallback.test.mjs, packages/snapback-react/webcrypto-fallback.test.mjs, packages/snapback-client/rqs-store-expo.test.mjs, packages/snapback-client/rqs-resume-expo.test.mjs, demos/rn-durable-store-witness/probe-App.tsx, demos/tandem-expo-bakeoff/scripts/build-ios-dev-client, demos/_kit/tests/repo-layout-unit.mjs]
 status: current
 targets: [local]
 maturity: shipped
@@ -7882,6 +7902,41 @@ completion overtaking the HTTP response and overflow recovery. The earlier
 `issues/closed/20260801-0137-a1expo-f7-rn-connection-cycles.md`; it is no longer
 a current limitation.
 
+## Build an EAS dev client for an app nested inside this repository
+
+`eas build` resolves its project root at the nearest **Git root**, not the
+nearest Expo app. Run it from an app nested inside this monorepo (a
+`demos/<bakeoff>/<arm>`, an internal prototype) and it archives and uploads
+the entire Snapback checkout — the Rust runtime, `vendor/ibex`, every other
+demo, and all workspace `node_modules` — a multi-minute upload for a
+kilobyte-scale app. `.easignore` and `EAS_NO_VCS=1` do **not** change that
+root resolution; this reproduced independently in two bakeoffs
+(`demos/tandem-expo-bakeoff`, `demos/relay-room-bakeoff`), and no first-party
+nested-root configuration is documented for it. The supported pattern is to
+**stage the app outside the checkout and build from the staged copy**, which
+both bakeoffs converged on and the kit now paves:
+
+```sh
+# Stage <app-dir> into an out-of-checkout temp directory, bun install there,
+# and run `eas build` from the staged copy (paid EAS service).
+node demos/_kit/eas-stage-build.mjs demos/tandem-expo-bakeoff/snapback/native-shell \
+  --platform ios --profile development
+
+# Free preflight: stage and report only (file count, size, staged path kept
+# for inspection); never installs dependencies or contacts EAS.
+node demos/_kit/eas-stage-build.mjs <app-dir> --stage-only
+```
+
+The helper excludes `node_modules`, `.expo`, `.git`, and `dist` at every
+depth, refuses any staging directory that is still inside a Git checkout, and
+keeps the small native "shell" pattern workable: the shell carries only
+native dependencies and EAS config while loading the product bundle from the
+parent Metro server (see
+[repo:demos/tandem-expo-bakeoff/scripts/build-ios-dev-client](repo:demos/tandem-expo-bakeoff/scripts/build-ios-dev-client)
+for an arm-selection wrapper). Staging behavior is unit-verified by
+[repo:demos/_kit/tests/repo-layout-unit.mjs](repo:demos/_kit/tests/repo-layout-unit.mjs);
+the EAS build itself is an external paid service and is not CI-verified.
+
 ## Anti-patterns
 
 - **Do not pass `userId`/`authority` to hooks or use the string-name object
@@ -7903,6 +7958,10 @@ a current limitation.
   contain public generated client artifacts only.
 - **Do not ship emulator port bridging as endpoint security.** It is local
   acceptance infrastructure only.
+- **Do not run `eas build` directly from an app nested in this checkout, and
+  do not try to fix it with `.easignore`.** EAS archives the whole monorepo
+  from the Git root either way; stage outside the checkout with
+  `demos/_kit/eas-stage-build.mjs` (see the nested-build section above).
 
 ---
 
@@ -9634,7 +9693,7 @@ id: operating.host-ops
 order: 2
 audience: agent-first
 capabilities: [operating.host-ops]
-authorities: [llp/0024-agent-operating-surface.spec.md, src/host_ops.rs, src/server.rs, tests/host_ops_v0.rs]
+authorities: [llp/0024-agent-operating-surface.spec.md, src/cli.rs, src/host_ops.rs, src/server.rs, tests/host_ops_v0.rs]
 examples: [demos/todo]
 status: current
 targets: [local]
@@ -9714,6 +9773,10 @@ The endpoint serves thirty request spellings:
 | `errors.transition` | Resolve/ignore state transition for one issue. |
 | `debug.networkProfileGet` | Return the active network condition profile and its activation provenance. |
 | `debug.networkProfileSet` | Activate a built-in named profile or an inline profile through the shared activation gate. |
+
+`snapback session mint --email <address> --ready-file <path>` projects
+`auth.mintSession` through the same target and authority handling and prints only
+the resulting `hostOpsResult` JSON.
 
 `host.start` and `host.stop` are CLI-only lifecycle verbs today—a running
 server cannot safely own starting/stopping itself; over HTTP they fail as
@@ -10177,16 +10240,23 @@ version, and build profile; older binaries that predate the command may still
 be classified runnable via `--help`, but their actual stamp remains honestly
 unknown.
 
-A dirty worktree triggers the same posture at server spawn: the kit skips
-a prebuilt `target/debug/snapback` it cannot verify against a committed
-identity ("this checkout is dirty or has no committed identity") and
-falls back to the `cargo run` rung, which costs a rebuild-check on every
-boot (~30 s). That is provenance working as designed, not a fault. If
-you accept the local binary knowingly — a test loop on an intentionally
-dirty tree — the sanctioned escape is the same explicit override the
-diagnostic quotes: `SNAPBACK_SERVER_BINARY=<path>`. The override's
-unpinned identity stays visible in the spawn record, so acceptance is
-always a recorded choice, never an ambient default.
+Dirtiness here is scoped to the runtime binary's input set — the shared
+pathspec list in `scripts/runtime-build-inputs.txt` (Rust sources and
+manifests, `vendor/ibex`, and the build-embedded corpora). Uncommitted
+edits to your app under `demos/`, or to LLPs, issues, and diaries, cannot
+change the binary's bytes and do not count: a prepared binary stays
+verified and reusable while you iterate on an app. A dirty *input set*
+triggers the refusal posture at server spawn: the kit skips a prebuilt
+`target/debug/snapback` it cannot verify against a committed identity
+("this checkout's runtime input set is dirty or has no committed
+identity") and falls back to the `cargo run` rung, which costs a
+rebuild-check on every boot (~30 s). That is provenance working as
+designed, not a fault. If you accept the local binary knowingly — a test
+loop on intentionally dirty runtime sources — the sanctioned escape is
+the same explicit override the diagnostic quotes:
+`SNAPBACK_SERVER_BINARY=<path>`. The override's unpinned identity stays
+visible in the spawn record, so acceptance is always a recorded choice,
+never an ambient default.
 
 When `SNAPBACK_IBEX_RUNTIME_LINK_FAILED` names compatibility symbols such as
 `ex_hermes_create_no_eval`, do not delete Cargo output or rebuild Hermes

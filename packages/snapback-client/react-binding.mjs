@@ -17,6 +17,18 @@ const PREPARED_REACT_BINDING = Symbol('snapback.prepared-react-binding.v1');
 const PREPARED_REACT_QUERY_GROUP = Symbol('snapback.prepared-react-query-group.v1');
 const REACT_BINDING_MISMATCH_CONTEXT = Symbol('snapback.react-binding-mismatch-context.v1');
 const preparedReactQueryGroupOwners = new WeakMap();
+// Mounted-provider HMR generation handoff (development only). The frozen
+// prepared binding stays the boot-time record; a successful handoff publishes
+// a complete replacement admission view in a side table, and every admission
+// read resolves through it. See handoffPreparedReactBindingGeneration below.
+// @ref LLP 0114#mounted-provider-hmr-generation-handoff-dated-amendment-2026-08-05
+const preparedReactBindingInternals = new WeakMap();
+const preparedReactBindingGenerationOverlays = new WeakMap();
+const preparedReactBindingGenerationHandoffs = new WeakMap();
+
+function functionAdmissionForBinding(binding) {
+  return preparedReactBindingGenerationOverlays.get(binding) ?? binding;
+}
 const REGISTERED_BUNDLE_CAPABILITY = 'registered_bundle_boot_v1';
 const MIXED_BUNDLE_CAPABILITY = 'mixed_bundle_boot_v2';
 const LOCAL_DEVELOPMENT_PROFILE = 'local-dev-sqlite-ibex';
@@ -877,6 +889,7 @@ async function prepareReactBindingOnce(
       );
     }
   }
+  preparedReactBindingInternals.set(binding, Object.freeze({ referenceSchemaVersion }));
   return Object.freeze(binding);
 }
 
@@ -1116,6 +1129,9 @@ export async function prepareReactQueryGroupForBinding(
   { fallbackToLive = false, userId } = {},
 ) {
   const prepared = assertPreparedReactBinding(binding);
+  // One consistent admission view for the whole preparation, even if a
+  // development generation handoff swaps the overlay mid-flight.
+  const functionAdmission = functionAdmissionForBinding(prepared);
   const admitted = admittedReactQueryGroup(prepared, reference);
   const mixed = admitted.formatVersion === 2 && admitted.profile === 'mixed-route.v2';
   const nonLive = admitted.queries.find((query) => query.ref.kind !== 'LiveQuery');
@@ -1259,7 +1275,7 @@ export async function prepareReactQueryGroupForBinding(
     && prepared.client.authProtocols?.authInvalidation === 1
     ? entries.map((entry) => (
         (mixed && entry.liveness.kind === 'none')
-          || prepared.authorityIndependentById.get(entry.ref.id) === true
+          || functionAdmission.authorityIndependentById.get(entry.ref.id) === true
           ? null
           : prepared.client.allocateLiveQueryNamespace(entry.ref, entry.args)
       ))
@@ -1448,7 +1464,7 @@ export async function prepareReactQueryGroupForBinding(
           || response.resume.meta.generation !== bundle.generation
           || response.resume.meta.versionStream !== bundle.versionStream
           || response.resume.meta.queryArtifact
-            !== prepared.queryArtifactsById.get(entry.ref.id)
+            !== functionAdmission.queryArtifactsById.get(entry.ref.id)
           || response.resume.meta.argsHash !== argsHash(response.args)
           || !rowsMatchDigest(response.rows, response.resume.meta.contentDigest)
         ) {
@@ -1463,7 +1479,7 @@ export async function prepareReactQueryGroupForBinding(
       }
       let authorization = null;
       const expectsAuthorization = childLive && prepared.authMode === 'sessions'
-        && prepared.authorityIndependentById.get(entry.ref.id) !== true;
+        && functionAdmission.authorityIndependentById.get(entry.ref.id) !== true;
       const carriesAuthorization = Object.prototype.hasOwnProperty.call(
         response,
         'authorization',
@@ -1524,7 +1540,7 @@ export async function prepareReactQueryGroupForBinding(
         authorization = deepFreeze(structuredClone(response.authorization));
         sawAuthorization = true;
       }
-      const contract = prepared.resultContractsById.get(entry.ref.id);
+      const contract = functionAdmission.resultContractsById.get(entry.ref.id);
       const verdict = contract?.validator.validate(response.rows);
       if (!verdict?.ok) {
         throw diagnosticError(
@@ -1624,7 +1640,7 @@ export function admittedReactReference(binding, reference, expectedKind) {
       'React hooks require a generated function reference',
     );
   }
-  const admitted = prepared.referencesById.get(reference.id);
+  const admitted = functionAdmissionForBinding(prepared).referencesById.get(reference.id);
   const complete = admitted && exactDeploymentFunction(admitted) === exactDeploymentFunction(reference);
   if (!complete || admitted.appId !== prepared.appId) {
     throw diagnosticError(
@@ -1646,7 +1662,8 @@ export function admittedReactReference(binding, reference, expectedKind) {
 
 export function preparedReactResultContract(binding, reference) {
   const admitted = admittedReactReference(binding, reference, reference?.kind);
-  return assertPreparedReactBinding(binding).resultContractsById.get(admitted.id) ?? null;
+  return functionAdmissionForBinding(assertPreparedReactBinding(binding))
+    .resultContractsById.get(admitted.id) ?? null;
 }
 
 export function admittedReactEphemeralDefinition(binding, reference) {
@@ -1673,4 +1690,341 @@ export function admittedReactEphemeralDefinition(binding, reference) {
     );
   }
   return expected;
+}
+
+// --- Mounted-provider HMR generation handoff (development only) -------------
+//
+// Metro/Vite HMR can hot-replace the generated api module while the mounted
+// provider keeps a prepared binding admitted from the previous codegen
+// generation. Hooks then present a valid new-generation reference to
+// old-generation admission state, and the strict refusal above becomes an
+// uncaught render error. The machinery below lets the React arm classify that
+// exact split (same app, complete reference, a different `expectedGeneration`
+// than the currently admitted deployment identity) and re-run complete
+// per-function admission against the LIVE deployment, publishing the new
+// generation's admission view in one synchronous swap. Admission strictness
+// is unchanged: a reference still admits only by exact identity match against
+// deployment-proved facts, and the caller (the React provider) arms this path
+// only on a positive development/HMR signal.
+// @ref LLP 0114#mounted-provider-hmr-generation-handoff-dated-amendment-2026-08-05
+
+const GENERATION_FIELDS = Object.freeze([
+  'schemaVersion',
+  'appId',
+  'schemaHash',
+  'bundleHash',
+  'inputsHash',
+]);
+const REFERENCE_IDENTITY_FIELDS = Object.freeze([
+  'id',
+  'name',
+  'kind',
+  'implementationHash',
+  'argsContractHash',
+  'resultContractHash',
+]);
+
+export function activeReactBindingDeploymentIdentity(binding) {
+  const prepared = assertPreparedReactBinding(binding);
+  return preparedReactBindingGenerationOverlays.get(prepared)?.deploymentIdentity
+    ?? prepared.deploymentIdentity;
+}
+
+function completeGeneration(value, appId) {
+  return value !== null
+    && typeof value === 'object'
+    && !Array.isArray(value)
+    && !GENERATION_FIELDS.some((field) => (
+      typeof value[field] !== 'string' || value[field].length === 0
+    ))
+    && value.appId === appId;
+}
+
+/**
+ * Positively identify a regenerated-same-app reference: complete function
+ * reference, same appId, and a complete `expectedGeneration` naming a
+ * DIFFERENT generation than the currently admitted deployment identity.
+ * Anything else (foreign appId, missing generation stamp, same-generation
+ * corruption) returns null so the strict refusal stands.
+ */
+export function classifyRegeneratedReactReference(binding, reference) {
+  if (binding?.[PREPARED_REACT_BINDING] !== true) return null;
+  if (
+    !reference
+    || typeof reference !== 'object'
+    || reference.artifactKind !== 'functionReference'
+    || reference.appId !== binding.appId
+    || REFERENCE_IDENTITY_FIELDS.some((field) => (
+      typeof reference[field] !== 'string' || reference[field].length === 0
+    ))
+  ) return null;
+  const generation = reference.expectedGeneration;
+  if (!completeGeneration(generation, binding.appId)) return null;
+  const current = activeReactBindingDeploymentIdentity(binding);
+  const differs = generation.bundleHash !== current.bundleHash
+    || (current.schemaHash !== null && generation.schemaHash !== current.schemaHash)
+    || (current.inputsHash !== null && generation.inputsHash !== current.inputsHash);
+  if (!differs) return null;
+  return Object.freeze({
+    schemaVersion: generation.schemaVersion,
+    appId: generation.appId,
+    schemaHash: generation.schemaHash,
+    bundleHash: generation.bundleHash,
+    inputsHash: generation.inputsHash,
+  });
+}
+
+async function rebuiltGenerationAdmission(binding, deployed, targetGeneration) {
+  const referenceSchemaVersion = preparedReactBindingInternals.get(binding)?.referenceSchemaVersion
+    ?? deployed.schemaVersion;
+  if (!Array.isArray(deployed.functions)) {
+    throw diagnosticError(
+      'SNAPBACK_REACT_MANIFEST_INVALID',
+      'deployed function manifest is incomplete',
+    );
+  }
+  const references = Object.create(null);
+  const referencesById = new Map();
+  const resultContractsById = new Map();
+  const queryArtifactsById = new Map();
+  const authorityIndependentById = new Map();
+  for (const definition of deployed.functions) {
+    const reference = publicReference(
+      definition,
+      binding.appId,
+      referenceSchemaVersion,
+      targetGeneration,
+    );
+    if (reference.appId !== binding.appId) {
+      throw diagnosticError(
+        'SNAPBACK_REACT_MANIFEST_INVALID',
+        `deployed function ${reference.name} names a foreign app`,
+        { functionId: reference.id },
+      );
+    }
+    if (Object.prototype.hasOwnProperty.call(references, reference.name)) {
+      throw diagnosticError(
+        'SNAPBACK_REACT_MANIFEST_INVALID',
+        `deployed manifest repeats function name ${reference.name}`,
+      );
+    }
+    const descriptor = deepFreeze(
+      structuredClone(definition.resultContract ?? { kind: 'unknown' }),
+    );
+    const validator = compileResultContractValidator(descriptor);
+    if (await resultContractHash(descriptor) !== reference.resultContractHash) {
+      throw diagnosticError(
+        'SNAPBACK_REACT_MANIFEST_INVALID',
+        `deployed result contract for ${reference.name} does not match its hash`,
+        { functionId: reference.id },
+      );
+    }
+    references[reference.name] = reference;
+    referencesById.set(reference.id, reference);
+    queryArtifactsById.set(reference.id, queryArtifactHash(definition));
+    authorityIndependentById.set(
+      reference.id,
+      definition.authorityIndependent === true,
+    );
+    resultContractsById.set(reference.id, Object.freeze({
+      hash: reference.resultContractHash,
+      descriptor,
+      validator,
+    }));
+  }
+  Object.freeze(references);
+  return {
+    references,
+    referencesById,
+    resultContractsById,
+    queryArtifactsById,
+    authorityIndependentById,
+  };
+}
+
+async function attemptGenerationRebind(binding, inspection, target) {
+  const deployed = inspection?.functions;
+  if (!deployed || typeof deployed !== 'object') {
+    return { ok: false, terminal: false, reason: 'deployment-not-current' };
+  }
+  if (deployed.appId !== binding.appId) {
+    return { ok: false, terminal: true, reason: 'deployed-app-mismatch' };
+  }
+  const identity = {
+    schemaHash: inspection.schema?.schemaHash ?? null,
+    bundleHash: deployed.bundleHash,
+    inputsHash: deployed.inputsHash ?? null,
+  };
+  if (
+    identity.bundleHash !== target.bundleHash
+    || identity.schemaHash !== target.schemaHash
+    || identity.inputsHash !== target.inputsHash
+  ) {
+    // The local backend has not (yet) redeployed the generation the new
+    // module was generated from — keep waiting inside the caller's budget.
+    return { ok: false, terminal: false, reason: 'deployment-not-current' };
+  }
+  // The handoff can atomically replace FUNCTION admission only. Anything the
+  // binding admitted from generated artifacts the live inspection cannot
+  // re-prove (routes manifests, ephemeral collection declarations) must be
+  // unchanged, or the caller falls back to a controlled full reload.
+  if (
+    binding.routesManifest !== null
+    && inspection.routeManifestHash !== binding.routeManifestHash
+  ) {
+    return { ok: false, terminal: true, reason: 'route-manifest-changed' };
+  }
+  try {
+    const deployedCollections = Array.isArray(inspection.schema?.ephemeralCollections)
+      ? inspection.schema.ephemeralCollections
+      : [];
+    const currentDefinitions = [...binding.ephemeralDefinitionsById.values()];
+    if (currentDefinitions.length > 0 || deployedCollections.length > 0) {
+      const byName = new Map(
+        deployedCollections.map((definition) => [definition?.name, definition]),
+      );
+      const unchanged = currentDefinitions.length === byName.size
+        && currentDefinitions.every(({ definition }) => {
+          const next = byName.get(definition.name);
+          return next !== undefined
+            && canonicalizeClientValueV1(next) === canonicalizeClientValueV1(definition);
+        });
+      if (!unchanged) {
+        return { ok: false, terminal: true, reason: 'ephemeral-collections-changed' };
+      }
+    }
+  } catch {
+    return { ok: false, terminal: true, reason: 'ephemeral-collections-changed' };
+  }
+  let admission;
+  try {
+    admission = await rebuiltGenerationAdmission(binding, deployed, target);
+  } catch (error) {
+    return {
+      ok: false,
+      terminal: true,
+      reason: 'deployed-manifest-invalid',
+      cause: error?.code ?? String(error),
+    };
+  }
+  for (const group of binding.queryGroupsById.values()) {
+    for (const child of group.queries) {
+      const next = admission.referencesById.get(child.ref.id);
+      if (!next || exactDeploymentFunction(next) !== exactDeploymentFunction(child.ref)) {
+        return {
+          ok: false,
+          terminal: true,
+          reason: 'query-group-child-changed',
+          groupId: group.id,
+        };
+      }
+    }
+  }
+  // Atomic swap: everything above was verified off to the side against the
+  // live deployment; one synchronous write publishes the complete new
+  // generation, so no render can ever observe a mixed admission state.
+  const overlay = Object.freeze({
+    deploymentIdentity: Object.freeze({
+      ...binding.deploymentIdentity,
+      schemaHash: identity.schemaHash,
+      bundleHash: identity.bundleHash,
+      inputsHash: identity.inputsHash,
+    }),
+    ...admission,
+  });
+  preparedReactBindingGenerationOverlays.set(binding, overlay);
+  return { ok: true, terminal: false, generation: overlay.deploymentIdentity };
+}
+
+async function runGenerationHandoff(binding, target, { timeoutMs, pollIntervalMs }) {
+  const deadline = Date.now() + timeoutMs;
+  let lastOutcome = { ok: false, reason: 'deployment-not-current' };
+  for (;;) {
+    let inspection = null;
+    try {
+      inspection = await binding.client.inspect();
+    } catch {
+      // Unreachable/mid-restart local backend: keep waiting inside the budget.
+    }
+    if (inspection !== null && inspection !== undefined) {
+      let outcome;
+      try {
+        outcome = await attemptGenerationRebind(binding, inspection, target);
+      } catch (error) {
+        outcome = {
+          ok: false,
+          terminal: true,
+          reason: 'deployed-manifest-invalid',
+          cause: error?.code ?? String(error),
+        };
+      }
+      if (outcome.ok || outcome.terminal) {
+        const { terminal: _terminal, ...settled } = outcome;
+        return settled;
+      }
+      lastOutcome = { ok: false, reason: outcome.reason };
+    }
+    const remainingMs = deadline - Date.now();
+    if (remainingMs <= 0) return lastOutcome;
+    await sleep(Math.min(pollIntervalMs, Math.max(0, remainingMs)));
+  }
+}
+
+/**
+ * Re-admit a mounted prepared binding against the live deployment for a
+ * regenerated generation (development HMR only — the caller owns the positive
+ * development signal). Resolves `{ ok: true, generation }` once the complete
+ * new-generation admission view is published, or `{ ok: false, reason }` when
+ * the deployment never reached the target inside the budget or the change is
+ * not atomically re-provable (routes/ephemeral/group shape changed), in which
+ * case the caller must fall back to a controlled full reload. Never rejects
+ * for expected outcomes. Single-flight per binding and target generation.
+ */
+export function handoffPreparedReactBindingGeneration(binding, targetGeneration, options = {}) {
+  const prepared = assertPreparedReactBinding(binding);
+  if (!completeGeneration(targetGeneration ?? null, prepared.appId)) {
+    throw new TypeError(
+      'handoffPreparedReactBindingGeneration requires the complete expectedGeneration of a regenerated reference for the same app',
+    );
+  }
+  const budget = {
+    timeoutMs: boundedMilliseconds(
+      options.timeoutMs,
+      DEFAULT_DEVELOPMENT_SYNC_TIMEOUT_MS,
+      'timeoutMs',
+      MAX_DEVELOPMENT_SYNC_TIMEOUT_MS,
+    ),
+    pollIntervalMs: boundedMilliseconds(
+      options.pollIntervalMs,
+      DEFAULT_DEVELOPMENT_SYNC_POLL_INTERVAL_MS,
+      'pollIntervalMs',
+      MAX_DEVELOPMENT_SYNC_POLL_INTERVAL_MS,
+    ),
+  };
+  const target = Object.freeze({
+    schemaVersion: targetGeneration.schemaVersion,
+    appId: targetGeneration.appId,
+    schemaHash: targetGeneration.schemaHash,
+    bundleHash: targetGeneration.bundleHash,
+    inputsHash: targetGeneration.inputsHash,
+  });
+  const active = activeReactBindingDeploymentIdentity(prepared);
+  if (
+    active.bundleHash === target.bundleHash
+    && active.schemaHash === target.schemaHash
+    && active.inputsHash === target.inputsHash
+  ) {
+    return Promise.resolve({ ok: true, generation: active });
+  }
+  const key = canonicalizeClientValueV1(target);
+  const existing = preparedReactBindingGenerationHandoffs.get(prepared);
+  if (existing?.key === key) return existing.promise;
+  const entry = { key, promise: null };
+  entry.promise = runGenerationHandoff(prepared, target, budget).finally(() => {
+    if (preparedReactBindingGenerationHandoffs.get(prepared) === entry) {
+      preparedReactBindingGenerationHandoffs.delete(prepared);
+    }
+  });
+  preparedReactBindingGenerationHandoffs.set(prepared, entry);
+  return entry.promise;
 }

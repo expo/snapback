@@ -1,6 +1,6 @@
 # EAS build resolves the Snapback monorepo Git root from a nested demo app
 
-**Status:** Open
+**Status:** Resolved (2026-08-05)
 **Impact:** 3
 **Urgency:** 2
 **Ease:** 3
@@ -55,3 +55,43 @@ adopted via the monorepo pattern).
   size to an equivalent standalone Expo project), not the whole monorepo.
 - The supported pattern is documented, not just proven inside one bakeoff's
   scripts directory.
+
+## Resolution
+
+Resolved 2026-08-05 on `fix/nested-app-root-resolution` per this ticket's own
+fallback prescription: no first-party EAS nested-root configuration could be
+verified (the `eas-app-stores` skill contents document no monorepo/project-root
+setting, and both bakeoffs independently proved `.easignore` and no-VCS mode do
+not change root resolution), so the staging workaround is now the paved,
+documented path.
+
+- `demos/_kit/eas-stage-build.mjs` (new) generalizes
+  `demos/tandem-expo-bakeoff/scripts/build-ios-dev-client`: it stages any
+  nested app into an out-of-checkout temp directory (excluding
+  `node_modules`, `.expo`, `.git`, `dist` at every depth), **refuses any
+  staging directory that is still inside a Git checkout**, then runs
+  `bun install` and `eas build` from the staged copy
+  (`EAS_NO_VCS=1`/`EAS_PROJECT_ROOT` kept as belt-and-suspenders). A free
+  `--stage-only` mode stages and reports (file count, bytes, kept path) with
+  no dependency install and no EAS contact — that is the in-repo verification
+  seam, since a real EAS build is a paid external service.
+- The tandem prototype script now delegates to the shared helper (thin
+  arm-selection wrapper).
+- Verified: `--stage-only` against
+  `demos/tandem-expo-bakeoff/snapback/native-shell` staged exactly the 9 app
+  files (224 KiB) — versus the multi-gigabyte monorepo archive the Git-root
+  resolution produced — and the staged path has no `.git` ancestor. Staging
+  and refusal behavior are unit-tested in
+  `demos/_kit/tests/repo-layout-unit.mjs` (`repo-layout-unit` proof gate).
+- Documented in the guide: `guide/clients/react-expo.md`, "Build an EAS dev
+  client for an app nested inside this repository" (prose + illustrative `sh`
+  fence rather than a transcluded-verified snippet, because the technique's
+  execution cannot be CI-carried — EAS is paid/external; the helper's staging
+  behavior is CI-verified via the unit suite), plus an anti-pattern entry.
+  LLP 0176 A3 updated to point here.
+- What remains inherently external: an actual first-party EAS fix (an
+  explicit project-root boundary honored by `eas build` archive collection)
+  can only land upstream in EAS/eas-cli. If that ever ships, the helper can
+  shrink to a shim; the in-repo paved path above closes this ticket per its
+  acceptance line ("the supported pattern is documented, not just proven
+  inside one bakeoff's scripts directory").

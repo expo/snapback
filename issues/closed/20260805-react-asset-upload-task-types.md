@@ -1,6 +1,6 @@
 # React asset upload hook returns `unknown` instead of the existing task types
 
-**Status:** Open
+**Status:** Resolved
 **Impact:** 2
 **Urgency:** 2
 **Ease:** 5
@@ -51,3 +51,16 @@ the task lifecycle.
   `SnapbackAssetClient` task.
 - The package declaration/build tests prevent the React and client task types
   from drifting independently.
+
+## Resolution
+
+Resolved on 2026-08-05. The React declaration now imports and re-exports
+`AssetFileLike`, `AssetUploadTask`, and `AssetTaskSnapshot` from
+`@expo/snapback-client/assets`. The hook's `start`, nullable
+`resumePersisted`, `cancel`, and `retry` declarations use those concrete
+client types, and the hook-state projection derives its shared snapshot fields
+from `AssetTaskSnapshot`.
+
+A strict TypeScript fixture now exercises subscription, `task.done`, nullable
+resume, cancel, retry, and rejection of the former weaker file shape. It is
+part of the React package's typecheck command.
