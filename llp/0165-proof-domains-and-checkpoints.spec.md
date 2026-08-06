@@ -5,7 +5,19 @@
 **Systems:** Storage, Migrations, Diagnostics, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-03
-**Revised:** 2026-08-06 (derived-fork writer-completeness integration — the
+**Revised:** 2026-08-06 (round-2 derived-fork continuity closure — coverage
+activation now creates a monotonic per-stream continuity carrier; arbitrary
+registered-connection DML cannot change the manifest, continuity, journal, or
+version carriers; and every primary or secondary registered writer
+reconstructs the exact fork receipt/stream/manifest/continuity cut before it
+can issue a token. A missing or contradictory active boundary records an
+irreversible database continuity break plus a fork-local gap sidecar, so
+restoring exact manifest bytes cannot re-earn the whole-window class. Armed
+renewal checkpoints through its lifecycle token before changing lineage,
+journal pruning has a dedicated system token, and net scans charge borrowed
+SQLite value lengths plus conservative decode/serialization expansion before
+owned row construction. The same-user raw-file/factory-bypass writer remains
+outside the named class.); 2026-08-06 (derived-fork writer-completeness integration — the
 complete cold-start carrier admits the generated pair, then the generated
 transaction seam, verified SQLite defensive mode, and deny-by-default
 authorizer arm on every process-owned registered writable connection before
@@ -73,7 +85,14 @@ component)
 **Related:** LLP 0035, LLP 0037, LLP 0053, LLP 0081, LLP 0088, LLP 0158,
 LLP 0162, LLP 0163, LLP 0164
 
-**Implementation evidence:** 2026-08-06 (the local derived-fork complete-pair
+**Implementation evidence:** 2026-08-06 (round-2 continuity and bounded-work
+corpus: the exact delete-manifest → registered-writer open → matching
+app/version/journal forgery → exact manifest restore sequence refuses the
+registered writer, durably records the gap, and cannot regain
+`registered-connection-defensive-app-rows-v1`; armed renewal and crash recovery
+complete without a carrier wedge; an armed maintenance sweep prunes the
+journal; and individual text/blob/vector values are preflight-refused before
+owned expansion.); 2026-08-06 (the local derived-fork complete-pair
 lane admits its worktree schema/functions through the owner-only cold-start
 carrier and activates the exact two-lane/four-writer journal-authority
 manifest on the primary registered connection before listener bind; every
@@ -385,12 +404,24 @@ Snapback's connection registry were admitted only under the generated writer
 token for the
 `derivedForkOrdinaryAppRowJournal` or
 `derivedForkHostChildAppRowJournal` lane; the active manifest names the four
-corresponding writer choke points; and the retained-base/head oracle agrees
-that every net-changed app row is explained by the journal. Every such writable
+corresponding writer choke points; the per-stream continuity carrier remained
+`continuous` and exactly matched that manifest for the whole window; no
+registered-writer reconstruction observed an absent or contradictory active
+boundary; and the retained-base/head oracle agrees that every net-changed app
+row is explained by the journal. Every such writable
 connection verifies `SQLITE_DBCONFIG_DEFENSIVE` and installs the same
 deny-by-default policy in a connection-local authorizer. The policy refuses writable-schema mutation,
 schema aliases, attach/detach, temporary schema objects, unsupported actions,
-application DML under system-only tokens, and direct journal/version forgery.
+application DML under system-only tokens, direct journal/version forgery, and
+arbitrary DML against the active-manifest and continuity carriers. Exact
+coverage activation is the only manifest/continuity transition admitted under
+the operation-ledger token. A registered factory must reconstruct and compare
+the fork's database and file coverage receipts, active stream, active manifest,
+and continuity row before it issues any writer token. An observed gap changes
+the database continuity row monotonically to `broken` and, for a managed fork,
+creates `fork-app-row-coverage-gap.v1.json`; neither transition has a re-arm
+path. Therefore deleting the manifest, using or attempting to use another
+registered writer, and restoring identical bytes cannot re-earn this class.
 For this armed class, the latest journal post-image for every touched row must
 also equal the independently scanned head, so an uncoordinated bypass cannot
 borrow an earlier legitimate journal entry for the same row. The receipt
@@ -415,10 +446,13 @@ coordinately changes the app B-tree, `_snapback_version`, and a matching
 threat requires an OS/container/filesystem authority boundary and is outside
 this class; no receipt may be described as tamper-proof against it.
 
-The spelling is unavailable when either durable carrier is missing, malformed,
-or disagrees; when the manifest/stream no longer matches; or when activation
-did not bind the fork point. Contradictory evidence refuses with
-`SNAPBACK_FORK_WRITER_COVERAGE_INVALID`. A net change absent from the journal,
+The spelling is unavailable when either coverage receipt is missing, malformed,
+or disagrees; when the manifest/stream/continuity cut no longer matches; when
+the durable gap sidecar exists; or when activation did not bind the fork point.
+Static receipt/fork-point validation failures refuse with
+`SNAPBACK_FORK_WRITER_COVERAGE_INVALID`; a registered-writer continuity gap
+refuses with `SNAPBACK_FORK_WRITER_COVERAGE_GAP` and requires fork recreation.
+A net change absent from the journal,
 or a covered journal whose final post-image disagrees with the head oracle,
 refuses with `SNAPBACK_FORK_DIFF_ORACLE_MISMATCH`. A partial generated layout
 using the historical post-bind loader, any other unarmed fork, a manifest
