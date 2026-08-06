@@ -494,7 +494,7 @@
     "path": "artifacts.json"
   },
   "schemaHash": "snapback.v1:sessions:schema:sha256:038991abadd9ca41f85f996ab455cd01802745e5fa087848c3ceea70ff75a67d",
-  "schemaVersion": "snapback.v0",
+  "schemaVersion": "snapback.v1",
   "summary": {
     "appId": "rbac",
     "counts": {

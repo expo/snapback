@@ -287,7 +287,7 @@
     "path": "artifacts.json"
   },
   "schemaHash": "snapback.v1:sessions:schema:sha256:e4c995e4f1385f1f54283b0e760040ad6d9ec8568901531717ad1b6e85ac4a29",
-  "schemaVersion": "snapback.v0",
+  "schemaVersion": "snapback.v1",
   "seed": {
     "digest": "sha256:f63d24b956f78f14e58f03549ffccba1d6d9ae78f1690f840cc26d9a67ec7da0",
     "rows": 0,

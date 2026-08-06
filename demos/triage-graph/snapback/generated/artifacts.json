@@ -595,7 +595,7 @@
     "path": "artifacts.json"
   },
   "schemaHash": "snapback.v1:sessions:schema:sha256:1be6d0624b1f069c6d347ef0732a9002fba8c5b585c0df806afc627484a5757f",
-  "schemaVersion": "snapback.v0",
+  "schemaVersion": "snapback.v1",
   "summary": {
     "appId": "triage-graph",
     "counts": {

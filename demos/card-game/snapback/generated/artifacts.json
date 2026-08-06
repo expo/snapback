@@ -318,7 +318,7 @@
     "path": "artifacts.json"
   },
   "schemaHash": "snapback.v1:sessions:schema:sha256:91917258bc773a2788030f1e8653c87823e75006f6426fbcbe90792e2934aff5",
-  "schemaVersion": "snapback.v0",
+  "schemaVersion": "snapback.v1",
   "summary": {
     "appId": "card-game",
     "counts": {
