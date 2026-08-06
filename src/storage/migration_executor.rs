@@ -954,7 +954,10 @@ fn migration_fact_set(domain: &[u8], detail: Value, count: u64) -> EnvelopeFactS
 
 /// P-side aggregate record. The caller has already published the live schema,
 /// application version, and exact schema-transition row in this transaction.
-#[allow(clippy::too_many_arguments)]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "the pending aggregate commits independent migration facts in one transaction seam"
+)]
 fn record_migration_pending_aggregate_in(
     tx: &Transaction<'_>,
     artifact: &MigrationPlanArtifactV1,

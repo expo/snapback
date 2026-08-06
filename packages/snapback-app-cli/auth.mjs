@@ -469,7 +469,10 @@ export async function principalClient(baseUrl, appSurface, selection, {
     return Object.freeze({ client: new SnapbackAppDataClient(origin, { custody: 'anonymous-public' }), async close() {} });
   }
   if (selection.principalClass === PRINCIPAL.DEV) {
-    const innerClient = new SnapbackAppDataClient(origin);
+    const innerClient = new SnapbackAppDataClient(origin, {
+      custody: 'anonymous-public',
+      __allowLegacyDevAssertion: true,
+    });
     // The headless client's dev assertion is a per-operation `userId`, not a
     // constructor default. Keep the façade narrow and inject it on exactly
     // the app-CLI call families so sessions mode can reject the legacy body

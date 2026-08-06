@@ -2,6 +2,7 @@
 /.snapback/
 /.llp/ship-runs/
 **/.snapback/codegen-cache/
+**/.snapback/instance-fork-app-identity.v1.json
 /.snapback.snapback.restore.lock
 node_modules/
 __pycache__/

@@ -1914,6 +1914,7 @@ export class SnapbackClient {
     __authorityPartitionDigestResolver = null,
     __preloadBootPayload = undefined,
     __materializationStore = null,
+    __allowLegacyDevAssertion = false,
     // Deterministic construction seam for the LLP 0166 background runtime.
     // Production callers omit it; wiring tests inject clocks/carriers without
     // replacing any policy or broker object.
@@ -1962,6 +1963,13 @@ export class SnapbackClient {
     }
     if ((authCoordinator || agentAuthority) && authClientProtocol === null) authClientProtocol = 1;
     this.custody = custody;
+    if (typeof __allowLegacyDevAssertion !== 'boolean') {
+      throw new TypeError('__allowLegacyDevAssertion must be boolean');
+    }
+    if (__allowLegacyDevAssertion && custody !== 'anonymous-public') {
+      throw new TypeError('__allowLegacyDevAssertion requires anonymous-public offer custody');
+    }
+    this.__allowLegacyDevAssertion = __allowLegacyDevAssertion;
     if (!Number.isSafeInteger(authCounterCeiling) || authCounterCeiling < 1) {
       throw new TypeError('authCounterCeiling must be a positive safe integer');
     }
@@ -4177,7 +4185,15 @@ export class SnapbackClient {
       // sessions-era protocol: the offer header is the only auth carrier, so
       // the body must not carry legacy identity fields — a sessions server
       // refuses them with SNAPBACK_AUTH_BODY_AUTH_UNSUPPORTED.
-      const wireBody = sessionsMode || this.custody === 'anonymous-public'
+      // @ref LLP 0062#6-packaging-phases — the app CLI's dev lane must offer
+      // auth-client v1 while still presenting its explicit legacy assertion:
+      // dev targets consume it and sessions targets refuse it. Ordinary
+      // anonymous-public callers continue to strip every legacy auth field.
+      const carriesExplicitDevAssertion = this.__allowLegacyDevAssertion
+        && typeof requestBody?.auth?.user_id === 'string';
+      const wireBody = sessionsMode || (
+        this.custody === 'anonymous-public' && !carriesExplicitDevAssertion
+      )
         ? sessionWireBody(path, requestBody)
         : requestBody;
       const merged = {

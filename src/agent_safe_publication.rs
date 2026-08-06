@@ -244,7 +244,10 @@ pub(crate) fn derived_fork_publication_verified_for_distribution(build_distribut
     false
 }
 
-#[allow(clippy::too_many_arguments)]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "the verifier mirrors the closed publication carrier tuple; named axes keep drift reviewable"
+)]
 fn embedded_publication_verified(
     capability_id: &str,
     components: &[&str],

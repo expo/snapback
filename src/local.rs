@@ -6612,6 +6612,7 @@ impl LocalSnapback {
     ///
     /// @ref LLP 0162#safe-current-head-forks — product creation is current
     ///   head, same app/bundle, server named, and no broader than its creator.
+    #[cfg(test)]
     pub(crate) fn create_operator_in_app_branch(
         &mut self,
         allowed_functions: Vec<String>,
@@ -14582,6 +14583,10 @@ impl LocalSnapback {
         Ok(commit)
     }
 
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "the detached commit gate keeps independent authority and lifecycle checks explicit"
+    )]
     pub(crate) fn commit_detached_ibex_mutation_guarded<G, Check, BeforeCommit>(
         &mut self,
         name: &str,
@@ -44780,10 +44785,10 @@ globalThis.__snapbackHandlers = {
                 snapback.admission.admit_dev().expect("admit v2 test input"),
             )
             .expect("prepare v2 test authority");
-            let prepared = InvocationGate::prepare_function(authority, &function)
+            let prepared = InvocationGate::prepare_function(authority, function)
                 .expect("bind v2 function authority");
             super::execute_snapshot_batch_v2(
-                &function,
+                function,
                 match &function.runtime {
                     FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatchV2(plan)) => plan,
                     _ => unreachable!("v2 plan"),

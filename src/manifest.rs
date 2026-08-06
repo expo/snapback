@@ -10228,13 +10228,13 @@ impl CapabilityMaturity {
 const LOCAL_RELATION_ACTIVITY_PUBLICATION_BYTES: &[u8] =
     include_bytes!("local-relation-activity-publication.v1.json");
 const LOCAL_RELATION_ACTIVITY_PUBLICATION_SHA256: &str =
-    "sha256:aa5085c1fb5cad5c65c309f87cdf9bec6e9f0a80f50c58a786fbbabf7ba212e8";
+    "sha256:0823025f2ec6bb9370511243bf25fc16097d4be9a71dcc5ab580ba187f95f91d";
 const LOCAL_RELATION_ACTIVITY_QUALIFICATION_RECEIPT_BYTES: &[u8] =
     include_bytes!("../tests/conformance/relation-activity-publication-v1.receipt.json");
 const LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_BYTES: &[u8] =
     include_bytes!("local-sequence-allocation-publication.v1.json");
 const LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_SHA256: &str =
-    "sha256:b769022d26b75e671fd61b483617fa7cf216ce4c42bb69138f5c21a176047b94";
+    "sha256:27bfc90f6fd297a3e686060cf8a061d9fd1ce395a7d964bfd8ebeb6d8aa0ecc9";
 const LOCAL_SEQUENCE_ALLOCATION_QUALIFICATION_RECEIPT_BYTES: &[u8] =
     include_bytes!("../tests/conformance/sequence-allocation-publication-v1.receipt.json");
 const LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES: &[u8] =
@@ -10636,12 +10636,12 @@ fn local_relation_activity_publication_verified_for(
             == BTreeMap::from([
                 (
                     "src/local.rs".to_owned(),
-                    "sha256:82a5d10c654cf4482ade64f82c17b5e6cee98485d6a32e514c69b6c6ded98c6a"
+                    "sha256:a9878184772249a86ea934c794c2960c1ed9dd21b45aa5c6d211e17b119d62b4"
                         .to_owned(),
                 ),
                 (
                     "src/storage.rs".to_owned(),
-                    "sha256:461b48a6bef1e7c7f6c59f85ab1b053fd61f3feaab4eee1da2ecd1118f4df1f1"
+                    "sha256:1c2a8eef417393325cd189cac83ab5e0fba4d08ae9bf26cb7a569314daaa55f8"
                         .to_owned(),
                 ),
             ])
@@ -10704,7 +10704,7 @@ fn local_sequence_allocation_publication_verified_for(
                 ),
                 (
                     "src/storage.rs".to_owned(),
-                    "sha256:461b48a6bef1e7c7f6c59f85ab1b053fd61f3feaab4eee1da2ecd1118f4df1f1"
+                    "sha256:1c2a8eef417393325cd189cac83ab5e0fba4d08ae9bf26cb7a569314daaa55f8"
                         .to_owned(),
                 ),
             ])
@@ -10752,6 +10752,10 @@ fn local_sequence_allocation_publication_verified() -> bool {
 /// bindings, never an application-authored capability string.
 /// @ref LLP 0166#local-publication-carrier-amendment--2026-08-04 — Arm A and
 /// connected prove-or-fresh store semantics remain part of the bound class.
+#[allow(
+    clippy::too_many_arguments,
+    reason = "the verifier mirrors the closed publication carrier tuple; named axes keep drift reviewable"
+)]
 fn local_persistent_store_publication_verified_for(
     build_distribution: &str,
     git_commit: &str,
@@ -10839,12 +10843,12 @@ fn local_persistent_store_contributor_chain_verified(
             == BTreeMap::from([
                 (
                     "src/local.rs".to_owned(),
-                    "sha256:82a5d10c654cf4482ade64f82c17b5e6cee98485d6a32e514c69b6c6ded98c6a"
+                    "sha256:a9878184772249a86ea934c794c2960c1ed9dd21b45aa5c6d211e17b119d62b4"
                         .to_owned(),
                 ),
                 (
                     "src/storage.rs".to_owned(),
-                    "sha256:461b48a6bef1e7c7f6c59f85ab1b053fd61f3feaab4eee1da2ecd1118f4df1f1"
+                    "sha256:1c2a8eef417393325cd189cac83ab5e0fba4d08ae9bf26cb7a569314daaa55f8"
                         .to_owned(),
                 ),
             ])
