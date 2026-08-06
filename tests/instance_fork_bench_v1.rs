@@ -4,6 +4,10 @@
 //! latency at a bounded journal span, drop/reap latency, and concurrent-
 //! create contention.
 //!
+//! The measured medians are asserted against the ratified absolute bounds
+//! (LLP 0162 author ratification, 2026-08-06), so a rerun is a pass/fail
+//! row-13 gate, not just a report.
+//!
 //! Ignored by default; run explicitly against a release binary:
 //! `cargo test --release --test instance_fork_bench_v1 -- --ignored --nocapture`
 //! The run writes a dated receipt under `tests/acceptance/`.
@@ -14,6 +18,17 @@ use snapback::storage::LocalDatabase;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::time::Instant;
+
+/// Ratified absolute bounds (LLP 0162 author, 2026-08-06) for the narrow
+/// `operating.instance-forks` claim. Medians are gated (the max column keeps
+/// first-run warmup outliers visible without flaking the gate).
+const BOUND_CREATE_SMALL_MS: f64 = 2_000.0;
+const BOUND_CREATE_LARGE_32MIB_MS: f64 = 3_000.0;
+const BOUND_CREATE_LIVE_MS: f64 = 2_000.0;
+const BOUND_DROP_MS: f64 = 1_000.0;
+const BOUND_ATTRIBUTED_DIFF_10K_MS: f64 = 500.0;
+const BOUND_NET_DIFF_10K_MS: f64 = 750.0;
+const BOUND_REAP_SWEEP_MS: f64 = 1_000.0;
 
 fn snapback() -> Command {
     let mut command = Command::new(env!("CARGO_BIN_EXE_snapback"));
@@ -388,6 +403,17 @@ fn fork_lifecycle_row13_bench() {
             "concurrentCreate3WallMs": concurrent_wall_ms,
             "sequentialCreateMedianMs": stats(&small_cycle.create_ms)["medianMs"],
         },
+        "ratifiedBounds": {
+            "ratifiedBy": "LLP 0162 author (Charlie), 2026-08-06",
+            "createColdSmallParentMs": BOUND_CREATE_SMALL_MS,
+            "createColdLargeParent32MiBMs": BOUND_CREATE_LARGE_32MIB_MS,
+            "createLiveParentMs": BOUND_CREATE_LIVE_MS,
+            "dropMs": BOUND_DROP_MS,
+            "attributedDiff10kRowsMs": BOUND_ATTRIBUTED_DIFF_10K_MS,
+            "netDiff10kRowsMs": BOUND_NET_DIFF_10K_MS,
+            "reapSweepMs": BOUND_REAP_SWEEP_MS,
+            "concurrentCreate3WallMs": "<= 3x the sequential create bound",
+        },
         "notes": [
             "create latency includes server boot, ready handshake, and manifest load — the full product surface",
             "diff spans are 10k journal rows, an order of magnitude under the 100k diff-work bound",
@@ -395,9 +421,31 @@ fn fork_lifecycle_row13_bench() {
     });
     let out = repo.join(format!(
         "tests/acceptance/instance-fork-lifecycle-bench.{}.v1.json",
-        "2026-08-05"
+        "2026-08-06"
     ));
     std::fs::write(&out, serde_json::to_vec_pretty(&receipt).unwrap()).unwrap();
     println!("receipt written: {}", out.display());
     println!("{}", serde_json::to_string_pretty(&receipt).unwrap());
+
+    // The ratified gate: the receipt above persists either way, so a bound
+    // failure is inspectable rather than silent.
+    let median = |value: &Value| value["medianMs"].as_f64().unwrap();
+    let checks = [
+        ("createColdSmallParent", median(&receipt["measurements"]["createColdSmallParent"]), BOUND_CREATE_SMALL_MS),
+        ("createColdLargeParent32MiB", median(&receipt["measurements"]["createColdLargeParent32MiB"]), BOUND_CREATE_LARGE_32MIB_MS),
+        ("createLiveParent", median(&receipt["measurements"]["createLiveParent"]), BOUND_CREATE_LIVE_MS),
+        ("dropSmall", median(&receipt["measurements"]["dropSmall"]), BOUND_DROP_MS),
+        ("dropLarge", median(&receipt["measurements"]["dropLarge"]), BOUND_DROP_MS),
+        ("dropLive", median(&receipt["measurements"]["dropLive"]), BOUND_DROP_MS),
+        ("attributedDiff10kRows", median(&receipt["measurements"]["attributedDiff10kRows"]), BOUND_ATTRIBUTED_DIFF_10K_MS),
+        ("netDiff10kRows", median(&receipt["measurements"]["netDiff10kRows"]), BOUND_NET_DIFF_10K_MS),
+        ("reapThreeExpiredForks", median(&receipt["measurements"]["reapThreeExpiredForks"]), BOUND_REAP_SWEEP_MS),
+        ("concurrentCreate3Wall", concurrent_wall_ms, 3.0 * BOUND_CREATE_SMALL_MS),
+    ];
+    for (metric, observed, bound) in checks {
+        assert!(
+            observed <= bound,
+            "{metric}: {observed:.1}ms exceeds the ratified bound {bound:.0}ms"
+        );
+    }
 }
