@@ -126,8 +126,33 @@ release needed.
 Wave-2 rules carry over, including the current landing policy
 (own-correctness green per landing; drift batched to closing passes) and
 the fleet coordination conventions. Update this ticket at each track
-milestone; wave 3 closes with a green main, the tracks' exit criteria
-met or honestly re-scoped, and a closing corpus audit (LLP 0016 cadence).
+milestone; wave 3 closes with a **green named commit**, the tracks' exit
+criteria met or honestly re-scoped, and a closing corpus audit (LLP 0016
+cadence).
+
+**2026-08-06 amendment — "green main" restated as "green named commit"
+(Charlie).** This rule previously read "wave 3 closes with a green main".
+That criterion is unsatisfiable as written: `main` moves continuously for
+days under many concurrent agent sessions, so there is no moment at which
+"main is green" is a checkable fact — a proof run always finishes against
+a commit that is already behind. Left as-is, wave 3 stays open
+indefinitely no matter how much work lands. The same failure mode starved
+the Track B C27–C33 loop of 2026-08-05/06 and is now a standing warning in
+`AGENTS.md`.
+
+The close therefore names one commit and proves *that*:
+
+1. Pick the closing candidate SHA and record it here, dated.
+2. Run the proof against that exact SHA. Fleet commits landing during the
+   run do not invalidate it and do not restart the loop.
+3. Close wave 3 against that SHA, citing it in the closing record. Work
+   that landed after it belongs to whatever comes next, not to this wave.
+
+This mirrors what the npm capstone already requires of itself — its
+preconditions are written against a `candidateSourceSha`, not against
+"main" — so the two now use the same discipline. Any residual drift
+between the named commit and later `main` is a re-scope note, not a
+reopen.
 
 ## Track A milestone (2026-08-04) — the whole local-first arc COMPLETE
 
