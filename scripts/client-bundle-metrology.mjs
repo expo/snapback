@@ -103,6 +103,22 @@ const RESOLVED_NARROW_SUBPATH_PROFILES = Object.freeze(
 const RESOLVED_NARROW_SUBPATH_PROFILE_IDS = Object.freeze(
   RESOLVED_NARROW_SUBPATH_PROFILES.map((profile) => profile.id),
 );
+const S2_COMMANDS_PROFILE_IDS = Object.freeze([
+  'resolved-public-subpath-commands',
+]);
+const PRE_S2_RESOLVED_NARROW_SUBPATH_PROFILES = Object.freeze(
+  RESOLVED_NARROW_SUBPATH_PROFILES.filter(
+    (profile) => !S2_COMMANDS_PROFILE_IDS.includes(profile.id),
+  ),
+);
+const PRE_S2_RESOLVED_NARROW_SUBPATH_PROFILE_IDS = Object.freeze(
+  PRE_S2_RESOLVED_NARROW_SUBPATH_PROFILES.map((profile) => profile.id),
+);
+const S2_COMMANDS_PROFILES = Object.freeze(
+  RESOLVED_NARROW_SUBPATH_PROFILES.filter(
+    (profile) => S2_COMMANDS_PROFILE_IDS.includes(profile.id),
+  ),
+);
 const BEHAVIOR_COMMANDS = Object.freeze([
   ['node', ['packages/snapback-client/package.test.mjs']],
   ['node', ['packages/snapback-client/browser-closure.test.mjs']],
@@ -256,8 +272,8 @@ const SUPPLEMENTAL_LEDGER_SPECS = Object.freeze([
   Object.freeze({
     filename: 'baseline.local-sync-absence.v1.json',
     profileFilename: 'local-sync-absence-profiles.v1.json',
-    profileIds: RESOLVED_NARROW_SUBPATH_PROFILE_IDS,
-    derivedProfiles: RESOLVED_NARROW_SUBPATH_PROFILES,
+    profileIds: PRE_S2_RESOLVED_NARROW_SUBPATH_PROFILE_IDS,
+    derivedProfiles: PRE_S2_RESOLVED_NARROW_SUBPATH_PROFILES,
     authorities: Object.freeze([
       'LLP 0145#phase-a--establish-a-size-ratchet',
       'LLP 0063#workstream-8--performance-and-packaging-budgets',
@@ -265,6 +281,22 @@ const SUPPLEMENTAL_LEDGER_SPECS = Object.freeze([
     ]),
     behaviorCommands: Object.freeze([
       ['node', ['packages/snapback-client/package.test.mjs']],
+      ['node', ['packages/snapback-client/browser-closure.test.mjs']],
+    ]),
+  }),
+  Object.freeze({
+    filename: 'baseline.s2-commands.v1.json',
+    profileFilename: 's2-commands-profiles.v1.json',
+    profileIds: S2_COMMANDS_PROFILE_IDS,
+    derivedProfiles: S2_COMMANDS_PROFILES,
+    authorities: Object.freeze([
+      'LLP 0145#phase-a--establish-a-size-ratchet',
+      'LLP 0063#workstream-8--performance-and-packaging-budgets',
+      'LLP 0179#s2--command-member-and-wider-consumers',
+      'LLP 0180#acceptance',
+    ]),
+    behaviorCommands: Object.freeze([
+      ['node', ['packages/snapback-client/commands.test.mjs']],
       ['node', ['packages/snapback-client/browser-closure.test.mjs']],
     ]),
   }),
@@ -431,6 +463,12 @@ const AUG6_CLIENT_CAPABILITIES_ROLLOVER_PROFILE_IDS = Object.freeze([
 ]);
 const FINAL_G2_COLD_BOOT_ROLLOVER_PROFILE_IDS = Object.freeze([
   'react-external',
+]);
+const S2_COMMAND_ASSET_ROLLOVER_PROFILE_IDS = Object.freeze([
+  'external-react-application',
+  'public-subpath-assets',
+  'react-external',
+  'resolved-public-subpath-assets',
 ]);
 const ROLLOVER_LEDGER_SPECS = Object.freeze([
   Object.freeze({
@@ -907,6 +945,57 @@ const ROLLOVER_LEDGER_SPECS = Object.freeze([
       ['node', ['packages/snapback-react/package.test.mjs']],
       ['node', ['packages/snapback-react/cold-boot-binding.test.mjs']],
       ['node', ['packages/snapback-react/surface.test.mjs']],
+    ]),
+  }),
+  Object.freeze({
+    filename: 'baseline.s2-command-assets.v1.json',
+    profileFilename: 's2-command-assets-profiles.v1.json',
+    workloadVersion: 'llp-0180-s2-command-assets.v1',
+    profileIds: S2_COMMAND_ASSET_ROLLOVER_PROFILE_IDS,
+    predecessors: Object.freeze([
+      Object.freeze({
+        filename: 'baseline.aug6-client-capabilities.v1.json',
+        profileIds: Object.freeze(['external-react-application']),
+      }),
+      Object.freeze({
+        filename: 'baseline.v1.json',
+        profileIds: Object.freeze(['public-subpath-assets']),
+      }),
+      Object.freeze({
+        filename: 'baseline.final-g2-cold-boot.v1.json',
+        profileIds: Object.freeze(['react-external']),
+      }),
+      Object.freeze({
+        filename: 'baseline.local-sync-absence.v1.json',
+        profileIds: Object.freeze(['resolved-public-subpath-assets']),
+      }),
+    ]),
+    authorities: Object.freeze([
+      'LLP 0063#workstream-8--performance-and-packaging-budgets',
+      'LLP 0145#phase-a--establish-a-size-ratchet',
+      'LLP 0179#s2--command-member-and-wider-consumers',
+      'LLP 0180#acceptance',
+    ]),
+    rationale: Object.freeze({
+      date: '2026-08-06',
+      landings: Object.freeze([
+        Object.freeze({
+          revisions: Object.freeze([
+            '17e7ca8caff410393841083af59c8624922ebb2a',
+          ]),
+          profileIds: S2_COMMAND_ASSET_ROLLOVER_PROFILE_IDS,
+          summary: 'LLP 0180 and LLP 0179 S2 add the one-asset command task, authority-preserving transfer seam, and React command projection. That intentional capability mass changes the shared asset closure and the two React application closures; the resolved asset subpath observes the same landed implementation.',
+        }),
+      ]),
+      summary: 'This prospective S2 rollover advances exactly the four closures whose accepted command and asset implementation exceeds the prior ceiling. Historical and unrelated baselines remain immutable.',
+    }),
+    beforeAfterProfileIds: S2_COMMAND_ASSET_ROLLOVER_PROFILE_IDS,
+    behaviorCommands: Object.freeze([
+      ['node', ['packages/snapback-client/assets.test.mjs']],
+      ['node', ['packages/snapback-client/commands.test.mjs']],
+      ['node', ['packages/snapback-client/browser-closure.test.mjs']],
+      ['node', ['packages/snapback-react/commands.test.mjs']],
+      ['node', ['packages/snapback-react/package.test.mjs']],
     ]),
   }),
 ]);

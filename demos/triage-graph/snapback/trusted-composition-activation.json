@@ -2,7 +2,7 @@
   "format": "snapback.trusted-composition-activation.v1",
   "activation": {
     "format": "snapback.composition-activation.v1",
-    "databaseId": "019fd7da-3660-7c11-9996-3f61d4c57b7b",
+    "databaseId": "019fd7fe-0183-7502-aa9b-a3235f19f76d",
     "deploymentId": "triage-graph-p3-controlled-run",
     "targetProfileId": "local-dev-sqlite-ibex",
     "authMode": "sessions",
@@ -13,16 +13,16 @@
       "bundleHash": "snapback.v1:sessions:function:sha256:4c37b29b9565602ddac9d01f8194fb9349af04a52ca70a2936bcb531ad0902b0",
       "inputsHash": "snapback.v1:sessions:inputs:sha256:57f60f2946d1573f942e63c0e278c43e35ae9204566b0dc27d501acfd3c82d21"
     },
-    "proofKeyManifestDigest": "sha256:e8a3e1e6546701d3491e6ee54e53c09f952e57a0bf5277260c0849f6f6477615"
+    "proofKeyManifestDigest": "sha256:d8763f2f0bd6bef895c8ed1b8c459fe818d0b1b59ee61029ee8839583a9bb019"
   },
-  "activationHash": "sha256:b74c0ce19570ce7ce5052b05d34ccbd1319dedc6132530037c6e97cdf37127c3",
+  "activationHash": "sha256:a0bb19bfc5a93f2cbaf93cc0672313e7723e19711dab9c58a86a7f746fdda1f6",
   "proofKeys": {
     "format": "snapback.completeness-proof-keys.v1",
     "keys": [
       {
-        "proofKeyId": "sbpk1.yO6VsWF1tVzxe_fYIa_BzA",
+        "proofKeyId": "sbpk1.pMLUWEuaL-BzSixor1tCsQ",
         "algorithm": "Ed25519",
-        "publicKeyBase64url": "XgzXygvu4WfHRwQLe56zwBov_gQoXIW77xWIs7-30Ug"
+        "publicKeyBase64url": "VFEap-ofeuwHDz7RWWa4J_dEq1GSwNaO4XhGz3qGMP8"
       }
     ]
   }

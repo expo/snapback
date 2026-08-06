@@ -354,11 +354,11 @@ test('target, evidence locator, and receipt shape tampering fail before publicat
   }
 });
 
-test('derived publication has no storage-evidence substitution path', () => {
+test('derived publication rejects stale qualified component scope', () => {
   const head = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
   assert.throws(
     () => validatePublishedEvidenceSemantics(root, derived, head),
-    /no dedicated end-to-end F0b performance evidence contract/u,
+    /derived-fork qualified component scope drifted/u,
   );
 });
 
@@ -850,6 +850,59 @@ const REVIEWED_GENERATED_PUBLICATION_PATHS = new Set([
   'packages/snapback-cli/fixtures/push-seam/app/snapback/generated/provider-bindings.json',
   'packages/snapback-cli/fixtures/push-seam/app/snapback/generated/provider-introspection.json',
   'packages/snapback-cli/fixtures/push-seam/app/snapback/generated/schema.manifest.json',
+  'packages/snapback-react/fixtures/conversation/app/snapback/generated/api-envelope.members.json',
+  'packages/snapback-react/fixtures/conversation/app/snapback/generated/api.d.ts',
+  'packages/snapback-react/fixtures/conversation/app/snapback/generated/api.mjs',
+  'packages/snapback-react/fixtures/conversation/app/snapback/generated/app.binding.6b1507b4385ef2475a2d1a4d2c784364af5683f175c48899eda4d98dee915439.mjs',
+  'packages/snapback-react/fixtures/conversation/app/snapback/generated/app.binding.mjs',
+  'packages/snapback-react/fixtures/conversation/app/snapback/generated/app.d.ts',
+  'packages/snapback-react/fixtures/conversation/app/snapback/generated/app.descriptor.de7616a7ffaac65352acd25963f220c63cbcf2681aaac769be07a7fe414691d4.json',
+  'packages/snapback-react/fixtures/conversation/app/snapback/generated/app.descriptor.json',
+  'packages/snapback-react/fixtures/conversation/app/snapback/generated/app.mjs',
+  'packages/snapback-react/fixtures/conversation/app/snapback/generated/artifacts.json',
+  'packages/snapback-react/fixtures/conversation/app/snapback/generated/capability.manifest.json',
+  'packages/snapback-react/fixtures/conversation/app/snapback/generated/contract-data.manifest.json',
+  'packages/snapback-react/fixtures/conversation/app/snapback/generated/contract/addReaction.mutation.contract-meta.ts',
+  'packages/snapback-react/fixtures/conversation/app/snapback/generated/contract/addReaction.mutation.ts',
+  'packages/snapback-react/fixtures/conversation/app/snapback/generated/contract/conversationDetails.query.contract-meta.ts',
+  'packages/snapback-react/fixtures/conversation/app/snapback/generated/contract/conversationDetails.query.ts',
+  'packages/snapback-react/fixtures/conversation/app/snapback/generated/contract/membershipsForConversation.query.contract-meta.ts',
+  'packages/snapback-react/fixtures/conversation/app/snapback/generated/contract/membershipsForConversation.query.ts',
+  'packages/snapback-react/fixtures/conversation/app/snapback/generated/contract/messagesForConversation.query.contract-meta.ts',
+  'packages/snapback-react/fixtures/conversation/app/snapback/generated/contract/messagesForConversation.query.ts',
+  'packages/snapback-react/fixtures/conversation/app/snapback/generated/contract/reactionsForConversation.query.contract-meta.ts',
+  'packages/snapback-react/fixtures/conversation/app/snapback/generated/contract/reactionsForConversation.query.ts',
+  'packages/snapback-react/fixtures/conversation/app/snapback/generated/contract/removeReaction.mutation.contract-meta.ts',
+  'packages/snapback-react/fixtures/conversation/app/snapback/generated/contract/removeReaction.mutation.ts',
+  'packages/snapback-react/fixtures/conversation/app/snapback/generated/contract/runtime-links.ts',
+  'packages/snapback-react/fixtures/conversation/app/snapback/generated/contract/sendMessage.mutation.contract-meta.ts',
+  'packages/snapback-react/fixtures/conversation/app/snapback/generated/contract/sendMessage.mutation.ts',
+  'packages/snapback-react/fixtures/conversation/app/snapback/generated/contract/sendReply.mutation.contract-meta.ts',
+  'packages/snapback-react/fixtures/conversation/app/snapback/generated/contract/sendReply.mutation.ts',
+  'packages/snapback-react/fixtures/conversation/app/snapback/generated/contract/sendText.mutation.contract-meta.ts',
+  'packages/snapback-react/fixtures/conversation/app/snapback/generated/contract/sendText.mutation.ts',
+  'packages/snapback-react/fixtures/conversation/app/snapback/generated/contract/typing.ephemeral.contract-meta.ts',
+  'packages/snapback-react/fixtures/conversation/app/snapback/generated/contract/typing.ephemeral.ts',
+  'packages/snapback-react/fixtures/conversation/app/snapback/generated/contract/typing.publish.contract-meta.ts',
+  'packages/snapback-react/fixtures/conversation/app/snapback/generated/contract/typing.publish.ts',
+  'packages/snapback-react/fixtures/conversation/app/snapback/generated/contract/users.query.contract-meta.ts',
+  'packages/snapback-react/fixtures/conversation/app/snapback/generated/contract/users.query.ts',
+  'packages/snapback-react/fixtures/conversation/app/snapback/generated/functions.manifest.json',
+  'packages/snapback-react/fixtures/conversation/app/snapback/generated/operations/addReaction.args.schema.json',
+  'packages/snapback-react/fixtures/conversation/app/snapback/generated/operations/conversationDetails.args.schema.json',
+  'packages/snapback-react/fixtures/conversation/app/snapback/generated/operations/membershipsForConversation.args.schema.json',
+  'packages/snapback-react/fixtures/conversation/app/snapback/generated/operations/messagesForConversation.args.schema.json',
+  'packages/snapback-react/fixtures/conversation/app/snapback/generated/operations/reactionsForConversation.args.schema.json',
+  'packages/snapback-react/fixtures/conversation/app/snapback/generated/operations/removeReaction.args.schema.json',
+  'packages/snapback-react/fixtures/conversation/app/snapback/generated/operations/sendMessage.args.schema.json',
+  'packages/snapback-react/fixtures/conversation/app/snapback/generated/operations/sendReply.args.schema.json',
+  'packages/snapback-react/fixtures/conversation/app/snapback/generated/operations/sendText.args.schema.json',
+  'packages/snapback-react/fixtures/conversation/app/snapback/generated/operations/users.args.schema.json',
+  'packages/snapback-react/fixtures/conversation/app/snapback/generated/package.json',
+  'packages/snapback-react/fixtures/conversation/app/snapback/generated/provider-bindings.d.ts',
+  'packages/snapback-react/fixtures/conversation/app/snapback/generated/provider-bindings.json',
+  'packages/snapback-react/fixtures/conversation/app/snapback/generated/provider-introspection.json',
+  'packages/snapback-react/fixtures/conversation/app/snapback/generated/schema.manifest.json',
 ]);
 
 function assertReviewedGeneratedPublicationPaths(generated) {

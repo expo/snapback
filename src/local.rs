@@ -44615,10 +44615,10 @@ globalThis.__snapbackHandlers = {
                 snapback.admission.admit_dev().expect("admit v2 test input"),
             )
             .expect("prepare v2 test authority");
-            let prepared = InvocationGate::prepare_function(authority, &function)
+            let prepared = InvocationGate::prepare_function(authority, function)
                 .expect("bind v2 function authority");
             super::execute_snapshot_batch_v2(
-                &function,
+                function,
                 match &function.runtime {
                     FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatchV2(plan)) => plan,
                     _ => unreachable!("v2 plan"),
