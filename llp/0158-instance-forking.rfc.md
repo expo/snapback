@@ -1260,12 +1260,12 @@ have landed. LLP 0185 now owns the remaining program, roughly:
    constants are author-ratified (2026-08-05) and the v1 containment answer
    is the documented OS-boundary guidance; an integrated sandbox/container
    tier is deliberately deferred until demand names it.
-2. **Acceptance closure** — the LLP 0162 row-5 parent-write isolation fixture
-   and the first per-class credential/egress matrices and resource-exhaustion
-   negatives landed 2026-08-05; independent review and the remaining
-   bypass-negative legs (push-receipt maintenance on a ledger-bearing fork,
-   VM-level action-fetch negative) are open. LLP 0164 owns the fork/diff
-   surface legs and LLP 0165 the journal-completeness leg.
+2. **Acceptance closure** — the LLP 0162 row-5 parent-write isolation
+   fixture, the per-class credential/egress matrices, the VM-level and
+   push-receipt bypass negatives, resource-exhaustion negatives, and a real
+   macOS disk-pressure fixture all landed 2026-08-05; independent review is
+   the main open leg. LLP 0164 owns the fork/diff surface legs and LLP 0165
+   the journal-completeness leg.
 3. **Exact diff** — adopt LLP 0164's immutable-base/first-preimage substrate and
    LLP 0165's writer-authority choke point, then add an independent net-diff
    oracle, structured domains, and bounded continuation.

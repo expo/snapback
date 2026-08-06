@@ -3147,6 +3147,73 @@ mod tests {
         assert_eq!(body["diagnostic"]["code"], "SNAPBACK_FORK_EGRESS_DENIED");
     }
 
+    #[tokio::test]
+    async fn push_receipt_maintenance_refuses_on_a_ledger_bearing_fork_before_provider_io() {
+        let directory = tempfile::tempdir().unwrap();
+        let source = source_database(directory.path());
+        let destination = directory.path().join("fork");
+        publish(&source, &destination, "app-a", "parent-a", 42, None).unwrap();
+        let database = destination.join("app.sqlite3");
+        let mut snapback = crate::local::LocalSnapback::open(&database).unwrap();
+        // A declared ledger is what arms receipt polling at all; the fork
+        // gate must still refuse before any provider I/O happens.
+        let declaration = crate::push::PushSeamDeclarationV1 {
+            app_scope: crate::push::PushAppScopeV1 {
+                eas_project_id: "eas-fork".into(),
+                application_id: "com.example.fork".into(),
+                environment: "test".into(),
+            },
+            registry: crate::push::PushRegistryDeclarationV1 {
+                idle_retention_ms: 86_400_000,
+            },
+            audiences: std::collections::BTreeMap::from([(
+                "everyone".to_owned(),
+                crate::push::PushAudienceDeclarationV1 {
+                    resolve: crate::push::PushAudienceResolverV1::ExplicitPrincipals {
+                        principals_arg: "principals".into(),
+                        max_items: 10,
+                    },
+                    authorize: crate::push::PushAudienceAuthorizeV1::System,
+                },
+            )]),
+            uses: Vec::new(),
+            ledger: Some(crate::push::PushLedgerDeclarationV1 {
+                retention_ms: 2_592_000_000,
+            }),
+        };
+        snapback
+            .auth_database_mut()
+            .activate_current_auth_catalog()
+            .unwrap();
+        snapback
+            .auth_database_mut()
+            .activate_push_registry_for_test(declaration)
+            .unwrap();
+        let (state, _operator) = crate::admin::AppState::from_snapback_with_secret_read_operator(
+            snapback,
+            crate::admin::ServerContext::detached(),
+        );
+        let error = crate::server::drive_push_maintenance_once(
+            &state.snapback,
+            crate::admin::ServerProfile::Test,
+            43,
+        )
+        .await
+        .unwrap_err();
+        assert_eq!(error.diagnostic.code, "SNAPBACK_FORK_EGRESS_DENIED");
+        assert_eq!(error.diagnostic.details["family"], "push_receipt");
+        drop(state);
+        let conn = Connection::open(&database).unwrap();
+        let marker: (String, u64) = conn
+            .query_row(
+                "SELECT family, attempts FROM _snapback_fork_egress_attempts_v1",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(marker, ("push_receipt".to_owned(), 1));
+    }
+
     #[test]
     fn boot_refuses_staging_and_incomplete_local_evidence() {
         let directory = tempfile::tempdir().unwrap();

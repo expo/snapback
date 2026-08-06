@@ -59,9 +59,13 @@ and none of this closes a row on its own.
 - **Row 6 (effect quarantine):** the shared host-op gate
   (`deny_derived_fork_host_op`) is behaviorally tested per family, including
   manual cron, provider-adapter selection, and the named-op unclassified
-  fail-closed rule. Open bypass negatives: push-receipt maintenance on a
-  ledger-bearing fork; a VM-level JS-action fetch negative; `CaptureOnly`
-  remains unimplemented for this class.
+  fail-closed rule. The former open bypass negatives closed 2026-08-05:
+  push-receipt maintenance on a ledger-bearing fork refuses before provider
+  I/O (`instance_fork::tests::push_receipt_maintenance_...`), and real JS
+  actions in the Hermes VM cannot `ctx.fetch`/`ctx.fetchStream` from a fork
+  (`tests/instance_fork_vm_egress_v1.rs` — the typed denial survives the VM
+  boundary and both paths deny at `action.externalEffectBegin`).
+  `CaptureOnly` remains unimplemented for this class.
 - **Row 7 (identity/authority):** live, stale, and revoked parent grant
   authority proven absent post-mint; bidirectional live-HTTP bearer replay
   (parent↔fork) proven refused with data-level no-commit checks. Production
@@ -72,10 +76,11 @@ and none of this closes a row on its own.
   (`SNAPBACK_FORK_RESOURCE_LIMIT_REFUSED`); bounded renewal has a 7-cut
   crash-recovery matrix; creation shares the renewal lifetime cap (author
   rulings 2026-08-05: limit constants ratified; integrated sandbox tier
-  deferred until demand). Still open: a true ENOSPC/disk-pressure simulation (not portably
-  automatable — interrupted-copy behavior is covered by the 20-cut
-  publication crash matrix instead); digest-work/replay-floor legs stay with
-  their owners above.
+  deferred until demand). Real disk pressure is now automated on macOS
+  (`tests/instance_fork_disk_pressure_v1.rs`: a copy onto a full RAM-disk
+  volume fails closed with no bootable residue and recover reaps the
+  staging exactly); other hosts rely on the 20-cut publication crash
+  matrix. Digest-work/replay-floor legs stay with their owners above.
 
 The detailed LLP 0163 public-carrier work remains in its existing focused
 ticket. The first F1 operating-guide and single-consumer fork-aware harness
