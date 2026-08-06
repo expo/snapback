@@ -1401,3 +1401,18 @@ and produced current-report SHA-256
 `5fe511fa881932660c69831abd4b605aaffbf5d2d70c326e73c19ade3da5142b`.
 The first August receipt remains byte-identical and all unrelated ceilings
 remain active.
+
+The next completed-main batch exposed one proof-planning failure before any
+gate ran: landing `8d9d33f28` added the canonical `package-readme-funnel` gate
+without assigning it to the affected-selection policy, so main run
+`31107957203` failed closed with
+`SNAPBACK_LOCAL_PROOF_SELECTION_INVALID: unclassified canonical gates`.
+Because the five-package README/tarball invariant is cheap, global, and
+independent of native setup, it now joins the always-gate inventory. The
+selector fixture pins that even a docs-only plan retains it.
+
+The batch also surfaced the same bookkeeping omission on branch landing
+`9986c733b`: `control-catalog-fixtures` had been registered in the canonical
+proof but not its affected-selection policy. It now travels beside
+`control-catalog` in the publication group, with a selector fixture pinning
+the pair.

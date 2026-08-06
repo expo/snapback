@@ -11,7 +11,8 @@
     "proof-runner-fixtures",
     "local-proof-inventory",
     "affected-selector-fixtures",
-    "package-test-inventory"
+    "package-test-inventory",
+    "package-readme-funnel"
   ],
   "dependencyOverrides": {
     "snapback-cli-real-server": [
@@ -360,7 +361,8 @@
         "promotion-fixtures",
         "github-latest-proof-fixtures",
         "revision-set-fixtures",
-        "control-catalog"
+        "control-catalog",
+        "control-catalog-fixtures"
       ]
     },
     "client": {

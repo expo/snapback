@@ -42,7 +42,11 @@ test('the policy classifies every canonical gate and keeps docs/guide fast', () 
   assert.equal(docs.selectionClass, 'FAST_ONLY');
   assert.equal(docs.requirements.native, false);
   assert.deepEqual(docs.selectedGroups, []);
-  includesAll(docs, ['ref-check', 'affected-selector-fixtures']);
+  includesAll(docs, [
+    'ref-check',
+    'affected-selector-fixtures',
+    'package-readme-funnel',
+  ]);
 
   const guide = select(['guide/clients/react-expo.md']);
   assert.equal(guide.selectionClass, 'FAST_ONLY');
@@ -100,6 +104,9 @@ test('package owners select their direct package and harness fixtures', () => {
 
   const cloudflare = select(['cloudflare/src/platform-errors.js']);
   includesAll(cloudflare, ['harness-envelope-fixtures']);
+
+  const publication = select(['scripts/check-agent-safe-publication.mjs']);
+  includesAll(publication, ['control-catalog', 'control-catalog-fixtures']);
 });
 
 test('native, Cloudflare, seed, and carrier changes select their unique claims', () => {
