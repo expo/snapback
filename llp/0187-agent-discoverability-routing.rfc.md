@@ -1,12 +1,12 @@
 # LLP 0187: Agent discoverability — routing over coverage
 
 **Type:** RFC
-**Status:** Review
+**Status:** Accepted
 **Systems:** Guide, Developer experience, CLI, Packaging, Code generation,
 Diagnostics
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-05
-**Revised:** 2026-08-06 (b — round-1 dual-family review reconciliation)
+**Revised:** 2026-08-06 (e — Accepted by author ruling at revision (d); the super-refine run record in llp/reviews/0186-agent-authoring-efficiency-program.run.md holds the verdict history, incl. that revision (d) was unreviewed)
 **Related:** LLP 0016, LLP 0061, LLP 0146, LLP 0176, LLP 0177, LLP 0178, LLP
 0179, LLP 0184, LLP 0186
 
@@ -14,10 +14,14 @@ Diagnostics
 
 The 2026-08-04/05 bakeoffs (diaries 0057–0060: one chess-backend arm
 consuming the published npm packages, and three messaging arms working
-in-repo, benchmarked against Convex) produced an unusually clean
-measurement of why Snapback loses head-to-head comparisons: **the measured
-losses are almost entirely discoverability and packaging, not
-capability.** Three concurrent in-repo agent arms each independently
+in-repo, benchmarked against Convex) produced strong, replicated evidence
+about why Snapback loses head-to-head comparisons: **in the one scored
+comparison, the losing dimensions are almost entirely discoverability and
+packaging, not capability.** (The quantified timing and scores are the
+relay-room bakeoff's alone; what replicated across arms is the misses
+themselves, not the measurement — LLP 0186's W1 instrument is what turns
+this into causal accounting.) Three concurrent in-repo agent arms each
+independently
 failed to find features that exist, work, and are documented — and then
 either hand-rolled worse replacements or recorded confident, wrong claims
 that the capability does not exist.
@@ -35,7 +39,9 @@ discoverability tickets. The evidence sections therefore describe the
 corpus *as the arms found it*; per-item current state is noted inline.
 What remains live in this RFC is the diagnosis, the conventions that make
 such fixes mandatory and regression-proof, and the techniques not yet
-built.
+built. Status facts here are dated snapshots, not live state — the fleet
+landed T5 mid-review, hours after this RFC sequenced it as future work;
+the cited tickets are the source of truth.
 
 The proposal is a ranked program of routing techniques — facts placed at the
 decision point, diagnostics that teach, forced capability lookups, an
@@ -43,10 +49,13 @@ out-of-repo discovery funnel, published-closure truthfulness, a smaller
 search space, and a miss-to-eval regression loop — most of which lands as
 scoped work inside existing owners (LLP 0061, 0178, 0179, 0184, 0176, and
 LLP 0186's context-injection wave). This document owns the cross-cutting
-diagnosis, the ranking, and the techniques no other document owns:
-decision-point cross-linking with intra-corpus vocabulary bridging, the
-CLI/package documentation surface, published-closure fences, and the
-standing miss-to-eval regression rule.
+diagnosis, the ranking, and the standing miss-to-eval regression rule,
+and it carries the evidence and requirements for decision-point
+cross-linking with intra-corpus vocabulary bridging, the CLI/package
+documentation funnel, and the published-closure fence — each of which
+lands as a scoped amendment to LLP 0061, which owns the resulting
+conventions, contracts, and carriers (T1/T4/T5; the fence already has —
+`8b821028a`, 2026-08-06).
 
 **Relation to LLP 0186 (authored concurrently, same evidence base):** 0186
 is the *efficiency program* — it owns the repeatable competitive benchmark
@@ -117,7 +126,8 @@ day.
   `custody: 'anonymous-public'` — both marked shipped and current, both
   absent from the published package — and worked around them with patterns
   the guide separately names as anti-patterns
-  (`issues/20260804-guide-gap-published-closure-drift.md`). The diary's
+  (`issues/closed/20260804-guide-gap-published-closure-drift.md` —
+  resolved 2026-08-06 by the T5 fence, `8b821028a`). The diary's
   framing: "for an agent, whose entire model of the system is the text, it
   is the specific failure the agent-first framing exists to prevent."
 
@@ -148,8 +158,9 @@ worth investing in:
 Relay Room's scored comparison lost to Convex 84–86 overall, with DX/docs at
 55 vs 95 and operations/maturity at 62 vs 96 — those two dimensions are the
 entire margin. The same diary's "hypothetical mature Snapback" comparison
-wins 97–96 (diary 0058). Discoverability is not a polish item; it is
-currently the whole gap.
+wins 97–96 (`diaries/0058-relay-room-expo-backend-bakeoff.diary.md`).
+Discoverability is not a polish item; in the one scored comparison it is
+the entire margin.
 
 ## Diagnosis
 
@@ -194,8 +205,9 @@ tickets); the live T1 work is the conventions amendment that makes the
 pattern mandatory for every future page.*
 
 Rule: **every "hard way" the guide teaches must name its paved
-alternative at the point of choice.** Concretely (all landed by the
-sweep; retained as the worked examples the convention generalizes):
+alternative at the point of choice.** Concretely (landed by the sweep on
+the pages it touched; retained as the worked examples the convention
+generalizes):
 
 - The `defineJsLiveQuery` teaching content states, before the first worked
   example: "if this handler is a plain join, `defineRelationalQuery`
@@ -204,8 +216,9 @@ sweep; retained as the worked examples the convention generalizes):
 - `guide/realtime/ephemeral-state.md` names `useSnapbackPresence` (and the
   React pages name the ephemeral schema vocabulary back). Vocabulary splits
   between a feature's schema side and client side are treated as defects.
-- `guide/clients/react-expo.md` (and the react/headless client pages) carry
-  a "when something breaks" pointer to the admin console.
+- `guide/clients/react-expo.md` carries a "when something breaks" pointer
+  to the admin console (the react and headless client pages still lack
+  it — a named residual below, for the convention to force).
 - Intent-bearing recipes cover both halves of a problem on one page where
   the halves strand the author separately (the asset-upload rule: a
   blob-only recipe still strands the author at authorization).
@@ -225,7 +238,13 @@ amendment** to LLP 0061: anti-pattern sections gain a required "paved
 alternative" link, the alias column's charter expands to grep vocabulary,
 and a vocabulary split between a feature's schema side and client side is
 classified as a guide defect. Without the amendment, the sweep is a
-one-off that the next feature quietly fails to repeat.
+one-off that the next feature quietly fails to repeat. Known residuals
+the amendment must catch (present as of 2026-08-06):
+`guide/realtime/live-queries.md` carries a `defineJsLiveQuery` worked
+example with no relational pointer; the react and headless client pages
+still lack the console pointer the react-expo page gained; and the
+`useSnapbackEphemeral` wrong-guess literal appears in page prose but not
+yet in the capability index's alias row.
 
 ### T2 — Diagnostics as the router (delegated to LLP 0178)
 
@@ -249,8 +268,11 @@ The capability index answers existence questions in under a minute when
 consulted, and the misses show consultation is unreliable when optional.
 LLP 0184's entry ritual (`snapback agent setup` → `controls list --intent`)
 and its deferred Phase 1 items 4–5 (served, queryable catalog; generated
-guide tables replacing hand counts — which have already drifted, 28/39 vs
-30/41) are the structural form of "check the index first." Finish them.
+guide tables replacing hand counts — which drifted once, 28/39 vs 30/41,
+were corrected by hand, and by 2026-08-06 had drifted again: the served
+host-op set is 36 while the page still says thirty, the live
+demonstration that hand counts cannot keep up) are the structural form
+of "check the index first." Finish them.
 
 ### T4 — Build the out-of-repo funnel before it is tested for real
 
@@ -294,15 +316,18 @@ Delegated:
 
 ### T5 — Guide truthfulness against the published closure
 
-*Owner: LLP 0061 — this is an amendment to its frontmatter contract and
-checker, proposed here. Small, mechanical.*
+*Owner: LLP 0061 — LANDED 2026-08-06 (`8b821028a`), mid-review, as
+exactly the amendment this RFC prescribed.*
 
 `since:` (or `unreleased: true`) frontmatter on guide content, joined by
-`scripts/check-guide.mjs` against the published package closure, rendering a
-banner when a page teaches primitives the installable artifact lacks. This
-is the Chessfield failure class; the checker machinery exists. (Because
-this touches the frontmatter contract 0061 owns, it lands as a 0061
-amendment, not as a convention this RFC holds — see Non-goals.)
+`scripts/check-guide.mjs` against the checked-in
+`guide/published-closure.json`, rendering an unreleased banner when a
+page teaches primitives the installable artifact lacks. This was the
+Chessfield failure class; the receipt is the closed ticket
+(`issues/closed/20260804-guide-gap-published-closure-drift.md`), the
+0061 implementation note, and `scripts/guide-published-closure.test.mjs`.
+(It landed as a 0061 amendment, not as a convention this RFC holds — see
+Non-goals; retained here as the worked example of the pattern.)
 
 ### T6 — Shrink the number of discovery events (delegated to LLP 0176/0179)
 
@@ -342,8 +367,12 @@ Once T4's external fixture exists, each seed runs in both fixtures
 1. **T1** (the conventions amendment — the one-time sweep landed
    2026-08-05) and **T7** (eval seeds, landing under 0186 W2) — cheapest,
    lock in the replicated-miss fixes against regression, no design risk.
-2. **T2/T3** — accept LLP 0178; finish LLP 0184 Phase 1 items 4–5 and
-   Phases 2–5. Most of this is already specified; this RFC only ranks it.
+2. **T2/T3** — accept LLP 0178; finish LLP 0184 Phase 1 items 4–5 (the
+   served catalog and generated guide tables) plus the Phase 5
+   external-eval slice T4 depends on. The rest of 0184's control-plane
+   program (mutation controls, mediated secrets) proceeds on its own
+   merits — it is not a discoverability priority and this RFC does not
+   rank it.
 3. **T4** — strategically most urgent: the bakeoffs measured the best case,
    and LLP 0176 G4 will fail without it. Should land alongside the first
    *qualified, source-current* npm promotion
@@ -351,7 +380,7 @@ Once T4's external fixture exists, each seed runs in both fixtures
    `latest` since 2026-08-01 via the fast path; the open work is the
    qualified promotion of the current surface) and LLP 0186's W2 wave,
    which carries the delegated half.
-4. **T5** — small and mechanical; land with T4.
+4. **T5** — LANDED 2026-08-06 (`8b821028a`), ahead of this sequencing.
 5. **T6** — proceeds on LLP 0176's own schedule.
 
 ## Non-goals
@@ -385,7 +414,8 @@ Once T4's external fixture exists, each seed runs in both fixtures
    advisory? (LLP 0178's lanes bound the blast radius — advisories never
    change admission — but a noisy advisory burns trust.)
 4. **Does `guide-flat.generated.md` need a diet or a tier?** It measures
-   718,436 bytes / 13,948 lines (2026-08-06) against the ~130 KB corpus
+   ~727 KB / ~14,100 lines (2026-08-06, and growing between commits)
+   against the ~130 KB corpus
    size LLP 0061 cited — a then-current fact rather than a formal budget;
    0061's enforced budgets are 40 KiB (capability index) and 16 KiB
    (surface map). At 5.5x the premise, the "read the whole surface in one

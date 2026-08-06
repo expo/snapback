@@ -4,13 +4,13 @@ id: meta.index
 order: 1
 audience: agent-first
 capabilities: [operating.served-guide, operating.guide-mcp]
-authorities: [llp/0061-agent-first-snapback-guide.rfc.md, llp/0000-snapback.explainer.md, llp/0042-agent-mcp-surface.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0184-agent-accessible-control-plane.rfc.md, src/cli.rs, src/guide_mcp.rs, packages/snapback-cli/index.mjs, packages/snapback-cli/mcp-control.mjs]
-examples: [demos/todo, demos/todo-v2, demos/cursors-web, demos/card-game, demos/partiful-matrix]
+authorities: [llp/0061-agent-first-snapback-guide.rfc.md, llp/0000-snapback.explainer.md, llp/0042-agent-mcp-surface.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0181-zero-configuration-expo.rfc.md, llp/0184-agent-accessible-control-plane.rfc.md, src/cli.rs, src/guide_mcp.rs, packages/snapback-cli/index.mjs, packages/snapback-cli/expo-dev.mjs, packages/snapback-cli/mcp-control.mjs]
+examples: [demos/todo, demos/todo-v2, demos/cursors-web, demos/card-game, demos/partiful-matrix, demos/expo-golden-path-fixture]
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-05
-reviewed-commit: f3c7d9fbb394a413370a9264f22e72b6f151a25e
+reviewed: 2026-08-06
+reviewed-commit: 850427c31b9a668d55b46995e08389cd13a2c9b6
 ---
 
 <img src="../brand/snapback-mark.svg" alt="Snapback" width="96" />
@@ -203,9 +203,10 @@ you never build around a feature because you didn't know it existed.
   bindings, one-surface boot, derived optimistic overlays, offline classes.
 - [The React client](./clients/react.md) — first-class external-store hook,
   keyed sibling sharing, Strict Mode lifecycle, and settlement state.
-- [React Expo Online clients](./clients/react-expo.md) — the shared React
-  projection on native carriers, per-OS evidence, the admin-console debugging
-  path, authenticated asset uploads, and Online/Parity honesty.
+- [React Expo Online clients](./clients/react-expo.md) — no-URL
+  `snapback dev --expo` simulator/emulator boot through
+  `SnapbackExpoProvider`, plus per-OS evidence, carrier storage, authenticated
+  asset uploads, and Online/Parity honesty.
 - [Framework bindings](./clients/framework-bindings.md) — build on the
   external store and own identity, reconnect, error, lifecycle, and teardown.
 

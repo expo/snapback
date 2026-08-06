@@ -170,10 +170,10 @@ export interface RqsResumeStore {
   ): Promise<Readonly<Record<string, unknown>> | null>;
   /** Optional metadata slot used to prepare React bindings while offline. */
   loadReactBindingReceipt?(): Promise<Readonly<Record<string, unknown>> | null>;
-  /** Writer-gated replacement of the optional React binding receipt. */
+  /** Writer-gated replacement; IndexedDB may defer until writer election. */
   commitReactBindingReceipt?(
     receipt: Readonly<Record<string, unknown>>,
-  ): Promise<boolean>;
+  ): Promise<boolean | 'deferred'>;
   readStoreMeta(): Promise<RqsStoreMetaV3>;
   writeStoreMeta(meta: RqsStoreMetaV3): Promise<boolean>;
   allocateQueryInstanceId(): Promise<number | null>;

@@ -70,6 +70,15 @@ function createLockManagerDouble() {
 
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
 
+async function pollReactBindingReceipt(store) {
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    const receipt = await store.loadReactBindingReceipt();
+    if (receipt !== null) return receipt;
+    await tick();
+  }
+  return null;
+}
+
 const ROWS = [
   { _id: 'a', title: 'first', n: 1 },
   { _id: 'b', title: 'second', n: 2 },
@@ -164,7 +173,10 @@ test('React binding receipt is detached, bounded, writer-gated, uncounted, and c
   loaded.nested.version = 2;
   assert.equal((await writerTab.loadReactBindingReceipt()).nested.version, 1, 'loads are detached');
 
-  assert.equal(await readerTab.commitReactBindingReceipt({ binding: 'refused' }), false);
+  assert.equal(
+    await readerTab.commitReactBindingReceipt({ binding: 'deferred' }),
+    'deferred',
+  );
   assert.equal((await readerTab.loadReactBindingReceipt()).binding, 'todos:list');
   assert.equal(await writerTab.commitReactBindingReceipt(null), false);
   assert.equal(await writerTab.commitReactBindingReceipt('not-an-object'), false);
@@ -184,8 +196,70 @@ test('React binding receipt is detached, bounded, writer-gated, uncounted, and c
   assert.equal(await writerTab.wipe(), true);
   assert.equal(await writerTab.loadReactBindingReceipt(), null);
   await writerTab.close();
-  await tick();
+  assert.equal((await pollReactBindingReceipt(readerTab)).binding, 'deferred');
   await readerTab.close();
+});
+
+test('React binding receipt commit before election defers, keeps the latest, and lands', async () => {
+  const store = createIndexedDbRqsResumeStore({
+    indexedDB: new IDBFactory(),
+    lockManager: createLockManagerDouble(),
+  });
+  const firstCommit = store.commitReactBindingReceipt({ binding: 'first', savedAt: 1000 });
+  const latestCommit = store.commitReactBindingReceipt({ binding: 'latest', savedAt: 2000 });
+  assert.equal(await firstCommit, 'deferred');
+  assert.equal(await latestCommit, 'deferred');
+  assert.deepEqual(await pollReactBindingReceipt(store), { binding: 'latest', savedAt: 2000 });
+  await store.close();
+  assert.equal(
+    await store.commitReactBindingReceipt({ binding: 'closed', savedAt: 3000 }),
+    false,
+  );
+  assert.equal(await store.commitReactBindingReceipt(null), false);
+});
+
+test('deferred React binding receipt flush on takeover keeps the newest savedAt', async () => {
+  const takeover = async ({ storedSavedAt, deferredSavedAt }) => {
+    const indexedDB = new IDBFactory();
+    const lockManager = createLockManagerDouble();
+    const { store: writerTab } = await makeStore({ indexedDB, lockManager });
+    const { store: readerTab } = await makeStore({ indexedDB, lockManager });
+    const stored = { binding: 'stored', savedAt: storedSavedAt };
+    const deferred = { binding: 'deferred', savedAt: deferredSavedAt };
+    assert.equal(await writerTab.commitReactBindingReceipt(stored), true);
+    assert.equal(await readerTab.commitReactBindingReceipt(deferred), 'deferred');
+    assert.deepEqual(await readerTab.loadReactBindingReceipt(), stored);
+    await writerTab.close();
+    const landed = await pollReactBindingReceipt(readerTab);
+    await readerTab.close();
+    return landed;
+  };
+
+  assert.deepEqual(
+    await takeover({ storedSavedAt: 2000, deferredSavedAt: 1000 }),
+    { binding: 'stored', savedAt: 2000 },
+    'a stale deferred receipt cannot replace the fresher stored receipt',
+  );
+  assert.deepEqual(
+    await takeover({ storedSavedAt: 1000, deferredSavedAt: 2000 }),
+    { binding: 'deferred', savedAt: 2000 },
+    'a fresher deferred receipt replaces the older stored receipt',
+  );
+});
+
+test('wipe drops a React binding receipt deferred before writer election', async () => {
+  const store = createIndexedDbRqsResumeStore({
+    indexedDB: new IDBFactory(),
+    lockManager: createLockManagerDouble(),
+  });
+  const commit = store.commitReactBindingReceipt({ binding: 'must-not-land', savedAt: 1000 });
+  const wipe = store.wipe();
+  assert.equal(await commit, 'deferred');
+  assert.equal(await wipe, false, 'pre-election wipe is a refused store write');
+  await tick();
+  assert.equal(store.isWriter(), true);
+  assert.equal(await pollReactBindingReceipt(store), null);
+  await store.close();
 });
 
 test('an entry found in-progress at relaunch is refused (interrupted delta sequence)', async () => {

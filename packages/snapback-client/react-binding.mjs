@@ -410,12 +410,36 @@ async function adoptPersistedBindingReceipt(client, generated, cause) {
   };
 }
 
+function warnBindingReceiptNotPersisted(details) {
+  try {
+    globalThis.console?.warn?.(
+      'SNAPBACK_REACT_BINDING_RECEIPT_NOT_PERSISTED: react binding receipt was not persisted; the next offline cold boot cannot adopt it',
+      details,
+    );
+  } catch {
+    // A missing or throwing console must not fail availability-only preparation.
+  }
+}
+
 function persistBindingReceipt(client, receipt) {
   const store = client.rqsStore;
   if (typeof store?.commitReactBindingReceipt !== 'function') return;
-  // Availability-only: a store that cannot persist the receipt (reader
-  // instance, quota, closed) never fails the online preparation.
-  void Promise.resolve(store.commitReactBindingReceipt(receipt)).catch(() => {});
+  // Availability-only: a store that cannot persist the receipt never fails
+  // or blocks online preparation, but a terminal refusal is observable.
+  let commit;
+  try {
+    commit = store.commitReactBindingReceipt(receipt);
+  } catch (error) {
+    warnBindingReceiptNotPersisted({ error });
+    return;
+  }
+  void Promise.resolve(commit)
+    .then((result) => {
+      if (result === false) warnBindingReceiptNotPersisted({ result });
+    })
+    .catch((error) => {
+      warnBindingReceiptNotPersisted({ error });
+    });
 }
 
 function boundedMilliseconds(value, fallback, field, maximum) {

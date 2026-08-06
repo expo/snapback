@@ -1,13 +1,19 @@
 # LLP 0179: Generated AppDescriptor and application surfaces
 
 **Type:** RFC
-**Status:** Review
+**Status:** Accepted
 **Systems:** Application data API, Code generation, Client integration,
 React/Expo, Live queries, Ephemeral state, Assets, Auth, Testing, Exact,
 Contract
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-05
-**Revised:** 2026-08-05 (e) — Super-refine round 2 (delta): closed open
+**Revised:** 2026-08-06 (f) — Accepted by the author (Charlie Cheever,
+LLP 0176 G1 gate). Per §React projection, this acceptance amends LLP 0114
+to add `useSurface` as a named projection over its canonical stores; the
+corresponding dated amendment is recorded in LLP 0114's own header and
+§Named projections from accepted RFCs. S0 (descriptor spine) is
+implemented and landed; S1/S2 remain delivery work under LLP 0176 G2/G3.
+2026-08-05 (e) — Super-refine round 2 (delta): closed open
 question 3 outright — the closed grammar and §React projection already
 normatively admitted a surface-level `assets` re-export while the open
 question presented the same decision as unmade; a reviewer correctly found

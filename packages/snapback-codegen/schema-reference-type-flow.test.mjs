@@ -284,6 +284,34 @@ try {
       && /unsupported validator primitive\/field type/u.test(message)
   )), JSON.stringify(generated.diagnostics));
 
+  writeFileSync(join(root, 'schema.mjs'), `
+    import { defineSchema, defineTable, v } from ${JSON.stringify(defineUrl)};
+    export default defineSchema({
+      conversations: defineTable({ memberHandles: v.array(v.string()) }).sync(),
+    });
+  `);
+  generated = await generate(root);
+  assert.equal(generated.ok, false);
+  const arrayDiagnostic = generated.diagnostics.find(({ code }) => (
+    code === 'SCHEMA_INVALID_VALIDATOR'
+  ));
+  assert(arrayDiagnostic, JSON.stringify(generated.diagnostics));
+  assert.match(
+    arrayDiagnostic.message,
+    /store the field as v\.json\(\)/u,
+    JSON.stringify(generated.diagnostics),
+  );
+  assert.match(
+    arrayDiagnostic.message,
+    /narrow it with v\.array\(\.\.\.\) in the result contract/u,
+    JSON.stringify(generated.diagnostics),
+  );
+  assert.match(
+    arrayDiagnostic.message,
+    /guide\/getting-started\/your-first-backend\.md#declare-the-schema/u,
+    JSON.stringify(generated.diagnostics),
+  );
+
   console.log('schema-reference type-flow checks passed');
 } finally {
   rmSync(root, { recursive: true, force: true });

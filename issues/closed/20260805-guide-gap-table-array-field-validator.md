@@ -1,6 +1,6 @@
 # guide-gap: table field array validator refusal doesn't say to use `v.json()`
 
-**Status:** Open
+**Status:** Closed
 **Impact:** 2
 **Urgency:** 2
 **Ease:** 5
@@ -60,3 +60,11 @@ semantics, or sync-aware array behavior — and links the new honest
 
 This ticket remains open for the separate codegen-diagnostic half: the
 table-field refusal should itself suggest `v.json()` or link to the guidance.
+
+## Resolution note — codegen half (2026-08-06)
+
+The base `v.json()` hint already landed in fix-wave commit `5ed6d6b91`. This
+change completes the acceptance criteria by naming the required result-contract
+narrowing with `v.array(...)` and linking the guide anchor
+`guide/getting-started/your-first-backend.md#declare-the-schema`. The message is
+pinned by a test in `packages/snapback-codegen`.
