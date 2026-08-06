@@ -25,3 +25,12 @@ reports `authority-required` with the native mint refusal.
 
 Release target selection and attestation verification belong to E3. Neither
 the `AppBinding` nor the integration receipt carries session authority.
+
+## Documentation outside a checkout
+
+A running Snapback server serves the Guide compiled into that exact build.
+
+- Read [the React and Expo client guide](http://127.0.0.1:4287/_snapback/guide/clients/react-expo.md).
+- Check the [capability index](http://127.0.0.1:4287/_snapback/guide/capabilities.md).
+- Run `snapback guide` or `snapback guide <query>` to browse or search the embedded Guide.
+- Run `snapback mcp` for the same build-bound corpus as read-only MCP resources, starting at `snapback-guide://manifest`.

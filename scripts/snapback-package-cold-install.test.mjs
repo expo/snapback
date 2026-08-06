@@ -1699,7 +1699,7 @@ test('real publication consumes the exact qualified tarballs without restaging',
     }
     assert.equal(
       validateQualifiedTarballs({ ledger: qualified, root: temporary }).length,
-      9,
+      PACKAGE_INVENTORY.length,
     );
     writeFileSync(join(temporary, qualified.packages[4].tarball), 'restaged drift');
     assert.throws(
@@ -1742,7 +1742,7 @@ test('latest-root proof binds the root closure and complete default-tag vector',
     tagVector,
   });
   assert.equal(resolution.selected, candidate.version);
-  assert.equal(Object.keys(resolution.defaultTagVector).length, 9);
+  assert.equal(Object.keys(resolution.defaultTagVector).length, PACKAGE_INVENTORY.length);
   assert.deepEqual(
     resolution.omittedOptionalPlatformRuntimes,
     [{
