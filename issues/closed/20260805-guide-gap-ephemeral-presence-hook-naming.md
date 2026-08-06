@@ -61,3 +61,23 @@ aliases/witnesses, `guide/realtime/ephemeral-state.md`, and
 `guide/clients/react.md`. The ephemeral page includes a source-transcluded
 presence + typing example and states explicitly that there is no separate
 `useSnapbackEphemeral` hook.
+
+## Resolution — 2026-08-06
+
+**RESOLVED 2026-08-06.** Reading the shipped implementation confirmed the
+scope/key distinction definitively: `useSnapbackPresence` validates and keys a
+room by the generated app-defined `scope`, while
+`ConnectionEphemeralCollectionReference` restricts only each entry's ownership
+and key mode to the provider connection. A `{ conversationId }` scope therefore
+is one typing room per conversation, with one row per connected publisher.
+
+`demos/messaging-snapback/src/lib/useTyping.ts` now uses the hook's observer
+mode and its managed `publish`/`delete` actions; the raw-client singleton and
+component-owned overlay lifecycle were removed. Provider preparation now uses
+the generated application descriptor so the complete ephemeral reference is
+admitted. The hook now also returns a referentially stable pre-subscribe
+snapshot as required by React's external-store contract, with a regression
+test, and the browser typing proof asserts the indicator is visible. The
+ephemeral guide now transcludes that exercised typing hook and cross-links the
+React guide, the React guide links back using the “ephemeral” vocabulary, and
+the hook's type declaration names the same relationship directly.

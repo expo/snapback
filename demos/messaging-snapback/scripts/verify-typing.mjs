@@ -33,7 +33,10 @@ const overlay = await client.subscribeEphemeral(api.ephemeral.typing, {
 });
 await overlay.publish({ userHandle: 'priya', name: 'Priya Rao' }, { ttlMs: api.ephemeral.typing.maxTtlMs });
 
-await page.waitForTimeout(1200);
+await page.getByText('Priya Rao is typing…', { exact: true }).waitFor({
+  state: 'visible',
+  timeout: 5_000,
+});
 await page.screenshot({ path: outPath });
 
 overlay.dispose();

@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "692e013e9e1c192d092b3f262b392c339ef8663b"
+    "commit": "05306b9908e150faa5bd271bf1110bcf0695ee24"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -1818,6 +1818,7 @@
         "demos/signal-desk/src/backends/snapback.ts",
         "demos/signal-desk/tests/react.mjs",
         "demos/signal-desk/acceptance/results/react-presence.v1.json",
+        "demos/messaging-snapback/src/lib/useTyping.ts",
         "packages/snapback-react/binding-development-sync.test.mjs",
         "packages/snapback-react/package.test.mjs",
         "packages/snapback-react/optimistic.test.mjs",
@@ -1827,7 +1828,7 @@
       ],
       "reviewed": "2026-08-06",
       "reviewedCommit": "4ac8387f080a2659484fc09916ff22a076dc4ca8",
-      "sha256": "660905ed032fa242ef56c26b7f5dfa7665dcf27f7ba99df363fd1ddd1a6924fc",
+      "sha256": "05b130a6a4b298986e6c4309263773ba802aeeaaa7e6e46a979a3e5a09ee3779",
       "snippets": [
         {
           "lang": "ts",
@@ -2534,21 +2535,22 @@
         "packages/snapback-codegen/index.mjs",
         "packages/snapback-client/index.mjs",
         "packages/snapback-contract/index.mjs",
+        "packages/snapback-react/index.mjs",
         "packages/snapback-react/index.d.mts"
       ],
       "examples": [
         "demos/cursors-web",
         "demos/todo-v2/snapback/schema.mjs",
-        "demos/improvement-sweep/arms/a2-snapback-web/evidence/app/App.tsx"
+        "demos/messaging-snapback/src/lib/useTyping.ts"
       ],
-      "reviewed": "2026-08-05",
-      "reviewedCommit": "f3c7d9fbb394a413370a9264f22e72b6f151a25e",
-      "sha256": "99c5fb3832e80de4ca5bd8b862c26e533e6a14b7c4be5bec825e24846d617137",
+      "reviewed": "2026-08-06",
+      "reviewedCommit": "6e158169b3c908b8be149db4487a71dc35738470",
+      "sha256": "df6ac61a929e372a743901f76f3b98c032729cf70f89d1533459bf1a6fc4791f",
       "snippets": [
         {
           "lang": "tsx",
           "class": "transcluded",
-          "source": "demos/improvement-sweep/arms/a2-snapback-web/evidence/app/App.tsx"
+          "source": "demos/messaging-snapback/src/lib/useTyping.ts"
         },
         {
           "lang": "js",
@@ -2814,16 +2816,19 @@
       ],
       "authorities": [
         "llp/0013-ephemeral-realtime-state.rfc.md",
+        "llp/0107-react-presence-and-optimistic-lifecycle.spec.md",
         "packages/snapback-codegen/define.mjs",
-        "packages/snapback-client/index.mjs"
+        "packages/snapback-client/index.mjs",
+        "packages/snapback-react/index.mjs"
       ],
       "examples": [
         "demos/cursors-web",
-        "demos/todo-v2/snapback/schema.mjs"
+        "demos/todo-v2/snapback/schema.mjs",
+        "demos/messaging-snapback/src/lib/useTyping.ts"
       ],
-      "reviewed": "2026-08-03",
-      "reviewedCommit": "6e5d69d1037c6042fb9338221dfb489e00f5f78a",
-      "sha256": "5b444604ca94c17a08b054adea82a529cfa8548da6c64cd049eb9f2b72aed6e0",
+      "reviewed": "2026-08-06",
+      "reviewedCommit": "6e158169b3c908b8be149db4487a71dc35738470",
+      "sha256": "030ee1d6e45aa45a4a31a67f897a700466c2f5406481d60e500c5043da700eab",
       "snippets": [
         {
           "lang": "js",
@@ -3180,5 +3185,5 @@
     "routes": 117,
     "hostOps": 37
   },
-  "contentHash": "3414742859355b52a0371bc4c2da9f4333cb20320afce54b62ee27d580ca2b86"
+  "contentHash": "b2de62dedf8c0addb06890b74a4efb658d063ad1671982f064e4f77e65435b2e"
 }

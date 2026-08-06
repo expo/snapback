@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-05
 **Systems:** Backend (schema/functions), live queries, ephemeral state, assets, React/Expo client
-**Related:** `demos/messaging-snapback`, `issues/closed/20260805-guide-gap-dev-mode-asset-upload-anonymous-caller.md`
+**Related:** `demos/messaging-snapback`, `issues/closed/20260805-guide-gap-dev-mode-asset-upload-anonymous-caller.md`, `issues/closed/20260805-guide-gap-ephemeral-presence-hook-naming.md`
 
 ## What this is
 
@@ -31,14 +31,13 @@ images, seeded through the actual upload pipeline, not a raw row insert).
   the unique index plus a `.first()` lookup is the whole mechanism. This is
   the same "structural constraint over runtime check" pattern Warble uses
   for likes, and it held up cleanly for reactions too.
-- **Ephemeral typing state was genuinely fast to wire once I found the
-  pattern.** There is no `useSnapbackEphemeral` React hook (confirmed by
-  grep, not assumption), so I hand-wired `client.subscribeEphemeral`
-  following `demos/cursors-web`'s `useCursorRoom` shape. Once I had a
-  reference to the raw client (exported from `lib/snapback.ts` as a module
-  singleton, captured at provider-construction time), the rest — snapshot +
-  delta overlay, TTL, self-filtering by `grantedConnectionId` — worked on
-  the first try and is verifiably live: I proved it by publishing typing
+- **Ephemeral typing state was genuinely fast to wire once I found a working
+  pattern, but my first discovery conclusion was wrong.** I grepped for
+  `useSnapbackEphemeral`, missed the differently named
+  `useSnapbackPresence`, and hand-wired `client.subscribeEphemeral` following
+  `demos/cursors-web`'s `useCursorRoom` shape. The resulting snapshot + delta
+  overlay, TTL, and self-filtering by `grantedConnectionId` worked on the
+  first try and was verifiably live: I proved it by publishing typing
   presence from a *second, independent* `SnapbackClient` in a Node script
   while a real browser tab had the conversation open, and the "Priya Rao is
   typing…" indicator appeared with no page reload
@@ -207,3 +206,25 @@ Verification:
 - `node demos/messaging-snapback/tests/acceptance/headless.mjs` — 11/11,
   including minted-session upload → typed attach → embeddable delivery and
   the anonymous-public HTTP 403 ownership negative.
+
+## 2026-08-06 — Ephemeral/presence naming correction
+
+The earlier claim that Snapback had no React hook for ephemeral typing was a
+search-vocabulary failure, not a capability gap. Reading the implementation
+showed that `ConnectionEphemeralCollectionReference` fixes entry ownership to
+the provider connection while the generated `scope` remains the app-defined
+room boundary. `{ conversationId }` therefore creates exactly one typing room
+per conversation.
+
+`src/lib/useTyping.ts` now uses `useSnapbackPresence` in observer mode. Its
+`publish`/`delete` actions preserve the existing immediate keystroke/clear
+behavior while the provider owns snapshot subscription, self identity,
+heartbeat, resync, and cleanup. The raw-client singleton formerly kept only
+for the hand-wired overlay is gone. Provider preparation now uses the generated
+`snapback.app.v1` descriptor because the legacy three-manifest path did not
+admit the byte-complete ephemeral reference carried by `api.mjs`. The guide now
+transcludes this actual demo hook and explicitly bridges the schema term
+“ephemeral” to the React term “presence.” Live browser verification also found
+that the hook's pre-subscribe snapshot was not referentially stable for
+React's external-store contract; the package now caches that state, and the
+typing proof fails unless the indicator itself becomes visible.
