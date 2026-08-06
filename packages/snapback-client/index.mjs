@@ -4119,7 +4119,14 @@ export class SnapbackClient {
           };
         }
       }
-      const wireBody = sessionsMode ? sessionWireBody(path, requestBody) : requestBody;
+      // Anonymous-public custody never performs the handshake that flips
+      // sessionsMode, but its offer contract (LLP 0137 A4-f6) is the same
+      // sessions-era protocol: the offer header is the only auth carrier, so
+      // the body must not carry legacy identity fields — a sessions server
+      // refuses them with SNAPBACK_AUTH_BODY_AUTH_UNSUPPORTED.
+      const wireBody = sessionsMode || this.custody === 'anonymous-public'
+        ? sessionWireBody(path, requestBody)
+        : requestBody;
       const merged = {
         ...(admin && this.adminToken ? { 'x-snapback-admin-token': this.adminToken } : {}),
         ...(sessionsMode ? this.#sessionRequestHeaders(

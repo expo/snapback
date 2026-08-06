@@ -6,7 +6,12 @@
 experience, Developer experience, CLI, Documentation, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-03
-**Revised:** 2026-08-05 (author decisions, LLP 0185 Phase 0 items 2 and 6,
+**Revised:** 2026-08-05 (post-acceptance review repairs: the fork-private
+asset durability chain now fsyncs both `assets/blobs` and its `assets` parent,
+the crash-cut matrix includes asset-bearing publication, and recovery deletes
+only UUID-suffixed, sentinel-proved staging directories while preserving
+same-prefix bystanders. These corrections retain Accepted design status and do
+not publish the derived-fork capability.); 2026-08-05 (author decisions, LLP 0185 Phase 0 items 2 and 6,
 ratified by Charlie 2026-08-05: the earlier Draft → Review transition and LLP
 0005 review loop were subsequently completed by v0.19's Accepted transition;
 the publication mechanism
@@ -278,9 +283,11 @@ LLP 0162, LLP 0163, LLP 0164, LLP 0165, LLP 0185
 
 > **Accepted design; capability not published.** The local F0a/F0b/F1 design,
 > including the same-`appId` derived-deployment amendment below, is accepted.
-> Acceptance records the contract and the landed local substrate; it is not a
-> capability advertisement. `agent_safe_derived_deployment_fork_v1` remains
-> wholly `Missing` until its distinct qualification and publication gates pass.
+> The local program through LLP 0185 Phase 5 is implemented in source.
+> Acceptance records the contract and landed substrate; it commits no schedule
+> or priority and is not a capability advertisement.
+> `agent_safe_derived_deployment_fork_v1` remains wholly `Missing` until its
+> distinct qualification and publication gates pass.
 
 ## Summary
 
@@ -374,11 +381,12 @@ Concrete workflows a fork would serve, in rough order of conviction:
    staging, and preview apps under one account" as a case its vocabulary
    must serve; a fork is the cheapest way to mint the preview member of
    that set.
-4. **Operator undo / "snap back."** A pre-operation fork is a checkpoint
-   the operator can promote if the operation goes wrong. This overlaps
-   backup/restore (LLP 0007's byte-level snapshot) and is the weakest
-   independent justification — restore already exists — but the product
-   name is sitting right there.
+4. **Operator undo / "snap back."** A pre-operation fork lets the operator
+   rehearse the risky operation and inspect the diff before running it for
+   real — but a derived fork is **never promoted**: `promotable: false` is
+   stamped at mint and rejected at boot. Actual undo remains backup/restore
+   (LLP 0007's byte-level snapshot). This is the weakest independent
+   justification, kept only as a rehearsal story.
 
 ### The competitive read
 
@@ -488,11 +496,12 @@ inherited here unchanged.
   point-in-time bookmarks are an ops-level recovery property preserved on
   the wire, not product surface. §Mechanics uses provider capabilities as
   *accelerators behind* a portable fork contract, never as the contract.
-- **Long-lived divergent forks as a paved path.** Nothing prevents keeping
-  a fork alive (it is an ordinary instance), but the design center is
-  minutes-to-days disposable environments. Long-lived forks inherit the
-  full cost of being a real environment (secret rotation, migration
-  drift), and this RFC deliberately does not smooth that path.
+- **Long-lived divergent forks as a paved path.** Every managed fork's
+  total lifetime is bounded — creation and renewal share one configured
+  maximum (`MANAGED_FORK_MAX_LIFETIME_MS`, 7d, author-ratified 2026-08-05)
+  and renewal never clears an expiry — so an indefinite fork is not merely
+  unsmoothed, it is refused. A permanent copied environment is a separate
+  provisioning product.
 
 ## Design sketch
 
@@ -718,7 +727,11 @@ closed set of egress and effect classes, failing closed** — any outbound
 initiation point or custody class not explicitly classified refuses in a
 fork (the `EffectClass::classify` posture in `src/branches.rs` is the
 pattern), and new outbound adapters must declare fork behavior to land.
-Proposed defaults, each overridable explicitly:
+Implemented defaults (2026-08-05 correction: on a derived fork these
+gates are **unconditional** — there is no per-row override switch — and the
+child process inherits the parent environment except `SNAPBACK_ADMIN_TOKEN`,
+which fork launch removes; ambient provider env is neutralized by the
+denial gates below, not by env scrubbing):
 
 | Concern | Default in a fork | Rationale / mechanism |
 | --- | --- | --- |
@@ -727,7 +740,7 @@ Proposed defaults, each overridable explicitly:
 | Asset maintenance worker | **Off** (`SNAPBACK_ASSET_RUNNER_DISABLED`) — the third autonomous worker, easy to miss | An asset-bearing fork must not run ledger work or GC sweeps against a store it may share or lack (§Asset plane). |
 | Maintenance egress (push-receipt polling) | **Denied and durably marked** as `push_receipt` before provider polling | The general maintenance loop still runs for local housekeeping, so this explicit guard — not a worker-disable assumption — closes its autonomous network lane. |
 | Handler egress — buffered `ctx.fetch` (`host.fetch`), `push.send`, `action.streamOpen/Read/Cancel` (`ctx.fetchStream`), and effects deferred via `jobs.enqueue` | **Denied, never fired, and durably marked** by closed family; an unknown future host operation maps to `unclassified_host_operation` and refuses | This is `DenyAll`, not `CaptureOnly`: markers contain family/count/timestamps only, never request payloads or simulated results. LLP 0097 ledger integration remains open. |
-| Asset-provider I/O (`SNAPBACK_ASSET_STORE=s3`) | **Refused in a fork by default** — the S3 store reads `SNAPBACK_ASSET_S3_*` env credentials and performs direct HTTP on the *request path* (uploads, delivery), entirely outside the worker switches; a fork boot ignores inherited provider env unless explicitly opted in | Provider asset I/O is egress the worker-pause rows do not touch; its env credentials are custody-manifest entries like any other credential (round-2 review finding). |
+| Asset-provider I/O (`SNAPBACK_ASSET_STORE=s3`) | **Refused unconditionally in a fork** — the provider-adapter selection point (`asset_store_obj`) denies with family `asset_provider` before any store is constructed, so inherited `SNAPBACK_ASSET_S3_*` env can never be exercised; even the experimental S3 acknowledgment switch is evaluated only after that denial | Provider asset I/O is egress the worker-pause rows do not touch; the guard is the deny gate at the selection point, not env scrubbing — the env vars remain present but unusable (behaviorally proven in `manual_cron_and_asset_provider_paths_deny_on_a_fork`). |
 | Webhook / callback ingress | Fork endpoints **receive nothing by default** — no parent-registered callback routes to a fork; ingress-triggered handlers follow the egress rules above if invoked deliberately | Ingress is a separate class from egress and needs its own deny-by-default statement. |
 | Secrets (LLP 0036 config values) | **Not copied — free by construction**: values live in a 0600 sibling `*.config.json`, never inside the database; copying is the explicit `--with-secrets` opt-in | LLP 0036's file placement makes the safe default zero-cost. The *broader* credential custody (DB-resident validators, push device tokens, asset signing material, keyring sidecars, `SNAPBACK_ADMIN_TOKEN` env inheritance) is governed by the custody manifest (§Design sketch), not by this row. |
 | Auth sessions / tokens / agent credentials | **Terminated by the scrub-and-mint** (§Design sketch) — not by incarnation rotation alone; user *records* are copied as data | The F0a negative corpus presents parent session, agent, resume, search, and admin authority and proves refusal in the minted fork. |
@@ -1052,8 +1065,9 @@ comes before the CLI verb, and no duration estimates until it exists):
   every S0-S5 durability edge and recovers with absent, stale, and unavailable
   registry state; the deny corpus records one bounded payload-free row per
   family and refuses unknown future host operations. Local asset-bearing
-  sources take option (a), `SNAPBACK_FORK_CUSTODY_REFUSED`, until LLP 0185
-  Phase 5 owns a same-cut private-tree copy. F0a is complete; F0b subsequently landed the
+  sources originally took option (a), refusal; LLP 0185 Phase 5 (2026-08-05)
+  replaced that with the same-cut fork-private copy recorded in the custody
+  inventory. F0a is complete; F0b subsequently landed the
   first consumer surface recorded below.
 - **F0b — the local fork verb:** `snapback fork create
   [--from <db|ready-file>] [--ttl 2h] [--with-secrets] [--app-root <dir>]`
@@ -1061,7 +1075,8 @@ comes before the CLI verb, and no duration estimates until it exists):
   boot with all three worker switches + `DenyAll` egress, LLP 0030 ready
   descriptor plus LLP 0024 result envelope; `fork list`, `fork diff` (the receipt),
   `fork drop`, and caller-clock deterministic TTL reaping; asset-bearing
-  sources refuse per the F0 decision.
+  sources originally refused per the F0 decision (superseded 2026-08-05 by
+  the Phase 5 same-cut private copy).
   **Implementation record — 2026-08-03:** implemented as the source CLI over
   the F0a `instance_fork` module. Every managed fork has a finite expiry,
   same-`appId` lineage and independent auth/data-stream identities; default
@@ -1069,7 +1084,8 @@ comes before the CLI verb, and no duration estimates until it exists):
   copy opt-in. The child runtime publishes an LLP 0030 ready file; the parent
   CLI returns its path inside an LLP 0024 `hostOpsResult`, disables
   cron/jobs/assets, and inherits the F0a `DenyAll` gate.
-  Asset-bearing parents still refuse under OQ5 option (a). List/drop/reap use
+  Asset-bearing parents refused under OQ5 option (a) at this record's date
+  (superseded 2026-08-05 by the Phase 5 same-cut private copy). List/drop/reap use
   UUID-bound advisory registry entries that must re-bind to the exact regular
   direct-child destination, mint receipt, database lineage, and ready file
   before read/signal/delete; an unverified possibly-live PID refuses. Reaping
@@ -1117,18 +1133,20 @@ committed generated JSON Schemas; this freeze is the review target for later
 schema/compatibility tests, not a claim that those tests already exist.
 
 **CLI JSON projection — `fork-cli-projection-v1` inside
-`hostOpsResult(schemaVersion = "snapback.v0")`.** All seven operations emit
+`hostOpsResult(schemaVersion = "snapback.v0")`.** All eight operations
+(`create`, `list`, `inspect`, `diff`, `renew`, `drop`, `reap`, `recover`) emit
 `resultKind: "hostOpsResult"`, their exact `operation`, and the usual LLP 0024
 outer fields. The fork-owned `data` shapes are:
 
 | Operation | Fork-owned `data` fields |
 | --- | --- |
-| `fork.create` | `receipt` (`ForkMintReceiptV1`), `registry` (`ForkRegistryEntryV1`), `database`, `readyFile`, `runtimeLog` (paths); `workerPolicy` with `cron`, `jobs`, and `assets`, each currently `"disabled"`; `egressPolicy: "deny-all-v1"`; `assetCustody`: `"fork-private-same-cut"` or `"no-assets"` (2026-08-05; formerly the constant `"refuse-asset-bearing-source"`); `secrets` = `"scrubbed"`, `"copied-explicitly"`, or `"copy-requested-source-absent"`; additive `automaticReap.{observedAtMs,reapedForkIds}` |
-| `fork.list` | `forkRoot` path; `forks` array of registry entries, sorted by `lineage.forkId` |
+| `fork.create` | `receipt` (`ForkMintReceiptV1`), `registry` (`ForkRegistryEntryV1`), `database`, `readyFile`, `runtimeLog` (paths); `workerPolicy` with `cron`, `jobs`, and `assets`, each currently `"disabled"`; `egressPolicy: "deny-all-v1"`; `assetCustody`: `"fork-private-same-cut"` or `"no-assets"` (2026-08-05; formerly the constant `"refuse-asset-bearing-source"`); `secrets` = `"scrubbed"`, `"copied-explicitly"`, or `"copy-requested-source-absent"`; additive `automaticReap.{observedAtMs,reapedForkIds,clearedStaleRegistryIds}` and `resourceAdmission.{usage,limits}` (2026-08-05) |
+| `fork.list` | `forkRoot` path; `forks` array of registry entries, sorted by `lineage.forkId`; additive `unboundRegistry` (entries that failed evidence re-binding, with their codes) and `resourceUsage.{forkCount,totalBytes,defaultLimits}` (2026-08-05) |
 | `fork.inspect` | `status` with `schemaVersion: "snapback.fork-status.v1"`, lineage identity/fork point/expiry, `processHealth`, database/ready/admin-token paths, `secretDisposition`, inert `workerPosture`, `egressPosture: "deny-all-v1"`, and bounded `diffSummary` (`snapback.fork-diff-summary.v1`; counts/coverage/omissions, never full rows) |
-| `fork.diff` | `receipt` (`ForkDiffReceiptV1`); `writtenTo` path or `null` |
+| `fork.diff` | `receipt` (`ForkDiffReceiptV1`, or `ForkNetDiffReceiptV1` under `--net`); `writtenTo` path or `null` |
+| `fork.renew` | `receipt` (`ForkRenewReceiptV1`, `snapback.fork-renew.v1`: `forkId`, `renewedAtMs`, `previousExpiresAtMs`, `expiresAtMs`, `createdAtMs`, `maxLifetimeMs`); `registry` (the re-bound entry carrying the moved expiry). Durable siblings: `fork-renew-receipt.json` (latest receipt) and the transient `fork-renew-intent.json` behind the staging sentinel, consumed by `fork recover` (2026-08-05) |
 | `fork.drop` | `forkId`; `stoppedPid` (`u32` or `null`); `dropped: true` |
-| `fork.reap` | `receipt` (`ForkReapReceiptV1`) |
+| `fork.reap` | `receipt` (`ForkReapReceiptV1`); additive `clearedStaleRegistryIds` (stale bookkeeping completed, reported separately from real reaps; 2026-08-05) |
 | `fork.recover` | `forkRoot`, exact `destination`, `disposition`, optional `forkId`, and optional reconciled `registry`; recovery remains valid when advisory registry repair is unavailable |
 
 For `create`, `target.appId` is the shared logical app, `target.appRoot` is the
@@ -1234,7 +1252,11 @@ the freeze:
 | `SNAPBACK_FORK_APP_ROOT_INVALID` | The requested app-root path cannot be canonicalized. |
 | `SNAPBACK_FORK_BOOT_FAILED` | The child server could not spawn or exited before readiness. |
 | `SNAPBACK_FORK_BOOT_TIMEOUT` | The child did not publish its ready descriptor within the creation deadline. |
-| `SNAPBACK_FORK_CUSTODY_REFUSED` | An occupied source table belongs to a subsystem whose v1 fork disposition is refusal (including asset-bearing sources). |
+| `SNAPBACK_FORK_CUSTODY_REFUSED` | An occupied source table belongs to a subsystem whose fork disposition is refusal (in-app branch/promotion/migration state; since 2026-08-05 supported local asset tables are `Copy` custody, not this class). |
+| `SNAPBACK_FORK_ASSET_CUT_INCOMPLETE` | A blob named by the staged metadata cut is missing from, or digest/length-mismatched in, the parent store; publication refuses rather than producing a metadata-only fork. |
+| `SNAPBACK_FORK_ASSET_CUT_UNSUPPORTED` | An asset blob names a non-`local-fs` store or an unclassified digest algorithm; the future-family rule fails the cut closed. |
+| `SNAPBACK_FORK_NET_DIFF_UNAVAILABLE` | `fork diff --net` was invoked on a fork created without `--retain-base`. |
+| `SNAPBACK_FORK_DIFF_ORACLE_MISMATCH` | The base/head net oracle found a change the journal cannot explain; the attributed receipt cannot be trusted for that span. |
 | `SNAPBACK_FORK_CUSTODY_UNCLASSIFIED` | A Snapback-owned source table has no closed custody-manifest rule. |
 | `SNAPBACK_FORK_DESTINATION_EXISTS` | Publication would overwrite an existing destination. |
 | `SNAPBACK_FORK_DIFF_INVALID` | A selected journal row cannot be decoded into the diff receipt (currently a malformed post-image). |
@@ -1406,12 +1428,14 @@ runtime/durable concerns are scoped per instance, not merely per `appId`.
 - **OQ4 — DO fork mechanics.** Can a new coordinator DO actually be
   instantiated from another DO's PITR bookmark, or is export/import the
   only real path? Needs a spike, not an assumption.
-- **OQ5 — Asset custody in F0. DECIDED for local v1 F0a 2026-08-03:**
-  refuse asset-bearing forks. A fork-private reflinked tree remains the
-  additive local path under LLP 0185 Phase 5 once its same-cut proof exists; the fork-aware
-  shared store with its GC barrier remains F2. This is intentionally the
-  cheapest honest posture: metadata is never published while its physical
-  blob tree is absent.
+- **OQ5 — Asset custody in F0. DECIDED 2026-08-03 (refusal), IMPLEMENTED
+  as the additive path 2026-08-05:** F0 refused asset-bearing forks; LLP
+  0185 Phase 5 then landed the decided additive path — a same-cut,
+  digest-verified fork-private blob-tree copy, with torn cuts and
+  unclassified stores/digest algorithms refusing before publication. The
+  invariant survives both stages: metadata is never published while its
+  physical blob tree is absent or unproven. The fork-aware shared store
+  with its GC barrier remains F2.
 - **OQ6 — Where does `fork` live in the surface? DECIDED for local v1 F0b
   2026-08-03:** CLI-only. The source `snapback fork` verb emits LLP 0024
   host-operation results and returns/consumes paths to LLP 0030 ready
@@ -1525,13 +1549,14 @@ distinct qualification and publication gates pass.
 
 **Accepted 2026-08-05.** F0a, F0b, and F1 implement the local safety
 substrate, CLI consumer, dated fleet dogfood, guide, fork-aware harness, and
-the LLP 0185 Phase-1/Phase-3 lifecycle and resource-bound increments. Author
-ratification of provisional limit constants, the remaining exact-diff and
-bypass-negative legs, and F2 hosted work remain open. Acceptance records the
-approved design, the same-`appId` derived-deployment amendment, and the landed
-local substrate. It does not advertise
-`agent_safe_derived_deployment_fork_v1`; that capability remains wholly
-`Missing` behind its separate qualification/publication gate.
+the LLP 0185 lifecycle/resource-bound increments, concurrent agent/worktree
+ergonomics, first exact net-diff slice, fork-private asset custody, and the
+post-acceptance durability/recovery corrections. Remaining Phase-4 filters,
+pagination, human projection, authorizer-backed completeness, and F2 hosted
+work stay open under LLP 0185. Acceptance records the approved design, the
+same-`appId` derived-deployment amendment, and the landed local substrate. It
+does not advertise `agent_safe_derived_deployment_fork_v1`; that capability
+remains wholly `Missing` behind its separate qualification/publication gate.
 The earliest local-only `clonefile` validation and its corrected claim remain
 in §Spike evidence. The same-day 0097 reconciliation narrowed the claimed
 territory. A
@@ -1588,6 +1613,7 @@ author acceptance complete the LLP 0005 transition to Accepted.
 
 The earlier fold fallback did not fire: the completed first-consumer diary
 demonstrated schema/function-divergent, out-of-process value beyond LLP 0097's
-in-app branch. Remaining follow-ons are the OQ4 DO-bookmark spike and OQ2's
-capture-ledger wiring for out-of-process executors; neither is a condition of
-this design acceptance, and neither may be advertised before its own gate.
+in-app branch. All three empirical graduation criteria are satisfied. The OQ4
+DO-bookmark spike is F2 hosted work, while OQ2's `CaptureOnly` residual and
+bypass closure are sequenced by LLP 0185/0164 rather than conditions of this
+design acceptance; neither may be advertised before its own gate.

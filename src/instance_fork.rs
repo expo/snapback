@@ -1482,6 +1482,7 @@ pub enum PublicationCut {
     AfterSqliteShmSync,
     AfterSqliteJournalSync,
     AfterSqliteSync,
+    AfterAssetCopy,
     AfterStagingDirectorySync,
     AfterRegistryIntent,
     AfterRename,
@@ -2912,6 +2913,7 @@ fn publish_with_options(
         expires_at_ms,
     )?;
     copy_fork_private_assets(source_database, &staging, &staging_database)?;
+    maybe_cut(cut_at, PublicationCut::AfterAssetCopy)?;
     if retain_base {
         retain_base_snapshot(&staging, &staging_database, &receipt, now_ms)?;
     }
@@ -3045,7 +3047,11 @@ fn copy_fork_private_assets(
             .map_err(|error| io_error("write fork asset blob", error))?;
         sync_file(&target, "sync fork asset blob")?;
     }
+    // The durability chain is staging → assets → blobs: each directory's
+    // entries bind the level below, so every level syncs (2026-08-05 review
+    // blocker: the middle link was missing).
     sync_directory(&fork_blobs)?;
+    sync_directory(&staging.join("assets"))?;
     Ok(())
 }
 
@@ -3173,10 +3179,36 @@ pub fn recover(parent: &Path, destination: &Path) -> SnapbackResult<()> {
             .map_err(|error| io_error("scan fork staging directories", error))?
         {
             let entry = entry.map_err(|error| io_error("read fork staging entry", error))?;
-            if entry.file_name().to_string_lossy().starts_with(&prefix) {
-                fs::remove_dir_all(entry.path())
-                    .map_err(|error| io_error("reap unpublished fork staging", error))?;
+            let name = entry.file_name();
+            let name = name.to_string_lossy();
+            let Some(suffix) = name.strip_prefix(&prefix) else {
+                continue;
+            };
+            // Evidence-bound reaping (2026-08-05 review blocker): only a
+            // directory whose suffix is the publish-minted UUID and which
+            // carries the staging sentinel is provably fork staging. A
+            // same-prefix bystander directory is never deleted. Note the
+            // remaining caveat: recovery cannot distinguish crashed staging
+            // from a publication racing it this instant — recover is a
+            // repair verb for a destination with no live publisher.
+            if Uuid::parse_str(suffix).is_err() {
+                continue;
             }
+            if !entry.path().join(STAGING_SENTINEL).is_file() {
+                // A crash between mkdir and the sentinel write leaves an
+                // empty shell; removing an empty directory loses nothing.
+                // Anything non-empty without a sentinel is not provably
+                // ours and stays.
+                let empty = fs::read_dir(entry.path())
+                    .map(|mut entries| entries.next().is_none())
+                    .unwrap_or(false);
+                if empty {
+                    let _ = fs::remove_dir(entry.path());
+                }
+                continue;
+            }
+            fs::remove_dir_all(entry.path())
+                .map_err(|error| io_error("reap unpublished fork staging", error))?;
         }
         sync_directory(parent)?;
     }
@@ -5094,6 +5126,7 @@ mod tests {
             PublicationCut::AfterSqliteShmSync,
             PublicationCut::AfterSqliteJournalSync,
             PublicationCut::AfterSqliteSync,
+            PublicationCut::AfterAssetCopy,
             PublicationCut::AfterStagingDirectorySync,
             PublicationCut::AfterRegistryIntent,
             PublicationCut::AfterRename,
@@ -5104,7 +5137,9 @@ mod tests {
         ];
         for (index, cut) in cuts.into_iter().enumerate() {
             let directory = tempfile::tempdir().unwrap();
-            let source = source_database(directory.path());
+            // Asset-bearing so every cut also covers the private blob-tree
+            // staging (2026-08-05 review: the matrix had no asset cuts).
+            let source = asset_bearing_parent(directory.path(), b"crash matrix blob");
             let destination = directory.path().join("fork");
             let error =
                 publish(&source, &destination, "app-a", "parent-a", 42, Some(cut)).unwrap_err();
