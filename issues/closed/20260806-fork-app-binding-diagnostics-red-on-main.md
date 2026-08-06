@@ -46,10 +46,13 @@ fork/app-binding lane.
 ## Resolution — 2026-08-06
 
 The diagnostic inventory was real classification drift. Commit `1048d97d6`
-classifies `SNAPBACK_FORK_APP_BINDING_MISMATCH`,
-`SNAPBACK_FORK_APP_BINDING_REQUIRED`, and
-`SNAPBACK_FORK_WRITER_COVERAGE_GAP` with the existing LLP 0158 server-invariant
-500 class; the exact inventory test passes 1/1.
+initially put all three diagnostics in the existing LLP 0158 server-invariant
+500 class. Main then independently supplied the more specific reviewed HTTP
+classifications: `SNAPBACK_FORK_APP_BINDING_REQUIRED` is a caller-shape 400,
+`SNAPBACK_FORK_APP_BINDING_MISMATCH` is an authority refusal 403, and
+`SNAPBACK_FORK_WRITER_COVERAGE_GAP` remains a server-invariant 500. The final
+wave merge removed the two superseded duplicate entries; the exact inventory
+test passes 1/1.
 
 The two acceptance failures were not a reason to weaken the canonical-root
 guard. Carrier regeneration commit `1eb88cc4c` had accidentally tracked
