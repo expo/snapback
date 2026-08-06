@@ -459,6 +459,15 @@ const CLIENT_BUNDLE_DISPOSITION_ROLLOVER_PROFILE_IDS = Object.freeze([
   'react-external',
   'resolved-public-subpath-assets',
 ]);
+const E2_COMMAND_CORRECTNESS_ROLLOVER_PROFILE_IDS = Object.freeze([
+  'external-react-application',
+  'public-subpath-assets',
+  'public-subpath-commands',
+  'public-subpath-ir-evaluator',
+  'react-external',
+  'resolved-public-subpath-assets',
+  'resolved-public-subpath-commands',
+]);
 const ROLLOVER_LEDGER_SPECS = Object.freeze([
   Object.freeze({
     filename: 'baseline.local-persistent-store.v1.json',
@@ -832,6 +841,64 @@ const ROLLOVER_LEDGER_SPECS = Object.freeze([
       ['node', ['packages/snapback-react/package.test.mjs']],
       ['node', ['packages/snapback-react/commands.test.mjs']],
       ['node', ['packages/snapback-react/hmr-generation-handoff.test.mjs']],
+      ['node', ['packages/snapback-react/surface.test.mjs']],
+    ]),
+  }),
+  // @ref LLP 0181#e2--online-asset-command — the picker/content-URI adapter
+  // is shipped client capability mass, not an unmeasured Expo-only wrapper.
+  // @ref LLP 0180#command-task — provider disposal and authority ambiguity
+  // fencing are correctness obligations of the synchronous command task.
+  Object.freeze({
+    filename: 'baseline.e2-command-correctness.v1.json',
+    profileFilename: 'e2-command-correctness-profiles.v1.json',
+    workloadVersion: 'expo-e2-command-correctness.2026-08-06.v1',
+    profileIds: E2_COMMAND_CORRECTNESS_ROLLOVER_PROFILE_IDS,
+    predecessors: Object.freeze([
+      Object.freeze({
+        filename: 'baseline.client-bundle-disposition.v1.json',
+        profileIds: Object.freeze([
+          'external-react-application',
+          'public-subpath-assets',
+          'react-external',
+          'resolved-public-subpath-assets',
+        ]),
+      }),
+      Object.freeze({
+        filename: 'baseline.s2-commands.v1.json',
+        profileIds: Object.freeze([
+          'public-subpath-commands',
+          'resolved-public-subpath-commands',
+        ]),
+      }),
+      Object.freeze({
+        filename: 'baseline.local-read-admission.v1.json',
+        profileIds: Object.freeze(['public-subpath-ir-evaluator']),
+      }),
+    ]),
+    authorities: Object.freeze([
+      'LLP 0063#workstream-8--performance-and-packaging-budgets',
+      'LLP 0145#phase-a--establish-a-size-ratchet',
+      'LLP 0176#g3--one-online-image-send-command',
+      'LLP 0180#command-task',
+      'LLP 0181#e2--online-asset-command',
+    ]),
+    rationale: Object.freeze({
+      date: '2026-08-06',
+      classification: 'accepted Expo E2 capability and command/auth correctness mass',
+      expoE2: '47b4a59ac adds the structural picker/content-URI adapter and the native platform source path. The shipped assets, commands, and React closures retain those bytes because the online command accepts the platform source synchronously.',
+      commandCorrectness: '02bf40745 fences command tasks when their provider is disposed and stops reporting false mutation ambiguity. Those checks belong to the existing synchronous CommandTask contract and cannot move behind an asynchronous import without changing it.',
+      authCompressionResidue: 'f782431bd repairs auth-custody lock ordering. Tree shaking leaves the ir-evaluator profile at the same minified and gzip sizes and with the same per-module byte attribution, but the changed auth-coordinator source rotates the output and adds one Brotli byte; the exact compressed artifact is therefore recorded rather than waived.',
+      summary: 'Advance exactly the seven closures exceeded by the E2 picker adapter, command-task disposal correction, and auth lock-ordering output rotation. Every predecessor receipt and every unrelated ceiling remains immutable.',
+    }),
+    beforeAfterProfileIds: E2_COMMAND_CORRECTNESS_ROLLOVER_PROFILE_IDS,
+    behaviorCommands: Object.freeze([
+      ['node', ['packages/snapback-client/package.test.mjs']],
+      ['node', ['packages/snapback-client/browser-closure.test.mjs']],
+      ['node', ['packages/snapback-client/assets.test.mjs']],
+      ['node', ['packages/snapback-client/commands.test.mjs']],
+      ['node', ['packages/snapback-client/ir-evaluator.test.mjs']],
+      ['node', ['packages/snapback-react/package.test.mjs']],
+      ['node', ['packages/snapback-react/commands.test.mjs']],
       ['node', ['packages/snapback-react/surface.test.mjs']],
     ]),
   }),

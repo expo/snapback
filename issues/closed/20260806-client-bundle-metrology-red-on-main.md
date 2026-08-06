@@ -113,3 +113,36 @@ unchanged. The new `commands` export is separately frozen as two additive
 profiles (`public-subpath-commands` and
 `resolved-public-subpath-commands`) in `baseline.s2-commands.v1.json`. Both
 writers ran the complete declared behavior train before minting.
+
+## Final reconciliation — Expo E2 and post-S2 correctness landings
+
+Later completed-main work advanced seven of those active closures again. This
+is not unexplained environment drift:
+
+- `47b4a59ac` added LLP 0181 E2's picker/content-URI structural source and
+  native platform adapter, which is retained by the assets, commands, and
+  React entrypoints;
+- `02bf40745` added the LLP 0180 command-task disposal fence and corrected
+  false mutation-ambiguity reporting, increasing the commands and React
+  closures; and
+- `f782431bd` repaired auth-custody lock ordering. Tree shaking keeps the
+  `public-subpath-ir-evaluator` minified size, gzip size, and module byte
+  attribution identical, but the changed auth-coordinator input rotates the
+  output and raises its exact Brotli artifact from 6,739 to 6,740 bytes.
+
+Node 24.18.0 / esbuild 0.28.1 measured the final seven-profile vector as:
+
+| profile | minified | gzip | Brotli |
+| --- | ---: | ---: | ---: |
+| `external-react-application` | 92,630 | 28,756 | 25,100 |
+| `react-external` | 92,455 | 28,715 | 25,004 |
+| `public-subpath-assets` | 15,680 | 6,004 | 5,205 |
+| `resolved-public-subpath-assets` | 15,689 | 6,010 | 5,209 |
+| `public-subpath-commands` | 27,660 | 9,366 | 8,176 |
+| `resolved-public-subpath-commands` | 27,669 | 9,372 | 8,196 |
+| `public-subpath-ir-evaluator` | 21,295 | 7,615 | 6,740 |
+
+`baseline.e2-command-correctness.v1.json` prospectively supersedes only those
+seven rows. Its predecessor receipts and every unrelated ceiling remain
+immutable, and its guarded writer runs the client, asset, command, IR,
+browser-closure, React, and surface behavior train before minting.

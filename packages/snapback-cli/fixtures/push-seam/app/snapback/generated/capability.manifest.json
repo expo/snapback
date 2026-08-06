@@ -234,8 +234,6 @@
     "cloudflare",
     "hosted_untrusted_code",
     "external_auth",
-    "outbound_actions",
-    "bounded_response_stream_v1",
     "notifications",
     "ephemeral_hosted_adapter",
     "ephemeral_multi_instance_sticky_routing",
@@ -379,7 +377,7 @@
   "offlineRetention": true,
   "onlineOnlyQueries": true,
   "optimisticReplay": true,
-  "outboundActions": false,
+  "outboundActions": true,
   "permissionDiagnostics": false,
   "portabilityOptOuts": [],
   "relationalQueries": {
@@ -480,6 +478,7 @@
   ],
   "supportedCapabilities": [
     "auth.sessions.v1",
+    "bounded_response_stream_v1",
     "bounded_children_v1",
     "cron",
     "cron_action_run_mutation",

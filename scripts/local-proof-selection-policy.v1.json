@@ -377,6 +377,7 @@
         "provenance-unit",
         "repo-layout-unit",
         "codegen-regressions",
+        "fleet-observatory-move1-receipt",
         "exact-resolver-packages",
         "provider-live-conformance",
         "regression-reconnect-nuke",
@@ -410,6 +411,7 @@
         "required-surface-build-fixtures",
         "artifact-path-hygiene-fixtures",
         "codegen-regressions",
+        "fleet-observatory-move1-receipt",
         "snapback-codegen-package",
         "snapback-contract-package"
       ]
@@ -441,6 +443,7 @@
         "todo-headless",
         "forked-parent",
         "fork-parallel-dispositions",
+        "fleet-observatory-move1-receipt",
         "todo-v2-headless",
         "workout-apps",
         "todo-v2-register-boot",
@@ -520,6 +523,7 @@
         "todo-headless",
         "forked-parent",
         "fork-parallel-dispositions",
+        "fleet-observatory-move1-receipt",
         "todo-v2-headless",
         "workout-apps",
         "todo-v2-register-boot",
@@ -583,6 +587,7 @@
         "local-store-publication",
         "snapshot-batch-parity",
         "snapshot-batch-v2-parity",
+        "fleet-observatory-move1-receipt",
         "current-binary-build",
         "current-binary-readiness",
         "versioned-seed-conformance"

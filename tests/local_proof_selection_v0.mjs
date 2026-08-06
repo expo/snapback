@@ -115,6 +115,7 @@ test('native, Cloudflare, seed, and carrier changes select their unique claims',
     'cargo-clippy',
     'rust-tests',
     'snapshot-batch-v2-parity',
+    'fleet-observatory-move1-receipt',
     'versioned-seed-conformance',
     'telemetry-smoke',
   ]);
@@ -126,12 +127,16 @@ test('native, Cloudflare, seed, and carrier changes select their unique claims',
   const seed = select(['tests/conformance/versioned-seed-v1.manifest.json']);
   includesAll(seed, [
     'snapshot-batch-v2-parity',
+    'fleet-observatory-move1-receipt',
     'versioned-seed-conformance',
     'current-binary-readiness',
   ]);
 
   const carrier = select(['tests/acceptance/local-store-carrier-exit-v1.mjs']);
   includesAll(carrier, ['local-store-carrier-receipt']);
+
+  const fleet = select(['demos/fleet-observatory-move1/src/App.tsx']);
+  includesAll(fleet, ['fleet-observatory-move1-receipt']);
 });
 
 test('shared authorities and unknown paths fail closed into the complete inventory', () => {
