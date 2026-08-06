@@ -1677,12 +1677,14 @@
         "llp/0012-headless-integration-contract.spec.md",
         "llp/0064-native-client-surfaces.rfc.md",
         "llp/0114-first-class-react-and-query-groups.spec.md",
+        "llp/0176-expo-messaging-golden-path.plan.md",
         "packages/snapback-client/index.mjs",
         "packages/snapback-client/react-binding.mjs",
         "packages/snapback-client/rqs-store-default.mjs",
         "packages/snapback-client/rqs-store-expo.mjs",
         "packages/snapback-react/index.mjs",
-        "demos/partiful-matrix/tests/acceptance/native-react-expo.mjs"
+        "demos/partiful-matrix/tests/acceptance/native-react-expo.mjs",
+        "demos/_kit/eas-stage-build.mjs"
       ],
       "examples": [
         "demos/partiful-matrix/native/react-expo",
@@ -1690,11 +1692,13 @@
         "packages/snapback-react/webcrypto-fallback.test.mjs",
         "packages/snapback-client/rqs-store-expo.test.mjs",
         "packages/snapback-client/rqs-resume-expo.test.mjs",
-        "demos/rn-durable-store-witness/probe-App.tsx"
+        "demos/rn-durable-store-witness/probe-App.tsx",
+        "demos/tandem-expo-bakeoff/scripts/build-ios-dev-client",
+        "demos/_kit/tests/repo-layout-unit.mjs"
       ],
       "reviewed": "2026-08-04",
       "reviewedCommit": "41c2db8804ba08071c39641cc46251c9084c7a31",
-      "sha256": "60e5d6006cce3123653743b314c6ffef912d5265cf0b5373cf92e7af14be12fd",
+      "sha256": "c03029734acd20197671b071312aa6d1a2e11cfa26f1447fa9bbf02e353e3a03",
       "snippets": [
         {
           "lang": "ts",
@@ -1763,7 +1767,7 @@
       ],
       "reviewed": "2026-08-04",
       "reviewedCommit": "8154744c87ed58816703093bd526bd7a40d95a56",
-      "sha256": "dc5a467d2ccdf2294d32d50652af02e620239b970398ff4539a01c0a3ca289d4",
+      "sha256": "4eda21c9d00e769483300783cf4f8c5c762c698a5e5045e9ad3b94e276138663",
       "snippets": [
         {
           "lang": "ts",
@@ -3057,5 +3061,5 @@
     "routes": 111,
     "hostOps": 37
   },
-  "contentHash": "0f6721e5f8a1ae5722a67215bb33b457f8722e3d4a8220cc933afdd1dd991cd9"
+  "contentHash": "abc52960e575b438792b86c739ce798e03ef08b99df3a919ba1811899787d228"
 }

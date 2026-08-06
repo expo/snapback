@@ -7,7 +7,10 @@ Ephemeral state, Code generation, Developer experience, Packaging, Local
 server lifecycle, Testing, Competitive evaluation
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-05
-**Revised:** 2026-08-05 (f) — Super-refine round 1 revision (dual-family
+**Revised:** 2026-08-05 (g) — A3/A4 friction tickets resolved: marker-walk
+root resolution in `demos/_kit/repo-layout.mjs` and the paved out-of-checkout
+EAS staging helper `demos/_kit/eas-stage-build.mjs`; ticket pointers updated
+to `issues/closed/`. Earlier same day (f) — Super-refine round 1 revision (dual-family
 review at `llp/reviews/0176-expo-messaging-golden-path.{claude,gpt-5}.md`;
 journal at `.run.md`): reframed G0's dev-session primitive as a thin,
 source-cited wrapper over the existing `auth.mintSession` host-op with an
@@ -226,10 +229,15 @@ the cheaper mechanical fixes.
   `issues/20260805-local-source-package-closure-needs-contract-override.md`
   and `issues/20260803-first-npm-latest-promotion.md`.
 - **A3 — nested EAS roots.** EAS resolves the repository Git root instead of
-  the nested app, leading two bakeoffs to invent staging copies. Ticket:
-  `issues/20260805-eas-nested-app-git-root-monorepo-archive.md`.
+  the nested app, leading two bakeoffs to invent staging copies. Resolved
+  2026-08-05: the staging workaround is the paved path
+  (`demos/_kit/eas-stage-build.mjs`, documented in
+  `guide/clients/react-expo.md`). Ticket:
+  `issues/closed/20260805-eas-nested-app-git-root-monorepo-archive.md`.
 - **A4 — nested headless fixtures.** `openHeadlessApp` assumes a one-level demo
-  layout. Ticket: `issues/20260805-headless-app-nested-demo-root.md`.
+  layout. Resolved 2026-08-05: marker-walk root/app resolution in
+  `demos/_kit/repo-layout.mjs`. Ticket:
+  `issues/closed/20260805-headless-app-nested-demo-root.md`.
 - **A5 — edit recovery.** A comment-only source change can alter complete
   artifact identity, correctly refuse the old store, and leave no supported
   successor path. Ticket:

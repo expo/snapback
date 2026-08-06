@@ -2,26 +2,42 @@
 // artifacts, provenance-verified server lifecycle, and deterministic seed path.
 
 import { existsSync, readFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
 
 import { AdminClient } from '../../packages/snapback-admin-client/index.mjs';
 import { SnapbackClient } from './client.mjs';
+import { resolveHeadlessAppLayout } from './repo-layout.mjs';
 import { startServer } from './server-process.mjs';
 
 const readJson = (path) => JSON.parse(readFileSync(path, 'utf8'));
 
 export async function openHeadlessApp(metaUrl, {
   appId,
+  // Explicit app directory (absolute, or relative to the repository root) for
+  // layouts the marker walk cannot infer; ordinary `demos/<app>/tests/
+  // acceptance` and nested `demos/<suite>/<arm>/tests/acceptance` suites can
+  // leave it unset.
+  appDir: appDirOption = null,
   cronDisabled = false,
   env = {},
 } = {}) {
   if (!appId) throw new TypeError('openHeadlessApp requires appId');
-  const acceptanceDir = dirname(fileURLToPath(metaUrl));
-  const appDir = resolve(acceptanceDir, '..', '..');
-  const repoRoot = resolve(appDir, '..', '..');
-  const backendDir = join(appDir, 'snapback');
-  const generatedDir = join(backendDir, 'generated');
+  // Marker-walk resolution instead of a fixed number of parent traversals, so
+  // nested bakeoff arms resolve the real repository root and their own
+  // `<arm>/snapback` backend, and anything unresolvable refuses here — before
+  // a server can be launched from a plausible wrong directory
+  // (issues/closed/20260805-headless-app-nested-demo-root.md; LLP 0176 A4).
+  const { appDir, backendDir, generatedDir, repoRoot } = resolveHeadlessAppLayout(
+    metaUrl,
+    { appDir: appDirOption },
+  );
+  if (!existsSync(join(generatedDir, 'schema.manifest.json'))) {
+    throw new Error(
+      `SNAPBACK_KIT_GENERATED_ARTIFACTS_MISSING: ${generatedDir} has no ` +
+        'schema.manifest.json; run codegen first, e.g. ' +
+        `node packages/snapback-codegen/index.mjs ${backendDir}`,
+    );
+  }
   const generated = (name) => readJson(join(generatedDir, name));
 
   const server = await startServer({

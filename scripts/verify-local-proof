@@ -371,6 +371,7 @@ run rbac-acceptance --requires current-binary-readiness -- node demos/rbac/tests
 run client-errors -- node demos/_kit/tests/client-errors.mjs
 run live-wire-schema -- node demos/_kit/tests/live-wire-schema.mjs
 run provenance-unit -- node demos/_kit/tests/provenance-unit.mjs
+run repo-layout-unit -- node demos/_kit/tests/repo-layout-unit.mjs
 run codegen-regressions -- node demos/_kit/tests/codegen-regressions.mjs
 run exact-resolver-packages -- node demos/_kit/tests/exact-resolver-packages.mjs
 run provider-live-conformance --requires current-binary-readiness -- node demos/_kit/tests/provider-live-conformance.mjs
