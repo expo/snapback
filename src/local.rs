@@ -7617,6 +7617,18 @@ impl LocalSnapback {
             ));
         }
 
+        let caller = Self::asset_caller_principal(authority);
+        // Every authorizer must declare an owner, so a caller without a
+        // resolved principal is guaranteed to fail every later ownership check.
+        if caller.is_none() {
+            return Err(SnapbackError::error(
+                "SNAPBACK_ASSET_OWNER_CUSTODY_UNSATISFIABLE",
+                "assets",
+                "every upload attempt records the authorizer-declared owner principal, and each transfer, resume, finalize, and attach step must present that owner's resolved authority; an anonymous caller can never satisfy it, so this reservation could never complete. Reserve with real caller custody: an ordinary session (for local development, snapback session mint --email <email> behind a trusted broker) or operator impersonation (snapback assets put --user <handle>).",
+            )
+            .with_details(serde_json::json!({ "intentId": intent.id })));
+        }
+
         // Run the generated authorizer under the protected profile, capturing
         // the complete LLP 0007 read-set witness.
         let definition = self.asset_intent_definition(&intent)?;
@@ -7644,7 +7656,6 @@ impl LocalSnapback {
             )
         })?;
 
-        let caller = Self::asset_caller_principal(authority);
         let auth_pair = Self::asset_auth_pair(authority);
         let witness = serde_json::to_value(&run.read_dependencies).unwrap_or_default();
         let app_id = self.functions.app_id.clone();
@@ -31355,9 +31366,17 @@ globalThis.__snapbackHandlers = {
         user: &str,
         source: InvocationSource,
     ) -> PreparedAuthority {
+        asset_dev_authority_with_user(snapback, Some(user), source)
+    }
+
+    fn asset_dev_authority_with_user(
+        snapback: &LocalSnapback,
+        user: Option<&str>,
+        source: InvocationSource,
+    ) -> PreparedAuthority {
         let input = HandlerInput {
             auth: crate::manifest::AuthInput {
-                user_id: Some(user.to_owned()),
+                user_id: user.map(str::to_owned),
                 ..Default::default()
             },
             ..Default::default()
@@ -31531,6 +31550,67 @@ globalThis.__snapbackHandlers = {
             .asset_intent("missing")
             .expect_err("unknown intent");
         assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_INTENT_UNKNOWN");
+    }
+
+    #[test]
+    fn asset_attempt_create_refuses_unsatisfiable_anonymous_owner_custody() {
+        let mut snapback = asset_test_snapback();
+        let anonymous = asset_dev_authority_with_user(&snapback, None, InvocationSource::HttpQuery);
+
+        let error = snapback
+            .asset_attempt_create(&anonymous, asset_create_request(Some(10)))
+            .expect_err("anonymous custody refuses before reservation");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_ASSET_OWNER_CUSTODY_UNSATISFIABLE"
+        );
+        assert_eq!(error.diagnostic.subsystem, "assets");
+        assert!(
+            error
+                .diagnostic
+                .message
+                .contains("each transfer, resume, finalize, and attach step")
+        );
+        assert!(
+            error
+                .diagnostic
+                .message
+                .contains("snapback session mint --email <email>")
+        );
+        assert!(
+            error
+                .diagnostic
+                .message
+                .contains("snapback assets put --user <handle>")
+        );
+        assert!(!error.diagnostic.message.contains("owner_1"));
+        assert_eq!(
+            error.diagnostic.details["intentId"],
+            serde_json::json!("app:avatarUpload")
+        );
+
+        let (asset_count, attempt_count) = snapback
+            .db
+            .asset_transaction(|tx| {
+                let asset_count: u64 = tx.query_row(
+                    "SELECT COUNT(*) FROM _snapback_asset_records_v1",
+                    [],
+                    |row| row.get(0),
+                )?;
+                let attempt_count: u64 = tx.query_row(
+                    "SELECT COUNT(*) FROM _snapback_asset_attempts_v1",
+                    [],
+                    |row| row.get(0),
+                )?;
+                Ok((asset_count, attempt_count))
+            })
+            .expect("asset state counts");
+        assert_eq!((asset_count, attempt_count), (0, 0));
+
+        let creator = asset_dev_authority(&snapback, "user_a", InvocationSource::HttpQuery);
+        snapback
+            .asset_attempt_create(&creator, asset_create_request(Some(10)))
+            .expect("resolved dev impersonation still creates an attempt");
     }
 
     #[test]

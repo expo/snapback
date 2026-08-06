@@ -3710,11 +3710,12 @@ multi-step upload over the ordinary client HTTP surface — for any intent auth
 mode.** Every upload attempt records the non-optional owner principal returned
 by `authorize`. Transfer, finalization, and attachment compare that owner with
 the caller resolved from each request. An anonymous browser, React Native, or
-Expo request has no caller principal, so it can never equal the recorded
-owner. Setting `auth: 'public'` may make attempt creation public; it does not
-make later ownership checks anonymous, and `public-immutable` controls
-delivery rather than upload authority. Passing a `userId` option to the task
-is not authentication.
+Expo request has no caller principal, so the server refuses attempt creation
+before running the authorizer or reserving state with
+`SNAPBACK_ASSET_OWNER_CUSTODY_UNSATISFIABLE`. Setting `auth: 'public'` does
+not make ownership checks anonymous — a public intent remains legitimate with
+session custody — and `public-immutable` controls delivery rather than upload
+authority. Passing a `userId` option to the task is not authentication.
 
 There are exactly two paved local-development answers:
 
@@ -3964,9 +3965,10 @@ Two facts shape the browser flow:
 
 - **Interactive uploads need sessions custody.** The ordinary browser and
   native HTTP carriers resolve as anonymous when no real session is present,
-  so the owner mismatch described under Upload and attach applies to every
-  intent auth mode. The `--user` lane under Operate below is the CLI/host-op
-  path (admin authority for agents and fixtures), not a browser or Expo path.
+  so the reservation refusal described under Upload and attach applies to
+  every intent auth mode. The `--user` lane under Operate below is the
+  CLI/host-op path (admin authority for agents and fixtures), not a browser or
+  Expo path.
 - **The sign-in code arrives through a trusted-local seam.** The dev
   mailbox is admin- and impersonation-gated
   ([sessions guide](../auth/sessions-and-principals.md)), so a browser demo
