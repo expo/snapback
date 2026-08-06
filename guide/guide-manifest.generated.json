@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "a7e66df4e0b141497bc11f32df8c27435d83553c"
+    "commit": "e69630635e2d1319d4dc797c4655bce4f93cf59d"
   },
   "nav": {
     ".": [
@@ -222,6 +222,11 @@
         "id": "operating.host-ops",
         "order": 2,
         "title": "Host operations"
+      },
+      {
+        "id": "operating.network-profiles",
+        "order": 2,
+        "title": "Network condition profiles"
       },
       {
         "id": "operating.diagnostics",
@@ -1450,7 +1455,7 @@
       "examples": [],
       "reviewed": "2026-08-04",
       "reviewedCommit": "HEAD",
-      "sha256": "b418a34049c55cdb853edd416a395b29900f73f65fb075bcdaa9a28c182560f6",
+      "sha256": "b5f5a3e48471cf0384729888224d787b58a30542d613ae66fb7b63b41c280055",
       "snippets": []
     },
     "clients.app-cli": {
@@ -2105,7 +2110,13 @@
       "authorities": [
         "llp/0061-agent-first-snapback-guide.rfc.md",
         "llp/0000-snapback.explainer.md",
-        "llp/0064-native-client-surfaces.rfc.md"
+        "llp/0042-agent-mcp-surface.rfc.md",
+        "llp/0064-native-client-surfaces.rfc.md",
+        "llp/0184-agent-accessible-control-plane.rfc.md",
+        "src/cli.rs",
+        "src/guide_mcp.rs",
+        "packages/snapback-cli/index.mjs",
+        "packages/snapback-cli/mcp-control.mjs"
       ],
       "examples": [
         "demos/todo",
@@ -2116,8 +2127,13 @@
       ],
       "reviewed": "2026-08-04",
       "reviewedCommit": "dab2410b6793ffa5685069a0a4054f0e2b21608a",
-      "sha256": "3d4479d7ea8c413350a7b2b68bbb170731211b3f3f95701619f57a51f37ed128",
-      "snippets": []
+      "sha256": "472815d929570791b090e1739ebb465ef4b3ddd116747efbbb90cf4eb0f91cb9",
+      "snippets": [
+        {
+          "lang": "json",
+          "class": "fragment"
+        }
+      ]
     },
     "operating.admin-console": {
       "path": "guide/operating/admin-console.md",
@@ -2252,7 +2268,7 @@
       ],
       "reviewed": "2026-08-03",
       "reviewedCommit": "6e5d69d1037c6042fb9338221dfb489e00f5f78a",
-      "sha256": "2d089ae63c44efffda186a90d0ff2b0ee1960294727a60e344167a751edda765",
+      "sha256": "3863bc76b7774d6338607b02621b801327a676c27485a63e3a38ede4177666f7",
       "snippets": [
         {
           "lang": "json",
@@ -2296,6 +2312,35 @@
           "lang": "js",
           "class": "transcluded",
           "source": "demos/todo/tests/acceptance/forked-parent.mjs"
+        }
+      ]
+    },
+    "operating.network-profiles": {
+      "path": "guide/operating/network-profiles.md",
+      "title": "Network condition profiles",
+      "order": 2,
+      "status": "current",
+      "targets": [
+        "local"
+      ],
+      "maturity": "shipped",
+      "capabilities": [
+        "operating.network-profiles"
+      ],
+      "authorities": [
+        "llp/0167-network-condition-profiles.rfc.md"
+      ],
+      "examples": [
+        "demos/zero-bakeoff"
+      ],
+      "reviewed": "2026-08-05",
+      "reviewedCommit": "HEAD",
+      "sha256": "eecc308a4fb6e2768a11bb90611c05c39dca314cbee87a93ec07222185b0b9cc",
+      "snippets": [
+        {
+          "lang": "json",
+          "class": "transcluded",
+          "source": "demos/zero-bakeoff/protocol/environment.v2.json"
         }
       ]
     },
@@ -3022,6 +3067,7 @@
       "operating.guide-mcp",
       "operating.host-ops",
       "operating.inspect",
+      "operating.network-profiles",
       "operating.packaged-dev-loop",
       "operating.secrets-config",
       "operating.served-guide",
@@ -3044,7 +3090,6 @@
       "operating.agent-safe-storage",
       "operating.declaration-conformance",
       "operating.instance-forks",
-      "operating.network-profiles",
       "sync.local-persistent-store",
       "sync.offline-js-arm",
       "sync.offline-js-arm-protected",
@@ -3055,5 +3100,5 @@
     "routes": 116,
     "hostOps": 37
   },
-  "contentHash": "ee11cac8879cdc54985a65d9c4d48a439cad58093d13106fb3c99df5c46f8116"
+  "contentHash": "8baba4394ab8d6c40127c4865283173c1d3d94e449139ae0250be670eac89d60"
 }
