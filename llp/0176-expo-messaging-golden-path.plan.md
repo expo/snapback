@@ -7,7 +7,11 @@ Ephemeral state, Code generation, Developer experience, Packaging, Local
 server lifecycle, Testing, Competitive evaluation
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-05
-**Revised:** 2026-08-05 (g) — A3/A4 friction tickets resolved: marker-walk
+**Revised:** 2026-08-05 (h) — G0 exit receipt appended under the existing G0
+gate: the messaging fixture now proves session mint → external-session client
+→ ordinary asset upload → typed attach → embeddable delivery, plus the
+anonymous-public owner/caller 403 after fixing the asset client's dropped
+auth/rr offer; document Status remains Review. Earlier same day (g) — A3/A4 friction tickets resolved: marker-walk
 root resolution in `demos/_kit/repo-layout.mjs` and the paved out-of-checkout
 EAS staging helper `demos/_kit/eas-stage-build.mjs`; ticket pointers updated
 to `issues/closed/`. Earlier same day (f) — Super-refine round 1 revision (dual-family
@@ -481,6 +485,21 @@ deliberately lower
 bar than "zero commands typed": G1 is where session issuance becomes
 automatic, and the friendlier persona layer ships only once the auth owner
 accepts the routed ask above.
+
+**G0 exit receipt — 2026-08-05.** The repository acceptance path at
+[`demos/messaging-snapback/tests/acceptance/headless.mjs`](../demos/messaging-snapback/tests/acceptance/headless.mjs)
+now passes 11/11 and proves the exact low-level chain: operator-custodied
+`snapback session mint --email` returns an ordinary bearer,
+`createExternalSessionClient` adopts it, the ordinary asset client completes
+reservation/TUS/finalize, `sendMessage` performs typed attachment, and the
+public rendition is cross-origin embeddable. Its anonymous-public companion
+offers auth/rr without a bearer and is refused HTTP 403 at the attempt's
+owner/caller boundary. The build experience and remaining friction are in
+[Diary 0058](../diaries/0058-messaging-snapback.diary.md#2026-08-05--g0-exit-evidence);
+the late-discovered protocol projection defect and resolution are recorded in
+[`issues/closed/20260805-anonymous-public-asset-client-drops-auth-protocol-offer.md`](../issues/closed/20260805-anonymous-public-asset-client-drops-auth-protocol-offer.md).
+This closes G0 evidence only; it does not advance this Plan's Status or claim
+G1's automatic session issuance.
 
 ### G1 — descriptor and binding spine
 

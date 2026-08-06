@@ -149,3 +149,61 @@ images, seeded through the actual upload pipeline, not a raw row insert).
   React/Expo client page documents the native carrier as the same generated
   surface plus platform-specific store/crypto concerns already exercised
   elsewhere in the repo, e.g. `demos/rn-durable-store-witness`).
+
+## 2026-08-05 — G0 exit evidence
+
+The fixture now proves the ordinary application path in settled Sessions
+mode. The command/API chain that suffices is:
+
+1. A trusted local process runs
+   `snapback session mint --email lin@messaging.test` with operator-only
+   impersonation-capability custody and receives only the ordinary session
+   envelope.
+2. Application-facing code adopts that bearer with
+   `createExternalSessionClient`; it receives no admin token, ready file, or
+   impersonation capability.
+3. `createAssetClient(client).start(...)` performs ordinary reservation, TUS
+   transfer, and trusted finalization to a `ready` task receipt.
+4. `sendMessage` performs the typed `ctx.assets.attach(...)` inside the
+   ordinary authenticated mutation.
+5. The resulting public-immutable rendition returns `200 image/png` with
+   `Cross-Origin-Resource-Policy: cross-origin`, so it is embeddable rather
+   than merely directly fetchable.
+
+This replaces what the bakeoff had to hand-build: an app-specific session
+broker/backend launcher plus application-side shelling out to the
+admin-impersonated `snapback assets put --user ...` lane. G0 does not remove
+the trusted operator step; it makes it one paved session-mint command and
+then uses the same public client and asset APIs the application uses.
+
+The receipt work itself exposed one final client contradiction:
+`packages/snapback-client/assets.mjs` emitted
+`x-snapback-auth-client-protocol: 1` only beside a bearer. A documented
+`custody: 'anonymous-public'` parent therefore sent neither credential nor
+offer and was rejected by the Sessions profile gate before asset ownership
+ran. The resolved ticket is
+`issues/closed/20260805-anonymous-public-asset-client-drops-auth-protocol-offer.md`.
+The fix projects the parent client's declared auth/rr offer into every direct
+asset request without adding a bearer; bare no-custody dev clients remain
+offerless. Package coverage pins external-session and anonymous-public
+reservation, TUS, finalize, metadata/delivery-adjacent, and resume headers.
+The real-server negative reserves an attempt under the minted session, then
+has an anonymous-public asset client resume that exact attempt: it passes the
+protocol gate and receives HTTP 403 from the owner/caller comparison.
+
+Remaining friction is now narrower and explicit. The harness still has to
+stage a Sessions-mode copy of this deliberately dev-mode interactive demo,
+hold operator authority long enough to invoke the mint command, and choose a
+raw email rather than a declared persona. Automatic supervised session
+issuance belongs to G1, and friendlier persona policy remains with the auth
+owner. The current negative also needs a two-client pause/resume probe because
+this upload intent derives its required owner from `ctx.auth.userId`; a direct
+anonymous reservation correctly cannot produce that owner. Native iOS and
+Android device receipts remain outside this G0 proof.
+
+Verification:
+
+- `bun run test` from `packages/snapback-client` — pass.
+- `node demos/messaging-snapback/tests/acceptance/headless.mjs` — 11/11,
+  including minted-session upload → typed attach → embeddable delivery and
+  the anonymous-public HTTP 403 ownership negative.
