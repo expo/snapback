@@ -429,6 +429,9 @@ const AUG6_CLIENT_CAPABILITIES_ROLLOVER_PROFILE_IDS = Object.freeze([
   'public-subpath-rqs-store-file',
   'react-external',
 ]);
+const FINAL_G2_COLD_BOOT_ROLLOVER_PROFILE_IDS = Object.freeze([
+  'react-external',
+]);
 const ROLLOVER_LEDGER_SPECS = Object.freeze([
   Object.freeze({
     filename: 'baseline.local-persistent-store.v1.json',
@@ -865,6 +868,45 @@ const ROLLOVER_LEDGER_SPECS = Object.freeze([
       ['node', ['packages/snapback-react/surface.test.mjs']],
       ['node', ['packages/snapback-expo/provider.test.mjs']],
       ['node', ['packages/snapback-codegen/app-descriptor.test.mjs']],
+    ]),
+  }),
+  Object.freeze({
+    filename: 'baseline.final-g2-cold-boot.v1.json',
+    profileFilename: 'final-g2-cold-boot-profiles.v1.json',
+    workloadVersion: 'final-g2-cold-boot.v1',
+    profileIds: FINAL_G2_COLD_BOOT_ROLLOVER_PROFILE_IDS,
+    predecessors: Object.freeze([
+      Object.freeze({
+        filename: 'baseline.aug6-client-capabilities.v1.json',
+        profileIds: FINAL_G2_COLD_BOOT_ROLLOVER_PROFILE_IDS,
+      }),
+    ]),
+    authorities: Object.freeze([
+      'LLP 0063#workstream-8--performance-and-packaging-budgets',
+      'LLP 0145#phase-a--establish-a-size-ratchet',
+      'LLP 0114#offline-binding-receipt-dated-amendment-2026-08-01',
+      'LLP 0176#g2--conversation-surface',
+      'LLP 0179#appbinding-seam',
+    ]),
+    rationale: Object.freeze({
+      date: '2026-08-06',
+      landings: Object.freeze([
+        Object.freeze({
+          revisions: Object.freeze([
+            'ec49b1d2784c586f663428224d7b24ce7f33a482',
+          ]),
+          profileIds: FINAL_G2_COLD_BOOT_ROLLOVER_PROFILE_IDS,
+          summary: 'The final G2 repair extends the existing React binding receipt with the compact server-owned descriptor-admission facts required for honest offline cold retained boot. Only the React external application closure exceeds its completed-main ceiling, by one gzip byte; the earlier August receipt remains immutable.',
+        }),
+      ]),
+      summary: 'A one-profile prospective rollover records the accepted descriptor-mode cold-boot correctness repair without loosening the earlier completed-main batch or any unrelated ceiling.',
+    }),
+    beforeAfterProfileIds: FINAL_G2_COLD_BOOT_ROLLOVER_PROFILE_IDS,
+    behaviorCommands: Object.freeze([
+      ['node', ['packages/snapback-client/package.test.mjs']],
+      ['node', ['packages/snapback-react/package.test.mjs']],
+      ['node', ['packages/snapback-react/cold-boot-binding.test.mjs']],
+      ['node', ['packages/snapback-react/surface.test.mjs']],
     ]),
   }),
 ]);

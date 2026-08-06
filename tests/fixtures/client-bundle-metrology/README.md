@@ -166,6 +166,14 @@ normal code generator before running the surface behavior suite, so a clean
 checkout exercises the same generated input rather than depending on local
 cache state.
 
+The final G2 cold-retained-boot repair is a second, one-profile rollover in
+`baseline.final-g2-cold-boot.v1.json`, declared by
+`final-g2-cold-boot-profiles.v1.json`. It advances only `react-external` from
+the completed-main batch: the existing React binding receipt now retains the
+compact descriptor-admission facts needed to reconstruct the admitted view
+offline. The predecessor remains immutable and every other August ceiling
+continues unchanged.
+
 Rollover writes follow a two-commit protocol: first commit the implementation,
 instrument declaration, profile inventory, and authorities; then mint and
 commit the receipt. The writer's same-process final self-check binds the one

@@ -1389,3 +1389,10 @@ frozen checks, on configured binary SHA-256
 `534db5affed2a25515edcf7fcfab9ccab9e45292eafd90115843b35918d771f8`.
 The rotated activation and generated binding closure are retained with that
 receipt; no widened effect ceiling or correctness edit occurred.
+
+The final G2 cold-retained-boot repair `ec49b1d27` also moved
+`react-external` one byte above its completed-main gzip ceiling (23,355 →
+23,356) while remaining below the frozen minified and Brotli ceilings. A
+second prospective rollover is declared for that one profile only, with the
+first August receipt retained byte-identically and all unrelated ceilings left
+active.

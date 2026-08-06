@@ -132,6 +132,9 @@ ceiling active.)
 token-resume ordering correction across the 15 affected Full/root closures,
 binding the finite-carrier receipt as its immutable predecessor and executing
 the shared memory, file, Expo, and native Channel B suites before freezing.)
+**Revised:** 2026-08-06 (the final G2 descriptor-mode cold-boot repair gains a
+one-profile prospective rollover from the completed-main batch; the earlier
+August receipt and every unrelated ceiling remain immutable.)
 **Related:** LLP 0000, LLP 0005, LLP 0008, LLP 0012, LLP 0041, LLP 0043, LLP 0053,
 LLP 0059, LLP 0060, LLP 0063, LLP 0064, LLP 0077, LLP 0090, LLP 0091,
 LLP 0092, LLP 0093, LLP 0094, LLP 0095, LLP 0096, LLP 0098, LLP 0107, LLP 0108,
@@ -1565,6 +1568,16 @@ one narrowly scoped override only for the exact just-written filename and
 committed source `HEAD`; normal `--check` retains the one-reachable-carrier
 requirement. This makes the documented commit-declaration → mint-receipt →
 commit-receipt sequence executable without weakening later validation.
+
+The later G2 descriptor-mode cold-retained-boot repair
+`ec49b1d2784c586f663428224d7b24ce7f33a482` extends LLP 0114's existing React
+binding receipt with the compact server-owned admission facts needed to
+reconstruct the same admitted descriptor view offline. Of the completed-main
+profiles, only `react-external` exceeds its frozen ceiling, and only by one
+gzip byte. `baseline.final-g2-cold-boot.v1.json` therefore rolls forward that
+single profile from `baseline.aug6-client-capabilities.v1.json`, runs the
+client, React package, cold-boot, and surface behavior suites, and leaves the
+earlier batch plus every unrelated active ceiling immutable.
 
 #### 2026-08-04 rowless token-resume ordering rollover
 
