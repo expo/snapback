@@ -8272,11 +8272,39 @@ Generation-time `SNAPBACK_SURFACE_*` refusals are:
 | `SNAPBACK_SURFACE_AUTH_BINDING_REFUSED` | Application data attempts to bind a `Principal`; surface scope is not authority. |
 | `SNAPBACK_SURFACE_MEMBER_CLASS_UNSUPPORTED` | A member has the wrong reference class, `input()` appears on an unsupported member, or the target is in the wrong namespace. |
 
-Command declarations refuse with stable `SNAPBACK_COMMAND_*` codes for an
-unknown or ambiguous mutation/intent, more than one asset, incompatible
-`assetRef` policy/optionality, an upload intent needing a second argument map,
-input collision, or an application argument that attempts to inject a
-principal.
+Command declarations refuse at generation with their own stable codes. Every
+one names the offending command and carries structured details; none of them
+truncates or partially emits the descriptor:
+
+| Code | Trigger |
+| --- | --- |
+| `SNAPBACK_COMMAND_INVALID_IDENTIFIER` | The command export name is not a portable non-reserved identifier. |
+| `SNAPBACK_COMMAND_MUTATION_CARDINALITY_INVALID` | `mutation` is absent, `null`, or an array — v1 requires exactly one ordinary mutation. Details carry `mutations`. |
+| `SNAPBACK_COMMAND_MUTATION_UNKNOWN` | The mutation target is not one generated ordinary mutation, or is missing from the generated mutation namespace. |
+| `SNAPBACK_COMMAND_MAPPING_AMBIGUOUS` | The mutation or the asset intent has multiple generated export identities. |
+| `SNAPBACK_COMMAND_MULTI_ASSET_UNSUPPORTED` | More than one asset input — v1 admits at most one. |
+| `SNAPBACK_COMMAND_ASSET_INTENT_UNKNOWN` | `intent` resolves to no generated upload intent. |
+| `SNAPBACK_COMMAND_ASSET_INTENT_ARGS_UNSUPPORTED` | The upload intent declares its own argument map; v1 commands do not carry a second one. |
+| `SNAPBACK_COMMAND_ASSET_MAPPING_INCOMPATIBLE` | `mutationArg` does not name a `v.assetRef({ upload: <this intent> })` argument with matching optionality. |
+| `SNAPBACK_COMMAND_INPUT_COLLISION` | The asset input name collides with a different ordinary mutation input. |
+| `SNAPBACK_COMMAND_AUTHORITY_INPUT_REFUSED` | An ordinary input would inject an authority `Principal`. |
+
+A running command task reports its own `SNAPBACK_COMMAND_*` diagnostics. These
+are outcome facts, not authoring errors — branch on the code, and read
+`status` for what it says about the server:
+
+| Code | Terminal status | What it asserts |
+| --- | --- | --- |
+| `SNAPBACK_COMMAND_ASSET_FAILED` | `failed` | The asset child never finalized, so the mutation was never invoked. No residue. |
+| `SNAPBACK_COMMAND_AUTHORITY_REPLACED` | `failed` | The captured authority cohort was replaced before invocation. The task is not adopted into the successor principal. |
+| `SNAPBACK_COMMAND_MUTATION_FAILED` | `failed` | A trust boundary proved refusal — a receipt, a 401/403, an authorization diagnostic, or an explicit `effectCommitted: false`. |
+| `SNAPBACK_COMMAND_MUTATION_AMBIGUOUS` | `ambiguous` | Invocation began and no settlement proof arrived. Anything short of proof lands here by design; the client never upgrades a guess to a refusal. |
+| `SNAPBACK_COMMAND_CANCELLED` | `cancelled` | Cancellation completed before invocation; the asset child was cancelled where its state permitted. |
+| `SNAPBACK_COMMAND_CANCELLED_DURING_COMMIT` | `ambiguous` | Local interest stopped after invocation. Never reported as `cancelled` — the server outcome is unknown. |
+| `SNAPBACK_COMMAND_NOT_RETRYABLE` | (outcome only) | `retry()` on a committed, cleanly cancelled, or non-terminal task. The returned task carries the predecessor's terminal snapshot unchanged. |
+
+`SNAPBACK_REACT_COMMAND_INVALID` refuses a command reference that is not the
+complete generated command admitted by this prepared binding.
 
 Client-time `SNAPBACK_REACT_SURFACE_*` refusals are:
 

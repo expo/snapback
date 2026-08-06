@@ -102,3 +102,30 @@ Not touched by this ticket's filer — out of scope for the LLP 0184 §B
 (`debug.live.forceResync`) work that surfaced it; filed so it isn't
 silently rediscovered by the next session that needs a clean
 `check-guide.mjs` or `cargo test --lib` pass.
+
+## 2026-08-06 — the missing invocation found; corpus regenerates from a fresh worktree
+
+Both roots do regenerate from a clean worktree; the recipe is in
+`scripts/generated-artifact-policy.mjs`'s `CODEGEN_JOBS`, which marks
+`demos/competitive-checkpoint/snapback` with `outboundActions: true`. That flag
+is passed to codegen as an environment variable, and without it the run dies
+with `SNAPBACK_CAPABILITY_UNSUPPORTED (capability) target local-dev-sqlite-ibex
+does not support required capability bounded_response_stream_v1` — which reads
+like a broken demo rather than a missing flag:
+
+```
+node packages/snapback-codegen/index.mjs demos/todo-v2/snapback
+SNAPBACK_OUTBOUND_ACTIONS=1 node packages/snapback-codegen/index.mjs demos/competitive-checkpoint/snapback
+```
+
+After those two runs `node scripts/generate-guide-manifest.mjs` writes both
+generated guide files and `node scripts/check-guide.mjs` reports
+`ok — 60 pages, 191 snippets` (the three previously unresolvable snippets
+resolve). Verified in a fresh worktree at `96fd0ad1c` with node 24.18.0.
+
+This does not close the ticket: the durable fix is still to make some step a
+guide-check run can rely on materialize these roots (option (a)/(c) above), so
+the next fresh worktree does not have to rediscover the flag. But nothing is
+actually unregeneratable, and the same recipe unblocks
+`local::tests::generated_demo_manifests_pass_the_effect_ceiling_subset_check`
+under `cargo test --lib`.

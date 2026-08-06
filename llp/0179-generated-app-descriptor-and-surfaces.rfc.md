@@ -7,7 +7,12 @@ React/Expo, Live queries, Ephemeral state, Assets, Auth, Testing, Exact,
 Contract
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-05
-**Revised:** 2026-08-06 (h) — Reconciled §Headless projection with shipped S1:
+**Revised:** 2026-08-06 (i) — Appended the dated S2 delivery note: `commands`
+is admitted as its own descriptor namespace at `17e7ca8ca` with the existing
+S1 ceilings and canonical-byte measurement enforced, and `app-inspection.mjs`
+is the language-neutral consumer that closes S2's non-React proof bullet.
+Status unchanged. Earlier same day (h) — Reconciled §Headless projection with
+shipped S1:
 the non-React spelling is `observeSnapbackSurface` plus the prepared-provider
 `surface`/`bindSnapbackSurface` seam, not the never-implemented
 `client.surface`; the one-owner design is unchanged and `commands` remains
@@ -629,6 +634,33 @@ reviewer correctly found this slice previously mapped to no gate in LLP
 0176's delivery program even though its `commands` admission is a
 prerequisite for LLP 0180's own G3 work; S2 is now explicitly part of LLP
 0176 G3 (see that Plan's G3 bullet list).
+
+**2026-08-06 — S2 landed.** `17e7ca8ca` admits command references in the
+descriptor's own `commands` namespace rather than folding them into
+`mutations`: the root gains a `commandMap`, a surface's `commands` members
+carry the same complete binding map and bound-parameter omission that reads
+and mutations get, and `validateAppDescriptorV1` enforces the closed
+`asset-bearing-command.v1` key set (`kind`, `mutation`, `asset`,
+`passthroughArgs`) with canonical-byte measurement against
+`APP_DESCRIPTOR_MAX_BYTES` and the existing S1 ceilings —
+`SURFACE_MAX_PER_APP` 32, `SURFACE_MAX_PARAMS` 8, `SURFACE_MAX_MEMBERS` 24,
+`SURFACE_MAX_MEMBER_BINDINGS` 32, `SURFACE_MAX_SCOPE_RECORD_FIELDS` 8, and no
+recursion ([`packages/snapback-codegen/app-descriptor.mjs`](../packages/snapback-codegen/app-descriptor.mjs)).
+A tighter product-level descriptor byte/depth budget stays this document's open
+question and is documented as such in `guide/clients/surfaces.md`.
+
+*Non-React consumer.*
+[`packages/snapback-codegen/app-inspection.mjs`](../packages/snapback-codegen/app-inspection.mjs)
+enumerates every api reference, every command (with its mutation reference,
+asset intent, passthrough arguments, and the union of required capabilities),
+and every surface member from the portable descriptor JSON alone — parsed from
+disk, importing no generated binding, no React, and evaluating no application
+handler; a source-level assertion in its test pins that. It satisfies this
+document's §Acceptance "language-neutral consumer" bullet for the newly
+admitted `commands` namespace, which the implementation landing left open.
+
+What S2 does **not** prove: registered-bundle boot, an Exact or Contract UI
+consumer, or any hosted/published-package descriptor claim.
 
 ## Acceptance
 

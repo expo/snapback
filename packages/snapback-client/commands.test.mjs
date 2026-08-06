@@ -33,6 +33,33 @@ function deferred() {
   return { promise, resolve, reject };
 }
 
+function classifyDoneOutcome(outcome) {
+  switch (outcome.kind) {
+    case 'committed': return 'committed';
+    case 'failed': return 'failed';
+    case 'ambiguous': return 'ambiguous';
+    case 'cancelled': return 'cancelled';
+    case 'notRetryable': return 'notRetryable';
+    default: throw new Error(`unknown command outcome kind ${String(outcome.kind)}`);
+  }
+}
+
+function dedupeConsecutive(values) {
+  return values.filter((value, index) => index === 0 || value !== values[index - 1]);
+}
+
+function assertNoCleanupRepairs(...repairLists) {
+  for (const repairs of repairLists) {
+    assert.ok(Array.isArray(repairs));
+    for (const repair of repairs) {
+      assert.equal(typeof repair.kind, 'string');
+      assert.doesNotMatch(repair.kind, /delete|cleanup/iu);
+      assert.equal(typeof repair.machineApplicable, 'boolean');
+      assert.equal(typeof repair.requiresApproval, 'boolean');
+    }
+  }
+}
+
 function assetSnapshot(status, extra = {}) {
   return Object.freeze({
     assetId: status === 'creating' ? null : 'asset-1',
@@ -106,6 +133,84 @@ function fixture({ task = null, invokeMutation, current = () => true } = {}) {
   return { commands, calls };
 }
 
+const noAttachmentFactResidues = [];
+
+{
+  const textTrace = [];
+  const { commands } = fixture();
+  const task = commands.start(command, { roomId: 'room-1', body: 'hello' });
+  task.subscribe(() => textTrace.push(task.snapshot()));
+  await task.done;
+  assert.deepEqual(
+    dedupeConsecutive(textTrace.map(({ status }) => status)),
+    ['preparing', 'committing', 'succeeded'],
+  );
+  assert.ok(textTrace.every(({ asset }) => asset === null));
+
+  const imageTrace = [];
+  const asset = controlledAssetTask();
+  const imageFixture = fixture({ task: asset });
+  const imageTask = imageFixture.commands.start(command, { roomId: 'room-1', image: file });
+  imageTask.subscribe(() => imageTrace.push(imageTask.snapshot()));
+  await Promise.resolve();
+  asset.publish(assetSnapshot('ready'));
+  await imageTask.done;
+  assert.deepEqual(
+    dedupeConsecutive(imageTrace.map(({ status }) => status)),
+    ['preparing', 'transferring', 'committing', 'succeeded'],
+  );
+}
+
+{
+  const mutationSettlementError = (proved) => Object.assign(
+    new Error('mutation settlement was refused or lost'),
+    proved ? { effectCommitted: false } : {},
+  );
+  const drive = async (proved) => {
+    const { commands } = fixture({
+      invokeMutation: async () => { throw mutationSettlementError(proved); },
+    });
+    return commands.start(command, { roomId: 'room-1' });
+  };
+  const refused = await drive(true);
+  const unproved = await drive(false);
+  // A caller that only awaits the promise must still be able to tell refusal from ambiguity.
+  assert.equal(classifyDoneOutcome(await refused.done), 'failed');
+  assert.equal(classifyDoneOutcome(await unproved.done), 'ambiguous');
+}
+
+{
+  const succeededFixture = fixture();
+  const succeeded = succeededFixture.commands.start(command, { roomId: 'room-1' });
+
+  const failedFixture = fixture({
+    invokeMutation: async () => { throw Object.assign(new Error('refused'), { effectCommitted: false }); },
+  });
+  const failed = failedFixture.commands.start(command, { roomId: 'room-1' });
+
+  const ambiguousFixture = fixture({
+    invokeMutation: async () => { throw new Error('settlement lost'); },
+  });
+  const ambiguous = ambiguousFixture.commands.start(command, { roomId: 'room-1' });
+
+  const cancelledFixture = fixture();
+  const cancelled = cancelledFixture.commands.start(command, { roomId: 'room-1' });
+  await cancelled.cancel();
+
+  const terminalTable = [];
+  for (const task of [succeeded, failed, ambiguous, cancelled]) {
+    const outcome = await task.done;
+    terminalTable.push([task.snapshot().status, outcome.kind]);
+  }
+  terminalTable.sort(([left], [right]) => left.localeCompare(right));
+  assert.deepEqual(terminalTable, [
+    ['ambiguous', 'ambiguous'],
+    ['cancelled', 'cancelled'],
+    ['failed', 'failed'],
+    ['succeeded', 'committed'],
+  ]);
+}
+
 {
   const { commands, calls } = fixture();
   const task = commands.start(command, { roomId: 'room-1', body: 'hello' });
@@ -114,7 +219,14 @@ function fixture({ task = null, invokeMutation, current = () => true } = {}) {
   assert.equal(task.snapshot().status, 'succeeded');
   assert.deepEqual(calls.map(({ kind }) => kind), ['mutation']);
   assert.deepEqual(calls[0].args, { roomId: 'room-1', body: 'hello' });
-  assert.equal((await task.retry().done).kind, 'notRetryable');
+  const terminalSnapshot = task.snapshot();
+  const firstRefusal = task.retry();
+  assert.strictEqual(firstRefusal.snapshot(), terminalSnapshot);
+  assert.equal((await firstRefusal.done).kind, 'notRetryable');
+  const secondRefusal = firstRefusal.retry();
+  assert.strictEqual(secondRefusal.snapshot(), terminalSnapshot);
+  assert.equal((await secondRefusal.done).kind, 'notRetryable');
+  assert.deepEqual(calls.map(({ kind }) => kind), ['mutation']);
 }
 
 {
@@ -144,9 +256,16 @@ function fixture({ task = null, invokeMutation, current = () => true } = {}) {
   assert.equal(outcome.kind, 'failed');
   assert.equal(task.snapshot().status, 'failed');
   assert.equal(task.snapshot().asset.status, 'ready', 'finalized bytes are not fabricated as rolled back');
+  assert.equal(outcome.residue.assetId, 'asset-1');
   assert.equal(outcome.residue.unattached, 'inferred');
+  assert.equal(typeof outcome.residue.basis, 'string');
+  assert.ok(outcome.residue.basis.length > 0);
   assert.match(outcome.residue.basis, /global absence is inferred/u);
+  assert.equal(typeof outcome.residue.cleanupPolicy, 'string');
+  assert.ok(outcome.residue.cleanupPolicy.length > 0);
   assert.equal(outcome.repairs[0].kind, 'retryCommand');
+  assertNoCleanupRepairs(task.snapshot().repairs, outcome.repairs);
+  noAttachmentFactResidues.push(['proved-refusal', outcome.residue.unattached]);
 }
 
 {
@@ -170,6 +289,46 @@ function fixture({ task = null, invokeMutation, current = () => true } = {}) {
   assert.equal(outcome.residue.unattached, 'authoritative');
   assert.equal(outcome.residue.basis, 'asset child supplied a global attachment fact');
   assert.equal(outcome.residue.cleanupPolicy, 'asset child policy remains authoritative');
+  assertNoCleanupRepairs(task.snapshot().repairs, outcome.repairs);
+}
+
+{
+  const successorSettlement = deferred();
+  let attempt = 0;
+  const { commands, calls } = fixture({
+    invokeMutation: async () => {
+      attempt += 1;
+      if (attempt === 1) {
+        throw Object.assign(new Error('proved refusal'), { effectCommitted: false });
+      }
+      return successorSettlement.promise;
+    },
+  });
+  const predecessor = commands.start(command, { roomId: 'room-1' });
+  const predecessorDone = predecessor.done;
+  assert.equal((await predecessorDone).kind, 'failed', 'the predecessor settles before retry');
+
+  let predecessorNotifications = 0;
+  const unsubscribe = predecessor.subscribe(() => { predecessorNotifications += 1; });
+  const notificationsBeforeRetry = predecessorNotifications;
+  const successor = predecessor.retry();
+  assert.notStrictEqual(successor, predecessor);
+  assert.equal(successor.id, predecessor.id);
+  assert.equal(successor.generation, predecessor.generation + 1);
+  assert.notStrictEqual(successor.done, predecessorDone);
+
+  let successorSettled = false;
+  successor.done.then(() => { successorSettled = true; });
+  while (calls.filter(({ kind }) => kind === 'mutation').length < 2) await Promise.resolve();
+  await Promise.resolve();
+  assert.equal(successorSettled, false, 'the successor owns a fresh unsettled done promise');
+  successorSettlement.resolve('message-retried');
+  assert.equal((await successor.done).kind, 'committed');
+  assert.equal(predecessorNotifications, notificationsBeforeRetry);
+  const mutationCalls = calls.filter(({ kind }) => kind === 'mutation');
+  assert.equal(mutationCalls.length, 2, 'one mutation attempt runs in each generation');
+  assert.equal(mutationCalls[0].options.clientMutationId, mutationCalls[1].options.clientMutationId);
+  unsubscribe();
 }
 
 {
@@ -190,6 +349,8 @@ function fixture({ task = null, invokeMutation, current = () => true } = {}) {
   const firstOutcome = await first.done;
   assert.equal(firstOutcome.kind, 'ambiguous');
   assert.equal(firstOutcome.residue.unattached, 'unknown');
+  assertNoCleanupRepairs(first.snapshot().repairs, firstOutcome.repairs);
+  noAttachmentFactResidues.push(['unproved-settlement', firstOutcome.residue.unattached]);
   const successor = first.retry();
   assert.equal(successor.id, first.id);
   assert.equal(successor.generation, 1);
@@ -199,12 +360,14 @@ function fixture({ task = null, invokeMutation, current = () => true } = {}) {
 
 {
   const asset = controlledAssetTask();
-  const { commands } = fixture({ task: asset });
+  const { commands, calls } = fixture({ task: asset });
   const task = commands.start(command, { roomId: 'room-1', image: file });
   await Promise.resolve();
   await task.cancel();
   assert.equal((await task.done).kind, 'cancelled');
+  await task.cancel();
   assert.equal(asset.cancelled, 1);
+  assert.deepEqual(calls.map(({ kind }) => kind), ['asset']);
 }
 
 {
@@ -215,9 +378,17 @@ function fixture({ task = null, invokeMutation, current = () => true } = {}) {
   asset.publish(assetSnapshot('ready'));
   while (task.snapshot().status !== 'committing') await Promise.resolve();
   await task.cancel();
-  assert.equal((await task.done).kind, 'ambiguous');
-  assert.equal(task.snapshot().residue.unattached, 'unknown');
+  const terminal = task.snapshot();
+  const outcome = await task.done;
+  assert.equal(outcome.kind, 'ambiguous');
+  assert.equal(outcome.diagnostic.code, 'SNAPBACK_COMMAND_CANCELLED_DURING_COMMIT');
+  assert.equal(outcome.residue.unattached, 'unknown');
+  assertNoCleanupRepairs(terminal.repairs, outcome.repairs);
+  noAttachmentFactResidues.push(['cancel-during-commit', outcome.residue.unattached]);
   settlement.resolve('late-commit');
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.strictEqual(task.snapshot(), terminal);
+  assert.strictEqual(await task.done, outcome);
 }
 
 {
@@ -236,6 +407,8 @@ function fixture({ task = null, invokeMutation, current = () => true } = {}) {
   assert.equal(outcome.kind, 'failed');
   assert.equal(outcome.diagnostic.code, 'SNAPBACK_COMMAND_AUTHORITY_REPLACED');
   assert.equal(outcome.residue.unattached, 'unknown');
+  assertNoCleanupRepairs(task.snapshot().repairs, outcome.repairs);
+  noAttachmentFactResidues.push(['authority-replaced', outcome.residue.unattached]);
   assert.equal(mutations, 0, 'successor authority never adopts the predecessor task');
   const retry = task.retry();
   const retried = await retry.done;
@@ -279,7 +452,33 @@ function fixture({ task = null, invokeMutation, current = () => true } = {}) {
   const outcome = await task.done;
   assert.equal(outcome.kind, 'failed');
   assert.equal(outcome.diagnostic.code, 'SNAPBACK_AUTH_REQUIRED');
+  assert.equal(outcome.residue, null);
+  assert.equal(task.snapshot().residue, null);
+  assertNoCleanupRepairs(task.snapshot().repairs, outcome.repairs);
   assert.deepEqual(calls.map(({ kind }) => kind), ['asset'], 'image refusal occurs at reservation/transfer boundary');
+}
+
+{
+  const { commands, calls } = fixture();
+  const task = commands.start(command, { roomId: 'room-1' });
+  await task.cancel();
+  assert.equal((await task.done).kind, 'cancelled');
+  const refusal = task.retry();
+  assert.equal((await refusal.done).kind, 'notRetryable');
+  assert.strictEqual(refusal.snapshot(), task.snapshot());
+  assert.equal(calls.filter(({ kind }) => kind === 'asset').length, 0);
+  assert.equal(calls.filter(({ kind }) => kind === 'mutation').length, 0);
+}
+
+{
+  noAttachmentFactResidues.sort(([left], [right]) => left.localeCompare(right));
+  assert.deepEqual(noAttachmentFactResidues, [
+    ['authority-replaced', 'unknown'],
+    ['cancel-during-commit', 'unknown'],
+    ['proved-refusal', 'inferred'],
+    ['unproved-settlement', 'unknown'],
+  ]);
+  assert.ok(noAttachmentFactResidues.every(([, unattached]) => unattached !== 'authoritative'));
 }
 
 {

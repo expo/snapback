@@ -1,4 +1,8 @@
-# G3 lane plan: asset-bearing command (LLP 0180 C0/C1 + LLP 0179 S2) — claimed
+# G3 lane plan: asset-bearing command (LLP 0180 C0/C1 + LLP 0179 S2) — closed
+
+**Status:** Closed 2026-08-06 — G3 exited on `main`, and this ticket's own
+coordination purpose failed. See the resolution at the bottom.
+
 
 **Filed:** 2026-08-06
 **Claimed by:** the session that ran today's G2 S1 review/delta/close-out
@@ -52,3 +56,37 @@ referenced on main within ~a day), treat the claim as lapsed.
 Close when LLP 0176 G3's exit holds on main (text-only + one-image send
 share one typed call; negative authority, retry, cancel, no-false-atomicity
 tests pass; residue provenance explicit) with the landing SHAs recorded.
+
+## Resolution (2026-08-06) — exited on `main`, and the claim protocol failed
+
+**Timeline.**
+
+| Time | Event |
+| --- | --- |
+| 08:23 | `da52b6eef` files this ticket to claim the G3 lane, explicitly because "this morning two sessions built LLP 0179 S1 concurrently without knowing it". |
+| 08:23–10:00 | The claiming session builds the full lane on branches `g3/*` (`g3/integration`, five commits, tip `d49ddeeb4`). |
+| 08:56 | A second session lands `17e7ca8ca feat(client,react,codegen,runtime): image-send command core + S2 commands admission` on `main` — a complete, independent implementation of the same gate — **without reading or editing this ticket**. |
+| ~10:00 | The collision is discovered. `main` is also left red on two gates by that landing (client-bundle metrology's missing `commands` profile, and the agent-safe publication leaf set vs the conversation fixture's regenerated closure). |
+
+The claim was recorded exactly where the ticket asked, and it still did not
+prevent the duplication: a filesystem ticket only coordinates sessions that
+read `issues/` before starting. That is the honest finding here, and it is the
+same shape as the S1 collision this ticket was written to prevent.
+
+**Disposition — reduce and re-land.** `main`'s engine is the one
+implementation. The unlanded variant is preserved on `g3/*` (do **not**
+re-land it: different engine placement, descriptor node, diagnostic-code and
+remediation vocabulary). A follow-on lane adopted `main`'s engine and ported
+only the unique value that composes with it — the non-React
+`packages/snapback-codegen/app-inspection.mjs` descriptor consumer that closes
+LLP 0179 S2's language-neutral-consumer bullet, the test coverage `main`
+lacked, and the guide's enumerated command refusal tables — each verified
+against `main`'s real API rather than the variant's.
+
+**Receipts.** LLP 0176 §G3's dated exit receipt records the gate's exit, the
+collision, and the explicit nonclaims (no C2, no per-OS command evidence, no
+published-package run). LLP 0180 §Delivery carries the C0/C1 note and the
+routed LLP 0044 attachment-fact ask; LLP 0179 §Delivery carries the S2 note.
+Two engine gaps found in review are ticketed, not absorbed:
+`issues/20260806-command-task-provider-disposal-unfenced.md` and
+`issues/20260806-asset-cross-owner-attach-negative-missing.md`.

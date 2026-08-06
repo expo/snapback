@@ -232,6 +232,7 @@ const inventories = [
     expectedFiles: [
       'api-envelope-members.test.mjs',
       'app-descriptor.test.mjs',
+      'app-inspection.test.mjs',
       'args-contract-goldens.test.mjs',
       'asset-thumbhash-vector.test.mjs',
       'asset-upload-authoring.test.mjs',
@@ -613,7 +614,9 @@ const total = results.reduce((sum, result) => sum + result.count, 0);
 // packages gain the command phase/outcome and named-projection suites.
 // 220 -> 221 (2026-08-06, LLP 0157 §D8): @expo/snapback-codegen gains the
 // mixed/all-relational snapshot-batch.v2 authoring and identity-mirror suite.
-assert.equal(total, 221, 'reviewed package/admin test count changed');
+// 221 -> 222 (2026-08-06, LLP 0179 S2): @expo/snapback-codegen gains the
+// non-React descriptor inspection consumer suite.
+assert.equal(total, 222, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }

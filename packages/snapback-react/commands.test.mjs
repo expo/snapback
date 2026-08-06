@@ -8,6 +8,7 @@ import {
   SnapbackProvider,
   bindSnapbackSurface,
   createSnapbackReactProvider,
+  invokeSnapbackCommand,
   useSnapbackCommand,
 } from './index.mjs';
 
@@ -85,10 +86,40 @@ function fakeClient() {
   };
 }
 
+function matchesDiagnosticCode(expected) {
+  return (error) => {
+    assert.equal(error.code, expected);
+    assert.equal(error.diagnostic.code, expected);
+    return true;
+  };
+}
+
 const fixture = fakeClient();
 const binding = await prepareReactBindingForClient(fixture.client, { generatedManifest: app });
 assert.strictEqual(binding.commands.send.mutation, binding.references.sendMessage);
 const provider = createSnapbackReactProvider(binding, { assets: fixture.assetClient });
+
+const tamperedCommand = structuredClone(app.commands.send);
+tamperedCommand.passthroughArgs = [...tamperedCommand.passthroughArgs, 'tampered'];
+assert.throws(
+  () => invokeSnapbackCommand(provider, tamperedCommand, {}),
+  matchesDiagnosticCode('SNAPBACK_REACT_COMMAND_INVALID'),
+);
+
+const foreignApp = structuredClone(app);
+foreignApp.identity.descriptor = `sha256:${'f'.repeat(64)}`;
+const foreignPassthroughArgs = [...foreignApp.commands.send.passthroughArgs].reverse();
+foreignApp.commands.send.passthroughArgs = foreignPassthroughArgs;
+foreignApp.surfaces.conversation.commands.send.reference.passthroughArgs = [...foreignPassthroughArgs];
+const foreignFixture = fakeClient();
+const foreignBinding = await prepareReactBindingForClient(
+  foreignFixture.client,
+  { generatedManifest: foreignApp },
+);
+assert.throws(
+  () => invokeSnapbackCommand(provider, foreignBinding.commands.send, {}),
+  matchesDiagnosticCode('SNAPBACK_REACT_COMMAND_INVALID'),
+);
 
 const hook = { current: null };
 function Probe() {
@@ -124,6 +155,14 @@ const surface = bindSnapbackSurface(
   { presence: {} },
 );
 assert.strictEqual(surface.commands.send, surface.snapshot().commands.send);
+const mutationCountBeforeInvalidInput = fixture.mutations.length;
+const assetCountBeforeInvalidInput = fixture.assets.length;
+assert.throws(
+  () => surface.commands.send({ conversationId: 'conversation-two', body: 'invalid rebind' }),
+  matchesDiagnosticCode('SNAPBACK_REACT_SURFACE_INPUT_INVALID'),
+);
+assert.equal(fixture.mutations.length, mutationCountBeforeInvalidInput);
+assert.equal(fixture.assets.length, assetCountBeforeInvalidInput);
 const image = surface.commands.send({ body: 'with image', image: file });
 assert.equal((await image.done).kind, 'committed');
 assert.equal(fixture.assets.length, 1);
