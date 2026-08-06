@@ -8,8 +8,10 @@
 use serde_json::Value;
 use snapback::manifest::SchemaManifest;
 use snapback::storage::LocalDatabase;
+use std::fs::File;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
+use std::time::Duration;
 
 fn snapback() -> Command {
     let mut command = Command::new(env!("CARGO_BIN_EXE_snapback"));
@@ -26,6 +28,17 @@ fn successful(mut command: Command, operation: &str) -> Value {
     assert_success(&output, operation);
     serde_json::from_slice(&output.stdout)
         .unwrap_or_else(|error| panic!("{operation} stdout is not JSON: {error}"))
+}
+
+fn successful_scalar(mut command: Command, operation: &str) -> String {
+    let output = command
+        .output()
+        .unwrap_or_else(|error| panic!("spawn {operation}: {error}"));
+    assert_success(&output, operation);
+    String::from_utf8(output.stdout)
+        .unwrap_or_else(|error| panic!("{operation} stdout is not UTF-8: {error}"))
+        .trim()
+        .to_owned()
 }
 
 fn assert_success(output: &Output, operation: &str) {
@@ -69,6 +82,23 @@ fn health(server_url: &str) -> Value {
         .expect("detached fork child remains healthy after create exits")
         .into_json()
         .expect("fork health JSON")
+}
+
+fn wait_until_unhealthy(server_url: &str) {
+    for _ in 0..60 {
+        if ureq::get(&format!("{}/health", server_url.trim_end_matches('/')))
+            .timeout(Duration::from_millis(250))
+            .call()
+            .is_err()
+        {
+            // Give the detached process time to complete its post-server
+            // cleanup and become provably gone to the next lifecycle sweep.
+            std::thread::sleep(Duration::from_millis(500));
+            return;
+        }
+        std::thread::sleep(Duration::from_millis(100));
+    }
+    panic!("fork server remained healthy past its finite expiry: {server_url}");
 }
 
 fn fork_id(created: &Value) -> &str {
@@ -211,6 +241,70 @@ fn executable_fork_lifecycle_is_detached_exact_and_reap_safe() {
         "mutation is visible in the attributed fork diff"
     );
 
+    let mut inspect = snapback();
+    inspect.args([
+        "fork",
+        "inspect",
+        fork_id(&created),
+        "--app-root",
+        todo_root.to_str().unwrap(),
+        "--fork-root",
+        fork_root.to_str().unwrap(),
+    ]);
+    let inspected = successful(inspect, "fork inspect");
+    let status = &inspected["data"]["status"];
+    assert_eq!(status["schemaVersion"], "snapback.fork-status.v1");
+    assert_eq!(status["forkId"], fork_id(&created));
+    assert_eq!(status["parentIdentityKind"], "recorded-source-provenance");
+    assert_eq!(status["forkPointVersion"], 0);
+    assert!(status["expiresAtMs"].as_u64().is_some());
+    assert_eq!(status["processHealth"]["status"], "responding");
+    assert_eq!(status["processHealth"]["responding"], true);
+    assert_eq!(
+        status["databasePath"],
+        data_path(&created, "database").display().to_string()
+    );
+    assert_eq!(status["readyPath"], ready.display().to_string());
+    assert_eq!(status["secretDisposition"], "scrubbed");
+    assert_eq!(status["workerPosture"]["cron"], "inert");
+    assert_eq!(status["workerPosture"]["jobs"], "inert");
+    assert_eq!(status["workerPosture"]["assets"], "inert");
+    assert_eq!(status["egressPosture"], "deny-all-v1");
+    assert!(
+        status["diffSummary"]["attributedRowCount"]
+            .as_u64()
+            .is_some_and(|count| count > 0)
+    );
+    assert!(status["diffSummary"].get("rows").is_none());
+
+    for (format, expected) in [
+        ("url", server_url.to_owned()),
+        ("fork-id", fork_id(&created).to_owned()),
+        (
+            "database-path",
+            data_path(&created, "database").display().to_string(),
+        ),
+        ("ready-path", ready.display().to_string()),
+        ("admin-token-path", token_file.to_owned()),
+    ] {
+        let mut scalar = snapback();
+        scalar.args([
+            "fork",
+            "inspect",
+            fork_id(&created),
+            "--app-root",
+            todo_root.to_str().unwrap(),
+            "--fork-root",
+            fork_root.to_str().unwrap(),
+            "--format",
+            format,
+        ]);
+        assert_eq!(
+            successful_scalar(scalar, &format!("fork inspect --format {format}")),
+            expected
+        );
+    }
+
     let mut drop_command = snapback();
     drop_command.args([
         "fork",
@@ -228,7 +322,7 @@ fn executable_fork_lifecycle_is_detached_exact_and_reap_safe() {
 
     let empty_app = directory.path().join("empty-app");
     std::fs::create_dir(&empty_app).expect("empty app root");
-    let expiring = fork_create(&source, &empty_app, &fork_root, "1s", true);
+    let expiring = fork_create(&source, &empty_app, &fork_root, "2s", true);
     cleanup.track(fork_id(&expiring));
     assert_eq!(expiring["data"]["secrets"], "copy-requested-source-absent");
     let expiring_destination = data_path(&expiring, "database")
@@ -243,7 +337,40 @@ fn executable_fork_lifecycle_is_detached_exact_and_reap_safe() {
         true,
         "create re-verifies live identity even with no generated manifests"
     );
-    let expires = expiring["data"]["receipt"]["lineage"]["expiresAtMs"]
+    let expiring_ready = data_path(&expiring, "readyFile");
+    let expiring_log = data_path(&expiring, "runtimeLog");
+    let expiring_database = data_path(&expiring, "database");
+    wait_until_unhealthy(expiring_url);
+    assert!(
+        expiring_ready.is_file(),
+        "expiry shutdown retains the descriptor so reap can prove the old PID is gone"
+    );
+    let runtime_log = std::fs::read_to_string(&expiring_log).expect("fork expiry runtime log");
+    assert!(
+        runtime_log.contains("SNAPBACK_FORK_SERVER_EXPIRED"),
+        "{runtime_log}"
+    );
+    let boot_error = match LocalDatabase::open(&expiring_database) {
+        Ok(_) => panic!("an expired derived database must refuse a new boot"),
+        Err(error) => error,
+    };
+    assert_eq!(
+        boot_error.diagnostic.code,
+        snapback::instance_fork::SERVER_EXPIRED_CODE
+    );
+
+    let replacement = fork_create(&source, &empty_app, &fork_root, "5m", false);
+    cleanup.track(fork_id(&replacement));
+    assert_eq!(
+        replacement["data"]["automaticReap"]["reapedForkIds"],
+        serde_json::json!([fork_id(&expiring)])
+    );
+    assert!(
+        !expiring_destination.exists(),
+        "the next create automatically reaps the expired proven target"
+    );
+
+    let expires = replacement["data"]["receipt"]["lineage"]["expiresAtMs"]
         .as_u64()
         .expect("finite expiry");
     let mut reap = snapback();
@@ -260,11 +387,115 @@ fn executable_fork_lifecycle_is_detached_exact_and_reap_safe() {
     let reaped = successful(reap, "fork reap");
     assert_eq!(
         reaped["data"]["receipt"]["reapedForkIds"],
-        serde_json::json!([fork_id(&expiring)])
+        serde_json::json!([fork_id(&replacement)])
     );
     assert!(
-        !expiring_destination.exists(),
+        !data_path(&replacement, "database")
+            .parent()
+            .expect("replacement destination")
+            .exists(),
         "reap waits for runtime/telemetry teardown before removing the whole fork tree"
     );
     assert!(source.is_file(), "reap never changes the parent database");
+}
+
+#[test]
+fn executable_fork_recover_repairs_one_finite_partial_publication() {
+    let directory = tempfile::tempdir().expect("fork recovery fixture");
+    let source = directory.path().join("parent.sqlite3");
+    let parent = LocalDatabase::open(&source).expect("parent database");
+    drop(parent);
+    let app_root = directory.path().join("app");
+    std::fs::create_dir(&app_root).unwrap();
+    let fork_root = directory.path().join("forks");
+    std::fs::create_dir(&fork_root).unwrap();
+    let destination = fork_root.join("fork-recover");
+    let receipt = snapback::instance_fork::publish_managed(
+        &source,
+        &destination,
+        "recovery-app",
+        "recovery-parent",
+        1_000,
+        61_000,
+        false,
+    )
+    .expect("publish finite fixture");
+    File::create(destination.join(snapback::instance_fork::STAGING_SENTINEL))
+        .expect("restore simulated S4 sentinel");
+    assert_eq!(
+        snapback::instance_fork::inspect_boot_at(&destination.join("parent.sqlite3"), 2_000)
+            .unwrap_err()
+            .diagnostic
+            .code,
+        "SNAPBACK_FORK_PUBLICATION_PARTIAL"
+    );
+
+    let mut recover = snapback();
+    recover.args([
+        "fork",
+        "recover",
+        destination.to_str().unwrap(),
+        "--app-root",
+        app_root.to_str().unwrap(),
+        "--fork-root",
+        fork_root.to_str().unwrap(),
+    ]);
+    let recovered = successful(recover, "fork recover");
+    assert_eq!(recovered["operation"], "fork.recover");
+    assert_eq!(recovered["data"]["disposition"], "published-recovered");
+    assert_eq!(recovered["data"]["forkId"], receipt.lineage.fork_id);
+    assert_eq!(
+        recovered["data"]["registry"]["state"],
+        "published",
+        "recovery reconciles advisory registry when it is available"
+    );
+    assert!(
+        snapback::instance_fork::inspect_boot_at(&destination.join("parent.sqlite3"), 2_000)
+            .unwrap()
+            .is_some()
+    );
+
+    let mut drop_command = snapback();
+    drop_command.args([
+        "fork",
+        "drop",
+        &receipt.lineage.fork_id,
+        "--app-root",
+        app_root.to_str().unwrap(),
+        "--fork-root",
+        fork_root.to_str().unwrap(),
+    ]);
+    let dropped = successful(drop_command, "drop recovered fork");
+    assert_eq!(dropped["data"]["dropped"], true);
+    assert!(!destination.exists());
+
+    let unbounded = fork_root.join("fork-unbounded");
+    snapback::instance_fork::publish(
+        &source,
+        &unbounded,
+        "recovery-app",
+        "recovery-parent",
+        1_000,
+        None,
+    )
+    .expect("publish library-only unbounded fixture");
+    File::create(unbounded.join(snapback::instance_fork::STAGING_SENTINEL))
+        .expect("restore unbounded S4 sentinel");
+    let mut refused = snapback();
+    refused.args([
+        "fork",
+        "recover",
+        unbounded.to_str().unwrap(),
+        "--app-root",
+        app_root.to_str().unwrap(),
+        "--fork-root",
+        fork_root.to_str().unwrap(),
+    ]);
+    let refused = refused.output().expect("run unbounded recovery");
+    assert!(!refused.status.success());
+    assert!(
+        String::from_utf8_lossy(&refused.stderr).contains("SNAPBACK_FORK_TTL_INVALID"),
+        "{}",
+        String::from_utf8_lossy(&refused.stderr)
+    );
 }

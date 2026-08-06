@@ -6,7 +6,11 @@
 experience, Developer experience, CLI, Documentation, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-03
-**Revised:** 2026-08-05 (LLP 0185 Phase 0 contract reconciliation: corrected
+**Revised:** 2026-08-05 (LLP 0185 Phase 1 operating workflow: made finite TTL
+self-enforcing through create-time reap plus boot/periodic server refusal,
+wired local-evidence recovery to `fork recover`, added `fork inspect` and
+opt-in scalar projections, expanded stable lifecycle diagnostics, and updated
+the guide/capability evidence without publishing the capability.); 2026-08-05 (LLP 0185 Phase 0 contract reconciliation: corrected
 the current F0b copy, quarantine, manual-worker, TTL, recovery, registry, and
 no-promotion claims against `src/instance_fork.rs` / `src/cli.rs`; recorded the
 landed guide plus single-consumer fork-aware harness as the first F1 slice
@@ -186,8 +190,9 @@ LLP 0083, LLP 0088, LLP 0097 (ephemeral data branches — the implemented
 in-app sibling this RFC must position against), LLP 0099, LLP 0139, LLP 0146,
 LLP 0162, LLP 0163, LLP 0164, LLP 0165, LLP 0185
 
-> **Experimental and unpublished.** F0a/F0b and the first F1 guide/harness
-> slice are implemented in source, but this Draft status commits no further
+> **Experimental and unpublished.** F0a/F0b, the Phase-1 operating workflow,
+> and the first single-consumer harness slice are implemented in source, but
+> this Draft status commits no further
 > schedule or priority relative to the accepted program work (LLP 0130's wave,
 > LLP 0155's local-sync lanes). Implementation evidence is not a capability
 > advertisement; the remaining work is sequenced by LLP 0185.
@@ -528,8 +533,10 @@ this RFC is accepted) with, at minimum:
   may retain an `intent` or missing advisory row after registry failure; the
   library has no autonomous "when next available" repair loop. The tested
   `recover(parent, destination)` primitive performs the best-effort local-
-  evidence reconciliation when explicitly invoked, but F0b exposes no CLI
-  recovery verb yet. The registry row is **advisory bookkeeping** (listing,
+  evidence reconciliation. LLP 0185 Phase 1 wires it to `snapback fork
+  recover <destination>`; the product command accepts only an exact
+  direct-child destination and refuses to recover unbounded lineage. The
+  registry row is **advisory bookkeeping** (listing,
   TTL scheduling) — boot safety and repair never depend on registry
   availability, which scopes OQ10's custody question to bookkeeping,
   not safety. **Post-recovery boot assertion:** a fork serves iff no
@@ -776,9 +783,17 @@ to the direct-child directory, database lineage, mint receipt, and ready file
 before reading, signalling, or deleting. **No un-TTL'd product fork exists in
 v1.**
 
-Two limits are explicit. First, expiry is not yet automatic: the timestamp is
-recorded, but only an invoked `reap` enforces it; automatic boot/periodic
-enforcement and bounded renewal belong to LLP 0185 Phases 1 and 3. Second,
+Expiry is now automatic in two independent places. Every `fork create` first
+sweeps already-expired registry-bound forks at its real injected wall clock
+and refuses with `SNAPBACK_FORK_EXPIRED_REAP_FAILED` if a possibly-live target
+cannot be proved and removed. A derived server separately refuses boot after
+its recorded expiry and checks the wall clock while serving, then shuts down
+with `SNAPBACK_FORK_SERVER_EXPIRED`; it retains its non-secret ready descriptor
+so the next reaper can prove the recorded PID is gone before deleting state.
+Explicit `reap --now-ms` remains as the deterministic operator/test surface.
+
+One lifecycle limit remains explicit: bounded renewal belongs to LLP 0185
+Phase 3. Renewal may move a finite expiry but may not clear it. Independently,
 derived-deployment forks never promote or clear their TTL. A permanent copied
 environment, if ever added, is a different provisioning product rather than a
 lifecycle transition of this fork class. If the F2-era shared asset store
@@ -882,7 +897,8 @@ historical spike and the remaining follow-ons:
 | `CaptureOnly` effect capture | **Open shared follow-on** — 0097 ledger/keying and simulated-result mediation remain unwired for derived deployments | `src/branches.rs`; LLP 0097/0164 |
 | Identity scrub-and-mint | **Built** — transactional custody scrub, auth/data-stream rotation, fork stamp, fresh admin/auth/resume sidecars, negative credential corpus | `src/instance_fork.rs` |
 | Asset custody | **Decided and built as refusal** — any occupied refuse-class asset table returns `SNAPBACK_FORK_CUSTODY_REFUSED`; fork-private same-cut copy is additive work and shared-store indirection is F2 | `src/instance_fork.rs` |
-| Fork registry, TTL, reaping | **Built with limits** — advisory UUID registry, finite timestamps, exact drop, and caller-clock deterministic reap; no automatic expiry enforcement or renewal | `src/instance_fork.rs`, `src/cli.rs` |
+| Fork registry, TTL, reaping | **Built with one remaining limit** — advisory UUID registry, finite timestamps, exact drop, caller-clock deterministic reap, create-time automatic reap, and boot/periodic server self-expiry; bounded renewal remains Phase 3 | `src/instance_fork.rs`, `src/cli.rs` |
+| Recovery and inspection | **Built** — exact-destination local-evidence recovery, bounded status/diff summary, process health, isolation posture, and JSON-first shell scalar overlays | `src/instance_fork.rs::recover`, `src/cli.rs::fork_command` |
 | Diff receipt | **Built** for attributed app-row journal entries with explicit coverage/omissions and same-snapshot floor/head/row capture; it refuses after a retention gap and is not an exact net diff | `src/instance_fork.rs::diff_receipt` |
 | Port/endpoint isolation | **Built for creation** — the OS selects an ephemeral port via `--port 0`, returned in an LLP 0030 ready file; concurrent allocation and lifecycle races remain Phase-3 evidence | `src/cli.rs` |
 
@@ -965,13 +981,14 @@ comes before the CLI verb, and no duration estimates until it exists):
   The automated managed-lifecycle and executable CLI tests plus the dated fleet
   record at
   `tests/acceptance/instance-fork-fleet-dogfood.2026-08-03.v1.json` are green.
-- **F1 — agent ergonomics, first slice landed 2026-08-05:**
+- **F1 — agent ergonomics, operating slice landed 2026-08-05:**
   `guide/operating/instance-forks.md`, the target-`none` capability-index GAP,
   `demos/_kit/instance-fork.mjs`, and Todo's maintained fork-instead-of-seed
-  acceptance fixture now cover a single fork/single owner. The broader F1
-  lifecycle remains open under LLP 0185: automatic expiry enforcement,
-  product-facing recovery, richer help/status/shell projections, and the
-  Phase-3-gated concurrent worktree/agent workflow are not implemented.
+  acceptance fixture cover a single fork/single owner; create-time reap,
+  boot/periodic self-expiry, product-facing recovery, coherent lifecycle help,
+  bounded status, shell scalars, and actionable diagnostics now complete the
+  Phase-1 operating slice. The Phase-3-gated concurrent worktree/agent
+  workflow remains open.
 - **F2 — hosted:** the OQ4 DO-bookmark spike decides bookmark-fork vs
   export/import on Cloudflare; container-VM rides Fly volume forks
   (LLP 0099) and adds the ProcessContained tier (§Threat model);
@@ -1000,17 +1017,19 @@ committed generated JSON Schemas; this freeze is the review target for later
 schema/compatibility tests, not a claim that those tests already exist.
 
 **CLI JSON projection — `fork-cli-projection-v1` inside
-`hostOpsResult(schemaVersion = "snapback.v0")`.** All five operations emit
+`hostOpsResult(schemaVersion = "snapback.v0")`.** All seven operations emit
 `resultKind: "hostOpsResult"`, their exact `operation`, and the usual LLP 0024
 outer fields. The fork-owned `data` shapes are:
 
 | Operation | Fork-owned `data` fields |
 | --- | --- |
-| `fork.create` | `receipt` (`ForkMintReceiptV1`), `registry` (`ForkRegistryEntryV1`), `database`, `readyFile`, `runtimeLog` (paths); `workerPolicy` with `cron`, `jobs`, and `assets`, each currently `"disabled"`; `egressPolicy: "deny-all-v1"`; `assetCustody: "refuse-asset-bearing-source"`; `secrets` = `"scrubbed"`, `"copied-explicitly"`, or `"copy-requested-source-absent"` |
+| `fork.create` | `receipt` (`ForkMintReceiptV1`), `registry` (`ForkRegistryEntryV1`), `database`, `readyFile`, `runtimeLog` (paths); `workerPolicy` with `cron`, `jobs`, and `assets`, each currently `"disabled"`; `egressPolicy: "deny-all-v1"`; `assetCustody: "refuse-asset-bearing-source"`; `secrets` = `"scrubbed"`, `"copied-explicitly"`, or `"copy-requested-source-absent"`; additive `automaticReap.{observedAtMs,reapedForkIds}` |
 | `fork.list` | `forkRoot` path; `forks` array of registry entries, sorted by `lineage.forkId` |
+| `fork.inspect` | `status` with `schemaVersion: "snapback.fork-status.v1"`, lineage identity/fork point/expiry, `processHealth`, database/ready/admin-token paths, `secretDisposition`, inert `workerPosture`, `egressPosture: "deny-all-v1"`, and bounded `diffSummary` (`snapback.fork-diff-summary.v1`; counts/coverage/omissions, never full rows) |
 | `fork.diff` | `receipt` (`ForkDiffReceiptV1`); `writtenTo` path or `null` |
 | `fork.drop` | `forkId`; `stoppedPid` (`u32` or `null`); `dropped: true` |
 | `fork.reap` | `receipt` (`ForkReapReceiptV1`) |
+| `fork.recover` | `forkRoot`, exact `destination`, `disposition`, optional `forkId`, and optional reconciled `registry`; recovery remains valid when advisory registry repair is unavailable |
 
 For `create`, `target.appId` is the shared logical app, `target.appRoot` is the
 canonical worktree root, and `target.serverUrl` is the child URL. `list` uses
@@ -1018,6 +1037,12 @@ the first entry's `appId` or `"unknown"` for an empty registry; `reap` currently
 uses `"unknown"`, so consumers needing identity use `data`, not those sentinel
 target values. CLI failures can occur before an LLP 0024 envelope is available;
 the stable code vocabulary below remains the classification surface.
+
+`fork create` and `fork inspect` additionally accept `--format url|fork-id|
+database-path|ready-path|admin-token-path`. Those modes print exactly one
+non-secret scalar plus a newline. They are opt-in shell conveniences, not a
+second automation contract: omitted `--format` remains the JSON envelope, and
+an unavailable scalar refuses with `SNAPBACK_FORK_PROJECTION_UNAVAILABLE`.
 
 **Ready descriptor — generic `snapback.v0` / `snapbackHostReady`, fork
 consumer subset.** There is deliberately no fork-only field and no `forkId` or
@@ -1075,8 +1100,9 @@ post-image sequence, not LLP 0164's exact net diff.
 **Reap receipt — `ForkReapReceiptV1`,
 `schemaVersion: "snapback.fork-reap.v1"`.** Fields are `schemaVersion`,
 `nowMs`, and `reapedForkIds`; IDs are sorted. This receipt proves only what the
-invoked caller-clock sweep removed. It does not claim automatic expiry
-enforcement.
+invoked caller-clock sweep removed. Create-time automatic reaping is recorded
+instead in `fork.create.data.automaticReap`; server self-expiry is a runtime
+diagnostic and shutdown disposition, not a fabricated reap receipt.
 
 **Stable diagnostics — `fork-diagnostics-v1`.** These are every
 `SNAPBACK_FORK_*` spelling present in `src/instance_fork.rs` or `src/cli.rs` at
@@ -1095,8 +1121,9 @@ the freeze:
 | `SNAPBACK_FORK_DIFF_RETENTION_GAP` | The journal floor has advanced past the fork point, so the attributed receipt would be incomplete. |
 | `SNAPBACK_FORK_EGRESS_DENIED` | A classified or future-unclassified outbound initiation was refused under `DenyAll`. |
 | `SNAPBACK_FORK_EGRESS_MARKER_FAILED` | Egress was refused, but its required durable payload-free marker could not be recorded. |
-| `SNAPBACK_FORK_EVIDENCE_INCOMPLETE` | Required local lineage, receipt, database, or freshly minted sidecar evidence is missing. |
+| `SNAPBACK_FORK_EVIDENCE_INCOMPLETE` | Required local lineage, receipt, or database evidence is missing. |
 | `SNAPBACK_FORK_EVIDENCE_MISMATCH` | Registry, path, database lineage, and/or mint-receipt identities disagree. |
+| `SNAPBACK_FORK_EXPIRED_REAP_FAILED` | Create found a known count of expired forks, but at least one could not be safely stopped/proved/deleted; creation refuses. |
 | `SNAPBACK_FORK_ID_INVALID` | A lifecycle target id is not a UUID. |
 | `SNAPBACK_FORK_IO_FAILED` | A fork filesystem durability, publication, inspection, or cleanup operation failed. |
 | `SNAPBACK_FORK_KEYRING_MINT_FAILED` | A fresh auth or resume keyring could not be minted and durably validated. |
@@ -1105,12 +1132,19 @@ the freeze:
 | `SNAPBACK_FORK_NESTED_REFUSED` | The source is already a derived deployment; nested forks are outside v1. |
 | `SNAPBACK_FORK_NOT_FOUND` | The UUID is absent from the selected lifecycle registry. |
 | `SNAPBACK_FORK_PATH_INVALID` | A source/destination/database path violates the UTF-8, direct-child, or resolved-path rules. |
-| `SNAPBACK_FORK_QUARANTINED` | A staging sentinel or database quarantine stamp still prevents boot. |
+| `SNAPBACK_FORK_PROJECTION_UNAVAILABLE` | The requested opt-in scalar has no verified value for this fork. |
+| `SNAPBACK_FORK_PUBLICATION_PARTIAL` | A sentinel-bearing publication is incomplete and must be repaired with `fork recover` before boot. |
+| `SNAPBACK_FORK_QUARANTINED` | The transactional database quarantine stamp still prevents boot. |
 | `SNAPBACK_FORK_READY_INVALID` | The ready path/descriptor, child PID, database binding, or minted admin-token path fails validation. |
 | `SNAPBACK_FORK_REAP_CLOCK_INVALID` | The supplied reap clock exceeds the portable timestamp range. |
 | `SNAPBACK_FORK_RECEIPT_INVALID` | Fork evidence cannot be encoded or a mint/recovery receipt is malformed. |
 | `SNAPBACK_FORK_REGISTRY_INVALID` | The registry directory/entry, format, state, identity, or recorded path shape is invalid. |
+| `SNAPBACK_FORK_REGISTRY_STALE` | A registry entry names a missing destination/database/ready process fact and cannot be treated as live state. |
+| `SNAPBACK_FORK_RESOURCE_LIMIT_REFUSED` | Reserved admission class for Phase-3 fork/byte/diff limits; no limit is invented or triggered in Phase 1. |
+| `SNAPBACK_FORK_SERVER_EXPIRED` | A derived server observed its finite expiry at boot or during serving and refuses/shuts down. |
 | `SNAPBACK_FORK_SIDECAR_COLLISION` | Private staging already contains a sidecar that scrub-and-mint must create fresh. |
+| `SNAPBACK_FORK_SIDECAR_MALFORMED` | A required minted sidecar exists but fails regular-file, custody, encoding, token, or key validation. |
+| `SNAPBACK_FORK_SIDECAR_MISSING` | A required minted admin/auth/resume sidecar is absent. |
 | `SNAPBACK_FORK_SOURCE_INVALID` | The requested source cannot resolve to a file-backed SQLite database (including an in-memory ready target). |
 | `SNAPBACK_FORK_STOP_FAILED` | The verified child did not accept the termination signal. |
 | `SNAPBACK_FORK_STOP_TIMEOUT` | The signalled child did not become provably gone within the stop deadline. |
@@ -1314,10 +1348,12 @@ structural argument that the capability is priced correctly.
 ## Status
 
 Draft, **experimental**. Authored 2026-08-03 from a brainstorming session;
-F0a and F0b now implement the local safety substrate and CLI consumer with
-dated fleet dogfood. The first F1 guide and single-consumer harness slice is
-landed; automatic lifecycle, concurrent agent/worktree ergonomics, exact diff,
-publication, and all F2 hosted work remain open under LLP 0185. This
+F0a and F0b implement the local safety substrate and CLI consumer with dated
+fleet dogfood. The F1 guide, single-consumer harness, and Phase-1 operating
+workflow are landed, including automatic lifecycle, product recovery, status,
+shell projections, and diagnostics. Concurrent agent/worktree ergonomics,
+resource bounds, exact diff, publication, and all F2 hosted work remain open
+under LLP 0185. This
 status records implementation progress but stays Draft until the author makes
 the LLP 0005 transition; it is not a capability advertisement. The earliest
 local-only `clonefile` validation and its corrected claim remain in §Spike

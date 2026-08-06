@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "223277a9ac25ea21511f980696d4822350ee4cf7"
+    "commit": "fbb59687645984cb1d0afd29d90f1401c1d3ab8e"
   },
   "nav": {
     ".": [
@@ -1450,7 +1450,7 @@
       "examples": [],
       "reviewed": "2026-08-04",
       "reviewedCommit": "HEAD",
-      "sha256": "c405948f7d8774ef6e1b834189d31414629b00b705e839cfa3b451a3b3c69e2b",
+      "sha256": "8edb3d5f55bbe3b66971ff5b87048acca785d73359c056481220d24e73cffd92",
       "snippets": []
     },
     "clients.app-cli": {
@@ -2281,11 +2281,12 @@
       ],
       "examples": [
         "demos/todo/tests/acceptance/forked-parent.mjs",
+        "tests/instance_fork_cli_v1.rs",
         "tests/acceptance/instance-fork-fleet-dogfood.2026-08-03.v1.json"
       ],
-      "reviewed": "2026-08-04",
+      "reviewed": "2026-08-05",
       "reviewedCommit": "HEAD",
-      "sha256": "ef481a43159d22ba0993855b0ca24386c014ef325f9eda08385c53947a2ad6a8",
+      "sha256": "47bbae26acb3369942ffb2fd3e4c7e5588c8c57beb4f15342a06fc211a67ed26",
       "snippets": [
         {
           "lang": "js",
@@ -3054,5 +3055,5 @@
     "routes": 111,
     "hostOps": 37
   },
-  "contentHash": "354428f2b18f44c5b6ba6adcdcfe7fac54691ed7c4148e756a56e208a7ee3773"
+  "contentHash": "6c19be2a2eeccfb043ded4a3ed3938d8db22269ef840bddded2c764d8d545f52"
 }

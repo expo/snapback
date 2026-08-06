@@ -12,6 +12,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fs::{self, File};
 use std::io::{ErrorKind, Write};
 use std::path::{Path, PathBuf};
+use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
 pub const STAGING_SENTINEL: &str = ".snapback-fork-staging.v1";
@@ -20,6 +21,9 @@ pub const REGISTRY_DIRECTORY: &str = ".snapback-fork-registry";
 const LINEAGE_META_KEY: &str = "instance_fork_lineage_v1";
 const QUARANTINE_META_KEY: &str = "instance_fork_quarantine_v1";
 const EGRESS_TABLE: &str = "_snapback_fork_egress_attempts_v1";
+
+pub const SERVER_EXPIRED_CODE: &str = "SNAPBACK_FORK_SERVER_EXPIRED";
+pub const RESOURCE_LIMIT_REFUSED_CODE: &str = "SNAPBACK_FORK_RESOURCE_LIMIT_REFUSED";
 
 #[cfg(test)]
 thread_local! {
@@ -50,6 +54,40 @@ fn fork_error(code: &'static str, message: impl Into<String>) -> SnapbackError {
 
 fn io_error(context: &'static str, error: std::io::Error) -> SnapbackError {
     fork_error("SNAPBACK_FORK_IO_FAILED", format!("{context}: {error}"))
+}
+
+fn wall_clock_now_ms() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|elapsed| {
+            elapsed
+                .as_millis()
+                .min(crate::manifest::PORTABLE_TIMESTAMP_MAX_MS.into()) as u64
+        })
+        .unwrap_or(0)
+}
+
+/// Reserved Phase-1 admission path for the concrete fork/byte/diff bounds
+/// defined by LLP 0185 Phase 3. No limit is invented or enforced here.
+pub fn resource_limit_refusal(resource: &str, message: impl Into<String>) -> SnapbackError {
+    fork_error(RESOURCE_LIMIT_REFUSED_CODE, message)
+        .with_details(json!({ "resource": resource }))
+}
+
+pub fn server_expired_error(
+    lineage: &DerivedForkLineageV1,
+    observed_at_ms: u64,
+) -> SnapbackError {
+    fork_error(
+        SERVER_EXPIRED_CODE,
+        "derived-fork server is past its finite expiry; shutting down and refusing new work",
+    )
+    .with_details(json!({
+        "forkId": lineage.fork_id,
+        "expiresAtMs": lineage.expires_at_ms,
+        "observedAtMs": observed_at_ms,
+        "disposition": "shutting-down"
+    }))
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -579,6 +617,7 @@ pub struct ForkRegistryEntryV1 {
 #[derive(Clone, Debug)]
 pub struct ManagedForkTargetV1 {
     pub entry: ForkRegistryEntryV1,
+    pub receipt: ForkMintReceiptV1,
     pub destination: PathBuf,
     pub database: PathBuf,
     pub ready_file: Option<PathBuf>,
@@ -885,11 +924,36 @@ fn scrub_and_mint_with_cut(
 }
 
 pub fn inspect_boot(database_path: &Path) -> SnapbackResult<Option<DerivedForkRuntime>> {
+    inspect_boot_at(database_path, wall_clock_now_ms())
+}
+
+/// Inspect a database for serving at an injected portable clock. Lifecycle
+/// callers deliberately use [`inspect_published_evidence`] instead so an
+/// expired fork remains provable and therefore safely removable.
+// @ref LLP 0185#authority-and-boundaries — finite expiry is server boot
+// authority, not advisory metadata that only an invoked reaper observes.
+pub fn inspect_boot_at(
+    database_path: &Path,
+    now_ms: u64,
+) -> SnapbackResult<Option<DerivedForkRuntime>> {
+    let runtime = inspect_published_evidence(database_path)?;
+    if let Some(runtime) = runtime.as_ref()
+        && let Some(expires_at_ms) = runtime.lineage.expires_at_ms
+        && expires_at_ms <= now_ms
+    {
+        return Err(server_expired_error(&runtime.lineage, now_ms));
+    }
+    Ok(runtime)
+}
+
+fn inspect_published_evidence(
+    database_path: &Path,
+) -> SnapbackResult<Option<DerivedForkRuntime>> {
     let directory = database_path.parent().unwrap_or_else(|| Path::new("."));
     if directory.join(STAGING_SENTINEL).exists() {
         return Err(fork_error(
-            "SNAPBACK_FORK_QUARANTINED",
-            "a staging sentinel prevents this derived deployment from serving",
+            "SNAPBACK_FORK_PUBLICATION_PARTIAL",
+            "fork publication is incomplete; run `snapback fork recover` for the exact destination",
         ));
     }
     inspect_evidence(database_path)
@@ -931,6 +995,17 @@ fn inspect_evidence(database_path: &Path) -> SnapbackResult<Option<DerivedForkRu
             let lineage: DerivedForkLineageV1 = serde_json::from_str(&lineage).map_err(|_| {
                 fork_error("SNAPBACK_FORK_LINEAGE_INVALID", "fork lineage is malformed")
             })?;
+            if lineage.format_version != 1
+                || lineage.promotable
+                || lineage
+                    .expires_at_ms
+                    .is_some_and(|expires_at_ms| expires_at_ms <= lineage.created_at_ms)
+            {
+                return Err(fork_error(
+                    "SNAPBACK_FORK_LINEAGE_INVALID",
+                    "fork lineage version, class, or finite expiry is invalid",
+                ));
+            }
             let receipt: ForkMintReceiptV1 = serde_json::from_slice(
                 &fs::read(&receipt_path).map_err(|error| io_error("read fork receipt", error))?,
             )
@@ -967,25 +1042,72 @@ fn inspect_evidence(database_path: &Path) -> SnapbackResult<Option<DerivedForkRu
 }
 
 fn validate_minted_sidecars(database_path: &Path) -> SnapbackResult<()> {
-    let invalid = || {
-        fork_error(
-            "SNAPBACK_FORK_EVIDENCE_INCOMPLETE",
-            "fork mint sidecars are missing or invalid",
-        )
-    };
-    let admin =
-        crate::secure_file::read_owner_only(&crate::admin::admin_token_sibling(database_path))
-            .map_err(|_| invalid())?;
-    let admin = std::str::from_utf8(&admin).map_err(|_| invalid())?.trim();
-    if admin.len() != 37 || !admin.starts_with("sbat_") {
-        return Err(invalid());
+    fn require_regular(path: &Path, sidecar: &'static str) -> SnapbackResult<()> {
+        let metadata = fs::symlink_metadata(path).map_err(|error| {
+            if error.kind() == ErrorKind::NotFound {
+                fork_error(
+                    "SNAPBACK_FORK_SIDECAR_MISSING",
+                    format!("required minted {sidecar} sidecar is missing"),
+                )
+                .with_details(json!({ "sidecar": sidecar }))
+            } else {
+                io_error("inspect minted fork sidecar", error)
+            }
+        })?;
+        if metadata.file_type().is_symlink() || !metadata.is_file() {
+            return Err(fork_error(
+                "SNAPBACK_FORK_SIDECAR_MALFORMED",
+                format!("minted {sidecar} sidecar is not a regular file"),
+            )
+            .with_details(json!({ "sidecar": sidecar })));
+        }
+        Ok(())
     }
+
+    let admin_path = crate::admin::admin_token_sibling(database_path);
+    require_regular(&admin_path, "admin-token")?;
+    let admin = crate::secure_file::read_owner_only(&admin_path).map_err(|_| {
+        fork_error(
+            "SNAPBACK_FORK_SIDECAR_MALFORMED",
+            "minted admin-token sidecar cannot be read with owner-only custody",
+        )
+        .with_details(json!({ "sidecar": "admin-token" }))
+    })?;
+    let admin = std::str::from_utf8(&admin)
+        .map_err(|_| {
+            fork_error(
+                "SNAPBACK_FORK_SIDECAR_MALFORMED",
+                "minted admin-token sidecar is not UTF-8",
+            )
+            .with_details(json!({ "sidecar": "admin-token" }))
+        })?
+        .trim();
+    if admin.len() != 37 || !admin.starts_with("sbat_") {
+        return Err(fork_error(
+            "SNAPBACK_FORK_SIDECAR_MALFORMED",
+            "minted admin-token sidecar does not contain a Snapback admin token",
+        )
+        .with_details(json!({ "sidecar": "admin-token" })));
+    }
+    let auth_path = crate::auth::keyring::AuthKeyringStore::keyring_path(database_path);
+    require_regular(&auth_path, "auth-keyring")?;
     crate::auth::keyring::AuthKeyringStore::file_for_database(database_path)
         .load_existing()
-        .map_err(|_| invalid())?;
+        .map_err(|_| {
+            fork_error(
+                "SNAPBACK_FORK_SIDECAR_MALFORMED",
+                "minted auth-keyring sidecar is malformed",
+            )
+            .with_details(json!({ "sidecar": "auth-keyring" }))
+        })?;
     let resume_path = database_path.with_file_name(crate::rqs::RESUME_KEYRING_FILE_NAME);
+    require_regular(&resume_path, "resume-keyring")?;
     if !crate::rqs::ResumeKeyring::persisted_file_has_active_key(&resume_path) {
-        return Err(invalid());
+        return Err(fork_error(
+            "SNAPBACK_FORK_SIDECAR_MALFORMED",
+            "minted resume-keyring sidecar has no active key",
+        )
+        .with_details(json!({ "sidecar": "resume-keyring" })));
     }
     Ok(())
 }
@@ -1419,8 +1541,17 @@ pub fn managed_target(fork_root: &Path, fork_id: &str) -> SnapbackResult<Managed
         .map_err(|error| io_error("resolve managed fork root", error))?;
     let entry = load_registry_entry(&root, fork_id)?;
     let destination_path = root.join(&entry.destination);
-    let destination_metadata = fs::symlink_metadata(&destination_path)
-        .map_err(|error| io_error("inspect managed fork destination", error))?;
+    let destination_metadata = fs::symlink_metadata(&destination_path).map_err(|error| {
+        if error.kind() == ErrorKind::NotFound {
+            fork_error(
+                "SNAPBACK_FORK_REGISTRY_STALE",
+                "registry entry names a fork destination that no longer exists",
+            )
+            .with_details(json!({ "forkId": fork_id }))
+        } else {
+            io_error("inspect managed fork destination", error)
+        }
+    })?;
     if destination_metadata.file_type().is_symlink() || !destination_metadata.is_dir() {
         return Err(fork_error(
             "SNAPBACK_FORK_EVIDENCE_MISMATCH",
@@ -1439,8 +1570,17 @@ pub fn managed_target(fork_root: &Path, fork_id: &str) -> SnapbackResult<Managed
     }
 
     let database_path = destination.join(&entry.database_file);
-    let database_metadata = fs::symlink_metadata(&database_path)
-        .map_err(|error| io_error("inspect managed fork database", error))?;
+    let database_metadata = fs::symlink_metadata(&database_path).map_err(|error| {
+        if error.kind() == ErrorKind::NotFound {
+            fork_error(
+                "SNAPBACK_FORK_REGISTRY_STALE",
+                "registry entry names a fork database that no longer exists",
+            )
+            .with_details(json!({ "forkId": fork_id }))
+        } else {
+            io_error("inspect managed fork database", error)
+        }
+    })?;
     if database_metadata.file_type().is_symlink() || !database_metadata.is_file() {
         return Err(fork_error(
             "SNAPBACK_FORK_EVIDENCE_MISMATCH",
@@ -1482,7 +1622,7 @@ pub fn managed_target(fork_root: &Path, fork_id: &str) -> SnapbackResult<Managed
             "fork mint receipt is malformed",
         )
     })?;
-    let runtime = inspect_boot(&database)?.ok_or_else(|| {
+    let runtime = inspect_published_evidence(&database)?.ok_or_else(|| {
         fork_error(
             "SNAPBACK_FORK_EVIDENCE_INCOMPLETE",
             "registered fork has no authoritative local lineage",
@@ -1534,6 +1674,7 @@ pub fn managed_target(fork_root: &Path, fork_id: &str) -> SnapbackResult<Managed
 
     Ok(ManagedForkTargetV1 {
         entry,
+        receipt,
         destination,
         database,
         ready_file,
@@ -1579,7 +1720,10 @@ pub fn expired_managed(fork_root: &Path, now_ms: u64) -> SnapbackResult<Vec<Fork
 /// Render the app-row-only inspection artifact promised by LLP 0158. The
 /// explicit omissions are part of the contract, not documentation garnish.
 pub fn diff_receipt(database_path: &Path) -> SnapbackResult<ForkDiffReceiptV1> {
-    let runtime = inspect_boot(database_path)?.ok_or_else(|| {
+    // Diff is an offline lifecycle inspection surface, not serving admission.
+    // It must remain available to explain or clean up an expired fork even
+    // though LocalDatabase::open refuses to boot that same database.
+    let runtime = inspect_published_evidence(database_path)?.ok_or_else(|| {
         fork_error(
             "SNAPBACK_FORK_EVIDENCE_INCOMPLETE",
             "diff requires a minted derived deployment",
@@ -2272,7 +2416,7 @@ mod tests {
         File::create(directory.path().join(STAGING_SENTINEL)).unwrap();
         assert_eq!(
             inspect_boot(&source).unwrap_err().diagnostic.code,
-            "SNAPBACK_FORK_QUARANTINED"
+            "SNAPBACK_FORK_PUBLICATION_PARTIAL"
         );
         fs::remove_file(directory.path().join(STAGING_SENTINEL)).unwrap();
         let conn = Connection::open(&source).unwrap();
@@ -2317,10 +2461,56 @@ mod tests {
             fs::remove_file(path).unwrap();
             assert_eq!(
                 inspect_boot(&database).unwrap_err().diagnostic.code,
-                "SNAPBACK_FORK_EVIDENCE_INCOMPLETE",
+                "SNAPBACK_FORK_SIDECAR_MISSING",
                 "{sidecar}"
             );
         }
+    }
+
+    #[test]
+    fn boot_refuses_at_injected_finite_expiry_but_lifecycle_evidence_remains_readable() {
+        let directory = tempfile::tempdir().unwrap();
+        let source = source_database(directory.path());
+        let root = directory.path().join("forks");
+        fs::create_dir(&root).unwrap();
+        let destination = root.join("fork-a");
+        let receipt =
+            publish_managed(&source, &destination, "app-a", "parent-a", 100, 200, false)
+                .unwrap();
+
+        assert!(inspect_boot_at(&destination.join("app.sqlite3"), 199)
+            .unwrap()
+            .is_some());
+        let error = inspect_boot_at(&destination.join("app.sqlite3"), 200).unwrap_err();
+        assert_eq!(error.diagnostic.code, SERVER_EXPIRED_CODE);
+        assert_eq!(error.diagnostic.details["forkId"], receipt.lineage.fork_id);
+        assert_eq!(
+            managed_target(&root, &receipt.lineage.fork_id)
+                .unwrap()
+                .entry
+                .lineage,
+            receipt.lineage
+        );
+    }
+
+    #[test]
+    fn malformed_sidecar_and_resource_limit_placeholder_have_stable_codes() {
+        let directory = tempfile::tempdir().unwrap();
+        let source = source_database(directory.path());
+        let destination = directory.path().join("fork");
+        publish(&source, &destination, "app-a", "parent-a", 42, None).unwrap();
+        let database = destination.join("app.sqlite3");
+        fs::write(crate::admin::admin_token_sibling(&database), b"not-a-token").unwrap();
+        assert_eq!(
+            inspect_boot_at(&database, 42).unwrap_err().diagnostic.code,
+            "SNAPBACK_FORK_SIDECAR_MALFORMED"
+        );
+        assert_eq!(
+            resource_limit_refusal("fork-count", "fork-count limit reached")
+                .diagnostic
+                .code,
+            RESOURCE_LIMIT_REFUSED_CODE
+        );
     }
 
     #[test]
@@ -2524,6 +2714,26 @@ mod tests {
                 .diagnostic
                 .code,
             "SNAPBACK_FORK_READY_INVALID"
+        );
+    }
+
+    #[test]
+    fn missing_registered_destination_is_reported_as_stale_registry_state() {
+        let directory = tempfile::tempdir().unwrap();
+        let source = source_database(directory.path());
+        let root = directory.path().join("forks");
+        fs::create_dir(&root).unwrap();
+        let destination = root.join("fork-a");
+        let receipt =
+            publish_managed(&source, &destination, "app-a", "parent-a", 100, 200, false)
+                .unwrap();
+        fs::remove_dir_all(&destination).unwrap();
+        assert_eq!(
+            managed_target(&root, &receipt.lineage.fork_id)
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_FORK_REGISTRY_STALE"
         );
     }
 
