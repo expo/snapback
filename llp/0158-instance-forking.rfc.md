@@ -6,7 +6,17 @@
 experience, Developer experience, CLI, Documentation, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-03
-**Revised:** 2026-08-06 (**Accepted** by the author after the LLP 0005
+**Revised:** 2026-08-06 (LLP 0185 Phase 5 live asset-lifecycle evidence:
+`live_fork_asset_lifecycle_is_private_gc_safe_and_exactly_reaped` starts a
+Sessions parent and derived server, uploads through the production attempt /
+TUS PATCH / finalize path, serves copied and fork-uploaded assets through
+fresh signed URLs, proves cross-instance delete/GC independence in both
+directions, and proves asset-bearing exact drop and deterministic reap remove
+the fork-private blob tree without touching the parent. Fork launch now reads
+the capability-aware active schema rather than the permanently poisoned
+Sessions predecessor slot and supplies a complete generated schema/function
+pair through an owner-only fork-local cold-start carrier. Shared or
+content-addressed custody remains F2/hosted scope.); 2026-08-06 (**Accepted** by the author after the LLP 0005
 loop converged: round-2 independent GPT-family review returned NOT-READY
 with eight verified findings — including two code blockers (recover's
 staging-reap widening; the missing `assets/` fsync link) — all fixed and
@@ -47,8 +57,8 @@ rotating; torn cuts (missing or digest-mismatched blobs) and unclassified
 stores/digest algorithms refuse before publication with
 `SNAPBACK_FORK_ASSET_CUT_INCOMPLETE` / `SNAPBACK_FORK_ASSET_CUT_UNSUPPORTED`;
 admission byte-accounts the blob tree; `assetCustody` reports
-`fork-private-same-cut` / `no-assets`. Live in-fork upload/GC proof and any
-shared/content-addressed store remain F2/hosted scope.); 2026-08-05 (LLP 0185 Phase 4 first slice: opt-in
+`fork-private-same-cut` / `no-assets`. The live upload/GC proof landed
+2026-08-06; shared/content-addressed stores remain F2/hosted scope.); 2026-08-05 (LLP 0185 Phase 4 first slice: opt-in
 `--retain-base` retained post-mint base snapshot (digest-bound
 `snapback.fork-base.v1` evidence, byte-accounted at admission) and the exact
 net base-to-head receipt `snapback.fork-net-diff.v1` via `fork diff --net` —
@@ -1013,7 +1023,7 @@ historical spike and the remaining follow-ons:
 | Consistent copy (cold or live parent) | **Built** — every managed creation uses SQLite's backup API into private staging; full copy | `src/instance_fork.rs::publish_with_options` |
 | O(1) cold-parent copy optimization | **Spike only, not product-wired** — APFS `clonefile` was measured; reflink/`VACUUM INTO` are design candidates, not F0b fallbacks | §Spike evidence; no `src/instance_fork.rs` path |
 | Boot a clone as a working backend | **Built** — `fork create` launches a detached child, waits for and validates its ready descriptor, then records the runtime in the registry | `src/cli.rs::fork_command` |
-| Schema/function manifests into the fork | **Built when generated files exist** — `fork create --app-root` loads that worktree's `schema.manifest.json` and `functions.manifest.json`; a failed load stops the child and returns `SNAPBACK_FORK_LOAD_FAILED` | `src/cli.rs::fork_command` |
+| Schema/function manifests into the fork | **Built when generated files exist** — `fork create --app-root` admits a complete generated schema/function pair through an owner-only fork-local cold-start carrier before listener bind (required by settled Sessions); the historical post-bind load remains only for a partial dev-manifest layout; failed post-bind load stops the child and returns `SNAPBACK_FORK_LOAD_FAILED` | `src/cli.rs::fork_command` |
 | Scheduled-work pause: cron | **Built** — boot switch idles autonomy and the derived-runtime gate denies manual tick | `src/cli.rs`, `src/local.rs` |
 | Scheduled-work pause: durable jobs | **Built** — boot switch idles autonomy and the derived-runtime gate denies enqueue/forced drain | `src/cli.rs`, `src/storage.rs`, `src/local.rs` |
 | Asset-runner pause | **Built** — derived boot disables the third autonomous worker | `src/cli.rs`, `src/server.rs` |
@@ -1022,7 +1032,7 @@ historical spike and the remaining follow-ons:
 | `DenyAll` egress quarantine | **Built** — closed host-op classification plus manual cron/job, provider, maintenance, and telemetry guards; bounded payload-free markers; unknown future host ops refuse | `src/instance_fork.rs`, `src/local.rs`, `src/runtime.rs`, `src/server.rs`, `src/storage.rs`, `src/admin.rs` |
 | `CaptureOnly` effect capture | **Open shared follow-on** — 0097 ledger/keying and simulated-result mediation remain unwired for derived deployments | `src/branches.rs`; LLP 0097/0164 |
 | Identity scrub-and-mint | **Built** — transactional custody scrub, auth/data-stream rotation, fork stamp, fresh admin/auth/resume sidecars, negative credential corpus | `src/instance_fork.rs` |
-| Asset custody | **Built as same-cut fork-private copy** (2026-08-05) — the staged metadata cut enumerates its blobs, each copies digest-verified into the fork's own tree or publication refuses (no metadata-only success); attempts/work-ledger scrub, signing keys rotate; shared-store indirection stays F2 | `src/instance_fork.rs::copy_fork_private_assets` |
+| Asset custody | **Built as same-cut fork-private copy** (2026-08-05) and live-lifecycle-proved (2026-08-06) — the staged metadata cut enumerates its blobs, each copies digest-verified into the fork's own tree or publication refuses (no metadata-only success); attempts/work-ledger scrub, signing keys rotate; the production upload/TUS/finalize, signed serving, delete, GC, parent-cleanup independence, and exact drop/reap path is exercised against live parent/fork servers; shared-store indirection stays F2 | `src/instance_fork.rs::copy_fork_private_assets`; `tests/instance_fork_cli_v1.rs::live_fork_asset_lifecycle_is_private_gc_safe_and_exactly_reaped` |
 | Fork registry, TTL, reaping | **Built** — advisory UUID registry, finite timestamps, exact drop, caller-clock deterministic reap, create-time automatic reap, boot/periodic server self-expiry, bounded intent-journaled renewal with a max-lifetime cap, per-fork cleanup locking, and stale-registry completion | `src/instance_fork.rs`, `src/cli.rs` |
 | Recovery and inspection | **Built** — exact-destination local-evidence recovery, bounded status/diff summary, process health, isolation posture, and JSON-first shell scalar overlays | `src/instance_fork.rs::recover`, `src/cli.rs::fork_command` |
 | Diff receipt | **Built** for attributed app-row journal entries with explicit coverage/omissions and same-snapshot floor/head/row capture; it refuses after a retention gap and is not an exact net diff | `src/instance_fork.rs::diff_receipt` |
@@ -1449,7 +1459,15 @@ runtime/durable concerns are scoped per instance, not merely per `appId`.
   unclassified stores/digest algorithms refusing before publication. The
   invariant survives both stages: metadata is never published while its
   physical blob tree is absent or unproven. The fork-aware shared store
-  with its GC barrier remains F2.
+  with its GC barrier remains F2. **LIVE LIFECYCLE PROVED 2026-08-06:**
+  `live_fork_asset_lifecycle_is_private_gc_safe_and_exactly_reaped` uses a
+  Sessions parent and derived server plus the production asset attempt, TUS
+  upload, finalize, signing, serving, delete, and GC surfaces. It proves a
+  fork-uploaded blob is fork-private and parent-invisible; copied and new
+  assets serve from the fork; fork delete/GC leaves the parent copy intact;
+  parent delete/GC leaves the fork copy intact; and both exact drop and
+  deterministic reap remove the complete asset-bearing fork tree while
+  preserving parent blobs.
 - **OQ6 — Where does `fork` live in the surface? DECIDED for local v1 F0b
   2026-08-03:** CLI-only. The source `snapback fork` verb emits LLP 0024
   host-operation results and returns/consumes paths to LLP 0030 ready

@@ -2727,14 +2727,24 @@ fn stored_app_id(database: &Path) -> anyhow::Result<String> {
     let conn = rusqlite::Connection::open(database)?;
     let stored: Option<String> = conn
         .query_row(
-            "SELECT value FROM _snapback_meta WHERE key='schema_manifest'",
-            [],
+            "SELECT value
+               FROM _snapback_meta
+              WHERE key IN (?1, ?2)
+              ORDER BY CASE key WHEN ?1 THEN 0 ELSE 1 END
+              LIMIT 1",
+            rusqlite::params![
+                crate::storage::auth_mode::META_CAPABILITY_AWARE_SCHEMA_MANIFEST,
+                crate::storage::auth_mode::META_LEGACY_SCHEMA_MANIFEST,
+            ],
             |row| row.get(0),
         )
         .optional()?;
     let stored = stored.context("SNAPBACK_FORK_APP_ID_REQUIRED: source has no stored schema")?;
+    // @ref LLP 0058#the-four-keys — Sessions permanently poisons
+    // the predecessor manifest slot. The capability-aware slot is the active
+    // schema for both modes; legacy databases fall back to the old slot.
     let schema: crate::manifest::SchemaManifest =
-        serde_json::from_str(&stored).context("source stored schema is malformed")?;
+        serde_json::from_str(&stored).context("source active schema is malformed")?;
     Ok(schema.app_id)
 }
 
@@ -3323,6 +3333,39 @@ where
                 std::fs::canonicalize(ready_parent)? == destination,
                 "SNAPBACK_FORK_READY_INVALID: ready file must be a direct child of the fork directory"
             );
+            let generated = app_root.join("snapback/generated");
+            let generated_schema = generated.join("schema.manifest.json");
+            let generated_functions = generated.join("functions.manifest.json");
+            let startup_artifacts = if generated_schema.is_file() && generated_functions.is_file() {
+                // @ref LLP 0058#cold-startup-artifact-carrier — a settled
+                // Sessions deployment must receive its exact schema/function
+                // pair before listener bind. Keep the carrier inside the
+                // fork-private tree so exact drop/reap owns it with the rest
+                // of the derived deployment.
+                let carrier = crate::auth::mode::StartupArtifacts {
+                    format_version: crate::auth::mode::STARTUP_ARTIFACT_FORMAT_VERSION,
+                    schema: serde_json::from_value(read_json_file(&generated_schema)?)?,
+                    functions: serde_json::from_value(read_json_file(&generated_functions)?)?,
+                    seed: None,
+                };
+                let path = destination.join("fork-startup-artifacts.json");
+                let bytes = serde_json::to_vec(&carrier)?;
+                crate::secure_file::write_new_owner_only(&path, &bytes).with_context(|| {
+                    format!(
+                        "SNAPBACK_FORK_BOOT_FAILED: could not write {}",
+                        path.display()
+                    )
+                })?;
+                crate::secure_file::sync_parent(&path).with_context(|| {
+                    format!(
+                        "SNAPBACK_FORK_BOOT_FAILED: could not sync {}",
+                        destination.display()
+                    )
+                })?;
+                Some(path)
+            } else {
+                None
+            };
             let log_path = destination.join("fork-runtime.log");
             let log = std::fs::OpenOptions::new()
                 .create(true)
@@ -3345,6 +3388,9 @@ where
                 .env_remove("SNAPBACK_ADMIN_TOKEN")
                 .stdout(std::process::Stdio::from(log))
                 .stderr(std::process::Stdio::from(error_log));
+            if let Some(path) = startup_artifacts.as_deref() {
+                launch.arg("--startup-artifacts").arg(path);
+            }
             #[cfg(unix)]
             {
                 use std::os::unix::process::CommandExt as _;
@@ -3414,26 +3460,22 @@ where
                 token: Some(minted_admin),
                 impersonation_capability_stdin: false,
             };
-            let generated = app_root.join("snapback/generated");
-            for (operation, key, path) in [
-                (
-                    "schema.load",
-                    "schema",
-                    generated.join("schema.manifest.json"),
-                ),
-                (
-                    "functions.load",
-                    "functions",
-                    generated.join("functions.manifest.json"),
-                ),
-            ] {
-                if path.is_file() {
-                    let mut request = json!({ "operation": operation });
-                    request[key] = read_json_file(&path)?;
-                    let response = post_host_op(&target, request)?;
-                    if !response.get("ok").and_then(Value::as_bool).unwrap_or(false) {
-                        let _ = quiet_stop_fork(&ready_file, &database);
-                        anyhow::bail!("SNAPBACK_FORK_LOAD_FAILED: {response}");
+            // A complete pair was already admitted atomically at cold start.
+            // Preserve the historical partial-manifest dev path only when no
+            // complete startup carrier was available.
+            if startup_artifacts.is_none() {
+                for (operation, key, path) in [
+                    ("schema.load", "schema", generated_schema),
+                    ("functions.load", "functions", generated_functions),
+                ] {
+                    if path.is_file() {
+                        let mut request = json!({ "operation": operation });
+                        request[key] = read_json_file(&path)?;
+                        let response = post_host_op(&target, request)?;
+                        if !response.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+                            let _ = quiet_stop_fork(&ready_file, &database);
+                            anyhow::bail!("SNAPBACK_FORK_LOAD_FAILED: {response}");
+                        }
                     }
                 }
             }
