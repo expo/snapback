@@ -1,0 +1,2902 @@
+{
+  "actorIdentity": {
+    "declaredActors": [
+      "ordinary-user",
+      "creator",
+      "assignee",
+      "crew-admin",
+      "removed-member"
+    ],
+    "mode": "fresh bound sessions verified by landed lane setup checks"
+  },
+  "arm": "snapback-control",
+  "assistance": [
+    {
+      "date": "2026-08-05",
+      "kind": "failed-path",
+      "result": "Initial offline install/codegen path failed, then the exact local package set resolved and static generation passed.",
+      "sequence": 1,
+      "source": {
+        "file": "demos/zerobugs/control/PLAN.md",
+        "section": "Validation record for this scaffold"
+      }
+    },
+    {
+      "date": "2026-08-05",
+      "kind": "failed-path",
+      "result": "The complete seed hit SNAPBACK_SEED_EFFECT_LIMIT; no row was omitted and bounded ordinary ingestion was chosen.",
+      "sequence": 2,
+      "source": {
+        "file": "demos/zerobugs/control/PLAN.md",
+        "section": "Lane 1 validation"
+      }
+    },
+    {
+      "date": "2026-08-05",
+      "kind": "environment-refusal",
+      "result": "The sandbox refused loopback bind; cleanup removed the owned namespace and the live step moved to the supervisor.",
+      "sequence": 3,
+      "source": {
+        "file": "demos/zerobugs/control/PLAN.md",
+        "section": "Lane 1 continuation — bounded fixture ingestion"
+      }
+    },
+    {
+      "date": "2026-08-05",
+      "kind": "failed-path",
+      "result": "The first supervised load exposed 16 KiB JS string truncation after all counts passed; the runtime defect was filed and fixed.",
+      "sequence": 4,
+      "source": {
+        "file": "demos/zerobugs/control/PLAN.md",
+        "section": "Lane 1 continuation — live load outside the sandbox"
+      }
+    },
+    {
+      "date": "2026-08-05",
+      "kind": "live-proof",
+      "result": "The repaired runtime loaded all 3,758 rows and matched the frozen overall digest.",
+      "sequence": 5,
+      "source": {
+        "file": "demos/zerobugs/control/PLAN.md",
+        "section": "Lane 1 completion — live load PASS on the repaired runtime"
+      }
+    },
+    {
+      "date": "2026-08-05",
+      "kind": "live-proof",
+      "result": "The five bound actors plus anonymous/attacker transitions passed 9/9.",
+      "sequence": 6,
+      "source": {
+        "file": "demos/zerobugs/control/PLAN.md",
+        "section": "Lane 2 completion — live actor harness PASS"
+      }
+    },
+    {
+      "date": "2026-08-06",
+      "kind": "rejected-path",
+      "result": "Runtime admission rejected route-cut groups for opaque JS queries; the route manifest was removed and W-QGROUP retained.",
+      "sequence": 7,
+      "source": {
+        "file": "demos/zerobugs/control/PLAN.md",
+        "section": "Lane 3 amendment — route-cut query groups unavailable to JS queries"
+      }
+    },
+    {
+      "date": "2026-08-06",
+      "kind": "supervisor-correction",
+      "result": "The 16/16 query run found readiness settling and an anonymous-public auth-body defect, then passed after repair.",
+      "sequence": 8,
+      "source": {
+        "file": "demos/zerobugs/control/PLAN.md",
+        "section": "Lane 3 completion — live parity harness PASS"
+      }
+    },
+    {
+      "date": "2026-08-06",
+      "kind": "supervisor-correction",
+      "result": "The 18/18 mutation run corrected generic runtime id prefixes and absent rather than null generated IR fields.",
+      "sequence": 9,
+      "source": {
+        "file": "demos/zerobugs/control/PLAN.md",
+        "section": "Lane 4 completion — live mutation corpus PASS"
+      }
+    },
+    {
+      "date": "2026-08-06",
+      "kind": "supervisor-correction",
+      "result": "The 16/16 composition run fixed config-before-data ordering and the host.fetch result contract, retaining all five corrections.",
+      "sequence": 10,
+      "source": {
+        "file": "demos/zerobugs/control/PLAN.md",
+        "section": "Lane 5 completion — live gateway/effects harness PASS"
+      }
+    },
+    {
+      "date": "2026-08-06",
+      "kind": "live-proof",
+      "result": "The typed adapter/window/session smoke passed 6/6.",
+      "sequence": 11,
+      "source": {
+        "file": "demos/zerobugs/control/PLAN.md",
+        "section": "Lane 6a completion — live adapter/controller smoke PASS"
+      }
+    },
+    {
+      "date": "2026-08-06",
+      "kind": "supervisor-correction",
+      "result": "The browser handoff adopted the supported one-use email-code exchange and the short /tmp Chrome profile root.",
+      "sequence": 12,
+      "source": {
+        "file": "demos/zerobugs/control/PLAN.md",
+        "section": "Lane 6b live continuation: session handoff and supervisor corrections"
+      }
+    },
+    {
+      "date": "2026-08-06",
+      "kind": "failed-path",
+      "result": "Two inconsistent browser runs exposed session/window generation races; singleton ownership and authority-axis fencing closed them.",
+      "sequence": 13,
+      "source": {
+        "file": "demos/zerobugs/control/PLAN.md",
+        "section": "Lane 6b live continuation: auth/window race closure"
+      }
+    },
+    {
+      "date": "2026-08-06",
+      "kind": "failed-path",
+      "result": "A full reload proved memory custody was wrong; the control switched to shipped IndexedDB/Web Locks custody.",
+      "sequence": 14,
+      "source": {
+        "file": "demos/zerobugs/control/PLAN.md",
+        "section": "Lane 6b live continuation: authenticated reload custody"
+      }
+    },
+    {
+      "date": "2026-08-06",
+      "kind": "live-proof",
+      "result": "Lane 6b passed 12/12 after the shipped auth deadlock, control render loop, and permalink re-arm defects were explained and fixed.",
+      "sequence": 15,
+      "source": {
+        "file": "demos/zerobugs/control/PLAN.md",
+        "section": "Lane 6b live status — PASS (12/12, 2026-08-06)"
+      }
+    },
+    {
+      "date": "2026-08-06",
+      "evidence": {
+        "file": "demos/zerobugs/evidence/snapback-control.zb0.v1.json",
+        "section": "checks.rows"
+      },
+      "kind": "gate-attempt",
+      "result": "ZB0 v1 passed 9 checks.",
+      "sequence": 16,
+      "source": {
+        "file": "demos/zerobugs/control/PLAN.md",
+        "section": "Lane F live status — ZB0–ZB4 receipts landed (2026-08-06); ZB5–ZB7 pending"
+      }
+    },
+    {
+      "date": "2026-08-06",
+      "evidence": {
+        "file": "demos/zerobugs/evidence/snapback-control.zb1.v1.json",
+        "section": "checks.rows"
+      },
+      "kind": "gate-attempt",
+      "result": "ZB1 v1 retained one D2 query-group GAP.",
+      "sequence": 17,
+      "source": {
+        "file": "demos/zerobugs/control/PLAN.md",
+        "section": "Lane F live status — ZB0–ZB4 receipts landed (2026-08-06); ZB5–ZB7 pending"
+      }
+    },
+    {
+      "date": "2026-08-06",
+      "evidence": {
+        "file": "demos/zerobugs/evidence/snapback-control.zb2.v1.json",
+        "section": "checks.rows"
+      },
+      "kind": "gate-attempt",
+      "result": "ZB2 v1 retained 39 explicit retention/offline/custody GAPs and passed three honesty checks.",
+      "sequence": 18,
+      "source": {
+        "file": "demos/zerobugs/control/PLAN.md",
+        "section": "Lane F live status — ZB0–ZB4 receipts landed (2026-08-06); ZB5–ZB7 pending"
+      }
+    },
+    {
+      "date": "2026-08-06",
+      "evidence": {
+        "file": "demos/zerobugs/evidence/snapback-control.zb3.v1.json",
+        "section": "diagnostics"
+      },
+      "kind": "failed-gate-attempt",
+      "result": "ZB3 v1 failed on frozen-name/generated-identity lookup and guessed Lane 4 ordering; the immutable attempt remains.",
+      "sequence": 19,
+      "source": {
+        "file": "demos/zerobugs/control/PLAN.md",
+        "section": "Lane F live status — ZB0–ZB4 receipts landed (2026-08-06); ZB5–ZB7 pending"
+      }
+    },
+    {
+      "date": "2026-08-06",
+      "evidence": {
+        "file": "demos/zerobugs/evidence/snapback-control.zb3.v2.json",
+        "section": "checks.rows"
+      },
+      "kind": "remediation-attempt",
+      "result": "ZB3 v2 passed 26 checks and retained two unsupported queued-intent GAPs.",
+      "sequence": 20,
+      "source": {
+        "file": "demos/zerobugs/control/PLAN.md",
+        "section": "Lane F live status — ZB0–ZB4 receipts landed (2026-08-06); ZB5–ZB7 pending"
+      }
+    },
+    {
+      "date": "2026-08-06",
+      "evidence": {
+        "file": "demos/zerobugs/evidence/snapback-control.zb4.v1.json",
+        "section": "diagnostics"
+      },
+      "kind": "failed-gate-attempt",
+      "result": "ZB4 v1 incorrectly expected value-free config status to refuse untrusted reads; the immutable attempt remains.",
+      "sequence": 21,
+      "source": {
+        "file": "demos/zerobugs/control/PLAN.md",
+        "section": "Lane F live status — ZB0–ZB4 receipts landed (2026-08-06); ZB5–ZB7 pending"
+      }
+    },
+    {
+      "date": "2026-08-06",
+      "evidence": {
+        "file": "demos/zerobugs/evidence/snapback-control.zb4.v2.json",
+        "section": "checks.rows"
+      },
+      "kind": "remediation-attempt",
+      "result": "ZB4 v2 passed 26 checks, retained four unavailable carrier/policy-transition GAPs, and pinned the config contract.",
+      "sequence": 22,
+      "source": {
+        "file": "demos/zerobugs/control/PLAN.md",
+        "section": "Lane F live status — ZB0–ZB4 receipts landed (2026-08-06); ZB5–ZB7 pending"
+      }
+    }
+  ],
+  "attempt": "v1",
+  "browserIdentity": {
+    "browserFactsSource": "landed receipts only",
+    "mode": "not-used-static-accounting-gate"
+  },
+  "capabilityFacts": [
+    {
+      "id": "authoring.chronology",
+      "rows": 22,
+      "status": "supported-local-control"
+    },
+    {
+      "id": "authoring.workaround-accounting",
+      "rows": 15,
+      "status": "supported-local-control"
+    },
+    {
+      "codes": [
+        "SNAPBACK_HANDLER_FAILED",
+        "ZBUGS_RECEIPT_ZERO_CHECKS"
+      ],
+      "id": "diagnostics.stable-observed-codes",
+      "status": "supported-local-control"
+    },
+    {
+      "id": "authoring.guide-gap-tickets",
+      "owner": "LLP 0061 diary loop",
+      "status": "gap"
+    },
+    {
+      "id": "authoring.cross-arm-delta",
+      "owner": "Stage 4 / acceptance.v2",
+      "status": "gap"
+    },
+    {
+      "evidence": [
+        "source-pin-coverage",
+        "frozen-inventory-counts",
+        "generated-schema-relation-accounting",
+        "generated-query-registry-accounting",
+        "generated-mutation-route-effect-accounting",
+        "static-route-ui-source-inventory",
+        "declared-workaround-component-register",
+        "generated-release-identities",
+        "zero-check-receipt-refusal"
+      ],
+      "id": "source-fidelity.zb0",
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb0.v1.json",
+      "status": "supported",
+      "target": "repo-checkout-static-zb0"
+    },
+    {
+      "id": "release-identity",
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb0.v1.json",
+      "status": "supported",
+      "target": "local-dev-sqlite-ibex"
+    },
+    {
+      "carrier": "bounded typed JavaScript live-query handlers plus maintained read models",
+      "id": "relational-graph.issue-list",
+      "queryCount": 19,
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb1.v1.json",
+      "status": "supported-local-control"
+    },
+    {
+      "carrier": "parent-authorized bounded graph loader",
+      "id": "relational-graph.issue-detail",
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb1.v1.json",
+      "status": "supported-local-control"
+    },
+    {
+      "carrier": "application-owned server-backed WindowController",
+      "id": "windowed-query.issue-list",
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb1.v1.json",
+      "status": "supported-local-control"
+    },
+    {
+      "id": "query-group-cut",
+      "owner": "D2",
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb1.v1.json",
+      "status": "gap"
+    },
+    {
+      "admittedQueries": 0,
+      "id": "retained-read",
+      "inventoriedQueries": 19,
+      "owner": "D3",
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb2.v1.json",
+      "status": "gap"
+    },
+    {
+      "admittedMutations": 0,
+      "id": "durable-queued-intent",
+      "inventoriedMutations": 16,
+      "owner": "D3/D5",
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb2.v1.json",
+      "status": "gap"
+    },
+    {
+      "id": "auth-transition-client-barrier",
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb2.v1.json",
+      "status": "supported-local-control"
+    },
+    {
+      "actualTier": "JS/Ibex-authoritative-fallback",
+      "durableIntent": true,
+      "id": "mutation.issue.create",
+      "optimisticCarrier": "application-owned-visible-fact-reducer",
+      "preliminaryClass": "new-verb",
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb3.v1.json",
+      "status": "refused"
+    },
+    {
+      "actualTier": "JS/Ibex-authoritative-fallback",
+      "durableIntent": true,
+      "id": "mutation.issue.update",
+      "optimisticCarrier": "application-owned-visible-fact-reducer",
+      "preliminaryClass": "new-verb",
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb3.v1.json",
+      "status": "refused"
+    },
+    {
+      "actualTier": "JS/Ibex-authoritative-fallback",
+      "durableIntent": false,
+      "id": "mutation.issue.delete",
+      "optimisticCarrier": "application-owned-visible-fact-reducer",
+      "preliminaryClass": "new-verb",
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb3.v1.json",
+      "status": "refused"
+    },
+    {
+      "actualTier": "JS/Ibex-authoritative-fallback",
+      "durableIntent": true,
+      "id": "mutation.issue.addLabel",
+      "optimisticCarrier": "application-owned-visible-fact-reducer",
+      "preliminaryClass": "current-ir",
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb3.v1.json",
+      "status": "refused"
+    },
+    {
+      "actualTier": "JS/Ibex-authoritative-fallback",
+      "durableIntent": true,
+      "id": "mutation.issue.removeLabel",
+      "optimisticCarrier": "application-owned-visible-fact-reducer",
+      "preliminaryClass": "new-verb",
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb3.v1.json",
+      "status": "refused"
+    },
+    {
+      "actualTier": "JS/Ibex-authoritative-fallback",
+      "durableIntent": false,
+      "id": "mutation.notification.update",
+      "optimisticCarrier": "application-owned-visible-fact-reducer",
+      "preliminaryClass": "new-verb",
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb3.v1.json",
+      "status": "refused"
+    },
+    {
+      "actualTier": "JS/Ibex-authoritative-fallback",
+      "durableIntent": true,
+      "id": "mutation.emoji.addToIssue",
+      "optimisticCarrier": "application-owned-visible-fact-reducer",
+      "preliminaryClass": "new-verb",
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb3.v1.json",
+      "status": "refused"
+    },
+    {
+      "actualTier": "JS/Ibex-authoritative-fallback",
+      "durableIntent": true,
+      "id": "mutation.emoji.addToComment",
+      "optimisticCarrier": "application-owned-visible-fact-reducer",
+      "preliminaryClass": "explicit-value-or-lane-q",
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb3.v1.json",
+      "status": "refused"
+    },
+    {
+      "actualTier": "JS/Ibex-authoritative-fallback",
+      "durableIntent": false,
+      "id": "mutation.emoji.remove",
+      "optimisticCarrier": "application-owned-visible-fact-reducer",
+      "preliminaryClass": "new-verb",
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb3.v1.json",
+      "status": "refused"
+    },
+    {
+      "actualTier": "JS/Ibex-authoritative-fallback",
+      "durableIntent": true,
+      "id": "mutation.comment.add",
+      "optimisticCarrier": "application-owned-visible-fact-reducer",
+      "preliminaryClass": "new-verb",
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb3.v1.json",
+      "status": "refused"
+    },
+    {
+      "actualTier": "JS/Ibex-authoritative-fallback",
+      "durableIntent": true,
+      "id": "mutation.comment.edit",
+      "optimisticCarrier": "application-owned-visible-fact-reducer",
+      "preliminaryClass": "current-ir",
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb3.v1.json",
+      "status": "refused"
+    },
+    {
+      "actualTier": "JS/Ibex-authoritative-fallback",
+      "durableIntent": false,
+      "id": "mutation.comment.remove",
+      "optimisticCarrier": "application-owned-visible-fact-reducer",
+      "preliminaryClass": "new-verb",
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb3.v1.json",
+      "status": "refused"
+    },
+    {
+      "actualTier": "JS/Ibex-authoritative-fallback",
+      "durableIntent": false,
+      "id": "mutation.label.create",
+      "optimisticCarrier": "honest-server-pending",
+      "preliminaryClass": "explicit-value-or-lane-q",
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb3.v1.json",
+      "status": "refused"
+    },
+    {
+      "actualTier": "JS/Ibex-authoritative-fallback",
+      "durableIntent": false,
+      "id": "mutation.label.createAndAddToIssue",
+      "optimisticCarrier": "application-owned-visible-fact-reducer",
+      "preliminaryClass": "explicit-value-or-lane-q",
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb3.v1.json",
+      "status": "refused"
+    },
+    {
+      "actualTier": "JS/Ibex-authoritative-fallback",
+      "durableIntent": false,
+      "id": "mutation.viewState.set",
+      "optimisticCarrier": "application-owned-visible-fact-reducer",
+      "preliminaryClass": "new-verb",
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb3.v1.json",
+      "status": "refused"
+    },
+    {
+      "actualTier": "JS/Ibex-authoritative-fallback",
+      "durableIntent": false,
+      "id": "mutation.userPref.set",
+      "optimisticCarrier": "application-owned-visible-fact-reducer",
+      "preliminaryClass": "new-verb",
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb3.v1.json",
+      "status": "refused"
+    },
+    {
+      "id": "effect.email-durable",
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb3.v1.json",
+      "status": "supported-local-capture-composition"
+    },
+    {
+      "id": "effect.webhook-durable",
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb3.v1.json",
+      "status": "supported-local-capture-composition"
+    },
+    {
+      "id": "durable-disconnected-intent",
+      "owner": "ZB5 and D3/D5",
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb3.v1.json",
+      "status": "gap"
+    },
+    {
+      "actualTier": "JS/Ibex-authoritative-fallback",
+      "durableIntent": true,
+      "id": "mutation.issue.create",
+      "optimisticCarrier": "application-owned-visible-fact-reducer",
+      "preliminaryClass": "new-verb",
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb3.v2.json",
+      "status": "supported-local-control"
+    },
+    {
+      "actualTier": "JS/Ibex-authoritative-fallback",
+      "durableIntent": true,
+      "id": "mutation.issue.update",
+      "optimisticCarrier": "application-owned-visible-fact-reducer",
+      "preliminaryClass": "new-verb",
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb3.v2.json",
+      "status": "supported-local-control"
+    },
+    {
+      "actualTier": "JS/Ibex-authoritative-fallback",
+      "durableIntent": false,
+      "id": "mutation.issue.delete",
+      "optimisticCarrier": "application-owned-visible-fact-reducer",
+      "preliminaryClass": "new-verb",
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb3.v2.json",
+      "status": "supported-local-control"
+    },
+    {
+      "actualTier": "JS/Ibex-authoritative-fallback",
+      "durableIntent": true,
+      "id": "mutation.issue.addLabel",
+      "optimisticCarrier": "application-owned-visible-fact-reducer",
+      "preliminaryClass": "current-ir",
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb3.v2.json",
+      "status": "supported-local-control"
+    },
+    {
+      "actualTier": "JS/Ibex-authoritative-fallback",
+      "durableIntent": true,
+      "id": "mutation.issue.removeLabel",
+      "optimisticCarrier": "application-owned-visible-fact-reducer",
+      "preliminaryClass": "new-verb",
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb3.v2.json",
+      "status": "supported-local-control"
+    },
+    {
+      "actualTier": "JS/Ibex-authoritative-fallback",
+      "durableIntent": false,
+      "id": "mutation.notification.update",
+      "optimisticCarrier": "application-owned-visible-fact-reducer",
+      "preliminaryClass": "new-verb",
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb3.v2.json",
+      "status": "supported-local-control"
+    },
+    {
+      "actualTier": "JS/Ibex-authoritative-fallback",
+      "durableIntent": true,
+      "id": "mutation.emoji.addToIssue",
+      "optimisticCarrier": "application-owned-visible-fact-reducer",
+      "preliminaryClass": "new-verb",
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb3.v2.json",
+      "status": "supported-local-control"
+    },
+    {
+      "actualTier": "JS/Ibex-authoritative-fallback",
+      "durableIntent": true,
+      "id": "mutation.emoji.addToComment",
+      "optimisticCarrier": "application-owned-visible-fact-reducer",
+      "preliminaryClass": "explicit-value-or-lane-q",
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb3.v2.json",
+      "status": "supported-local-control"
+    },
+    {
+      "actualTier": "JS/Ibex-authoritative-fallback",
+      "durableIntent": false,
+      "id": "mutation.emoji.remove",
+      "optimisticCarrier": "application-owned-visible-fact-reducer",
+      "preliminaryClass": "new-verb",
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb3.v2.json",
+      "status": "supported-local-control"
+    },
+    {
+      "actualTier": "JS/Ibex-authoritative-fallback",
+      "durableIntent": true,
+      "id": "mutation.comment.add",
+      "optimisticCarrier": "application-owned-visible-fact-reducer",
+      "preliminaryClass": "new-verb",
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb3.v2.json",
+      "status": "supported-local-control"
+    },
+    {
+      "actualTier": "JS/Ibex-authoritative-fallback",
+      "durableIntent": true,
+      "id": "mutation.comment.edit",
+      "optimisticCarrier": "application-owned-visible-fact-reducer",
+      "preliminaryClass": "current-ir",
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb3.v2.json",
+      "status": "supported-local-control"
+    },
+    {
+      "actualTier": "JS/Ibex-authoritative-fallback",
+      "durableIntent": false,
+      "id": "mutation.comment.remove",
+      "optimisticCarrier": "application-owned-visible-fact-reducer",
+      "preliminaryClass": "new-verb",
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb3.v2.json",
+      "status": "supported-local-control"
+    },
+    {
+      "actualTier": "JS/Ibex-authoritative-fallback",
+      "durableIntent": false,
+      "id": "mutation.label.create",
+      "optimisticCarrier": "honest-server-pending",
+      "preliminaryClass": "explicit-value-or-lane-q",
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb3.v2.json",
+      "status": "supported-local-control"
+    },
+    {
+      "actualTier": "JS/Ibex-authoritative-fallback",
+      "durableIntent": false,
+      "id": "mutation.label.createAndAddToIssue",
+      "optimisticCarrier": "application-owned-visible-fact-reducer",
+      "preliminaryClass": "explicit-value-or-lane-q",
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb3.v2.json",
+      "status": "supported-local-control"
+    },
+    {
+      "actualTier": "JS/Ibex-authoritative-fallback",
+      "durableIntent": false,
+      "id": "mutation.viewState.set",
+      "optimisticCarrier": "application-owned-visible-fact-reducer",
+      "preliminaryClass": "new-verb",
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb3.v2.json",
+      "status": "supported-local-control"
+    },
+    {
+      "actualTier": "JS/Ibex-authoritative-fallback",
+      "durableIntent": false,
+      "id": "mutation.userPref.set",
+      "optimisticCarrier": "application-owned-visible-fact-reducer",
+      "preliminaryClass": "new-verb",
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb3.v2.json",
+      "status": "supported-local-control"
+    },
+    {
+      "id": "effect.email-durable",
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb3.v2.json",
+      "status": "supported-local-capture-composition"
+    },
+    {
+      "id": "effect.webhook-durable",
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb3.v2.json",
+      "status": "supported-local-capture-composition"
+    },
+    {
+      "id": "durable-disconnected-intent",
+      "owner": "ZB5 and D3/D5",
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb3.v2.json",
+      "status": "gap"
+    },
+    {
+      "id": "authorization.query-negative-delivery",
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb4.v1.json",
+      "status": "supported-local-control"
+    },
+    {
+      "id": "authorization.route-negative-delivery",
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb4.v1.json",
+      "status": "supported-local-control"
+    },
+    {
+      "id": "authorization.effect-negative-delivery",
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb4.v1.json",
+      "status": "supported-local-capture-composition"
+    },
+    {
+      "id": "authorization.unsubscribe-negative-delivery",
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb4.v1.json",
+      "status": "supported-local-control"
+    },
+    {
+      "id": "authorization.asset-negative-delivery",
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb4.v1.json",
+      "status": "supported-local-control"
+    },
+    {
+      "admittedRetainedQueries": 0,
+      "id": "authorization.retained-negative-delivery",
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb4.v1.json",
+      "status": "gap"
+    },
+    {
+      "admittedQueuedMutations": 0,
+      "id": "authorization.queued-negative-delivery",
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb4.v1.json",
+      "status": "gap"
+    },
+    {
+      "id": "authorization.query-negative-delivery",
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb4.v2.json",
+      "status": "supported-local-control"
+    },
+    {
+      "id": "authorization.route-negative-delivery",
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb4.v2.json",
+      "status": "supported-local-control"
+    },
+    {
+      "id": "authorization.effect-negative-delivery",
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb4.v2.json",
+      "status": "supported-local-capture-composition"
+    },
+    {
+      "id": "authorization.unsubscribe-negative-delivery",
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb4.v2.json",
+      "status": "supported-local-control"
+    },
+    {
+      "id": "authorization.asset-negative-delivery",
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb4.v2.json",
+      "status": "supported-local-control"
+    },
+    {
+      "admittedRetainedQueries": 0,
+      "id": "authorization.retained-negative-delivery",
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb4.v2.json",
+      "status": "gap"
+    },
+    {
+      "admittedQueuedMutations": 0,
+      "id": "authorization.queued-negative-delivery",
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb4.v2.json",
+      "status": "gap"
+    }
+  ],
+  "checks": {
+    "counts": {
+      "fail": 0,
+      "gap": 2,
+      "missing": 0,
+      "pass": 15
+    },
+    "executed": 17,
+    "expected": 17,
+    "harness": {
+      "expectedChecks": 17,
+      "failed": 0,
+      "ok": true,
+      "passed": 15,
+      "shortfall": null,
+      "skipped": 2,
+      "total": 17
+    },
+    "missing": [],
+    "rows": [
+      {
+        "details": {
+          "chronologyRows": 22,
+          "expectedChecks": 17,
+          "landedReceiptAttempts": 7,
+          "workaroundRows": 15
+        },
+        "id": "gate-definition-and-receipt-assembly",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "failedOrRejectedRows": 9,
+          "rows": 22,
+          "sourceRule": "every row cites PLAN file+heading; gate attempts also cite immutable receipt file+JSON section"
+        },
+        "id": "chronological-assistance-and-failed-path-sources-resolve",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "attempts": [
+            {
+              "attempt": "v1",
+              "counts": {
+                "fail": 0,
+                "gap": 0,
+                "missing": 0,
+                "pass": 9
+              },
+              "file": "demos/zerobugs/evidence/snapback-control.zb0.v1.json",
+              "gate": "zb0",
+              "outcome": "PASS",
+              "sha256": "sha256:cfed8570056505e51350ca925c3424d7965009b7b948b7c92a435d8a3b2cebce"
+            },
+            {
+              "attempt": "v1",
+              "counts": {
+                "fail": 0,
+                "gap": 1,
+                "missing": 0,
+                "pass": 18
+              },
+              "file": "demos/zerobugs/evidence/snapback-control.zb1.v1.json",
+              "gate": "zb1",
+              "outcome": "GAP",
+              "sha256": "sha256:cab4f6ff9fc9f326033fc7934e6168ee955f9243f9fdb06cf3c622f079141f0e"
+            },
+            {
+              "attempt": "v1",
+              "counts": {
+                "fail": 0,
+                "gap": 39,
+                "missing": 0,
+                "pass": 3
+              },
+              "file": "demos/zerobugs/evidence/snapback-control.zb2.v1.json",
+              "gate": "zb2",
+              "outcome": "GAP",
+              "sha256": "sha256:43940336d4d625027cc48c4367cfb14cb0e2ecf78d37bec4fb18023aad0f9179"
+            },
+            {
+              "attempt": "v1",
+              "counts": {
+                "fail": 16,
+                "gap": 2,
+                "missing": 0,
+                "pass": 10
+              },
+              "file": "demos/zerobugs/evidence/snapback-control.zb3.v1.json",
+              "gate": "zb3",
+              "outcome": "FAIL",
+              "sha256": "sha256:83ccedb731e158c5fc150b815d9f23f1f794be47eb534ffa55fa715d0822c6de"
+            },
+            {
+              "attempt": "v2",
+              "counts": {
+                "fail": 0,
+                "gap": 2,
+                "missing": 0,
+                "pass": 26
+              },
+              "file": "demos/zerobugs/evidence/snapback-control.zb3.v2.json",
+              "gate": "zb3",
+              "outcome": "GAP",
+              "sha256": "sha256:26d318fee85b70bedf2194748acd13d07ed4257e49a8ddd6c8e9df94869f16aa"
+            },
+            {
+              "attempt": "v1",
+              "counts": {
+                "fail": 1,
+                "gap": 4,
+                "missing": 0,
+                "pass": 25
+              },
+              "file": "demos/zerobugs/evidence/snapback-control.zb4.v1.json",
+              "gate": "zb4",
+              "outcome": "FAIL",
+              "sha256": "sha256:6452829088fce6f7705c5e21f6f40fc523123eecca483bc64b572a9e734dab76"
+            },
+            {
+              "attempt": "v2",
+              "counts": {
+                "fail": 0,
+                "gap": 4,
+                "missing": 0,
+                "pass": 26
+              },
+              "file": "demos/zerobugs/evidence/snapback-control.zb4.v2.json",
+              "gate": "zb4",
+              "outcome": "GAP",
+              "sha256": "sha256:f395de8c03616067f230de58f31e4776ddecedd41b81ecffd7f80c206d0390f2"
+            }
+          ],
+          "publisher": {
+            "file": "demos/zerobugs/control/tests/acceptance/receipt.mjs",
+            "postPublicationMode": "0444 (working-tree checkouts may restore Git-tracked files as 0644)",
+            "publication": "exclusive temporary create plus atomic hard-link; EEXIST refuses replacement"
+          }
+        },
+        "id": "landed-gate-receipts-are-valid-immutable-attempts",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "trails": [
+            {
+              "first": "v1 FAIL",
+              "firstPreserved": true,
+              "gate": "zb3",
+              "remediation": "v2 GAP"
+            },
+            {
+              "first": "v1 FAIL",
+              "firstPreserved": true,
+              "gate": "zb4",
+              "remediation": "v2 GAP"
+            }
+          ]
+        },
+        "id": "failed-attempt-remediation-trail-is-preserved",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "rows": [
+            "W-QGROUP",
+            "W-READMODEL",
+            "W-MANUALSET",
+            "W-SEARCH-EPOCH",
+            "W-MUTATION-IR",
+            "W-REDUCER",
+            "W-PENDING",
+            "W-WINDOW",
+            "W-IDENTITY",
+            "C-GATEWAY",
+            "C-NOTIFY",
+            "C-ASSET",
+            "W-FIXTURE",
+            "W-ENUM",
+            "W-SHORTID"
+          ],
+          "undeclared": []
+        },
+        "id": "workaround-register-rows-remain-declared",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "invalidSpans": 0,
+          "namedFiles": 92,
+          "rowCount": 15,
+          "rows": [
+            {
+              "files": [
+                {
+                  "class": "provider-source",
+                  "completeFile": false,
+                  "countedLines": 761,
+                  "declaredSpans": [
+                    "2322-2439",
+                    "2552-2736",
+                    "2922-3379"
+                  ],
+                  "path": "snapback/functions.mjs",
+                  "physicalLines": 4297
+                },
+                {
+                  "class": "witness",
+                  "completeFile": false,
+                  "countedLines": 23,
+                  "declaredSpans": [
+                    "153-175"
+                  ],
+                  "path": "tests/lane3-list-engine.test.mts",
+                  "physicalLines": 354
+                }
+              ],
+              "id": "W-QGROUP"
+            },
+            {
+              "files": [
+                {
+                  "class": "provider-source",
+                  "completeFile": false,
+                  "countedLines": 76,
+                  "declaredSpans": [
+                    "158-233"
+                  ],
+                  "path": "snapback/schema.mjs",
+                  "physicalLines": 352
+                },
+                {
+                  "class": "provider-source",
+                  "completeFile": false,
+                  "countedLines": 133,
+                  "declaredSpans": [
+                    "511-643"
+                  ],
+                  "path": "scripts/build-fixture.mts",
+                  "physicalLines": 1115
+                },
+                {
+                  "class": "fixture",
+                  "completeFile": true,
+                  "countedLines": 98,
+                  "declaredSpans": [],
+                  "path": "fixtures/normal-seed-v1/projectUserRead.json",
+                  "physicalLines": 98
+                },
+                {
+                  "class": "fixture",
+                  "completeFile": true,
+                  "countedLines": 5690,
+                  "declaredSpans": [],
+                  "path": "fixtures/normal-seed-v1/issueListRead.json",
+                  "physicalLines": 5690
+                },
+                {
+                  "class": "fixture",
+                  "completeFile": true,
+                  "countedLines": 3620,
+                  "declaredSpans": [],
+                  "path": "fixtures/normal-seed-v1/issueLabelRead.json",
+                  "physicalLines": 3620
+                },
+                {
+                  "class": "fixture",
+                  "completeFile": true,
+                  "countedLines": 5172,
+                  "declaredSpans": [],
+                  "path": "fixtures/normal-seed-v1/issueSearchDocument.json",
+                  "physicalLines": 5172
+                },
+                {
+                  "class": "provider-source",
+                  "completeFile": false,
+                  "countedLines": 2015,
+                  "declaredSpans": [
+                    "600-732",
+                    "882-1672",
+                    "2322-2736",
+                    "2999-3674"
+                  ],
+                  "path": "snapback/functions.mjs",
+                  "physicalLines": 4297
+                },
+                {
+                  "class": "witness",
+                  "completeFile": false,
+                  "countedLines": 164,
+                  "declaredSpans": [
+                    "1-164"
+                  ],
+                  "path": "tests/lane3-oracle.mts",
+                  "physicalLines": 164
+                },
+                {
+                  "class": "witness",
+                  "completeFile": false,
+                  "countedLines": 354,
+                  "declaredSpans": [
+                    "1-354"
+                  ],
+                  "path": "tests/lane3-list-engine.test.mts",
+                  "physicalLines": 354
+                },
+                {
+                  "class": "witness",
+                  "completeFile": false,
+                  "countedLines": 781,
+                  "declaredSpans": [
+                    "1-781"
+                  ],
+                  "path": "tests/acceptance/lane3-live.mts",
+                  "physicalLines": 781
+                }
+              ],
+              "id": "W-READMODEL"
+            },
+            {
+              "files": [
+                {
+                  "class": "provider-source",
+                  "completeFile": false,
+                  "countedLines": 1396,
+                  "declaredSpans": [
+                    "2255-2439",
+                    "2441-2736",
+                    "2760-3674"
+                  ],
+                  "path": "snapback/functions.mjs",
+                  "physicalLines": 4297
+                },
+                {
+                  "class": "witness",
+                  "completeFile": false,
+                  "countedLines": 164,
+                  "declaredSpans": [
+                    "1-164"
+                  ],
+                  "path": "tests/lane3-oracle.mts",
+                  "physicalLines": 164
+                },
+                {
+                  "class": "witness",
+                  "completeFile": false,
+                  "countedLines": 354,
+                  "declaredSpans": [
+                    "1-354"
+                  ],
+                  "path": "tests/lane3-list-engine.test.mts",
+                  "physicalLines": 354
+                },
+                {
+                  "class": "witness",
+                  "completeFile": false,
+                  "countedLines": 781,
+                  "declaredSpans": [
+                    "1-781"
+                  ],
+                  "path": "tests/acceptance/lane3-live.mts",
+                  "physicalLines": 781
+                }
+              ],
+              "id": "W-MANUALSET"
+            },
+            {
+              "files": [
+                {
+                  "class": "provider-source",
+                  "completeFile": false,
+                  "countedLines": 11,
+                  "declaredSpans": [
+                    "235-245"
+                  ],
+                  "path": "snapback/schema.mjs",
+                  "physicalLines": 352
+                },
+                {
+                  "class": "provider-source",
+                  "completeFile": false,
+                  "countedLines": 11,
+                  "declaredSpans": [
+                    "625-635"
+                  ],
+                  "path": "scripts/build-fixture.mts",
+                  "physicalLines": 1115
+                },
+                {
+                  "class": "fixture",
+                  "completeFile": false,
+                  "countedLines": 14,
+                  "declaredSpans": [
+                    "1-14"
+                  ],
+                  "path": "fixtures/normal-seed-v1/searchEpoch.json",
+                  "physicalLines": 14
+                },
+                {
+                  "class": "provider-source",
+                  "completeFile": false,
+                  "countedLines": 1144,
+                  "declaredSpans": [
+                    "622-666",
+                    "882-1672",
+                    "2505-2736",
+                    "3394-3469"
+                  ],
+                  "path": "snapback/functions.mjs",
+                  "physicalLines": 4297
+                },
+                {
+                  "class": "witness",
+                  "completeFile": false,
+                  "countedLines": 59,
+                  "declaredSpans": [
+                    "91-149"
+                  ],
+                  "path": "tests/lane3-oracle.mts",
+                  "physicalLines": 164
+                },
+                {
+                  "class": "witness",
+                  "completeFile": false,
+                  "countedLines": 83,
+                  "declaredSpans": [
+                    "176-258"
+                  ],
+                  "path": "tests/lane3-list-engine.test.mts",
+                  "physicalLines": 354
+                },
+                {
+                  "class": "witness",
+                  "completeFile": false,
+                  "countedLines": 64,
+                  "declaredSpans": [
+                    "359-422"
+                  ],
+                  "path": "tests/acceptance/lane3-live.mts",
+                  "physicalLines": 781
+                }
+              ],
+              "id": "W-SEARCH-EPOCH"
+            },
+            {
+              "files": [
+                {
+                  "class": "provider-source",
+                  "completeFile": false,
+                  "countedLines": 473,
+                  "declaredSpans": [
+                    "443-839",
+                    "1172-1213",
+                    "1476-1509"
+                  ],
+                  "path": "snapback/functions.mjs",
+                  "physicalLines": 4297
+                },
+                {
+                  "class": "witness",
+                  "completeFile": false,
+                  "countedLines": 20,
+                  "declaredSpans": [
+                    "456-475"
+                  ],
+                  "path": "tests/acceptance/lane4-live.mts",
+                  "physicalLines": 588
+                }
+              ],
+              "id": "W-MUTATION-IR"
+            },
+            {
+              "files": [
+                {
+                  "class": "provider-source",
+                  "completeFile": false,
+                  "countedLines": 1230,
+                  "declaredSpans": [
+                    "443-1672"
+                  ],
+                  "path": "snapback/functions.mjs",
+                  "physicalLines": 4297
+                },
+                {
+                  "class": "provider-source",
+                  "completeFile": false,
+                  "countedLines": 715,
+                  "declaredSpans": [
+                    "21-106",
+                    "137-623",
+                    "699-840"
+                  ],
+                  "path": "src/data/mutations.ts",
+                  "physicalLines": 840
+                },
+                {
+                  "class": "witness",
+                  "completeFile": false,
+                  "countedLines": 190,
+                  "declaredSpans": [
+                    "1-190"
+                  ],
+                  "path": "tests/lane6a-mutations.test.mts",
+                  "physicalLines": 190
+                },
+                {
+                  "class": "witness",
+                  "completeFile": false,
+                  "countedLines": 58,
+                  "declaredSpans": [
+                    "174-231"
+                  ],
+                  "path": "tests/acceptance/lane6a-live.mts",
+                  "physicalLines": 270
+                }
+              ],
+              "id": "W-REDUCER"
+            },
+            {
+              "files": [
+                {
+                  "class": "provider-source",
+                  "completeFile": false,
+                  "countedLines": 168,
+                  "declaredSpans": [
+                    "54-65",
+                    "155-170",
+                    "589-645",
+                    "724-806"
+                  ],
+                  "path": "src/data/mutations.ts",
+                  "physicalLines": 840
+                },
+                {
+                  "class": "witness",
+                  "completeFile": false,
+                  "countedLines": 21,
+                  "declaredSpans": [
+                    "149-169"
+                  ],
+                  "path": "tests/lane6a-mutations.test.mts",
+                  "physicalLines": 190
+                },
+                {
+                  "class": "witness",
+                  "completeFile": false,
+                  "countedLines": 17,
+                  "declaredSpans": [
+                    "215-231"
+                  ],
+                  "path": "tests/acceptance/lane6a-live.mts",
+                  "physicalLines": 270
+                }
+              ],
+              "id": "W-PENDING"
+            },
+            {
+              "files": [
+                {
+                  "class": "provider-source",
+                  "completeFile": false,
+                  "countedLines": 651,
+                  "declaredSpans": [
+                    "1-651"
+                  ],
+                  "path": "src/windowing/controller.ts",
+                  "physicalLines": 664
+                },
+                {
+                  "class": "provider-source",
+                  "completeFile": false,
+                  "countedLines": 57,
+                  "declaredSpans": [
+                    "1-57"
+                  ],
+                  "path": "src/windowing/use-window.ts",
+                  "physicalLines": 62
+                },
+                {
+                  "class": "provider-source",
+                  "completeFile": false,
+                  "countedLines": 99,
+                  "declaredSpans": [
+                    "1-99"
+                  ],
+                  "path": "src/windowing/history-state.ts",
+                  "physicalLines": 99
+                },
+                {
+                  "class": "witness",
+                  "completeFile": false,
+                  "countedLines": 226,
+                  "declaredSpans": [
+                    "1-226"
+                  ],
+                  "path": "tests/lane6a-window.test.mts",
+                  "physicalLines": 266
+                },
+                {
+                  "class": "witness",
+                  "completeFile": false,
+                  "countedLines": 35,
+                  "declaredSpans": [
+                    "136-170"
+                  ],
+                  "path": "tests/acceptance/lane6a-live.mts",
+                  "physicalLines": 270
+                }
+              ],
+              "id": "W-WINDOW"
+            },
+            {
+              "files": [
+                {
+                  "class": "provider-source",
+                  "completeFile": false,
+                  "countedLines": 13,
+                  "declaredSpans": [
+                    "144-156"
+                  ],
+                  "path": "snapback/schema.mjs",
+                  "physicalLines": 352
+                },
+                {
+                  "class": "provider-source",
+                  "completeFile": false,
+                  "countedLines": 326,
+                  "declaredSpans": [
+                    "56-152",
+                    "212-440"
+                  ],
+                  "path": "snapback/functions.mjs",
+                  "physicalLines": 4297
+                },
+                {
+                  "class": "provider-source",
+                  "completeFile": false,
+                  "countedLines": 227,
+                  "declaredSpans": [
+                    "9-235"
+                  ],
+                  "path": "scripts/bind-actors.mts",
+                  "physicalLines": 235
+                },
+                {
+                  "class": "witness",
+                  "completeFile": false,
+                  "countedLines": 132,
+                  "declaredSpans": [
+                    "123-254"
+                  ],
+                  "path": "tests/lane2-functions.test.mts",
+                  "physicalLines": 254
+                },
+                {
+                  "class": "witness",
+                  "completeFile": false,
+                  "countedLines": 177,
+                  "declaredSpans": [
+                    "46-222"
+                  ],
+                  "path": "tests/acceptance/lane2-live.mts",
+                  "physicalLines": 236
+                },
+                {
+                  "class": "fixture",
+                  "completeFile": false,
+                  "countedLines": 27,
+                  "declaredSpans": [
+                    "7-33"
+                  ],
+                  "path": "fixtures/normal-seed-v1/fixture.json",
+                  "physicalLines": 60
+                },
+                {
+                  "class": "witness",
+                  "completeFile": false,
+                  "countedLines": 27,
+                  "declaredSpans": [
+                    "20-46"
+                  ],
+                  "path": "tests/fixtures/fixture-digests.json",
+                  "physicalLines": 181
+                }
+              ],
+              "id": "W-IDENTITY"
+            },
+            {
+              "files": [
+                {
+                  "class": "provider-source",
+                  "completeFile": false,
+                  "countedLines": 145,
+                  "declaredSpans": [
+                    "1-145"
+                  ],
+                  "path": "composition/zerobugs-control-composition.v1.json",
+                  "physicalLines": 269
+                },
+                {
+                  "class": "provider-source",
+                  "completeFile": false,
+                  "countedLines": 807,
+                  "declaredSpans": [
+                    "1-807"
+                  ],
+                  "path": "composition/server.mts",
+                  "physicalLines": 920
+                },
+                {
+                  "class": "provider-source",
+                  "completeFile": false,
+                  "countedLines": 90,
+                  "declaredSpans": [
+                    "3776-3865"
+                  ],
+                  "path": "snapback/functions.mjs",
+                  "physicalLines": 4297
+                },
+                {
+                  "class": "provider-source",
+                  "completeFile": true,
+                  "countedLines": 132,
+                  "declaredSpans": [],
+                  "path": "composition/lib/envelopes.mts",
+                  "physicalLines": 132
+                },
+                {
+                  "class": "provider-source",
+                  "completeFile": true,
+                  "countedLines": 114,
+                  "declaredSpans": [],
+                  "path": "composition/lib/markdown.mts",
+                  "physicalLines": 114
+                },
+                {
+                  "class": "provider-source",
+                  "completeFile": true,
+                  "countedLines": 101,
+                  "declaredSpans": [],
+                  "path": "composition/lib/tokens.mts",
+                  "physicalLines": 101
+                },
+                {
+                  "class": "witness",
+                  "completeFile": true,
+                  "countedLines": 47,
+                  "declaredSpans": [],
+                  "path": "tests/lane5-envelope.test.mts",
+                  "physicalLines": 47
+                },
+                {
+                  "class": "witness",
+                  "completeFile": true,
+                  "countedLines": 38,
+                  "declaredSpans": [],
+                  "path": "tests/lane5-token.test.mts",
+                  "physicalLines": 38
+                },
+                {
+                  "class": "witness",
+                  "completeFile": false,
+                  "countedLines": 256,
+                  "declaredSpans": [
+                    "312-511",
+                    "639-681",
+                    "812-824"
+                  ],
+                  "path": "tests/acceptance/lane5-live.mts",
+                  "physicalLines": 856
+                }
+              ],
+              "id": "C-GATEWAY"
+            },
+            {
+              "files": [
+                {
+                  "class": "provider-source",
+                  "completeFile": false,
+                  "countedLines": 46,
+                  "declaredSpans": [
+                    "247-292"
+                  ],
+                  "path": "snapback/schema.mjs",
+                  "physicalLines": 352
+                },
+                {
+                  "class": "provider-source",
+                  "completeFile": false,
+                  "countedLines": 1294,
+                  "declaredSpans": [
+                    "449-849",
+                    "908-1569",
+                    "4065-4295"
+                  ],
+                  "path": "snapback/functions.mjs",
+                  "physicalLines": 4297
+                },
+                {
+                  "class": "provider-source",
+                  "completeFile": true,
+                  "countedLines": 248,
+                  "declaredSpans": [],
+                  "path": "composition/effects/deliver.mts",
+                  "physicalLines": 248
+                },
+                {
+                  "class": "provider-source",
+                  "completeFile": true,
+                  "countedLines": 196,
+                  "declaredSpans": [],
+                  "path": "composition/effects/payloads.mts",
+                  "physicalLines": 196
+                },
+                {
+                  "class": "witness",
+                  "completeFile": true,
+                  "countedLines": 73,
+                  "declaredSpans": [],
+                  "path": "tests/lane5-payload.test.mts",
+                  "physicalLines": 73
+                },
+                {
+                  "class": "witness",
+                  "completeFile": false,
+                  "countedLines": 177,
+                  "declaredSpans": [
+                    "512-638",
+                    "762-811"
+                  ],
+                  "path": "tests/acceptance/lane5-live.mts",
+                  "physicalLines": 856
+                }
+              ],
+              "id": "C-NOTIFY"
+            },
+            {
+              "files": [
+                {
+                  "class": "provider-source",
+                  "completeFile": false,
+                  "countedLines": 21,
+                  "declaredSpans": [
+                    "306-326"
+                  ],
+                  "path": "snapback/schema.mjs",
+                  "physicalLines": 352
+                },
+                {
+                  "class": "provider-source",
+                  "completeFile": false,
+                  "countedLines": 157,
+                  "declaredSpans": [
+                    "3866-4022"
+                  ],
+                  "path": "snapback/functions.mjs",
+                  "physicalLines": 4297
+                },
+                {
+                  "class": "provider-source",
+                  "completeFile": false,
+                  "countedLines": 132,
+                  "declaredSpans": [
+                    "540-671"
+                  ],
+                  "path": "composition/server.mts",
+                  "physicalLines": 920
+                },
+                {
+                  "class": "witness",
+                  "completeFile": false,
+                  "countedLines": 80,
+                  "declaredSpans": [
+                    "682-761"
+                  ],
+                  "path": "tests/acceptance/lane5-live.mts",
+                  "physicalLines": 856
+                }
+              ],
+              "id": "C-ASSET"
+            },
+            {
+              "files": [
+                {
+                  "class": "provider-source",
+                  "completeFile": false,
+                  "countedLines": 1115,
+                  "declaredSpans": [
+                    "1-1115"
+                  ],
+                  "path": "scripts/build-fixture.mts",
+                  "physicalLines": 1115
+                },
+                {
+                  "class": "provider-source",
+                  "completeFile": false,
+                  "countedLines": 329,
+                  "declaredSpans": [
+                    "14-342"
+                  ],
+                  "path": "scripts/load-fixture.mts",
+                  "physicalLines": 372
+                },
+                {
+                  "class": "provider-source",
+                  "completeFile": false,
+                  "countedLines": 264,
+                  "declaredSpans": [
+                    "12-274",
+                    "239-256",
+                    "258-275"
+                  ],
+                  "path": "snapback/functions.mjs",
+                  "physicalLines": 4297
+                },
+                {
+                  "class": "witness",
+                  "completeFile": false,
+                  "countedLines": 153,
+                  "declaredSpans": [
+                    "1-153"
+                  ],
+                  "path": "tests/fixture-loader.test.mts",
+                  "physicalLines": 153
+                },
+                {
+                  "class": "fixture",
+                  "completeFile": true,
+                  "countedLines": 7402,
+                  "declaredSpans": [],
+                  "path": "fixtures/normal-seed-v1/comment.json",
+                  "physicalLines": 7402
+                },
+                {
+                  "class": "fixture",
+                  "completeFile": true,
+                  "countedLines": 20,
+                  "declaredSpans": [],
+                  "path": "fixtures/normal-seed-v1/emoji.json",
+                  "physicalLines": 20
+                },
+                {
+                  "class": "fixture",
+                  "completeFile": true,
+                  "countedLines": 60,
+                  "declaredSpans": [],
+                  "path": "fixtures/normal-seed-v1/fixture.json",
+                  "physicalLines": 60
+                },
+                {
+                  "class": "fixture",
+                  "completeFile": true,
+                  "countedLines": 1,
+                  "declaredSpans": [],
+                  "path": "fixtures/normal-seed-v1/identityBinding.json",
+                  "physicalLines": 1
+                },
+                {
+                  "class": "fixture",
+                  "completeFile": true,
+                  "countedLines": 6724,
+                  "declaredSpans": [],
+                  "path": "fixtures/normal-seed-v1/issue.json",
+                  "physicalLines": 6724
+                },
+                {
+                  "class": "fixture",
+                  "completeFile": true,
+                  "countedLines": 3620,
+                  "declaredSpans": [],
+                  "path": "fixtures/normal-seed-v1/issueLabel.json",
+                  "physicalLines": 3620
+                },
+                {
+                  "class": "fixture",
+                  "completeFile": true,
+                  "countedLines": 3620,
+                  "declaredSpans": [],
+                  "path": "fixtures/normal-seed-v1/issueLabelRead.json",
+                  "physicalLines": 3620
+                },
+                {
+                  "class": "fixture",
+                  "completeFile": true,
+                  "countedLines": 5690,
+                  "declaredSpans": [],
+                  "path": "fixtures/normal-seed-v1/issueListRead.json",
+                  "physicalLines": 5690
+                },
+                {
+                  "class": "fixture",
+                  "completeFile": true,
+                  "countedLines": 37,
+                  "declaredSpans": [],
+                  "path": "fixtures/normal-seed-v1/issueNotifications.json",
+                  "physicalLines": 37
+                },
+                {
+                  "class": "fixture",
+                  "completeFile": true,
+                  "countedLines": 5172,
+                  "declaredSpans": [],
+                  "path": "fixtures/normal-seed-v1/issueSearchDocument.json",
+                  "physicalLines": 5172
+                },
+                {
+                  "class": "fixture",
+                  "completeFile": true,
+                  "countedLines": 182,
+                  "declaredSpans": [],
+                  "path": "fixtures/normal-seed-v1/label.json",
+                  "physicalLines": 182
+                },
+                {
+                  "class": "fixture",
+                  "completeFile": true,
+                  "countedLines": 9,
+                  "declaredSpans": [],
+                  "path": "fixtures/normal-seed-v1/project.json",
+                  "physicalLines": 9
+                },
+                {
+                  "class": "fixture",
+                  "completeFile": true,
+                  "countedLines": 98,
+                  "declaredSpans": [],
+                  "path": "fixtures/normal-seed-v1/projectUserRead.json",
+                  "physicalLines": 98
+                },
+                {
+                  "class": "fixture",
+                  "completeFile": true,
+                  "countedLines": 14,
+                  "declaredSpans": [],
+                  "path": "fixtures/normal-seed-v1/searchEpoch.json",
+                  "physicalLines": 14
+                },
+                {
+                  "class": "fixture",
+                  "completeFile": true,
+                  "countedLines": 142,
+                  "declaredSpans": [],
+                  "path": "fixtures/normal-seed-v1/user.json",
+                  "physicalLines": 142
+                },
+                {
+                  "class": "fixture",
+                  "completeFile": true,
+                  "countedLines": 32,
+                  "declaredSpans": [],
+                  "path": "fixtures/normal-seed-v1/userPref.json",
+                  "physicalLines": 32
+                },
+                {
+                  "class": "fixture",
+                  "completeFile": true,
+                  "countedLines": 32,
+                  "declaredSpans": [],
+                  "path": "fixtures/normal-seed-v1/viewState.json",
+                  "physicalLines": 32
+                },
+                {
+                  "class": "fixture",
+                  "completeFile": false,
+                  "countedLines": 162,
+                  "declaredSpans": [
+                    "1-162"
+                  ],
+                  "path": "fixtures/policy-extension-v1.json",
+                  "physicalLines": 162
+                },
+                {
+                  "class": "witness",
+                  "completeFile": false,
+                  "countedLines": 181,
+                  "declaredSpans": [
+                    "1-181"
+                  ],
+                  "path": "tests/fixtures/fixture-digests.json",
+                  "physicalLines": 181
+                }
+              ],
+              "id": "W-FIXTURE"
+            },
+            {
+              "files": [
+                {
+                  "class": "provider-source",
+                  "completeFile": false,
+                  "countedLines": 194,
+                  "declaredSpans": [
+                    "190-203",
+                    "645-742",
+                    "758-784",
+                    "811-865"
+                  ],
+                  "path": "scripts/build-fixture.mts",
+                  "physicalLines": 1115
+                },
+                {
+                  "class": "provider-source",
+                  "completeFile": false,
+                  "countedLines": 829,
+                  "declaredSpans": [
+                    "62-90",
+                    "449-481",
+                    "560-590",
+                    "600-632",
+                    "652-666",
+                    "812-839",
+                    "882-1541"
+                  ],
+                  "path": "snapback/functions.mjs",
+                  "physicalLines": 4297
+                },
+                {
+                  "class": "provider-source",
+                  "completeFile": false,
+                  "countedLines": 9,
+                  "declaredSpans": [
+                    "16-20",
+                    "51-54"
+                  ],
+                  "path": "snapback/schema.mjs",
+                  "physicalLines": 352
+                }
+              ],
+              "id": "W-ENUM"
+            },
+            {
+              "files": [
+                {
+                  "class": "provider-source",
+                  "completeFile": false,
+                  "countedLines": 77,
+                  "declaredSpans": [
+                    "493-509",
+                    "882-941"
+                  ],
+                  "path": "snapback/functions.mjs",
+                  "physicalLines": 4297
+                },
+                {
+                  "class": "witness",
+                  "completeFile": false,
+                  "countedLines": 17,
+                  "declaredSpans": [
+                    "131-138",
+                    "353-361"
+                  ],
+                  "path": "tests/lane4-oracle.mts",
+                  "physicalLines": 722
+                },
+                {
+                  "class": "witness",
+                  "completeFile": false,
+                  "countedLines": 20,
+                  "declaredSpans": [
+                    "106-125"
+                  ],
+                  "path": "tests/lane4-domain.test.mts",
+                  "physicalLines": 125
+                }
+              ],
+              "id": "W-SHORTID"
+            }
+          ],
+          "rule": "every declared start/end is positive, ordered, and at or below the current physical file length"
+        },
+        "id": "workaround-register-file-line-spans-resolve",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "counting": "overlapping spans within one row/file are unioned; complete-file entries use current physical lines",
+          "rows": [
+            {
+              "declaredLines": 784,
+              "fixtureLines": 0,
+              "id": "W-QGROUP",
+              "namedFiles": 2,
+              "providerSourceLines": 761,
+              "witnessLines": 23
+            },
+            {
+              "declaredLines": 18103,
+              "fixtureLines": 14580,
+              "id": "W-READMODEL",
+              "namedFiles": 10,
+              "providerSourceLines": 2224,
+              "witnessLines": 1299
+            },
+            {
+              "declaredLines": 2695,
+              "fixtureLines": 0,
+              "id": "W-MANUALSET",
+              "namedFiles": 4,
+              "providerSourceLines": 1396,
+              "witnessLines": 1299
+            },
+            {
+              "declaredLines": 1386,
+              "fixtureLines": 14,
+              "id": "W-SEARCH-EPOCH",
+              "namedFiles": 7,
+              "providerSourceLines": 1166,
+              "witnessLines": 206
+            },
+            {
+              "declaredLines": 493,
+              "fixtureLines": 0,
+              "id": "W-MUTATION-IR",
+              "namedFiles": 2,
+              "providerSourceLines": 473,
+              "witnessLines": 20
+            },
+            {
+              "declaredLines": 2193,
+              "fixtureLines": 0,
+              "id": "W-REDUCER",
+              "namedFiles": 4,
+              "providerSourceLines": 1945,
+              "witnessLines": 248
+            },
+            {
+              "declaredLines": 206,
+              "fixtureLines": 0,
+              "id": "W-PENDING",
+              "namedFiles": 3,
+              "providerSourceLines": 168,
+              "witnessLines": 38
+            },
+            {
+              "declaredLines": 1068,
+              "fixtureLines": 0,
+              "id": "W-WINDOW",
+              "namedFiles": 5,
+              "providerSourceLines": 807,
+              "witnessLines": 261
+            },
+            {
+              "declaredLines": 929,
+              "fixtureLines": 27,
+              "id": "W-IDENTITY",
+              "namedFiles": 7,
+              "providerSourceLines": 566,
+              "witnessLines": 336
+            },
+            {
+              "declaredLines": 1730,
+              "fixtureLines": 0,
+              "id": "C-GATEWAY",
+              "namedFiles": 9,
+              "providerSourceLines": 1389,
+              "witnessLines": 341
+            },
+            {
+              "declaredLines": 2034,
+              "fixtureLines": 0,
+              "id": "C-NOTIFY",
+              "namedFiles": 6,
+              "providerSourceLines": 1784,
+              "witnessLines": 250
+            },
+            {
+              "declaredLines": 390,
+              "fixtureLines": 0,
+              "id": "C-ASSET",
+              "namedFiles": 4,
+              "providerSourceLines": 310,
+              "witnessLines": 80
+            },
+            {
+              "declaredLines": 35059,
+              "fixtureLines": 33017,
+              "id": "W-FIXTURE",
+              "namedFiles": 23,
+              "providerSourceLines": 1708,
+              "witnessLines": 334
+            },
+            {
+              "declaredLines": 1032,
+              "fixtureLines": 0,
+              "id": "W-ENUM",
+              "namedFiles": 3,
+              "providerSourceLines": 1032,
+              "witnessLines": 0
+            },
+            {
+              "declaredLines": 114,
+              "fixtureLines": 0,
+              "id": "W-SHORTID",
+              "namedFiles": 3,
+              "providerSourceLines": 77,
+              "witnessLines": 37
+            }
+          ]
+        },
+        "id": "workaround-register-source-provider-line-counts",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "adapterGatewayConfiguration": {
+            "files": 27,
+            "physicalLines": 6991
+          },
+          "applicationIntent": {
+            "files": 81,
+            "physicalLines": 7666
+          },
+          "authoredTotalExcludingFixtureAndGenerated": {
+            "files": 146,
+            "physicalLines": 31138
+          },
+          "fixtureData": {
+            "files": 18,
+            "physicalLines": 33017
+          },
+          "generatedOutput": {
+            "files": 176,
+            "physicalLines": 67925
+          },
+          "schemaQueryMutation": {
+            "files": 2,
+            "physicalLines": 4649
+          },
+          "tests": {
+            "files": 36,
+            "physicalLines": 11832
+          }
+        },
+        "id": "authored-source-accounting-is-separated-by-class",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "pages": [
+            {
+              "heading": "The Snapback Guide",
+              "path": "guide/index.md",
+              "sha256": "sha256:65f70324616129d43ee2aa3f0a5b641240f224cc175be8eaab1915fd944bb980"
+            },
+            {
+              "heading": "Acceptance testing",
+              "path": "guide/testing/acceptance.md",
+              "sha256": "sha256:36217c23daac04ad360ed0866a6f76a17fd59e9d7aa8afa340f36513a4c2db75"
+            },
+            {
+              "heading": "Sessions and principals",
+              "path": "guide/auth/sessions-and-principals.md",
+              "sha256": "sha256:e868958cff234cfcb65bdae3aee84164370dc761274fc793b1afe25ec20ea61f"
+            },
+            {
+              "heading": "Live queries",
+              "path": "guide/realtime/live-queries.md",
+              "sha256": "sha256:b16f362300516f1d5e77f287a08b3ebe97d2c54ac5172e50b22bb2260534c9ca"
+            },
+            {
+              "heading": "Mutations",
+              "path": "guide/backend/mutations.md",
+              "sha256": "sha256:49b54c8e8f650552f80332cfa692f8f0c54a2255bc46f8182687b62e9979c021"
+            },
+            {
+              "heading": "Actions and outbound fetch",
+              "path": "guide/backend/actions-and-fetch.md",
+              "sha256": "sha256:89365efc7eec13d6e457a5fb9ee373cd724436b16c023709d140b4f052ee34ff"
+            },
+            {
+              "heading": "Assets",
+              "path": "guide/backend/assets.md",
+              "sha256": "sha256:df68624334dff15fa7fb6495726022c741709a03e84fafd117a517f3f08d5750"
+            },
+            {
+              "heading": "Network condition profiles",
+              "path": "guide/operating/network-profiles.md",
+              "sha256": "sha256:eecc308a4fb6e2768a11bb90611c05c39dca314cbee87a93ec07222185b0b9cc"
+            },
+            {
+              "heading": "Diagnostics and local doctoring",
+              "path": "guide/operating/diagnostics.md",
+              "sha256": "sha256:947db98b1a94416d1bb520d4151436ddccad4f2396a3c4302f60bb4a4b707eba"
+            }
+          ]
+        },
+        "id": "guide-use-pages-resolve-and-are-current",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "datedControlGuideGaps": 11,
+          "lane6bBrowserGuideGaps": 3,
+          "source": "demos/zerobugs/control/PLAN.md#Guide gaps encountered and #Guide gaps found during Lane 6b",
+          "totalVisibleFindings": 14
+        },
+        "id": "guide-gap-findings-remain-visible",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "assertionRule": "code, never message prose",
+          "codes": [
+            "SNAPBACK_HANDLER_FAILED"
+          ],
+          "witness": "demos/zerobugs/evidence/snapback-control.zb4.v2.json#checks.rows[fixture-ingestion-refuses-after-completion]"
+        },
+        "id": "stable-snapback-diagnostics-observed-in-landed-receipts",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "assertionRule": "code, never message prose",
+          "codes": [
+            "ZBUGS_RECEIPT_ZERO_CHECKS"
+          ],
+          "witness": "demos/zerobugs/evidence/snapback-control.zb0.v1.json#checks.rows[zero-check-receipt-refusal]"
+        },
+        "id": "stable-zbugs-diagnostics-observed-in-landed-receipts",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "attemptsIncluded": 7,
+          "facts": 61,
+          "uniqueIds": 35,
+          "wholeProductBooleanPresent": false
+        },
+        "id": "capability-facts-aggregate-without-parity-boolean",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "allClosedRefusals": true,
+          "facts": 17,
+          "uniqueIds": 10
+        },
+        "id": "refusal-facts-aggregate-as-closed-evidence",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "browsers": 0,
+          "cleanup": "no runtime resources created; receipt publication is the only write",
+          "credentialCarriers": 0,
+          "processes": 0,
+          "scratchNamespaces": 0,
+          "servers": 0,
+          "sockets": 0
+        },
+        "id": "static-gate-created-no-owned-runtime-resources",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "findingsRemainVisible": true,
+          "owner": "repository guide maintenance / LLP 0061 diary loop",
+          "reason": "PLAN records that the Lane 6b task was confined to demos/zerobugs/control and deferred its three required filesystem guide-gap tickets; this Stage C task is confined to gate/helper/evidence deliverables."
+        },
+        "id": "guide-gap-tickets-filed",
+        "status": "GAP"
+      },
+      {
+        "details": {
+          "currentControlCountsRecorded": true,
+          "owner": "Stage 4 comparator and acceptance.v2 authoring baseline",
+          "reason": "This is the D1 current-Snapback control. No immutable pinned-Zero arm or final-Snapback arm attempt exists from which to compute the required measured workaround/source delta."
+        },
+        "id": "cross-arm-authoring-delta",
+        "status": "GAP"
+      }
+    ]
+  },
+  "cleanup": {
+    "ownership": "No server, socket, browser, process, credential file, or scratch target was created.",
+    "results": [],
+    "status": "PASS",
+    "targets": []
+  },
+  "completedAt": "2026-08-06T19:40:49.776Z",
+  "componentReleaseIdentities": [
+    {
+      "id": "zerobugs-control-composition",
+      "path": "demos/zerobugs/control/composition/zerobugs-control-composition.v1.json",
+      "runtime": {
+        "entrypoint": "composition/server.mts",
+        "hostEnv": "ZERBUGS_GATEWAY_HOST",
+        "name": "bun",
+        "portEnv": "ZERBUGS_GATEWAY_PORT",
+        "readyFileEnv": "ZERBUGS_GATEWAY_READY_FILE",
+        "version": "1.3.12"
+      },
+      "sha256": "sha256:20f5979c095376fc4b89c9780bb3073da6ef147bf327a25c7a1ef24d38018012",
+      "snapbackRelease": {
+        "appId": "zerobugs-control",
+        "bundleHash": "snapback.v1:sessions:function:sha256:71c0388b762244a7b55d30b2dc60419067aa54f34c1613b665d4023c9f44c133",
+        "inputsHash": "snapback.v1:sessions:inputs:sha256:fc70057e0f736feb5cd8c35837eff291ce9df1102f5dc92f3d09da18272fb8b1",
+        "schemaHash": "snapback.v1:sessions:schema:sha256:556a1db53ffa60f7f7d8075fae3e6ae8c046f0ae28f262e29aaf74a3ad61f7bc",
+        "schemaVersion": "snapback.v1",
+        "targetProfileId": "local-dev-sqlite-ibex"
+      },
+      "status": "supported-local-control",
+      "version": 1
+    }
+  ],
+  "custodyAccounting": {
+    "landedCustodyRecordsInspected": 7,
+    "liveBrowserFactsAdded": 0,
+    "mode": "receipt archaeology and static source accounting",
+    "rawSessionCarriersRetained": 0
+  },
+  "diagnostics": [],
+  "execution": {
+    "harnessAcceptedCount": true,
+    "setupCompleted": true,
+    "status": "PASS"
+  },
+  "fixtureIdentity": {
+    "digest": "sha256:be2eb1f31fe95e0a5c46a5230d98b18d762449e330691cb73e33d578fec276bd",
+    "extensionId": "policy-extension-v1",
+    "id": "normal-seed-v1",
+    "mode": "fresh normal fixture plus policy extension; load verified by gate checks",
+    "rowCount": 3758,
+    "seedVersion": "normal-seed-v1.policy-extension-v1"
+  },
+  "gate": "zb6",
+  "generatedIdentities": [
+    {
+      "id": "schemaManifest",
+      "path": "demos/zerobugs/control/snapback/generated/schema.manifest.json",
+      "release": {
+        "appId": "zerobugs-control",
+        "bundleHash": "snapback.v1:sessions:function:sha256:71c0388b762244a7b55d30b2dc60419067aa54f34c1613b665d4023c9f44c133",
+        "inputsHash": "snapback.v1:sessions:inputs:sha256:fc70057e0f736feb5cd8c35837eff291ce9df1102f5dc92f3d09da18272fb8b1",
+        "schemaHash": "snapback.v1:sessions:schema:sha256:556a1db53ffa60f7f7d8075fae3e6ae8c046f0ae28f262e29aaf74a3ad61f7bc",
+        "schemaVersion": "snapback.v1",
+        "targetProfileId": "local-dev-sqlite-ibex"
+      },
+      "sha256": "sha256:a2a46a753008fe92272a2eb24cb43c57fba851be9dd64bef49b49b6fd8a95b96"
+    },
+    {
+      "id": "functionManifest",
+      "path": "demos/zerobugs/control/snapback/generated/functions.manifest.json",
+      "release": {
+        "appId": "zerobugs-control",
+        "bundleHash": "snapback.v1:sessions:function:sha256:71c0388b762244a7b55d30b2dc60419067aa54f34c1613b665d4023c9f44c133",
+        "inputsHash": "snapback.v1:sessions:inputs:sha256:fc70057e0f736feb5cd8c35837eff291ce9df1102f5dc92f3d09da18272fb8b1",
+        "schemaHash": "snapback.v1:sessions:schema:sha256:556a1db53ffa60f7f7d8075fae3e6ae8c046f0ae28f262e29aaf74a3ad61f7bc",
+        "schemaVersion": "snapback.v1",
+        "targetProfileId": "local-dev-sqlite-ibex"
+      },
+      "sha256": "sha256:7d66a60ff891ff2334d21e1d14162887209e4496af7b402806f8f9c0f20b9963"
+    },
+    {
+      "id": "capabilityManifest",
+      "path": "demos/zerobugs/control/snapback/generated/capability.manifest.json",
+      "release": {
+        "appId": "zerobugs-control",
+        "bundleHash": "snapback.v1:sessions:function:sha256:71c0388b762244a7b55d30b2dc60419067aa54f34c1613b665d4023c9f44c133",
+        "inputsHash": "snapback.v1:sessions:inputs:sha256:fc70057e0f736feb5cd8c35837eff291ce9df1102f5dc92f3d09da18272fb8b1",
+        "schemaHash": "snapback.v1:sessions:schema:sha256:556a1db53ffa60f7f7d8075fae3e6ae8c046f0ae28f262e29aaf74a3ad61f7bc",
+        "schemaVersion": "snapback.v0",
+        "targetProfileId": "local-dev-sqlite-ibex"
+      },
+      "sha256": "sha256:8f9212e82b140d1ebfbaa00ca55c7df02298ac8c1424ff7931a9d84a102947f7"
+    },
+    {
+      "id": "contractDataManifest",
+      "path": "demos/zerobugs/control/snapback/generated/contract-data.manifest.json",
+      "release": {
+        "appId": "zerobugs-control",
+        "bundleHash": "snapback.v1:sessions:function:sha256:71c0388b762244a7b55d30b2dc60419067aa54f34c1613b665d4023c9f44c133",
+        "inputsHash": "snapback.v1:sessions:inputs:sha256:fc70057e0f736feb5cd8c35837eff291ce9df1102f5dc92f3d09da18272fb8b1",
+        "schemaHash": "snapback.v1:sessions:schema:sha256:556a1db53ffa60f7f7d8075fae3e6ae8c046f0ae28f262e29aaf74a3ad61f7bc",
+        "schemaVersion": "snapback.v1",
+        "targetProfileId": "local-dev-sqlite-ibex"
+      },
+      "sha256": "sha256:6701d2e93f18dac78c54bfc0bf61ce691c9d0cad5a8faed19d7de8dbb37ddbff"
+    },
+    {
+      "id": "artifactIndex",
+      "path": "demos/zerobugs/control/snapback/generated/artifacts.json",
+      "release": {
+        "appId": "zerobugs-control",
+        "bundleHash": "snapback.v1:sessions:function:sha256:71c0388b762244a7b55d30b2dc60419067aa54f34c1613b665d4023c9f44c133",
+        "inputsHash": "snapback.v1:sessions:inputs:sha256:fc70057e0f736feb5cd8c35837eff291ce9df1102f5dc92f3d09da18272fb8b1",
+        "schemaHash": "snapback.v1:sessions:schema:sha256:556a1db53ffa60f7f7d8075fae3e6ae8c046f0ae28f262e29aaf74a3ad61f7bc",
+        "schemaVersion": "snapback.v1",
+        "targetProfileId": "local-dev-sqlite-ibex"
+      },
+      "sha256": "sha256:d35d3d6815093829a6633c19c70032ed66bc0501cdb977e0bb49095515e15b2b"
+    }
+  ],
+  "machineIdentity": {
+    "arch": "arm64",
+    "cpuCount": 18,
+    "hostnameSha256": "sha256:4a238cd09cfb162aa54334e6f1b3fba341960951bd6f36b2b01b6e77a72395c0",
+    "platform": "darwin"
+  },
+  "manifest": {
+    "id": "zerobugs-acceptance.v1",
+    "path": "demos/zerobugs/manifest/acceptance.v1.json",
+    "sha256": "sha256:3eb0280a5803da887cea371193f62ff372ac537efa24e7cd53b150afe0d1fc2c"
+  },
+  "network": "none; filesystem-only receipt archaeology and source accounting",
+  "outcome": "GAP",
+  "rawArtifacts": [
+    {
+      "path": "demos/zerobugs/control/PLAN.md",
+      "sha256": "sha256:7615225d535f638e1650dafec42790d07ecce76fd0e687ced888a7a636239803"
+    },
+    {
+      "path": "demos/zerobugs/control/composition/zerobugs-control-composition.v1.json",
+      "sha256": "sha256:20f5979c095376fc4b89c9780bb3073da6ef147bf327a25c7a1ef24d38018012"
+    },
+    {
+      "path": "demos/zerobugs/control/snapback/generated/artifacts.json",
+      "sha256": "sha256:d35d3d6815093829a6633c19c70032ed66bc0501cdb977e0bb49095515e15b2b"
+    },
+    {
+      "path": "demos/zerobugs/control/snapback/generated/capability.manifest.json",
+      "sha256": "sha256:8f9212e82b140d1ebfbaa00ca55c7df02298ac8c1424ff7931a9d84a102947f7"
+    },
+    {
+      "path": "demos/zerobugs/control/snapback/generated/contract-data.manifest.json",
+      "sha256": "sha256:6701d2e93f18dac78c54bfc0bf61ce691c9d0cad5a8faed19d7de8dbb37ddbff"
+    },
+    {
+      "path": "demos/zerobugs/control/snapback/generated/functions.manifest.json",
+      "sha256": "sha256:7d66a60ff891ff2334d21e1d14162887209e4496af7b402806f8f9c0f20b9963"
+    },
+    {
+      "path": "demos/zerobugs/control/snapback/generated/schema.manifest.json",
+      "sha256": "sha256:a2a46a753008fe92272a2eb24cb43c57fba851be9dd64bef49b49b6fd8a95b96"
+    },
+    {
+      "path": "demos/zerobugs/control/tests/acceptance/gate-support.mjs",
+      "sha256": "sha256:52e514bc20ab2ac0dfba2639e7e07ac2f38f824836070c3847867afb221f2437"
+    },
+    {
+      "path": "demos/zerobugs/control/tests/acceptance/gates/zb6.mjs",
+      "sha256": "sha256:45b542d1871b8e2e91a27dd13159b472ae272b2a52b1677954d635222f673331"
+    },
+    {
+      "path": "demos/zerobugs/control/tests/acceptance/receipt.mjs",
+      "sha256": "sha256:46a4d801b554acfe627bc75e47b4e822b4ae4acf5a9e9dc16ddd0b3348eab381"
+    },
+    {
+      "path": "demos/zerobugs/control/tests/fixtures/fixture-digests.json",
+      "sha256": "sha256:56afa56a74f0edddfd71ac0e7a09f5c12bc1e2eaed9e2be2f2ad6c84c31d38b3"
+    },
+    {
+      "path": "demos/zerobugs/evidence/snapback-control.zb0.v1.json",
+      "sha256": "sha256:cfed8570056505e51350ca925c3424d7965009b7b948b7c92a435d8a3b2cebce"
+    },
+    {
+      "path": "demos/zerobugs/evidence/snapback-control.zb1.v1.json",
+      "sha256": "sha256:cab4f6ff9fc9f326033fc7934e6168ee955f9243f9fdb06cf3c622f079141f0e"
+    },
+    {
+      "path": "demos/zerobugs/evidence/snapback-control.zb2.v1.json",
+      "sha256": "sha256:43940336d4d625027cc48c4367cfb14cb0e2ecf78d37bec4fb18023aad0f9179"
+    },
+    {
+      "path": "demos/zerobugs/evidence/snapback-control.zb3.v1.json",
+      "sha256": "sha256:83ccedb731e158c5fc150b815d9f23f1f794be47eb534ffa55fa715d0822c6de"
+    },
+    {
+      "path": "demos/zerobugs/evidence/snapback-control.zb3.v2.json",
+      "sha256": "sha256:26d318fee85b70bedf2194748acd13d07ed4257e49a8ddd6c8e9df94869f16aa"
+    },
+    {
+      "path": "demos/zerobugs/evidence/snapback-control.zb4.v1.json",
+      "sha256": "sha256:6452829088fce6f7705c5e21f6f40fc523123eecca483bc64b572a9e734dab76"
+    },
+    {
+      "path": "demos/zerobugs/evidence/snapback-control.zb4.v2.json",
+      "sha256": "sha256:f395de8c03616067f230de58f31e4776ddecedd41b81ecffd7f80c206d0390f2"
+    },
+    {
+      "path": "demos/zerobugs/manifest/acceptance.v1.json",
+      "sha256": "sha256:3eb0280a5803da887cea371193f62ff372ac537efa24e7cd53b150afe0d1fc2c"
+    },
+    {
+      "path": "demos/zerobugs/stage0/inventory.v1.json",
+      "sha256": "sha256:0d7233897864c39f99ef5c46946da21ddfc8a404e6f0441c741c02192a43eaa3"
+    },
+    {
+      "path": "guide/auth/sessions-and-principals.md",
+      "sha256": "sha256:e868958cff234cfcb65bdae3aee84164370dc761274fc793b1afe25ec20ea61f"
+    },
+    {
+      "path": "guide/backend/actions-and-fetch.md",
+      "sha256": "sha256:89365efc7eec13d6e457a5fb9ee373cd724436b16c023709d140b4f052ee34ff"
+    },
+    {
+      "path": "guide/backend/assets.md",
+      "sha256": "sha256:df68624334dff15fa7fb6495726022c741709a03e84fafd117a517f3f08d5750"
+    },
+    {
+      "path": "guide/backend/mutations.md",
+      "sha256": "sha256:49b54c8e8f650552f80332cfa692f8f0c54a2255bc46f8182687b62e9979c021"
+    },
+    {
+      "path": "guide/index.md",
+      "sha256": "sha256:65f70324616129d43ee2aa3f0a5b641240f224cc175be8eaab1915fd944bb980"
+    },
+    {
+      "path": "guide/operating/diagnostics.md",
+      "sha256": "sha256:947db98b1a94416d1bb520d4151436ddccad4f2396a3c4302f60bb4a4b707eba"
+    },
+    {
+      "path": "guide/operating/network-profiles.md",
+      "sha256": "sha256:eecc308a4fb6e2768a11bb90611c05c39dca314cbee87a93ec07222185b0b9cc"
+    },
+    {
+      "path": "guide/realtime/live-queries.md",
+      "sha256": "sha256:b16f362300516f1d5e77f287a08b3ebe97d2c54ac5172e50b22bb2260534c9ca"
+    },
+    {
+      "path": "guide/testing/acceptance.md",
+      "sha256": "sha256:36217c23daac04ad360ed0866a6f76a17fd59e9d7aa8afa340f36513a4c2db75"
+    }
+  ],
+  "refusalFacts": [
+    {
+      "code": "ZBUGS_RECEIPT_ZERO_CHECKS",
+      "id": "zero-check-attempt",
+      "status": "refused"
+    },
+    {
+      "id": "mutable-first-attempt",
+      "status": "refused"
+    },
+    {
+      "id": "whole-product-parity-boolean",
+      "status": "refused"
+    },
+    {
+      "code": "ZBUGS_RECEIPT_ZERO_CHECKS",
+      "id": "zero-check-attempt",
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb0.v1.json",
+      "status": "refused",
+      "wroteFile": false
+    },
+    {
+      "evidence": "lane3.small-window-declares-incompleteness",
+      "id": "implicit-limit-as-complete",
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb1.v1.json",
+      "status": "refused"
+    },
+    {
+      "admittedRetainableQueries": 0,
+      "id": "widened-retention",
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb2.v1.json",
+      "status": "refused"
+    },
+    {
+      "evidence": "Lane 4 emits intent only; Lane 5 delivers after commit",
+      "id": "speculative-effect-delivery",
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb3.v1.json",
+      "status": "refused"
+    },
+    {
+      "evidence": "Lane 5 ambiguity fence",
+      "id": "ambiguous-effect-replay",
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb3.v1.json",
+      "status": "refused"
+    },
+    {
+      "evidence": "Lane 4 emits intent only; Lane 5 delivers after commit",
+      "id": "speculative-effect-delivery",
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb3.v2.json",
+      "status": "refused"
+    },
+    {
+      "evidence": "Lane 5 ambiguity fence",
+      "id": "ambiguous-effect-replay",
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb3.v2.json",
+      "status": "refused"
+    },
+    {
+      "crewCount": 517,
+      "id": "protected-child-existence-oracle",
+      "ordinaryCount": 516,
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb4.v1.json",
+      "status": "refused"
+    },
+    {
+      "id": "caller-selected-principal",
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb4.v1.json",
+      "status": "refused"
+    },
+    {
+      "id": "forged-bearer",
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb4.v1.json",
+      "status": "refused"
+    },
+    {
+      "id": "untrusted-admin-surface",
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb4.v1.json",
+      "status": "refused"
+    },
+    {
+      "id": "post-completion-fixture-ingestion",
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb4.v1.json",
+      "status": "refused"
+    },
+    {
+      "crewCount": 517,
+      "id": "protected-child-existence-oracle",
+      "ordinaryCount": 516,
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb4.v2.json",
+      "status": "refused"
+    },
+    {
+      "id": "caller-selected-principal",
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb4.v2.json",
+      "status": "refused"
+    },
+    {
+      "id": "forged-bearer",
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb4.v2.json",
+      "status": "refused"
+    },
+    {
+      "id": "untrusted-admin-surface",
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb4.v2.json",
+      "status": "refused"
+    },
+    {
+      "id": "post-completion-fixture-ingestion",
+      "sourceReceipt": "demos/zerobugs/evidence/snapback-control.zb4.v2.json",
+      "status": "refused"
+    }
+  ],
+  "schemaVersion": "zerobugs-gate-receipt.v1",
+  "sourceAccounting": {
+    "categories": {
+      "adapterGatewayConfiguration": {
+        "files": 27,
+        "physicalLines": 6991
+      },
+      "applicationIntent": {
+        "files": 81,
+        "physicalLines": 7666
+      },
+      "authoredTotalExcludingFixtureAndGenerated": {
+        "files": 146,
+        "physicalLines": 31138
+      },
+      "fixtureData": {
+        "files": 18,
+        "physicalLines": 33017
+      },
+      "generatedOutput": {
+        "files": 176,
+        "physicalLines": 67925
+      },
+      "schemaQueryMutation": {
+        "files": 2,
+        "physicalLines": 4649
+      },
+      "tests": {
+        "files": 36,
+        "physicalLines": 11832
+      }
+    },
+    "chronologyRows": 22,
+    "guidePagesUsed": 9,
+    "immutableAttemptsInspected": 7,
+    "workaroundRegister": [
+      {
+        "declaredLines": 784,
+        "fixtureLines": 0,
+        "id": "W-QGROUP",
+        "namedFiles": 2,
+        "providerSourceLines": 761,
+        "witnessLines": 23
+      },
+      {
+        "declaredLines": 18103,
+        "fixtureLines": 14580,
+        "id": "W-READMODEL",
+        "namedFiles": 10,
+        "providerSourceLines": 2224,
+        "witnessLines": 1299
+      },
+      {
+        "declaredLines": 2695,
+        "fixtureLines": 0,
+        "id": "W-MANUALSET",
+        "namedFiles": 4,
+        "providerSourceLines": 1396,
+        "witnessLines": 1299
+      },
+      {
+        "declaredLines": 1386,
+        "fixtureLines": 14,
+        "id": "W-SEARCH-EPOCH",
+        "namedFiles": 7,
+        "providerSourceLines": 1166,
+        "witnessLines": 206
+      },
+      {
+        "declaredLines": 493,
+        "fixtureLines": 0,
+        "id": "W-MUTATION-IR",
+        "namedFiles": 2,
+        "providerSourceLines": 473,
+        "witnessLines": 20
+      },
+      {
+        "declaredLines": 2193,
+        "fixtureLines": 0,
+        "id": "W-REDUCER",
+        "namedFiles": 4,
+        "providerSourceLines": 1945,
+        "witnessLines": 248
+      },
+      {
+        "declaredLines": 206,
+        "fixtureLines": 0,
+        "id": "W-PENDING",
+        "namedFiles": 3,
+        "providerSourceLines": 168,
+        "witnessLines": 38
+      },
+      {
+        "declaredLines": 1068,
+        "fixtureLines": 0,
+        "id": "W-WINDOW",
+        "namedFiles": 5,
+        "providerSourceLines": 807,
+        "witnessLines": 261
+      },
+      {
+        "declaredLines": 929,
+        "fixtureLines": 27,
+        "id": "W-IDENTITY",
+        "namedFiles": 7,
+        "providerSourceLines": 566,
+        "witnessLines": 336
+      },
+      {
+        "declaredLines": 1730,
+        "fixtureLines": 0,
+        "id": "C-GATEWAY",
+        "namedFiles": 9,
+        "providerSourceLines": 1389,
+        "witnessLines": 341
+      },
+      {
+        "declaredLines": 2034,
+        "fixtureLines": 0,
+        "id": "C-NOTIFY",
+        "namedFiles": 6,
+        "providerSourceLines": 1784,
+        "witnessLines": 250
+      },
+      {
+        "declaredLines": 390,
+        "fixtureLines": 0,
+        "id": "C-ASSET",
+        "namedFiles": 4,
+        "providerSourceLines": 310,
+        "witnessLines": 80
+      },
+      {
+        "declaredLines": 35059,
+        "fixtureLines": 33017,
+        "id": "W-FIXTURE",
+        "namedFiles": 23,
+        "providerSourceLines": 1708,
+        "witnessLines": 334
+      },
+      {
+        "declaredLines": 1032,
+        "fixtureLines": 0,
+        "id": "W-ENUM",
+        "namedFiles": 3,
+        "providerSourceLines": 1032,
+        "witnessLines": 0
+      },
+      {
+        "declaredLines": 114,
+        "fixtureLines": 0,
+        "id": "W-SHORTID",
+        "namedFiles": 3,
+        "providerSourceLines": 77,
+        "witnessLines": 37
+      }
+    ]
+  },
+  "startedAt": "2026-08-06T19:40:49.611Z",
+  "targetIdentity": {
+    "appId": "zerobugs-control",
+    "bundleHash": "snapback.v1:sessions:function:sha256:71c0388b762244a7b55d30b2dc60419067aa54f34c1613b665d4023c9f44c133",
+    "id": "local-dev-sqlite-ibex",
+    "inputsHash": "snapback.v1:sessions:inputs:sha256:fc70057e0f736feb5cd8c35837eff291ce9df1102f5dc92f3d09da18272fb8b1",
+    "mode": "fresh local Ibex plus SQLite server",
+    "schemaHash": "snapback.v1:sessions:schema:sha256:556a1db53ffa60f7f7d8075fae3e6ae8c046f0ae28f262e29aaf74a3ad61f7bc",
+    "schemaVersion": "snapback.v1"
+  },
+  "workarounds": [
+    {
+      "declaredLines": 784,
+      "fixtureLines": 0,
+      "id": "W-QGROUP",
+      "namedFiles": 2,
+      "providerSourceLines": 761,
+      "status": "retained-control-workaround-or-component",
+      "witnessLines": 23
+    },
+    {
+      "declaredLines": 18103,
+      "fixtureLines": 14580,
+      "id": "W-READMODEL",
+      "namedFiles": 10,
+      "providerSourceLines": 2224,
+      "status": "retained-control-workaround-or-component",
+      "witnessLines": 1299
+    },
+    {
+      "declaredLines": 2695,
+      "fixtureLines": 0,
+      "id": "W-MANUALSET",
+      "namedFiles": 4,
+      "providerSourceLines": 1396,
+      "status": "retained-control-workaround-or-component",
+      "witnessLines": 1299
+    },
+    {
+      "declaredLines": 1386,
+      "fixtureLines": 14,
+      "id": "W-SEARCH-EPOCH",
+      "namedFiles": 7,
+      "providerSourceLines": 1166,
+      "status": "retained-control-workaround-or-component",
+      "witnessLines": 206
+    },
+    {
+      "declaredLines": 493,
+      "fixtureLines": 0,
+      "id": "W-MUTATION-IR",
+      "namedFiles": 2,
+      "providerSourceLines": 473,
+      "status": "retained-control-workaround-or-component",
+      "witnessLines": 20
+    },
+    {
+      "declaredLines": 2193,
+      "fixtureLines": 0,
+      "id": "W-REDUCER",
+      "namedFiles": 4,
+      "providerSourceLines": 1945,
+      "status": "retained-control-workaround-or-component",
+      "witnessLines": 248
+    },
+    {
+      "declaredLines": 206,
+      "fixtureLines": 0,
+      "id": "W-PENDING",
+      "namedFiles": 3,
+      "providerSourceLines": 168,
+      "status": "retained-control-workaround-or-component",
+      "witnessLines": 38
+    },
+    {
+      "declaredLines": 1068,
+      "fixtureLines": 0,
+      "id": "W-WINDOW",
+      "namedFiles": 5,
+      "providerSourceLines": 807,
+      "status": "retained-control-workaround-or-component",
+      "witnessLines": 261
+    },
+    {
+      "declaredLines": 929,
+      "fixtureLines": 27,
+      "id": "W-IDENTITY",
+      "namedFiles": 7,
+      "providerSourceLines": 566,
+      "status": "retained-control-workaround-or-component",
+      "witnessLines": 336
+    },
+    {
+      "declaredLines": 1730,
+      "fixtureLines": 0,
+      "id": "C-GATEWAY",
+      "namedFiles": 9,
+      "providerSourceLines": 1389,
+      "status": "retained-control-workaround-or-component",
+      "witnessLines": 341
+    },
+    {
+      "declaredLines": 2034,
+      "fixtureLines": 0,
+      "id": "C-NOTIFY",
+      "namedFiles": 6,
+      "providerSourceLines": 1784,
+      "status": "retained-control-workaround-or-component",
+      "witnessLines": 250
+    },
+    {
+      "declaredLines": 390,
+      "fixtureLines": 0,
+      "id": "C-ASSET",
+      "namedFiles": 4,
+      "providerSourceLines": 310,
+      "status": "retained-control-workaround-or-component",
+      "witnessLines": 80
+    },
+    {
+      "declaredLines": 35059,
+      "fixtureLines": 33017,
+      "id": "W-FIXTURE",
+      "namedFiles": 23,
+      "providerSourceLines": 1708,
+      "status": "retained-control-workaround-or-component",
+      "witnessLines": 334
+    },
+    {
+      "declaredLines": 1032,
+      "fixtureLines": 0,
+      "id": "W-ENUM",
+      "namedFiles": 3,
+      "providerSourceLines": 1032,
+      "status": "retained-control-workaround-or-component",
+      "witnessLines": 0
+    },
+    {
+      "declaredLines": 114,
+      "fixtureLines": 0,
+      "id": "W-SHORTID",
+      "namedFiles": 3,
+      "providerSourceLines": 77,
+      "status": "retained-control-workaround-or-component",
+      "witnessLines": 37
+    }
+  ]
+}

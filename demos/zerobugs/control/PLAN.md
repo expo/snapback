@@ -394,7 +394,32 @@ custody accounting, cleanup, and redacted diagnostics. It rejects secrets,
 bearers, credential material, unsafe absolute cleanup targets, and zero-check
 attempts. Remediation increments the attempt; it never edits `v1`.
 
-### Lane F live status — ZB0–ZB4 receipts landed (2026-08-06); ZB5–ZB7 pending
+### Lane F live status — ALL EIGHT GATES RECEIPTED (2026-08-06); sequencing row 7 complete
+
+Every gate has an immutable receipt under `demos/zerobugs/evidence/` with
+honest PASS/GAP/FAIL rows; no unsupported whole-product claim is made.
+Later additions on top of the ZB0–ZB4 landing:
+
+- **ZB5** `v1` FAIL preserved (gate-authoring defect: the network-event
+  inventory trimmed to 400 entries while checks slice by absolute index —
+  a Vite dev document load alone exceeds that; the exchange event was
+  evicted), `v2` — PASS 11 / GAP 2 (large/hot measurement rows owned by
+  the deferred Lane 8 job). Raw single-sample timings recorded (loopback,
+  M5 Max, no margin claims, margins deferred to acceptance.v2):
+  normal list-ready 1509 ms from navigate, login round trip 1914 ms,
+  optimistic paint 9.7 ms under an emulated 900 ms latency seam, cold
+  reload-to-ready 1881 ms with authenticated custody adopted and exactly
+  one auth exchange consumed at login, zero on reload, zero in a second
+  tab.
+- **ZB6** `v1` — PASS 15 / GAP 2 (guide-gap tickets owned by guide
+  maintenance/LLP 0061; cross-arm authoring delta owned by Stage
+  4/acceptance.v2). All 15 workaround-register rows and their file:line
+  spans resolved.
+- **ZB7** `v1` — PASS 10 / GAP 10 (gateway kill/restart recovery, effect
+  fault pair, and asset fault/cleanup slices pass locally; route-500 seam,
+  public TLS, real OAuth, production providers, backup/restore, immutable
+  roll-forward, and hosted support are named GAPs owned by D7/D8 until a
+  target is frozen and proven).
 
 Supervising live runs (fresh server per gate, receipts under
 `demos/zerobugs/evidence/`):
@@ -430,9 +455,7 @@ supervising session's ZB0 run passed 9/9 (source pin coverage, frozen
 accounting, static source inventory, populated workaround register,
 generated release identities, zero-check refusal self-test) and wrote
 `demos/zerobugs/evidence/snapback-control.zb0.v1.json` (mode 0444; a rerun
-refuses the existing path — remediation sets `ZBUGS_ATTEMPT`). Gates
-ZB5–ZB7 are not yet implemented; sequencing row 7 remains open until every
-gate has an honest receipt.
+refuses the existing path — remediation sets `ZBUGS_ATTEMPT`).
 
 ## Workaround and component register (predeclared)
 
