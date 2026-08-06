@@ -1,6 +1,6 @@
 # Local source packages resolve an unpublished Contract dependency from npm
 
-**Status:** Open
+**Status:** Open — source-checkout half resolved; published rehearsal pending
 **Impact:** 3
 **Urgency:** 3
 **Ease:** 4
@@ -68,3 +68,28 @@ overrides.
   manager and document the intended local dependency command.
 - The published-closure rehearsal independently proves that the same consumer
   installs without local paths after npm promotion.
+
+## Resolution scope (2026-08-05)
+
+The source-checkout half is implemented. The supported consumer command is:
+
+```sh
+node scripts/install-local-snapback-packages.mjs <expo-app-directory>
+```
+
+It discovers the client/React internal runtime closure, packs it into
+app-local tarballs, writes local roots plus top-level local overrides, removes
+the need for a manually authored direct Contract dependency, and installs with
+the checkout-pinned Bun. The regression at
+`scripts/local-source-package-closure.test.mjs` copies a nested Expo fixture,
+cold-installs it against an unreachable registry with an empty cache, imports
+both package roots, deletes `node_modules`, and repeats under
+`--frozen-lockfile`; its lock assertions require client, React, and Contract to
+resolve only through local `file:` entries. The registry-publish manifests and
+their exact-version closure proofs are unchanged.
+
+This ticket remains open only for its final published-closure acceptance
+bullet. `issues/20260803-first-npm-latest-promotion.md` owns publishing the
+terminal package generation and the independent clean consumer rehearsal with
+no local paths or overrides. That work is deliberately not part of this
+source-closure change.

@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "f3c7d9fbb394a413370a9264f22e72b6f151a25e"
+    "commit": "aee056aef080321916fd76641b80b7823366c265"
   },
   "nav": {
     ".": [
@@ -1700,6 +1700,7 @@
       "authorities": [
         "llp/0012-headless-integration-contract.spec.md",
         "llp/0017-admin-console-inspection-surface.rfc.md",
+        "llp/0041-packaged-dev-loop.rfc.md",
         "llp/0064-native-client-surfaces.rfc.md",
         "llp/0114-first-class-react-and-query-groups.spec.md",
         "llp/0176-expo-messaging-golden-path.plan.md",
@@ -1708,6 +1709,7 @@
         "packages/snapback-client/rqs-store-default.mjs",
         "packages/snapback-client/rqs-store-expo.mjs",
         "packages/snapback-react/index.mjs",
+        "scripts/install-local-snapback-packages.mjs",
         "demos/partiful-matrix/tests/acceptance/native-react-expo.mjs",
         "demos/_kit/eas-stage-build.mjs"
       ],
@@ -1717,13 +1719,14 @@
         "packages/snapback-react/webcrypto-fallback.test.mjs",
         "packages/snapback-client/rqs-store-expo.test.mjs",
         "packages/snapback-client/rqs-resume-expo.test.mjs",
+        "scripts/local-source-package-closure.test.mjs",
         "demos/rn-durable-store-witness/probe-App.tsx",
         "demos/tandem-expo-bakeoff/scripts/build-ios-dev-client",
         "demos/_kit/tests/repo-layout-unit.mjs"
       ],
       "reviewed": "2026-08-05",
       "reviewedCommit": "f3c7d9fbb394a413370a9264f22e72b6f151a25e",
-      "sha256": "d25786f205d82cc4df7fc1a2fbdb420e05ed10f793b7742941b948da4947e472",
+      "sha256": "7caebcbf1a5d5ed169ff9d02774b66ab0851d0f49d065bb4dbb726568dbd4445",
       "snippets": [
         {
           "lang": "ts",
@@ -3098,5 +3101,5 @@
     "routes": 111,
     "hostOps": 37
   },
-  "contentHash": "4f92c587a6413eeb15c2c1ead25f4840e451972be2391fbb0a01f02ce5720f3e"
+  "contentHash": "7d8a44acc5ca9291a7c2c7622e3d0cb57e7fe073d426962040fc5cab584b7c82"
 }
