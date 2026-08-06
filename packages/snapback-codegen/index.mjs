@@ -2007,11 +2007,105 @@ export async function generateInProcess(backendDir, options = {}) {
     validateFunctionRefusalTrackingDefinition(name, def, err);
     validateProtectedAndRetainabilityDefinition(name, def, err);
     const argNames = new Set(Object.keys(def.args));
+    const optionalArgNames = new Set(
+      Object.entries(def.args)
+        .filter(([, validator]) => validator?.optional === true)
+        .map(([argName]) => argName),
+    );
+    const optionalArgContradictionSites = new Set();
+
+    // @ref LLP 0178#v1--optional-plan-argument-contradiction — a strict Arg
+    // node cannot consume a caller-optional argument: the shared runtime
+    // evaluator refuses an omitted key with SNAPBACK_ARG_MISSING. Keep both
+    // valid repairs as human policy choices; codegen must not guess one.
+    const reportOptionalArgContradiction = (argument, planSite) => {
+      if (!optionalArgNames.has(argument)) return;
+      const siteKey = `${argument}\0${planSite}`;
+      if (optionalArgContradictionSites.has(siteKey)) return;
+      optionalArgContradictionSites.add(siteKey);
+      const precondition = { function: name, argument, planSite };
+      err(
+        'SNAPBACK_AUTHORING_OPTIONAL_ARG_CONTRADICTION',
+        'codegen',
+        `${name}: optional argument "${argument}" is consumed by presence-requiring plan site "${planSite}" via arg("${argument}")`,
+        {
+          function: name,
+          argument,
+          planSite,
+          details: {
+            argument,
+            validator: 'optional',
+            planUse: 'required',
+            planSite,
+            expressionKind: 'Arg',
+            runtimeRefusal: 'SNAPBACK_ARG_MISSING',
+            remediations: [
+              {
+                kind: 'makeArgumentRequired',
+                riskClass: 'policy',
+                machineApplicable: false,
+                requiresApproval: true,
+                authorityEffect: 'none',
+                precondition,
+                description: `Make ${argument} required so every caller must supply it.`,
+              },
+              {
+                kind: 'splitOperation',
+                riskClass: 'policy',
+                machineApplicable: false,
+                requiresApproval: true,
+                authorityEffect: 'none',
+                precondition,
+                description: `Split ${name} into a required-argument operation and an omission-safe operation.`,
+              },
+            ],
+          },
+        },
+      );
+    };
 
     // Recursive fail-closed validation of the closed v1 expression profile
     // (LLP 0051 D2): undeclared args, non-expressions, and functions outside
     // the pinned library are authoring errors, never silent passthrough.
-    const checkExpr = (expr, where) => {
+    // `If` is the profile's one lazy expression: its condition is always
+    // evaluated, but only one branch is. An Arg in one branch therefore does
+    // not prove presence is required; an Arg in both branches does. Every
+    // other composite expression evaluates all children eagerly today.
+    const presenceRequiredArgs = (expr) => {
+      if (!expr || !expr.__expr) return new Set();
+      if ('Arg' in expr) return new Set([expr.Arg]);
+      if ('Field' in expr) return presenceRequiredArgs(expr.Field.base);
+      if ('Binary' in expr) {
+        return new Set([
+          ...presenceRequiredArgs(expr.Binary.left),
+          ...presenceRequiredArgs(expr.Binary.right),
+        ]);
+      }
+      if ('Unary' in expr) return presenceRequiredArgs(expr.Unary.expr);
+      if ('If' in expr) {
+        const required = presenceRequiredArgs(expr.If.cond);
+        const thenRequired = presenceRequiredArgs(expr.If.then);
+        const elseRequired = presenceRequiredArgs(expr.If.else);
+        for (const argument of thenRequired) {
+          if (elseRequired.has(argument)) required.add(argument);
+        }
+        return required;
+      }
+      if ('Concat' in expr) {
+        return new Set(expr.Concat.flatMap((part) => [...presenceRequiredArgs(part)]));
+      }
+      if ('Call' in expr) {
+        return new Set(expr.Call.args.flatMap((argument) => [...presenceRequiredArgs(argument)]));
+      }
+      if ('Record' in expr) {
+        return new Set(
+          Object.values(expr.Record.fields).flatMap((fieldExpr) => [...presenceRequiredArgs(fieldExpr)]),
+        );
+      }
+      return new Set();
+    };
+
+    const checkExpr = (expr, where, root = true) => {
       if (!expr || !expr.__expr) {
         err('FUNCTION_INVALID_EXPR', 'function', `${name}: ${where} is not a value expression`, { function: name });
         return;
@@ -2025,26 +2119,33 @@ export async function generateInProcess(backendDir, options = {}) {
         if (expr.Field.base?.kind === 'Args' && !argNames.has(expr.Field.key)) {
           err('FUNCTION_UNKNOWN_ARG', 'function', `${name}: ${where} references undeclared arg "${expr.Field.key}"`, { function: name });
         }
-        checkExpr(expr.Field.base, where);
+        checkExpr(expr.Field.base, where, false);
       }
       if ('Binary' in expr) {
-        checkExpr(expr.Binary.left, where);
-        checkExpr(expr.Binary.right, where);
+        checkExpr(expr.Binary.left, where, false);
+        checkExpr(expr.Binary.right, where, false);
       }
-      if ('Unary' in expr) checkExpr(expr.Unary.expr, where);
+      if ('Unary' in expr) checkExpr(expr.Unary.expr, where, false);
       if ('If' in expr) {
-        checkExpr(expr.If.cond, where);
-        checkExpr(expr.If.then, where);
-        checkExpr(expr.If.else, where);
+        checkExpr(expr.If.cond, where, false);
+        checkExpr(expr.If.then, where, false);
+        checkExpr(expr.If.else, where, false);
       }
-      if ('Concat' in expr) for (const part of expr.Concat) checkExpr(part, where);
+      if ('Concat' in expr) for (const part of expr.Concat) checkExpr(part, where, false);
       if ('Call' in expr) {
         if (!PINNED_FUNCTIONS.includes(expr.Call.func)) {
           err('MUTATION_UNSUPPORTED_FUNCTION', 'function', `${name}: ${where} calls ${expr.Call.func}, which is not in the pinned v1 library`, { function: name, calledFunction: expr.Call.func });
         }
-        for (const argExpr of expr.Call.args) checkExpr(argExpr, where);
+        for (const argExpr of expr.Call.args) checkExpr(argExpr, where, false);
       }
-      if ('Record' in expr) for (const fieldExpr of Object.values(expr.Record.fields)) checkExpr(fieldExpr, where);
+      if ('Record' in expr) {
+        for (const fieldExpr of Object.values(expr.Record.fields)) checkExpr(fieldExpr, where, false);
+      }
+      if (root) {
+        for (const argument of presenceRequiredArgs(expr)) {
+          reportOptionalArgContradiction(argument, where);
+        }
+      }
     };
 
     if ((def.__kind === 'Query' || def.__kind === 'LiveQuery') && def.searchPlan) {
@@ -2887,7 +2988,9 @@ export async function generateInProcess(backendDir, options = {}) {
           { function: name, allocations: sequenceAllocationCount },
         );
       }
-      if (def.plan.return_value && 'Expr' in def.plan.return_value) {
+      if (def.plan.return_value && 'Document' in def.plan.return_value) {
+        checkExpr(def.plan.return_value.Document.id, 'return document id');
+      } else if (def.plan.return_value && 'Expr' in def.plan.return_value) {
         checkExpr(def.plan.return_value.Expr, 'return expression');
       }
       const serializedPlan = serializeMutationPlan(def.plan, name, err);
@@ -2961,6 +3064,15 @@ export async function generateInProcess(backendDir, options = {}) {
       for (const table of writes) {
         if (!tables[table]) {
           err('FUNCTION_UNKNOWN_TABLE', 'function', `${name}: action declares unknown write table ${table}`, { function: name, table });
+        }
+      }
+      for (const step of def.plan?.steps ?? []) {
+        const runMutation = step?.RunMutation;
+        if (!runMutation) continue;
+        for (const [argument, expr] of Object.entries(runMutation.args ?? {})) {
+          if (expr?.__expr) {
+            checkExpr(expr, `runMutation ${runMutation.name} argument ${argument}`);
+          }
         }
       }
       functions.push({
