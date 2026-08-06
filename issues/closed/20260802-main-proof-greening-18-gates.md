@@ -890,3 +890,41 @@ zero write bytes, 4/10 allowed CPU ticks (40/100 ms), and zero RSS-page growth.
 These are package inventory, proof-suite selection, deployment-identity, and
 telemetry-carrier drift attributable to the LLP 0184 landings, not a
 correctness failure in the actively owned PUSH-01 seam or F0a fork code.
+
+### Managed-dev landing race and replacement telemetry carrier — 2026-08-05
+
+After the batched candidate was pushed, managed-dev repair landing
+`f8a7a1596934ce69d294e88e106c5deee639dc5f` changed
+`packages/snapback-cli/index.mjs`, `load-generated.test.mjs`, and
+`package.test.mjs`. All three belong to the telemetry receipt's reviewed
+441-file source closure, so the retained `9986c733b` measurement correctly
+failed closed as stale. This is a carrier refresh attributable to that landing;
+the managed-dev behavior itself is outside this pass and no PUSH-01 or F0a
+correctness code was changed here.
+
+The replacement EPYC producer measured a new clean detached checkout at exact
+source `fed00a4c5ededde4aad33765c39c786778c1f960`. Checksum-verified, per-run
+Node 24.18.0 and Bun 1.3.12 binaries installed the frozen lockfile. The first
+invocation stopped inside the coded bootstrap before any build because the
+non-login SSH environment omitted the existing user Cargo path (`spawn cargo
+ENOENT`); its 38-line failed transcript is retained at
+`/var/cache/expose-build/snapback-telemetry-fed.ykjVso/telemetry-full-attempt1.log`
+with SHA-256
+`1f3f186edfeca27a46ae6c980c7e4100dc4eeba6555a4f5829748785fd2c1d07`.
+The rerun added only `/home/ccheever/.cargo/bin` to `PATH`, then invoked the
+unchanged `scripts/verify-telemetry-phase1-proof --full`. The coded bootstrap
+reused the supported `SNAPBACK_IBEX_CHECKOUT` path, exact-linked and launched
+the current binary, and qualified its restricted handler VM; no administrator
+change, manual artifact repair, or loader bypass was used.
+
+The resulting retained receipt has SHA-256
+`c54fba2edb19896b159ada14edbba22ca8ed423d3094b016401a9fe259948f54`
+and source-closure digest
+`9ee681f76452c3f0e975c441ce209516988a2b5780418d19ffe4be08ae196ea1`.
+The 1,203-line successful transcript at
+`/var/cache/expose-build/snapback-telemetry-fed.ykjVso/telemetry-full.log`
+has SHA-256
+`9b9be910653ecbd025202bf7b7d4a884fe5b9fd93bef3fe412cc1ef4538c8a6d`.
+The full benchmark passed; the 120-second idle interval observed zero storage
+mutations, zero read bytes, zero write bytes, 3/10 allowed CPU ticks (30/100
+ms), and zero RSS-page growth.
