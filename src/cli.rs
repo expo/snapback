@@ -846,14 +846,6 @@ pub enum HostCommand {
         #[command(subcommand)]
         command: ConnectionsCommand,
     },
-    /// ephemeral.operatorDelete — local non-production administrator bypass
-    /// for one exactly inspected ephemeral entry. This is separate from
-    /// application-owned ephemeral deletion and evaluates no application
-    /// authorization (LLP 0184 §C).
-    Ephemeral {
-        #[command(subcommand)]
-        command: EphemeralCommand,
-    },
     /// debug.networkProfile* — inspect or change the process-local network
     /// condition profile through the shared host-ops envelope.
     #[command(name = "network-profile")]
@@ -1243,6 +1235,28 @@ pub enum EphemeralCommand {
         #[arg(long, default_value_t = 1_000)]
         max_entries: usize,
     },
+    /// ephemeral.operatorDelete — administrator bypass delete of one
+    /// ephemeral entry, fenced on BOTH the room's scope epoch and the
+    /// entry's own generation together (LLP 0184 §C). This is NOT the
+    /// same authority as an application deleting its own ephemeral entry;
+    /// it never evaluates application authorization.
+    OperatorDelete {
+        #[command(flatten)]
+        target: TargetArgs,
+        #[arg(long)]
+        collection: String,
+        /// Scope as a JSON object, e.g. '{"boardId":"board-1"}'.
+        #[arg(long = "scope-json")]
+        scope_json: String,
+        #[arg(long = "entry-key")]
+        entry_key: String,
+        #[arg(long = "expected-scope-epoch")]
+        expected_scope_epoch: u64,
+        #[arg(long = "expected-entry-generation")]
+        expected_entry_generation: u64,
+        #[arg(long)]
+        reason: String,
+    },
 }
 
 /// @ref LLP 0184#p2-controlled-mutations — `connection.disconnect` is an
@@ -1306,32 +1320,6 @@ pub enum DebugCommand {
         /// explicitly when targeting `--url` directly.
         #[arg(long = "startup-nonce")]
         startup_nonce: Option<String>,
-    },
-}
-
-#[derive(clap::Subcommand)]
-pub enum EphemeralCommand {
-    /// ephemeral.operatorDelete — administrator bypass delete of one
-    /// ephemeral entry, fenced on BOTH the room's scope epoch and the
-    /// entry's own generation together (LLP 0184 §C). This is NOT the
-    /// same authority as an application deleting its own ephemeral entry;
-    /// it never evaluates application authorization.
-    OperatorDelete {
-        #[command(flatten)]
-        target: TargetArgs,
-        #[arg(long)]
-        collection: String,
-        /// Scope as a JSON object, e.g. '{"boardId":"board-1"}'.
-        #[arg(long = "scope-json")]
-        scope_json: String,
-        #[arg(long = "entry-key")]
-        entry_key: String,
-        #[arg(long = "expected-scope-epoch")]
-        expected_scope_epoch: u64,
-        #[arg(long = "expected-entry-generation")]
-        expected_entry_generation: u64,
-        #[arg(long)]
-        reason: String,
     },
 }
 
@@ -5058,6 +5046,35 @@ fn ephemeral_command(command: EphemeralCommand) -> anyhow::Result<()> {
             println!("{}", serde_json::to_string_pretty(&response)?);
             Ok(())
         }
+        EphemeralCommand::OperatorDelete {
+            target,
+            collection,
+            scope_json,
+            entry_key,
+            expected_scope_epoch,
+            expected_entry_generation,
+            reason,
+        } => {
+            let scope: BTreeMap<String, String> = serde_json::from_str(&scope_json)
+                .context("--scope-json must be a JSON object whose values are strings")?;
+            let resolved = resolve_operator_ephemeral_target(&target)?;
+            let response = admin_json_post_resolved(
+                &target,
+                resolved.http,
+                "/_snapback/api/ephemeral/operator/delete",
+                json!({
+                    "collection": collection,
+                    "scope": scope,
+                    "entryKey": entry_key,
+                    "expectedScopeEpoch": expected_scope_epoch,
+                    "expectedEntryGeneration": expected_entry_generation,
+                    "reason": reason,
+                    "startupNonce": resolved.startup_nonce,
+                }),
+            )?;
+            println!("{}", serde_json::to_string_pretty(&response)?);
+            Ok(())
+        }
     }
 }
 
@@ -5134,40 +5151,6 @@ fn connections_command(command: ConnectionsCommand) -> anyhow::Result<()> {
 ///
 /// @ref LLP 0184#c-administrator-ephemeral-entry-delete--add-now — process,
 /// epoch, and generation fences on the explicit administrator bypass.
-fn ephemeral_command(command: EphemeralCommand) -> anyhow::Result<()> {
-    match command {
-        EphemeralCommand::OperatorDelete {
-            target,
-            collection,
-            scope_json,
-            entry_key,
-            expected_scope_epoch,
-            expected_entry_generation,
-            reason,
-        } => {
-            let scope: BTreeMap<String, String> = serde_json::from_str(&scope_json)
-                .context("--scope-json must be a JSON object whose values are strings")?;
-            let resolved = resolve_operator_ephemeral_target(&target)?;
-            let response = admin_json_post_resolved(
-                &target,
-                resolved.http,
-                "/_snapback/api/ephemeral/operator/delete",
-                json!({
-                    "collection": collection,
-                    "scope": scope,
-                    "entryKey": entry_key,
-                    "expectedScopeEpoch": expected_scope_epoch,
-                    "expectedEntryGeneration": expected_entry_generation,
-                    "reason": reason,
-                    "startupNonce": resolved.startup_nonce,
-                }),
-            )?;
-            println!("{}", serde_json::to_string_pretty(&response)?);
-            Ok(())
-        }
-    }
-}
-
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct ConsoleCredentialCliResponse {

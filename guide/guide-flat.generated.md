@@ -100,6 +100,7 @@ host-op registries. Owner: `ccheever`; label gaps `guide-gap`.
 | operating.network-profiles | Named network condition profiles: server-side egress latency injection (mutation ack, live delta, query response lanes) with fail-closed local-only activation, startup-env and admin-API toggles, per-frame socket/poll markers, surface/principal activation provenance, and coalesced live deadlines | latency, slow network, network profile, delay, jitter, local-first testing | local | shipped | route /_snapback/api/debug/network-profile + host_ops.debug.networkProfileSet + demos/zero-bakeoff/protocol/environment.v2.json | llp/0167 | operating/network-profiles.md |
 | operating.host-ops | Host operations over CLI/HTTP | cli, ops, host operations | local | shipped | route /_snapback/api/host-ops | llp/0024 | operating/host-ops.md |
 | operating.agent-controls | Build/instance control discovery | controls list, controls describe, catalog | local | shipped | route /_snapback/api/control-catalog | llp/0184 | operating/agent-controls.md |
+| operating.data-patch | Preview/apply one validated existing-row correction with per-row CAS, a single-use token, normal live notification, and explicit dev authority | data patch, direct edit, patch row, correct row, expected version, row version, apply token, devUser, devAdminBypass | local | shipped | tests/data_patch_v1.rs | llp/0184, llp/0024, llp/0017 | operating/data-patch.md |
 | operating.diagnostics | Stable SNAPBACK_* codes; exact current-checkout link/launch diagnosis with one binary-selection recovery record; installed disposable vertical-slice doctor | diagnostics, errors, doctor, linker, missing symbols, stale binary, runtime recovery | all | shipped | `runRuntimeLinkProbe` in scripts/runtime-link-smoke.mjs | llp/0010, llp/0031, llp/0041, llp/0074 | operating/diagnostics.md |
 | operating.declaration-conformance | Per-invocation declared-vs-captured read/write report and local strict opt-in, plus `snapback verify` aggregation over explicitly registered acceptance paths: authoritative under-declarations and missing reports fail, universally extra declarations warn, and observed incomplete/unsupported provenance stays an explicit partial rather than a verdict. The Cloudflare target refuses `strictDeclarations: true` at compiled-schema load and `/app/ensure` with `SNAPBACK_STRICT_DECLARATIONS_TARGET_UNSUPPORTED`; it never admits the flag unenforced. Automatic discovery of every repository acceptance path, app-data-plane ring wiring, complete mutation-envelope provenance, and authoritative Cloudflare capture/reporting remain GAPs | declaration drift, undeclared read, undeclared write, strict declarations, conformance, coverage, missingReads, read set, write set | local | partial | `aggregateConformance` in packages/snapback-cli/verify.mjs | llp/0146, llp/0127, llp/0010 | GAP (guide page for the conformance report and strict opt-in; owner: ccheever, review: 2026-08-31) |
 | operating.verify | Five-stage CLI done-oracle with source-regenerated artifact identity, digest-bound runtime readiness, local admission plus registered-path D1 aggregation, generated capability resolution, registered acceptance execution, identity/test-byte-bound receipt, ordered next actions, and mechanically unique recommendation. Live-target admission, automatic acceptance-path discovery, `acceptance.run`, product-completeness claims, and CV-14 semantic-review custody are explicit nonclaims | verify, done oracle, receipt, recommended next, test bytes, readiness | local | partial | `runVerify` in packages/snapback-cli/verify.mjs | llp/0146, llp/0010 | testing/verify.md |
@@ -354,6 +355,9 @@ you never build around a feature because you didn't know it existed.
 - [Network condition profiles](./operating/network-profiles.md) — inject
   server-side egress latency for honest optimistic-UI, settlement, and
   convergence testing, then restore `normal`.
+- [Patch one existing row safely](./operating/data-patch.md) — preview a
+  schema-validated, per-row-versioned correction and apply it with one
+  short-lived single-use capability (local non-production only).
 - [Diagnostics](./operating/diagnostics.md) — stable codes, assertion
   discipline, exact runtime link/launch doctoring, binary recovery records,
   and bootstrap failure vocabulary.
@@ -481,6 +485,7 @@ here (or listed here but gone from the code).
 | /_snapback/api/cron | backend.cron |
 | /_snapback/api/data/{table} | operating.admin-console |
 | /_snapback/api/ephemeral/cleanup | realtime.ephemeral |
+| /_snapback/api/ephemeral/operator/delete | notAuthorFacing (local operator repair, LLP 0184 §C) |
 | /_snapback/api/errors/issue | backend.error-tracking-v1 |
 | /_snapback/api/errors/issues | backend.error-tracking-v1 |
 | /_snapback/api/errors/transition | backend.error-tracking-v1 |
@@ -582,6 +587,10 @@ here (or listed here but gone from the code).
 | host_ops.asset.importCut | notAuthorFacing (operator consistent-cut restore) |
 | host_ops.auth.mintSession | operating.host-ops |
 | host_ops.auth.rescueCollidingTable | operating.host-ops |
+| host_ops.data.patch.preview | operating.data-patch |
+| host_ops.data.patch.preview.impersonated | operating.data-patch |
+| host_ops.data.patch.apply | operating.data-patch |
+| host_ops.data.patch.apply.impersonated | operating.data-patch |
 | host_ops.errors.issue | backend.error-tracking-v1 |
 | host_ops.errors.issues | backend.error-tracking-v1 |
 | host_ops.errors.transition | backend.error-tracking-v1 |
@@ -599,6 +608,7 @@ here (or listed here but gone from the code).
 | host_ops.acceptance.run | operating.host-ops |
 | host_ops.debug.networkProfileGet | operating.network-profiles |
 | host_ops.debug.networkProfileSet | operating.network-profiles |
+| host_ops.debug.live.forceResync | operating.host-ops |
 | host_ops.host.start | operating.host-ops |
 | host_ops.host.stop | operating.host-ops |
 | host_ops.host.restart | operating.host-ops |
@@ -1143,12 +1153,7 @@ other way, such as an identity broker) is constructed with
 
 ## Read public data anonymously
 
-<!-- since: 0.1.9 unreleased -->
-
-> **Unreleased.** `custody: 'anonymous-public'` is in the source tree but not
-> in the newest published closure (`0.1.8`); a packaged consumer on
-> `@expo/snapback-*@0.1.8` must read public data with a signed-in principal or
-> a hand-rolled HTTP call. Expected in the next published closure.
+<!-- since: 0.1.9 -->
 
 A sessions-mode app often has a public surface — an event preview, a shared
 link — that must read *without* a signed-in principal. Bare clients are
@@ -2666,13 +2671,7 @@ settle it without guessing. A confirmed receipt always carries a non-null
 durable `snapshotVersion`; `null` is allowed only for a rejected invocation
 whose durable cursor could not be read safely.
 
-<!-- since: 0.1.9 unreleased -->
-
-> **Unreleased.** Declared `refusals:` and `ctx.refuse` are in the source
-> tree but not in the newest published closure (`0.1.8`): a packaged consumer
-> on `@expo/snapback-*@0.1.8` has no `ctx.refuse`, and every application
-> rejection surfaces as `SNAPBACK_HANDLER_FAILED`. Expected in the next
-> published closure.
+<!-- since: 0.1.9 -->
 
 Application-semantic refusals get typed codes instead of message prose. A
 handler declares a closed set — `refusals: ['STALE_MOVE']` (uppercase
@@ -7128,7 +7127,7 @@ intent so source additions cannot hide as “advanced” APIs:
 | Function calls | `query`, `search`, `vectorSearch`, `authorizedLeaseQuery`, `mutate`, `action`, `acknowledgeMutations` |
 | Route bundles | `fetchBundle` |
 | Durable live | `liveQuery`, `startLiveQuery`, `subscribeLive`, `unsubscribeLive`, `openLiveStream`, `liveStreamManager`, `acknowledgeAuthorizationInvalidation` |
-| Offline queue and settlement | `outboxStatus`, `subscribeOutbox`, `outboxDiagnostics` (getter), `replayQueuedMutations`, `settledMutations`, `markMutationSettlementsConsumed` |
+| Offline queue and settlement | `outboxStatus`, `subscribeOutbox`, `outboxDiagnostics` (getter), `replayQueuedMutations`, `adoptQueuedMutations`, `settledMutations`, `markMutationSettlementsConsumed` |
 | Ephemeral | `subscribeEphemeral`, `startEphemeralRoom`, `publishEphemeral`, `deleteEphemeral`, `unsubscribeEphemeral`, `registerEphemeralRepublisher` |
 | Connections/drains | `connectionGrant`, `refreshConnectionGrant`, `disconnect`, `releaseConnection`, `drainEnvelopes`, `drainConnection`, `drainUpdates`, `registerDurableConsumer`, `registerEphemeralConsumer` |
 | Framework bindings | `prepareReactBinding` |
@@ -8069,7 +8068,7 @@ back to `curl`, raw host operations, or a one-off verification script.
 <!-- since: 0.1.10 unreleased -->
 
 > **Unreleased.** `@expo/snapback-expo` is in the source tree but not in the
-> newest published closure (`0.1.8`): a packaged consumer on
+> newest published closure (`0.1.9`): a packaged consumer on
 > `@expo/snapback-*@0.1.8` cannot install the config plugin or provider this
 > section configures from npm. Use the source-checkout install above until
 > the package joins a published closure
@@ -8091,11 +8090,8 @@ optional boot-state fallback, still with no URL or binding prop:
 ```tsx source=demos/expo-golden-path-fixture/App.tsx
 export default function App() {
   return (
-    <SnapbackExpoProvider
-      app={app}
-      fallback={(state: ExpoBootState) => <BootFallback state={state} />}
-    >
-      <ReceiptScreen />
+    <SnapbackExpoProvider app={app} fallback={(state: ExpoBootState) => <BootFallback state={state} />}>
+      <G2DemoProvider><G2Screens /></G2DemoProvider>
     </SnapbackExpoProvider>
   );
 }
@@ -10207,16 +10203,16 @@ documentation absence never appears as success.
 ## Generated inventory
 
 <!-- BEGIN GENERATED CONTROL CATALOG: CONTROL CATALOG INVENTORY -->
-The embedded build catalog contains **110 operations** at digest `sha256:95baa90d9517c0cb2e5a3e6a35b6bdda25a21a9831fa0c9af1b18de945b1c089`. The counts and inventory below are generated; do not edit them by hand.
+The embedded build catalog contains **114 operations** at digest `sha256:7624d26866a45188127af998d7ba84d1a2a5426681cfb9ecd098379a41754f7f`. The counts and inventory below are generated; do not edit them by hand.
 
 | Axis | Value | Count |
 | --- | --- | ---: |
 | surfaceAccess | `apiOnly` | 38 |
 | surfaceAccess | `cliOnly` | 29 |
 | surfaceAccess | `mcpOnly` | 2 |
-| surfaceAccess | `native` | 37 |
+| surfaceAccess | `native` | 41 |
 | surfaceAccess | `none` | 4 |
-| operability | `direct` | 78 |
+| operability | `direct` | 82 |
 | operability | `internal` | 11 |
 | operability | `mediated` | 7 |
 | operability | `unavailable` | 14 |
@@ -10293,7 +10289,10 @@ The embedded build catalog contains **110 operations** at digest `sha256:95baa90
 | `cron.runOne` | `native` | `direct` | `shipped` | snapback cron run | snapback_cron_run | — |
 | `cron.status.read` | `apiOnly` | `direct` | `shipped` | — | — | — |
 | `cron.tick` | `native` | `direct` | `shipped` | snapback cron tick | snapback_cron_tick | — |
+| `data.patch.apply` | `native` | `direct` | `shipped` | snapback data patch --apply --input <file\|-> | snapback_data_patch_apply | operating/data-patch.md#apply |
+| `data.patch.preview` | `native` | `direct` | `shipped` | snapback data patch --preview --input <file\|-> | snapback_data_patch_preview | operating/data-patch.md#preview |
 | `data.scan` | `native` | `direct` | `shipped` | snapback data scan <table> | snapback_data_scan | operating/host-ops.md#direct-climcp-projections-beyond-host-ops-llp-0184-phase-2-p1 |
+| `debug.live.forceResync` | `native` | `direct` | `shipped` | snapback debug force-resync | snapback_live_force_resync | operating/host-ops.md |
 | `debug.networkProfileGet` | `native` | `direct` | `shipped` | snapback network-profile get | snapback_network_profile_get | operating/network-profiles.md#read-the-active-profile |
 | `debug.networkProfileSet` | `native` | `direct` | `shipped` | snapback network-profile set | snapback_network_profile_set | operating/network-profiles.md#set-a-profile |
 | `direct_runner.action` | `apiOnly` | `direct` | `shipped` | — | — | — |
@@ -10301,6 +10300,7 @@ The embedded build catalog contains **110 operations** at digest `sha256:95baa90
 | `direct_runner.query` | `apiOnly` | `direct` | `shipped` | — | — | — |
 | `direct_runner.unknown` | `apiOnly` | `unavailable` | `shipped` | — | — | — |
 | `ephemeral.cleanup` | `native` | `direct` | `shipped` | snapback ephemeral cleanup | snapback_ephemeral_cleanup | realtime/ephemeral-state.md#clean-up-expired-entries-operationally |
+| `ephemeral.operatorDelete` | `native` | `direct` | `shipped` | snapback ephemeral operator-delete | snapback_ephemeral_operator_delete | realtime/ephemeral-state.md#delete-one-entry-as-an-operator |
 | `errors.issue` | `native` | `direct` | `shipped` | snapback errors issue | snapback_errors_issue | operating/host-ops.md |
 | `errors.issues` | `native` | `direct` | `shipped` | snapback errors issues | snapback_errors_issues | operating/host-ops.md |
 | `errors.transition` | `native` | `direct` | `shipped` | snapback errors transition | snapback_errors_transition | operating/host-ops.md |
@@ -10555,7 +10555,7 @@ carries the storage diagnostic; tooling must not substitute zero.
 ## Served request operations
 
 <!-- BEGIN GENERATED CONTROL CATALOG: HOST OPS SERVED -->
-The endpoint serves **37 request spellings**. This count and table are generated from the build catalog's LLP 0024 allowlist projection:
+The endpoint serves **40 request spellings**. This count and table are generated from the build catalog's LLP 0024 allowlist projection:
 
 | Request operation | Purpose |
 | --- | --- |
@@ -10584,6 +10584,9 @@ The endpoint serves **37 request spellings**. This count and table are generated
 | `branch.list.v1` | branch.list.v1 |
 | `branch.reap.v1` | branch.reap.v1 |
 | `cron.list` | List cron jobs |
+| `data.patch.apply` | Apply one previewed bounded direct row patch |
+| `data.patch.preview` | Preview one bounded direct row patch |
+| `debug.live.forceResync` | Force one live subscription to resync (debug perturbation) |
 | `debug.networkProfileGet` | Read the active network condition profile |
 | `debug.networkProfileSet` | Set the active network condition profile |
 | `errors.issue` | Inspect one error issue |
@@ -10640,7 +10643,7 @@ envelope; unknown names stay unregistered and fail closed before dispatch.
 ## Registered operation identities
 
 <!-- BEGIN GENERATED CONTROL CATALOG: HOST OPS REGISTERED -->
-The request spellings above expand into **48 registered operation identities**. This inventory is generated from each catalog row's LLP 0031 registry projection:
+The request spellings above expand into **53 registered operation identities**. This inventory is generated from each catalog row's LLP 0031 registry projection:
 
 1. `host_ops.acceptance.run`
 2. `host_ops.app.inspect`
@@ -10668,28 +10671,33 @@ The request spellings above expand into **48 registered operation identities**. 
 24. `host_ops.branch.list.v1`
 25. `host_ops.branch.reap.v1`
 26. `host_ops.cron.list`
-27. `host_ops.debug.networkProfileGet`
-28. `host_ops.debug.networkProfileSet`
-29. `host_ops.errors.issue`
-30. `host_ops.errors.issues`
-31. `host_ops.errors.transition`
-32. `host_ops.function.explain`
-33. `host_ops.function.explain.impersonated`
-34. `host_ops.function.run.query`
-35. `host_ops.function.run.mutation`
-36. `host_ops.function.run.action`
-37. `host_ops.function.run.unknown`
-38. `host_ops.function.run.impersonated`
-39. `host_ops.functions.load`
-40. `host_ops.functions.reload`
-41. `host_ops.host.restart`
-42. `host_ops.host.start`
-43. `host_ops.host.stop`
-44. `host_ops.schema.load`
-45. `host_ops.schema.reload`
-46. `host_ops.telemetry.events`
-47. `host_ops.telemetry.export`
-48. `host_ops.telemetry.stats`
+27. `host_ops.data.patch.apply`
+28. `host_ops.data.patch.apply.impersonated`
+29. `host_ops.data.patch.preview`
+30. `host_ops.data.patch.preview.impersonated`
+31. `host_ops.debug.live.forceResync`
+32. `host_ops.debug.networkProfileGet`
+33. `host_ops.debug.networkProfileSet`
+34. `host_ops.errors.issue`
+35. `host_ops.errors.issues`
+36. `host_ops.errors.transition`
+37. `host_ops.function.explain`
+38. `host_ops.function.explain.impersonated`
+39. `host_ops.function.run.query`
+40. `host_ops.function.run.mutation`
+41. `host_ops.function.run.action`
+42. `host_ops.function.run.unknown`
+43. `host_ops.function.run.impersonated`
+44. `host_ops.functions.load`
+45. `host_ops.functions.reload`
+46. `host_ops.host.restart`
+47. `host_ops.host.start`
+48. `host_ops.host.stop`
+49. `host_ops.schema.load`
+50. `host_ops.schema.reload`
+51. `host_ops.telemetry.events`
+52. `host_ops.telemetry.export`
+53. `host_ops.telemetry.stats`
 <!-- END GENERATED CONTROL CATALOG: HOST OPS REGISTERED -->
 
 Query/explain reads, durable writes, credential-producing operations, and
@@ -12238,6 +12246,170 @@ for production apply decisions.
 
 ---
 
+<!-- snapback-guide-source: guide/operating/data-patch.md -->
+---
+title: Patch one existing row safely
+id: operating.data-patch
+order: 8
+audience: agent-first
+capabilities: [operating.data-patch]
+authorities: [llp/0184-agent-accessible-control-plane.rfc.md, llp/0024-agent-operating-surface.spec.md, llp/0031-server-route-taxonomy.spec.md, llp/0017-admin-console-inspection-surface.rfc.md, src/data_patch.rs, src/local.rs, src/server.rs, src/cli.rs, packages/snapback-cli/mcp-control.mjs]
+examples: [tests/data_patch_v1.rs, packages/snapback-cli/mcp-control.test.mjs]
+status: current
+targets: [local]
+maturity: shipped
+since: 0.1.10
+unreleased: true
+reviewed: 2026-08-06
+reviewed-commit: HEAD
+---
+
+# Patch one existing row safely
+
+> **Local target only.** This page describes the local dev/test target.
+> Hosted targets make deliberately weaker or different claims — see
+> [auth/targets](../auth/targets.md).
+
+> **Unreleased.** This surface is newer than the newest published Snapback
+> closure, 0.1.9. Use a runtime built from this checkout until 0.1.10 ships.
+
+Use `data.patch` to correct known fields on one existing row without adding a
+raw SQL, insert, delete, or arbitrary update surface. Preview validates the
+closed patch and captures the row's own `_version`; apply consumes a
+short-lived single-use capability and commits through the ordinary storage
+changeset pipeline. Live queries therefore receive the normal commit
+notification.
+
+## Preview
+
+Put the complete authority tuple and operation reason in a JSON file. This
+example uses `devUser`, so the server evaluates the request as `user_ada` and
+requires the process-bound impersonation capability advertised by the ready
+file:
+
+```json fragment reason="example identity, row id, and version are application-specific"
+{
+  "table": "todos",
+  "rowId": "todo_01JEXAMPLE",
+  "expectedVersion": 7,
+  "patch": { "completed": true },
+  "authority": {
+    "mode": "devUser",
+    "actorPrincipal": null,
+    "effectivePrincipal": { "userId": "user_ada", "roles": [] },
+    "localDevOnly": true,
+    "adminBypass": false,
+    "scope": null,
+    "reason": null
+  },
+  "reason": "correct completion state after acceptance review"
+}
+```
+
+Preview with the JSON body in a file or on stdin. Never put an apply token in
+an argument:
+
+```sh
+snapback data patch --preview \
+  --ready-file .snapback/dev.ready.json \
+  --input patch.json > patch-preview.json
+```
+
+The response contains the validated before/after field diff, affected live
+query classes, catalog digest, startup nonce, a non-authorizing token ID, and
+the live apply token. Treat the live token as a short-lived secret. It is bound
+to the target, process startup, catalog/schema identity, row and expected
+version, normalized patch and diff, full authority tuple, reason, and expiry.
+
+## Apply
+
+Copy the token into the JSON body, not argv. This file-only command prepares
+the exact preview input for apply:
+
+```sh
+node -e 'const fs=require("fs"); const i=JSON.parse(fs.readFileSync(process.argv[1])); const p=JSON.parse(fs.readFileSync(process.argv[2])); i.applyToken=p.data.applyToken; process.stdout.write(JSON.stringify(i));' \
+  patch.json patch-preview.json > patch-apply.json
+
+snapback data patch --apply \
+  --ready-file .snapback/dev.ready.json \
+  --input patch-apply.json
+```
+
+Apply atomically compares and consumes the token before attempting the normal
+changeset commit. A second apply cannot reuse it. If the same row changed
+after preview, the per-row compare-and-swap fails; a write to an unrelated row
+does not. Preview again after any failed commit rather than retrying the old
+capability.
+
+The receipt contains only the non-authorizing token ID/digest, catalog digest,
+startup nonce, commit version, full authority tuple, and reason. It never
+contains the live token.
+
+## Give an agent the same operation through MCP
+
+`snapback mcp-control` exposes two tools:
+
+| Intent | MCP tool | Destructive annotation |
+| --- | --- | --- |
+| Validate and retain a preview capability | `snapback_data_patch_preview` | `false` |
+| Consume that capability and commit | `snapback_data_patch_apply` | `true` (`confirmFirst` in the control catalog) |
+
+The preview tool keeps the live capability inside the bounded MCP process and
+returns only `applyTokenId`. Pass that non-authorizing ID plus the exact same
+table, row, version, patch, authority, and reason to the apply tool. The raw
+token is neither a tool argument nor a tool result. Restarting the MCP process
+or letting the preview expire loses the capability; preview again.
+
+## Choose the authority tuple honestly
+
+The operation adds no authority mode. It accepts the existing LLP 0024 local
+tuples as-is:
+
+- `devUser` has `effectivePrincipal: { userId, roles }`, `localDevOnly: true`,
+  and `adminBypass: false`. Different impersonated users are different token
+  bindings.
+- `devAdminBypass` has no effective principal, sets `adminBypass: true`, and
+  repeats the required operation reason in `authority.reason`. Its receipt
+  says `devAdminBypassAdmitted`: app authorization was skipped by an admitted
+  local admin bypass, never "evaluated as if authorized."
+
+Both modes still use AdminWrite transport policy. A closed schema rejects
+unknown tuple or patch fields, and `_id`, `_version`, `_createdAt`, and
+`_updatedAt` remain reserved.
+
+## Know where the operation is refused
+
+Both preview and apply run only on an ordinary primary local non-production
+instance. Production profiles, hosted serving, and derived instances return
+`SNAPBACK_DATA_PATCH_TARGET_REFUSED`, with `availability: "refused"` in the
+diagnostic details. LLP 0158 has not granted derived recognition for this
+purpose.
+
+This is a target-availability refusal, not `operability: unavailable`: the
+control-catalog rows remain shipped and directly operable on their declared
+`local` target. Do not reinterpret a refusal on a different target as evidence
+that the operation is missing.
+
+Other stable refusal classes include stale row version, unknown or reserved
+field, schema validator/invariant failure, missing/expired/consumed/mismatched
+apply token, and invalid authority tuple. Inspect the `SNAPBACK_DATA_PATCH_*`
+diagnostic instead of matching message text.
+
+## Anti-patterns
+
+- **Do not add a raw SQL escape hatch.** Use an application mutation when the
+  correction needs logic beyond one closed row patch.
+- **Do not use a database-wide version as `expectedVersion`.** Read the target
+  row's `_version`; unrelated commits must not invalidate the patch.
+- **Do not call apply without reviewing the diff.** Apply is deliberately
+  destructive and single-use.
+- **Do not describe `devAdminBypass` as app-authorized evaluation.** The
+  receipt explicitly discloses the admitted authorization skip.
+- **Do not expect the operation on forks, hosted instances, or production.**
+  Those are deliberate availability refusals in v1.
+
+---
+
 <!-- snapback-guide-source: guide/protocol/client-protocol.md -->
 ---
 title: Client protocol
@@ -12601,7 +12773,7 @@ id: realtime.ephemeral-state
 order: 2
 audience: agent-first
 capabilities: [realtime.ephemeral]
-authorities: [llp/0013-ephemeral-realtime-state.rfc.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0184-agent-accessible-control-plane.rfc.md, src/admin.rs, src/cli.rs, packages/snapback-cli/mcp-control.mjs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/index.mjs, packages/snapback-contract/index.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts]
+authorities: [llp/0013-ephemeral-realtime-state.rfc.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0184-agent-accessible-control-plane.rfc.md, src/admin.rs, src/ephemeral.rs, src/server.rs, src/cli.rs, packages/snapback-cli/mcp-control.mjs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/index.mjs, packages/snapback-contract/index.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts]
 examples: [demos/cursors-web, demos/todo-v2/snapback/schema.mjs, demos/messaging-snapback/src/lib/useTyping.ts]
 status: current
 targets: [local]
@@ -12830,6 +13002,41 @@ value type; a typed value must not degrade to `unknown` at provider
 introspection. Keep imperative overlays in headless/React code and generated
 ephemeral links in Contract code—do not mix a second polling or publish lane
 into the same surface.
+
+<!-- since: 0.1.10 unreleased -->
+
+> **Unreleased.** The operator-delete control is in the source tree but not
+> in the newest published closure (`0.1.9`). Expected in the next published
+> closure.
+
+## Delete one entry as an operator
+
+Use `snapback ephemeral operator-delete` or the
+`snapback_ephemeral_operator_delete` MCP tool only for local dev/test repair
+after inspecting the exact collection, scope, entry key, `scopeEpoch`, and
+`entryVersion`. Supply both coordinates as `--expected-scope-epoch` and
+`--expected-entry-generation`; a room can be pruned and recreated with a new
+epoch while its entry generation restarts at 1, so generation alone is not a
+safe fence. The CLI requires `--ready-file` because the server also verifies
+that descriptor's process-bound startup nonce.
+
+```sh fragment reason="Operator repair example uses inspected runtime coordinates and a local readiness descriptor, not a repository fixture."
+snapback ephemeral operator-delete \
+  --ready-file .snapback/dev.ready.json \
+  --collection boardCursors \
+  --scope-json '{"boardId":"board-1"}' \
+  --entry-key conn_owner \
+  --expected-scope-epoch 7 \
+  --expected-entry-generation 3 \
+  --reason 'remove stuck cursor after inspection'
+```
+
+This operation is an explicit administrator bypass: it never evaluates
+application authorization or ownership, and its receipt says
+`authorizationEvaluated: false`. It remains distinct from an application's
+ordinary `delete`, while still using the ordinary removal and subscriber
+notification path. The server refuses it on production and on derived
+instances; LLP 0158 does not yet recognize derived identity for this purpose.
 
 ## Clean up expired entries operationally
 
@@ -13582,7 +13789,7 @@ order: 1
 audience: agent-first
 capabilities: [backend.single-table-v1, sync.offline, sync.offline-js-arm, sync.local-persistent-store]
 authorities: [llp/0043-offline-replay-retention.rfc.md, llp/0052-contract-update-economy-and-host-state.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0090-resumable-query-snapshots.rfc.md, llp/0110-bounded-children-and-activity-patterns.spec.md, llp/0129-local-first-program.plan.md, llp/0133-local-settlement.spec.md, llp/0135-sequence-allocation-and-snapshot-batch.spec.md, llp/0157-composition-algebra-and-completeness.spec.md, llp/0166-local-persistent-store.spec.md, src/local-persistent-store-publication.v1.json, packages/snapback-codegen/index.mjs, packages/snapback-client/local-read-admission.mjs, packages/snapback-client/materialization-bridge.mjs, tests/acceptance/local-store-carrier-exit-v1.mjs, packages/snapback-contract/index.mjs, packages/snapback-contract/offline-replay.test.mjs, packages/snapback-client/index.mjs, packages/snapback-client/external-store.mjs, packages/snapback-client/external-store.test.mjs, packages/snapback-client/outbox-store.test.mjs, packages/snapback-react/index.mjs, demos/warble/snapback/functions.mjs, demos/warble/tests/acceptance/offline-local-first.mjs]
-examples: [demos/triage-graph, demos/card-game, demos/todo-v2/surfaces/contract, demos/public-dashboard, demos/warble, packages/snapback-contract/agent-authority-contract.test.mjs, packages/snapback-react/offline.test.mjs]
+examples: [demos/triage-graph, demos/card-game, demos/todo-v2/surfaces/contract, demos/public-dashboard, demos/warble, packages/snapback-contract/agent-authority-contract.test.mjs, packages/snapback-react/offline.test.mjs, tests/acceptance/desktop-sidecar-v1.mjs]
 status: current
 targets: [local]
 maturity: partial
@@ -13693,6 +13900,35 @@ witness proves:
   const queued = await client.mutate('createThing', { args: { title: 'offline' } });
   assert.equal(queued.queued, true);
 ```
+
+## Preserve pending work across a desktop sidecar swap
+
+The desktop sidecar is the explicit exception to default per-origin store
+selection. Because each candidate starts on a new ephemeral port, an ordinary
+fresh client would resolve another default file-store blob. The embedding app
+instead owns one durable file store for the canonical sidecar database domain
+and injects that same store into predecessor, candidate, and rollback clients.
+Do not generalize this to arbitrary servers: the default isolation rule is a
+safety boundary.
+
+After candidate nonce attestation, construct the fresh client with the
+candidate URL and shared store, complete an application-owned full-snapshot
+barrier, then call `adoptQueuedMutations`. The checked API requires the captured
+`clientStoreId` and exact artifact generation; it also checks writer custody,
+candidate `/inspect`, and every pending record generation before replay. Its
+receipt reports authoritative before/after dispositions and terminal deltas.
+The sidecar commits only at zero remaining, no stop, and no new failed,
+quarantined, or result-gone record.
+
+Replay keeps the original `clientMutationId`; the candidate client's `baseUrl`
+supplies the new origin. The shared SQLite `_snapback_client_mutations` row is
+the exactly-once authority, so a predecessor commit whose response was lost is
+republished rather than applied twice. Startup nonce, port, and pid are
+attachment evidence, not duplicate identity.
+
+This is a pending-work-preserving stop/start swap. The predecessor is stopped
+before the candidate starts, so it does not provide zero-request-downtime. A
+stable front door or overlapping runtime ownership is separate work.
 
 ```js source=packages/snapback-client/outbox-store.test.mjs
   const outcome = await client.replayQueuedMutations();

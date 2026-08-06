@@ -314,6 +314,7 @@ async fn registry_and_router_have_black_box_path_method_parity() {
         ("GET", "/_snapback/api/jobs/{id}"),
         ("POST", "/_snapback/api/push/maintenance"),
         ("POST", "/_snapback/api/ephemeral/cleanup"),
+        ("POST", "/_snapback/api/ephemeral/operator/delete"),
         // LLP 0167: network condition profile read/toggle; PUT terminates at
         // the fail-closed activation gate.
         ("GET", "/_snapback/api/debug/network-profile"),
@@ -1062,6 +1063,11 @@ fn operation_registry_is_exhaustive_and_bound_to_registered_carriers() {
             "host_ops.branch.list.v1",
             "host_ops.branch.reap.v1",
             "host_ops.cron.list",
+            "host_ops.data.patch.preview",
+            "host_ops.data.patch.preview.impersonated",
+            "host_ops.data.patch.apply",
+            "host_ops.data.patch.apply.impersonated",
+            "host_ops.debug.live.forceResync",
             "host_ops.debug.networkProfileGet",
             "host_ops.debug.networkProfileSet",
             "host_ops.errors.issue",

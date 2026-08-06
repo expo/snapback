@@ -2,11 +2,11 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "8ea596ac450f7062727d3810ed38a29b288186f7"
+    "commit": "251367f3dc55b0453ece065ebddb8f8b0e62cfcf"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
-    "newestPublished": "0.1.8"
+    "newestPublished": "0.1.9"
   },
   "nav": {
     ".": [
@@ -261,6 +261,11 @@
         "id": "operating.instance-forks",
         "order": 7,
         "title": "Local instance forks"
+      },
+      {
+        "id": "operating.data-patch",
+        "order": 8,
+        "title": "Patch one existing row safely"
       }
     ],
     "protocol": [
@@ -547,7 +552,7 @@
       ],
       "reviewed": "2026-08-03",
       "reviewedCommit": "c442237dedd412d1fe66a85c7a0ed463eba1e013",
-      "sha256": "883b7d6f51e46a019bfcb65c2ce6477e9be02fed7bb008e4a3ba4912c959b919",
+      "sha256": "e868958cff234cfcb65bdae3aee84164370dc761274fc793b1afe25ec20ea61f",
       "snippets": [
         {
           "lang": "js",
@@ -1008,7 +1013,7 @@
       ],
       "reviewed": "2026-08-05",
       "reviewedCommit": "4a6000ac6f17a8c94bc2aecf573c0654e850b758",
-      "sha256": "462fd22462cdc85f60ec238fcd127684386e3dc9572d2ac13a7b01e92dd30f3d",
+      "sha256": "edcfb02bee2d26ebede168a65792af4ce19a3a81502e056d8c9504f47922dc20",
       "snippets": [
         {
           "lang": "js",
@@ -1490,7 +1495,7 @@
       "examples": [],
       "reviewed": "2026-08-06",
       "reviewedCommit": "850427c31b9a668d55b46995e08389cd13a2c9b6",
-      "sha256": "0d6e9141e590de07a470a3b766682c52417206a88f971ea659d2879b0f293489",
+      "sha256": "c354f27e4537991793ca969c2938fa1aa594355b3a52c768c729c9576ca23fba",
       "snippets": []
     },
     "clients.app-cli": {
@@ -1683,7 +1688,7 @@
       ],
       "reviewed": "2026-08-03",
       "reviewedCommit": "c442237dedd412d1fe66a85c7a0ed463eba1e013",
-      "sha256": "9bb5883459da65583fa70e25712f523c5ba563bb2d685f00d299eb7b85353725",
+      "sha256": "56f1779d1172079c34ca92c0015e30f0f1f4b90e9a0b86b5cb79b34296fd9b20",
       "snippets": [
         {
           "lang": "js",
@@ -1753,7 +1758,7 @@
       ],
       "reviewed": "2026-08-06",
       "reviewedCommit": "4ac8387f080a2659484fc09916ff22a076dc4ca8",
-      "sha256": "81390f9fe0a0509e2ee525e4e4429b369a25e9816a08df323e4ba76b76c2651d",
+      "sha256": "0786d7bd778ca0d8790af0e1fb0f545eac708d69ee0414427447ffc8c82abba3",
       "snippets": [
         {
           "lang": "json",
@@ -2196,7 +2201,7 @@
       ],
       "reviewed": "2026-08-06",
       "reviewedCommit": "850427c31b9a668d55b46995e08389cd13a2c9b6",
-      "sha256": "c86ac817750e847d785b42d7ebde574415554cccb4f482c89273aa13521dfae5",
+      "sha256": "2647a4fc85019c42a93d7ef33c2be4a658b695ea63ec1fd8027974e369039ca8",
       "snippets": [
         {
           "lang": "json",
@@ -2269,8 +2274,47 @@
       "examples": [],
       "reviewed": "2026-08-06",
       "reviewedCommit": "2715951cf",
-      "sha256": "dc05136173893a26d138aa5b9acd5f283da49f016dc04de6b9cfd685ee994dd0",
+      "sha256": "a46c7fa2895845da05241a325cad51a7f5b3e757d9d5a60d72f5a4062ab73838",
       "snippets": []
+    },
+    "operating.data-patch": {
+      "path": "guide/operating/data-patch.md",
+      "title": "Patch one existing row safely",
+      "order": 8,
+      "status": "current",
+      "targets": [
+        "local"
+      ],
+      "maturity": "shipped",
+      "since": "0.1.10",
+      "unreleased": true,
+      "capabilities": [
+        "operating.data-patch"
+      ],
+      "authorities": [
+        "llp/0184-agent-accessible-control-plane.rfc.md",
+        "llp/0024-agent-operating-surface.spec.md",
+        "llp/0031-server-route-taxonomy.spec.md",
+        "llp/0017-admin-console-inspection-surface.rfc.md",
+        "src/data_patch.rs",
+        "src/local.rs",
+        "src/server.rs",
+        "src/cli.rs",
+        "packages/snapback-cli/mcp-control.mjs"
+      ],
+      "examples": [
+        "tests/data_patch_v1.rs",
+        "packages/snapback-cli/mcp-control.test.mjs"
+      ],
+      "reviewed": "2026-08-06",
+      "reviewedCommit": "HEAD",
+      "sha256": "30d854665c636b3d0bcfcf70284cad6330acd79279f21fa07c5f41cb1e1507d1",
+      "snippets": [
+        {
+          "lang": "json",
+          "class": "fragment"
+        }
+      ]
     },
     "operating.diagnostics": {
       "path": "guide/operating/diagnostics.md",
@@ -2364,7 +2408,7 @@
       ],
       "reviewed": "2026-08-06",
       "reviewedCommit": "acbb7b922a060788fd09f3f98211eb9ce35f23f4",
-      "sha256": "c92bdb5c0b209fcdb27f57a367aeb2cec494b760de7112e9b575e172781e6f4a",
+      "sha256": "8a65d84436d93df74ab95516da83d047bf31e65a3aacd7552dddc869727b4292",
       "snippets": [
         {
           "lang": "json",
@@ -2564,6 +2608,8 @@
         "llp/0114-first-class-react-and-query-groups.spec.md",
         "llp/0184-agent-accessible-control-plane.rfc.md",
         "src/admin.rs",
+        "src/ephemeral.rs",
+        "src/server.rs",
         "src/cli.rs",
         "packages/snapback-cli/mcp-control.mjs",
         "packages/snapback-codegen/define.mjs",
@@ -2580,7 +2626,7 @@
       ],
       "reviewed": "2026-08-06",
       "reviewedCommit": "6e158169b3c908b8be149db4487a71dc35738470",
-      "sha256": "3e98db99fb55ba959bbf914fb3b0e6cd01a253faed7203c025c620a8ee90dd7e",
+      "sha256": "c8721b8770cd8a2eb86e4d8bbc30355e02b4ab8740d14d1e52a31246d21596a1",
       "snippets": [
         {
           "lang": "tsx",
@@ -2922,7 +2968,7 @@
       "examples": [],
       "reviewed": "2026-08-03",
       "reviewedCommit": "7b467cf16",
-      "sha256": "3857351d4523bfaa99b6a30df1643af3b5b552176887f2313eec550fc095278d",
+      "sha256": "444d167fabd203a62ba81f92d19cd674dce3cd50769d33576278d37f366dccd9",
       "snippets": []
     },
     "sync.offline-and-retention": {
@@ -2973,11 +3019,12 @@
         "demos/public-dashboard",
         "demos/warble",
         "packages/snapback-contract/agent-authority-contract.test.mjs",
-        "packages/snapback-react/offline.test.mjs"
+        "packages/snapback-react/offline.test.mjs",
+        "tests/acceptance/desktop-sidecar-v1.mjs"
       ],
       "reviewed": "2026-08-06",
       "reviewedCommit": "711e4d763d87cadf0c638bd15ed33a85427e4f11",
-      "sha256": "fde971949340552da32f8e05c9a0628c1b999f33f59748ce740994cc738a5287",
+      "sha256": "5367f35a6f8f2067bfe02e76ce91e2116ec3a53aa4faeef53d46cd44e9b4d154",
       "snippets": [
         {
           "lang": "js",
@@ -3183,6 +3230,7 @@
       "deploy.target-control",
       "operating.admin-console",
       "operating.agent-controls",
+      "operating.data-patch",
       "operating.diagnostics",
       "operating.guide-mcp",
       "operating.host-ops",
@@ -3218,8 +3266,8 @@
     ]
   },
   "surfaces": {
-    "routes": 121,
-    "hostOps": 38
+    "routes": 122,
+    "hostOps": 43
   },
-  "contentHash": "f7c56a74a49da86a098f17c7da14b22cd854ff8c270af5ab0bec7ed8807e3fd5"
+  "contentHash": "a52724b231d3e0bdcf3d68e17bf984c0cafba4575c5a1f06df36333424a2bf3b"
 }
