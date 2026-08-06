@@ -1443,3 +1443,22 @@ sequence allocation reproduced unchanged at
 `79498ab71bfec20bb983ca006a7ab48cfcea3529b7f7b2890364c7d4240f16b9`.
 All three conformance gates, capability maturity, and agent-safe publication
 pass without a capability expansion or actively owned correctness edit.
+
+The final cutoff then merged main through `4b66ac60d`. Its S1 codegen budget
+work (`c7aa4eae5`, `6d6fe7d04`) and intentional activation rebind
+`4d38a23df` invalidated the three retained application receipts plus the
+codegen digest conservatively pinned by the store carrier. The producers were
+run again in dependency order, with the coded bootstrap between source-bound
+commits. Triage passed 8/8 over 250,000 events (receipt SHA-256
+`2da5e1ba2ff6e86233f555f0872a397ef3d90f87a23a8766d28ebb7daddd70ef`;
+budget SHA-256
+`f41d5ac3b33cde091e62bb154344bd560a1d3e44bbdd83f585e571f1bc4111d7`).
+The browser-backed store producer then passed 16 PASS / 1 declared Fleet GAP /
+0 SKIPPED from clean source `b98cdf3b6`, with receipt SHA-256
+`7fc9e3c21d37674c55fc02f5261a82afc6770a13aff30e671eed0f4f09904596`.
+The final store carrier is
+`a092efdcbe0efe1fd344f45a1694ef6416b08c2897c857e335d849321e7bba5a`;
+the relation/activity and sequence carriers reproduce unchanged at
+`9a6d06dd6ecfc6403314542c0574328326e5c606ce8cde2c10f28e3e04a60b8b`
+and
+`79498ab71bfec20bb983ca006a7ab48cfcea3529b7f7b2890364c7d4240f16b9`.
