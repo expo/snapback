@@ -411,6 +411,14 @@ const OPERATION_IDENTITY_CARRIER_ROLLOVER_PROFILE_IDS = Object.freeze([
   'public-subpath-rqs-store-expo',
   'public-subpath-rqs-store-file',
 ]);
+const OPERATION_LIFECYCLE_REVIEW_TAIL_ROLLOVER_PROFILE_IDS = Object.freeze([
+  'external-react-application',
+  'public-subpath-outbox-shared',
+  'public-subpath-rqs-store',
+  'public-subpath-rqs-store-default',
+  'public-subpath-rqs-store-expo',
+  'public-subpath-rqs-store-file',
+]);
 const ROLLOVER_LEDGER_SPECS = Object.freeze([
   Object.freeze({
     filename: 'baseline.local-persistent-store.v1.json',
@@ -725,6 +733,44 @@ const ROLLOVER_LEDGER_SPECS = Object.freeze([
     behaviorCommands: Object.freeze([
       ['node', ['packages/snapback-client/package.test.mjs']],
       ['node', ['packages/snapback-client/browser-closure.test.mjs']],
+      ['node', ['packages/snapback-client/outbox-store.test.mjs']],
+      ['node', ['packages/snapback-client/rqs-store-file.test.mjs']],
+    ]),
+  }),
+  Object.freeze({
+    filename: 'baseline.operation-lifecycle-review-tail.v1.json',
+    profileFilename: 'operation-lifecycle-review-tail-profiles.v1.json',
+    workloadVersion: 'llp-0163-operation-lifecycle-review-tail.v1',
+    profileIds: OPERATION_LIFECYCLE_REVIEW_TAIL_ROLLOVER_PROFILE_IDS,
+    predecessors: Object.freeze([
+      Object.freeze({
+        filename: 'baseline.operation-identity-carrier.v1.json',
+        profileIds: Object.freeze([
+          'public-subpath-outbox-shared',
+          'public-subpath-rqs-store',
+          'public-subpath-rqs-store-default',
+          'public-subpath-rqs-store-expo',
+          'public-subpath-rqs-store-file',
+        ]),
+      }),
+      Object.freeze({
+        filename: 'baseline.move3-single-table-lifecycle.v1.json',
+        profileIds: Object.freeze(['external-react-application']),
+      }),
+    ]),
+    authorities: Object.freeze([
+      'LLP 0063#workstream-8--performance-and-packaging-budgets',
+      'LLP 0145#phase-a--establish-a-size-ratchet',
+      'LLP 0163#implementation-record--2026-08-06-c33-dual-ready-landing-chain',
+    ]),
+    rationale: Object.freeze({
+      date: '2026-08-06',
+      summary: 'The reviewed Track B landing adds the closed result-gone count to the React outbox projection and adds comparison-complete lifecycle, suppression, and range validation to shared outbox custody and every persistent-store arm. This prospective tail advances only the six closures changed after the initial operation-identity carrier receipt; both predecessor receipts remain immutable.',
+    }),
+    beforeAfterProfileIds: OPERATION_LIFECYCLE_REVIEW_TAIL_ROLLOVER_PROFILE_IDS,
+    behaviorCommands: Object.freeze([
+      ['node', ['packages/snapback-client/package.test.mjs']],
+      ['node', ['packages/snapback-react/package.test.mjs']],
       ['node', ['packages/snapback-client/outbox-store.test.mjs']],
       ['node', ['packages/snapback-client/rqs-store-file.test.mjs']],
     ]),
