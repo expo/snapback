@@ -92,12 +92,16 @@ bundles may diverge.
 
 ## Motivation
 
-The local substrate is implemented but still requires an expert to find and
-operate it. The capability index labels it a GAP; there is no operating guide;
-the acceptance harness cannot fork a prepared parent in place of repeated
-seeding; and the first fleet consumer had to learn the workflow from LLP 0158
-and CLI help. This leaves completed safety work underused and makes agents
-recreate lifecycle conventions independently.
+At this Plan's 2026-08-05 starting point the local substrate was implemented
+but still required an expert to find and operate it: the capability index
+labeled it a GAP with no operating guide, the acceptance harness could not
+fork a prepared parent in place of repeated seeding, and the first fleet
+consumer had to learn the workflow from LLP 0158 and CLI help. (Resolved
+during execution: `guide/operating/instance-forks.md` and the fork-aware
+harness landed with Phases 1-2a; the capability-index row remains a GAP row
+until Phase 6 publication.) The underlying motivation stands: unpublished
+safety work is underused work, and agents recreate lifecycle conventions
+independently until the workflow is paved and published.
 
 There is also an evidence gap between “safe enough for first dogfood” and
 “honest published capability.” The remaining agent-safe-storage corpus calls
@@ -173,8 +177,12 @@ The following constraints apply to every phase:
   not a merge plan.
 - Local runtime quarantine does not claim containment of arbitrary native
   processes. Process containment requires an OS or hosted isolation boundary.
-- Asset-bearing sources continue to refuse until a selected asset custody
-  implementation has a same-cut proof.
+- Asset custody must be same-cut-proven before an asset-bearing source may
+  fork. (Satisfied 2026-08-05/06: fork-private digest-verified same-cut blob
+  copy with torn-cut refusal landed, and the live in-fork
+  upload/serve/delete/GC/reap lifecycle is proven at live-server level;
+  refusal now applies only to non-local-fs stores and unclassified digest
+  algorithms, which stay fail-closed.)
 - Publication state is target-specific. Local proof cannot imply hosted proof.
 
 ## Current baseline
@@ -192,13 +200,21 @@ The Plan begins from the following implemented LLP 0158 F0a/F0b baseline:
 - durable, bounded, payload-free `DenyAll` egress-attempt markers;
 - crash-safe publication: the staged-cut/quarantine protocol fails closed and
   refuses to boot on any incomplete cut. Local-evidence recovery
-  (`instance_fork::recover`) exists and is unit-tested, but is **not yet
-  wired to any CLI verb or host operation** — today a quarantined fork can
-  only be inspected and re-created, not repaired, by a product-facing
-  surface;
+  (`instance_fork::recover`) exists and is unit-tested (execution note: it is
+  now wired product-facing as `fork recover` — `ForkCommand::Recover` in
+  `src/cli.rs` — per Phase 1);
 - a ready descriptor and app-row-only diff receipt;
 - registry-bound exact drop and injected-clock reaping; and
 - dated fleet evidence for two simultaneous function-divergent worktrees.
+
+Execution has since extended that baseline with dated evidence on main:
+`fork renew` with a shared creation/renewal maximum-lifetime cap, automatic
+expiry enforcement in two independent places, resource-limit admission
+(fork-count, per-fork bytes, total bytes, diff work) refusing with
+`SNAPBACK_FORK_RESOURCE_LIMIT_REFUSED`, per-fork cleanup locking, the opt-in
+`--retain-base` retained-base substrate, and the exact net diff (v2 receipt,
+LLP 0165 authorizer-backed app-row completeness class where the whole write
+window is provably armed; see Phase 4).
 
 This baseline is source-level implementation evidence, not a published
 capability. LLP 0158 is Accepted, while the independently qualified derived-
@@ -251,18 +267,21 @@ is decided and owner-confirmed rather than assumed.
 
 Make the existing capability usable without reading implementation source.
 
-1. Add automatic expiry enforcement so the finite-TTL constraint is
+1. *(Implemented — automatic expiry lands in two independent places:
+   create-path reap/refuse and the boot/periodic sweep;
+   `SNAPBACK_FORK_EXPIRED_REAP_FAILED` / `SNAPBACK_FORK_SERVER_EXPIRED`.)*
+   Add automatic expiry enforcement so the finite-TTL constraint is
    self-enforcing rather than metadata a human or script must remember to
    sweep: `fork create` reaps or refuses against already-expired managed
    forks first, and a boot-time/periodic sweep reaps expired forks without
    requiring an external `--now-ms` invocation. This item gates Phase 2b and
    Phase 7 — neither may create forks on a path that still depends on someone
    remembering to run `snapback fork reap`.
-2. Wire the tested local-evidence recovery primitive
-   (`instance_fork::recover`) to an invocable surface (a `snapback fork
-   recover` verb, or an equivalent host operation) so a quarantined fork can
-   actually be repaired, not just inspected and re-created. Today the
-   function is unit-tested but has no product caller.
+2. *(Implemented — `ForkCommand::Recover` in `src/cli.rs`.)* Wire the tested
+   local-evidence recovery primitive (`instance_fork::recover`) to an
+   invocable surface (a `snapback fork recover` verb, or an equivalent host
+   operation) so a quarantined fork can actually be repaired, not just
+   inspected and re-created.
 3. Add `guide/operating/instance-forks.md` with:
    - a complete fork-per-worktree example;
    - source selection for cold databases and live ready descriptors;
@@ -323,7 +342,9 @@ single-fork and single-owner, repeatedly; the guide-gap ticket closes.
 
 ### Phase 2b — Integrate worktree, parallel-suite, and fork-per-agent workflows
 
-Gated on Phase 3. Multi-fork, multi-owner, and concurrent use are exactly
+Gated on Phase 3 (gate discharged — both phases are executed with dated
+evidence; the ordering constraint is retained here as the record of why 2b
+waited). Multi-fork, multi-owner, and concurrent use are exactly
 where the missing isolation, credential, cleanup-race, port-contention, and
 resource-limit evidence would bite, so this slice only starts once Phase 3
 has delivered it — it does not run on the strength of Phase 2a's
@@ -372,11 +393,15 @@ Close the most important remaining safety gaps before publication.
    cleanup, process-exit boundaries, dead servers, stale registries, missing
    ready files, partial cleanup, port allocation/collision across
    simultaneously running forks, and expiry boundaries.
-6. Add bounded TTL renewal. Renewal requires exact fork identity and registry
-   binding, has a configured maximum, and emits a receipt; it never clears the
-   expiry.
-7. Add fork-count, total-byte, per-fork-byte, and diff-work limits with
-   deterministic refusal and inspection.
+6. *(Implemented — `fork renew` + `ForkRenewReceiptV1`, 7-cut crash matrix,
+   creation shares `MANAGED_FORK_MAX_LIFETIME_MS` per the 2026-08-05 author
+   ruling.)* Add bounded TTL renewal. Renewal requires exact fork identity
+   and registry binding, has a configured maximum, and emits a receipt; it
+   never clears the expiry.
+7. *(Implemented — deterministic `SNAPBACK_FORK_RESOURCE_LIMIT_REFUSED`
+   refusals with observed usage; limit constants author-ratified
+   2026-08-05.)* Add fork-count, total-byte, per-fork-byte, and diff-work
+   limits with deterministic refusal and inspection.
 8. Add disk-pressure and resource-exhaustion tests, including interrupted
    copy, oversized parents, excessive fork counts, and retained-history
    exhaustion.
@@ -391,9 +416,23 @@ capability claim depends solely on unit tests of happy paths.
 ### Phase 4 — Make diffs exact and reviewable
 
 The diff must become trustworthy evidence rather than merely convenient
-output. Today's receipt is an attributed post-image sequence, not an exact
-net base-to-head diff — closing that gap requires adopting choices LLP 0164
-and LLP 0165 own, not inventing a competing base or completeness definition.
+output. At this Plan's start the receipt was an attributed post-image
+sequence only; execution closed that gap in two dated slices under the owning
+Specs (never inventing a competing base or completeness definition): the
+2026-08-05 retained-base slice (`--retain-base`, digest-bound
+`snapback.fork-base.v1`, oracle-verified net diff) and the 2026-08-06
+completeness upgrade — v3 receipts with separate writer-coverage and
+`attribution: "absent-v1"` facts, stream-qualified `(base, head]` boundaries
+and canonical domain-separated digests, and the completeness class
+`registered-connection-defensive-app-rows-v1`, claimed only when the fork's
+whole write window is provably armed through LLP 0165's
+generated-writer/SQLite-authorizer choke point on registered connections
+under SQLite defensive mode, with unarmed, late-armed, partial-layout, and
+retention-gap forks failing closed to `journal-enumerated-v1`. The class
+name states its own boundary: it is an in-process, registered-connection
+claim, not OS containment — a same-user external process with raw
+filesystem access remains detectable but not preventable, as LLP 0165
+records.
 
 0. Adopt LLP 0164's chosen diff substrate (the immutable retained base or
    first-write preimage policy an exact net diff needs) and LLP 0165's
@@ -441,13 +480,22 @@ content-addressed asset store is Phase 8/hosted scope, gated on an LLP
 
 1. Measure asset-bearing parent size and copy behavior on supported local
    filesystems.
-2. Implement a same-cut fork-private asset-tree copy. Shared or mutable
-   custody, content-addressed or not, is out of scope for this phase; keep
-   refusing asset-bearing sources until the private-copy path is proven.
+2. *(Implemented 2026-08-05 — the private-copy path is proven, so the
+   refusal now applies only to non-local-fs stores and unclassified digest
+   algorithms.)* Implement a same-cut fork-private asset-tree copy. Shared
+   or mutable custody, content-addressed or not, is out of scope for this
+   phase.
 3. Bind asset metadata, blob cut, signing authority, and lifecycle generation
    to the same consistent fork operation.
-4. Prove parent-signed URL refusal, fork-local URL validity, new fork uploads,
-   deletion, garbage collection, parent cleanup, and fork reaping.
+4. *(Implemented 2026-08-06 — the live-server lifecycle test
+   `live_fork_asset_lifecycle_is_private_gc_safe_and_exactly_reaped` proves
+   upload through the production attempt/TUS/finalize path, fork-local
+   signing and serving, cross-instance delete/GC independence in both
+   directions, and asset-bearing exact drop plus deterministic reap; the
+   same slice fixed settled-Sessions fork boot to read the capability-aware
+   schema through an owner-only cold-start carrier.)* Prove parent-signed
+   URL refusal, fork-local URL validity, new fork uploads, deletion, garbage
+   collection, parent cleanup, and fork reaping.
 5. Inspect and estimate asset-copy cost before creation; refuse predictably
    when quotas or platform capabilities cannot satisfy fork-private copying.
 6. Extend diff/status receipts, using Phase 4 item 4's structured omission

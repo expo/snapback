@@ -287,3 +287,221 @@ spellings, scope §Diff clauses per fork class — clears the NOT READY) and
 0163/0165 (v1→v2 mention; external-bypass precision sentence). No code
 change is required for these verdicts; the authorizer hardening items can be
 tracked as an `issues/` ticket.
+
+---
+
+## Round 2 — 2026-08-06, commit 96fd0ad1c
+
+**Family:** fable
+**Provider/runtime:** Anthropic / Claude (Fable 5), Claude Code agent session
+**Date:** 2026-08-06
+**Redacted:** no
+**Method:** fresh clean-context session; read-only worktree pinned at
+`96fd0ad1c` (`fix(forks): close derived-fork review blockers`). This is a
+declared **delta round**: I read both families' round-1 artifacts under
+`llp/reviews/`, and remained blind to the other family's round-2 work. I read
+the full fix diff (`git show 96fd0ad1c`) and then the resulting code and tests
+directly: `src/storage/write_authority.rs`, `src/storage.rs`,
+`src/instance_fork.rs`, `src/cli.rs`, `src/server.rs`, `src/proof_checkpoint.rs`,
+`src/fork_promotion.rs`, `src/operation_ledger.rs`, and
+`tests/instance_fork_cli_v1.rs`, against LLP 0158/0163/0164/0165 and the guide
+page. Tests were read for non-vacuity, not executed (`vendor/ibex`
+uninitialized; no `target/`). Every cite is file:line at this commit.
+
+### Disposition of the round-1 blockers (fork-relevant surface)
+
+**Blocker 2 — authorizer bypasses below the DML/DDL surface: CLOSED, and the
+class name honestly narrowed.** The authorizer is now allow-list shaped: an
+explicit `Allow` arm for `Read`/`Select`/`Function`/`Transaction`/`Savepoint`/
+`Recursive` and a terminal `_ => Deny`
+(`src/storage/write_authority.rs:803-809`), so a future `AuthAction` variant
+fails closed. Each named round-1 escape is closed:
+
+- `PRAGMA writable_schema` and every non-allow-listed pragma deny
+  (`write_authority.rs:763-802`), and `SQLITE_DBCONFIG_DEFENSIVE` is set **and
+  read back** on every armed writable connection before the manifest becomes
+  visible (`write_authority.rs:349-351, 396-399, 813-821`) — so the
+  schema-alias route is blocked twice.
+- `sqlite_schema`/`sqlite_master`/temp-schema-alias DML has its own arm
+  (`write_authority.rs:700-710`); `ATTACH`/`DETACH`, all eight `*Temp*` DDL
+  variants, `CreateVtable`/`DropVtable`, `Reindex`, `Analyze`, and `Unknown`
+  deny unconditionally (`:748-762`); `AlterTable` joined the token-gated DDL
+  arm (`:741`).
+- Matching-journal forgery is closed: `_snapback_changes` and
+  `_snapback_version` are now their own protected class requiring an
+  app-write token (`write_authority.rs:664-667, 711-721`), and
+  `permits_app_write` no longer accepts *any* live token — only the four
+  envelope-mapped adapters plus always-rolled-back `DryRun`
+  (`:176-189, 306-311`). Uncovered non-system tables (including tables created
+  before arming) now deny while armed (`:722-732`).
+- Second connections are now constructed through one factory that
+  reconstructs the durable manifest, verifies defensive mode, installs the
+  same policy, and holds a system-only lane token
+  (`src/storage.rs:10709-10769`); the vector quarantine writer was converted
+  (`:10825-10840`), as were the fork lifecycle and egress-marker writers
+  (`src/instance_fork.rs:3024-3027`, `:2013-2016`).
+
+The tests are adversarial, not happy-path:
+`llp0165_armed_connection_is_defensive_default_deny_and_schema_alias_safe`
+(`src/storage.rs:27256-27371`) exercises writable_schema, both schema aliases
+with a positive "name is still `items`" assertion, ATTACH, DETACH, three temp
+DDL shapes, ordinary DDL, covered-table rename, a pre-arm unknown table,
+savepoint-wrapped raw DML, and both journal/version forgeries, each asserting
+SQLite's `AuthorizationForStatementDenied`;
+`llp0165_registered_second_writer_uses_connection_local_defensive_authority`
+(`src/storage.rs:27373-27461`) proves the second connection admits its system lane, denies
+app and journal DML, and — the sharp case — that holding a *primary* ordinary
+token does not leak authority to it.
+
+Attacks I constructed that still succeed are all outside the boundary the
+Spec now states explicitly (`llp/0165-…spec.md:405-417`): `sqlite3_blob_write`
+never reaches the authorizer (no prepare); in-process code can call
+`conn.authorizer(None)` or `set_db_config(DEFENSIVE,false)`; raw file/WAL
+writes are cross-process. 0165 names exactly these and says no receipt may be
+called tamper-proof against them. Two residues *inside* the boundary are
+noted as new findings N3 and N4 below; neither reaches an application row.
+
+**Blocker 3 — receipt identity and the "attributed" misnomer: CLOSED.** Both
+surfaces are now v3 with `(base, head]` stream-qualified boundaries
+(`src/instance_fork.rs:904-931, 994-1014`; boundaries derived and
+stream-rotation-refused at `:3273-3312`), `attribution: "absent-v1"` on both
+(`src/instance_fork.rs:3451`, `:3988`), and a JCS-canonical, domain-separated SHA-256 over every
+emitted fact with `receiptDigest` excluded from its own preimage
+(`:1124-1159`). The naming is repaired end to end: the journal surface is
+`snapback.fork-journal-diff.v3`, the CLI summary field became
+`journalRowCount` (`src/cli.rs:3819`), and the `--net` help and guide no
+longer say "attributed" (`src/cli.rs:1720-1729`;
+`guide/operating/instance-forks.md` "Read the diff at its real boundary").
+`diff_receipt_v3_digests_are_domain_separated_canonical_and_bind_every_fact`
+(`src/instance_fork.rs:6738-6846`) pins two golden digests, asserts the two
+domains cannot collide, and tampers **every** top-level field of both
+receipts asserting the digest moves — non-vacuous.
+
+**Blocker 4 (net-diff half) — unbounded work: CLOSED.** Journal rows, base
+and head scan rows, and cumulative bytes are metered per row *during*
+streaming before any map grows (`src/instance_fork.rs:3573-3643, 3747-3752,
+3829-3844`), with WAL bytes seeded from bounded raw-WAL validation
+(`:3715`), and a separate output-row bound after folding (`:3884-3897`). The
+corpus proves refusal on unchanged, revert-heavy, and byte-heavy inputs and
+asserts the reported `limitKind`/`scannedRows` (`:6978-7090`).
+
+### Per-document verdicts (fork-relevant surface)
+
+#### LLP 0163 — **READY** (unchanged from round 1; my Low is fixed)
+
+The round-1 stale-version citation is repaired and correctly widened: the
+scope correction now names both v3 receipts and keeps the LLP 0185 Phase 4
+item 8 deferral (`llp/0163-…spec.md:998-1006`). Non-involvement remains
+structurally enforced — fork lanes cannot satisfy the storage-wide predicate
+(`src/storage.rs:2489-2515`), a fork mutation presenting 0163 issuance still
+refuses before its first write (`:20461-20471`).
+
+#### LLP 0164 — **READY** (round-1 NOT READY driver cleared)
+
+The dated receipt-evolution record now matches reality at this commit:
+`snapback.fork-net-diff.v3`, stream-qualified boundaries, the canonical
+digest, and `registered-connection-defensive-app-rows-v1`
+(`llp/0164-…spec.md:8, 495-512`). I checked the one *new* claim it makes — that
+the in-app branch's `ForkDiffReceiptV1` is "genuinely attributed" — and it is
+true: that receipt carries `AttributedChangeV1 { operation_identity,
+principal_id, write_ordinal, … }` (`src/fork_promotion.rs:2682-2721`), unlike
+the derived surface. The naming-hazard note was replaced correctly (the two
+Rust types no longer share a name).
+
+*Residual (Low, unchanged from round 1, non-blocking):* 0164 still never says
+which of its §Diff clauses bind the derived class versus the in-app branch
+class. Fold one sentence into the next dated revision.
+
+#### LLP 0165 — **READY** (fork-relevant surface)
+
+I re-verified the revised text clause by clause and found no overclaim. The
+spelling rename to `registered-connection-defensive-app-rows-v1` is exactly
+what the code computes (`src/instance_fork.rs:3958-3964`), and it still
+requires *both* a verified coverage receipt and `journal-cross-check-verified`.
+The new boundary paragraph (`llp/0165-…spec.md:405-417`) is the strongest
+piece of honest labeling in this slice: it names page-level unauthenticity and
+the coordinated app-row/version/journal forgery as *outside* the class rather
+than implying prevention. My round-1 Medium ("the evidence sentence reads
+stronger than the normative spelling") is resolved by that paragraph plus the
+narrowed evidence sentence (`:76-92`); my round-1 Low (PRAGMA/sqlite_master/
+ATTACH/TEMP hardening) is implemented.
+
+*Concern (Low — internal asymmetry, defense-in-depth only):*
+`permits_schema_catalog_write` admits `sqlite_schema` DML whenever
+`internal_schema_maintenance` is held, for **any** target
+(`src/storage/write_authority.rs:321-327`), whereas the DDL arm restricts
+internal maintenance to `_snapback_`-owned targets
+(`:313-319, 823-836`). Only verified defensive mode stops a covered-table
+rename during an internal-maintenance window today. *Resolves:* pass
+`internal_schema_target` into the catalog-write predicate too.
+
+*Concern (Low — 0165's own digest is the odd one out):*
+`fork_app_row_coverage_digest` still uses non-canonical `serde_json::to_vec`
+(`src/instance_fork.rs:1074-1101`) while its two new neighbours use
+`crate::rqs::jcs` (`:1104-1152`). It round-trips today; pinning JCS removes a
+future map-ordering hazard and makes the three digests one story.
+
+### New findings in the fix slice (severity · cite · resolution)
+
+The two High findings are implementation regressions, not Spec defects — they
+do not falsify 0163/0164/0165's text. They are recorded in full in the
+companion Scope-2 artifact
+(`llp/reviews/0158-instance-forking.implementation-2026-08-06.fable.md`,
+Round 2, findings N1 and N2) and summarized here because they change the
+Scope-2 verdict, not these three:
+
+1. **High — `fork renew` fails and wedges an armed fork.** `apply_renewal`
+   opens a registered writer on the live fork database and then runs
+   `PRAGMA wal_checkpoint(FULL)` (`src/instance_fork.rs:3024-3032`,
+   `:1351-1357`), which the new deny-by-default pragma arm refuses
+   (`src/storage/write_authority.rs:763-802`) — after the lineage `UPDATE`
+   has autocommitted.
+2. **Medium — journal retention pruning is denied on every armed fork.**
+   `prune_change_journal` deletes from `_snapback_changes` with no writer
+   token (`src/storage.rs:3213, 3272-3275`), which the new integrity-table
+   arm now refuses (`write_authority.rs:711-721`).
+
+Two documentation-side findings do belong here:
+
+3. **Low — the guide overstates the journal receipt's bounds.** It now says
+   "Both surfaces are work-bounded: journal rows, net base/head scanned rows,
+   WAL validation bytes, and streamed bytes are checked during streaming"
+   (`guide/operating/instance-forks.md`, "Read the diff at its real
+   boundary"). For `--net` that is exact. For the default journal receipt,
+   `diff_receipt_bounded` checks a `COUNT(*)` *before* materializing and has
+   no byte budget at all (`src/instance_fork.rs:3374-3431`), so 100k rows of
+   arbitrarily large `row_json` still materialize. *Resolves:* either meter
+   bytes on that path too, or say the journal surface is row-count-bounded
+   pre-materialization.
+4. **Low — the receipt digest ships without a way to check it.** Nothing
+   reads a `receiptDigest` back, no CLI verb recomputes one, and neither 0164
+   nor the guide states the preimage recipe (domain string, drop
+   `receiptDigest`, JCS). A reviewer binding approval per LLP 0185 Phase 4
+   currently has to read Rust to reproduce it. *Resolves:* publish the recipe
+   in the guide, or add `fork diff --verify FILE`.
+
+### Suggestions (non-blocking)
+
+- The retention-gap `coverageWindow` spelling suggestion from round 1 is now
+  effectively moot in production because of finding N2 (an armed fork can no
+  longer prune, so it cannot reach a retention gap). Fix N2 first, then
+  revisit.
+- The registered-writer factory is a convention enforced by review, not by
+  the type system: `Connection::open` remains callable. A
+  `#[deny]`-style lint, a wrapper module boundary, or at minimum a test that
+  greps for writable opens outside the factory would make 0165's
+  "every additional process-owned writable connection joins the same
+  authority seam" (`llp/0165-…spec.md:76-82`) executable rather than
+  aspirational.
+
+### Recommended next step
+
+Accept LLP 0163, 0164, and 0165 for this fork-relevant publication surface —
+the three specs now describe the landed code accurately, and the boundary
+paragraph in 0165 is the honest one. Hold the *publication* on the two
+implementation regressions in the companion artifact; they are ordinary bugs
+with small fixes (allow the non-mutating maintenance pragmas on armed
+connections or checkpoint before installing the authorizer; give the journal
+prune a system-lane token) plus the two tests that would have caught them: a
+renew of an armed complete-pair fork, and one maintenance sweep against an
+armed fork.
