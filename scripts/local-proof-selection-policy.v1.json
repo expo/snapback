@@ -471,19 +471,20 @@
     "packaging": {
       "lane": "affected",
       "gates": [
-        "runtime-package-authority-fixtures",
-        "package-cold-install-fixtures",
-        "local-source-package-closure",
-        "promotion-fixtures",
-        "github-latest-proof-fixtures",
-        "package-export-types",
         "current-binary-build",
         "current-binary-readiness",
+        "github-latest-proof-fixtures",
+        "local-source-package-closure",
+        "package-cold-install-fixtures",
+        "package-export-types",
+        "package-readme-funnel",
+        "promotion-fixtures",
+        "runtime-package-authority-fixtures",
         "runtime-package-stage",
-        "snapback-cli-real-server",
-        "snapback-vite-real-server",
         "snapback-app-cli-package",
-        "snapback-contract-package"
+        "snapback-cli-real-server",
+        "snapback-contract-package",
+        "snapback-vite-real-server"
       ]
     },
     "demos": {
