@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "8f0dada1b17531aa82cfe8b5c68616d1c390baaf"
+    "commit": "41f47b0887e20a8e786ea936864f58596dd574b6"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -1485,7 +1485,7 @@
       "examples": [],
       "reviewed": "2026-08-06",
       "reviewedCommit": "850427c31b9a668d55b46995e08389cd13a2c9b6",
-      "sha256": "2e19804e7ad3ac2bd585220e101de8298459264345bc218354d00615b2180e4e",
+      "sha256": "c230330794b08bf43cb57fce95fee97c8c305aa7aa09907f08f7bf33856d1b33",
       "snippets": []
     },
     "clients.app-cli": {
@@ -2940,9 +2940,9 @@
         "packages/snapback-contract/agent-authority-contract.test.mjs",
         "packages/snapback-react/offline.test.mjs"
       ],
-      "reviewed": "2026-08-05",
-      "reviewedCommit": "HEAD",
-      "sha256": "8fe5f0ae2b8af693d44cd055129a6514060e60661d801373a7387bfad08502be",
+      "reviewed": "2026-08-06",
+      "reviewedCommit": "711e4d763d87cadf0c638bd15ed33a85427e4f11",
+      "sha256": "fde971949340552da32f8e05c9a0628c1b999f33f59748ce740994cc738a5287",
       "snippets": [
         {
           "lang": "js",
@@ -3185,5 +3185,5 @@
     "routes": 117,
     "hostOps": 37
   },
-  "contentHash": "eb3d3dd45a322b63ddc42400211832df1bbeae2a9cda946c3fa25bb06ff537f5"
+  "contentHash": "e7f73abea6c6eb8eb63880ed4828c76f668a06de3ef0aa95826f921e5d8f5e4f"
 }
