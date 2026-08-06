@@ -90,7 +90,7 @@ jobs:
           {
             echo '## Rolling telemetry evidence candidate'
             echo
-            echo 'This run proves its exact source revision even if `main` advanced while it ran.'
+            echo 'This run proves its exact source revision even if main advanced while it ran.'
             echo 'The candidate may be retained later as historical evidence; release and capability promotion still require an exact-current candidate.'
             echo
             echo '```json'
