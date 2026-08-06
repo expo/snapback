@@ -1,0 +1,27 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/rematch/toggleReaction.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "conversationId": {
+      "type": "string"
+    },
+    "emoji": {
+      "type": "string"
+    },
+    "handle": {
+      "type": "string"
+    },
+    "messageId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "messageId",
+    "conversationId",
+    "handle",
+    "emoji"
+  ],
+  "title": "rematch:toggleReaction arguments",
+  "type": "object"
+}
