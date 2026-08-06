@@ -90,7 +90,8 @@ fn parent_with_schema(directory: &Path, ballast_mb: u64) -> PathBuf {
             )
             .unwrap();
         }
-        conn.execute_batch("PRAGMA wal_checkpoint(TRUNCATE);").unwrap();
+        conn.execute_batch("PRAGMA wal_checkpoint(TRUNCATE);")
+            .unwrap();
     }
     source
 }
@@ -100,12 +101,7 @@ struct Lifecycle {
     drop_ms: Vec<f64>,
 }
 
-fn create_drop_cycle(
-    source: &Path,
-    app_root: &Path,
-    fork_root: &Path,
-    rounds: usize,
-) -> Lifecycle {
+fn create_drop_cycle(source: &Path, app_root: &Path, fork_root: &Path, rounds: usize) -> Lifecycle {
     let mut lifecycle = Lifecycle {
         create_ms: Vec::new(),
         drop_ms: Vec::new(),
@@ -236,8 +232,7 @@ fn fork_lifecycle_row13_bench() {
     .expect("publish net fixture");
     for destination in ["fork-attributed", "fork-net"] {
         let conn =
-            rusqlite::Connection::open(diff_root.join(destination).join("parent.sqlite3"))
-                .unwrap();
+            rusqlite::Connection::open(diff_root.join(destination).join("parent.sqlite3")).unwrap();
         conn.execute_batch(
             "UPDATE _snapback_version SET version=1 WHERE id=1;
              CREATE TABLE IF NOT EXISTS bench_rows(_id TEXT PRIMARY KEY, n INTEGER);",
@@ -431,16 +426,56 @@ fn fork_lifecycle_row13_bench() {
     // failure is inspectable rather than silent.
     let median = |value: &Value| value["medianMs"].as_f64().unwrap();
     let checks = [
-        ("createColdSmallParent", median(&receipt["measurements"]["createColdSmallParent"]), BOUND_CREATE_SMALL_MS),
-        ("createColdLargeParent32MiB", median(&receipt["measurements"]["createColdLargeParent32MiB"]), BOUND_CREATE_LARGE_32MIB_MS),
-        ("createLiveParent", median(&receipt["measurements"]["createLiveParent"]), BOUND_CREATE_LIVE_MS),
-        ("dropSmall", median(&receipt["measurements"]["dropSmall"]), BOUND_DROP_MS),
-        ("dropLarge", median(&receipt["measurements"]["dropLarge"]), BOUND_DROP_MS),
-        ("dropLive", median(&receipt["measurements"]["dropLive"]), BOUND_DROP_MS),
-        ("attributedDiff10kRows", median(&receipt["measurements"]["attributedDiff10kRows"]), BOUND_ATTRIBUTED_DIFF_10K_MS),
-        ("netDiff10kRows", median(&receipt["measurements"]["netDiff10kRows"]), BOUND_NET_DIFF_10K_MS),
-        ("reapThreeExpiredForks", median(&receipt["measurements"]["reapThreeExpiredForks"]), BOUND_REAP_SWEEP_MS),
-        ("concurrentCreate3Wall", concurrent_wall_ms, 3.0 * BOUND_CREATE_SMALL_MS),
+        (
+            "createColdSmallParent",
+            median(&receipt["measurements"]["createColdSmallParent"]),
+            BOUND_CREATE_SMALL_MS,
+        ),
+        (
+            "createColdLargeParent32MiB",
+            median(&receipt["measurements"]["createColdLargeParent32MiB"]),
+            BOUND_CREATE_LARGE_32MIB_MS,
+        ),
+        (
+            "createLiveParent",
+            median(&receipt["measurements"]["createLiveParent"]),
+            BOUND_CREATE_LIVE_MS,
+        ),
+        (
+            "dropSmall",
+            median(&receipt["measurements"]["dropSmall"]),
+            BOUND_DROP_MS,
+        ),
+        (
+            "dropLarge",
+            median(&receipt["measurements"]["dropLarge"]),
+            BOUND_DROP_MS,
+        ),
+        (
+            "dropLive",
+            median(&receipt["measurements"]["dropLive"]),
+            BOUND_DROP_MS,
+        ),
+        (
+            "attributedDiff10kRows",
+            median(&receipt["measurements"]["attributedDiff10kRows"]),
+            BOUND_ATTRIBUTED_DIFF_10K_MS,
+        ),
+        (
+            "netDiff10kRows",
+            median(&receipt["measurements"]["netDiff10kRows"]),
+            BOUND_NET_DIFF_10K_MS,
+        ),
+        (
+            "reapThreeExpiredForks",
+            median(&receipt["measurements"]["reapThreeExpiredForks"]),
+            BOUND_REAP_SWEEP_MS,
+        ),
+        (
+            "concurrentCreate3Wall",
+            concurrent_wall_ms,
+            3.0 * BOUND_CREATE_SMALL_MS,
+        ),
     ];
     for (metric, observed, bound) in checks {
         assert!(

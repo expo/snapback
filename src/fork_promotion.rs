@@ -239,17 +239,12 @@ impl PromotionSealKey {
     }
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum ForkEgressPolicyV1 {
+    #[default]
     DenyAll,
     CaptureOnly,
-}
-
-impl Default for ForkEgressPolicyV1 {
-    fn default() -> Self {
-        Self::DenyAll
-    }
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
@@ -1921,6 +1916,7 @@ pub enum CapturedEffectStateV1 {
 }
 
 impl CapturedEffectStateV1 {
+    #[cfg(test)]
     fn as_str(self) -> &'static str {
         match self {
             Self::Captured => "captured",
@@ -2042,9 +2038,7 @@ fn settlement_capability_for_egress(egress_class: &str) -> EffectSettlementCapab
     }
 }
 
-fn decode_captured_effect_row(
-    row: &rusqlite::Row<'_>,
-) -> rusqlite::Result<(
+type CapturedEffectRow = (
     String,
     String,
     i64,
@@ -2057,7 +2051,9 @@ fn decode_captured_effect_row(
     String,
     String,
     i64,
-)> {
+);
+
+fn decode_captured_effect_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<CapturedEffectRow> {
     Ok((
         row.get(0)?,
         row.get(1)?,
@@ -2076,20 +2072,7 @@ fn decode_captured_effect_row(
 
 fn captured_effect_from_raw(
     branch_id: &BranchId,
-    raw: (
-        String,
-        String,
-        i64,
-        Option<i64>,
-        String,
-        String,
-        String,
-        String,
-        String,
-        String,
-        String,
-        i64,
-    ),
+    raw: CapturedEffectRow,
 ) -> SnapbackResult<CapturedEffectIntentV1> {
     let (
         intent_id,
@@ -2135,7 +2118,7 @@ pub fn captured_effect_intents(
            FROM _snapback_branch_effect_intents_v1
           WHERE branch_id=?1 ORDER BY operation_id,effect_ordinal,intent_id",
     )?;
-    let rows = statement.query_map(params![branch_id.0], |row| decode_captured_effect_row(row))?;
+    let rows = statement.query_map(params![branch_id.0], decode_captured_effect_row)?;
     rows.map(|row| captured_effect_from_raw(branch_id, row?))
         .collect()
 }
@@ -3196,9 +3179,7 @@ pub struct EffectInitiationV1 {
     pub already_initiated: bool,
 }
 
-fn promoted_effect_from_row(
-    row: &rusqlite::Row<'_>,
-) -> rusqlite::Result<(
+type PromotedEffectRow = (
     String,
     String,
     String,
@@ -3215,7 +3196,9 @@ fn promoted_effect_from_row(
     Option<i64>,
     Option<i64>,
     Option<String>,
-)> {
+);
+
+fn promoted_effect_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<PromotedEffectRow> {
     Ok((
         row.get(0)?,
         row.get(1)?,
@@ -3236,26 +3219,7 @@ fn promoted_effect_from_row(
     ))
 }
 
-fn decode_promoted_effect(
-    raw: (
-        String,
-        String,
-        String,
-        String,
-        i64,
-        String,
-        String,
-        String,
-        String,
-        String,
-        String,
-        String,
-        i64,
-        Option<i64>,
-        Option<i64>,
-        Option<String>,
-    ),
-) -> SnapbackResult<PromotedEffectIntentV1> {
+fn decode_promoted_effect(raw: PromotedEffectRow) -> SnapbackResult<PromotedEffectIntentV1> {
     let (
         ticket_id,
         intent_id,
@@ -3295,6 +3259,7 @@ fn decode_promoted_effect(
     })
 }
 
+#[cfg(test)]
 fn load_promoted_effect(
     conn: &Connection,
     ticket_id: &str,

@@ -175,7 +175,7 @@ fn generate_key() -> Result<CustodyKey, ()> {
 }
 
 fn encode_key(key: &CustodyKey) -> Result<Zeroizing<Vec<u8>>, ()> {
-    let secret = Zeroizing::new(URL_SAFE_NO_PAD.encode(&*key.secret));
+    let secret = Zeroizing::new(URL_SAFE_NO_PAD.encode(*key.secret));
     serde_json::to_vec(&PersistedKeyRef {
         format_version: FORMAT_VERSION,
         key_id: &key.key_id,
@@ -277,7 +277,8 @@ fn authenticate_retained_ciphertext(
     expected_key_id: &str,
     secret: &[u8; KEY_BYTES],
 ) -> SnapbackResult<()> {
-    let row: Option<(String, String, String, Vec<u8>, Vec<u8>, i64)> = conn
+    type RetainedCiphertextRow = (String, String, String, Vec<u8>, Vec<u8>, i64);
+    let row: Option<RetainedCiphertextRow> = conn
         .query_row(
             "SELECT custody_reference,payload_digest,key_id,nonce,ciphertext,payload_bytes
                FROM _snapback_operation_protected_detail_v1
@@ -463,8 +464,7 @@ fn database_path(conn: &Connection) -> Option<PathBuf> {
         // metadata lookup, `main\0` is a valid C string, and the returned
         // connection-owned bytes are copied before this function returns.
         let bytes = unsafe {
-            let filename =
-                rusqlite::ffi::sqlite3_db_filename(conn.handle(), b"main\0".as_ptr().cast());
+            let filename = rusqlite::ffi::sqlite3_db_filename(conn.handle(), c"main".as_ptr());
             (!filename.is_null()).then(|| CStr::from_ptr(filename).to_bytes().to_vec())
         }?;
         (!bytes.is_empty()).then(|| PathBuf::from(OsStr::from_bytes(&bytes)))
@@ -681,7 +681,7 @@ pub(crate) fn open(
             "protected operation detail length does not match custody",
         ));
     }
-    serde_json::from_slice(&plaintext)
+    serde_json::from_slice(plaintext)
         .map(Some)
         .map_err(|_| invalid("protected operation detail plaintext is invalid"))
 }

@@ -121,14 +121,10 @@ fn wall_clock_now_ms() -> u64 {
 /// Reserved Phase-1 admission path for the concrete fork/byte/diff bounds
 /// defined by LLP 0185 Phase 3. No limit is invented or enforced here.
 pub fn resource_limit_refusal(resource: &str, message: impl Into<String>) -> SnapbackError {
-    fork_error(RESOURCE_LIMIT_REFUSED_CODE, message)
-        .with_details(json!({ "resource": resource }))
+    fork_error(RESOURCE_LIMIT_REFUSED_CODE, message).with_details(json!({ "resource": resource }))
 }
 
-pub fn server_expired_error(
-    lineage: &DerivedForkLineageV1,
-    observed_at_ms: u64,
-) -> SnapbackError {
+pub fn server_expired_error(lineage: &DerivedForkLineageV1, observed_at_ms: u64) -> SnapbackError {
     fork_error(
         SERVER_EXPIRED_CODE,
         "derived-fork server is past its finite expiry; shutting down and refusing new work",
@@ -1176,9 +1172,7 @@ pub fn inspect_boot_at(
     Ok(runtime)
 }
 
-fn inspect_published_evidence(
-    database_path: &Path,
-) -> SnapbackResult<Option<DerivedForkRuntime>> {
+fn inspect_published_evidence(database_path: &Path) -> SnapbackResult<Option<DerivedForkRuntime>> {
     let directory = database_path.parent().unwrap_or_else(|| Path::new("."));
     if directory.join(STAGING_SENTINEL).exists() {
         return Err(fork_error(
@@ -2061,10 +2055,7 @@ pub fn drop_managed(fork_root: &Path, fork_id: &str) -> SnapbackResult<ForkRegis
 /// The teardown body. Callers must hold this fork's [`ForkCleanupLock`];
 /// re-binding evidence under the lock is what makes concurrent cleanup
 /// observe all-or-nothing states.
-pub fn drop_managed_locked(
-    fork_root: &Path,
-    fork_id: &str,
-) -> SnapbackResult<ForkRegistryEntryV1> {
+pub fn drop_managed_locked(fork_root: &Path, fork_id: &str) -> SnapbackResult<ForkRegistryEntryV1> {
     let target = managed_target(fork_root, fork_id)?;
     let entry = target.entry;
     // A concurrent drop/reap may win the directory removal between the
@@ -2096,10 +2087,7 @@ pub fn clear_stale_registry_entry(fork_root: &Path, fork_id: &str) -> SnapbackRe
 }
 
 /// See [`clear_stale_registry_entry`]; callers must hold the cleanup lock.
-pub fn clear_stale_registry_entry_locked(
-    fork_root: &Path,
-    fork_id: &str,
-) -> SnapbackResult<()> {
+pub fn clear_stale_registry_entry_locked(fork_root: &Path, fork_id: &str) -> SnapbackResult<()> {
     let root = fs::canonicalize(fork_root)
         .map_err(|error| io_error("resolve managed fork root", error))?;
     let entry = load_registry_entry(&root, fork_id)?;
@@ -2278,7 +2266,8 @@ fn apply_renewal(
 
     let receipt_path = destination.join(MINT_RECEIPT_FILE);
     let mut mint: ForkMintReceiptV1 = serde_json::from_slice(
-        &fs::read(&receipt_path).map_err(|error| io_error("read fork receipt for renewal", error))?,
+        &fs::read(&receipt_path)
+            .map_err(|error| io_error("read fork receipt for renewal", error))?,
     )
     .map_err(|_| {
         fork_error(
@@ -2437,9 +2426,7 @@ pub fn enforce_creation_limits(
 /// Re-read the lineage currently persisted in a fork database, ignoring the
 /// staging sentinel. The serving watchdog uses this at its expiry deadline so
 /// a completed renewal extends the running server instead of being ignored.
-pub fn refreshed_lineage(
-    database_path: &Path,
-) -> SnapbackResult<Option<DerivedForkLineageV1>> {
+pub fn refreshed_lineage(database_path: &Path) -> SnapbackResult<Option<DerivedForkLineageV1>> {
     Ok(inspect_evidence(database_path)?.map(|runtime| runtime.lineage))
 }
 
@@ -2634,10 +2621,7 @@ pub fn net_diff_receipt(
         ));
     }
 
-    let base = Connection::open_with_flags(
-        &base_path,
-        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
-    )?;
+    let base = Connection::open_with_flags(&base_path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)?;
     let mut head = Connection::open(database_path)?;
     let tx = head.transaction()?;
     let observed_head_version = tx.query_row(
@@ -2724,9 +2708,10 @@ pub fn net_diff_receipt(
             let (table, row_id) = row?;
             journaled.insert((table, row_id));
         }
-        if let Some(unexplained) = rows.iter().find(|row| {
-            !journaled.contains(&(row.table.clone(), row.row_id.clone()))
-        }) {
+        if let Some(unexplained) = rows
+            .iter()
+            .find(|row| !journaled.contains(&(row.table.clone(), row.row_id.clone())))
+        {
             return Err(fork_error(
                 DIFF_ORACLE_MISMATCH_CODE,
                 "the journal does not explain a net base-to-head change; the attributed receipt cannot be trusted for this span",
@@ -2770,10 +2755,7 @@ pub fn net_diff_receipt(
 /// Values come from the live column bytes — SQLite storage classes map to
 /// JSON directly, blobs render as lowercase hex — so two identical rows
 /// compare equal regardless of which database file they were read from.
-fn read_app_table_rows(
-    conn: &Connection,
-    table: &str,
-) -> SnapbackResult<BTreeMap<String, Value>> {
+fn read_app_table_rows(conn: &Connection, table: &str) -> SnapbackResult<BTreeMap<String, Value>> {
     let quoted = format!("\"{}\"", table.replace('"', "\"\""));
     let mut statement = match conn.prepare(&format!("SELECT * FROM {quoted}")) {
         Ok(statement) => statement,
@@ -2805,7 +2787,10 @@ fn read_app_table_rows(
                     Value::from(String::from_utf8_lossy(bytes).into_owned())
                 }
                 rusqlite::types::ValueRef::Blob(bytes) => Value::from(
-                    bytes.iter().map(|byte| format!("{byte:02x}")).collect::<String>(),
+                    bytes
+                        .iter()
+                        .map(|byte| format!("{byte:02x}"))
+                        .collect::<String>(),
                 ),
             };
             if column == "_id"
@@ -3043,8 +3028,7 @@ fn copy_fork_private_assets(
             })));
         }
         let target = fork_blobs.join(&physical_key);
-        fs::write(&target, &bytes)
-            .map_err(|error| io_error("write fork asset blob", error))?;
+        fs::write(&target, &bytes).map_err(|error| io_error("write fork asset blob", error))?;
         sync_file(&target, "sync fork asset blob")?;
     }
     // The durability chain is staging → assets → blobs: each directory's
@@ -3317,12 +3301,17 @@ mod tests {
         publish(&source, &destination, "app-a", "parent-a", 42, None).unwrap();
 
         let fork_blob = destination.join("assets").join("blobs").join("blob-a-key");
-        assert_eq!(fs::read(&fork_blob).unwrap(), bytes, "byte-identical private copy");
+        assert_eq!(
+            fs::read(&fork_blob).unwrap(),
+            bytes,
+            "byte-identical private copy"
+        );
         let conn = Connection::open(destination.join("app.sqlite3")).unwrap();
         assert_eq!(
-            conn.query_row("SELECT COUNT(*) FROM _snapback_asset_blobs_v1", [], |row| row
-                .get::<_, u64>(0))
-                .unwrap(),
+            conn.query_row("SELECT COUNT(*) FROM _snapback_asset_blobs_v1", [], |row| {
+                row.get::<_, u64>(0)
+            })
+            .unwrap(),
             1,
             "the metadata cut copies with its blobs"
         );
@@ -3331,7 +3320,11 @@ mod tests {
         // Custody independence both ways: deleting the parent blob leaves the
         // fork's copy intact, and rewriting the fork's copy never touches the
         // parent store.
-        let parent_blob = directory.path().join("assets").join("blobs").join("blob-a-key");
+        let parent_blob = directory
+            .path()
+            .join("assets")
+            .join("blobs")
+            .join("blob-a-key");
         fs::remove_file(&parent_blob).unwrap();
         assert_eq!(fs::read(&fork_blob).unwrap(), bytes);
         fs::write(&fork_blob, b"fork-local rewrite").unwrap();
@@ -3393,7 +3386,10 @@ mod tests {
                 None,
             )
             .unwrap_err();
-            assert_eq!(error.diagnostic.code, ASSET_CUT_UNSUPPORTED_CODE, "{column}");
+            assert_eq!(
+                error.diagnostic.code, ASSET_CUT_UNSUPPORTED_CODE,
+                "{column}"
+            );
         }
     }
 
@@ -3647,9 +3643,16 @@ mod tests {
             .unwrap();
 
         let destination = directory.path().join("fork");
-        let receipt =
-            publish_managed(&source, &destination, "app-a", "parent-a", 100, 200_000, false)
-                .unwrap();
+        let receipt = publish_managed(
+            &source,
+            &destination,
+            "app-a",
+            "parent-a",
+            100,
+            200_000,
+            false,
+        )
+        .unwrap();
         assert_eq!(receipt.lineage.fork_point_version, 0);
 
         // Every kind of committed parent progress after the fork point:
@@ -3686,9 +3689,11 @@ mod tests {
         );
         assert!(!table_exists(&fork, "post_fork_table").unwrap());
         assert_eq!(
-            fork.query_row("SELECT version FROM _snapback_version WHERE id=1", [], |row| {
-                row.get::<_, u64>(0)
-            })
+            fork.query_row(
+                "SELECT version FROM _snapback_version WHERE id=1",
+                [],
+                |row| { row.get::<_, u64>(0) }
+            )
             .unwrap(),
             receipt.lineage.fork_point_version,
             "parent version advance never moves the fork's committed head"
@@ -3699,7 +3704,10 @@ mod tests {
             diff.rows.is_empty(),
             "post-fork parent journal entries never attribute into the fork diff"
         );
-        assert_eq!(diff.observed_head_version, receipt.lineage.fork_point_version);
+        assert_eq!(
+            diff.observed_head_version,
+            receipt.lineage.fork_point_version
+        );
     }
 
     #[test]
@@ -3959,8 +3967,7 @@ mod tests {
         let source = source_database(directory.path());
         let destination = directory.path().join("fork");
         publish(&source, &destination, "app-a", "parent-a", 42, None).unwrap();
-        let mut fork =
-            crate::local::LocalSnapback::open(&destination.join("app.sqlite3")).unwrap();
+        let mut fork = crate::local::LocalSnapback::open(destination.join("app.sqlite3")).unwrap();
         let manual_cron = match fork.claim_manual_cron_run("any-job", 43) {
             Ok(_) => panic!("a fork must never claim a manual cron run"),
             Err(error) => error,
@@ -4208,12 +4215,13 @@ mod tests {
         fs::create_dir(&root).unwrap();
         let destination = root.join("fork-a");
         let receipt =
-            publish_managed(&source, &destination, "app-a", "parent-a", 100, 200, false)
-                .unwrap();
+            publish_managed(&source, &destination, "app-a", "parent-a", 100, 200, false).unwrap();
 
-        assert!(inspect_boot_at(&destination.join("app.sqlite3"), 199)
-            .unwrap()
-            .is_some());
+        assert!(
+            inspect_boot_at(&destination.join("app.sqlite3"), 199)
+                .unwrap()
+                .is_some()
+        );
         let error = inspect_boot_at(&destination.join("app.sqlite3"), 200).unwrap_err();
         assert_eq!(error.diagnostic.code, SERVER_EXPIRED_CODE);
         assert_eq!(error.diagnostic.details["forkId"], receipt.lineage.fork_id);
@@ -4458,8 +4466,7 @@ mod tests {
         fs::create_dir(&root).unwrap();
         let destination = root.join("fork-a");
         let receipt =
-            publish_managed(&source, &destination, "app-a", "parent-a", 100, 200, false)
-                .unwrap();
+            publish_managed(&source, &destination, "app-a", "parent-a", 100, 200, false).unwrap();
         fs::remove_dir_all(&destination).unwrap();
         assert_eq!(
             managed_target(&root, &receipt.lineage.fork_id)
@@ -4564,9 +4571,16 @@ mod tests {
         // cleanup actors on the same fork.
         for round in 0..4 {
             let destination = root.join(format!("fork-{round}"));
-            let receipt =
-                publish_managed(&source, &destination, "app-a", "parent-a", 100, 200_000, false)
-                    .unwrap();
+            let receipt = publish_managed(
+                &source,
+                &destination,
+                "app-a",
+                "parent-a",
+                100,
+                200_000,
+                false,
+            )
+            .unwrap();
             let outcomes = std::thread::scope(|scope| {
                 let handles = (0..4)
                     .map(|_| {
@@ -4590,8 +4604,14 @@ mod tests {
                     ),
                 }
             }
-            assert_eq!(wins, 1, "round {round}: exactly one actor performs the teardown");
-            assert!(!destination.exists(), "round {round}: fork directory is gone");
+            assert_eq!(
+                wins, 1,
+                "round {round}: exactly one actor performs the teardown"
+            );
+            assert!(
+                !destination.exists(),
+                "round {round}: fork directory is gone"
+            );
             assert!(
                 !registry_path(&root, &receipt.lineage.fork_id).exists(),
                 "round {round}: registry entry is gone"
@@ -4606,9 +4626,16 @@ mod tests {
         let root = directory.path().join("forks");
         fs::create_dir(&root).unwrap();
         let destination = root.join("fork-a");
-        let receipt =
-            publish_managed(&source, &destination, "app-a", "parent-a", 100, 200_000, false)
-                .unwrap();
+        let receipt = publish_managed(
+            &source,
+            &destination,
+            "app-a",
+            "parent-a",
+            100,
+            200_000,
+            false,
+        )
+        .unwrap();
 
         // While the fork directory exists the entry is not stale; clearing
         // must refuse rather than orphan a live fork's bookkeeping.
@@ -4644,15 +4671,25 @@ mod tests {
         let root = directory.path().join("forks");
         fs::create_dir(&root).unwrap();
         let destination = root.join("fork-a");
-        let receipt =
-            publish_managed(&source, &destination, "app-a", "parent-a", 100, 200_000, false)
-                .unwrap();
+        let receipt = publish_managed(
+            &source,
+            &destination,
+            "app-a",
+            "parent-a",
+            100,
+            200_000,
+            false,
+        )
+        .unwrap();
         let fork_id = receipt.lineage.fork_id.clone();
         let database = destination.join("app.sqlite3");
 
         // Boot refuses at the original expiry before renewal.
         assert_eq!(
-            inspect_boot_at(&database, 250_000).unwrap_err().diagnostic.code,
+            inspect_boot_at(&database, 250_000)
+                .unwrap_err()
+                .diagnostic
+                .code,
             SERVER_EXPIRED_CODE
         );
 
@@ -4684,15 +4721,13 @@ mod tests {
             "SNAPBACK_FORK_TTL_INVALID"
         );
         // The configured maximum binds creation through every renewal.
-        let over_limit = renew_managed(
-            &root,
-            &fork_id,
-            200,
-            MANAGED_FORK_MAX_LIFETIME_MS,
-        )
-        .unwrap_err();
+        let over_limit =
+            renew_managed(&root, &fork_id, 200, MANAGED_FORK_MAX_LIFETIME_MS).unwrap_err();
         assert_eq!(over_limit.diagnostic.code, RESOURCE_LIMIT_REFUSED_CODE);
-        assert_eq!(over_limit.diagnostic.details["resource"], "renewal-lifetime");
+        assert_eq!(
+            over_limit.diagnostic.details["resource"],
+            "renewal-lifetime"
+        );
         assert_eq!(
             over_limit.diagnostic.details["maxLifetimeMs"],
             MANAGED_FORK_MAX_LIFETIME_MS
@@ -4748,15 +4783,25 @@ mod tests {
             let root = directory.path().join("forks");
             fs::create_dir(&root).unwrap();
             let destination = root.join("fork-a");
-            let receipt =
-                publish_managed(&source, &destination, "app-a", "parent-a", 100, 200_000, false)
-                    .unwrap();
+            let receipt = publish_managed(
+                &source,
+                &destination,
+                "app-a",
+                "parent-a",
+                100,
+                200_000,
+                false,
+            )
+            .unwrap();
             let fork_id = receipt.lineage.fork_id.clone();
             let database = destination.join("app.sqlite3");
 
-            let error = renew_managed_with_cut(&root, &fork_id, 150, 299_850, Some(cut))
-                .unwrap_err();
-            assert_eq!(error.diagnostic.code, "SNAPBACK_FORK_TEST_CRASH_CUT", "{cut:?}");
+            let error =
+                renew_managed_with_cut(&root, &fork_id, 150, 299_850, Some(cut)).unwrap_err();
+            assert_eq!(
+                error.diagnostic.code, "SNAPBACK_FORK_TEST_CRASH_CUT",
+                "{cut:?}"
+            );
             // The torn window fails closed for serving.
             assert_eq!(
                 inspect_boot_at(&database, 151).unwrap_err().diagnostic.code,
@@ -4777,7 +4822,10 @@ mod tests {
                 "{cut:?}: every carrier recovers to one deterministic expiry"
             );
             assert_eq!(target.receipt.lineage.expires_at_ms, Some(expected_expiry));
-            assert!(inspect_boot_at(&database, 151).unwrap().is_some(), "{cut:?}");
+            assert!(
+                inspect_boot_at(&database, 151).unwrap().is_some(),
+                "{cut:?}"
+            );
             let receipt_exists = destination.join(RENEW_RECEIPT_FILE).exists();
             assert_eq!(
                 receipt_exists,
@@ -4793,8 +4841,16 @@ mod tests {
         let source = source_database(directory.path());
         let root = directory.path().join("forks");
         fs::create_dir(&root).unwrap();
-        publish_managed(&source, &root.join("fork-a"), "app-a", "parent-a", 100, 200_000, false)
-            .unwrap();
+        publish_managed(
+            &source,
+            &root.join("fork-a"),
+            "app-a",
+            "parent-a",
+            100,
+            200_000,
+            false,
+        )
+        .unwrap();
 
         let generous = ForkResourceLimits::default();
         let usage = enforce_creation_limits(&root, &source, &generous, false).unwrap();
@@ -4996,7 +5052,13 @@ mod tests {
         let summary = net
             .rows
             .iter()
-            .map(|row| (row.table.as_str(), row.row_id.as_str(), row.operation.as_str()))
+            .map(|row| {
+                (
+                    row.table.as_str(),
+                    row.row_id.as_str(),
+                    row.operation.as_str(),
+                )
+            })
             .collect::<Vec<_>>();
         assert_eq!(
             summary,
@@ -5009,11 +5071,7 @@ mod tests {
             ],
             "reverts and insert+delete pairs net to nothing; everything else nets exactly"
         );
-        let update = net
-            .rows
-            .iter()
-            .find(|row| row.row_id == "n-upd")
-            .unwrap();
+        let update = net.rows.iter().find(|row| row.row_id == "n-upd").unwrap();
         assert_eq!(update.pre_image.as_ref().unwrap()["body"], "before");
         assert_eq!(update.post_image.as_ref().unwrap()["body"], "after");
         let delete = net.rows.iter().find(|row| row.row_id == "n-del").unwrap();
@@ -5031,8 +5089,14 @@ mod tests {
         .unwrap();
         let sibling_net =
             net_diff_receipt(&sibling.join("app.sqlite3"), FORK_DIFF_MAX_ROWS).unwrap();
-        assert!(sibling_net.rows.is_empty(), "a no-op workload nets to zero rows");
-        assert_eq!(sibling_net.journal_consistency, "journal-cross-check-verified");
+        assert!(
+            sibling_net.rows.is_empty(),
+            "a no-op workload nets to zero rows"
+        );
+        assert_eq!(
+            sibling_net.journal_consistency,
+            "journal-cross-check-verified"
+        );
     }
 
     #[test]
@@ -5068,8 +5132,11 @@ mod tests {
         .unwrap();
         let database = lying.join("app.sqlite3");
         let conn = Connection::open(&database).unwrap();
-        conn.execute("INSERT INTO notes VALUES('smuggled','no journal entry')", [])
-            .unwrap();
+        conn.execute(
+            "INSERT INTO notes VALUES('smuggled','no journal entry')",
+            [],
+        )
+        .unwrap();
         drop(conn);
         let mismatch = net_diff_receipt(&database, FORK_DIFF_MAX_ROWS).unwrap_err();
         assert_eq!(mismatch.diagnostic.code, DIFF_ORACLE_MISMATCH_CODE);

@@ -88,7 +88,8 @@
   "dependencies": {
     "@expo/snapback-client": "workspace:*",
     "@expo/snapback-codegen": "workspace:*",
-    "@expo/snapback-contract": "workspace:*"
+    "@expo/snapback-contract": "workspace:*",
+    "@expo/snapback-react": "workspace:*"
   },
   "optionalDependencies": {
     "@expo/snapback-runtime-darwin-arm64": "workspace:*",

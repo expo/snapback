@@ -1268,7 +1268,9 @@ pub enum AuthCommand {
 }
 
 #[derive(clap::Subcommand)]
-#[command(after_help = "Lifecycle examples:\n  snapback fork create --from parent.ready.json --ttl 2h --app-root .\n  snapback fork inspect <fork-id> --app-root .\n  snapback fork diff <fork-id> --app-root .\n  snapback fork drop <fork-id> --app-root .\n  snapback fork reap --now-ms <unix-ms> --app-root .\n  snapback fork recover <destination> --app-root .")]
+#[command(
+    after_help = "Lifecycle examples:\n  snapback fork create --from parent.ready.json --ttl 2h --app-root .\n  snapback fork inspect <fork-id> --app-root .\n  snapback fork diff <fork-id> --app-root .\n  snapback fork drop <fork-id> --app-root .\n  snapback fork reap --now-ms <unix-ms> --app-root .\n  snapback fork recover <destination> --app-root ."
+)]
 pub enum ForkCommand {
     /// Sweep expired managed forks first, then materialize, scrub/mint, boot,
     /// and return a finite-lived ready derived deployment.
@@ -2293,14 +2295,7 @@ fn fork_envelope(
     server_url: Option<String>,
     data: Value,
 ) -> HostOpsResult {
-    fork_envelope_with_diagnostics(
-        operation,
-        app_id,
-        app_root,
-        server_url,
-        data,
-        Vec::new(),
-    )
+    fork_envelope_with_diagnostics(operation, app_id, app_root, server_url, data, Vec::new())
 }
 
 fn fork_envelope_with_diagnostics(
@@ -2365,12 +2360,7 @@ fn fork_secret_disposition(with_secrets: bool, database: &Path) -> &'static str 
 fn managed_fork_secret_disposition(
     target: &crate::instance_fork::ManagedForkTargetV1,
 ) -> &'static str {
-    match target
-        .receipt
-        .custody
-        .get("sidecar:*.config.json")
-        .copied()
-    {
+    match target.receipt.custody.get("sidecar:*.config.json").copied() {
         Some(crate::instance_fork::CustodyDisposition::Copy)
             if crate::config::ConfigStore::path_for_database(&target.database).is_file() =>
         {
@@ -2527,12 +2517,14 @@ fn fork_process_health(
                 "pid": null,
                 "checkedAtMs": now_ms(),
             }),
-            vec![crate::diagnostic::Diagnostic::warning(
-                "SNAPBACK_FORK_REGISTRY_STALE",
-                "instanceFork",
-                "registry records a ready file that no longer exists",
-            )
-            .with_details(json!({ "readyFile": ready_file }))],
+            vec![
+                crate::diagnostic::Diagnostic::warning(
+                    "SNAPBACK_FORK_REGISTRY_STALE",
+                    "instanceFork",
+                    "registry records a ready file that no longer exists",
+                )
+                .with_details(json!({ "readyFile": ready_file })),
+            ],
             None,
         );
     }
@@ -2549,12 +2541,14 @@ fn fork_process_health(
                     "pid": null,
                     "checkedAtMs": now_ms(),
                 }),
-                vec![crate::diagnostic::Diagnostic::warning(
-                    "SNAPBACK_FORK_READY_INVALID",
-                    "instanceFork",
-                    "recorded fork readiness descriptor is missing or malformed",
-                )
-                .with_details(json!({ "readyFile": ready_file }))],
+                vec![
+                    crate::diagnostic::Diagnostic::warning(
+                        "SNAPBACK_FORK_READY_INVALID",
+                        "instanceFork",
+                        "recorded fork readiness descriptor is missing or malformed",
+                    )
+                    .with_details(json!({ "readyFile": ready_file })),
+                ],
                 None,
             );
         }
@@ -2567,12 +2561,14 @@ fn fork_process_health(
                 "pid": descriptor.pid,
                 "checkedAtMs": now_ms(),
             }),
-            vec![crate::diagnostic::Diagnostic::warning(
-                "SNAPBACK_FORK_READY_INVALID",
-                "instanceFork",
-                "recorded readiness descriptor is not bound to the fork database",
-            )
-            .with_details(json!({ "reason": error.to_string() }))],
+            vec![
+                crate::diagnostic::Diagnostic::warning(
+                    "SNAPBACK_FORK_READY_INVALID",
+                    "instanceFork",
+                    "recorded readiness descriptor is not bound to the fork database",
+                )
+                .with_details(json!({ "reason": error.to_string() })),
+            ],
             None,
         );
     }
@@ -2599,12 +2595,14 @@ fn fork_process_health(
                 "checkedAtMs": now_ms(),
                 "serverUrl": descriptor.server_url,
             }),
-            vec![crate::diagnostic::Diagnostic::warning(
-                "SNAPBACK_FORK_REGISTRY_STALE",
-                "instanceFork",
-                "fork process is gone but its recorded ready descriptor remains",
-            )
-            .with_details(json!({ "pid": descriptor.pid }))],
+            vec![
+                crate::diagnostic::Diagnostic::warning(
+                    "SNAPBACK_FORK_REGISTRY_STALE",
+                    "instanceFork",
+                    "fork process is gone but its recorded ready descriptor remains",
+                )
+                .with_details(json!({ "pid": descriptor.pid })),
+            ],
             Some(descriptor.server_url),
         ),
         Ok(false) | Err(_) => (
@@ -2615,12 +2613,14 @@ fn fork_process_health(
                 "checkedAtMs": now_ms(),
                 "serverUrl": descriptor.server_url,
             }),
-            vec![crate::diagnostic::Diagnostic::warning(
-                "SNAPBACK_FORK_STOP_UNVERIFIED",
-                "instanceFork",
-                "fork PID may still be live, but its process identity cannot be verified",
-            )
-            .with_details(json!({ "pid": descriptor.pid }))],
+            vec![
+                crate::diagnostic::Diagnostic::warning(
+                    "SNAPBACK_FORK_STOP_UNVERIFIED",
+                    "instanceFork",
+                    "fork PID may still be live, but its process identity cannot be verified",
+                )
+                .with_details(json!({ "pid": descriptor.pid })),
+            ],
             Some(descriptor.server_url),
         ),
     }
@@ -3053,26 +3053,25 @@ where
             let target = crate::instance_fork::managed_target(&root, &fork_id)?;
             let (process_health, mut diagnostics, server_url) = fork_process_health(&target);
             let diff_database = target.database.clone();
-            let diff_summary = match startup_blocking(|| {
-                crate::instance_fork::diff_receipt(&diff_database)
-            }) {
-                Ok(receipt) => json!({
-                    "schemaVersion": "snapback.fork-diff-summary.v1",
-                    "available": true,
-                    "attributedRowCount": receipt.rows.len(),
-                    "tableCounts": receipt.table_counts,
-                    "observedHeadVersion": receipt.observed_head_version,
-                    "coverage": receipt.coverage,
-                    "omissions": receipt.omissions,
-                }),
-                Err(error) => {
-                    diagnostics.push(error.diagnostic);
-                    json!({
+            let diff_summary =
+                match startup_blocking(|| crate::instance_fork::diff_receipt(&diff_database)) {
+                    Ok(receipt) => json!({
                         "schemaVersion": "snapback.fork-diff-summary.v1",
-                        "available": false,
-                    })
-                }
-            };
+                        "available": true,
+                        "attributedRowCount": receipt.rows.len(),
+                        "tableCounts": receipt.table_counts,
+                        "observedHeadVersion": receipt.observed_head_version,
+                        "coverage": receipt.coverage,
+                        "omissions": receipt.omissions,
+                    }),
+                    Err(error) => {
+                        diagnostics.push(error.diagnostic);
+                        json!({
+                            "schemaVersion": "snapback.fork-diff-summary.v1",
+                            "available": false,
+                        })
+                    }
+                };
             let ready_path = target
                 .ready_file
                 .as_deref()
@@ -3242,7 +3241,9 @@ where
             let app_root = std::fs::canonicalize(app_root)?;
             let root = fork_root(&app_root, requested_root)?;
             let destination = resolve_fork_destination(&root, destination)?;
-            let was_partial = destination.join(crate::instance_fork::STAGING_SENTINEL).is_file();
+            let was_partial = destination
+                .join(crate::instance_fork::STAGING_SENTINEL)
+                .is_file();
             // A published directory, partial or complete, must carry a finite
             // product lineage. Pre-publication staging is safe to reap without
             // granting it serving authority.
@@ -6095,8 +6096,7 @@ async fn run_composed(
         .bind(listener)?
         .serve_with_graceful_shutdown(shutdown_signal());
     tokio::pin!(server);
-    let fork_expiry =
-        wait_for_derived_fork_expiry(database_path.clone(), derived_fork_lineage);
+    let fork_expiry = wait_for_derived_fork_expiry(database_path.clone(), derived_fork_lineage);
     tokio::pin!(fork_expiry);
     let (server_result, expired_fork_shutdown): (anyhow::Result<()>, bool) = tokio::select! {
         result = &mut server => (result.map_err(anyhow::Error::new), false),
@@ -7762,9 +7762,8 @@ mod tests {
         AuthCoordinatorReadinessReceipt, AuthProgramConstructionReceipts,
         BEFORE_STARTUP_TARGET_RESERVATION, Cli, ErrorsCommand, ForkCommand, HostCommand,
         ManagedPath, NetworkProfileCommand, ReadyFileTarget, ResolvedHttpTarget, SessionCommand,
-        TargetArgs, TelemetryCommand,
-        automatic_reap_before_create, bind_first_available, bind_listener,
-        console_claim_fragment_url, console_fragment_url, fork_secret_disposition,
+        TargetArgs, TelemetryCommand, automatic_reap_before_create, bind_first_available,
+        bind_listener, console_claim_fragment_url, console_fragment_url, fork_secret_disposition,
         managed_startup_paths, mint_secret_read_via_http, parse_fork_ttl,
         parse_network_profile_selection, parse_run_args, path_with_filename_suffix,
         prepare_database_path, prepare_database_path_for_startup, quiet_stop_fork,
@@ -7827,7 +7826,10 @@ mod tests {
         for lifecycle_word in [
             "create", "inspect", "list", "diff", "renew", "drop", "reap", "recover",
         ] {
-            assert!(fork_help.contains(lifecycle_word), "{lifecycle_word}: {fork_help}");
+            assert!(
+                fork_help.contains(lifecycle_word),
+                "{lifecycle_word}: {fork_help}"
+            );
         }
 
         let cli = Cli::parse_from([
@@ -7870,13 +7872,8 @@ mod tests {
         .unwrap();
         let ready = destination.join("fork.ready.json");
         std::fs::write(&ready, b"{}").unwrap();
-        crate::instance_fork::record_managed_runtime(
-            &root,
-            &receipt.lineage.fork_id,
-            &ready,
-            None,
-        )
-        .unwrap();
+        crate::instance_fork::record_managed_runtime(&root, &receipt.lineage.fork_id, &ready, None)
+            .unwrap();
 
         let error = automatic_reap_before_create(&root, 200).unwrap_err();
         assert!(

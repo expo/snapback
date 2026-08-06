@@ -65,6 +65,10 @@ export declare const pendingOutboxRecords: (
   state: OutboxState
 ) => StoredOutboxRecord[];
 
+export declare const unresolvedOutboxRecords: (
+  state: OutboxState
+) => StoredOutboxRecord[];
+
 export declare const allOutboxRecords: (
   state: OutboxState
 ) => StoredOutboxRecord[];

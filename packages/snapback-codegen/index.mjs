@@ -4118,6 +4118,10 @@ export async function generateInProcess(backendDir, options = {}) {
     return { ok: false, diagnostics };
   }
   const appDescriptorSource = serializeAppDescriptorV1(appDescriptor);
+  const appDescriptorArtifactFile = contentAddressedModuleSpecifier(
+    'app.descriptor.json',
+    appDescriptor.identity.descriptor,
+  );
   const appBindingIdentity = compositionDomainHash('snapback:app-binding:v1:', {
     descriptor: appDescriptor.identity.descriptor,
     artifacts: { trustedCompositionActivation },
@@ -4126,6 +4130,10 @@ export async function generateInProcess(backendDir, options = {}) {
     functionManifest.functions,
     appDescriptor.identity.descriptor,
     trustedCompositionActivation,
+  );
+  const appBindingArtifactFile = contentAddressedModuleSpecifier(
+    'app.binding.mjs',
+    appBindingIdentity,
   );
   const appModule = renderAppModule(
     functionManifest.functions,
@@ -4267,7 +4275,7 @@ export async function generateInProcess(backendDir, options = {}) {
     generatedAt,
     schemaHash,
     bundleHash,
-    artifacts: ['schema.manifest.json', 'functions.manifest.json', 'capability.manifest.json', ...(trustedCompositionActivation ? [TRUSTED_COMPOSITION_ACTIVATION_FILE] : []), 'provider-introspection.json', 'provider-bindings.json', 'provider-bindings.d.ts', 'contract-data.manifest.json', 'app.descriptor.json', 'app.binding.mjs', 'app.mjs', 'app.d.ts', 'api.mjs', 'api.d.ts', API_ENVELOPE_MEMBERS_FILE, 'package.json', ...(microArtifacts ? ['micro.mjs', 'micro.d.ts', 'micro.profile.json'] : []), ...(routesManifest ? ['routes.manifest.json'] : []), ...(seedArtifact ? ['seed.artifact.json'] : []), ...(seedAssetFixtures ? ['seed.asset-fixtures.artifact.json'] : []), ...operationArtifactFiles, ...remoteServiceArtifactFiles, ...contractArtifactFiles],
+    artifacts: ['schema.manifest.json', 'functions.manifest.json', 'capability.manifest.json', ...(trustedCompositionActivation ? [TRUSTED_COMPOSITION_ACTIVATION_FILE] : []), 'provider-introspection.json', 'provider-bindings.json', 'provider-bindings.d.ts', 'contract-data.manifest.json', 'app.descriptor.json', appDescriptorArtifactFile, 'app.binding.mjs', appBindingArtifactFile, 'app.mjs', 'app.d.ts', 'api.mjs', 'api.d.ts', API_ENVELOPE_MEMBERS_FILE, 'package.json', ...(microArtifacts ? ['micro.mjs', 'micro.d.ts', 'micro.profile.json'] : []), ...(routesManifest ? ['routes.manifest.json'] : []), ...(seedArtifact ? ['seed.artifact.json'] : []), ...(seedAssetFixtures ? ['seed.asset-fixtures.artifact.json'] : []), ...operationArtifactFiles, ...remoteServiceArtifactFiles, ...contractArtifactFiles],
     tables: Object.keys(tables),
     ephemeralCollections: ephemeralCollections.map((collection) => collection.name),
     functions: functionManifest.functions.map((f) => ({ id: f.id, name: f.name, kind: f.kind })),
@@ -4300,7 +4308,9 @@ export async function generateInProcess(backendDir, options = {}) {
       providerBindingTypes,
       contractManifest,
       appDescriptorSource,
+      appDescriptorArtifactFile,
       appBindingModule,
+      appBindingArtifactFile,
       appModule,
       appTypes,
       apiModule,
@@ -8922,7 +8932,15 @@ function contentAddressedModuleSpecifier(path, identity) {
   // @ref LLP 0179#appdescriptor-v1 — the portable descriptor identity also
   // keys its generated hydration graph, so regenerating in a live process
   // cannot retain a prior descriptor through the ESM dependency cache.
-  return `${path}?identity=${identity.replace(/^sha256:/, '')}`;
+  // A real filename is portable across Node, Vite, and Metro. Query-keyed
+  // module identities are valid ESM but Metro treats the query as part of the
+  // filesystem name and cannot close a generated Expo application.
+  const extensionAt = path.lastIndexOf('.');
+  if (extensionAt <= path.lastIndexOf('/')) {
+    throw new Error(`content-addressed generated module requires an extension: ${path}`);
+  }
+  const digest = identity.replace(/^sha256:/, '');
+  return `${path.slice(0, extensionAt)}.${digest}${path.slice(extensionAt)}`;
 }
 
 function renderAppBindingModule(functions, descriptorIdentity, trustedCompositionActivation = null) {
@@ -11088,7 +11106,9 @@ function writeGeneratedOutput(outDir, {
   providerBindingTypes,
   contractManifest,
   appDescriptorSource,
+  appDescriptorArtifactFile,
   appBindingModule,
+  appBindingArtifactFile,
   appModule,
   appTypes,
   apiModule,
@@ -11126,7 +11146,9 @@ function writeGeneratedOutput(outDir, {
   writeFileSync(join(outDir, 'provider-bindings.d.ts'), providerBindingTypes);
   writeFileSync(join(outDir, 'contract-data.manifest.json'), stableJson(contractManifest) + '\n');
   writeFileSync(join(outDir, 'app.descriptor.json'), appDescriptorSource);
+  writeFileSync(join(outDir, appDescriptorArtifactFile), appDescriptorSource);
   writeFileSync(join(outDir, 'app.binding.mjs'), appBindingModule);
+  writeFileSync(join(outDir, appBindingArtifactFile), appBindingModule);
   writeFileSync(join(outDir, 'app.mjs'), appModule);
   writeFileSync(join(outDir, 'app.d.ts'), appTypes);
   writeFileSync(join(outDir, 'api.mjs'), apiModule);

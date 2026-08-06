@@ -108,6 +108,25 @@ try {
   assert.equal(descriptor.identity.functions, functionManifest.bundleHash);
   assert.equal(descriptor.identity.descriptor, appDescriptorDigestV1(descriptor));
   assert.equal(descriptorSource, serializeAppDescriptorV1(descriptor));
+  const descriptorDigest = descriptor.identity.descriptor.replace(/^sha256:/u, '');
+  const bindingSource = readFileSync(join(backend, 'generated', 'app.binding.mjs'), 'utf8');
+  const descriptorModule = `app.descriptor.${descriptorDigest}.json`;
+  assert(bindingSource.includes(`./${descriptorModule}`));
+  assert(!bindingSource.includes('?identity='));
+  assert.equal(
+    readFileSync(join(backend, 'generated', descriptorModule), 'utf8'),
+    descriptorSource,
+    'the portable descriptor has an immutable filename for bundler hydration',
+  );
+  const apiSource = readFileSync(join(backend, 'generated', 'api.mjs'), 'utf8');
+  const bindingModule = apiSource.match(/\.\/app\.binding\.([0-9a-f]{64})\.mjs/u)?.[0].slice(2);
+  assert.equal(typeof bindingModule, 'string');
+  assert(!apiSource.includes('?identity='));
+  assert.equal(
+    readFileSync(join(backend, 'generated', bindingModule), 'utf8'),
+    bindingSource,
+    'the generated binding has an immutable filename for Node, Vite, and Metro',
+  );
 
   // No environment/binding/session/device fact enters the stable document.
   const forbiddenEnvironmentKeys = new Set([

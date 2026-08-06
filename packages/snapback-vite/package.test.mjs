@@ -158,7 +158,7 @@ try {
   assert.equal(generated.ok, true, JSON.stringify(generated.diagnostics ?? null));
   const generatedAppBinding = join(backend, 'generated', 'app.binding.mjs');
   const descriptorSpecifier = readFileSync(generatedAppBinding, 'utf8').match(
-    /from "(\.\/app\.descriptor\.json\?identity=[0-9a-f]{64})"/u,
+    /from "(\.\/app\.descriptor\.[0-9a-f]{64}\.json)"/u,
   )?.[1];
   assert.equal(typeof descriptorSpecifier, 'string');
   const verifiedGraphRoots = new Map();
@@ -167,11 +167,22 @@ try {
     generatedAppBinding,
     verifiedGraphRoots,
   );
-  assert.match(resolvedDescriptorPath, /[\\/]\.snapback[\\/]codegen-cache[\\/].*[\\/]app\.descriptor\.json$/u);
+  assert.match(resolvedDescriptorPath, /[\\/]\.snapback[\\/]codegen-cache[\\/].*[\\/]app\.descriptor\.[0-9a-f]{64}\.json$/u);
   assert.equal(resolvedDescriptorPath.includes('?'), false);
   assert.equal(
     resolveGeneratedImport(descriptorSpecifier, resolvedDescriptorPath.replace(/\.json$/u, '.binding.mjs'), verifiedGraphRoots),
     resolvedDescriptorPath,
+  );
+  const descriptorDigest = descriptorSpecifier.match(/[0-9a-f]{64}/u)?.[0];
+  assert.equal(typeof descriptorDigest, 'string');
+  assert.match(
+    resolveGeneratedImport(
+      `./app.descriptor.json?identity=${descriptorDigest}`,
+      generatedAppBinding,
+      verifiedGraphRoots,
+    ),
+    /[\\/]app\.descriptor\.json$/u,
+    'the adapter remains compatible with query-keyed generated graphs',
   );
   const descriptorBuildRoot = join(root, 'descriptor-build');
   mkdirSync(descriptorBuildRoot, { recursive: true });

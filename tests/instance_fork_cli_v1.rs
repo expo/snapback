@@ -419,7 +419,6 @@ struct ParentServer {
     child: std::process::Child,
     ready: PathBuf,
     token: String,
-    server_url: String,
 }
 
 impl ParentServer {
@@ -469,7 +468,6 @@ impl ParentServer {
             child,
             ready,
             token,
-            server_url,
         }
     }
 
@@ -503,12 +501,11 @@ fn todo_titles(database: &Path) -> Vec<String> {
     let mut statement = conn
         .prepare("SELECT title FROM todos ORDER BY title")
         .expect("prepare todo title query");
-    let titles = statement
+    statement
         .query_map([], |row| row.get::<_, String>(0))
         .expect("query todo titles")
         .collect::<Result<Vec<_>, _>>()
-        .expect("collect todo titles");
-    titles
+        .expect("collect todo titles")
 }
 
 /// LLP 0185 Phase 3 item 1: writes committed to a live parent after the fork
@@ -615,8 +612,16 @@ fn live_parent_writes_after_fork_point_never_appear_in_the_fork() {
             .unwrap_or_else(|error| panic!("spawn {label}: {error}"));
         assert!(!output.status.success(), "{label} must be refused");
     };
-    cross(&fork_ready, &parent.token, "parent bearer against the fork server");
-    cross(&parent.ready, &fork_token, "fork bearer against the parent server");
+    cross(
+        &fork_ready,
+        &parent.token,
+        "parent bearer against the fork server",
+    );
+    cross(
+        &parent.ready,
+        &fork_token,
+        "fork bearer against the parent server",
+    );
 
     let mut fork_mutation = snapback();
     fork_mutation.args([
@@ -1044,7 +1049,10 @@ fn executable_fork_renew_extends_a_live_fork_within_the_maximum() {
     let renewed = successful(renew, "fork renew");
     let receipt = &renewed["data"]["receipt"];
     assert_eq!(receipt["schemaVersion"], "snapback.fork-renew.v1");
-    assert_eq!(receipt["previousExpiresAtMs"].as_u64(), Some(original_expiry));
+    assert_eq!(
+        receipt["previousExpiresAtMs"].as_u64(),
+        Some(original_expiry)
+    );
     let new_expiry = receipt["expiresAtMs"].as_u64().expect("renewed expiry");
     assert!(new_expiry > original_expiry);
     assert_eq!(
@@ -1108,7 +1116,8 @@ fn executable_fork_renew_extends_a_live_fork_within_the_maximum() {
         ));
     }
     assert_eq!(
-        health(&server_url)["ok"], true,
+        health(&server_url)["ok"],
+        true,
         "a renewed fork server keeps serving past its boot-time expiry"
     );
 
@@ -1196,7 +1205,9 @@ fn resource_limits_refuse_create_and_diff_without_residue() {
     refused_create(&["--max-fork-bytes", "1"], "per-fork byte limit");
     refused_create(&["--max-total-bytes", "1"], "total byte budget");
     assert_eq!(
-        std::fs::read_dir(&fork_root).expect("rescan fork root").count(),
+        std::fs::read_dir(&fork_root)
+            .expect("rescan fork root")
+            .count(),
         entries_before,
         "a refused create leaves no staging or registry residue"
     );
@@ -1328,12 +1339,18 @@ fn executable_net_diff_names_its_substrate_and_requires_a_retained_base() {
     assert_eq!(receipt["schemaVersion"], "snapback.fork-net-diff.v1");
     assert_eq!(receipt["substrate"], "retained-base-v1");
     assert_eq!(receipt["completeness"], "journal-enumerated-v1");
-    assert_eq!(receipt["journalConsistency"], "journal-cross-check-verified");
+    assert_eq!(
+        receipt["journalConsistency"],
+        "journal-cross-check-verified"
+    );
     let rows = receipt["rows"].as_array().expect("net rows");
     assert_eq!(rows.len(), 1);
     assert_eq!(rows[0]["operation"], "insert");
     assert_eq!(rows[0]["postImage"]["title"], "net diff row");
-    assert!(rows[0].get("preImage").is_none(), "an insert has no pre-image");
+    assert!(
+        rows[0].get("preImage").is_none(),
+        "an insert has no pre-image"
+    );
     assert_eq!(receipt["domains"]["appRows"], "net-covered");
 
     let bare = snapback::instance_fork::publish_managed(
@@ -1413,8 +1430,7 @@ fn executable_fork_recover_repairs_one_finite_partial_publication() {
     assert_eq!(recovered["data"]["disposition"], "published-recovered");
     assert_eq!(recovered["data"]["forkId"], receipt.lineage.fork_id);
     assert_eq!(
-        recovered["data"]["registry"]["state"],
-        "published",
+        recovered["data"]["registry"]["state"], "published",
         "recovery reconciles advisory registry when it is available"
     );
     assert!(
