@@ -3,14 +3,14 @@
   "targetProfileId": "local-dev-sqlite-ibex",
   "capabilityIds": ["single_table_v1"],
   "maturity": "experimental",
-  "qualificationReceiptSha256": "sha256:6ef014d1009db488131bbaa83250131d318daac1ca4809c8586e4aa2444db78e",
+  "qualificationReceiptSha256": "sha256:e63751670956c4a32a476090b82bd95cacaf8a3bf1c9d56fa32fd3fe1d6c067b",
   "supportingReceiptSha256": {
-    "triageBudgetFreeze": "sha256:5a3d98aa38663bfcdff531082d5891078b755af63b13418e54a407e3d0b7565c",
-    "triageMove1Exit": "sha256:bf77e3baa1107d7137da436e292fcaaee9d4d98fb80b98413621e8a4d449bf28"
+    "triageBudgetFreeze": "sha256:db3917debbf9ee080e198e76c3af76477711bb92aa1409c4278d36a33198d69d",
+    "triageMove1Exit": "sha256:74c22a2de7a6d4345d42ccba6f65e01712d3d46b8ea6d3fae7ffab61aeaf9704"
   },
   "executorSourceSha256": {
-    "src/local.rs": "sha256:82a5d10c654cf4482ade64f82c17b5e6cee98485d6a32e514c69b6c6ded98c6a",
-    "src/storage.rs": "sha256:461b48a6bef1e7c7f6c59f85ab1b053fd61f3feaab4eee1da2ecd1118f4df1f1"
+    "src/local.rs": "sha256:96bed6314ca2744e4aebdb9f7673b28592e0c24769d9fc095c054bf63bc7c0d5",
+    "src/storage.rs": "sha256:f8bc955086f00d155dd51922da8690b79ec9195fefb694abc9b277861f9db5b8"
   },
   "schemaSourceSha256": {
     "packages/snapback-codegen/index.mjs": "sha256:8467070d044813973f656324e179615628e0c9f6f09e02e9c1f4967fea381b76"
