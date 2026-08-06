@@ -1,12 +1,22 @@
 # LLP 0158: Instance forking
 
 **Type:** RFC
-**Status:** Review
+**Status:** Accepted
 **Systems:** Storage, Deployment, Runtime, Scheduling, Assets, Security, Agent
 experience, Developer experience, CLI, Documentation, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-03
-**Revised:** 2026-08-05 (author decisions, LLP 0185 Phase 0 items 2 and 6,
+**Revised:** 2026-08-06 (**Accepted** by the author after the LLP 0005
+loop converged: round-2 independent GPT-family review returned NOT-READY
+with eight verified findings — including two code blockers (recover's
+staging-reap widening; the missing `assets/` fsync link) — all fixed and
+landed, and the round-3 delta re-review returned READY with every finding
+independently confirmed resolved and no new findings
+(`llp/reviews/0158-instance-forking.codex.md`). Acceptance covers the
+same-`appId` derived-deployment identity model and the local F0/F1
+contract this document records; it is not a capability publication —
+`operating.instance-forks` stays at target `none` until LLP 0185 Phase 6
+completes its remaining gates.); 2026-08-05 (author decisions, LLP 0185 Phase 0 items 2 and 6,
 ratified by Charlie 2026-08-05: this RFC moves Draft → Review and enters the
 LLP 0005 review loop toward acceptance; and the publication mechanism
 governing `operating.instance-forks` is the **LLP 0061 guide
@@ -19,8 +29,9 @@ claim is gated on fork lifecycle metrics — cold- and live-parent create
 latency by parent size, attributed and net diff latency at the diff-work
 bound, drop/reap latency, and concurrent-create contention — not the
 broader agent-safe-storage storage-engine submetrics, which stay with the
-full profile. Absolute bounds still require dated 0162-author
-ratification once measured.); 2026-08-05 (LLP 0185 Phase 5: implemented OQ5's decided
+full profile. Absolute bounds were measured 2026-08-05 and **ratified by
+the 0162 author 2026-08-06**; the bench asserts them, and the dated
+receipts live under `tests/acceptance/instance-fork-lifecycle-bench.*`.); 2026-08-05 (LLP 0185 Phase 5: implemented OQ5's decided
 same-cut fork-private asset custody — durable asset metadata now copies with
 a digest- and length-verified private blob-tree copy taken from the staged
 metadata cut, in-flight attempts/work-ledger claims scrub, signing keys keep
@@ -238,12 +249,13 @@ LLP 0083, LLP 0088, LLP 0097 (ephemeral data branches — the implemented
 in-app sibling this RFC must position against), LLP 0099, LLP 0139, LLP 0146,
 LLP 0162, LLP 0163, LLP 0164, LLP 0165, LLP 0185
 
-> **Experimental and unpublished.** The local program through LLP 0185
-> Phase 5 is implemented in source, and this document is in **Review**
-> (author transition 2026-08-05) — but Review status commits no schedule or
-> priority relative to the accepted program work (LLP 0130's wave, LLP
-> 0155's local-sync lanes). Implementation evidence is not a capability
-> advertisement; the remaining work is sequenced by LLP 0185.
+> **Accepted but unpublished.** The local program through LLP 0185
+> Phase 5 is implemented in source and this document was **Accepted**
+> 2026-08-06 after a converged LLP 0005 loop — but acceptance is a
+> contract decision, not a capability advertisement:
+> `operating.instance-forks` stays at target `none` until LLP 0185
+> Phase 6 completes its remaining gates, and the remaining work is
+> sequenced by LLP 0185.
 
 ## Summary
 
@@ -1448,8 +1460,9 @@ structural argument that the capability is priced correctly.
 
 ## Status
 
-**Review** (author transition 2026-08-05), experimental. Authored
-2026-08-03 from a brainstorming session;
+**Accepted** (author decision 2026-08-06, after the Draft → Review
+transition on 2026-08-05 and a converged review loop), experimental.
+Authored 2026-08-03 from a brainstorming session;
 F0a and F0b implement the local safety substrate and CLI consumer with dated
 fleet dogfood. The F1 guide, single-consumer harness, and Phase-1 operating
 workflow are landed, including automatic lifecycle, product recovery, status,
@@ -1468,8 +1481,9 @@ round 1 down to clean; two convergent cross-family findings; artifacts
 under `llp/reviews/0158-instance-forking.{claude,codex}.md`). Both
 families' shared closing guidance authorized the now-landed F0a after OQ9's
 author decision. The author made the Draft → Review transition on
-2026-08-05 (LLP 0185 Phase 0 item 2); acceptance remains a further LLP 0005
-author decision after the Review loop.
+2026-08-05 (LLP 0185 Phase 0 item 2) and accepted the document on
+2026-08-06 after the loop converged (round-2 findings all resolved,
+round-3 delta READY).
 
 **Graduation criteria.** This RFC graduates from experiment (proceeds
 toward Review and an implementation decision) only when **all three**
@@ -1514,8 +1528,8 @@ hold:
    publication/recovery, asset-refusal, and `DenyAll` family corpus is green.
 
 All three empirical graduation criteria are now satisfied. The author made
-the Draft → Review transition on 2026-08-05; acceptance remains a further
-LLP 0005 author decision. The OQ4 DO-bookmark spike is F2
+the Draft → Review transition on 2026-08-05 and accepted the document on
+2026-08-06. The OQ4 DO-bookmark spike is F2
 hosted work, while OQ2's `CaptureOnly` residual and bypass closure are sequenced
 by LLP 0185/0164 rather than preconditions for recognizing the landed F0b
 `DenyAll` implementation.

@@ -25,8 +25,9 @@ schema- or function-divergent development against realistic rows. The fork has
 the same logical `appId`, but fresh instance, authorization-stream,
 data-stream, admin-token, and resume-keyring identities.
 
-This is a **partial, unpublished surface** while
-[LLP 0158](repo:llp/0158-instance-forking.rfc.md) remains Draft. The guide
+This is a **partial, unpublished surface**:
+[LLP 0158](repo:llp/0158-instance-forking.rfc.md) is Accepted (2026-08-06)
+as the local contract, but the capability is not yet published. The guide
 teaches the implemented source workflow; it does not claim a packaged,
 hosted, promotable, or process-sandboxed capability.
 

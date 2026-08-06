@@ -31,4 +31,9 @@ don't clobber:
    `instance_fork.rs`) has no counterpart on main — bring it over intact,
    but re-run the fork unit suite (33 tests) after merging.
 
+**Landing-discipline ruling (2026-08-06):** see the author ruling recorded
+in `issues/20260803-0163-public-operation-identity-carrier.md` — a
+dual-READY cut may land first and run its performance leg immediately
+after landing; activation stays gated on the performance result.
+
 Close when the Track B integration lands green against these points.
