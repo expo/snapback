@@ -128,3 +128,27 @@ per LLP 0010 §2 this residue is disclosed as self-attested.
   proposal are in the final report delivered to the author in-session;
   every concern is preserved verbatim in the family artifacts above —
   none is summarized away by this journal.
+
+## Revision r4 — 2026-08-06 (author-directed post-loop rewrite, UNREVIEWED)
+
+- The author (Charlie Cheever) directed "rewrite based on our learning"
+  after the terminal escalation. r4
+  (`llp/0188-ltx-sqlite-replication.rfc.md` sha256/16 `e66652eb41751f80`,
+  27,039 bytes) applies the complete round-3 ledger: resume admits
+  verified ahead-of-head restart via the checksum-continuous-prefix
+  rule; durable digest-named keyring coverage records; immutable
+  genesis/succession chain traversable from the head (predecessor and
+  divergence positions both bound); hosted 0072 epoch validation
+  serialized atomically with head CAS; checkpoint proofs bind
+  replication and 0072 identities separately; pin lifetime spans all
+  referencing artifacts; WAL-growth-under-stall named in the contract;
+  keyring snapshots client-side encrypted on every lane (resolves former
+  OQ2 — author decision folded in as the RFC's proposal, ratified at
+  acceptance); LLP 0072/0111 amendments made acceptance dependencies
+  with fallback to 0111's byte path until they land; compaction/deletion
+  placed in supervisor/lifecycle custody with the head's immutability
+  exemption stated; G1 requires the differential leg to execute
+  (upstream self-skip = failure); G2f fencing acceptance matrix added.
+- **r4 is unreviewed by the formal loop** (round budget exhausted before
+  it). Final family verdicts remain bound to r3 `4734113fe106dd45`;
+  r4 is the later unreviewed revision the close-out notes disclose.
