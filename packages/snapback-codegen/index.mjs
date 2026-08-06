@@ -8992,6 +8992,12 @@ function surfaceLiteralMatchesValidator(value, validator) {
   return value !== undefined;
 }
 
+export const SURFACE_MAX_PARAMS = 8;
+export const SURFACE_MAX_MEMBERS = 24;
+export const SURFACE_MAX_MEMBER_BINDINGS = 32;
+export const SURFACE_MAX_SCOPE_RECORD_FIELDS = 8;
+export const SURFACE_MAX_PER_APP = 32;
+
 // @ref LLP 0179#binding-is-not-authorization — generation performs only
 // closed argument/scope substitution. It never binds, derives, or records a
 // session principal; runtime authority remains an independent registry axis.
@@ -9025,6 +9031,17 @@ function buildGeneratedSurfaces({
     });
   };
 
+  // @ref LLP 0179#binding-is-not-authorization — numeric declaration
+  // ceilings refuse unbounded fan-out before a surface can become authority.
+  if (surfaceDefs.length > SURFACE_MAX_PER_APP) {
+    err(
+      'SNAPBACK_SURFACE_BUDGET_EXCEEDED',
+      'surface',
+      `app declares ${surfaceDefs.length} surfaces; the maximum is ${SURFACE_MAX_PER_APP}`,
+      { surfaces: surfaceDefs.length, maximum: SURFACE_MAX_PER_APP },
+    );
+  }
+
   for (const { exportName: surfaceName, def } of surfaceDefs) {
     if (!IDENT.test(surfaceName) || RESERVED_WORDS.has(surfaceName)) {
       report('SNAPBACK_SURFACE_INVALID_IDENTIFIER', surfaceName, null, 'surface export name must be a portable identifier');
@@ -9032,6 +9049,29 @@ function buildGeneratedSurfaces({
     }
     const params = dict();
     let valid = true;
+    const paramCount = Object.keys(def.params ?? {}).length;
+    if (paramCount > SURFACE_MAX_PARAMS) {
+      report(
+        'SNAPBACK_SURFACE_BUDGET_EXCEEDED',
+        surfaceName,
+        null,
+        `${paramCount} params exceed the maximum ${SURFACE_MAX_PARAMS}`,
+        { params: paramCount, maximum: SURFACE_MAX_PARAMS },
+      );
+      valid = false;
+    }
+    const memberCount = ['reads', 'mutations', 'assets', 'presence']
+      .reduce((count, namespace) => count + Object.keys(def[namespace] ?? {}).length, 0);
+    if (memberCount > SURFACE_MAX_MEMBERS) {
+      report(
+        'SNAPBACK_SURFACE_BUDGET_EXCEEDED',
+        surfaceName,
+        null,
+        `${memberCount} members exceed the maximum ${SURFACE_MAX_MEMBERS}`,
+        { members: memberCount, maximum: SURFACE_MAX_MEMBERS },
+      );
+      valid = false;
+    }
     for (const [name, validator] of Object.entries(def.params ?? {})) {
       if (!IDENT.test(name) || RESERVED_WORDS.has(name)) {
         report('SNAPBACK_SURFACE_INVALID_IDENTIFIER', surfaceName, null, `invalid parameter ${name}`, { parameter: name });
@@ -9109,7 +9149,18 @@ function buildGeneratedSurfaces({
         }
         const fields = validator.fields ?? {};
         const compiledFields = dict();
-        for (const field of Object.keys(authored)) {
+        const authoredFields = Object.keys(authored);
+        if (authoredFields.length > SURFACE_MAX_SCOPE_RECORD_FIELDS) {
+          report(
+            'SNAPBACK_SURFACE_BUDGET_EXCEEDED',
+            surfaceName,
+            memberPath,
+            `${authoredFields.length} scope record fields exceed the maximum ${SURFACE_MAX_SCOPE_RECORD_FIELDS}`,
+            { fields: authoredFields.length, maximum: SURFACE_MAX_SCOPE_RECORD_FIELDS },
+          );
+          valid = false;
+        }
+        for (const field of authoredFields) {
           if (!Object.hasOwn(fields, field)) {
             report('SNAPBACK_SURFACE_INPUT_UNKNOWN', surfaceName, memberPath, `scope names unknown field ${field}`, { input: field });
             valid = false;
@@ -9226,6 +9277,7 @@ function buildGeneratedSurfaces({
         const compiledBindings = dict();
         const inputs = dict();
         const usedInputs = new Set();
+        let bindingCount = 0;
         for (const [target, validator] of Object.entries(targetArgs)) {
           if (!Object.hasOwn(authoredBindings, target)) {
             if (validator.optional !== true) {
@@ -9234,8 +9286,26 @@ function buildGeneratedSurfaces({
             }
             continue;
           }
-          const leaf = compileLeaf(authoredBindings[target], validator, namespace, memberPath, inputs, usedInputs);
+          const authored = authoredBindings[target];
+          bindingCount += (
+            authored
+            && typeof authored === 'object'
+            && !Array.isArray(authored)
+            && authored.__surfaceValue !== true
+            && validator?.primitive === 'object'
+          ) ? Object.keys(authored).length : 1;
+          const leaf = compileLeaf(authored, validator, namespace, memberPath, inputs, usedInputs);
           if (leaf) compiledBindings[target] = leaf;
+        }
+        if (bindingCount > SURFACE_MAX_MEMBER_BINDINGS) {
+          report(
+            'SNAPBACK_SURFACE_BUDGET_EXCEEDED',
+            surfaceName,
+            memberPath,
+            `${bindingCount} bindings exceed the maximum ${SURFACE_MAX_MEMBER_BINDINGS}`,
+            { bindings: bindingCount, maximum: SURFACE_MAX_MEMBER_BINDINGS },
+          );
+          valid = false;
         }
         output[memberName] = {
           artifactKind: 'surfaceMemberBinding',

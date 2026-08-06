@@ -19,7 +19,14 @@ import {
   serializeAppDescriptorV1,
   validateAppDescriptorV1,
 } from './app-descriptor.mjs';
-import { generate } from './index.mjs';
+import {
+  generate,
+  SURFACE_MAX_MEMBER_BINDINGS,
+  SURFACE_MAX_MEMBERS,
+  SURFACE_MAX_PARAMS,
+  SURFACE_MAX_PER_APP,
+  SURFACE_MAX_SCOPE_RECORD_FIELDS,
+} from './index.mjs';
 
 const packageRoot = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(packageRoot, '..', '..');
@@ -81,15 +88,26 @@ function hasCode(problems, code) {
   return problems.some((entry) => entry.code === code);
 }
 
-async function assertGenerationRefusedPreservingDescriptor(expectedCode) {
+async function assertGenerationRefusedPreservingDescriptor(
+  expectedCode,
+  { onlyExpectedError = false } = {},
+) {
   const before = readDescriptor();
   const result = await generate(backend);
   assert.equal(result.ok, false, `expected ${expectedCode} refusal`);
+  const diagnostic = result.diagnostics.find(({ code }) => code === expectedCode);
   assert(
-    result.diagnostics.some(({ code }) => code === expectedCode),
+    diagnostic,
     `missing ${expectedCode}: ${JSON.stringify(result.diagnostics)}`,
   );
+  if (onlyExpectedError) {
+    assert.deepEqual(
+      result.diagnostics.filter(({ severity }) => severity === 'error').map(({ code }) => code),
+      [expectedCode],
+    );
+  }
   assert(readDescriptor().equals(before), `${expectedCode} replaced the prior descriptor`);
+  return diagnostic;
 }
 
 try {
@@ -346,6 +364,136 @@ export const items = defineSurface({
 });
 `);
   await assertGenerationRefusedPreservingDescriptor('SNAPBACK_SURFACE_AUTH_BINDING_REFUSED');
+
+  writeValidSources();
+  writeFileSync(join(backend, 'functions.mjs'), `
+import { defineSurface } from '${defineUrl}';
+${Array.from(
+    { length: SURFACE_MAX_PER_APP + 1 },
+    (_, index) => `export const surface${index} = defineSurface({});`,
+  ).join('\n')}
+`);
+  const perAppBudget = await assertGenerationRefusedPreservingDescriptor(
+    'SNAPBACK_SURFACE_BUDGET_EXCEEDED',
+    { onlyExpectedError: true },
+  );
+  assert.equal(perAppBudget.surfaces, SURFACE_MAX_PER_APP + 1);
+  assert.equal(perAppBudget.maximum, SURFACE_MAX_PER_APP);
+  assert(perAppBudget.message.includes(String(SURFACE_MAX_PER_APP)));
+
+  writeValidSources();
+  writeFileSync(join(backend, 'functions.mjs'), `
+import { defineSurface, v } from '${defineUrl}';
+export const items = defineSurface({
+  params: {
+${Array.from(
+    { length: SURFACE_MAX_PARAMS + 1 },
+    (_, index) => `    param${index}: v.string(),`,
+  ).join('\n')}
+  },
+});
+`);
+  const paramBudget = await assertGenerationRefusedPreservingDescriptor(
+    'SNAPBACK_SURFACE_BUDGET_EXCEEDED',
+    { onlyExpectedError: true },
+  );
+  assert.equal(paramBudget.params, SURFACE_MAX_PARAMS + 1);
+  assert.equal(paramBudget.maximum, SURFACE_MAX_PARAMS);
+
+  writeValidSources();
+  writeFileSync(join(backend, 'functions.mjs'), `
+import { bind, defineLiveQuery, defineSurface } from '${defineUrl}';
+export const listItems = defineLiveQuery({ table: 'items', args: {} });
+export const items = defineSurface({
+  reads: {
+${Array.from(
+    { length: SURFACE_MAX_MEMBERS + 1 },
+    (_, index) => `    rows${index}: bind(listItems, {}),`,
+  ).join('\n')}
+  },
+});
+`);
+  const memberBudget = await assertGenerationRefusedPreservingDescriptor(
+    'SNAPBACK_SURFACE_BUDGET_EXCEEDED',
+    { onlyExpectedError: true },
+  );
+  assert.equal(memberBudget.members, SURFACE_MAX_MEMBERS + 1);
+  assert.equal(memberBudget.maximum, SURFACE_MAX_MEMBERS);
+
+  const bindingNames = Array.from(
+    { length: SURFACE_MAX_MEMBER_BINDINGS + 1 },
+    (_, index) => `binding${index}`,
+  );
+  writeValidSources();
+  writeFileSync(join(backend, 'functions.mjs'), `
+import { bind, defineLiveQuery, defineSurface, v } from '${defineUrl}';
+export const listItems = defineLiveQuery({
+  table: 'items',
+  args: {
+${bindingNames.map((name) => `    ${name}: v.string(),`).join('\n')}
+  },
+});
+export const items = defineSurface({
+  reads: {
+    rows: bind(listItems, {
+${bindingNames.map((name) => `      ${name}: 'bounded',`).join('\n')}
+    }),
+  },
+});
+`);
+  const memberBindingBudget = await assertGenerationRefusedPreservingDescriptor(
+    'SNAPBACK_SURFACE_BUDGET_EXCEEDED',
+    { onlyExpectedError: true },
+  );
+  assert.equal(memberBindingBudget.bindings, SURFACE_MAX_MEMBER_BINDINGS + 1);
+  assert.equal(memberBindingBudget.maximum, SURFACE_MAX_MEMBER_BINDINGS);
+  assert(memberBindingBudget.message.includes(String(SURFACE_MAX_MEMBER_BINDINGS)));
+
+  const scopeFieldNames = Array.from(
+    { length: SURFACE_MAX_SCOPE_RECORD_FIELDS + 1 },
+    (_, index) => `field${index}`,
+  );
+  writeValidSources();
+  writeFileSync(join(backend, 'surface-model.mjs'), `
+import { allow, ephemeral, v } from '${defineUrl}';
+export const typing = ephemeral.collection({
+  scope: {
+${scopeFieldNames.map((name) => `    ${name}: v.string(),`).join('\n')}
+  },
+  value: v.object({ active: v.boolean() }),
+  ttlMs: 1000,
+  maxTtlMs: 30_000,
+  publish: allow.all(),
+  subscribe: allow.all(),
+});
+`);
+  writeFileSync(join(backend, 'schema.mjs'), `
+import { defineEphemeral, defineSchema, defineTable, v } from '${defineUrl}';
+import { typing } from './surface-model.mjs';
+export default defineSchema(
+  { items: defineTable({ title: v.string() }).sync() },
+  { ephemeral: defineEphemeral({ typing }) },
+);
+`);
+  writeFileSync(join(backend, 'functions.mjs'), `
+import { bind, defineSurface } from '${defineUrl}';
+import { typing } from './surface-model.mjs';
+export const items = defineSurface({
+  presence: {
+    typing: bind(typing, {
+      scope: {
+${scopeFieldNames.map((name) => `        ${name}: 'bounded',`).join('\n')}
+      },
+    }),
+  },
+});
+`);
+  const scopeRecordBudget = await assertGenerationRefusedPreservingDescriptor(
+    'SNAPBACK_SURFACE_BUDGET_EXCEEDED',
+    { onlyExpectedError: true },
+  );
+  assert.equal(scopeRecordBudget.fields, SURFACE_MAX_SCOPE_RECORD_FIELDS + 1);
+  assert.equal(scopeRecordBudget.maximum, SURFACE_MAX_SCOPE_RECORD_FIELDS);
 
   writeValidSources();
   writeFileSync(join(backend, 'schema.mjs'), `

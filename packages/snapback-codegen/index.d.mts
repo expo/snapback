@@ -13,6 +13,12 @@ import type { CodegenSummary } from './codegen-summary.mjs';
 
 export { formatCodegenSummary } from './codegen-summary.mjs';
 
+export const SURFACE_MAX_PARAMS: 8;
+export const SURFACE_MAX_MEMBERS: 24;
+export const SURFACE_MAX_MEMBER_BINDINGS: 32;
+export const SURFACE_MAX_SCOPE_RECORD_FIELDS: 8;
+export const SURFACE_MAX_PER_APP: 32;
+
 /** Canonical sorted projection of Rust's registry-owned experimental ids. */
 export function experimentalTargetCapabilityIdsCanonicalJson(): string;
 
