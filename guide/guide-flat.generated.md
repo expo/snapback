@@ -11489,8 +11489,20 @@ fork point**, in commit order. It explicitly omits:
 - privileged or raw-SQL writes outside the app journal; and
 - sidecars and telemetry.
 
-It is a review aid, not a complete audit and not production migration
-admission. A long-lived fork can also outlive its journal floor; then diff
+For an exact net base-to-head receipt, create the fork with
+`--retain-base` (a digest-bound immutable snapshot; doubles the fork's byte
+footprint, and admission accounts for it) and run `fork diff FORK_ID --net`.
+The `snapback.fork-net-diff.v1` receipt is computed by comparing the
+retained base against the head directly — independent of the journal — with
+pre- and post-images, a named substrate (`retained-base-v1`) and
+completeness class (`journal-enumerated-v1`), and machine-readable covered/
+omitted domains. Within journal retention every net change is cross-checked
+against the journal; a change the journal cannot explain refuses with
+`SNAPBACK_FORK_DIFF_ORACLE_MISMATCH` instead of lending it cover. Without a
+retained base, `--net` refuses with `SNAPBACK_FORK_NET_DIFF_UNAVAILABLE`.
+
+The attributed receipt is a review aid, not a complete audit and not
+production migration admission. A long-lived fork can also outlive its journal floor; then diff
 refuses instead of returning an incomplete receipt. The attributed span is
 also work-bounded: past `--max-rows` (default 100k) diff refuses with
 `SNAPBACK_FORK_RESOURCE_LIMIT_REFUSED` and the observed row count instead of
@@ -11515,8 +11527,15 @@ for production apply decisions.
 - The default is secret scrubbing. `--with-secrets` is an explicit high-risk
   opt-in for the config-secret sibling; it does not weaken credential minting
   or egress denial.
-- Asset-bearing parents refuse rather than publish metadata whose blobs lack a
-  proven fork-private same-cut copy.
+- Asset-bearing parents fork with **same-cut fork-private custody**: every
+  blob the metadata cut names is copied into the fork's own store,
+  digest- and length-verified, or publication refuses
+  (`SNAPBACK_FORK_ASSET_CUT_INCOMPLETE`) — never a metadata-only success.
+  Unknown stores and digest algorithms fail closed
+  (`SNAPBACK_FORK_ASSET_CUT_UNSUPPORTED`); parent-signed URLs never
+  validate in the fork (fresh signing keys); creation admission counts the
+  blob tree in the fork's byte estimate; `create`/`inspect` report the
+  custody fact (`fork-private-same-cut` or `no-assets`).
 - Manual cron tick and forced job-drain routes refuse in a fork under the
   deny-all posture; autonomous workers are also inert.
 - There is no fork promotion or merge-back. Move conclusions or app-level
