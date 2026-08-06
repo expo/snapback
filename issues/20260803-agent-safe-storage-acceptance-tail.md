@@ -104,6 +104,34 @@ and none of this closes a row on its own.
   staging exactly); other hosts rely on the 20-cut publication crash
   matrix. Digest-work/replay-floor legs stay with their owners above.
 
+### Phase 6 gate progress (2026-08-05 author rulings + verifications)
+
+- Publication mechanism decided (LLP 0185 Phase 0 item 6): the LLP 0061
+  guide capability-index claim governs `operating.instance-forks`; no LLP
+  0113 manifest or LLP 0134 registration act for the local claim.
+- LLP 0158 moved Draft → Review by author ruling; the LLP 0005 review loop
+  is running (independent GPT-family review commissioned 2026-08-05).
+- LLP 0024/0030 fork-field stability re-verified against the Phase 0
+  freeze: `schemas/host-ready.schema.json` is byte-unchanged since
+  `fbb596876`, and the only `src/host_ops.rs` change (`2af0dc9fc`) is an
+  operation-inventory documentation constant, not envelope fields.
+- Row-13 narrow-claim scope ruled (OQ6): fork lifecycle metrics only.
+  Dated release-profile evidence recorded
+  (`tests/acceptance/instance-fork-lifecycle-bench.2026-08-05.v1.json`,
+  macOS aarch64, commit 447f10fec): cold create 212 ms median (351 ms at a
+  32 MiB parent), live-parent create 200 ms, drop 63 ms, attributed diff
+  47 ms and net diff 68 ms at 10k journal rows, reap-of-three 76 ms, and
+  three concurrent creates at 417 ms wall versus a 212 ms sequential
+  median. **Proposed bounds (pending 0162-author ratification):** create ≤
+  2 s small / ≤ 3 s at 32 MiB / ≤ 2 s live; drop ≤ 1 s; attributed diff ≤
+  500 ms and net diff ≤ 750 ms per 10k rows; reap ≤ 1 s per sweep of
+  three; concurrent 3-create wall ≤ 3× the sequential-create bound.
+  Rerun recipe: `cargo test --release --test instance_fork_bench_v1 --
+  --ignored --nocapture`.
+- Still gated on Track B: LLP 0163/0164/0165 acceptance loops (their
+  implementing integration is unlanded), the contract-bytes freeze, and
+  the independent security review that must follow it.
+
 The detailed LLP 0163 public-carrier work remains in its existing focused
 ticket. The first F1 operating-guide and single-consumer fork-aware harness
 slice landed on 2026-08-05; its remaining guide-gap/productization work stays

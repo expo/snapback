@@ -6,7 +6,14 @@
 experience, Developer experience, CLI, MCP, Documentation, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-05
-**Revised:** 2026-08-05 (execution status: Phases 0, 1, 2a, 2b, 3, and 5
+**Revised:** 2026-08-05 (Phase 0 items 2/6 closed by author ruling: LLP
+0158 is in Review and its acceptance loop is running; the Phase 6
+publication mechanism is the LLP 0061 guide capability-index claim, so
+Phase 6 item 1's gate set binds to the capability-index row rather than an
+LLP 0113 manifest, and LLP 0134's registration act is not required for the
+local claim. OQ6 is resolved by the same ruling — row 13 narrows to fork
+lifecycle metrics for this claim, bounds pending 0162-author ratification
+after measurement.); 2026-08-05 (execution status: Phases 0, 1, 2a, 2b, 3, and 5
 are executed with dated evidence on main, plus Phase 4's first slice (the
 retained-base substrate and oracle-verified `snapback.fork-net-diff.v1`,
 under LLP 0164's explicit target-choice delegation). Author rulings
