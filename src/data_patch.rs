@@ -558,6 +558,13 @@ pub fn stale_version(expected: u64, actual: u64) -> SnapbackError {
     .with_details(json!({ "expectedVersion": expected, "actualVersion": actual }))
 }
 
+pub fn apply_context_mismatch() -> SnapbackError {
+    token_error(
+        "SNAPBACK_DATA_PATCH_APPLY_TOKEN_MISMATCH",
+        "the served app or schema changed after apply-token consumption",
+    )
+}
+
 pub fn canonical_patch(patch: &Map<String, Value>) -> BTreeMap<String, Value> {
     patch
         .iter()

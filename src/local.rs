@@ -6419,6 +6419,18 @@ impl LocalSnapback {
         &mut self,
         binding: &crate::data_patch::DataPatchTokenBindingV1,
     ) -> SnapbackResult<crate::storage::MutationCommit> {
+        // The host compares process context before consuming the token. Check
+        // the mutable app/schema identity again under the same Local lock as
+        // the commit so a concurrent artifact load cannot create a gap
+        // between that comparison and storage validation.
+        //
+        // @ref LLP 0184#a-bounded-direct-row-patch--add-now — catalog/schema
+        //   identity is part of the exact token binding, including at commit.
+        if self.loaded_app_id() != binding.target.app_id
+            || self.loaded_schema_hash() != binding.schema_identity
+        {
+            return Err(crate::data_patch::apply_context_mismatch());
+        }
         let dependency = CapturedReadDependency {
             kind: CapturedReadKind::Row,
             table: Some(binding.table.clone()),
