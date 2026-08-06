@@ -2489,6 +2489,14 @@ packages, and multi-file graphs are not admitted by that compatibility lane.
 `delete`, conditions, and a declared return binding without running a JS
 handler.
 
+Strict `arg('name')` requires the property, so generation refuses a
+caller-optional argument consumed by it with
+`SNAPBACK_AUTHORING_OPTIONAL_ARG_CONTRADICTION`. Use `argOpt('name')` for the
+omission branch: an omitted property evaluates to `null`; use
+`coalesce(argOpt('name'), lit(default))` to supply a default. Writing that
+`null` requires the target field to be declared `v.optional(...)`, which
+stores it as a present null.
+
 Set-oriented deletion is `deleteWhere(table, filter)`. The filter argument is
 required; omitting it refuses generation with
 `SNAPBACK_DELETE_WHERE_FILTER_REQUIRED`. An explicitly authored empty array,
