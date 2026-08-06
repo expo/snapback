@@ -460,3 +460,38 @@ Proposed next step per LLP 0005: the fixes were applied by the
 orchestrating session, not re-verified by this reviewer family; a delta
 re-review of the revised document (or the author's own read of this
 disposition) is the honest gate before acceptance.
+
+
+## Round 3 (delta) — 2026-08-06
+
+**Reviewer family:** OpenAI Codex
+**Provider / runtime:** `codex-cli`, `codex exec`, model `gpt-5.6-sol`,
+`model_reasoning_effort=xhigh`, sandbox `read-only`
+**Date:** 2026-08-06
+**Redacted:** no
+**Method:** scoped delta re-review over the working tree at f04492813:
+verify each of the eight Round-2 findings against the applied fixes with
+citations, check for fix-introduced defects, no re-litigation of
+previously-passed text.
+
+### Review as received
+
+VERDICT: READY
+
+1. RESOLVED — `recover` now requires the exact prefix, a UUID suffix, and the staging sentinel before recursive reap, while documenting the no-live-publisher precondition (`src/instance_fork.rs:3039-3077`).
+2. RESOLVED — asset publication now syncs blobs, `assets/blobs`, and `assets`, adds `AfterAssetCopy`, and runs all 21 crash cuts with an asset-bearing parent (`src/instance_fork.rs:2781-2787`, `src/instance_fork.rs:2911-2921`, `src/instance_fork.rs:4812-4870`).
+3. RESOLVED — the inventory now covers all eight operations, renew artifacts, `--net`, and the previously omitted create/list/reap fields (`llp/0158-instance-forking.rfc.md:1085-1100`).
+4. RESOLVED — all four omitted diagnostics are present and `CUSTODY_REFUSED` correctly excludes supported local assets (`llp/0158-instance-forking.rfc.md:1195-1209`, `src/instance_fork.rs:29-35`).
+5. RESOLVED — the runtime plane now accurately records unconditional derived-fork gates, environment inheritance except the admin token, and pre-construction S3 denial (`llp/0158-instance-forking.rfc.md:681-695`, `src/cli.rs:2827-2842`, `src/local.rs:6680-6699`).
+6. RESOLVED — promotion is explicitly forbidden and managed lifetime is capped at seven days across creation and renewal (`llp/0158-instance-forking.rfc.md:340-345`, `llp/0158-instance-forking.rfc.md:457-462`, `src/instance_fork.rs:1464-1476`, `src/instance_fork.rs:2080-2090`).
+7. RESOLVED — the implementation inventory, F0 records, and OQ5 now identify same-cut private asset copying as landed and refusal as superseded (`llp/0158-instance-forking.rfc.md:962`, `llp/0158-instance-forking.rfc.md:1019-1040`, `llp/0158-instance-forking.rfc.md:1378-1385`).
+8. RESOLVED — metadata, banner, Status section, and conclusion consistently record the 2026-08-05 transition to Review (`llp/0158-instance-forking.rfc.md:4`, `llp/0158-instance-forking.rfc.md:241-246`, `llp/0158-instance-forking.rfc.md:1449-1472`, `llp/0158-instance-forking.rfc.md:1516-1518`).
+
+No new findings.
+
+### Orchestrator note
+
+The Round-2 → Round-3 arc is complete: NOT-READY (8 findings, all
+verified real) → fixes → READY with every finding independently confirmed
+RESOLVED and no new findings. Per LLP 0005 the acceptance decision now
+rests with the author.
