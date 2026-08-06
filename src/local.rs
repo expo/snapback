@@ -25771,10 +25771,11 @@ fn bounded_projection_result_contract(
 /// Reconcile authored order uses into the one schema-level UTF-8 ceiling for
 /// each `(table, field)`. The authoring member lives on `OrderExpr` because a
 /// cursor profile is what needs the bound, but storage must never receive two
-/// competing answers for the same column.
+/// competing answers for the same string-encoded column.
 ///
-/// @ref LLP 0135#4-fold-on-acceptance-amendments-applied-2026-08-02 — bounds
-///   are positive, string-only, and single-valued per table/field.
+/// @ref LLP 0157#d8--coordinated-cursor-family-grammar-and-the-llp-0135-seam —
+///   snapshot-batch string and application-id order values share one positive,
+///   write-enforced, single-valued bound per table/field.
 fn order_field_bounds_from_functions(
     manifest: &FunctionManifest,
     schema: &SchemaManifest,
@@ -25806,13 +25807,16 @@ fn order_field_bounds_from_functions(
             })?;
             if max_encoded_bytes == 0
                 || max_encoded_bytes > 9_007_199_254_740_991
-                || field.field_type != crate::manifest::FieldType::String
+                || !matches!(
+                    &field.field_type,
+                    crate::manifest::FieldType::String | crate::manifest::FieldType::Id { .. }
+                )
             {
                 return Err(SnapbackError::error(
                     "SNAPBACK_FUNCTION_SCHEMA_REFERENCE_INVALID",
                     "runtime",
                     format!(
-                        "order-field maxEncodedBytes requires a positive bound on string field {table_name}.{}",
+                        "order-field maxEncodedBytes requires a positive bound on string or id field {table_name}.{}",
                         declaration.field
                     ),
                 ));
@@ -27428,6 +27432,9 @@ fn snapshot_batch_authority_partition_digest(
     Ok(format!("sha256:{:x}", digest.finalize()))
 }
 
+/// @ref LLP 0157#d8--coordinated-cursor-family-grammar-and-the-llp-0135-seam —
+///   the shared `sbsb1`/`sbsb2` template pins exact worst-case scalar spellings
+///   and requires application ids to use the string escape ceiling.
 fn snapshot_batch_max_boundary(
     db: &DbRead<'_>,
     node: &crate::manifest::BoundedChildrenQueryPlan,
@@ -27444,7 +27451,7 @@ fn snapshot_batch_max_boundary(
                 .field(&order.field)
                 .ok_or_else(snapshot_batch_cursor_invalid)?;
             Ok(match &field.field_type {
-                FieldType::String => {
+                FieldType::String | FieldType::Id { .. } => {
                     let bound = order
                         .max_encoded_bytes
                         .ok_or_else(snapshot_batch_cursor_budget_exceeded)?;
@@ -27453,9 +27460,8 @@ fn snapshot_batch_max_boundary(
                     }
                     Value::String("\u{0}".repeat(bound as usize))
                 }
-                FieldType::Integer => Value::from(9_007_199_254_740_991_i64),
-                FieldType::Boolean => Value::Bool(true),
-                FieldType::Id { .. } => Value::String("x".repeat(256)),
+                FieldType::Integer => Value::from(-9_007_199_254_740_991_i64),
+                FieldType::Boolean => Value::Bool(false),
                 _ => return Err(snapshot_batch_cursor_budget_exceeded()),
             })
         })
@@ -27463,7 +27469,7 @@ fn snapshot_batch_max_boundary(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn enforce_snapshot_batch_cursor_budget(
+fn snapshot_batch_max_plaintext_len(
     db: &DbRead<'_>,
     plan: &crate::manifest::SnapshotBatchPlanV1,
     identity: &crate::manifest::SnapshotBatchIdentityV1,
@@ -27475,7 +27481,7 @@ fn enforce_snapshot_batch_cursor_budget(
     args: &Value,
     authority_partition: &str,
     parent_ids: &[String],
-) -> SnapbackResult<()> {
+) -> SnapbackResult<usize> {
     let parent_groups = identity
         .parent_authorization_key_digests
         .iter()
@@ -27501,6 +27507,9 @@ fn enforce_snapshot_batch_cursor_budget(
                 state: crate::snapshot_batch_cursor::NodeState::Boundary {
                     order_fields: node.order.iter().map(|order| order.field.clone()).collect(),
                     boundary: snapshot_batch_max_boundary(db, node)?,
+                    // @ref LLP 0157#d8--coordinated-cursor-family-grammar-and-the-llp-0135-seam —
+                    // unlike application id order values, framework-minted
+                    // root `_id` keeps the declaration-free 256-byte ceiling.
                     row_id: "x".repeat(256),
                 },
             })
@@ -27523,7 +27532,37 @@ fn enforce_snapshot_batch_cursor_budget(
     );
     let bytes = crate::snapshot_batch_cursor::compact_plaintext(&body)
         .map_err(|_| snapshot_batch_cursor_budget_exceeded())?;
-    if bytes.len() > crate::snapshot_batch_cursor::MAX_PLAINTEXT_BYTES {
+    Ok(bytes.len())
+}
+
+#[allow(clippy::too_many_arguments)]
+fn enforce_snapshot_batch_cursor_budget(
+    db: &DbRead<'_>,
+    plan: &crate::manifest::SnapshotBatchPlanV1,
+    identity: &crate::manifest::SnapshotBatchIdentityV1,
+    key_generation: &str,
+    app_id: &str,
+    database_id: &str,
+    stream_epoch: &str,
+    function: &str,
+    args: &Value,
+    authority_partition: &str,
+    parent_ids: &[String],
+) -> SnapbackResult<()> {
+    if snapshot_batch_max_plaintext_len(
+        db,
+        plan,
+        identity,
+        key_generation,
+        app_id,
+        database_id,
+        stream_epoch,
+        function,
+        args,
+        authority_partition,
+        parent_ids,
+    )? > crate::snapshot_batch_cursor::MAX_PLAINTEXT_BYTES
+    {
         return Err(snapshot_batch_cursor_budget_exceeded());
     }
     Ok(())
@@ -29952,7 +29991,8 @@ mod tests {
         bounded_projection_result_contract, enforce_snapshot_batch_cursor_budget,
         next_secret_read_reset_generation, now_millis, order_field_bounds_from_functions,
         refuse_unprovenanced_host_plan_authority_creation, reserve_unique_generation,
-        settlement_id_map, telemetry_correlation, validate_bounded_children_node_schema_references,
+        settlement_id_map, snapshot_batch_max_boundary, snapshot_batch_max_plaintext_len,
+        telemetry_correlation, validate_bounded_children_node_schema_references,
         validate_bounded_children_schema_plan, validate_function_schema_references,
     };
     use crate::admin::ServerProfile;
@@ -43017,6 +43057,178 @@ globalThis.__snapbackHandlers = {
                 .expect("node tuple")
                 .len(),
             8,
+        );
+    }
+
+    #[test]
+    fn snapshot_batch_budget_pins_scalar_widths_at_6099_and_refuses_6100() {
+        let (mut schema, functions, plan) = snapshot_batch_publication_fixture(8, 2);
+        let id_order_field = schema
+            .tables
+            .iter_mut()
+            .find(|table| table.name == "children")
+            .and_then(|table| table.fields.iter_mut().find(|field| field.name == "label"))
+            .expect("bounded id order field");
+        id_order_field.field_type = FieldType::Id {
+            table: "parents".to_owned(),
+        };
+
+        let bounds = order_field_bounds_from_functions(&functions, &schema)
+            .expect("id order fields accept the shared write-enforced bound");
+        assert_eq!(
+            bounds.get(&("children".to_owned(), "label".to_owned())),
+            Some(&16),
+        );
+
+        let mut snapback = LocalSnapback::memory().expect("budget store");
+        snapback
+            .apply_schema(schema)
+            .expect("apply id-order schema");
+        let function = functions
+            .functions
+            .iter()
+            .find(|function| function.name == "boardView")
+            .expect("batch function");
+        let identity = crate::manifest::snapshot_batch_identity_v1(function, &plan)
+            .expect("eight-node identity");
+        let db = DbRead::Live(&snapback.db);
+        assert_eq!(
+            snapshot_batch_max_boundary(&db, &plan.nodes[0]).expect("closed scalar widths"),
+            vec![
+                Value::from(-9_007_199_254_740_991_i64),
+                Value::String("\u{0}".repeat(16)),
+                Value::Bool(false),
+            ],
+            "integer, bounded id, and boolean use LLP 0157's exact templates",
+        );
+
+        let authority_partition = format!("sha256:{}", "a".repeat(64));
+        let parent_ids = ["parent-a".to_owned()];
+        let empty_padding_args = json!({"parentId":"parent-a", "padding":""});
+        let empty_padding_len = snapshot_batch_max_plaintext_len(
+            &db,
+            &plan,
+            &identity,
+            "generation-maximum-spelling",
+            "app",
+            "database",
+            "stream",
+            &function.id,
+            &empty_padding_args,
+            &authority_partition,
+            &parent_ids,
+        )
+        .expect("bounded id template leaves room for exact-boundary padding");
+        let padding_len = crate::snapshot_batch_cursor::MAX_PLAINTEXT_BYTES
+            .checked_sub(empty_padding_len)
+            .expect("fixture begins below the plaintext ceiling");
+
+        let at_limit_args = json!({
+            "parentId":"parent-a",
+            "padding":"x".repeat(padding_len),
+        });
+        assert_eq!(
+            snapshot_batch_max_plaintext_len(
+                &db,
+                &plan,
+                &identity,
+                "generation-maximum-spelling",
+                "app",
+                "database",
+                "stream",
+                &function.id,
+                &at_limit_args,
+                &authority_partition,
+                &parent_ids,
+            )
+            .expect("serialize exact 6,099-byte template"),
+            6_099,
+        );
+        enforce_snapshot_batch_cursor_budget(
+            &db,
+            &plan,
+            &identity,
+            "generation-maximum-spelling",
+            "app",
+            "database",
+            "stream",
+            &function.id,
+            &at_limit_args,
+            &authority_partition,
+            &parent_ids,
+        )
+        .expect("6,099-byte template is admitted");
+
+        let over_limit_args = json!({
+            "parentId":"parent-a",
+            "padding":"x".repeat(padding_len + 1),
+        });
+        assert_eq!(
+            snapshot_batch_max_plaintext_len(
+                &db,
+                &plan,
+                &identity,
+                "generation-maximum-spelling",
+                "app",
+                "database",
+                "stream",
+                &function.id,
+                &over_limit_args,
+                &authority_partition,
+                &parent_ids,
+            )
+            .expect("serialize exact 6,100-byte template"),
+            6_100,
+        );
+        assert_eq!(
+            enforce_snapshot_batch_cursor_budget(
+                &db,
+                &plan,
+                &identity,
+                "generation-maximum-spelling",
+                "app",
+                "database",
+                "stream",
+                &function.id,
+                &over_limit_args,
+                &authority_partition,
+                &parent_ids,
+            )
+            .expect_err("6,100-byte template must refuse before parent reads")
+            .diagnostic
+            .code,
+            "SNAPBACK_SNAPSHOT_BATCH_CURSOR_BUDGET_EXCEEDED",
+        );
+
+        let mut unbounded_id = plan;
+        for node in &mut unbounded_id.nodes {
+            node.order
+                .iter_mut()
+                .find(|order| order.field == "label")
+                .expect("id order")
+                .max_encoded_bytes = None;
+        }
+        let unbounded_identity =
+            crate::manifest::snapshot_batch_identity_v1(function, &unbounded_id)
+                .expect("unbounded id identity remains structurally valid");
+        assert_eq!(
+            enforce_snapshot_batch_cursor_budget(
+                &db,
+                &unbounded_id,
+                &unbounded_identity,
+                "generation-maximum-spelling",
+                "app",
+                "database",
+                "stream",
+                &function.id,
+                &empty_padding_args,
+                &authority_partition,
+                &parent_ids,
+            )
+            .expect_err("id order fields without declared bounds fail closed")
+            .diagnostic
+            .code,
+            "SNAPBACK_SNAPSHOT_BATCH_CURSOR_BUDGET_EXCEEDED",
         );
     }
 

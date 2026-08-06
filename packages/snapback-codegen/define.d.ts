@@ -191,7 +191,7 @@ export interface FilterSpec { field: string; op: string; value: ValueExpr }
 export interface OrderSpec {
   field: string;
   direction: 'Asc' | 'Desc';
-  /** UTF-8 write ceiling for a string order field; single-valued per table/field. */
+  /** UTF-8 write ceiling for a string or application-id order field; single-valued per table/field. */
   maxEncodedBytes?: number;
 }
 

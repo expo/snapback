@@ -18065,7 +18065,7 @@ fn order_field_max_encoded_bytes_exceeded(
     SnapbackError::error(
         "SNAPBACK_ORDER_FIELD_MAX_ENCODED_BYTES_EXCEEDED",
         "storage",
-        "string order field exceeds its declared UTF-8 byte ceiling",
+        "string or id order field exceeds its declared UTF-8 byte ceiling",
     )
     .with_details(json!({
         "table": table,

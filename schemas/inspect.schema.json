@@ -5458,7 +5458,7 @@
           "type": "string"
         },
         "maxEncodedBytes": {
-          "description": "Optional UTF-8 ceiling for a string order field. The loader reconciles\nevery occurrence to one value per `(table, field)` before storage\ninstalls it as a central-writer constraint.\n\n@ref LLP 0135#4-fold-on-acceptance-amendments-applied-2026-08-02 — the\n  bound is schema-level even though authoring declares it at an order\n  use; conflicting declarations and oversized writes fail closed.",
+          "description": "Optional UTF-8 ceiling for a string or application-id order field. The\nloader reconciles every occurrence to one value per `(table, field)`\nbefore storage installs it as a central-writer constraint.\n\n@ref LLP 0157#d8--coordinated-cursor-family-grammar-and-the-llp-0135-seam —\n  the snapshot-batch family applies the same schema-level,\n  write-enforced bound to string and application-id order values.",
           "format": "uint64",
           "minimum": 0,
           "type": [

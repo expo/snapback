@@ -1,16 +1,17 @@
 # Snapshot-batch cursor budget template under-counts boolean and integer worst cases
 
-**Status:** Open
+**Status:** Resolved
 **Opened:** 2026-08-06
+**Resolved:** 2026-08-06
 **Related:** LLP 0157 §D8 (family template widths, pinned by the v0.11
 `snapshot-batch.v2` amendment); LLP 0135 §2.4; Claude round-3 review finding
 C2 (`llp/reviews/0157-composition-algebra-and-completeness.claude.md`)
 
 LLP 0157 v0.11 pins the cursor-budget template widths to the digit for the
-whole `sbsb1`/`sbsb2` family: string = `maxEncodedBytes` x 6 escape
-expansion + 2 quotes; id order field and root `_id` = 256 unescaped bytes +
-2 quotes; JavaScript-safe integer = 17 characters (`-9007199254740991`);
-boolean = 5 (`false`).
+whole `sbsb1`/`sbsb2` family: string and application-id order fields use
+`maxEncodedBytes` x 6 escape expansion + 2 quotes; the framework root `_id`
+uses 256 unescaped bytes + 2 quotes; JavaScript-safe integer = 17 characters
+(`-9007199254740991`); boolean = 5 (`false`).
 
 The shipped v1 template in `src/local.rs` (`snapshot_batch_max_boundary`,
 ~:27113-27142) under-counts two of these by one character each:
@@ -44,3 +45,24 @@ exactly at the 6,099/6,100 boundary with boolean, integer, and bounded-id
 order fields. This must land with (or before) the `sbsb2` implementation so
 v1 and v2 share one template, and before the frozen `sbsb2` parity vectors
 are generated.
+
+## Resolution
+
+The shared Rust template now uses `false`, `-9007199254740991`, and the
+declared `maxEncodedBytes` ceiling at six-times JSON escape expansion for
+application `Id` order fields. Missing `Id` bounds fail closed through
+`SNAPBACK_SNAPSHOT_BATCH_CURSOR_BUDGET_EXCEEDED`; the separately serialized
+framework `_id` tie-break keeps its declaration-free 256-byte template.
+
+The schema-level order-bound registrar now accepts both string and application
+`Id` fields, so the existing central-writer UTF-8 enforcement makes the new
+template bound sound. Regression coverage asserts the exact boolean, integer,
+and bounded-id values, admits a 6,099-byte plaintext template, refuses the
+one-byte-larger 6,100-byte template, and refuses an unbounded application id.
+
+The `packages/snapback-codegen` search found no JavaScript copy of the
+max-boundary arithmetic (`9007199254740991`, `repeat(256)`, or equivalent
+budget construction). Codegen already passes through `maxEncodedBytes`
+generically; its public type description now names application-id order fields
+as well. No v1 wire bytes, cursor semantics, capability, or registry facts
+changed.

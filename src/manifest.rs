@@ -7732,13 +7732,13 @@ pub enum FilterOp {
 pub struct OrderExpr {
     pub field: String,
     pub direction: OrderDirection,
-    /// Optional UTF-8 ceiling for a string order field. The loader reconciles
-    /// every occurrence to one value per `(table, field)` before storage
-    /// installs it as a central-writer constraint.
+    /// Optional UTF-8 ceiling for a string or application-id order field. The
+    /// loader reconciles every occurrence to one value per `(table, field)`
+    /// before storage installs it as a central-writer constraint.
     ///
-    /// @ref LLP 0135#4-fold-on-acceptance-amendments-applied-2026-08-02 — the
-    ///   bound is schema-level even though authoring declares it at an order
-    ///   use; conflicting declarations and oversized writes fail closed.
+    /// @ref LLP 0157#d8--coordinated-cursor-family-grammar-and-the-llp-0135-seam —
+    ///   the snapshot-batch family applies the same schema-level,
+    ///   write-enforced bound to string and application-id order values.
     #[serde(
         default,
         rename = "maxEncodedBytes",
