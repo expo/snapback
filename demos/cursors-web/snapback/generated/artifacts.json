@@ -10,9 +10,9 @@
     "provider-bindings.d.ts",
     "contract-data.manifest.json",
     "app.descriptor.json",
-    "app.descriptor.00a3161c05e7119d2da1e29b59fa13f9f68229b52dd940dad983e842b1d34692.json",
+    "app.descriptor.a84ef46a75e9c4d382017b91acd93602641b23441385cc0e4c0265082accc672.json",
     "app.binding.mjs",
-    "app.binding.f6604e108c46f9623ea7e51cbb864453728e71f17aa1b6b66fb9e57482a6a719.mjs",
+    "app.binding.a27e29ea23e0e4aa075bf464536976cd20bb885ebdb8d35970a1e09e947be7ce.mjs",
     "app.mjs",
     "app.d.ts",
     "api.mjs",
@@ -25,10 +25,10 @@
     "contract/webCursors.publish.ts",
     "contract/webCursors.publish.contract-meta.ts"
   ],
-  "bundleHash": "sha256:f4ac9620110433a6",
+  "bundleHash": "sha256:e19ff770cdd6b2f2",
   "cache": {
-    "graphPath": "../../.snapback/codegen-cache/c4d4417f9cee167ff45cb60a413670e36d867b8f360cde4a5fe756b3006f0b9d",
-    "key": "c4d4417f9cee167ff45cb60a413670e36d867b8f360cde4a5fe756b3006f0b9d",
+    "graphPath": "../../.snapback/codegen-cache/d22555c44e1788b479f26f3d4eb1003d2e7b5503e0fd3c7c01829b035ea74386",
+    "key": "d22555c44e1788b479f26f3d4eb1003d2e7b5503e0fd3c7c01829b035ea74386",
     "regenerationRule": "regenerate-or-fail-closed"
   },
   "config": [],
@@ -76,19 +76,19 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:53bc2208d402fc90f6b23caeba7e31ca8c52902151fc2114528cafb2c3362daf"
+      "sha256": "sha256:512f4ab1c5ac69c04889741c31f4899e28d8011ea1d60d81798aa168b6b76fb4"
     },
     {
-      "bytes": 974,
+      "bytes": 1555,
       "consumer": "client-bundler",
       "custody": "regenerable-cache",
       "logicalKind": "typed-app-descriptor",
-      "path": "app.binding.f6604e108c46f9623ea7e51cbb864453728e71f17aa1b6b66fb9e57482a6a719.mjs",
+      "path": "app.binding.a27e29ea23e0e4aa075bf464536976cd20bb885ebdb8d35970a1e09e947be7ce.mjs",
       "regeneration": {
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:f018bf3d870206457155ea3c011e71305211770acad109d83e265e19725c5ec4"
+      "sha256": "sha256:d5ed557c28d22eb81ecb1fefddacee23a7875227a12838043ff749106537eb91"
     },
     {
       "bytes": 373,
@@ -100,10 +100,10 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:51fd30fcc4d9bb681ccf64f84b1dc26aa55a3594e99a0ed720dcc63b04182c63"
+      "sha256": "sha256:eb47f0ae74907788a81d41724d83f64a436c5cfb5a7b9f3611e6acff856399d3"
     },
     {
-      "bytes": 1319,
+      "bytes": 2192,
       "consumer": "client-bundler",
       "custody": "regenerable-cache",
       "logicalKind": "typed-app-descriptor",
@@ -112,19 +112,19 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:876544c2684f39cd254817ff1925f3505f3354a067f6b976852674e5bb50671f"
+      "sha256": "sha256:4eb5cb2c7317fb81146e3431afa2d6c5a17e21c7fd4989428e126d7f215e2061"
     },
     {
       "bytes": 1500,
       "consumer": "client-bundler",
       "custody": "regenerable-cache",
       "logicalKind": "app-descriptor",
-      "path": "app.descriptor.00a3161c05e7119d2da1e29b59fa13f9f68229b52dd940dad983e842b1d34692.json",
+      "path": "app.descriptor.a84ef46a75e9c4d382017b91acd93602641b23441385cc0e4c0265082accc672.json",
       "regeneration": {
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:fd11dc6f2239f21885c3235266a41eaa51e2973d22ff40b3ce1e597db6784d49"
+      "sha256": "sha256:9be3579d574d0652b87dc2eb60844b885ebcd6c3fde8be77babc1cbfdd91cd76"
     },
     {
       "bytes": 1500,
@@ -136,7 +136,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:fd11dc6f2239f21885c3235266a41eaa51e2973d22ff40b3ce1e597db6784d49"
+      "sha256": "sha256:9be3579d574d0652b87dc2eb60844b885ebcd6c3fde8be77babc1cbfdd91cd76"
     },
     {
       "bytes": 288,
@@ -148,7 +148,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:532dd5c5b369957889ea97f22d738809c6934c1f49e37da2467de81a68a74c02"
+      "sha256": "sha256:faa1c8e2afb48571549a129f595b3bb64ec8db70780e9efc7c2f1c93889a161c"
     },
     {
       "bytes": 14904,
@@ -172,7 +172,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:f28f3d814f62823e89aae3d270cef90f6be60fd6cbdaf29a0d72686fce2d85a1"
+      "sha256": "sha256:134a83c7c7e011bbcd96fe6ae1b5444819e16d7ec3fadfe18f8527a6acad29de"
     },
     {
       "bytes": 867,
@@ -244,7 +244,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:931776cd6ec9e7f54d22e1927282754577357e77ec0f897de7aa8358da7c39d5"
+      "sha256": "sha256:43a9870baabb68e90e280a76d0e5cbd7a342f490cf160ac01ea2f94ae886283f"
     },
     {
       "bytes": 651,
@@ -280,7 +280,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:2b8acee74c4a8f8319a98a0bf57cd0dc39503aae24f414c3b9d3730697075575"
+      "sha256": "sha256:c3a175c0432893f0f3b4d123bcccc075cab7146b0b45cbf89f41a6772ef62ff7"
     },
     {
       "bytes": 3619,
@@ -292,7 +292,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:6d994edb4209c77e2f8b6e68210fb5bce924c1682c181c26596a6e6b463bc9e1"
+      "sha256": "sha256:b5dd9e91b4dbc88b5399c5a55c1a408244fa28088cfd56ba88c81c8402218b47"
     },
     {
       "bytes": 2859,
@@ -304,19 +304,19 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:a62845ac8a8d108da9c511cc0254b46ebd87dc6613eca05183b13a62d52b1271"
+      "sha256": "sha256:6eea3762f9b4f98cfd0c17fee6a074bb1e0e73c51e570067619ef3aa41c0d635"
     }
   ],
   "functions": [],
   "generatedAt": 0,
-  "inputsHash": "c4d4417f9cee167ff45cb60a413670e36d867b8f360cde4a5fe756b3006f0b9d",
+  "inputsHash": "d22555c44e1788b479f26f3d4eb1003d2e7b5503e0fd3c7c01829b035ea74386",
   "manifestVersion": 2,
   "reviewManifest": {
     "authority": "@expo/snapback-codegen/review-manifest.schema.json",
     "custody": "review-manifest",
     "path": "artifacts.json"
   },
-  "schemaHash": "sha256:3f7c3fee32d00939",
+  "schemaHash": "sha256:8831480c6d4520d3",
   "schemaVersion": "snapback.v0",
   "summary": {
     "appId": "cursors-web",
@@ -343,7 +343,7 @@
     },
     "degradedResults": [],
     "implicitAuthRequirements": [],
-    "inputsHash": "c4d4417f9cee167ff45cb60a413670e36d867b8f360cde4a5fe756b3006f0b9d",
+    "inputsHash": "d22555c44e1788b479f26f3d4eb1003d2e7b5503e0fd3c7c01829b035ea74386",
     "schemaVersion": "snapback.codegen-summary.v1"
   },
   "tables": []
