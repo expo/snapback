@@ -1,0 +1,50 @@
+{
+  "expo": {
+    "name": "Tandem · Snapback",
+    "slug": "tandem-snapback",
+    "scheme": "tandem-snapback",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "plugins": [
+      "expo-router",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Tandem uses your photos when you attach an image to a message.",
+          "microphonePermission": false
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "dev.snapback.tandem.snapback",
+      "infoPlist": {
+        "NSAppTransportSecurity": {
+          "NSAllowsLocalNetworking": true
+        },
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "dev.snapback.tandem.snapback",
+      "usesCleartextTraffic": true
+    },
+    "web": {
+      "bundler": "metro"
+    },
+    "extra": {
+      "router": {},
+      "backend": "snapback",
+      "capabilityClass": "Online",
+      "eas": {
+        "projectId": "62ee37ef-9126-4fb1-bf0d-a8c742fc6fdc"
+      }
+    },
+    "owner": "ccheever"
+  }
+}

@@ -1,0 +1,7 @@
+node_modules/
+*.log
+
+# Keep the codegen summary as the reviewable proof. Recreate the larger
+# generated Snapback binding with `bun run generate` in the Snapback arm.
+snapback/snapback/generated/*
+!snapback/snapback/generated/artifacts.json

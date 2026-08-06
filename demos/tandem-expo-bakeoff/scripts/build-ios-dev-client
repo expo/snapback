@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+arm=${1:-}
+case "$arm" in
+  snapback|convex) ;;
+  *)
+    echo "usage: $0 snapback|convex [additional eas build arguments]" >&2
+    exit 2
+    ;;
+esac
+shift
+
+script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+demo_dir=$(cd -- "$script_dir/.." && pwd)
+stage_dir=$(mktemp -d "/tmp/tandem-${arm}-eas.XXXXXX")
+trap 'rm -rf -- "$stage_dir"' EXIT
+
+rsync -a \
+  --exclude node_modules \
+  --exclude .expo \
+  --exclude dist \
+  "$demo_dir/$arm/native-shell/" "$stage_dir/"
+
+cd "$stage_dir"
+bun install
+EAS_NO_VCS=1 EAS_PROJECT_ROOT="$stage_dir" \
+  npx eas-cli@latest build --profile development --platform ios "$@"

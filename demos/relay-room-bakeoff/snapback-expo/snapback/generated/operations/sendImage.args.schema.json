@@ -1,0 +1,29 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/snapback-expo/sendImage.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "assetId": {
+      "type": "string"
+    },
+    "caption": {
+      "type": "string"
+    },
+    "conversationId": {
+      "type": "string"
+    },
+    "replyToId": {
+      "type": "string"
+    },
+    "senderId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "conversationId",
+    "senderId",
+    "assetId"
+  ],
+  "title": "snapback-expo:sendImage arguments",
+  "type": "object"
+}
