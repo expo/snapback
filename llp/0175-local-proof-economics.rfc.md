@@ -1,7 +1,7 @@
 # LLP 0175: Local-proof economics and verdict latency
 
 **Type:** RFC
-**Status:** Draft
+**Status:** Accepted
 **Systems:** Testing, Developer experience, Build, Tooling, CI
 **Author:** Claude (Opus 5) / Codex (GPT-5) / Charlie Cheever
 **Date:** 2026-08-05
@@ -13,7 +13,13 @@ cadence selection and remaining D3 work stay
 open). 2026-08-05 (whole-document rewrite: adds affected-test cadence,
 dependency-aware keep-going, workflow amplification, receipt cadence, and
 test-governance findings; demotes unproven Cargo parallelism and test-target
-consolidation from primary remedies)
+consolidation from primary remedies). 2026-08-06 (first Phase-2 cadence slice:
+telemetry full evidence moves to a six-hour/on-demand coalesced latest-head
+producer; retained receipt integrity no longer requires a quiet main, while
+exact-current evidence remains
+mandatory for release and capability promotion. LLP 0154 carries the amended
+trust contract). 2026-08-06 (accepted by co-author Charlie Cheever for
+implementation and direct delivery; the affected-selector tranche follows.)
 **Related:** LLP 0010, LLP 0032, LLP 0109, LLP 0115, LLP 0145, LLP 0154,
 issues/closed/20260802-local-proof-is-cancelled-before-it-can-finish-on-main.md,
 issues/closed/20260802-verify-local-proof-stops-at-the-first-failure.md,
@@ -308,6 +314,16 @@ per-change attribution for the failures most likely to be introduced by that
 change; the complete proof detects dependency-map mistakes and cross-subsystem
 interactions.
 
+The first implemented slice is the telemetry Phase-1 full producer. A
+six-hour schedule plus manual dispatch runs one clean Linux source snapshot;
+`cancel-in-progress: false` lets that measurement finish while the concurrency
+group retains only the newest pending trigger. Its candidate is useful
+historical evidence even when `main` advances during the run. Ordinary receipt
+assessment reports `CURRENT | LAGGING | OVERDUE | DIVERGED`; it does not turn a
+valid older measurement into corrupt evidence merely because the branch is
+busy. This slice does not claim the complete canonical inventory has moved to
+latest-main cadence yet.
+
 #### D2.4 Nightly, release, and platform proof
 
 Historical compatibility, clean-machine package installation, expensive
@@ -315,6 +331,14 @@ retained-evidence smoke/full modes, and promised platform tuples run on their
 relevant affected changes and again at nightly or release cadence. Release
 claims remain blocked unless their complete required matrix is recent and
 green.
+
+For retained telemetry evidence, three executable claims are distinct:
+historical validation, rolling-head assessment, and exact-current release /
+capability-promotion authority. The scheduled full producer owns rolling
+health; ordinary merges may proceed with an explicit ancestral
+`LAGGING`/`OVERDUE` receipt, while a frozen release candidate must pass the
+exact-current mode. LLP 0154's 2026-08-06 amendment is the normative trust
+contract.
 
 No test is moved to nightly merely because it is slow. Its cadence follows the
 risk it covers: a seed change still runs seed compatibility before landing; an
@@ -528,9 +552,10 @@ This RFC is implemented only when all of the following hold:
 
 ## Open questions
 
-- **OQ1 — latest-main trigger:** use a fixed schedule, a debounced latest-head
-  dispatcher, or an existing fleet coordinator? The required semantics are one
-  bounded current-head proof, not a particular GitHub mechanism.
+- **OQ1 — latest-main trigger (partially resolved):** telemetry uses a fixed
+  six-hour GitHub schedule plus manual dispatch and a non-cancelling concurrency
+  group that coalesces pending heads. The complete canonical inventory still
+  needs its own rollout decision after affected selection is proven.
 - **OQ2 — selector authority:** should the path-to-suite map live beside the
   proof script or in a generated manifest owned by package/demo metadata?
 - **OQ3 — receipt input closures:** which telemetry and performance inputs are
@@ -560,7 +585,7 @@ This RFC is implemented only when all of the following hold:
 
 ## Status
 
-Draft, partially implemented. Phase 0 and the first two native-deduplication
+Accepted, partially implemented. Phase 0 and the first two native-deduplication
 legs now have executable code:
 
 - `scripts/verify-local-proof` names and times every gate, records
@@ -577,7 +602,10 @@ legs now have executable code:
   default bring-up/clean-machine claim; and
 - repeated bootstrap calls reuse only a coherent restricted-handler-VM receipt
   for the clean exact current revision and debug identity. Dirty trees and
-  receipt mismatch rebuild normally; and
+  receipt mismatch rebuild normally;
+- the telemetry slice of Phase 2 has a scheduled/on-demand latest-main Linux
+  producer, while ordinary receipt checks separate historical validity from
+  rolling lag and preserve exact-current release authority; and
 - CI decides whether target cleanup is required before deleting test artifacts;
   measured-safe headroom preserves them for the final build and versioned-seed
   witnesses, while low or unmeasurable headroom still cleans fail-safe.

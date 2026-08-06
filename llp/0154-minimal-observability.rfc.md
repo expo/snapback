@@ -233,6 +233,11 @@ are unchanged.)
 **Revised:** 2026-08-04 (the retained Phase-1 evidence was remeasured at the
 final post-fixture source closure; the carrier protocol and frozen ceilings
 remain unchanged.)
+**Revised:** 2026-08-06 (rolling trailing-head evidence amendment: historical
+receipt integrity, ordinary-main currentness, and exact release/promotion
+authority are now separate verdicts. Continuous source churn is accepted by a
+coalesced latest-head full-proof lane without weakening any benchmark, idle,
+or clean-source requirement.)
 **Related:** LLP 0000 (root explainer; points the shipped local Phase-1
 surface here), LLP 0003 (storage core; app write lane), LLP 0010 (inspect
 loop; explicitly defers production observability), LLP 0012 (headless
@@ -887,6 +892,66 @@ normalizer, extraction/allocation bounds), and
 Unicode, canonical bytes, full SHA-256, and 16-byte hash). These contracts are
 pure in this tranche: storage, flusher recomputation prohibitions, and runtime
 carrier wiring land separately under D-05.
+
+### Amendment 2026-08-06: rolling trailing-head evidence
+
+The 2026-08-02 carrier amendment coupled three different claims into one
+`validate` result: whether a retained receipt honestly proves its measured
+revision, whether that revision's proof-source closure is byte-identical to
+current `HEAD`, and whether the evidence can authorize a release or capability
+promotion. That coupling made continuous development structurally red: any
+claim-affecting landing invalidated the historical receipt before a full Linux
+producer could measure and carry a later head. Waiting for a quiet `main` is
+not an admissible operating requirement.
+
+The three claims are now separate and normative:
+
+1. **Historical integrity.** A retained receipt is `HISTORICAL_VALID` when its
+   clean `sourceRevision` exists, its benchmark and idle identities name that
+   revision, the receipt's explicit source-file list reproduces its
+   length-framed digest from that revision's Git tree, every frozen ceiling is
+   satisfied, and the retained receipt bytes equal the tracked carrier bytes.
+   Later source changes do not rewrite this result. Tampering, a missing
+   measured blob, a dirty or mismatched binary identity, or a failed ceiling
+   remains invalid evidence.
+2. **Rolling-main currentness.** Relative to a branch head, historically valid
+   evidence is `CURRENT` when the current proof-source list and digest equal
+   the measured closure, `LAGGING` when the measured revision is an ancestor
+   and the configured age is at most 24 hours, `OVERDUE` when that age is
+   exceeded, and `DIVERGED` when it is not an ancestor. `LAGGING` and
+   `OVERDUE` are explicit accepted states for an ordinary merge: they request
+   the rolling full producer and never masquerade as current. `DIVERGED` is a
+   merge failure because the receipt supplies no baseline in the branch's
+   history. The 24-hour boundary is an operator-attention classification, not
+   a claim that affected tests equal a full integration proof.
+3. **Release and promotion authority.** A release or capability promotion
+   requires `CURRENT`. Neither a recent historical receipt nor passing
+   affected tests can substitute for an exact clean-source full benchmark and
+   idle witness at the frozen candidate revision.
+
+The executable modes mirror those claims: `validate-history` proves item 1;
+`assess` reports items 1–2 and is the ordinary recurring check; and
+`require-current` enforces item 3. The old `validate` spelling remains a
+historical-integrity alias, not an exact-current gate. Assessment output
+includes both digests, age, bounded changed-source detail, and separate
+ordinary-merge versus release/promotion dispositions.
+
+A Linux `telemetry-latest-main` workflow runs every six hours and on demand.
+Its concurrency group finishes the one running source snapshot while retaining
+at most one pending latest head; newer triggers replace older pending work, so
+there is no per-commit full-proof queue. Each successful run uploads an exact
+source-bound candidate. A candidate stays honest and retainable if `main`
+advances during production because historical integrity is revision-scoped.
+The scheduled workflow's own status owns rolling integration health; retained
+carriers are durable evidence and release inputs, not a requirement that every
+ordinary `main` commit immediately mint and land new JSON.
+
+The full producer is otherwise unchanged: clean checkout, release identity,
+feature smoke, complete benchmark, 120-second Linux idle witness, frozen
+ceilings, and two-stage receipt/carrier separation all remain mandatory. The
+evidence policy file is itself part of the current proof-source closure, so
+changing cadence or release authority makes currentness explicit and requires
+review.
 
 ### D3 — Write path: buffered, batched, priority-aware, event-driven
 

@@ -221,9 +221,10 @@ run harness-cleanup-fixtures -- node demos/_kit/tests/harness-cleanup-failures.m
 run browser-availability -- scripts/check-browser-availability
 run ibex-bootstrap-fixtures -- node tests/ibex_bootstrap_v0.mjs
 # @ref LLP 0154#d7--aggregates-a-watermarked-state-machine-mergeable-by-construction —
-# reopen the retained clean-release receipt, keep the validator's transitive-
-# closure regression, and exercise the nondefault proof feature at smoke scale
-# in every recurring local/CI proof.
+# reopen the retained clean-release receipt as historical evidence, report its
+# rolling CURRENT/LAGGING/OVERDUE state without requiring main to stop, keep the
+# validator's transitive-closure regression, and exercise the nondefault proof
+# feature at smoke scale until LLP 0175's affected selector owns that cadence.
 run telemetry-evidence-fixtures -- node --test scripts/telemetry-phase1-evidence.test.mjs
 run telemetry-receipt-check -- scripts/verify-telemetry-phase1-proof --check
 run telemetry-smoke --requires native-runtime-bootstrap -- \

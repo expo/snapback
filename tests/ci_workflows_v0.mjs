@@ -17,6 +17,7 @@ assert.deepEqual(workflowNames, [
   'public-package-proof.yml',
   'ref-check.yml',
   'required-surface-builds.yml',
+  'telemetry-latest-main.yml',
 ]);
 
 const deploymentIdentityWorkflow = readFileSync(
@@ -177,7 +178,7 @@ for (const name of workflowNames) {
     );
   }
 }
-assert.equal(setupNodeCount, 8, 'the Node-using workflow inventory changed; review and update this count');
+assert.equal(setupNodeCount, 9, 'the Node-using workflow inventory changed; review and update this count');
 // 30 -> 31 (2026-08-02): the expo-large local-proof runner does not include
 // Chrome, so the required admin browser-security lane now provisions one
 // through a pinned action instead of inheriting an ambient browser.
@@ -185,7 +186,34 @@ assert.equal(setupNodeCount, 8, 'the Node-using workflow inventory changed; revi
 // the canonical proof even when the proof itself is red.
 // 32 -> 38 (2026-08-05): LLP 0062's Linux final-artifact qualification adds
 // six pinned actions: checkout, Node, Bun, cache restore/save, and upload.
-assert.equal(actionCount, 38, 'the reviewed workflow action inventory changed; review and update this count');
+// 38 -> 44 (2026-08-06): rolling telemetry evidence adds a coalesced Linux
+// producer with checkout, Node, Bun, Hermes/Cargo caches, and artifact upload.
+assert.equal(actionCount, 44, 'the reviewed workflow action inventory changed; review and update this count');
+
+const telemetryLatestMain = readFileSync(
+  join(workflowDir, 'telemetry-latest-main.yml'),
+  'utf8',
+);
+assert.match(
+  telemetryLatestMain,
+  /schedule:[\s\S]*cron:[\s\S]*workflow_dispatch:/u,
+  'rolling telemetry proof must be scheduled and manually dispatchable',
+);
+assert.match(
+  telemetryLatestMain,
+  /group:\s*telemetry-latest-main[\s\S]*cancel-in-progress:\s*false/u,
+  'rolling telemetry proof must finish one snapshot while coalescing pending heads',
+);
+assert.match(
+  telemetryLatestMain,
+  /SNAPBACK_TELEMETRY_PHASE1_RECEIPT:[\s\S]*scripts\/verify-telemetry-phase1-proof --full/u,
+  'rolling telemetry proof must produce an exact candidate outside the tracked carrier',
+);
+assert.match(
+  telemetryLatestMain,
+  /sqlite3[\s\S]*telemetry-phase1-\$\{\{ github\.sha \}\}/u,
+  'rolling telemetry proof must provision the idle witness and retain a revision-named artifact',
+);
 
 const publicPackageProof = readFileSync(
   join(workflowDir, 'public-package-proof.yml'),
