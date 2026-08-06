@@ -2359,3 +2359,23 @@ posture; and the surface stays bounded to apps that explicitly list
 review 2026-09-30) and supersedes this conjunction when it lands. Every
 0.1.x release re-mints the receipt against its own staged closure; the
 0.1.11 staging lane is the first required mint.
+
+**Shipped 2026-08-06.** The mechanism landed the same day: the
+distribution-split predicate and receipt verification in `src/manifest.rs`,
+the `snapback packaged-store-qualification-receipt` mint subcommand, the
+qualification-mode manifest marker, the co-installed-receipt loader seam in
+`@expo/snapback-cli`, and the end-to-end harness
+`scripts/packaged-store-qualification.mjs`. The mechanism was proven once
+end to end on linux-x64 against a dry-run-staged nine-tarball
+`0.1.11-qual.0` closure served by a clean public-package release binary:
+qualification-mode witness 3/3 (advertisement with honesty marker, packaged
+artifact admission plus live insert, retained cold render with the runtime
+stopped), receipt minted and revalidated by a receipt-backed restart, and
+the no-receipt negative refused. Proof receipt:
+`tests/acceptance/receipts/packaged-store-qualification.proof.2026-08-06.v1.json`.
+That proof receipt binds the qualification closure, not a published one; the
+0.1.11 release staging lane must re-run
+`scripts/packaged-store-qualification.mjs` against the real staged 0.1.11
+closure and release binaries (per platform) and ship each minted receipt as
+`packaged-store-qualification.receipt.json` inside the runtime package,
+adjacent to the binary, where the CLI loader forwards it.
