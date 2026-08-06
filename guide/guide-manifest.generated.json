@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "70188ac8c5f098824ef33cb8014866af17da9da3"
+    "commit": "674c25a5a8e9762f16983675cc3207303bcbd9c1"
   },
   "nav": {
     ".": [
@@ -222,6 +222,11 @@
         "id": "operating.host-ops",
         "order": 2,
         "title": "Host operations"
+      },
+      {
+        "id": "operating.network-profiles",
+        "order": 2,
+        "title": "Network condition profiles"
       },
       {
         "id": "operating.diagnostics",
@@ -1445,7 +1450,7 @@
       "examples": [],
       "reviewed": "2026-08-04",
       "reviewedCommit": "HEAD",
-      "sha256": "c405948f7d8774ef6e1b834189d31414629b00b705e839cfa3b451a3b3c69e2b",
+      "sha256": "9fc8d4652b0ea7a23617ac08b0febea1aed3863403029e00af82269767b95b00",
       "snippets": []
     },
     "clients.app-cli": {
@@ -2117,7 +2122,7 @@
       ],
       "reviewed": "2026-08-04",
       "reviewedCommit": "dab2410b6793ffa5685069a0a4054f0e2b21608a",
-      "sha256": "62e6d2a17510a241c90d968d23a3f955b12cba2487331c7654156d6e01e4bf93",
+      "sha256": "3ba6fac05048c058b00b7e19e196578bb74c351a889ea6b1c06f76ade26eb5ff",
       "snippets": [
         {
           "lang": "json",
@@ -2258,12 +2263,41 @@
       ],
       "reviewed": "2026-08-03",
       "reviewedCommit": "6e5d69d1037c6042fb9338221dfb489e00f5f78a",
-      "sha256": "2d089ae63c44efffda186a90d0ff2b0ee1960294727a60e344167a751edda765",
+      "sha256": "3863bc76b7774d6338607b02621b801327a676c27485a63e3a38ede4177666f7",
       "snippets": [
         {
           "lang": "json",
           "class": "transcluded",
           "source": "tests/host_ops_v0.rs"
+        }
+      ]
+    },
+    "operating.network-profiles": {
+      "path": "guide/operating/network-profiles.md",
+      "title": "Network condition profiles",
+      "order": 2,
+      "status": "current",
+      "targets": [
+        "local"
+      ],
+      "maturity": "shipped",
+      "capabilities": [
+        "operating.network-profiles"
+      ],
+      "authorities": [
+        "llp/0167-network-condition-profiles.rfc.md"
+      ],
+      "examples": [
+        "demos/zero-bakeoff"
+      ],
+      "reviewed": "2026-08-05",
+      "reviewedCommit": "HEAD",
+      "sha256": "eecc308a4fb6e2768a11bb90611c05c39dca314cbee87a93ec07222185b0b9cc",
+      "snippets": [
+        {
+          "lang": "json",
+          "class": "transcluded",
+          "source": "demos/zero-bakeoff/protocol/environment.v2.json"
         }
       ]
     },
@@ -2990,6 +3024,7 @@
       "operating.guide-mcp",
       "operating.host-ops",
       "operating.inspect",
+      "operating.network-profiles",
       "operating.packaged-dev-loop",
       "operating.secrets-config",
       "operating.served-guide",
@@ -3011,7 +3046,6 @@
       "clients.poll-hosted",
       "operating.declaration-conformance",
       "operating.instance-forks",
-      "operating.network-profiles",
       "sync.local-persistent-store",
       "sync.offline-js-arm",
       "sync.offline-js-arm-protected",
@@ -3022,5 +3056,5 @@
     "routes": 111,
     "hostOps": 37
   },
-  "contentHash": "c02825285af369d51fc55ddf65ffc4c8b0d663166219eb1e89f43ad1923c4807"
+  "contentHash": "5ff53e888f497ef6c3e3eb0e0e04c1c86ba79c689791ed32c013dd0b0cd72c2b"
 }
