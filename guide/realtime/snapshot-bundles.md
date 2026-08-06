@@ -94,6 +94,13 @@ Codegen emits `routes.manifest.json`; provision it beside schema and functions
 with `ensureApp({ routes })`. A route may name several queries, but every
 argument must be a literal or a declared route-parameter binding.
 
+Heads-up for published-package consumers: `authorityIndependent: true` forces
+the experimental `single_table_v1` capability, which the published
+`@expo/snapback-*` closure (0.1.10) refuses as a structured GAP
+(`SNAPBACK_CAPABILITY_UNSUPPORTED` at dev-server start). This example runs on
+contributor-source builds today and reaches npm consumers at 0.1.11 — see the
+banner on [offline retention](../sync/offline-and-retention.md).
+
 ## Fetch one consistent page snapshot
 
 Read mode is socketless and does not create live demand:

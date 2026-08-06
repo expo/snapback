@@ -13415,7 +13415,11 @@ Offline cold retention is a separate per-query opt-in: `auth: 'public'` +
 `authorityIndependent: true` on a declarative live query makes it
 `rqsEligible`; without the declaration nothing persists and the handle's
 `retention` fact names the refusal. The full recipe is in
-[offline retention](../sync/offline-and-retention.md).
+[offline retention](../sync/offline-and-retention.md). Note the declaration
+forces the experimental `single_table_v1` capability, which the published
+`@expo/snapback-*` closure (0.1.10) refuses as a structured GAP — it works on
+contributor-source builds today and reaches npm consumers at 0.1.11 (see the
+banner on the offline-retention page).
 
 Stored document contracts include typed `v.assetRef` fields. A photo-bearing
 table can therefore be queried directly as a live feed; the reference arrives
@@ -13965,6 +13969,13 @@ export const dashboardMetrics = defineLiveQuery({
 Codegen emits `routes.manifest.json`; provision it beside schema and functions
 with `ensureApp({ routes })`. A route may name several queries, but every
 argument must be a literal or a declared route-parameter binding.
+
+Heads-up for published-package consumers: `authorityIndependent: true` forces
+the experimental `single_table_v1` capability, which the published
+`@expo/snapback-*` closure (0.1.10) refuses as a structured GAP
+(`SNAPBACK_CAPABILITY_UNSUPPORTED` at dev-server start). This example runs on
+contributor-source builds today and reaches npm consumers at 0.1.11 — see the
+banner on [offline retention](../sync/offline-and-retention.md).
 
 ## Fetch one consistent page snapshot
 
@@ -14593,6 +14604,19 @@ reviewed-commit: 711e4d763d87cadf0c638bd15ed33a85427e4f11
 > **Local target only.** This page describes the local dev/test target.
 > Hosted targets make deliberately weaker or different claims — see
 > [auth/targets](../auth/targets.md).
+
+> **Published npm packages cannot reach platform retention yet.** On the
+> published `@expo/snapback-*` closure (0.1.10), declaring
+> `authorityIndependent: true` forces the experimental `single_table_v1`
+> capability, which public-package runtime builds refuse as a structured GAP
+> (`SNAPBACK_CAPABILITY_UNSUPPORTED` at dev-server start). The platform
+> cold-retention path this page teaches therefore works only on
+> contributor-source builds today. The 2026-08-06 LLP 0110/0166 author
+> amendment opens public-package advertisement for `single_table_v1` — clean
+> release build identity plus the embedded carrier plus a packaged-closure
+> qualification receipt — and it reaches npm consumers when the 0.1.11
+> closure publishes. Until then the only offline story on the published
+> packages is an app-level cache you persist yourself.
 
 The Contract adapter can retain the last authoritative query snapshot, render
 derived optimistic changes while offline, and replay a durable mutation outbox

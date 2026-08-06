@@ -54,7 +54,11 @@ Offline cold retention is a separate per-query opt-in: `auth: 'public'` +
 `authorityIndependent: true` on a declarative live query makes it
 `rqsEligible`; without the declaration nothing persists and the handle's
 `retention` fact names the refusal. The full recipe is in
-[offline retention](../sync/offline-and-retention.md).
+[offline retention](../sync/offline-and-retention.md). Note the declaration
+forces the experimental `single_table_v1` capability, which the published
+`@expo/snapback-*` closure (0.1.10) refuses as a structured GAP — it works on
+contributor-source builds today and reaches npm consumers at 0.1.11 (see the
+banner on the offline-retention page).
 
 Stored document contracts include typed `v.assetRef` fields. A photo-bearing
 table can therefore be queried directly as a live feed; the reference arrives
