@@ -42,7 +42,7 @@ export default defineSchema({
 });
 `;
 const validFunctions = `
-import { arg, bind, defineAssetUpload, defineLiveQuery, defineMutation, defineSurface, eq, input, insert, param, v } from '${defineUrl}';
+import { arg, bind, defineAssetUpload, defineCommand, defineLiveQuery, defineMutation, defineSurface, eq, input, insert, param, v } from '${defineUrl}';
 export const listItems = defineLiveQuery({
   table: 'items',
   args: { group: v.string() },
@@ -53,17 +53,52 @@ export const createItem = defineMutation({
   args: { group: v.string(), title: v.string() },
   plan: insert('items', { group: arg('group'), title: arg('title') }),
 });
+export const create = defineCommand({ mutation: createItem });
 export const itemAttachment = defineAssetUpload({
   args: { group: v.string() },
   auth: 'authenticated',
   accept: { mediaTypes: ['application/octet-stream'], maxBytes: 1_000_000 },
   authorize: async (ctx) => ({ owner: ctx.auth.userId }),
 });
+export const commandAttachment = defineAssetUpload({
+  args: {},
+  auth: 'authenticated',
+  accept: { mediaTypes: ['application/octet-stream'], maxBytes: 1_000_000 },
+  authorize: async (ctx) => ({ owner: ctx.auth.userId }),
+});
+export const createWithAttachment = defineMutation({
+  args: {
+    group: v.string(),
+    title: v.string(),
+    attachment: v.optional(v.assetRef({ upload: 'commandAttachment' })),
+  },
+  plan: insert('items', {
+    group: arg('group'),
+    title: arg('title'),
+  }),
+});
+export const send = defineCommand({
+  mutation: createWithAttachment,
+  assets: {
+    attachment: {
+      intent: commandAttachment,
+      mutationArg: 'attachment',
+      optional: true,
+    },
+  },
+});
 export const items = defineSurface({
   params: { group: v.string() },
   reads: { rows: bind(listItems, { group: param('group') }) },
   mutations: {
     create: bind(createItem, { group: param('group'), title: input('title') }),
+  },
+  commands: {
+    send: bind(send, {
+      group: param('group'),
+      title: input('title'),
+      attachment: input('attachment'),
+    }),
   },
   assets: {
     attachment: bind(itemAttachment, { group: param('group') }),
@@ -124,11 +159,24 @@ try {
   assert.deepEqual(validateAppDescriptorV1(descriptor), []);
   assert.equal(descriptor.format, 'snapback.app.v1');
   assert.deepEqual(Object.keys(descriptor.api.queries), ['listItems']);
-  assert.deepEqual(Object.keys(descriptor.api.mutations), ['createItem']);
-  assert.deepEqual(Object.keys(descriptor.api.assets), ['itemAttachment']);
+  assert.deepEqual(Object.keys(descriptor.api.mutations), ['createItem', 'createWithAttachment']);
+  assert.deepEqual(Object.keys(descriptor.api.assets), ['commandAttachment', 'itemAttachment']);
   assert.deepEqual(Object.keys(descriptor.api.ephemeral), []);
   assert.deepEqual(Object.keys(descriptor.api.queryGroups), []);
-  assert.deepEqual(descriptor.commands, {});
+  assert.deepEqual(Object.keys(descriptor.commands), ['create', 'send']);
+  assert.equal(descriptor.commands.create.asset, null);
+  assert.deepEqual(descriptor.commands.create.passthroughArgs, ['group', 'title']);
+  assert.equal(descriptor.commands.send.kind, 'asset-bearing-command.v1');
+  assert.equal(descriptor.commands.send.mutation.name, 'createWithAttachment');
+  assert.deepEqual(descriptor.commands.send.passthroughArgs, ['group', 'title']);
+  assert.deepEqual({
+    input: descriptor.commands.send.asset.input,
+    intent: descriptor.commands.send.asset.intent.name,
+    mutationArg: descriptor.commands.send.asset.mutationArg,
+    optional: descriptor.commands.send.asset.optional,
+  }, {
+    input: 'attachment', intent: 'commandAttachment', mutationArg: 'attachment', optional: true,
+  });
   assert.deepEqual(Object.keys(descriptor.surfaces), ['items']);
   assert.deepEqual(descriptor.surfaces.items.params.group.kind, 'string');
   assert.deepEqual(descriptor.surfaces.items.reads.rows.bindings.group, {
@@ -139,6 +187,7 @@ try {
     title: { kind: 'input', name: 'title' },
   });
   assert.deepEqual(Object.keys(descriptor.surfaces.items.mutations.create.inputs), ['title']);
+  assert.deepEqual(Object.keys(descriptor.surfaces.items.commands.send.inputs), ['attachment', 'title']);
   assert.deepEqual(descriptor.surfaces.items.assets.attachment.bindings.group, {
     kind: 'param', name: 'group',
   });
@@ -157,7 +206,12 @@ try {
     try {
       const surfacelessBackend = join(surfacelessRoot, 'fixture', 'snapback');
       mkdirSync(surfacelessBackend, { recursive: true });
-      writeFileSync(join(surfacelessBackend, 'schema.mjs'), validSchema);
+      writeFileSync(join(surfacelessBackend, 'schema.mjs'), `
+import { defineSchema, defineTable, v } from '${defineUrl}';
+export default defineSchema({
+  items: defineTable({ group: v.string(), title: v.string() }).index('by_group', ['group']).sync(),
+});
+`);
       writeFileSync(join(surfacelessBackend, 'functions.mjs'), `
 import { arg, defineLiveQuery, eq, v } from '${defineUrl}';
 export const listItems = defineLiveQuery({
@@ -212,11 +266,8 @@ export const listItems = defineLiveQuery({
         assert(start >= 0 && end > start, 'app.d.ts is missing the surface type preamble');
         return source.slice(start, end);
       };
-      assert.equal(
-        surfacePreamble(surfacelessAppTypes),
-        surfacePreamble(committedSurfaceAppTypes),
-        'a surfaceless app emits the same surface type preamble as a surface-bearing one',
-      );
+      assert(surfacePreamble(surfacelessAppTypes).includes('Commands = Record<string, never>'));
+      assert(surfacePreamble(surfacelessAppTypes).includes('readonly commands: Commands'));
       assert(surfacelessAppTypes.includes('export interface GeneratedAppSurfaces {\n}\n'));
       assert(surfacelessAppTypes.includes('  readonly surfaces: Readonly<GeneratedAppSurfaces>;\n'));
       assert(!surfacelessAppTypes.includes('export type SurfaceDescriptor = never;'));
@@ -319,6 +370,10 @@ export const listItems = defineLiveQuery({
     appModule.app.surfaces.items.assets.attachment.reference,
     appModule.app.api.assets.itemAttachment,
   );
+  assert.strictEqual(appModule.app.commands.send.mutation, appModule.app.api.mutations.createWithAttachment);
+  assert.strictEqual(appModule.app.commands.send.asset.intent, appModule.app.api.assets.commandAttachment);
+  assert.strictEqual(appModule.app.commands.create.mutation, appModule.app.api.mutations.createItem);
+  assert.strictEqual(appModule.app.surfaces.items.commands.send.reference, appModule.app.commands.send);
   assert(Object.isFrozen(appModule.app));
 
   const consumer = join(root, 'fixture', 'consumer.ts');
@@ -329,7 +384,11 @@ import type { FunctionArgs } from './snapback/generated/api';
 
 const args: FunctionArgs<typeof createItem> = { group: 'typed', title: 'typed' };
 type CreateSurfaceInput = NonNullable<typeof generatedApp.surfaces.items.mutations.create.__input>;
+type SendSurfaceInput = NonNullable<typeof generatedApp.surfaces.items.commands.send.__input>;
+type CreateCommandInput = NonNullable<typeof generatedApp.commands.create.__args>;
 const surfaceInput: CreateSurfaceInput = { title: 'typed' };
+const sendSurfaceInput: SendSurfaceInput = { title: 'typed' };
+const createCommandInput: CreateCommandInput = { group: 'typed', title: 'typed' };
 // @ts-expect-error bound group is removed from the member call input
 const surfaceInputWithBoundParam: CreateSurfaceInput = { group: 'typed', title: 'typed' };
 const query = generatedApp.api.queries.listItems;
@@ -340,7 +399,7 @@ const sameNamedQuery: typeof listItems = legacyListItems;
 const sameNamedMutation: typeof createItem = legacyCreateItem;
 // @ts-expect-error mutations do not appear in the query namespace
 generatedApp.api.queries.createItem;
-void args; void surfaceInput; void surfaceInputWithBoundParam;
+void args; void surfaceInput; void sendSurfaceInput; void createCommandInput; void surfaceInputWithBoundParam;
 void sameQuery; void sameMutation; void sameNamedQuery; void sameNamedMutation;
 `);
   const typecheck = spawnSync(join(repoRoot, 'node_modules', '.bin', 'tsc'), [
@@ -369,6 +428,59 @@ void sameQuery; void sameMutation; void sameNamedQuery; void sameNamedMutation;
   assert(hasCode(
     validateAppDescriptorV1(unknownMemberClass),
     'SNAPBACK_APP_DESCRIPTOR_MEMBER_CLASS_UNSUPPORTED',
+  ));
+
+  const borrowedCommandMutation = clone(descriptor);
+  borrowedCommandMutation.commands.send.mutation.id = 'other-app:sendMessage';
+  borrowedCommandMutation.identity.descriptor = appDescriptorDigestV1(borrowedCommandMutation);
+  assert(hasCode(
+    validateAppDescriptorV1(borrowedCommandMutation),
+    'SNAPBACK_APP_DESCRIPTOR_REFERENCE_UNKNOWN',
+  ));
+
+  const unregisteredSurfaceCommand = clone(descriptor);
+  unregisteredSurfaceCommand.surfaces.items.commands.send.reference.passthroughArgs.push('borrowed');
+  unregisteredSurfaceCommand.identity.descriptor = appDescriptorDigestV1(unregisteredSurfaceCommand);
+  assert(hasCode(
+    validateAppDescriptorV1(unregisteredSurfaceCommand),
+    'SNAPBACK_APP_DESCRIPTOR_REFERENCE_UNKNOWN',
+  ));
+
+  const malformedCommandInputs = clone(descriptor);
+  malformedCommandInputs.commands.send.passthroughArgs = null;
+  malformedCommandInputs.identity.descriptor = appDescriptorDigestV1(malformedCommandInputs);
+  assert(hasCode(
+    validateAppDescriptorV1(malformedCommandInputs),
+    'SNAPBACK_APP_DESCRIPTOR_MEMBER_TYPE_MISMATCH',
+  ));
+
+  const overdeepPortableScope = clone(descriptor);
+  overdeepPortableScope.surfaces.items.commands.send.bindings.group = {
+    kind: 'scope',
+    fields: {
+      nested: {
+        kind: 'scope',
+        fields: {
+          leaf: { kind: 'literal', value: 'bounded' },
+        },
+      },
+    },
+  };
+  overdeepPortableScope.identity.descriptor = appDescriptorDigestV1(overdeepPortableScope);
+  assert(hasCode(
+    validateAppDescriptorV1(overdeepPortableScope),
+    'SNAPBACK_APP_DESCRIPTOR_MEMBER_TYPE_MISMATCH',
+  ));
+
+  const oversizedPortableSurface = clone(descriptor);
+  oversizedPortableSurface.surfaces.items.reads = Object.fromEntries(Array.from(
+    { length: SURFACE_MAX_MEMBERS },
+    (_, index) => [`rows${index}`, clone(descriptor.surfaces.items.reads.rows)],
+  ));
+  oversizedPortableSurface.identity.descriptor = appDescriptorDigestV1(oversizedPortableSurface);
+  assert(hasCode(
+    validateAppDescriptorV1(oversizedPortableSurface),
+    'SNAPBACK_APP_DESCRIPTOR_BUDGET_EXCEEDED',
   ));
 
   const prematureSurface = clone(descriptor);
@@ -470,7 +582,7 @@ export const items = defineSurface({
     { onlyExpectedError: true },
   );
   assert(unsupportedInputMember.message.includes(
-    'input(...) is admitted only for mutation and asset calls in S1',
+    'input(...) is admitted only for mutation, command, and asset calls',
   ));
 
   writeValidSources();
@@ -482,11 +594,118 @@ export const items = defineSurface({
   commands: { rows: bind(listItems, { group: param('group') }) },
 });
 `);
-  const reservedCommands = await assertGenerationRefusedPreservingDescriptor(
+  const wrongCommandClass = await assertGenerationRefusedPreservingDescriptor(
     'SNAPBACK_SURFACE_MEMBER_CLASS_UNSUPPORTED',
     { onlyExpectedError: true },
   );
-  assert(reservedCommands.message.includes('commands are reserved for descriptor slice S2'));
+  assert(wrongCommandClass.message.includes('unsupported commands member class'));
+
+  writeValidSources();
+  writeFileSync(join(backend, 'functions.mjs'), `
+import { defineCommand } from '${defineUrl}';
+export const send = defineCommand({});
+`);
+  const zeroMutation = await assertGenerationRefusedPreservingDescriptor(
+    'SNAPBACK_COMMAND_MUTATION_CARDINALITY_INVALID',
+    { onlyExpectedError: true },
+  );
+  assert.equal(zeroMutation.mutations, 0);
+
+  writeValidSources();
+  writeFileSync(join(backend, 'functions.mjs'), `
+import { arg, defineCommand, defineMutation, insert, v } from '${defineUrl}';
+export const first = defineMutation({
+  auth: 'authenticated',
+  args: { group: v.string(), title: v.string() },
+  plan: insert('items', { group: arg('group'), title: arg('title') }),
+});
+export const second = defineMutation({
+  auth: 'authenticated',
+  args: { group: v.string(), title: v.string(), suffix: v.optional(v.string()) },
+  plan: insert('items', { group: arg('group'), title: arg('title') }),
+});
+export const send = defineCommand({ mutation: [first, second] });
+`);
+  const manyMutations = await assertGenerationRefusedPreservingDescriptor(
+    'SNAPBACK_COMMAND_MUTATION_CARDINALITY_INVALID',
+    { onlyExpectedError: true },
+  );
+  assert.equal(manyMutations.mutations, 2);
+
+  writeValidSources();
+  writeFileSync(join(backend, 'functions.mjs'), `
+import { arg, defineAssetUpload, defineCommand, defineMutation, insert, v } from '${defineUrl}';
+export const imageUpload = defineAssetUpload({
+  args: {},
+  auth: 'authenticated',
+  accept: { mediaTypes: ['application/octet-stream'], maxBytes: 1024 },
+  authorize: async (ctx) => ({ owner: ctx.auth.userId }),
+});
+export const sendMessage = defineMutation({
+  auth: 'authenticated',
+  args: { group: v.string(), title: v.string(), image: v.optional(v.string()) },
+  plan: insert('items', { group: arg('group'), title: arg('title') }),
+});
+export const send = defineCommand({
+  mutation: sendMessage,
+  assets: { image: { intent: imageUpload, mutationArg: 'image', optional: true } },
+});
+`);
+  await assertGenerationRefusedPreservingDescriptor(
+    'SNAPBACK_COMMAND_ASSET_MAPPING_INCOMPATIBLE',
+    { onlyExpectedError: true },
+  );
+
+  writeValidSources();
+  writeFileSync(join(backend, 'functions.mjs'), `
+import { arg, defineAssetUpload, defineCommand, defineMutation, insert, v } from '${defineUrl}';
+export const firstUpload = defineAssetUpload({
+  args: {}, auth: 'authenticated',
+  accept: { mediaTypes: ['application/octet-stream'], maxBytes: 1024 },
+  authorize: async (ctx) => ({ owner: ctx.auth.userId }),
+});
+export const secondUpload = defineAssetUpload({
+  args: {}, auth: 'authenticated',
+  accept: { mediaTypes: ['application/octet-stream'], maxBytes: 1024 },
+  authorize: async (ctx) => ({ owner: ctx.auth.userId }),
+});
+export const sendMessage = defineMutation({
+  auth: 'authenticated',
+  args: {
+    group: v.string(),
+    title: v.string(),
+    first: v.optional(v.assetRef({ upload: 'firstUpload' })),
+    second: v.optional(v.assetRef({ upload: 'secondUpload' })),
+  },
+  plan: insert('items', { group: arg('group'), title: arg('title') }),
+});
+export const send = defineCommand({
+  mutation: sendMessage,
+  assets: {
+    first: { intent: firstUpload, mutationArg: 'first', optional: true },
+    second: { intent: secondUpload, mutationArg: 'second', optional: true },
+  },
+});
+`);
+  await assertGenerationRefusedPreservingDescriptor(
+    'SNAPBACK_COMMAND_MULTI_ASSET_UNSUPPORTED',
+    { onlyExpectedError: true },
+  );
+
+  writeValidSources();
+  writeFileSync(join(backend, 'functions.mjs'), `
+import { arg, defineCommand, defineMutation, insert, v } from '${defineUrl}';
+export const sendMessage = defineMutation({
+  auth: 'authenticated',
+  args: { group: v.string(), title: v.string(), principal: v.principal() },
+  plan: insert('items', { group: arg('group'), title: arg('title') }),
+});
+export const send = defineCommand({ mutation: sendMessage });
+`);
+  await assertGenerationRefusedPreservingDescriptor(
+    'SNAPBACK_COMMAND_AUTHORITY_INPUT_REFUSED',
+    { onlyExpectedError: true },
+  );
 
   writeValidSources();
   writeFileSync(join(backend, 'functions.mjs'), `
@@ -566,6 +785,41 @@ ${Array.from(
   );
   assert.equal(memberBudget.members, SURFACE_MAX_MEMBERS + 1);
   assert.equal(memberBudget.maximum, SURFACE_MAX_MEMBERS);
+
+  writeValidSources();
+  writeFileSync(join(backend, 'functions.mjs'), `
+import { arg, bind, defineAssetUpload, defineCommand, defineLiveQuery, defineMutation, defineSurface, insert, v } from '${defineUrl}';
+export const rows = defineLiveQuery({ table: 'items', args: {}, auth: 'public' });
+export const imageUpload = defineAssetUpload({
+  args: {}, auth: 'authenticated',
+  accept: { mediaTypes: ['application/octet-stream'], maxBytes: 1024 },
+  authorize: async (ctx) => ({ owner: ctx.auth.userId }),
+});
+export const sendMessage = defineMutation({
+  auth: 'authenticated',
+  args: { group: v.string(), title: v.string(), image: v.optional(v.assetRef({ upload: 'imageUpload' })) },
+  plan: insert('items', { group: arg('group'), title: arg('title') }),
+});
+export const send = defineCommand({
+  mutation: sendMessage,
+  assets: { image: { intent: imageUpload, mutationArg: 'image', optional: true } },
+});
+export const items = defineSurface({
+  reads: {
+${Array.from(
+    { length: SURFACE_MAX_MEMBERS },
+    (_, index) => `    rows${index}: bind(rows, {}),`,
+  ).join('\n')}
+  },
+  commands: { send: bind(send, { group: 'command', title: 'budget' }) },
+});
+`);
+  const commandMemberBudget = await assertGenerationRefusedPreservingDescriptor(
+    'SNAPBACK_SURFACE_BUDGET_EXCEEDED',
+    { onlyExpectedError: true },
+  );
+  assert.equal(commandMemberBudget.members, SURFACE_MAX_MEMBERS + 1);
+  assert.equal(commandMemberBudget.maximum, SURFACE_MAX_MEMBERS);
 
   const bindingNames = Array.from(
     { length: SURFACE_MAX_MEMBER_BINDINGS + 1 },
@@ -689,7 +943,7 @@ export const futureMember = { ...query, __snapbackDefinitionKind: 'surface' };
   const schema = JSON.parse(readFileSync(join(packageRoot, 'app-descriptor.schema.json')));
   assert.equal(schema.$id, 'https://schemas.snapback.dev/app-descriptor/v1.schema.json');
   assert.equal(schema.properties.format.const, 'snapback.app.v1');
-  assert.equal(schema.properties.commands.maxProperties, 0);
+  assert.equal(schema.properties.commands.$ref, '#/$defs/commandMap');
   assert.equal(schema.properties.surfaces.additionalProperties.$ref, '#/$defs/surfaceDescriptor');
   const validatePortableSchema = new Ajv2020({ allErrors: true, strict: false }).compile(schema);
   assert.equal(

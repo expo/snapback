@@ -2566,15 +2566,12 @@ fn validate_value_contract_node(
         ResultValueContract::Null
         | ResultValueContract::Boolean
         | ResultValueContract::Principal
+        // @ref LLP 0180#declaration — a command's mapped mutation argument
+        // retains the AssetRef contract node. Runtime ingress admits only the
+        // opaque non-empty id; LLP 0044's attach boundary still owns policy,
+        // ownership, readiness, and reverse-reference authorization.
+        | ResultValueContract::AssetRef
         | ResultValueContract::Id { .. } => {}
-        ResultValueContract::AssetRef => {
-            if lane == ContractLane::Args {
-                return Err(invalid_args_contract(
-                    function,
-                    "argument contracts do not admit assetRef nodes",
-                ));
-            }
-        }
     }
     Ok(())
 }

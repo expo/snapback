@@ -105,9 +105,21 @@ import {
 import {
   createAppDescriptorV1,
   serializeAppDescriptorV1,
+  SURFACE_MAX_MEMBER_BINDINGS,
+  SURFACE_MAX_MEMBERS,
+  SURFACE_MAX_PARAMS,
+  SURFACE_MAX_PER_APP,
+  SURFACE_MAX_SCOPE_RECORD_FIELDS,
   validateAppDescriptorV1,
 } from './app-descriptor.mjs';
-export { formatCodegenSummary };
+export {
+  formatCodegenSummary,
+  SURFACE_MAX_MEMBER_BINDINGS,
+  SURFACE_MAX_MEMBERS,
+  SURFACE_MAX_PARAMS,
+  SURFACE_MAX_PER_APP,
+  SURFACE_MAX_SCOPE_RECORD_FIELDS,
+};
 
 const SEARCH_FIELD_CLASSIFICATIONS = new Set([
   'public',
@@ -1884,6 +1896,7 @@ export async function generateInProcess(backendDir, options = {}) {
   const configDefs = [];
   const projectionDefs = [];
   const assetUploadDefs = [];
+  const commandDefs = [];
   const surfaceDefs = [];
 
   // @ref LLP 0108#final-author-reconciliation-after-round-3 — codegen
@@ -1986,6 +1999,10 @@ export async function generateInProcess(backendDir, options = {}) {
     }
     if (isIsolatedDefinition(def, 'asset-upload')) {
       assetUploadDefs.push({ exportName: name, def });
+      continue;
+    }
+    if (isIsolatedDefinition(def, 'command')) {
+      commandDefs.push({ exportName: name, def });
       continue;
     }
     if (isIsolatedDefinition(def, 'surface')) {
@@ -4215,12 +4232,19 @@ export async function generateInProcess(backendDir, options = {}) {
     { schemaVersion: artifactVersion, appId, schemaHash, bundleHash, inputsHash },
     functionDefinitionSourceSpans,
   );
+  const generatedCommands = buildGeneratedCommands({
+    commandDefs,
+    functionsModule,
+    generatedReferences,
+    err,
+  });
   const generatedSurfaces = buildGeneratedSurfaces({
     appId,
     surfaceDefs,
     functionsModule,
     schemaDef,
     generatedReferences,
+    generatedCommands,
     functionSourceSpans,
     err,
   });
@@ -4232,6 +4256,7 @@ export async function generateInProcess(backendDir, options = {}) {
     schema: schemaHash,
     functions: bundleHash,
     api: generatedReferences.api,
+    commands: generatedCommands,
     surfaces: generatedSurfaces,
     requiredCapabilities: [...requiredTargetCapabilities],
   });
@@ -4276,6 +4301,7 @@ export async function generateInProcess(backendDir, options = {}) {
   const appTypes = renderAppTypes(
     functionManifest.functions,
     assetUploadIntents,
+    generatedCommands,
     generatedSurfaces,
   );
   const apiModule = renderApiModule(
@@ -8952,6 +8978,9 @@ function generatedReferenceSourceSpan(sourceSpans, name, fallbackFile) {
 }
 
 function surfaceContract(validator) {
+  if (validator?.__commandAssetSource === true) {
+    return { kind: 'commandAssetSource' };
+  }
   return validatorResultValue(validator, { args: true });
 }
 
@@ -8992,11 +9021,162 @@ function surfaceLiteralMatchesValidator(value, validator) {
   return value !== undefined;
 }
 
-export const SURFACE_MAX_PARAMS = 8;
-export const SURFACE_MAX_MEMBERS = 24;
-export const SURFACE_MAX_MEMBER_BINDINGS = 32;
-export const SURFACE_MAX_SCOPE_RECORD_FIELDS = 8;
-export const SURFACE_MAX_PER_APP = 32;
+// @ref LLP 0180#declaration — generated commands retain
+// the exact small logical descriptor. The enclosing commands map supplies the
+// name; mutation and intent children are existing generated references.
+function buildGeneratedCommands({
+  commandDefs,
+  functionsModule,
+  generatedReferences,
+  err,
+}) {
+  const commands = dict();
+  const canonicalDefinition = (value) => canonicalResultJson(value);
+  const functionDefinitions = Object.entries(functionsModule)
+    .filter(([, value]) => isIsolatedDefinition(value, 'function'));
+  const assetDefinitions = Object.entries(functionsModule)
+    .filter(([, value]) => isIsolatedDefinition(value, 'asset-upload'));
+  const report = (code, command, message, details = {}) => err(
+    code,
+    'command',
+    `${command}: ${message}`,
+    { command, ...details },
+  );
+
+  for (const { exportName: commandName, def } of commandDefs) {
+    let valid = true;
+    if (!IDENT.test(commandName) || RESERVED_WORDS.has(commandName)) {
+      report('SNAPBACK_COMMAND_INVALID_IDENTIFIER', commandName, 'command export name must be a portable identifier');
+      continue;
+    }
+    const authoredMutations = Array.isArray(def.mutation)
+      ? def.mutation
+      : def.mutation === null
+        ? []
+        : [def.mutation];
+    if (authoredMutations.length !== 1) {
+      report(
+        'SNAPBACK_COMMAND_MUTATION_CARDINALITY_INVALID',
+        commandName,
+        'v1 requires exactly one ordinary mutation',
+        { mutations: authoredMutations.length },
+      );
+      continue;
+    }
+    const [authoredMutation] = authoredMutations;
+    const mutationCandidates = functionDefinitions.filter(([, candidate]) => (
+      candidate.__kind === 'Mutation'
+      && canonicalDefinition(candidate) === canonicalDefinition(authoredMutation)
+    ));
+    if (mutationCandidates.length !== 1) {
+      report(
+        mutationCandidates.length === 0
+          ? 'SNAPBACK_COMMAND_MUTATION_UNKNOWN'
+          : 'SNAPBACK_COMMAND_MAPPING_AMBIGUOUS',
+        commandName,
+        mutationCandidates.length === 0
+          ? 'mutation target is not one generated ordinary mutation'
+          : 'mutation target has multiple generated export identities',
+      );
+      continue;
+    }
+    const [mutationName, mutationDefinition] = mutationCandidates[0];
+    const mutation = generatedReferences.api.mutations[mutationName];
+    if (!mutation) {
+      report('SNAPBACK_COMMAND_MUTATION_UNKNOWN', commandName, `${mutationName} is not in the generated mutation namespace`);
+      continue;
+    }
+    const assetEntries = Object.entries(def.assets ?? {});
+    if (assetEntries.length > 1) {
+      report('SNAPBACK_COMMAND_MULTI_ASSET_UNSUPPORTED', commandName, 'v1 admits at most one asset input');
+      continue;
+    }
+    let asset = null;
+    let mappedMutationArg = null;
+    if (assetEntries.length === 1) {
+      const [inputName, mapping] = assetEntries[0];
+      const intentCandidates = assetDefinitions.filter(([, candidate]) => (
+        canonicalDefinition(candidate) === canonicalDefinition(mapping.intent)
+      ));
+      if (intentCandidates.length !== 1) {
+        report(
+          intentCandidates.length === 0
+            ? 'SNAPBACK_COMMAND_ASSET_INTENT_UNKNOWN'
+            : 'SNAPBACK_COMMAND_MAPPING_AMBIGUOUS',
+          commandName,
+          'asset intent must resolve to exactly one generated upload intent',
+          { input: inputName },
+        );
+        valid = false;
+      } else {
+        const [intentName, intentDefinition] = intentCandidates[0];
+        if (Object.keys(intentDefinition.args ?? {}).length > 0) {
+          report(
+            'SNAPBACK_COMMAND_ASSET_INTENT_ARGS_UNSUPPORTED',
+            commandName,
+            'v1 command assets do not define a second upload-intent argument mapping',
+            { input: inputName, intent: intentName },
+          );
+          valid = false;
+        }
+        const mutationArg = mutationDefinition.args?.[mapping.mutationArg];
+        const upload = mutationArg?.fieldType?.AssetRef?.upload;
+        if (!mutationArg || upload !== intentName || mutationArg.optional !== mapping.optional) {
+          report(
+            'SNAPBACK_COMMAND_ASSET_MAPPING_INCOMPATIBLE',
+            commandName,
+            `asset ${inputName} must map to a ${mapping.optional ? 'optional' : 'required'} v.assetRef({ upload: ${JSON.stringify(intentName)} }) mutation argument`,
+            { input: inputName, mutationArg: mapping.mutationArg, intent: intentName },
+          );
+          valid = false;
+        }
+        if (Object.hasOwn(mutationDefinition.args ?? {}, inputName) && inputName !== mapping.mutationArg) {
+          report(
+            'SNAPBACK_COMMAND_INPUT_COLLISION',
+            commandName,
+            `asset input ${inputName} collides with an ordinary mutation input`,
+            { input: inputName },
+          );
+          valid = false;
+        }
+        const intent = generatedReferences.api.assets[intentName];
+        if (!intent) {
+          report('SNAPBACK_COMMAND_ASSET_INTENT_UNKNOWN', commandName, `${intentName} is not in the generated asset namespace`);
+          valid = false;
+        } else {
+          mappedMutationArg = mapping.mutationArg;
+          asset = {
+            input: inputName,
+            intent,
+            mutationArg: mapping.mutationArg,
+            optional: mapping.optional,
+          };
+        }
+      }
+    }
+    const passthroughArgs = Object.keys(mutationDefinition.args ?? {})
+      .filter((name) => name !== mappedMutationArg);
+    for (const name of passthroughArgs) {
+      if (mutationDefinition.args[name]?.fieldType === 'Principal') {
+        report(
+          'SNAPBACK_COMMAND_AUTHORITY_INPUT_REFUSED',
+          commandName,
+          `ordinary input ${name} attempts to inject an authority principal`,
+          { input: name },
+        );
+        valid = false;
+      }
+    }
+    if (!valid) continue;
+    commands[commandName] = {
+      kind: 'asset-bearing-command.v1',
+      mutation,
+      asset,
+      passthroughArgs,
+    };
+  }
+  return commands;
+}
 
 // @ref LLP 0179#binding-is-not-authorization — generation performs only
 // closed argument/scope substitution. It never binds, derives, or records a
@@ -9007,6 +9187,7 @@ function buildGeneratedSurfaces({
   functionsModule,
   schemaDef,
   generatedReferences,
+  generatedCommands,
   functionSourceSpans,
   err,
 }) {
@@ -9016,6 +9197,8 @@ function buildGeneratedSurfaces({
     .filter(([, value]) => isIsolatedDefinition(value, 'function'));
   const assetDefinitions = Object.entries(functionsModule)
     .filter(([, value]) => isIsolatedDefinition(value, 'asset-upload'));
+  const commandDefinitions = Object.entries(functionsModule)
+    .filter(([, value]) => isIsolatedDefinition(value, 'command'));
   const ephemeralDefinitions = Object.entries(schemaDef.ephemeral?.collections ?? {})
     .filter(([, value]) => isIsolatedDefinition(value, 'ephemeral-collection'));
   const schemaVersion = Object.values(generatedReferences.api.queries)[0]?.schemaVersion
@@ -9060,7 +9243,7 @@ function buildGeneratedSurfaces({
       );
       valid = false;
     }
-    const memberCount = ['reads', 'mutations', 'assets', 'presence']
+    const memberCount = ['reads', 'mutations', 'commands', 'assets', 'presence']
       .reduce((count, namespace) => count + Object.keys(def[namespace] ?? {}).length, 0);
     if (memberCount > SURFACE_MAX_MEMBERS) {
       report(
@@ -9119,8 +9302,8 @@ function buildGeneratedSurfaces({
         return { kind: 'param', name: authored.name };
       }
       if (authored?.__surfaceValue === true && authored.kind === 'input') {
-        if (namespace !== 'mutations' && namespace !== 'assets') {
-          report('SNAPBACK_SURFACE_MEMBER_CLASS_UNSUPPORTED', surfaceName, memberPath, 'input(...) is admitted only for mutation and asset calls in S1');
+        if (namespace !== 'mutations' && namespace !== 'commands' && namespace !== 'assets') {
+          report('SNAPBACK_SURFACE_MEMBER_CLASS_UNSUPPORTED', surfaceName, memberPath, 'input(...) is admitted only for mutation, command, and asset calls');
           valid = false;
           return null;
         }
@@ -9215,6 +9398,8 @@ function buildGeneratedSurfaces({
           ? 'ephemeral-collection'
           : namespace === 'assets'
             ? 'asset-upload'
+            : namespace === 'commands'
+              ? 'command'
             : 'function';
         if (binding?.__surfaceBinding !== true
           || binding.reference?.__snapbackDefinitionKind !== expectedDefinitionKind) {
@@ -9226,6 +9411,8 @@ function buildGeneratedSurfaces({
           ? ephemeralDefinitions
           : namespace === 'assets'
             ? assetDefinitions
+            : namespace === 'commands'
+              ? commandDefinitions
             : functionDefinitions)
           .filter(([, candidate]) => canonicalDefinition(candidate) === canonicalDefinition(binding.reference));
         if (candidates.length !== 1) {
@@ -9247,6 +9434,21 @@ function buildGeneratedSurfaces({
         } else if (namespace === 'mutations') {
           reference = generatedReferences.api.mutations[targetName];
           targetArgs = targetDefinition.args ?? {};
+        } else if (namespace === 'commands') {
+          reference = generatedCommands[targetName];
+          const commandAsset = Object.entries(targetDefinition.assets ?? {})[0] ?? null;
+          const mappedMutationArg = commandAsset?.[1]?.mutationArg ?? null;
+          targetArgs = Object.fromEntries(Object.entries(targetDefinition.mutation?.args ?? {})
+            .filter(([name]) => name !== mappedMutationArg));
+          if (commandAsset) {
+            targetArgs[commandAsset[0]] = {
+              __validator: true,
+              __commandAssetSource: true,
+              fieldType: 'Json',
+              primitive: 'unknown',
+              optional: commandAsset[1].optional,
+            };
+          }
         } else if (namespace === 'presence') {
           reference = generatedReferences.api.ephemeral[targetName];
           targetArgs = {
@@ -9317,12 +9519,9 @@ function buildGeneratedSurfaces({
       return output;
     };
 
-    if (Object.keys(def.commands ?? {}).length > 0) {
-      report('SNAPBACK_SURFACE_MEMBER_CLASS_UNSUPPORTED', surfaceName, null, 'commands are reserved for descriptor slice S2');
-      valid = false;
-    }
     const reads = compileMembers('reads');
     const mutations = compileMembers('mutations');
+    const commands = compileMembers('commands');
     const assets = compileMembers('assets');
     const presence = compileMembers('presence');
     if (!valid) continue;
@@ -9336,7 +9535,7 @@ function buildGeneratedSurfaces({
       params,
       reads,
       mutations,
-      commands: {},
+      commands,
       assets,
       presence,
     };
@@ -9488,7 +9687,9 @@ function renderAppBindingModule(functions, descriptorIdentity, trustedCompositio
     `export const artifacts = deepFreeze(${stableJson({ trustedCompositionActivation })});\n` +
     `const hydratedDescriptor = structuredClone(descriptorDocument);\n` +
     `for (const namespace of [hydratedDescriptor.api.queries, hydratedDescriptor.api.mutations]) { for (const reference of Object.values(namespace)) Object.defineProperty(reference, 'artifacts', { value: artifacts, enumerable: false }); }\n` +
-    `for (const surface of Object.values(hydratedDescriptor.surfaces)) { for (const member of Object.values(surface.reads)) member.reference = hydratedDescriptor.api.queries[member.reference.name]; for (const member of Object.values(surface.mutations)) member.reference = hydratedDescriptor.api.mutations[member.reference.name]; for (const member of Object.values(surface.assets)) member.reference = hydratedDescriptor.api.assets[member.reference.name]; for (const member of Object.values(surface.presence)) member.reference = hydratedDescriptor.api.ephemeral[member.reference.name]; }\n` +
+    `const commandReferences = new Map(Object.values(hydratedDescriptor.commands).map((command) => [JSON.stringify(command), command]));\n` +
+    `for (const command of Object.values(hydratedDescriptor.commands)) { command.mutation = hydratedDescriptor.api.mutations[command.mutation.name]; if (command.asset) command.asset.intent = hydratedDescriptor.api.assets[command.asset.intent.name]; }\n` +
+    `for (const surface of Object.values(hydratedDescriptor.surfaces)) { for (const member of Object.values(surface.reads)) member.reference = hydratedDescriptor.api.queries[member.reference.name]; for (const member of Object.values(surface.mutations)) member.reference = hydratedDescriptor.api.mutations[member.reference.name]; for (const member of Object.values(surface.commands)) member.reference = commandReferences.get(JSON.stringify(member.reference)); for (const member of Object.values(surface.assets)) member.reference = hydratedDescriptor.api.assets[member.reference.name]; for (const member of Object.values(surface.presence)) member.reference = hydratedDescriptor.api.ephemeral[member.reference.name]; }\n` +
     `/** @type {import('./app.d.ts').GeneratedAppDescriptorV1} */\n` +
     `export const app = deepFreeze(hydratedDescriptor);\n` +
     `${aliases.join('\n')}\n` +
@@ -9518,6 +9719,7 @@ function surfaceContractType(value) {
   if (!value || typeof value !== 'object') return 'unknown';
   if (value.kind === 'null') return 'null';
   if (value.kind === 'string' || value.kind === 'assetRef') return 'string';
+  if (value.kind === 'commandAssetSource') return 'CommandAssetSource';
   if (value.kind === 'principal') return 'Principal';
   if (value.kind === 'id') return `Id<${JSON.stringify(value.table)}>`;
   if (value.kind === 'integer' || value.kind === 'finiteReal') return 'number';
@@ -9537,18 +9739,23 @@ function surfaceContractType(value) {
   return 'unknown';
 }
 
-function renderSurfaceTypeMap(members, referenceNamespace) {
+function renderSurfaceTypeMap(members, referenceNamespace, commandMap = {}) {
   const entries = Object.entries(members ?? {}).map(([name, member]) => {
     const inputs = Object.entries(member.inputs ?? {});
     const inputType = inputs.length === 0
       ? 'Record<string, never>'
       : `{ ${inputs.map(([inputName, descriptor]) => `${JSON.stringify(inputName)}${descriptor.optional ? '?' : ''}: ${surfaceContractType(descriptor.contract)}`).join('; ')} }`;
-    return `${JSON.stringify(name)}: SurfaceMemberDescriptor<${referenceNamespace}[${JSON.stringify(member.reference.name)}], ${inputType}>`;
+    const referenceName = referenceNamespace === 'GeneratedAppCommands'
+      ? Object.entries(commandMap).find(([, command]) => (
+        canonicalResultJson(command) === canonicalResultJson(member.reference)
+      ))?.[0]
+      : member.reference.name;
+    return `${JSON.stringify(name)}: SurfaceMemberDescriptor<${referenceNamespace}[${JSON.stringify(referenceName)}], ${inputType}>`;
   });
   return entries.length === 0 ? 'Record<string, never>' : `{ ${entries.join('; ')} }`;
 }
 
-function renderAppTypes(functions, assetUploadIntents = [], surfaces = {}) {
+function renderAppTypes(functions, assetUploadIntents = [], commands = {}, surfaces = {}) {
   const standalone = standaloneDescriptorFunctions(functions);
   const queryNames = standalone
     .filter(({ kind }) => kind === 'Query' || kind === 'LiveQuery')
@@ -9565,7 +9772,21 @@ function renderAppTypes(functions, assetUploadIntents = [], surfaces = {}) {
     `export type GeneratedAppMutationName = ${union(mutationNames)};`,
     `export type GeneratedAppAssetName = ${union(assetNames)};`,
     'export type CapabilityRequirement = string;',
-    'export type CommandDescriptor = never;',
+    'export interface CommandAssetSource { readonly size: number; readonly name?: string; readonly type?: string; slice(start: number, end?: number): { arrayBuffer(): Promise<ArrayBuffer> } }',
+    'type ReferenceArgs<Reference> = Reference extends { readonly __args?: infer Args } ? Args : Record<string, unknown>;',
+    'type ReferenceResult<Reference> = Reference extends { readonly __result?: infer Result } ? Result : unknown;',
+    'type CommandAssetInput<Input extends string | never, Optional extends boolean> = [Input] extends [never] ? unknown : Optional extends true ? { readonly [Field in Input]?: CommandAssetSource } : { readonly [Field in Input]: CommandAssetSource };',
+    'export interface CommandDescriptor<Mutation = unknown, Input extends string | never = never, MutationArg extends string | never = never, Optional extends boolean = false, Intent = unknown> {',
+    "  readonly kind: 'asset-bearing-command.v1';",
+    '  readonly mutation: Mutation;',
+    '  readonly asset: [Input] extends [never] ? null : Readonly<{ input: Input; intent: Intent; mutationArg: MutationArg; optional: Optional }>;',
+    '  readonly passthroughArgs: readonly string[];',
+    '  readonly __args?: Omit<ReferenceArgs<Mutation>, MutationArg> & CommandAssetInput<Input, Optional>;',
+    '  readonly __result?: ReferenceResult<Mutation>;',
+    '}',
+    'export interface GeneratedAppCommands {',
+    ...Object.entries(commands).map(([name, command]) => `  readonly ${JSON.stringify(name)}: CommandDescriptor<GeneratedApi[${JSON.stringify(command.mutation.name)}], ${command.asset ? JSON.stringify(command.asset.input) : 'never'}, ${command.asset ? JSON.stringify(command.asset.mutationArg) : 'never'}, ${command.asset?.optional === true}, ${command.asset ? `GeneratedApi[${JSON.stringify(command.asset.intent.name)}]` : 'never'}>;`),
+    '}',
     'export interface SurfaceMemberDescriptor<Reference = unknown, Input = Record<string, never>> {',
     "  readonly artifactKind: 'surfaceMemberBinding';",
     '  readonly reference: Reference;',
@@ -9573,7 +9794,7 @@ function renderAppTypes(functions, assetUploadIntents = [], surfaces = {}) {
     '  readonly inputs: Readonly<Record<string, unknown>>;',
     '  readonly __input?: Input;',
     '}',
-    'export interface SurfaceDescriptor<Params = Record<string, never>, Reads = Record<string, never>, Mutations = Record<string, never>, Presence = Record<string, never>, Assets = Record<string, never>> {',
+    'export interface SurfaceDescriptor<Params = Record<string, never>, Reads = Record<string, never>, Mutations = Record<string, never>, Commands = Record<string, never>, Presence = Record<string, never>, Assets = Record<string, never>> {',
     "  readonly artifactKind: 'surfaceDescriptor';",
     '  readonly id: string;',
     '  readonly name: string;',
@@ -9581,7 +9802,7 @@ function renderAppTypes(functions, assetUploadIntents = [], surfaces = {}) {
     '  readonly reads: Reads;',
     '  readonly mutations: Mutations;',
     '  readonly presence: Presence;',
-    '  readonly commands: Readonly<Record<string, never>>;',
+    '  readonly commands: Commands;',
     '  readonly assets: Assets;',
     '  readonly __params?: Params;',
     '}',
@@ -9591,7 +9812,7 @@ function renderAppTypes(functions, assetUploadIntents = [], surfaces = {}) {
       const paramType = params.length === 0
         ? 'Record<string, never>'
         : `{ ${params.map(([paramName, contract]) => `${JSON.stringify(paramName)}: ${surfaceContractType(contract)}`).join('; ')} }`;
-      return `  readonly ${JSON.stringify(name)}: SurfaceDescriptor<${paramType}, ${renderSurfaceTypeMap(surface.reads, 'GeneratedApi')}, ${renderSurfaceTypeMap(surface.mutations, 'GeneratedApi')}, ${renderSurfaceTypeMap(surface.presence, 'GeneratedEphemeral')}, ${renderSurfaceTypeMap(surface.assets, 'GeneratedApi')}>;`;
+      return `  readonly ${JSON.stringify(name)}: SurfaceDescriptor<${paramType}, ${renderSurfaceTypeMap(surface.reads, 'GeneratedApi')}, ${renderSurfaceTypeMap(surface.mutations, 'GeneratedApi')}, ${renderSurfaceTypeMap(surface.commands, 'GeneratedAppCommands', commands)}, ${renderSurfaceTypeMap(surface.presence, 'GeneratedEphemeral')}, ${renderSurfaceTypeMap(surface.assets, 'GeneratedApi')}>;`;
     }),
     '}',
     'export interface AppDescriptorV1 {',
@@ -9604,7 +9825,7 @@ function renderAppTypes(functions, assetUploadIntents = [], surfaces = {}) {
     '    ephemeral: GeneratedEphemeral;',
     '    queryGroups: GeneratedQueryGroups;',
     '  }>;',
-    '  readonly commands: Readonly<Record<string, CommandDescriptor>>;',
+    '  readonly commands: Readonly<GeneratedAppCommands>;',
     '  readonly surfaces: Readonly<GeneratedAppSurfaces>;',
     '  readonly capabilities: Readonly<{ required: readonly CapabilityRequirement[] }>;',
     '}',
@@ -11262,11 +11483,12 @@ async function buildDefinitionBundle(
 function definitionFacadeSource(entryPath, definePath, resultKey, kind) {
   const entry = JSON.stringify(entryPath);
   const define = JSON.stringify(definePath);
-  const imports = `import { isAssetUploadDef, isConfigDef, isCronDef, isEphemeralCollectionDef, isEphemeralDef, isFunctionDef, isMaintainedProjectionDef, isRoutesDef, isSurfaceBinding, isSurfaceDef, isTableDef } from ${define};`;
+  const imports = `import { isAssetUploadDef, isCommandDef, isConfigDef, isCronDef, isEphemeralCollectionDef, isEphemeralDef, isFunctionDef, isMaintainedProjectionDef, isRoutesDef, isSurfaceBinding, isSurfaceDef, isTableDef } from ${define};`;
   const normalization = String.raw`
 function __snapbackDefinitionKind(value) {
   if (isFunctionDef(value)) return 'function';
   if (isAssetUploadDef(value)) return 'asset-upload';
+  if (isCommandDef(value)) return 'command';
   if (isCronDef(value)) return 'cron';
   if (isConfigDef(value)) return 'config';
   if (isEphemeralCollectionDef(value)) return 'ephemeral-collection';

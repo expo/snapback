@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "4444767ccc09eb93fe074c9d00ecc9ca29d38d0b"
+    "commit": "95bae953d19d96eec883aa8b8c20941b83022c0d"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -1500,7 +1500,7 @@
       "examples": [],
       "reviewed": "2026-08-06",
       "reviewedCommit": "850427c31b9a668d55b46995e08389cd13a2c9b6",
-      "sha256": "aa09d730ebe2ff465ef792ff5ea977385050b9d8dc5a804545c94b9e05dcb16b",
+      "sha256": "f1ab744fd4750ecc38b95e74ba7337e5d38515a7ecbc9c188b3687042848314d",
       "snippets": []
     },
     "clients.app-cli": {
@@ -1897,27 +1897,37 @@
       ],
       "authorities": [
         "llp/0179-generated-app-descriptor-and-surfaces.rfc.md",
+        "llp/0180-asset-bearing-client-commands.rfc.md",
         "llp/0114-first-class-react-and-query-groups.spec.md",
         "llp/0176-expo-messaging-golden-path.plan.md",
         "packages/snapback-codegen/define.mjs",
         "packages/snapback-codegen/index.mjs",
+        "packages/snapback-client/commands.mjs",
         "packages/snapback-client/react-binding.mjs",
         "packages/snapback-react/index.mjs",
         "packages/snapback-react/index.d.mts"
       ],
       "examples": [
         "packages/snapback-react/surface.test.mjs",
+        "packages/snapback-react/commands.test.mjs",
+        "packages/snapback-client/commands.test.mjs",
         "packages/snapback-react/fixtures/conversation/app/snapback/generated/app.descriptor.json",
         "packages/snapback-react/fixtures/conversation/app/snapback/generated/app.d.ts",
         "demos/expo-golden-path-fixture/snapback/functions.mjs",
         "demos/expo-golden-path-fixture/snapback/surface-model.mjs",
         "demos/expo-golden-path-fixture/src/screens/chat-screen.tsx",
-        "demos/expo-golden-path-fixture/tests/g2-falsification.mjs"
+        "demos/expo-golden-path-fixture/tests/g2-falsification.mjs",
+        "demos/expo-golden-path-fixture/tests/g3-command.mjs"
       ],
       "reviewed": "2026-08-06",
       "reviewedCommit": "HEAD",
-      "sha256": "e91b9dcdef6e24b5f642d1f14d38dd8d3eeecd8e9c7e8859fafcdbfd663dd4c5",
+      "sha256": "993b930a0009c278a56eed43c7ec1f6fe9e9eb764c288aefb012e50a4e53ee98",
       "snippets": [
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/expo-golden-path-fixture/snapback/functions.mjs"
+        },
         {
           "lang": "js",
           "class": "transcluded",
@@ -2353,7 +2363,7 @@
       "examples": [],
       "reviewed": "2026-08-06",
       "reviewedCommit": "2715951cf",
-      "sha256": "576b794e0fb131f7fd2634a67f87a942632422a7a831bc209c4a594f794e8d6d",
+      "sha256": "c4f1e7d1c7fc74e0f706c2c3926ad639b8a32e0fe0b8565a13568d39c74ac412",
       "snippets": []
     },
     "operating.data-patch": {
@@ -3352,5 +3362,5 @@
     "routes": 122,
     "hostOps": 43
   },
-  "contentHash": "f2458ecb4ea7657915171e23369d6a9374de156c560d608af02cfa59294e01a6"
+  "contentHash": "fee476c7eafefef5bfedc30bbf276aff2689a9f567fb9de19b8ec6e85af5f302"
 }

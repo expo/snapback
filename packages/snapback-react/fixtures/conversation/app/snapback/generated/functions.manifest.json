@@ -50,11 +50,11 @@
       "sourceSpan": {
         "column": 14,
         "file": "functions.mjs",
-        "line": 35
+        "line": 36
       }
     }
   ],
-  "bundleHash": "snapback.v1:sessions:function:sha256:b528f9aaf52005561fc39c6d419d991171ede557b3fba5e7412e67f46cd33d11",
+  "bundleHash": "snapback.v1:sessions:function:sha256:7dd579045dacd4399e5124cbaf19ce15d75bb9e5739bd2293d1899cd64113a9d",
   "config": [],
   "cronJobs": [],
   "functions": [
@@ -1003,6 +1003,146 @@
             }
           },
           {
+            "name": "body",
+            "required": false,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          },
+          {
+            "name": "image",
+            "required": false,
+            "value": {
+              "kind": "assetRef"
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:f34565efd075fb25b761192b4849a04663d985f2c42dcd8c9f5cf823af29d05b",
+      "authRequirement": "authenticated",
+      "bundleEntrypoint": "sendMessage",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "static",
+        "hostOperations": [
+          "runtimeNow"
+        ],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "insert"
+            ],
+            "table": "messages"
+          }
+        ]
+      },
+      "exportedName": "sendMessage",
+      "handlerForm": "plan",
+      "id": "app:sendMessage",
+      "implementationHash": "sha256:5b1ed06db03c86b5eb73cb678b322d95df4803e581fb7b559463f76506df4c8e",
+      "kind": "Mutation",
+      "name": "sendMessage",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      },
+      "requiredCapabilities": [
+        "host_plan_runtime",
+        "mutation_read_set_validation",
+        "result_contract_v1",
+        "args_contract_v1"
+      ],
+      "resultContract": {
+        "kind": "value",
+        "value": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "messageId",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "messages"
+              }
+            }
+          ],
+          "kind": "object"
+        }
+      },
+      "resultContractHash": "sha256:5d40a11d2dd3c7c273d1fd3dcb5e37d6150af9b70a47c703a7db7fd6f1d067c0",
+      "runtime": {
+        "HostPlan": {
+          "Mutation": {
+            "return_value": {
+              "Expr": {
+                "Record": {
+                  "fields": {
+                    "messageId": {
+                      "Binding": "messageId"
+                    }
+                  }
+                }
+              }
+            },
+            "steps": [
+              {
+                "Insert": {
+                  "bind_id_as": "messageId",
+                  "table": "messages",
+                  "values": {
+                    "conversationId": {
+                      "Arg": "conversationId"
+                    },
+                    "kind": {
+                      "Literal": "command"
+                    },
+                    "senderId": {
+                      "Arg": "senderId"
+                    },
+                    "sentAt": "RuntimeNow"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "mutationPlan",
+        "primaryTable": "messages",
+        "tables": [
+          "messages"
+        ]
+      }
+    },
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "conversationId",
+            "required": true,
+            "value": {
+              "kind": "id",
+              "table": "conversations"
+            }
+          },
+          {
+            "name": "senderId",
+            "required": true,
+            "value": {
+              "kind": "id",
+              "table": "users"
+            }
+          },
+          {
             "name": "text",
             "required": true,
             "value": {
@@ -1457,7 +1597,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:192ad99d079f74283ee8a9346430d1b0c43044aa9c03d8cce956746cec7cbf34",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:f8bf967244bcd6cf1efe3af58d92d912ce2f9ad62b809930fa8611f9de88862b",
   "schemaVersion": "snapback.v1",
   "unsupportedDependencyDiagnostics": []
 }

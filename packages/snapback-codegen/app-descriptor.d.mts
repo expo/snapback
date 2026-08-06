@@ -1,5 +1,10 @@
 export const APP_DESCRIPTOR_FORMAT: 'snapback.app.v1';
 export const APP_DESCRIPTOR_MAX_BYTES: number;
+export const SURFACE_MAX_PARAMS: 8;
+export const SURFACE_MAX_MEMBERS: 24;
+export const SURFACE_MAX_MEMBER_BINDINGS: 32;
+export const SURFACE_MAX_SCOPE_RECORD_FIELDS: 8;
+export const SURFACE_MAX_PER_APP: 32;
 
 export interface AppDescriptorValidationProblem {
   readonly code: string;
@@ -23,7 +28,17 @@ export interface PortableAppDescriptorV1 {
     ephemeral: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
     queryGroups: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
   }>;
-  readonly commands: Readonly<Record<string, never>>;
+  readonly commands: Readonly<Record<string, Readonly<{
+    readonly kind: 'asset-bearing-command.v1';
+    readonly mutation: Readonly<Record<string, unknown>>;
+    readonly asset: null | Readonly<{
+      readonly input: string;
+      readonly intent: Readonly<Record<string, unknown>>;
+      readonly mutationArg: string;
+      readonly optional: boolean;
+    }>;
+    readonly passthroughArgs: readonly string[];
+  }>>>;
   readonly surfaces: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
   readonly capabilities: Readonly<{ required: readonly string[] }>;
 }
@@ -39,6 +54,7 @@ export function createAppDescriptorV1(input: Readonly<{
   schema: string;
   functions: string;
   api: PortableAppDescriptorV1['api'];
+  commands?: PortableAppDescriptorV1['commands'];
   surfaces?: PortableAppDescriptorV1['surfaces'];
   requiredCapabilities: readonly string[];
 }>): PortableAppDescriptorV1;

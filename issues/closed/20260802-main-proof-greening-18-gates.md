@@ -1540,7 +1540,7 @@ coded historical/currentness checks run against that committed carrier.
 
 ### Closing-main merge reconciliation — 2026-08-06
 
-The closing branch then merged `origin/main` through `be21c0aa4`. Fork
+The closing branch then merged `origin/main` through `8d02adf78`. Fork
 publication landing `c5f363cd5` added an eight-argument embedded verification
 helper that is intentionally parallel to the already-reviewed
 `publication_verified_for` helper; strict Clippy therefore carries the same
@@ -1551,6 +1551,15 @@ already repaired earlier in this drift branch, so the merge-only duplicate
 initializers were removed. Focused agent-safe publication tests and strict
 workspace/all-target/all-feature Clippy pass; no fork behavior or admission
 predicate changed.
+
+The final main advance `17e7ca8ca` added LLP 0179 S2 command admission and
+two package suites. Its inventory change was reconciled additively with the
+earlier guide-pointer repair: the canonical total is 220 and all entries run.
+The asset-client merge retained the branch's equivalent compact transfer
+diagnostic helper while taking main's newer authority-capture and stale-
+authority refusal intact. The asset, headless-command, and React-command
+suites pass; no command or asset correctness behavior was invented in the
+merge resolution.
 
 The same merge combined the qualified S1 Contention carrier retained by
 `16ef2533a` with `c5f363cd5`'s explicit qualification-C generated-leaf set.
@@ -1564,8 +1573,9 @@ content-hash-churn follow-up remains recorded in
 widen its accepted filename class.
 
 The full Linux telemetry receipt above remains `HISTORICAL_VALID` after this
-main merge. Its coded state is honestly `LAGGING`: five later source files
-changed, ordinary merge acceptance remains true, release/capability-promotion
+main merge. Its coded state is honestly `LAGGING`: later source files in the
+post-receipt batches changed, ordinary merge acceptance remains true,
+release/capability-promotion
 acceptance is false, and the rolling full proof is requested. Per this
 ticket's batched-drift rescope, that is not a reason to remint the expensive
 receipt for each landing. This branch is an ordinary proof-greening merge, not

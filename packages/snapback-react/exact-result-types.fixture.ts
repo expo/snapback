@@ -10,6 +10,7 @@ import type { Id } from './fixtures/conversation/app/snapback/generated/api.d.ts
 import {
   projectRecordFields,
   skip,
+  useSnapbackCommand,
   useSnapbackMutation,
   useSnapbackQueries,
   useSnapbackQuery,
@@ -102,17 +103,30 @@ declare const conversationId: Id<'conversations'>;
 declare const messageId: Id<'messages'>;
 declare const userId: Id<'users'>;
 declare const conversationApp: ConversationAppDescriptor;
+declare const commandImage: {
+  readonly size: number;
+  slice(start: number, end?: number): { arrayBuffer(): Promise<ArrayBuffer> };
+};
+const directSend = useSnapbackCommand(conversationApp.commands.send);
+directSend({ conversationId, senderId: userId, body: 'hello', image: commandImage })
+  .done.then((outcome) => {
+    if (outcome.kind === 'committed') outcome.result.messageId;
+    if (outcome.kind === 'failed') outcome.residue?.unattached;
+  });
 const conversation = useSurface(
   conversationApp.surfaces.conversation,
   { conversationId },
   { presence: { typing: { displayName: 'Ada' } } },
 );
 conversation.mutations.addReaction({ messageId, userId, emoji: '👍' });
+conversation.commands.send({ body: 'hello', image: commandImage });
 conversation.data.messages?.[0]?.text?.toUpperCase();
 conversation.state.messages.retention;
 conversation.presence.typing.members[0]?.value.displayName.toUpperCase();
 // @ts-expect-error conversationId is already bound at the surface.
 conversation.mutations.addReaction({ conversationId, messageId, userId, emoji: '👍' });
+// @ts-expect-error conversationId and senderId are bound by the surface.
+conversation.commands.send({ conversationId, senderId: userId, body: 'wrong' });
 useSurface(conversationApp.surfaces.conversation, { conversationId }, {
   presence: { typing: {
     displayName: 'Ada',

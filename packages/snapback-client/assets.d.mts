@@ -87,6 +87,12 @@ export declare class SnapbackAssetClient {
     declaredFilename?: string | null;
     declaredContentType?: string | null;
     previewUrl?: string | null;
+    /** Exact authority cohort captured by a composing command. Direct asset
+     * callers normally omit this and retain the existing per-request capture. */
+    authorityCapture?: unknown;
+    /** Internal external-bearer generation fence used by a composing command.
+     * Direct callers normally omit this. */
+    externalTransportGeneration?: number;
   }): AssetUploadTask;
   resumePersisted(options: {
     assetId: string;

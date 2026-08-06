@@ -299,6 +299,113 @@
       {
         "arguments": {
           "fields": {
+            "body": {
+              "name": "string",
+              "optional": true,
+              "shape": "primitive"
+            },
+            "conversationId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "image": {
+              "name": "string",
+              "optional": true,
+              "shape": "primitive"
+            },
+            "senderId": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "conversationId",
+            "senderId",
+            "body",
+            "image"
+          ]
+        },
+        "contract": {
+          "argumentsHash": "sha256:f34565efd075fb25b761192b4849a04663d985f2c42dcd8c9f5cf823af29d05b",
+          "implementationHash": "sha256:5b1ed06db03c86b5eb73cb678b322d95df4803e581fb7b559463f76506df4c8e",
+          "result": {
+            "kind": "value",
+            "value": {
+              "allowExtra": false,
+              "fields": [
+                {
+                  "name": "messageId",
+                  "required": true,
+                  "value": {
+                    "kind": "id",
+                    "table": "messages"
+                  }
+                }
+              ],
+              "kind": "object"
+            }
+          },
+          "resultHash": "sha256:5d40a11d2dd3c7c273d1fd3dcb5e37d6150af9b70a47c703a7db7fd6f1d067c0",
+          "revision": "snapback.result-contract.v1"
+        },
+        "effects": {
+          "invalidates": [
+            "messages"
+          ],
+          "writes": [
+            "messages"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "extensions": {
+          "snapback": {
+            "contractPlan": {
+              "return_value": {
+                "Expr": {
+                  "Record": {
+                    "fields": {
+                      "messageId": {
+                        "Binding": "messageId"
+                      }
+                    }
+                  }
+                }
+              },
+              "steps": [
+                {
+                  "Insert": {
+                    "bind_id_as": "messageId",
+                    "table": "messages",
+                    "values": {
+                      "conversationId": {
+                        "Arg": "conversationId"
+                      },
+                      "kind": {
+                        "Literal": "command"
+                      },
+                      "senderId": {
+                        "Arg": "senderId"
+                      },
+                      "sentAt": "RuntimeNow"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "name": "sendMessage",
+        "optimistic": {
+          "source": "provider-plan",
+          "supported": true
+        }
+      },
+      {
+        "arguments": {
+          "fields": {
             "conversationId": {
               "name": "string",
               "shape": "primitive"
@@ -1407,8 +1514,8 @@
   },
   "schemaVersion": "provider-introspection.v1",
   "source": {
-    "implementationHash": "snapback.v1:sessions:function:sha256:b528f9aaf52005561fc39c6d419d991171ede557b3fba5e7412e67f46cd33d11",
-    "inputsHash": "snapback.v1:sessions:inputs:sha256:192ad99d079f74283ee8a9346430d1b0c43044aa9c03d8cce956746cec7cbf34",
-    "schemaHash": "snapback.v1:sessions:schema:sha256:3a18cab1b5c7908c2180a5f2bb0b475e542a7f1ad3cb4e28332de030b3a41c5f"
+    "implementationHash": "snapback.v1:sessions:function:sha256:7dd579045dacd4399e5124cbaf19ce15d75bb9e5739bd2293d1899cd64113a9d",
+    "inputsHash": "snapback.v1:sessions:inputs:sha256:f8bf967244bcd6cf1efe3af58d92d912ce2f9ad62b809930fa8611f9de88862b",
+    "schemaHash": "snapback.v1:sessions:schema:sha256:62ba56c48146dd3ddc1bacba51033b23f133bc150d5fdf12e43d481917966169"
   }
 }

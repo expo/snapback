@@ -86,7 +86,7 @@ documentation absence never appears as success.
 ## Generated inventory
 
 <!-- BEGIN GENERATED CONTROL CATALOG: CONTROL CATALOG INVENTORY -->
-The embedded build catalog contains **114 operations** at digest `sha256:28b55da600e070409ad63bbac8bce0cd15dc62fc6aa32031bd451c308bf5aab2`. The counts and inventory below are generated; do not edit them by hand.
+The embedded build catalog contains **114 operations** at digest `sha256:90d37881f6a608b5990a5c1955a047eaed4b9784eadbf4ceaab65b50138c78fb`. The counts and inventory below are generated; do not edit them by hand.
 
 | Axis | Value | Count |
 | --- | --- | ---: |
@@ -95,10 +95,10 @@ The embedded build catalog contains **114 operations** at digest `sha256:28b55da
 | surfaceAccess | `mcpOnly` | 2 |
 | surfaceAccess | `native` | 41 |
 | surfaceAccess | `none` | 4 |
-| operability | `direct` | 82 |
+| operability | `direct` | 89 |
 | operability | `internal` | 11 |
 | operability | `mediated` | 7 |
-| operability | `unavailable` | 14 |
+| operability | `unavailable` | 7 |
 
 | Operation | Surface | Operability | Status | CLI | MCP | Guide |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -127,12 +127,12 @@ The embedded build catalog contains **114 operations** at digest `sha256:28b55da
 | `auth.mailbox.read` | `apiOnly` | `direct` | `shipped` | — | — | — |
 | `auth.mintSession` | `apiOnly` | `direct` | `shipped` | — | — | — |
 | `auth.rescueCollidingTable` | `apiOnly` | `direct` | `shipped` | — | — | — |
-| `branch.create.v1` | `apiOnly` | `unavailable` | `shipped` | — | — | — |
-| `branch.drop.v1` | `apiOnly` | `unavailable` | `shipped` | — | — | — |
-| `branch.execute.v1` | `apiOnly` | `unavailable` | `shipped` | — | — | — |
-| `branch.inspect.v1` | `apiOnly` | `unavailable` | `shipped` | — | — | — |
-| `branch.list.v1` | `apiOnly` | `unavailable` | `shipped` | — | — | — |
-| `branch.reap.v1` | `apiOnly` | `unavailable` | `shipped` | — | — | — |
+| `branch.create.v1` | `apiOnly` | `direct` | `shipped` | — | — | — |
+| `branch.drop.v1` | `apiOnly` | `direct` | `shipped` | — | — | — |
+| `branch.execute.v1` | `apiOnly` | `direct` | `shipped` | — | — | — |
+| `branch.inspect.v1` | `apiOnly` | `direct` | `shipped` | — | — | — |
+| `branch.list.v1` | `apiOnly` | `direct` | `shipped` | — | — | — |
+| `branch.reap.v1` | `apiOnly` | `direct` | `shipped` | — | — | — |
 | `capability.manifest.read` | `apiOnly` | `direct` | `shipped` | — | — | — |
 | `cli.auth.backup` | `cliOnly` | `direct` | `shipped` | snapback auth backup | — | — |
 | `cli.auth.restore` | `cliOnly` | `direct` | `shipped` | snapback auth restore | — | — |
@@ -202,7 +202,7 @@ The embedded build catalog contains **114 operations** at digest `sha256:28b55da
 | `jobs.list` | `native` | `direct` | `shipped` | snapback jobs list | snapback_jobs_list | operating/host-ops.md#direct-climcp-projections-beyond-host-ops-llp-0184-phase-2-p1 |
 | `jobs.show` | `native` | `direct` | `shipped` | snapback jobs show <id> | snapback_jobs_show | operating/host-ops.md#direct-climcp-projections-beyond-host-ops-llp-0184-phase-2-p1 |
 | `object.evict` | `apiOnly` | `direct` | `shipped` | — | — | — |
-| `operations.explain` | `apiOnly` | `unavailable` | `shipped` | — | — | — |
+| `operations.explain` | `apiOnly` | `direct` | `shipped` | — | — | — |
 | `push.maintenance` | `apiOnly` | `internal` | `shipped` | — | — | — |
 | `receipts` | `apiOnly` | `direct` | `shipped` | — | — | — |
 | `route.unknown.refuse` | `none` | `internal` | `shipped` | — | — | — |

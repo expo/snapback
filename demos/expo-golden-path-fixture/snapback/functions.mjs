@@ -4,6 +4,7 @@ import {
   bind,
   bindingRef,
   defineAssetUpload,
+  defineCommand,
   defineJsMutation,
   defineLiveQuery,
   defineMutation,
@@ -229,9 +230,57 @@ export const sendImage = defineJsMutation({
   },
 });
 
+export const sendMessage = defineJsMutation({
+  args: {
+    conversationId: v.id('conversations'),
+    senderId: v.id('users'),
+    body: v.optional(v.string()),
+    image: v.optional(v.assetRef({ upload: 'messageImageUpload' })),
+    failAfterFinalize: v.optional(v.boolean()),
+  },
+  auth: 'authenticated',
+  writes: ['messages', 'conversations'],
+  result: results.value(v.id('messages')),
+  handler: async (ctx, args) => {
+    if (args.failAfterFinalize) throw new Error('fixture refusal after command asset finalization');
+    const hasImage = typeof args.image === 'string';
+    const messageId = await ctx.db.insert('messages', {
+      conversationId: args.conversationId,
+      senderId: args.senderId,
+      kind: hasImage ? 'image' : 'text',
+      ...(args.body ? { text: args.body } : {}),
+      ...(hasImage ? {
+        // @ref LLP 0044#typed-references-and-atomic-attachment — the command
+        // only supplies a finalized reference; this ordinary mutation remains
+        // the sole attachment and application-row commit boundary.
+        image: await ctx.assets.attach(args.image, { upload: 'messageImageUpload' }),
+      } : {}),
+      sentAt: ctx.runtime.now(),
+    });
+    await ctx.db.patch('conversations', args.conversationId, {
+      lastPreview: hasImage
+        ? (args.body ? `Photo · ${args.body}` : 'Photo')
+        : (args.body ?? ''),
+      updatedAt: ctx.runtime.now(),
+    });
+    return messageId;
+  },
+});
+
+export const send = defineCommand({
+  mutation: sendMessage,
+  assets: {
+    image: {
+      intent: messageImageUpload,
+      optional: true,
+      mutationArg: 'image',
+    },
+  },
+});
+
 // @ref LLP 0179#closed-grammar — conversationId is declared once and every
 // child records its inspectable substitution. The raw asset lane remains
-// separate from ordinary mutations; no G3 command is introduced here.
+// separately available while the command composes it with one mutation.
 export const conversation = defineSurface({
   params: { conversationId: v.id('conversations') },
   reads: {
@@ -271,6 +320,18 @@ export const conversation = defineSurface({
       assetId: input('assetId'),
       caption: input('caption'),
       replyToId: input('replyToId'),
+    }),
+  },
+  commands: {
+    // This seeded Relay-shaped test persona binds Ada as the visible app-data
+    // sender. Ordinary Sessions authority remains separate and is still
+    // independently required by both the upload intent and mutation.
+    send: bind(send, {
+      conversationId: param('conversationId'),
+      senderId: 'user_ada',
+      body: input('body'),
+      image: input('image'),
+      failAfterFinalize: false,
     }),
   },
   assets: {

@@ -14,6 +14,21 @@ export type {
   ExternalStoreSnapshot,
   ExternalStoreStatus,
 } from './external-store.mjs';
+export { SnapbackCommandClient, createCommandClient } from './commands.mjs';
+export type {
+  AssetBearingCommandDescriptorV1,
+  AssetBearingCommandReferenceV1,
+  CommandArgs,
+  CommandAssetSource,
+  CommandOutcome,
+  CommandResidue,
+  CommandResult,
+  CommandTask,
+  CommandTaskSnapshot,
+  MutationAttemptSnapshot,
+  SnapbackCommandDiagnostic,
+  TypedRemediation,
+} from './commands.mjs';
 export {
   CANONICAL_CLIENT_VALUE_V1_LIMITS,
   canonicalizeClientValueV1,
@@ -612,6 +627,7 @@ export interface PreparedReactBinding {
   readonly ephemeral: Readonly<Record<string, SnapbackEphemeralReference>>;
   readonly groups: Readonly<Record<string, SnapbackQueryGroupReference>>;
   readonly assetIntents: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
+  readonly commands: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
   readonly surfaces: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
   prepareQueryGroup<Ref extends SnapbackQueryGroupReference>(
     reference: Ref,
@@ -1236,6 +1252,7 @@ export class SnapbackClient {
       readonly settlementClaims?: SettlementClaimSet | null;
       readonly boundedSkew?: BoundedSkewDeclaration | null;
       readonly optimisticOperation?: Readonly<Record<string, unknown>> | null;
+      readonly authorityCapture?: unknown;
       readonly queue?: 'auto' | boolean;
     },
   ): Promise<MutationOutput<FunctionResult<Ref>>>;
@@ -1251,6 +1268,7 @@ export class SnapbackClient {
       readonly settlementClaims?: SettlementClaimSet | null;
       readonly boundedSkew?: BoundedSkewDeclaration | null;
       readonly optimisticOperation?: Readonly<Record<string, unknown>> | null;
+      readonly authorityCapture?: unknown;
       readonly queue?: 'auto' | boolean;
     },
   ): Promise<MutationOutput<Result>>;
@@ -1546,6 +1564,10 @@ export function admittedReactQueryGroup(
   reference: SnapbackQueryGroupReference,
 ): SnapbackQueryGroupReference;
 export function admittedReactSurface(
+  binding: unknown,
+  reference: Readonly<Record<string, unknown>>,
+): Readonly<Record<string, unknown>>;
+export function admittedReactCommand(
   binding: unknown,
   reference: Readonly<Record<string, unknown>>,
 ): Readonly<Record<string, unknown>>;

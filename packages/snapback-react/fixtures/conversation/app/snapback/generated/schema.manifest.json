@@ -56,12 +56,12 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:192ad99d079f74283ee8a9346430d1b0c43044aa9c03d8cce956746cec7cbf34",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:f8bf967244bcd6cf1efe3af58d92d912ce2f9ad62b809930fa8611f9de88862b",
   "portabilityFlags": [],
   "requiredCapabilities": [
     "auth.sessions.v1"
   ],
-  "schemaHash": "snapback.v1:sessions:schema:sha256:3a18cab1b5c7908c2180a5f2bb0b475e542a7f1ad3cb4e28332de030b3a41c5f",
+  "schemaHash": "snapback.v1:sessions:schema:sha256:62ba56c48146dd3ddc1bacba51033b23f133bc150d5fdf12e43d481917966169",
   "schemaVersion": "snapback.v1",
   "tables": [
     {

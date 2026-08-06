@@ -30,7 +30,7 @@
         "queryGroups": { "$ref": "#/$defs/queryGroupMap" }
       }
     },
-    "commands": { "type": "object", "maxProperties": 0 },
+    "commands": { "$ref": "#/$defs/commandMap" },
     "surfaces": {
       "type": "object",
       "additionalProperties": { "$ref": "#/$defs/surfaceDescriptor" }
@@ -128,6 +128,37 @@
     "assetMap": { "type": "object", "additionalProperties": { "$ref": "#/$defs/assetReference" } },
     "ephemeralMap": { "type": "object", "additionalProperties": { "$ref": "#/$defs/ephemeralReference" } },
     "queryGroupMap": { "type": "object", "additionalProperties": { "$ref": "#/$defs/queryGroupReference" } },
+    "commandDescriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "mutation", "asset", "passthroughArgs"],
+      "properties": {
+        "kind": { "const": "asset-bearing-command.v1" },
+        "mutation": { "$ref": "#/$defs/mutationReference" },
+        "asset": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["input", "intent", "mutationArg", "optional"],
+              "properties": {
+                "input": { "type": "string", "minLength": 1 },
+                "intent": { "$ref": "#/$defs/assetReference" },
+                "mutationArg": { "type": "string", "minLength": 1 },
+                "optional": { "type": "boolean" }
+              }
+            }
+          ]
+        },
+        "passthroughArgs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "commandMap": { "type": "object", "additionalProperties": { "$ref": "#/$defs/commandDescriptor" } },
     "surfaceBindingValue": {
       "oneOf": [
         {
@@ -175,7 +206,12 @@
       "required": ["artifactKind", "reference", "bindings", "inputs"],
       "properties": {
         "artifactKind": { "const": "surfaceMemberBinding" },
-        "reference": { "$ref": "#/$defs/reference" },
+        "reference": {
+          "oneOf": [
+            { "$ref": "#/$defs/reference" },
+            { "$ref": "#/$defs/commandDescriptor" }
+          ]
+        },
         "bindings": { "type": "object", "additionalProperties": { "$ref": "#/$defs/surfaceBindingValue" } },
         "inputs": {
           "type": "object",
@@ -203,7 +239,7 @@
         "params": { "type": "object", "additionalProperties": { "type": "object" } },
         "reads": { "$ref": "#/$defs/surfaceMemberMap" },
         "mutations": { "$ref": "#/$defs/surfaceMemberMap" },
-        "commands": { "type": "object", "maxProperties": 0 },
+        "commands": { "$ref": "#/$defs/surfaceMemberMap" },
         "assets": { "$ref": "#/$defs/surfaceMemberMap" },
         "presence": { "$ref": "#/$defs/surfaceMemberMap" }
       }

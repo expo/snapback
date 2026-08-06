@@ -728,6 +728,21 @@ mod tests {
     }
 
     #[test]
+    fn command_mutation_asset_ref_argument_admits_only_nonempty_ids() {
+        let function = function(FunctionArgsContract {
+            fields: vec![field("image", true, ResultValueContract::AssetRef)],
+        });
+        validate_function_args(&function, &json!({ "image": "asset-1" }))
+            .expect("opaque asset id");
+        for rejected in [json!({ "image": "" }), json!({ "image": 42 })] {
+            let error = validate_function_args(&function, &rejected)
+                .expect_err("empty or non-string asset refs refuse");
+            assert_eq!(error.diagnostic.details["path"], "/image");
+            assert_eq!(error.diagnostic.details["expected"], "assetRef");
+        }
+    }
+
+    #[test]
     fn null_args_are_the_empty_object() {
         let optional_only = function(FunctionArgsContract {
             fields: vec![field(

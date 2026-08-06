@@ -8,6 +8,7 @@
     "generate": "node ../../packages/snapback-codegen/index.mjs snapback",
     "start": "expo start",
     "test:g2": "bun run generate && node tests/g2-falsification.mjs",
+    "test:g3": "bun run generate && node tests/g3-command.mjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

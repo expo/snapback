@@ -4,8 +4,8 @@ id: clients.surfaces
 order: 2
 audience: agent-first
 capabilities: [clients.surfaces]
-authorities: [llp/0179-generated-app-descriptor-and-surfaces.rfc.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0176-expo-messaging-golden-path.plan.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts]
-examples: [packages/snapback-react/surface.test.mjs, packages/snapback-react/fixtures/conversation/app/snapback/generated/app.descriptor.json, packages/snapback-react/fixtures/conversation/app/snapback/generated/app.d.ts, demos/expo-golden-path-fixture/snapback/functions.mjs, demos/expo-golden-path-fixture/snapback/surface-model.mjs, demos/expo-golden-path-fixture/src/screens/chat-screen.tsx, demos/expo-golden-path-fixture/tests/g2-falsification.mjs]
+authorities: [llp/0179-generated-app-descriptor-and-surfaces.rfc.md, llp/0180-asset-bearing-client-commands.rfc.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0176-expo-messaging-golden-path.plan.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/commands.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts]
+examples: [packages/snapback-react/surface.test.mjs, packages/snapback-react/commands.test.mjs, packages/snapback-client/commands.test.mjs, packages/snapback-react/fixtures/conversation/app/snapback/generated/app.descriptor.json, packages/snapback-react/fixtures/conversation/app/snapback/generated/app.d.ts, demos/expo-golden-path-fixture/snapback/functions.mjs, demos/expo-golden-path-fixture/snapback/surface-model.mjs, demos/expo-golden-path-fixture/src/screens/chat-screen.tsx, demos/expo-golden-path-fixture/tests/g2-falsification.mjs, demos/expo-golden-path-fixture/tests/g3-command.mjs]
 status: current
 targets: [local]
 maturity: partial
@@ -25,17 +25,43 @@ reviewed-commit: HEAD
 > closure, 0.1.9. Use a runtime built from this checkout until 0.1.10 ships.
 
 An **application surface** is one generated, parameterized composition of the
-reads, ordinary mutations, raw asset intents, and presence lanes that belong
-to a resource or screen. Declare it on the backend with `defineSurface`; bind
-it in React with `useSurface`, or use `observeSnapbackSurface` and
-`provider.surface(...)` without React. This is the vocabulary split to keep in
-mind: backend searches use **surface declaration** and `defineSurface`, while
-client searches use **screen surface**, `useSurface`, and
-`observeSnapbackSurface`.
+reads, ordinary mutations, asset-bearing commands, raw asset intents, and
+presence lanes that belong to a resource or screen. Declare it on the backend
+with `defineSurface`; bind it in React with `useSurface`, or use
+`observeSnapbackSurface` and `provider.surface(...)` without React. This is the
+vocabulary split to keep in mind: backend searches use **surface declaration**
+and `defineSurface`, while client searches use **screen surface**,
+`useSurface`, and `observeSnapbackSurface`.
 
 A surface composes existing generated references. It adds no endpoint, cache,
 authorization layer, query language, or presence implementation. The low-level
 [React hooks](./react.md) remain available and share the same owners.
+
+## Declare one asset-bearing command
+
+Use `defineCommand` for the closed LLP 0180 composition: exactly one ordinary
+mutation plus zero or one asset input. The call inputs are derived rather than
+declared again. Every mutation argument remains an ordinary command input
+except the mapped `mutationArg`, which the asset task supplies after it
+finalizes. An optional asset makes text-only and one-image sends branches of
+the same typed call.
+
+```js source=demos/expo-golden-path-fixture/snapback/functions.mjs
+export const send = defineCommand({
+  mutation: sendMessage,
+  assets: {
+    image: {
+      intent: messageImageUpload,
+      optional: true,
+      mutationArg: 'image',
+    },
+  },
+});
+```
+
+The composed mutation is still the sole application-row and asset-attachment
+commit. The command adds no server endpoint or transaction, and it does not
+change the upload intent's policy or ownership rules.
 
 ## Declare a surface for one screen
 
@@ -85,6 +111,18 @@ export const conversation = defineSurface({
       replyToId: input('replyToId'),
     }),
   },
+  commands: {
+    // This seeded Relay-shaped test persona binds Ada as the visible app-data
+    // sender. Ordinary Sessions authority remains separate and is still
+    // independently required by both the upload intent and mutation.
+    send: bind(send, {
+      conversationId: param('conversationId'),
+      senderId: 'user_ada',
+      body: input('body'),
+      image: input('image'),
+      failAfterFinalize: false,
+    }),
+  },
   assets: {
     image: bind(messageImageUpload, {}),
   },
@@ -103,8 +141,9 @@ The declaration has six named fields:
 - `reads`, `mutations`, `assets`, and `presence` bind locally authored
   generated references. `input('name')` leaves a mutation or asset value for
   the eventual caller.
-- `commands` is part of the grammar, but generation currently refuses every
-  command member; see [the v1 boundary](#stay-inside-the-v1-boundary).
+- `commands` binds an exported `defineCommand` descriptor without treating it
+  as a mutation. Its caller supplies only unbound ordinary and asset-source
+  inputs.
 
 A binding leaf may be `param(name)`, `input(name)`, or a portable scalar
 literal (`null`, string, boolean, or finite number). An object-shaped target
@@ -156,6 +195,42 @@ Do not ask a caller for a bound parameter again. The complete descriptor
 mapping remains available to inspection and auth review even though the
 surface callable type omits it.
 
+## Run a command and read its truthful outcome
+
+Call a bound command through `surface.commands.<name>(inputs)`, or obtain the
+same owner directly with `useSnapbackCommand(app.commands.<name>)`. Both return
+one stable command task. The task snapshot derives these phases from its
+existing asset-task and mutation-attempt children:
+
+| Phase | Fact |
+| --- | --- |
+| `preparing` | Inputs and the captured authority cohort are being checked. |
+| `transferring` | The existing asset task is reserving, transferring, or finalizing. Absent for text-only calls. |
+| `committing` | The one ordinary mutation has been invoked. |
+| `succeeded` | Mutation settlement proved the application commit. |
+| `failed` | A trust boundary proved refusal or failure. |
+| `ambiguous` | Mutation invocation began, but no commit/refusal proof arrived. |
+| `cancelled` | Cancellation completed before mutation invocation. |
+
+`task.done` resolves to `committed`, `failed`, `ambiguous`, `cancelled`, or the
+`notRetryable` result of an invalid retry. It rejects only for local input or
+source validation before network work starts. Retrying a failed or ambiguous
+task returns a successor generation and preserves the mutation attempt
+identity needed to reconcile a possibly committed attempt.
+
+Finalized bytes are not a rollback receipt. If the mutation fails after
+finalization, the terminal task retains the ready asset child and reports
+residue with `unattached: 'authoritative' | 'inferred' | 'unknown'`. Current
+LLP 0044 child facts do not prove global non-attachment, so a proved
+same-authority mutation refusal is `inferred`; missing settlement or authority
+replacement is `unknown`. Cleanup remains the declared LLP 0044 lifecycle
+policy.
+
+Cancellation before the mutation cancels the asset child when one exists.
+Cancellation after mutation invocation is `ambiguous`, never a fabricated
+rollback. Authority replacement does not adopt a task into the successor
+principal; each retry revalidates its captured cohort.
+
 ## Consume the surface from React
 
 Pass the generated surface reference, its exact parameter object, and optional
@@ -180,7 +255,7 @@ render data and the rich child state:
     .map((entry) => entry.value.displayName))];
 ```
 
-The snapshot exposes five member namespaces plus its descriptor:
+The snapshot exposes six member namespaces plus its descriptor:
 
 - `data.<read>` is exactly `state.<read>.data`. It is the compact row/value
   projection and is `undefined`, never a fabricated `[]`, while that child is
@@ -191,11 +266,14 @@ The snapshot exposes five member namespaces plus its descriptor:
   `retention` fact.
 - `mutations.<name>(inputs)` is a typed ordinary mutation callable. Its input
   contains only the generated member's unbound inputs.
+- `commands.<name>(inputs)` returns the existing command task. It composes the
+  existing asset and ordinary mutation owners without entering the mutations
+  namespace.
 - `presence.<name>` is the existing per-room presence state with `entries`
   re-exported as `members`; status, connection, diagnostic, `selfKey`, and
   room actions remain available.
 - `assets.<name>` exposes the existing raw asset-task seam (`reference` and
-  `start`). It is not the reserved command composition promised for S2.
+  `start`) for workflows that do not fit the closed command grammar.
 - `descriptor` is the exact admitted generated surface reference.
 
 `skip` from `@expo/snapback-react` opts one presence member out of publishing
@@ -214,11 +292,12 @@ listener convenience is
 `observeSnapbackSurface(provider, surface, params, options, listener)`.
 The returned owner provides:
 
-- `snapshot()` for the same `data`/`state`/`mutations`/`presence`/`assets`/
-  `descriptor` projection;
+- `snapshot()` for the same `data`/`state`/`mutations`/`commands`/`presence`/
+  `assets`/`descriptor` projection;
 - `reads.<name>.snapshot()` and `reads.<name>.subscribe(listener)` for one
   child;
-- `mutations.<name>(inputs)` and `assets.<name>.start(...)`;
+- `mutations.<name>(inputs)`, `commands.<name>(inputs)`, and
+  `assets.<name>.start(...)`;
 - `update(params, options)` to retarget that bound owner; and
 - `dispose()` for all of its owned edges.
 
@@ -286,7 +365,7 @@ Codegen enforces these exact ceilings before it emits a surface:
 | --- | ---: | --- |
 | `SURFACE_MAX_PER_APP` | 32 | Surfaces in one app |
 | `SURFACE_MAX_PARAMS` | 8 | Parameters on one surface |
-| `SURFACE_MAX_MEMBERS` | 24 | Reads + mutations + assets + presence on one surface |
+| `SURFACE_MAX_MEMBERS` | 24 | Reads + mutations + commands + assets + presence on one surface |
 | `SURFACE_MAX_MEMBER_BINDINGS` | 32 | Binding leaves on one member |
 | `SURFACE_MAX_SCOPE_RECORD_FIELDS` | 8 | Fields in one flat scope record |
 
@@ -294,6 +373,12 @@ Exceeding any ceiling fails generation with
 `SNAPBACK_SURFACE_BUDGET_EXCEEDED`; it never truncates the descriptor. The
 limits keep a surface resource-shaped instead of recreating one global app
 store.
+
+The portable descriptor validator also measures the complete canonical UTF-8
+document against the existing 16 MiB generation-protocol ceiling, and the
+binding grammar permits only one flat object-keyed scope level. LLP 0179 leaves
+the initial product-level descriptor-byte and binding-depth budgets as an open
+question, so S2 does not invent tighter numeric ceilings.
 
 ## Act on every surface refusal
 
@@ -311,7 +396,13 @@ Generation-time `SNAPBACK_SURFACE_*` refusals are:
 | `SNAPBACK_SURFACE_BINDING_AMBIGUOUS` | A definition has multiple export identities or one `input(name)` is bound more than once. |
 | `SNAPBACK_SURFACE_BINDING_UNPORTABLE` | A binding uses nested/object construction outside one flat object-shaped target, or a literal is not portable JSON. |
 | `SNAPBACK_SURFACE_AUTH_BINDING_REFUSED` | Application data attempts to bind a `Principal`; surface scope is not authority. |
-| `SNAPBACK_SURFACE_MEMBER_CLASS_UNSUPPORTED` | A member has the wrong reference class, `input()` appears on an unsupported member, the target is in the wrong namespace, or `commands` is nonempty in S1. |
+| `SNAPBACK_SURFACE_MEMBER_CLASS_UNSUPPORTED` | A member has the wrong reference class, `input()` appears on an unsupported member, or the target is in the wrong namespace. |
+
+Command declarations refuse with stable `SNAPBACK_COMMAND_*` codes for an
+unknown or ambiguous mutation/intent, more than one asset, incompatible
+`assetRef` policy/optionality, an upload intent needing a second argument map,
+input collision, or an application argument that attempts to inject a
+principal.
 
 Client-time `SNAPBACK_REACT_SURFACE_*` refusals are:
 
@@ -320,7 +411,7 @@ Client-time `SNAPBACK_REACT_SURFACE_*` refusals are:
 | `SNAPBACK_REACT_SURFACE_INVALID` | The reference is not the complete generated surface admitted by this prepared binding, or a generated binding kind cannot be projected. |
 | `SNAPBACK_REACT_SURFACE_PARAMS_INVALID` | Params are not an object or their keys do not exactly match the generated declaration. |
 | `SNAPBACK_REACT_SURFACE_OPTIONS_INVALID` | Options are not the closed `{ presence }` object, or they name an unknown presence member. |
-| `SNAPBACK_REACT_SURFACE_INPUT_INVALID` | A mutation's unbound inputs are missing/unknown, or an asset call omits `file` or adds an unknown call field. |
+| `SNAPBACK_REACT_SURFACE_INPUT_INVALID` | A mutation or command's unbound inputs are missing/unknown, or an asset call omits `file` or adds an unknown call field. |
 | `SNAPBACK_REACT_SURFACE_PRESENCE_IDENTITY_INPUT` | A non-skipped presence publish payload carries `userId`. |
 | `SNAPBACK_REACT_SURFACE_GENERATION_STALE` | A mutation or asset callable belongs to a retired or disposed React surface generation. |
 
@@ -367,12 +458,12 @@ and [offline retention](../sync/offline-and-retention.md).
 
 ## Stay inside the v1 boundary
 
-This page is `maturity: partial` because the declaration object names
-`commands`, but current codegen refuses a nonempty command namespace with
-`SNAPBACK_SURFACE_MEMBER_CLASS_UNSUPPORTED` and the message “commands are
-reserved for descriptor slice S2.” Use the ordinary `mutations` namespace and
-raw `assets` task seam that exist today; do not present an asset-plus-mutation
-sequence as one admitted command.
+Commands admit only the closed online v1 shape: one ordinary mutation, zero or
+one transient structural asset source, no callbacks or branching, and no
+durable restart/offline custody. They do not admit multiple assets, attempt
+grants, anonymous claim-on-attach, picker/content-URI adaptation, or generic
+workflows. Use the ordinary `mutations` namespace and raw `assets` task seam
+when the operation does not fit that grammar.
 
 V1 also does not admit nested surfaces, inheritance, dynamic member creation,
 one surface calling another, callbacks, or hidden result transformation. Reuse
@@ -395,6 +486,7 @@ made here.
 - **Do not hold a `useSurface` mutation callable across a parameter change.**
   [Read it from the current generation](#change-parameters-without-leaking-predecessor-state)
   so a retired callable cannot act under successor scope.
-- **Do not force command composition into S1.** Stay on the
-  [admitted mutation and raw-asset boundary](#stay-inside-the-v1-boundary)
-  until descriptor slice S2 ships.
+- **Do not treat a finalized upload as an atomic send.** Use the
+  [command outcome and residue facts](#run-a-command-and-read-its-truthful-outcome),
+  and keep the raw asset and ordinary mutation children visible when a commit
+  fails or becomes ambiguous.

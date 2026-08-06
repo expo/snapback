@@ -195,6 +195,7 @@ function normalizedManifest(input) {
       || typeof identity.functions !== 'string'
       || typeof identity.descriptor !== 'string'
       || !api
+      || !descriptor.commands
       || !descriptor.capabilities
       || !Array.isArray(descriptor.capabilities.required)
       || definitions.some((reference) => (
@@ -1146,6 +1147,37 @@ async function prepareReactBindingOnce(
       assetIntentsById.set(reference.id, reference);
     }
   }
+  const commands = Object.create(null);
+  const commandsByCanonical = new Map();
+  if (generated.descriptorMode) {
+    for (const [name, carried] of Object.entries(generated.descriptor.commands ?? {})) {
+      const mutation = referencesById.get(carried?.mutation?.id);
+      const intent = carried?.asset === null
+        ? null
+        : assetIntentsById.get(carried?.asset?.intent?.id);
+      if (
+        !carried
+        || carried.kind !== 'asset-bearing-command.v1'
+        || !mutation
+        || mutation.kind !== 'Mutation'
+        || !Array.isArray(carried.passthroughArgs)
+        || !(carried.asset === null || intent)
+      ) {
+        throw diagnosticError(
+          'SNAPBACK_REACT_MANIFEST_INVALID',
+          'AppDescriptor contains an invalid asset-bearing command',
+          { command: name },
+        );
+      }
+      const command = structuredClone(carried);
+      command.mutation = mutation;
+      if (command.asset) command.asset.intent = intent;
+      const admitted = deepFreeze(command);
+      const key = canonicalizeClientValueV1(admitted);
+      commands[name] = admitted;
+      commandsByCanonical.set(key, admitted);
+    }
+  }
   const surfaces = Object.create(null);
   const surfacesById = new Map();
   if (generated.descriptorMode) {
@@ -1160,7 +1192,7 @@ async function prepareReactBindingOnce(
         || !carried.reads
         || !carried.mutations
         || !carried.presence
-        || Object.keys(carried.commands ?? {}).length !== 0
+        || !carried.commands
       ) {
         throw diagnosticError(
           'SNAPBACK_REACT_MANIFEST_INVALID',
@@ -1221,6 +1253,25 @@ async function prepareReactBindingOnce(
         }
         member.reference = admitted;
       }
+      for (const [memberName, member] of Object.entries(surface.commands ?? {})) {
+        const candidate = structuredClone(member?.reference);
+        if (candidate?.mutation?.id) {
+          candidate.mutation = referencesById.get(candidate.mutation.id) ?? candidate.mutation;
+        }
+        if (candidate?.asset?.intent?.id) {
+          candidate.asset.intent = assetIntentsById.get(candidate.asset.intent.id)
+            ?? candidate.asset.intent;
+        }
+        const admitted = commandsByCanonical.get(canonicalizeClientValueV1(candidate));
+        if (member?.artifactKind !== 'surfaceMemberBinding' || !admitted) {
+          throw diagnosticError(
+            'SNAPBACK_REACT_MANIFEST_INVALID',
+            'generated surface contains an unadmitted command child',
+            { surface: name, member: memberName },
+          );
+        }
+        member.reference = admitted;
+      }
       const admittedSurface = deepFreeze(surface);
       if (surfacesById.has(admittedSurface.id)) {
         throw diagnosticError('SNAPBACK_REACT_MANIFEST_INVALID', 'AppDescriptor repeats a surface id', { surface: name });
@@ -1233,6 +1284,7 @@ async function prepareReactBindingOnce(
   Object.freeze(ephemeralReferences);
   Object.freeze(queryGroups);
   Object.freeze(assetIntents);
+  Object.freeze(commands);
   Object.freeze(surfaces);
   const functionCatalogDigest = await sha256Canonical(Object.values(references));
   // On the receipt path the live capability manifest is not available; the
@@ -1328,6 +1380,7 @@ async function prepareReactBindingOnce(
     ephemeral: ephemeralReferences,
     groups: queryGroups,
     assetIntents,
+    commands,
     surfaces,
     prepareQueryGroup(reference, params, groupOptions) {
       return prepareReactQueryGroupForBinding(binding, reference, params, groupOptions);
@@ -1344,6 +1397,7 @@ async function prepareReactBindingOnce(
     queryGroupsById: { value: queryGroupsById },
     surfacesById: { value: surfacesById },
     assetIntentsById: { value: assetIntentsById },
+    commandsByCanonical: { value: commandsByCanonical },
     routesManifest: { value: generated.routes },
   });
   // Channel A has concrete, schema-decoded route arguments while the raw
@@ -1512,6 +1566,15 @@ export function admittedReactSurface(binding, reference) {
         && canonicalizeClientValueV1(member.reference) === canonicalizeClientValueV1(expectedMember.reference)
       ) member.reference = expectedMember.reference;
     }
+    for (const [name, member] of Object.entries(normalized.commands ?? {})) {
+      const expectedMember = expected.commands?.[name];
+      if (!expectedMember) continue;
+      try {
+        if (admittedReactCommand(prepared, member.reference) === expectedMember.reference) {
+          member.reference = expectedMember.reference;
+        }
+      } catch { /* final whole-surface comparison reports the refusal */ }
+    }
   }
   if (
     !reference
@@ -1523,6 +1586,27 @@ export function admittedReactSurface(binding, reference) {
       'SNAPBACK_REACT_SURFACE_INVALID',
       'surface projection requires a complete generated surface admitted by this binding',
       { surfaceId: reference?.id ?? null },
+    );
+  }
+  return expected;
+}
+
+export function admittedReactCommand(binding, reference) {
+  const prepared = assertPreparedReactBinding(binding);
+  const normalized = structuredClone(reference);
+  if (normalized?.mutation?.id) {
+    normalized.mutation = prepared.referencesById.get(normalized.mutation.id) ?? normalized.mutation;
+  }
+  if (normalized?.asset?.intent?.id) {
+    normalized.asset.intent = prepared.assetIntentsById.get(normalized.asset.intent.id)
+      ?? normalized.asset.intent;
+  }
+  const expected = prepared.commandsByCanonical.get(canonicalizeClientValueV1(normalized));
+  if (!expected) {
+    throw diagnosticError(
+      'SNAPBACK_REACT_COMMAND_INVALID',
+      'command projection requires a complete generated command admitted by this binding',
+      { mutationId: reference?.mutation?.id ?? null },
     );
   }
   return expected;

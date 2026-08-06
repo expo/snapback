@@ -56,6 +56,23 @@
         "resultType": "{ \"removed\": boolean }"
       },
       {
+        "argumentsType": "{ \"body\"?: string; \"conversationId\": string; \"image\"?: string; \"senderId\": string }",
+        "effects": {
+          "invalidates": [
+            "messages"
+          ],
+          "writes": [
+            "messages"
+          ]
+        },
+        "name": "sendMessage",
+        "optimistic": {
+          "source": "provider-plan",
+          "supported": true
+        },
+        "resultType": "{ \"messageId\": string }"
+      },
+      {
         "argumentsType": "{ \"conversationId\": string; \"replyToId\": string; \"senderId\": string; \"text\": string }",
         "effects": {
           "invalidates": [
@@ -233,7 +250,7 @@
   },
   "schemaVersion": "provider-binding-metadata.v1",
   "source": {
-    "inputsHash": "snapback.v1:sessions:inputs:sha256:192ad99d079f74283ee8a9346430d1b0c43044aa9c03d8cce956746cec7cbf34",
+    "inputsHash": "snapback.v1:sessions:inputs:sha256:f8bf967244bcd6cf1efe3af58d92d912ce2f9ad62b809930fa8611f9de88862b",
     "introspectionSchemaVersion": "provider-introspection.v1"
   }
 }

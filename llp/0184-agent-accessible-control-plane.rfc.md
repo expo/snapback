@@ -1,12 +1,20 @@
 # LLP 0184: Agent-accessible control plane
 
 **Type:** RFC
-**Status:** Review
+**Status:** Implemented
 **Systems:** Agent experience, Developer experience, Admin console, CLI, MCP,
 Host operations, HTTP API, Guide, Auth, Security, Diagnostics, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-05
-**Revised:** 2026-08-06 (Phase 2 residue: `ephemeral.cleanup` now has explicit
+**Revised:** 2026-08-06 (program completion — see "Delivery record
+(2026-08-06)" at the end of this document: Phases 0–5 landed on main by two
+coordinated orchestrator sessions; both cold-agent evaluation legs passed
+against a packaged npm-installed build; acceptance criteria audited with
+evidence pointers; residue = two storage catalog rows deliberately left on
+the fail-closed default pending storage-owner classification
+(`issues/20260806-llp0184-storage-rows-await-owner-classification.md`), and
+the LLP 0146 D7 remediation projection remaining conditional exactly as
+§Authority and scope always stated); 2026-08-06 (Phase 2 residue: `ephemeral.cleanup` now has explicit
 cutoff, preview/apply bound, startup binding, ordinary removal fan-out, and a
 structured receipt through native CLI/MCP projections; `host.restart` is now
 native through a concrete-admin-credential-proven `snapback restart` CLI;
@@ -1392,3 +1400,70 @@ prior memory to find it. Build the catalog/parity gate before adding many more
 admin controls, then use it to land the shipped long-tail projections and the
 three selected missing debugging operations without creating new click-only or
 policy-bypassing paths.
+
+## Delivery record (2026-08-06)
+
+The full delivery plan landed on `main` across 2026-08-05/06, driven by two
+coordinated orchestrator sessions (lane ownership recorded in the closed
+`issues/20260806-llp0184-lane-coordination.md`).
+
+- **Phase 0** (2026-08-05): truth repairs, network-profile page, `snapback
+  agent setup`, intent-retrieval seeds, Cloudflare gateway inventory.
+- **Phase 1**: items 1–3+6 at `650121612`; items 4–5 at `0b5c11c64` — served
+  `GET /_snapback/api/control-catalog{,/instance,/operations/{operation}}`
+  (digest-bound build/instance identities), offline `snapback controls
+  list|describe`, `snapback-controls://` MCP resources with the co-installed
+  native binary serving build-matched Guide bytes and typed
+  unavailable-binary diagnostics, and rule-9 generated Guide tables with
+  drift enforcement.
+- **Phase 2**: P1+P2 at `fb2756117`/`d1a2765da`; P1 regression coverage at
+  `bf2c4a5b5`; residue at `7027c6aea` (honest read-only `cron.list` with
+  dated LLP 0024/0028 amendments), `69136b5ac` (`ephemeral.cleanup`
+  cutoff/dry-run/bounded-apply/receipt semantics), `251367f3d`
+  (credential-proven `snapback restart`; §Design/2's named temporary
+  authority exception is closed — MCP and CLI lifecycle mutation paths both
+  require the admin-credential probe).
+- **Phase 3**: §A `data.patch` at `42ce63d93..480ac704d` (single-use
+  apply-token binding incl. authority tuple, per-row CAS, ordinary changeset
+  + live notification, non-authorizing receipt token id;
+  `tests/data_patch_v1.rs`); §B at `57aa150db`
+  (single-subscription forced resync driving a real client through
+  `resync_required`/re-snapshot; `demos/_kit/tests/llp0184-force-live-resync.mjs`);
+  §C at `d6bb5e69f` (operator ephemeral-entry delete fenced on scope epoch
+  AND entry generation under the room lock;
+  `operator_delete_rejects_old_epoch_when_reborn_room_reuses_generation_one`
+  is the required reborn-room case).
+- **Phase 4**: `88c1344d6` (`config.set` stdin/fd carrier, `(cliOnly,
+  direct)`, leak-negative witnesses across stdout/stderr/receipts/logs on
+  success and failure paths), `cc7507891` (rule-6 `mediatedHandoff`
+  plan/initiate/status/resume/protected-artifact fields required by the
+  schema for every mediated row, with admin-link and device-approval custody
+  witnesses), `817bd19a5` (scenario helper honestly deferred; no simulated
+  publish exists).
+- **Phase 5**: packaged-build evaluation against the staged npm closure
+  (dry-run publish ledger, tarball install into an external app directory,
+  `snapback new` scaffold). The first run immediately caught a real
+  packaged-build defect — the darwin runtime seal recorded the framework's
+  symlinked spelling, which npm installs cannot preserve, so every sealed
+  darwin package failed load verification — fixed at `0773b75b4`/`f0de17ff4`
+  (seal binds the dyld-resolved `Versions/1/hermesvm` artifact; publisher
+  re-verifies each extracted tarball; closed
+  `issues/closed/20260806-darwin-runtime-seal-npm-symlink-drift.md`). Two
+  cold codex sessions then passed 8/8 operator journeys each: one CLI/HTTP
+  (discovery via the served Guide and catalog endpoints, `demo-slow`
+  set/observe/restore with the restart-persistence answer sourced from
+  docs), one MCP-only from a fresh `agent setup` registration (tool
+  annotations honored, dry-run-only on destructive tools, data-patch
+  preview with redacted apply token). The strict CLI-alone journey set
+  (data scan, assets, cron, jobs, cleanup dry-run, disconnect) returns
+  structured envelopes on the packaged binary.
+
+**Classification residue**: `storage.protected-erasure` and
+`storage.operation-coverage.activate` remain on the designed fail-closed
+default pending storage-owner judgment
+(`issues/20260806-llp0184-storage-rows-await-owner-classification.md`); the
+`branch.*.v1` family and `operations.explain` received authored
+classifications in this record's commit. The LLP 0146 D7 remediation
+projection remains conditional on 0146, per §Authority and scope. The
+diagnostic-inventory drift the program introduced (28 new `SNAPBACK_*`
+codes) was classified at `ec5859b7b`.

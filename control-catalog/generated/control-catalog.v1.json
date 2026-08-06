@@ -1,11 +1,11 @@
 {
   "schemaVersion": "snapback.control-catalog.v1",
-  "catalogDigest": "sha256:28b55da600e070409ad63bbac8bce0cd15dc62fc6aa32031bd451c308bf5aab2",
+  "catalogDigest": "sha256:90d37881f6a608b5990a5c1955a047eaed4b9784eadbf4ceaab65b50138c78fb",
   "buildIdentity": {
-    "sourceCommit": "dcc06ddcb6e6173bc9892edb70edd68ea5391e8c",
+    "sourceCommit": "95bae953d19d96eec883aa8b8c20941b83022c0d",
     "dirty": false
   },
-  "generatedAtCommit": "dcc06ddcb6e6173bc9892edb70edd68ea5391e8c",
+  "generatedAtCommit": "95bae953d19d96eec883aa8b8c20941b83022c0d",
   "entries": [
     {
       "operation": "acceptance.run",
@@ -1281,12 +1281,7 @@
         "host_ops.branch.create.v1"
       ],
       "surfaceAccess": "apiOnly",
-      "operability": "unavailable",
-      "unavailableReason": {
-        "owner": "llp/0184-agent-accessible-control-plane",
-        "ticketOrDesignPointer": null,
-        "note": "Not yet manually classified by the LLP 0184 Phase 1 backfill. Defaults to unavailable (never a permissive guess) until an authored operability-overrides.json entry exists."
-      },
+      "operability": "direct",
       "availability": {
         "targets": [
           "local",
@@ -1335,12 +1330,7 @@
         "host_ops.branch.drop.v1"
       ],
       "surfaceAccess": "apiOnly",
-      "operability": "unavailable",
-      "unavailableReason": {
-        "owner": "llp/0184-agent-accessible-control-plane",
-        "ticketOrDesignPointer": null,
-        "note": "Not yet manually classified by the LLP 0184 Phase 1 backfill. Defaults to unavailable (never a permissive guess) until an authored operability-overrides.json entry exists."
-      },
+      "operability": "direct",
       "availability": {
         "targets": [
           "local",
@@ -1389,12 +1379,7 @@
         "host_ops.branch.execute.v1"
       ],
       "surfaceAccess": "apiOnly",
-      "operability": "unavailable",
-      "unavailableReason": {
-        "owner": "llp/0184-agent-accessible-control-plane",
-        "ticketOrDesignPointer": null,
-        "note": "Not yet manually classified by the LLP 0184 Phase 1 backfill. Defaults to unavailable (never a permissive guess) until an authored operability-overrides.json entry exists."
-      },
+      "operability": "direct",
       "availability": {
         "targets": [
           "local",
@@ -1443,12 +1428,7 @@
         "host_ops.branch.inspect.v1"
       ],
       "surfaceAccess": "apiOnly",
-      "operability": "unavailable",
-      "unavailableReason": {
-        "owner": "llp/0184-agent-accessible-control-plane",
-        "ticketOrDesignPointer": null,
-        "note": "Not yet manually classified by the LLP 0184 Phase 1 backfill. Defaults to unavailable (never a permissive guess) until an authored operability-overrides.json entry exists."
-      },
+      "operability": "direct",
       "availability": {
         "targets": [
           "local",
@@ -1497,12 +1477,7 @@
         "host_ops.branch.list.v1"
       ],
       "surfaceAccess": "apiOnly",
-      "operability": "unavailable",
-      "unavailableReason": {
-        "owner": "llp/0184-agent-accessible-control-plane",
-        "ticketOrDesignPointer": null,
-        "note": "Not yet manually classified by the LLP 0184 Phase 1 backfill. Defaults to unavailable (never a permissive guess) until an authored operability-overrides.json entry exists."
-      },
+      "operability": "direct",
       "availability": {
         "targets": [
           "local",
@@ -1551,12 +1526,7 @@
         "host_ops.branch.reap.v1"
       ],
       "surfaceAccess": "apiOnly",
-      "operability": "unavailable",
-      "unavailableReason": {
-        "owner": "llp/0184-agent-accessible-control-plane",
-        "ticketOrDesignPointer": null,
-        "note": "Not yet manually classified by the LLP 0184 Phase 1 backfill. Defaults to unavailable (never a permissive guess) until an authored operability-overrides.json entry exists."
-      },
+      "operability": "direct",
       "availability": {
         "targets": [
           "local",
@@ -4933,12 +4903,7 @@
       "status": "shipped",
       "domain": "systemApi",
       "surfaceAccess": "apiOnly",
-      "operability": "unavailable",
-      "unavailableReason": {
-        "owner": "llp/0184-agent-accessible-control-plane",
-        "ticketOrDesignPointer": null,
-        "note": "Not yet manually classified by the LLP 0184 Phase 1 backfill. Defaults to unavailable (never a permissive guess) until an authored operability-overrides.json entry exists."
-      },
+      "operability": "direct",
       "availability": {
         "targets": [
           "local",
