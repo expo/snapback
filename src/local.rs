@@ -6868,10 +6868,10 @@ impl LocalSnapback {
             ));
         }
         let definition = self.function_definition(function).cloned().ok_or_else(|| {
-            SnapbackError::error(
-                "SNAPBACK_UNKNOWN_FUNCTION",
-                "runtime",
-                "managed branch execution names no served function",
+            crate::authoring_suggestion::unknown_function_error(
+                &self.functions,
+                function,
+                &[FunctionKind::Mutation, FunctionKind::Action],
             )
         })?;
         if matches!(
@@ -7259,6 +7259,10 @@ impl LocalSnapback {
         self.functions.function(name)
     }
 
+    pub(crate) fn served_function_manifest(&self) -> &FunctionManifest {
+        &self.functions
+    }
+
     pub fn inspect(&mut self) -> SnapbackResult<InspectState> {
         let mut inspect = self.inspect_core()?;
         inspect.ephemeral = self.ephemeral.diagnostics();
@@ -7494,7 +7498,13 @@ impl LocalSnapback {
         expected_generation: Option<&ArtifactGeneration>,
     ) -> SnapbackResult<QueryInvocation> {
         self.validate_prepared_service_authority(&authority)?;
-        let function = self.function(name)?;
+        let function = self.functions.function(name).ok_or_else(|| {
+            crate::authoring_suggestion::unknown_function_error(
+                &self.functions,
+                name,
+                &[FunctionKind::Query, FunctionKind::LiveQuery],
+            )
+        })?;
         self.validate_expected_generation(&authority, expected_generation)?;
         let prepared = InvocationGate::prepare_function(authority, function)?;
         let input = prepared.canonicalize_input(input);
@@ -13579,6 +13589,10 @@ impl LocalSnapback {
                     StagedRecordedMutation::Done(Box::new(recorded)),
                 ));
             }
+            // @ref LLP 0131#runtime-ingress-validation — the staged HTTP
+            // settlement lane keeps replay recovery first, then validates the
+            // served argument contract before any handler byte or plan step.
+            crate::args_contract::validate_function_args(&function, &input.args)?;
             let telemetry_correlation = telemetry_correlation(&input.correlation);
             let mut observation = Some(self.telemetry.start_classified_span(
                 crate::telemetry_contract::OperationClassIdV1::FUNCTION_MUTATION,
@@ -18339,12 +18353,8 @@ impl LocalSnapback {
                 rows: None,
                 result: None,
                 diagnostic: Some(
-                    SnapbackError::error(
-                        "SNAPBACK_UNKNOWN_FUNCTION",
-                        "runtime",
-                        format!("unknown function {name}"),
-                    )
-                    .diagnostic,
+                    crate::authoring_suggestion::unknown_function_error(&self.functions, name, &[])
+                        .diagnostic,
                 ),
             };
         };
@@ -18683,10 +18693,10 @@ impl LocalSnapback {
                 rows: None,
                 result: None,
                 diagnostic: Some(
-                    SnapbackError::error(
-                        "SNAPBACK_UNKNOWN_FUNCTION",
-                        "runtime",
-                        format!("unknown function {name}"),
+                    crate::authoring_suggestion::unknown_function_error(
+                        &self.functions,
+                        name,
+                        &[FunctionKind::Action],
                     )
                     .diagnostic,
                 ),
@@ -20954,11 +20964,7 @@ impl LocalSnapback {
         name: &str,
     ) -> SnapbackResult<&crate::manifest::FunctionDefinition> {
         self.functions.function(name).ok_or_else(|| {
-            SnapbackError::error(
-                "SNAPBACK_UNKNOWN_FUNCTION",
-                "runtime",
-                format!("unknown function {name}"),
-            )
+            crate::authoring_suggestion::unknown_function_error(&self.functions, name, &[])
         })
     }
 
@@ -25020,10 +25026,10 @@ impl ReadLane {
             .unwrap_or_else(|poisoned| poisoned.into_inner())
             .clone();
         let function = manifests.functions.function(name).ok_or_else(|| {
-            SnapbackError::error(
-                "SNAPBACK_UNKNOWN_FUNCTION",
-                "runtime",
-                format!("unknown function {name}"),
+            crate::authoring_suggestion::unknown_function_error(
+                &manifests.functions,
+                name,
+                &[FunctionKind::Query, FunctionKind::LiveQuery],
             )
         })?;
         validate_expected_generation_against_manifests(

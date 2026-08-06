@@ -708,6 +708,17 @@ fn p6_unserved_ops_fail_closed_with_structured_envelopes() {
         unknown["diagnostics"][0]["code"],
         json!("SNAPBACK_HOST_OP_UNKNOWN")
     );
+    assert!(
+        unknown["diagnostics"][0]["details"]["candidateOperations"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|operation| operation == "app.inspect")
+    );
+    assert_eq!(
+        unknown["diagnostics"][0]["details"]["localMissSummary"]["capacity"],
+        128
+    );
 
     let pinned = envelope(&mut snapback, json!({ "operation": "schema.reload" }));
     assert_eq!(pinned["ok"], json!(false));
@@ -775,6 +786,89 @@ fn p6_unserved_ops_fail_closed_with_structured_envelopes() {
         json!({ "operation": "app.inspect", "requestId": "hop_fixed" }),
     );
     assert_eq!(echoed["requestId"], json!("hop_fixed"));
+}
+
+#[test]
+fn served_function_refusals_project_manifest_candidates_and_argument_contracts() {
+    let mut snapback = LocalSnapback::memory().expect("memory snapback");
+    let loaded = envelope(
+        &mut snapback,
+        json!({ "operation": "schema.load", "schema": generated("schema.manifest.json") }),
+    );
+    assert_eq!(loaded["ok"], true, "load schema: {loaded}");
+    let loaded = envelope(
+        &mut snapback,
+        json!({ "operation": "functions.load", "functions": generated("functions.manifest.json") }),
+    );
+    assert_eq!(loaded["ok"], true, "load functions: {loaded}");
+
+    let mut unknown = Value::Null;
+    for _ in 0..3 {
+        unknown = envelope(
+            &mut snapback,
+            json!({ "operation": "function.run", "function": "listTods", "args": {} }),
+        );
+    }
+    let details = &unknown["diagnostics"][0]["details"];
+    assert_eq!(
+        unknown["diagnostics"][0]["code"],
+        "SNAPBACK_HOST_OP_FUNCTION_UNKNOWN"
+    );
+    assert_eq!(details["candidateFunctions"][0]["name"], "listTodos");
+    assert_eq!(details["candidateFunctions"][0]["kind"], "LiveQuery");
+    assert_eq!(
+        details["artifactHash"],
+        generated("functions.manifest.json")["bundleHash"]
+    );
+    assert!(
+        details["localMissSummary"]["sameMissCount"]
+            .as_u64()
+            .unwrap()
+            >= 3
+    );
+    assert!(
+        !serde_json::to_string(&unknown)
+            .unwrap()
+            .contains("listTods")
+    );
+
+    let unknown_field = envelope(
+        &mut snapback,
+        json!({
+            "operation": "function.run",
+            "function": "createTodo",
+            "args": { "titel": "not disclosed" },
+            "userId": "user_1"
+        }),
+    );
+    let details = &unknown_field["diagnostics"][0]["details"];
+    assert_eq!(
+        unknown_field["diagnostics"][0]["code"],
+        "SNAPBACK_FUNCTION_ARGS_CONTRACT_VIOLATION"
+    );
+    assert_eq!(details["candidateFields"][0]["name"], "title");
+    assert_eq!(details["candidateFields"][0]["expected"], "string");
+    assert!(details["expectedArgumentContract"].is_object());
+    assert!(
+        !serde_json::to_string(&unknown_field)
+            .unwrap()
+            .contains("titel")
+    );
+
+    let wrong_shape = envelope(
+        &mut snapback,
+        json!({
+            "operation": "function.run",
+            "function": "createTodo",
+            "args": { "title": 42 },
+            "userId": "user_1"
+        }),
+    );
+    let details = &wrong_shape["diagnostics"][0]["details"];
+    assert_eq!(details["expected"], "string");
+    assert_eq!(details["actual"], "number");
+    assert_eq!(details["candidateFields"][0]["name"], "title");
+    assert_eq!(details["candidateFields"][0]["expected"], "string");
 }
 
 #[tokio::test]

@@ -2108,11 +2108,20 @@ fn run_function(
             false,
             authority,
             Value::Object(Default::default()),
-            vec![host_op_diagnostic(
-                "SNAPBACK_HOST_OP_FUNCTION_UNKNOWN",
-                "function.run",
-                "the requested function is not in the loaded function manifest",
-            )],
+            vec![
+                Diagnostic::error(
+                    "SNAPBACK_HOST_OP_FUNCTION_UNKNOWN",
+                    "host-ops",
+                    "the requested function is not in the served function manifest",
+                )
+                .with_details(
+                    crate::authoring_suggestion::unknown_function_details(
+                        snapback.served_function_manifest(),
+                        &function,
+                        &[],
+                    ),
+                ),
+            ],
         );
     };
     let (name, kind) = (definition.name.clone(), definition.kind.clone());
@@ -2586,7 +2595,17 @@ fn explain_function(
     }
 }
 
-fn host_op_diagnostic(code: &str, operation: &str, message: &str) -> Diagnostic {
+pub(crate) fn host_op_diagnostic(code: &str, operation: &str, message: &str) -> Diagnostic {
+    if code == "SNAPBACK_HOST_OP_UNKNOWN" {
+        let operations = SERVED_HOST_OPS.to_vec();
+        return Diagnostic::error(code, "host-ops", message).with_details(
+            crate::authoring_suggestion::unknown_operation_details(
+                operation,
+                &operations,
+                crate::control_catalog::catalog_digest(crate::control_catalog::build_catalog()),
+            ),
+        );
+    }
     let operation = if SERVED_HOST_OPS.contains(&operation)
         || CLI_ONLY_HOST_OPS.contains(&operation)
         || PINNED_UNBUILT_HOST_OPS.contains(&operation)

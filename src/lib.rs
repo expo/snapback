@@ -49,6 +49,7 @@ pub mod assets_store;
 pub mod assets_video;
 #[doc(hidden)]
 pub mod auth;
+pub(crate) mod authoring_suggestion;
 #[doc(hidden)]
 pub mod bench;
 pub(crate) mod bounded_children_cursor;

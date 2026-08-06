@@ -19829,8 +19829,11 @@ fn ensure_field<'a>(table: &'a TableManifest, field: &str) -> SnapbackResult<&'a
         SnapbackError::error(
             "SNAPBACK_UNKNOWN_FIELD",
             "schema",
-            format!("unknown field {}.{field}", table.name),
+            "the requested field is not in the served table schema",
         )
+        .with_details(crate::authoring_suggestion::unknown_schema_field_details(
+            table, field,
+        ))
     })
 }
 
@@ -19857,6 +19860,41 @@ fn ensure_orderable_field(table: &TableManifest, field: &str) -> SnapbackResult<
         .with_detail("fieldType", "Json"));
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod authoring_suggestion_tests {
+    use super::*;
+
+    #[test]
+    fn unknown_schema_field_names_only_typed_fields_from_the_served_table() {
+        let schema: SchemaManifest = serde_json::from_str(include_str!(
+            "../demos/todo/snapback/generated/schema.manifest.json"
+        ))
+        .expect("parse served schema fixture");
+        let table = schema.table("todos").expect("served todos table");
+        let error = ensure_field(table, "titel").expect_err("unknown schema field");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_UNKNOWN_FIELD");
+        assert_eq!(
+            error.diagnostic.details["candidateFields"][0]["name"],
+            "title"
+        );
+        assert_eq!(
+            error.diagnostic.details["candidateFields"][0]["expected"],
+            "string"
+        );
+        assert!(
+            error.diagnostic.details["servedShapeHash"]
+                .as_str()
+                .unwrap()
+                .starts_with("sha256:")
+        );
+        assert!(
+            !serde_json::to_string(&error.diagnostic)
+                .unwrap()
+                .contains("titel")
+        );
+    }
 }
 
 fn field_type<'a>(table: &'a TableManifest, field: &str) -> Option<&'a FieldType> {
