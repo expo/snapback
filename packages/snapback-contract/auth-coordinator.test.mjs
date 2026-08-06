@@ -63,6 +63,20 @@ const errorCode = async (operation) => {
   assert.fail('expected operation to fail');
 };
 
+const withDeadline = async (promise, label, timeoutMs = 1_000) => {
+  let timer;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error(`${label} did not settle`)), timeoutMs);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+};
+
 class BroadcastHub {
   channels = new Map();
   messages = [];
@@ -437,9 +451,15 @@ const hintStorage = {
     blank() { phases.push('blank'); },
     clearMemory() { phases.push('clearMemory'); },
   });
+  let releaseWriterBarrier;
+  const writerBarrier = new Promise((resolve) => { releaseWriterBarrier = resolve; });
+  writer.registerParticipant({
+    name: 'prepaused-wakeup-settle-gate',
+    async commitDurable() { await writerBarrier; },
+  });
 
   failNextRead = true;
-  await writer.transition(
+  const transition = writer.transition(
     before,
     successor(session(), 'prepaused-wakeup-bearer', 10_000),
     'prepaused_wakeup_read_failure',
@@ -452,6 +472,8 @@ const hintStorage = {
     await errorCode(() => Promise.resolve(receiver.capture())),
     'SNAPBACK_CLIENT_AUTHORITY_CLEARING',
   );
+  releaseWriterBarrier();
+  await transition;
   await receiver.close();
   await writer.close();
 }
@@ -2920,6 +2942,161 @@ for (const bytes of hintBytes.values()) {
 
 await coordinator.close();
 
+// A Web Lock queues a nested ownership request until the current callback
+// returns; it does not reject it as reentrant. A participant acknowledgment
+// may therefore depend on work that reaches synchronize() while the local
+// barrier is quiescing. The clearing CAS must release ownership before that
+// acknowledgment, and the nested synchronization must fail promptly against
+// the active clearing barrier rather than recursively replacing it.
+{
+  const appId = `${APP}/web-lock-participant-ack`;
+  const inner = createMemoryAuthCustodyStorage();
+  let tail = Promise.resolve();
+  const lockEvents = [];
+  const storage = {
+    ...inner,
+    withOwnership(requestedAppId, operation) {
+      lockEvents.push('requested');
+      const acquired = tail.then(async () => {
+        lockEvents.push('acquired');
+        try {
+          return await inner.withOwnership(requestedAppId, operation);
+        } finally {
+          lockEvents.push('released');
+        }
+      });
+      tail = acquired.catch(() => {});
+      return acquired;
+    },
+  };
+  const subject = new AuthCoordinator({
+    appId,
+    storage,
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const capture = await subject.establishAnonymous(anonymous());
+  const phases = [];
+  subject.registerParticipant({
+    name: 'synchronize-dependent-ack',
+    async quiesce() {
+      phases.push('quiesce:start');
+      assert.equal(lockEvents.at(-1), 'released');
+      const synchronization = subject.synchronize();
+      assert.equal(lockEvents.at(-1), 'requested');
+      assert.equal(
+        await errorCode(() => synchronization),
+        'SNAPBACK_CLIENT_AUTHORITY_CLEARING',
+      );
+      phases.push('quiesce:settled');
+    },
+    blank() { phases.push('blank'); },
+    clearMemory() { phases.push('clearMemory'); },
+    async commitDurable() { phases.push('commitDurable'); },
+    async resume() { phases.push('resume'); },
+  });
+  const settled = await withDeadline(subject.transition(
+    capture,
+    successor(session(), 'web-lock-participant-ack-bearer', 50_000),
+    'web_lock_participant_ack',
+  ), 'Web-Lock-faithful participant acknowledgment');
+  assert.equal(subject.isCurrent(settled), true);
+  assert.deepEqual(phases, [
+    'quiesce:start',
+    'quiesce:settled',
+    'blank',
+    'clearMemory',
+    'commitDurable',
+    'resume',
+  ]);
+  const requested = lockEvents.filter((event) => event === 'requested').length;
+  assert.equal(requested >= 5, true);
+  assert.equal(lockEvents.filter((event) => event === 'acquired').length, requested);
+  assert.equal(lockEvents.filter((event) => event === 'released').length, requested);
+  assert.equal(lockEvents.at(-1), 'released');
+  await subject.close();
+}
+
+// A clearing publication can wake client machinery that synchronizes before
+// touching authority. Treat CLEARING as an immediately retryable refusal and
+// that listener can build an unbounded promise-microtask loop while the real
+// barrier is still settling. External synchronizers must instead join the
+// active barrier completion; participant-callback reentry above remains a
+// prompt refusal because joining the barrier from quiesce would self-deadlock.
+{
+  const appId = `${APP}/clearing-publication-retry-spin`;
+  const inner = createMemoryAuthCustodyStorage();
+  let tail = Promise.resolve();
+  const storage = {
+    ...inner,
+    withOwnership(requestedAppId, operation) {
+      const acquired = tail.then(() => inner.withOwnership(requestedAppId, operation));
+      tail = acquired.catch(() => {});
+      return acquired;
+    },
+  };
+  let reactToPublish = false;
+  let subject;
+  let publicationParticipant;
+  let synchronizeCount = 0;
+  const listenerSettlements = [];
+  const synchronizeLikeClient = async () => {
+    synchronizeCount += 1;
+    if (synchronizeCount > 256) return;
+    try {
+      await subject.synchronize();
+    } catch (error) {
+      if (error?.code !== 'SNAPBACK_CLIENT_AUTHORITY_CLEARING') throw error;
+      await Promise.resolve();
+      return synchronizeLikeClient();
+    }
+  };
+  subject = new AuthCoordinator({
+    appId,
+    storage,
+    broadcastChannelFactory: () => ({
+      onmessage: null,
+      postMessage() {
+        if (!reactToPublish) return;
+        publicationParticipant.onPublish();
+      },
+      close() {},
+    }),
+    hintStorage: null,
+  });
+  const capture = await subject.establishAnonymous(anonymous());
+  publicationParticipant = {
+    name: 'slow-clearing-publication-observer',
+    onPublish() {
+      listenerSettlements.push(Promise.resolve().then(synchronizeLikeClient));
+    },
+    async quiesce() {
+      // Model a busy list/live participant yielding through already-queued
+      // listener work without introducing sockets or wall-clock timing.
+      for (let turn = 0; turn < 64; turn += 1) await Promise.resolve();
+    },
+    blank() {},
+    clearMemory() {},
+    async commitDurable() {},
+    async resume() {},
+  };
+  subject.registerParticipant(publicationParticipant);
+  reactToPublish = true;
+  const settled = await withDeadline(subject.transition(
+    capture,
+    successor(session(), 'clearing-publication-retry-spin-bearer', 50_000),
+    'clearing_publication_retry_spin',
+  ), 'clearing publication retry settlement');
+  await withDeadline(Promise.all(listenerSettlements), 'clearing publication listeners');
+  assert.equal(subject.isCurrent(settled), true);
+  assert.equal(
+    synchronizeCount <= 4,
+    true,
+    `clearing publication retried synchronize ${synchronizeCount} times`,
+  );
+  await subject.close();
+}
+
 {
   const inner = createMemoryAuthCustodyStorage();
   let owned = false;
@@ -2932,14 +3109,18 @@ await coordinator.close();
     }),
   };
   const phase8 = new AuthCoordinator({
-    appId: `${APP}/phase8`,
+    appId: `${APP}/participant-ownership-release`,
     storage: observingStorage,
     broadcastChannelFactory: null,
     hintStorage: null,
   });
   const capture = await phase8.establishAnonymous(anonymous());
   phase8.registerParticipant({
-    name: 'phase8-observer',
+    name: 'participant-ownership-release-observer',
+    quiesce: async () => assert.equal(owned, false),
+    blank: () => assert.equal(owned, false),
+    clearMemory: () => assert.equal(owned, false),
+    commitDurable: async () => assert.equal(owned, false),
     resume: async () => assert.equal(owned, false),
   });
   await phase8.transition(capture, {

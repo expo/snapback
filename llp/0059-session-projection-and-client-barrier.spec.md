@@ -5,7 +5,15 @@
 **Systems:** Auth, Runtime, Storage, API, Live Queries, Ephemeral state, Client integration, Contract, Exact, Security, Backup/restore, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-08-03 (LLP 0109 acceptance: dated amendment recording the
+**Revised:** 2026-08-06 (transition ownership split: the clearing CAS now
+releases cross-context custody before any awaited participant phase; local
+quiesce/blank/clear/commit settlement is fenced by the durable transition id,
+epoch, and revision, then an exact owned reacquisition alone may settle the
+same intent before the existing resume/final-exposure fence; an external local
+`synchronize()` that observes this active clearing barrier joins its terminal
+completion before one fresh synchronization instead of returning a hot-retry
+refusal, while participant-callback reentry keeps the prompt owned refusal
+needed to avoid a barrier self-join). 2026-08-03 (LLP 0109 acceptance: dated amendment recording the
 versioned reset carriers' idempotency contract — operation-id/request-digest/
 expected-stream binding, same-transaction operation journal, replay that
 observes current state before historical completion, no separate seed
@@ -1989,6 +1997,20 @@ suspended runs that barrier on its mandatory lifecycle/publication check before
 its first resumed exposure. This is fail-closed commit/exposure fencing, not a
 claim of globally simultaneous DOM blanking.
 
+The coordinator installs the local barrier's terminal completion before it
+publishes `clearing`. A `synchronize()` begun outside a participant callback
+that observes that same active local clearing barrier MUST await this completion
+and then start one fresh durable synchronization; it MUST NOT return a prompt
+`SNAPBACK_CLIENT_AUTHORITY_CLEARING` refusal that client machinery can answer
+with an unbounded promise-microtask retry. The completion resolves only after
+successful post-resume confirmation/exposure or after the barrier's failure cut
+has finished, and is therefore a progress and settlement fence rather than a
+wakeup hint. A `synchronize()` invoked from an executing participant callback
+MUST NOT join that completion: it acquires custody after the clearing owner has
+released it and receives the prompt exact-clearing/stale refusal, because an
+awaited `quiesce` may depend on that result and the barrier completion depends
+on `quiesce`.
+
 Resume runs after cross-context ownership is released but while the owner's
 local exposure barrier remains closed. A resume participant may therefore run
 a handshake or durable-authority check. Every `synchronize()` during owner or
@@ -2096,11 +2118,18 @@ authority-loss invalidations still follow the explicit transition table below.
 ### Transition barrier
 
 For expected settled capture E and successor authority S, `transition` performs
-these ordered phases while retaining exclusive cross-context ownership from
-the initial reload through settled publication or a recorded clearing failure.
-Its awaited participant set is the owner's local registered set, not every tab.
-The fallback owner renews its fenced lease while awaiting those participants;
-loss of ownership aborts immediately and permits a successor to recover:
+these ordered phases across two short exclusive cross-context ownership
+sections. The first reloads and compares E, then CASes the exact predecessor to
+`clearing`. That durable record carries the transition id, expected/successor
+authority keys, next epoch, and clearing revision; it is the fence while
+ownership is released for all local participant work in phases 4--7. The
+coordinator then reacquires ownership and may CAS to `settled` only if that
+exact clearing intent remains current. An exact already-settled record carrying
+the same transition id is idempotent peer completion; any other record is
+stale. Its awaited participant set is the owner's local registered set, not
+every tab. Neither Web Locks nor the fallback lease is retained while awaiting
+participants. Loss of either short ownership section aborts that section, and
+the durable clearing intent permits a successor to recover:
 
 1. Reload custody and compare E's epoch and authority key. A different
    authority returns a stale result or reloads the already-settled successor;
@@ -2128,9 +2157,11 @@ loss of ownership aborts immediately and permits a successor to recover:
    participant. All use expected-epoch CAS. Failure leaves custody in
    `clearing`, surfaces blank, and retries/recovery continue; no participant may
    expose a partly cleared successor.
-8. Durable CAS custody from the exact clearing revision to `settled` at the
-   same next epoch, move pending authority/bearer into current fields, clear
-   pending fields, and increment revision.
+8. Reacquire exclusive ownership, reload the exact clearing transition id,
+   epoch, and revision, then durable-CAS custody to `settled` at the same next
+   epoch, move pending authority/bearer into current fields, clear pending
+   fields, and increment revision. A peer's exact completion is accepted
+   idempotently; any different intent or authority fails stale.
 9. Broadcast `settled`, reload the owner context's settled record, call local
    `resume`, obtain a fresh LLP 0058 handshake and connection grant, then
    resubscribe only permitted surfaces. Receiving/resuming peer contexts reload
@@ -2430,6 +2461,14 @@ finished or failed. After any unregistration resolves, no future participant
 callback may begin. A participant registered while durable Agent
 custody is initially closed is synchronously quiesced, blanked, and
 memory-cleared before any recovery decision, including terminal-only recovery.
+An awaited `quiesce` may nevertheless depend on already-running request or
+listener settlement whose own custody gate reaches `synchronize()`. Because
+the clearing CAS has released ownership, that gate acquires in queue order and
+receives a prompt clearing/stale result; it cannot recursively replace the
+same coordinator's active barrier or leave the participant waiting on the
+owner that is waiting on it. This prompt result is restricted to synchronization
+invoked while a participant callback is executing; external publication
+listeners use the terminal-completion join in §Cross-context ownership.
 
 Mandatory participants are:
 
@@ -2764,9 +2803,11 @@ wall-clock sleeps are not proof of ordering.
 2. A delayed terminal `auth_error` for A calls `compareAndClear(A)` after B is
    settled. It returns false without blanking B, closing B's socket, deleting
    B's store, or broadcasting a new epoch.
-3. Kill a per-storage-key Web-Lock owner before clearing, during every participant phase, and
-   before settled publication. A successor owner reloads the durable phase,
-   resumes idempotently, and never exposes partial data.
+3. Kill a per-storage-key Web-Lock owner before the clearing CAS, during the
+   short clearing-to-settled reacquisition, and during final confirmation;
+   pause after clearing at every participant boundary and prove no owner is
+   retained there. A successor owner reloads the durable phase, resumes
+   idempotently, and never exposes partial data.
 4. Repeat using the fallback lease. Pause an expired holder, let a new holder
    acquire a larger fencing token and settle, then release the old holder. Every
    old write fails the same-transaction lease check.
@@ -2816,11 +2857,17 @@ wall-clock sleeps are not proof of ordering.
 The landed coordinator suites now prove ordered participant phases,
 clearing-state recovery, delayed/missed wakeups, stale-owner rejection, and two
 consecutive fallback takeovers whose fencing tokens advance exact predecessor
-plus one. The Web-Lock harness kills its owner before the clearing write, in
-each of `quiesce`, `blank`, `clearMemory`, `commitDurable`, and `resume`, and
-before settled publication; every successor begins blank, reloads durable
-custody, reruns its complete local barrier, and exposes only settled successor
-authority. The broadcast harness delays delivery until durable settlement and
+plus one. The Web-Lock harness covers owner loss at the clearing write and
+later owned reacquisitions; the queued-lock participant regression proves that
+`quiesce`, `blank`, `clearMemory`, `commitDurable`, and `resume` run with no
+owner retained, including a quiesce acknowledgment whose work requests
+`synchronize()`. A second socket-free queued-lock regression reacts to every
+clearing/settled publication with client-style synchronization, retries typed
+`CLEARING` in a microtask, and bounds the attempt count; it fails against the
+prompt external refusal and terminates when the observer joins barrier
+settlement. Every successor begins blank, reloads durable custody, reruns
+its complete local barrier, and exposes only settled successor authority. The
+broadcast harness delays delivery until durable settlement and
 exercises drop-all, either single phase, both phase orders, and every unique
 permutation of duplicate clearing/settled messages. These are readiness-gating
 tests, not claims inferred from the underlying reload mechanism.
