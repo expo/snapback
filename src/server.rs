@@ -53,8 +53,8 @@ use crate::auth::wire::{
 use crate::cron::{CronRunMetadata, CronRunRecord};
 use crate::diagnostic::{Diagnostic, SnapbackError, SnapbackResult};
 use crate::ephemeral::{
-    AuthContext, DeleteRequest, EphemeralCollection, PublishRequest, RealtimeEnvelope,
-    RealtimePublicationPermit, RoomAuthorityPermit, Scope, SubscribeRequest,
+    AuthContext, DeleteRequest, EphemeralCollection, OperatorDeleteRequest, PublishRequest,
+    RealtimeEnvelope, RealtimePublicationPermit, RoomAuthorityPermit, Scope, SubscribeRequest,
 };
 use crate::live_wire::{
     LiveEnvelope, LiveSocketClientMessage, LiveSocketServerFrame, Receipt, SubscriptionReceiptEvent,
@@ -8776,6 +8776,13 @@ fn system_route_registrations() -> Vec<RegisteredRoute> {
                 ResponseSensitivity::OperatorMetadata,
             ),
             post(disconnect),
+        ),
+        RegisteredRoute::new(
+            write(
+                "/_snapback/api/ephemeral/operator/delete",
+                ResponseSensitivity::SensitiveApplicationData,
+            ),
+            post(operator_delete_ephemeral),
         ),
         // @ref LLP 0036#operations-and-projections-llp-0024 — config reads
         // exclude values; set/unset/verify remain write-gated.
@@ -24812,6 +24819,124 @@ async fn disconnect(
     Ok(StatusCode::NO_CONTENT)
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct OperatorDeleteEphemeralBody {
+    collection: String,
+    scope: Scope,
+    entry_key: String,
+    expected_scope_epoch: u64,
+    expected_entry_generation: u64,
+    reason: String,
+    startup_nonce: String,
+}
+
+/// LLP 0158 currently recognizes derived identity only for network-profile
+/// activation. LLP 0184 §C therefore keeps this destructive bypass local and
+/// non-production until a later amendment grants a broader recognition.
+fn refuse_unless_local_non_production_target(runtime: &AppState) -> Result<(), ApiError> {
+    if runtime.derived_instance_identity.is_some() {
+        return Err(SnapbackError::error(
+            "SNAPBACK_EPHEMERAL_OPERATOR_DELETE_TARGET_REFUSED_DERIVED",
+            "ephemeral",
+            "operator ephemeral deletion is refused on a derived instance because LLP 0158 has not granted derived-instance recognition for this purpose",
+        )
+        .into());
+    }
+    if runtime.server.profile == ServerProfile::Prod {
+        return Err(SnapbackError::error(
+            "SNAPBACK_EPHEMERAL_OPERATOR_DELETE_TARGET_REFUSED_HOSTED",
+            "ephemeral",
+            "operator ephemeral deletion is refused on the primary hosted/production target",
+        )
+        .into());
+    }
+    Ok(())
+}
+
+/// Administrator-only repair of one exactly inspected ephemeral entry. This
+/// is intentionally separate from `/ephemeral/delete`: application authority
+/// is not evaluated, while the inspected room incarnation and entry
+/// generation are both fenced under the room lock.
+///
+/// @ref LLP 0184#c-administrator-ephemeral-entry-delete--add-now — local-only explicit bypass with process, epoch, and generation fences.
+async fn operator_delete_ephemeral(
+    State(runtime): State<AppState>,
+    headers: HeaderMap,
+    body: Result<Bytes, BytesRejection>,
+) -> Result<Json<Value>, ApiError> {
+    crate::admin::authorize(&runtime.server, &headers, true)?;
+    refuse_unless_local_non_production_target(&runtime)?;
+
+    let input: OperatorDeleteEphemeralBody = parse_ephemeral_json(&headers, body)?;
+    if input.reason.trim().is_empty() {
+        return Err(SnapbackError::error(
+            "SNAPBACK_EPHEMERAL_OPERATOR_DELETE_REASON_REQUIRED",
+            "ephemeral",
+            "operator ephemeral deletion requires a non-empty reason",
+        )
+        .into());
+    }
+    if input.startup_nonce.is_empty() || input.startup_nonce != runtime.server_startup_nonce() {
+        return Err(SnapbackError::error(
+            "SNAPBACK_EPHEMERAL_OPERATOR_DELETE_STALE_STARTUP_NONCE",
+            "ephemeral",
+            "startup nonce is empty or does not identify this live server process",
+        )
+        .into());
+    }
+
+    let expected_entry_generation = input.expected_entry_generation;
+    let reason = input.reason.clone();
+    let removed = runtime
+        .ephemeral
+        .operator_delete(
+            OperatorDeleteRequest {
+                collection: input.collection,
+                scope: input.scope,
+                entry_key: input.entry_key,
+                expected_scope_epoch: input.expected_scope_epoch,
+                expected_entry_generation,
+                reason: reason.clone(),
+            },
+            now_millis(),
+        )
+        .map_err(ApiError::from_ephemeral)?;
+    let crate::ephemeral::EphemeralMessage::Remove {
+        room,
+        key,
+        scope_epoch,
+        ..
+    } = removed
+    else {
+        return Err(SnapbackError::error(
+            "SNAPBACK_EPHEMERAL_OPERATOR_DELETE_RECEIPT_INVALID",
+            "ephemeral",
+            "operator ephemeral deletion completed without a removal message",
+        )
+        .into());
+    };
+
+    Ok(Json(json!({
+        "operation": "ephemeral.operatorDelete",
+        "collection": room.collection.clone(),
+        "room": {
+            "collection": room.collection,
+            "scope": room.scope,
+            "routingKey": room.routing_key,
+        },
+        "entryKey": key.0,
+        "scopeEpoch": scope_epoch,
+        "entryGeneration": expected_entry_generation,
+        "reason": reason,
+        "bypass": true,
+        "authorityMode": "operatorBypass",
+        "authorizationEvaluated": false,
+        "note": "This deletion bypassed application authorization entirely — there is no durable owner record to evaluate for an ephemeral entry outside the live connection that wrote it. This is not an authorization decision; it is an explicit operator override.",
+        "ok": true,
+    })))
+}
+
 #[derive(Debug)]
 pub struct ApiError(
     SnapbackError,
@@ -25026,6 +25151,8 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_AUTH_AGENT_UNKNOWN"
         | "SNAPBACK_AUTH_MAILBOX_ENTRY_NOT_FOUND"
         | "SNAPBACK_ROW_NOT_FOUND"
+        | "SNAPBACK_EPHEMERAL_ROOM_NOT_FOUND"
+        | "SNAPBACK_EPHEMERAL_ENTRY_NOT_FOUND"
         // @ref LLP 0056#writes-a-declared-transition-policy-closed-by-default —
         //   the private self resolver may disclose only that the caller's own
         //   membership row is absent, so this is a scoped not-found result.
@@ -25051,6 +25178,9 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_CONNECTION_TEARDOWN_PENDING"
         | "SNAPBACK_EPHEMERAL_INCOMPATIBLE_COLLECTION_DEFINITION"
         | "SNAPBACK_EPHEMERAL_AUTHORITY_INSTANCE_CHANGED"
+        | "SNAPBACK_EPHEMERAL_STALE_SCOPE_EPOCH"
+        | "SNAPBACK_EPHEMERAL_STALE_ENTRY_GENERATION"
+        | "SNAPBACK_EPHEMERAL_OPERATOR_DELETE_STALE_STARTUP_NONCE"
         | "SNAPBACK_LIVE_STAGE_CONFLICT"
         | "SNAPBACK_AUTH_TABLE_COLLISION"
         | "SNAPBACK_AUTH_CATALOG_OBJECT_COLLISION"
@@ -25138,6 +25268,8 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_ADMIN_SECRET_READ_PROOF_REPLAYED"
         | "SNAPBACK_ADMIN_SECRET_READ_PROOF_STALE"
         | "SNAPBACK_ADMIN_SECRET_READ_PROOF_STARTUP_MISMATCH"
+        | "SNAPBACK_EPHEMERAL_OPERATOR_DELETE_TARGET_REFUSED_HOSTED"
+        | "SNAPBACK_EPHEMERAL_OPERATOR_DELETE_TARGET_REFUSED_DERIVED"
         | "SNAPBACK_LIVE_RESUME_OWNERSHIP"
         | "SNAPBACK_CONNECTION_TOKEN_INVALID"
         | "SNAPBACK_AUTH_CODE_LOCKED"
@@ -25556,6 +25688,7 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_DATA_TIER_VERSION_UNSUPPORTED"
         | "SNAPBACK_EPHEMERAL_INVALID_SCOPE"
         | "SNAPBACK_EPHEMERAL_INVALID_TTL"
+        | "SNAPBACK_EPHEMERAL_OPERATOR_DELETE_REASON_REQUIRED"
         | "SNAPBACK_EPHEMERAL_MISSING_KEY"
         | "SNAPBACK_EPHEMERAL_MISSING_OWNER"
         | "SNAPBACK_EPHEMERAL_ROOM_LIMIT_EXCEEDED"
@@ -26512,6 +26645,149 @@ mod tests {
     use tokio::sync::{Mutex, Semaphore};
     use tower::ServiceExt as _;
     use uuid::Uuid;
+
+    fn operator_delete_server_fixture(profile: ServerProfile, derived: bool) -> AppState {
+        let mut context = ServerContext::detached();
+        context.profile = profile;
+        context.admin_token = Some("operator-delete-admin".to_owned());
+        let mut snapback = LocalSnapback::memory().expect("operator delete server fixture");
+        snapback
+            .register_ephemeral_collection(EphemeralCollection::local_cursor(
+                "boardCursors",
+                "boardId",
+            ))
+            .expect("register operator delete fixture collection");
+        let mut state = AppState::from_snapback(snapback, context)
+            .with_server_startup_nonce("operator-delete-startup")
+            .expect("install deterministic startup nonce");
+        if derived {
+            state.derived_instance_identity = Some(crate::instance_fork::DerivedForkLineageV1 {
+                format_version: 1,
+                fork_id: "fork_operator_delete_test".to_owned(),
+                parent_instance_id: "parent-test".to_owned(),
+                app_id: "operator-delete-test".to_owned(),
+                created_at_ms: 1,
+                fork_point_version: 1,
+                expires_at_ms: Some(u64::MAX),
+                promotable: false,
+            });
+        }
+        state
+    }
+
+    fn operator_delete_headers() -> HeaderMap {
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static("application/json"),
+        );
+        headers.insert(
+            "x-snapback-admin-token",
+            HeaderValue::from_static("operator-delete-admin"),
+        );
+        headers
+    }
+
+    /// @ref LLP 0184#c-administrator-ephemeral-entry-delete--add-now — the
+    /// HTTP receipt must call the operation an unevaluated operator bypass,
+    /// and the process nonce is an enforced server-side fence.
+    #[tokio::test]
+    async fn operator_delete_http_checks_startup_nonce_and_discloses_bypass() {
+        let state = operator_delete_server_fixture(ServerProfile::Test, false);
+        let now_ms = super::now_millis();
+        let published = state
+            .ephemeral
+            .publish(
+                PublishRequest {
+                    collection: "boardCursors".to_owned(),
+                    scope: Scope::from_pairs([("boardId", "board-1")]),
+                    connection_id: "owner".to_owned(),
+                    session_id: None,
+                    user_id: None,
+                    custom_key: None,
+                    value: b"cursor".to_vec(),
+                    ttl_ms: None,
+                    auth: crate::ephemeral::AuthContext::default(),
+                },
+                now_ms,
+            )
+            .expect("publish inspected entry");
+        let request_body = |startup_nonce: &str| {
+            serde_json::to_vec(&json!({
+                "collection": published.room.collection.clone(),
+                "scope": published.room.scope.clone(),
+                "entryKey": published.key.0.clone(),
+                "expectedScopeEpoch": published.scope_epoch,
+                "expectedEntryGeneration": published.entry_version,
+                "reason": "repair stuck presence",
+                "startupNonce": startup_nonce,
+            }))
+            .unwrap()
+        };
+
+        let stale = super::operator_delete_ephemeral(
+            State(state.clone()),
+            operator_delete_headers(),
+            Ok(Bytes::from(request_body("wrong-process"))),
+        )
+        .await
+        .expect_err("stale process identity must refuse before deletion")
+        .into_response();
+        assert_eq!(stale.status(), StatusCode::CONFLICT);
+        assert_eq!(
+            response_json(stale).await["diagnostic"]["code"],
+            "SNAPBACK_EPHEMERAL_OPERATOR_DELETE_STALE_STARTUP_NONCE"
+        );
+
+        let receipt = super::operator_delete_ephemeral(
+            State(state),
+            operator_delete_headers(),
+            Ok(Bytes::from(request_body("operator-delete-startup"))),
+        )
+        .await
+        .expect("matching process, epoch, and generation delete")
+        .0;
+        assert_eq!(receipt["operation"], "ephemeral.operatorDelete");
+        assert_eq!(receipt["authorityMode"], "operatorBypass");
+        assert_eq!(receipt["authorizationEvaluated"], false);
+        assert_eq!(receipt["bypass"], true);
+        assert_eq!(receipt["ok"], true);
+        assert!(
+            receipt["note"]
+                .as_str()
+                .is_some_and(|note| note.contains("not an authorization decision"))
+        );
+    }
+
+    #[tokio::test]
+    async fn operator_delete_refuses_production_and_derived_before_body_parsing() {
+        for (state, expected_code) in [
+            (
+                operator_delete_server_fixture(ServerProfile::Prod, false),
+                "SNAPBACK_EPHEMERAL_OPERATOR_DELETE_TARGET_REFUSED_HOSTED",
+            ),
+            (
+                operator_delete_server_fixture(ServerProfile::Test, true),
+                "SNAPBACK_EPHEMERAL_OPERATOR_DELETE_TARGET_REFUSED_DERIVED",
+            ),
+        ] {
+            let mut headers = HeaderMap::new();
+            headers.insert(
+                "x-snapback-admin-token",
+                HeaderValue::from_static("operator-delete-admin"),
+            );
+            let response =
+                super::operator_delete_ephemeral(State(state), headers, Ok(Bytes::new()))
+                    .await
+                    .expect_err("target posture must refuse malformed body without parsing it")
+                    .into_response();
+            assert_eq!(response.status(), StatusCode::FORBIDDEN);
+            assert_eq!(
+                response_json(response).await["diagnostic"]["code"],
+                expected_code
+            );
+        }
+    }
 
     struct ManualServerAuthClock {
         base_epoch_ms: u64,

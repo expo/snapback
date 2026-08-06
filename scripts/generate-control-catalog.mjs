@@ -146,6 +146,7 @@ const CLI_PROJECTIONS = {
   'connection.disconnect': 'snapback connections disconnect',
   'control.catalog.read': 'snapback controls list',
   'control.catalog.describe': 'snapback controls describe <operation>',
+  'ephemeral.operatorDelete': 'snapback ephemeral operator-delete',
 };
 
 const GUIDE_ANCHORS = {
@@ -169,6 +170,7 @@ const GUIDE_ANCHORS = {
   'control.catalog.instance.read': 'operating/agent-controls.md#build-versus-instance-identity',
   'data.patch.preview': 'operating/data-patch.md#preview',
   'data.patch.apply': 'operating/data-patch.md#apply',
+  'ephemeral.operatorDelete': 'realtime/ephemeral-state.md#delete-one-entry-as-an-operator',
 };
 
 // --- Build domain fact index -------------------------------------------
@@ -214,6 +216,7 @@ function policyFromOperation(op) {
 function applyOverride(entry, override) {
   if (!override) return entry;
   if (override.operability) entry.operability = override.operability;
+  if (override.availability) entry.availability = override.availability;
   if (override.surfaceAccessOverride) entry.surfaceAccess = override.surfaceAccessOverride;
   if (override.mcpDeferralReason) entry.mcpDeferralReason = override.mcpDeferralReason;
   if (override.cliDeferralReason) entry.cliDeferralReason = override.cliDeferralReason;
@@ -460,6 +463,7 @@ const ROUTE_OPERATION_NAMES = {
   'GET /_snapback/api/jobs': 'jobs.list',
   'GET /_snapback/api/jobs/{id}': 'jobs.show',
   'POST /_snapback/api/ephemeral/cleanup': 'ephemeral.cleanup',
+  'POST /_snapback/api/ephemeral/operator/delete': 'ephemeral.operatorDelete',
   'POST /_snapback/api/connections/{connection_id}/disconnect': 'connection.disconnect',
   'GET /_snapback/api/data/{table}': 'data.scan',
   'POST /_snapback/api/admin-secret-read/mint': 'secretRead.mint',

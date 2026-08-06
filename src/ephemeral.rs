@@ -1086,6 +1086,18 @@ pub struct DeleteRequest {
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+pub struct OperatorDeleteRequest {
+    pub collection: String,
+    pub scope: Scope,
+    pub entry_key: String,
+    #[schemars(range(max = crate::manifest::PORTABLE_STORAGE_VERSION_MAX))]
+    pub expected_scope_epoch: u64,
+    #[schemars(range(max = crate::manifest::PORTABLE_STORAGE_VERSION_MAX))]
+    pub expected_entry_generation: u64,
+    pub reason: String,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct SubscribeRequest {
     pub collection: String,
     pub scope: Scope,
@@ -1107,6 +1119,10 @@ pub struct PublishOutcome {
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 pub enum EphemeralErrorCode {
     UnknownCollection,
+    RoomNotFound,
+    EntryNotFound,
+    StaleScopeEpoch,
+    StaleEntryGeneration,
     Unauthorized,
     InvalidScope,
     MissingKey,
@@ -1141,6 +1157,10 @@ impl EphemeralErrorCode {
     pub fn diagnostic_code(self) -> &'static str {
         match self {
             Self::UnknownCollection => "SNAPBACK_EPHEMERAL_UNKNOWN_COLLECTION",
+            Self::RoomNotFound => "SNAPBACK_EPHEMERAL_ROOM_NOT_FOUND",
+            Self::EntryNotFound => "SNAPBACK_EPHEMERAL_ENTRY_NOT_FOUND",
+            Self::StaleScopeEpoch => "SNAPBACK_EPHEMERAL_STALE_SCOPE_EPOCH",
+            Self::StaleEntryGeneration => "SNAPBACK_EPHEMERAL_STALE_ENTRY_GENERATION",
             Self::Unauthorized => "SNAPBACK_EPHEMERAL_UNAUTHORIZED",
             Self::InvalidScope => "SNAPBACK_EPHEMERAL_INVALID_SCOPE",
             Self::MissingKey => "SNAPBACK_EPHEMERAL_MISSING_KEY",
@@ -5917,6 +5937,121 @@ impl LocalEphemeralBackend {
         Ok(removed)
     }
 
+    /// Operator-only ephemeral-entry delete (LLP 0184 §C). Distinct from
+    /// `delete`/`delete_with_room_authority`: no connection/ownership
+    /// authority is evaluated — this is an explicit administrator bypass,
+    /// fenced on BOTH the room's current scope epoch and the entry's own
+    /// generation (`entry_version`) together, compared under the room lock.
+    /// A room that empties and is recreated within one server startup gets a
+    /// fresh scope epoch while its entry-version counter restarts at 1, so
+    /// generation alone would not be fencing-safe against a reborn room
+    /// reusing an old generation number.
+    ///
+    /// @ref LLP 0184#c-administrator-ephemeral-entry-delete--add-now — epoch+generation fencing, explicit bypass, ordinary notification.
+    pub fn operator_delete(
+        &self,
+        request: OperatorDeleteRequest,
+        now_ms: Millis,
+    ) -> Result<EphemeralMessage, EphemeralError> {
+        let _generation = self.lifecycle_read("ephemeral operator delete");
+        let collection = self.collection(&request.collection)?;
+        let room_id = room_id_for(&collection, &request.scope)?;
+        let key = EntryKey(request.entry_key.clone());
+        let (room_authority_generation, _room_authority) =
+            self.room_authority_for_act(&collection, &room_id, None)?;
+
+        let result = self.with_existing_room(&room_id, |room| {
+            if room.scope_epoch != request.expected_scope_epoch {
+                return Err(EphemeralError::new(
+                    EphemeralErrorCode::StaleScopeEpoch,
+                    format!(
+                        "expected scope epoch {} does not match the room's current epoch {}",
+                        request.expected_scope_epoch, room.scope_epoch
+                    ),
+                ));
+            }
+            let Some(record) = room.entries.get(&key) else {
+                return Err(EphemeralError::new(
+                    EphemeralErrorCode::EntryNotFound,
+                    "no entry exists at this key in this room",
+                ));
+            };
+            if record.entry_version != request.expected_entry_generation {
+                return Err(EphemeralError::new(
+                    EphemeralErrorCode::StaleEntryGeneration,
+                    format!(
+                        "expected entry generation {} does not match the entry's current generation {}",
+                        request.expected_entry_generation, record.entry_version
+                    ),
+                ));
+            }
+
+            let expired = room
+                .entries
+                .values()
+                .filter(|record| record.expires_at_ms <= now_ms)
+                .count();
+            let delete_after_sweep = usize::from(record.expires_at_ms > now_ms);
+            if let Err(error) =
+                room.ensure_version_capacity(expired.saturating_add(delete_after_sweep))
+            {
+                room.retired = true;
+                return Err(error);
+            }
+            self.sweep_room_locked(
+                room,
+                &room_id,
+                Some(&collection),
+                now_ms,
+                room_authority_generation,
+            )?;
+            let Some(record) = room.entries.get(&key) else {
+                return Ok((None, BTreeSet::new()));
+            };
+            let affected = room
+                .owner_connections
+                .get(&record.owner)
+                .cloned()
+                .unwrap_or_default();
+            let removed = remove_entry_locked(
+                room,
+                &room_id,
+                &key,
+                RemoveReason::Deleted,
+                room_authority_generation,
+            )?;
+            if let Some(message) = &removed {
+                self.fan_out_locked(room, &room_id, &collection, message.clone());
+            }
+            Ok((removed, affected))
+        });
+        let (removed, affected_connections) = match result {
+            Some(Ok(result)) => result,
+            Some(Err(error)) => {
+                if error.code == EphemeralErrorCode::GenerationExhausted {
+                    self.retire_generation_exhausted_room(&room_id);
+                }
+                return Err(error);
+            }
+            None => {
+                return Err(EphemeralError::new(
+                    EphemeralErrorCode::RoomNotFound,
+                    "no room exists at this collection/scope identity",
+                ));
+            }
+        };
+        for connection_id in affected_connections {
+            self.unindex_connection_room_if_unused(&connection_id, &room_id);
+        }
+        self.prune_room_if_empty(&room_id);
+        removed.ok_or_else(|| {
+            EphemeralError::new(
+                EphemeralErrorCode::EntryNotFound,
+                "no entry exists at this key in this room",
+            )
+        })
+    }
+
     /// Remove one connection's subscriber registration from a room without
     /// touching its published entries (ENG-22527 item 3: the adapter's
     /// idle-room teardown). Dropping observation is never privileged — the
@@ -9825,6 +9960,17 @@ mod tests {
         }
     }
 
+    fn operator_delete_request(published: &PublishOutcome) -> OperatorDeleteRequest {
+        OperatorDeleteRequest {
+            collection: published.room.collection.clone(),
+            scope: published.room.scope.clone(),
+            entry_key: published.key.0.clone(),
+            expected_scope_epoch: published.scope_epoch,
+            expected_entry_generation: published.entry_version,
+            reason: "operator repair test".to_owned(),
+        }
+    }
+
     fn set_next_entry_version(backend: &LocalEphemeralBackend, next: u64) {
         let room_arc = lock(&backend.shared.rooms)
             .get(&room())
@@ -13364,6 +13510,169 @@ mod tests {
             },
         });
         assert_eq!(applied, OverlayApply::NeedsResync);
+    }
+
+    /// @ref LLP 0184#c-administrator-ephemeral-entry-delete--add-now — the
+    /// operator bypass still uses the ordinary delete message and subscriber
+    /// fan-out path.
+    #[test]
+    fn operator_delete_fenced_match_removes_and_notifies_subscribers() {
+        let backend = LocalEphemeralBackend::new();
+        backend.register_collection(collection()).unwrap();
+        backend
+            .subscribe(subscribe_request("observer"), 1_000)
+            .unwrap();
+        let published = backend
+            .publish(publish_request("owner", b"cursor"), 1_001)
+            .unwrap();
+        let _upsert = first_ephemeral(backend.drain_outbox("observer"));
+
+        let removed = backend
+            .operator_delete(operator_delete_request(&published), 1_002)
+            .unwrap();
+        assert!(matches!(
+            &removed,
+            EphemeralMessage::Remove {
+                room,
+                key,
+                scope_epoch,
+                reason: RemoveReason::Deleted,
+                ..
+            } if room == &published.room
+                && key == &published.key
+                && *scope_epoch == published.scope_epoch
+        ));
+        assert_eq!(
+            first_ephemeral(backend.drain_outbox("observer")),
+            removed,
+            "the ordinary subscriber fan-out must carry the same Remove message"
+        );
+        assert_eq!(backend.diagnostics().entry_count, 0);
+    }
+
+    #[test]
+    fn operator_delete_rejects_stale_entry_generation_in_current_room() {
+        let backend = LocalEphemeralBackend::new();
+        backend.register_collection(collection()).unwrap();
+        let published = backend
+            .publish(publish_request("owner", b"cursor"), 1_000)
+            .unwrap();
+        let mut request = operator_delete_request(&published);
+        request.expected_entry_generation += 1;
+
+        let error = backend.operator_delete(request, 1_001).unwrap_err();
+        assert_eq!(error.code, EphemeralErrorCode::StaleEntryGeneration);
+        assert_eq!(backend.diagnostics().entry_count, 1);
+    }
+
+    /// The new room deliberately reuses generation 1. Only the old scope
+    /// epoch distinguishes the inspected predecessor entry from the reborn
+    /// entry, so removing the epoch check makes this test delete the wrong
+    /// entry and fail.
+    ///
+    /// @ref LLP 0184#acceptance — epoch and generation are one fencing tuple.
+    #[test]
+    fn operator_delete_rejects_old_epoch_when_reborn_room_reuses_generation_one() {
+        let backend = LocalEphemeralBackend::new();
+        backend
+            .register_collection(EphemeralCollection::local_cursor("boardCursors", "boardId"))
+            .unwrap();
+        let publish = |value: &[u8]| PublishRequest {
+            collection: "boardCursors".to_owned(),
+            scope: scope(),
+            connection_id: "owner".to_owned(),
+            session_id: None,
+            user_id: None,
+            custom_key: None,
+            value: value.to_vec(),
+            ttl_ms: None,
+            auth: AuthContext::default(),
+        };
+
+        let old = backend.publish(publish(b"old"), 1_000).unwrap();
+        backend
+            .operator_delete(operator_delete_request(&old), 1_001)
+            .unwrap();
+        assert_eq!(backend.diagnostics().room_count, 0);
+
+        let reborn = backend.publish(publish(b"new"), 1_002).unwrap();
+        assert!(reborn.scope_epoch > old.scope_epoch);
+        assert_eq!(reborn.entry_version, 1);
+        let request = OperatorDeleteRequest {
+            expected_scope_epoch: old.scope_epoch,
+            expected_entry_generation: reborn.entry_version,
+            ..operator_delete_request(&reborn)
+        };
+
+        let error = backend.operator_delete(request, 1_003).unwrap_err();
+        assert_eq!(error.code, EphemeralErrorCode::StaleScopeEpoch);
+        assert_eq!(backend.diagnostics().entry_count, 1);
+    }
+
+    #[test]
+    fn operator_delete_distinguishes_collection_room_and_entry_absence() {
+        let backend = LocalEphemeralBackend::new();
+        let unknown = backend
+            .operator_delete(
+                OperatorDeleteRequest {
+                    collection: "missing".to_owned(),
+                    scope: scope(),
+                    entry_key: "owner".to_owned(),
+                    expected_scope_epoch: 1,
+                    expected_entry_generation: 1,
+                    reason: "test".to_owned(),
+                },
+                1_000,
+            )
+            .unwrap_err();
+        assert_eq!(unknown.code, EphemeralErrorCode::UnknownCollection);
+
+        backend
+            .register_collection(EphemeralCollection::local_cursor("boardCursors", "boardId"))
+            .unwrap();
+        let room_missing = backend
+            .operator_delete(
+                OperatorDeleteRequest {
+                    collection: "boardCursors".to_owned(),
+                    scope: scope(),
+                    entry_key: "owner".to_owned(),
+                    expected_scope_epoch: 1,
+                    expected_entry_generation: 1,
+                    reason: "test".to_owned(),
+                },
+                1_000,
+            )
+            .unwrap_err();
+        assert_eq!(room_missing.code, EphemeralErrorCode::RoomNotFound);
+
+        let snapshot = backend
+            .subscribe(
+                SubscribeRequest {
+                    collection: "boardCursors".to_owned(),
+                    scope: scope(),
+                    connection_id: "observer".to_owned(),
+                    auth: AuthContext::default(),
+                },
+                1_001,
+            )
+            .unwrap();
+        let EphemeralMessage::Snapshot { scope_epoch, .. } = snapshot else {
+            panic!("expected snapshot");
+        };
+        let entry_missing = backend
+            .operator_delete(
+                OperatorDeleteRequest {
+                    collection: "boardCursors".to_owned(),
+                    scope: scope(),
+                    entry_key: "owner".to_owned(),
+                    expected_scope_epoch: scope_epoch,
+                    expected_entry_generation: 1,
+                    reason: "test".to_owned(),
+                },
+                1_002,
+            )
+            .unwrap_err();
+        assert_eq!(entry_missing.code, EphemeralErrorCode::EntryNotFound);
     }
 
     /// LLP 0026 Phase 2 — cleanup is index-driven: a pass at t only removes

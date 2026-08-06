@@ -4,7 +4,7 @@ id: realtime.ephemeral-state
 order: 2
 audience: agent-first
 capabilities: [realtime.ephemeral]
-authorities: [llp/0013-ephemeral-realtime-state.rfc.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0114-first-class-react-and-query-groups.spec.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/index.mjs, packages/snapback-contract/index.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts]
+authorities: [llp/0013-ephemeral-realtime-state.rfc.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0184-agent-accessible-control-plane.rfc.md, src/ephemeral.rs, src/server.rs, src/cli.rs, packages/snapback-cli/mcp-control.mjs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/index.mjs, packages/snapback-contract/index.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts]
 examples: [demos/cursors-web, demos/todo-v2/snapback/schema.mjs, demos/messaging-snapback/src/lib/useTyping.ts]
 status: current
 targets: [local]
@@ -233,6 +233,41 @@ value type; a typed value must not degrade to `unknown` at provider
 introspection. Keep imperative overlays in headless/React code and generated
 ephemeral links in Contract code—do not mix a second polling or publish lane
 into the same surface.
+
+<!-- since: 0.1.9 unreleased -->
+
+> **Unreleased.** The operator-delete control is in the source tree but not
+> in the newest published closure (`0.1.8`). Expected in the next published
+> closure.
+
+## Delete one entry as an operator
+
+Use `snapback ephemeral operator-delete` or the
+`snapback_ephemeral_operator_delete` MCP tool only for local dev/test repair
+after inspecting the exact collection, scope, entry key, `scopeEpoch`, and
+`entryVersion`. Supply both coordinates as `--expected-scope-epoch` and
+`--expected-entry-generation`; a room can be pruned and recreated with a new
+epoch while its entry generation restarts at 1, so generation alone is not a
+safe fence. The CLI requires `--ready-file` because the server also verifies
+that descriptor's process-bound startup nonce.
+
+```sh fragment reason="Operator repair example uses inspected runtime coordinates and a local readiness descriptor, not a repository fixture."
+snapback ephemeral operator-delete \
+  --ready-file .snapback/dev.ready.json \
+  --collection boardCursors \
+  --scope-json '{"boardId":"board-1"}' \
+  --entry-key conn_owner \
+  --expected-scope-epoch 7 \
+  --expected-entry-generation 3 \
+  --reason 'remove stuck cursor after inspection'
+```
+
+This operation is an explicit administrator bypass: it never evaluates
+application authorization or ownership, and its receipt says
+`authorizationEvaluated: false`. It remains distinct from an application's
+ordinary `delete`, while still using the ordinary removal and subscriber
+notification path. The server refuses it on production and on derived
+instances; LLP 0158 does not yet recognize derived identity for this purpose.
 
 ## Anti-patterns
 

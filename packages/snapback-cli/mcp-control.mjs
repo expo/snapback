@@ -758,6 +758,28 @@ export const CONTROL_TOOLS = [
     },
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
   },
+  // @ref LLP 0184#c-administrator-ephemeral-entry-delete--add-now — the
+  // inspected room incarnation and entry generation are one fence, and the
+  // receipt discloses that application authorization was never evaluated.
+  {
+    name: 'snapback_ephemeral_operator_delete',
+    operation: 'ephemeral.operatorDelete',
+    title: 'Operator-bypass delete of one ephemeral entry (debug/repair)',
+    description: 'Administrator delete of a specifically inspected ephemeral entry, fenced on BOTH the room scope epoch and entry generation together. Never evaluates application authorization — this is an explicit operator bypass, disclosed as such in the receipt. Distinct from an application deleting its own ephemeral entry.',
+    inputSchema: {
+      type: 'object', additionalProperties: false,
+      required: ['collection', 'scope', 'entryKey', 'expectedScopeEpoch', 'expectedEntryGeneration', 'reason'],
+      properties: {
+        collection: { type: 'string' },
+        scope: { type: 'object', description: 'The room scope, e.g. {"boardId":"board-1"}.' },
+        entryKey: { type: 'string' },
+        expectedScopeEpoch: { type: 'integer', description: 'Fails closed if this does not match the room\'s current epoch.' },
+        expectedEntryGeneration: { type: 'integer', description: 'Fails closed if this does not match the entry\'s current generation. Epoch and generation are both required and both checked — generation alone is not fencing-safe against a reborn room.' },
+        reason: { type: 'string' },
+      },
+    },
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
+  },
   // @ref LLP 0184#p2-controlled-mutations — direct MCP tools for the
   // already-shipped asset delete/GC/key-rotation/export/import CLI paths.
   // asset.list/inspect/retry are the P1 read/diagnose projection (a
@@ -1455,8 +1477,7 @@ export class McpControlServer {
   // surface — LLP 0184 §P2 projects each existing route as-is, not through
   // it). Same admin-token presentation as postHostOp; the response body is
   // whatever JSON (or none, for a 204) that route already returns.
-  async postAdminRoute(path, body) {
-    const descriptor = this.currentDescriptor();
+  async postAdminRoute(path, body, descriptor = this.currentDescriptor()) {
     const adminToken = managedAdminToken(descriptor, this.database);
     const url = `${descriptor.serverUrl.replace(/\/$/, '')}${path}`;
     let response;
@@ -1814,6 +1835,22 @@ export class McpControlServer {
           ...result,
           body: result.ok ? { connectionId: args.connectionId, reason: args.reason } : result.body,
         }));
+      }
+      case 'snapback_ephemeral_operator_delete': {
+        // Keep the URL, administrator token, and startup nonce on one
+        // descriptor snapshot. The server independently rejects a stale
+        // process identity before touching the room store.
+        const descriptor = this.currentDescriptor();
+        const result = await this.postAdminRoute('/_snapback/api/ephemeral/operator/delete', {
+          collection: args.collection,
+          scope: args.scope,
+          entryKey: args.entryKey,
+          expectedScopeEpoch: args.expectedScopeEpoch,
+          expectedEntryGeneration: args.expectedEntryGeneration,
+          reason: args.reason,
+          startupNonce: descriptor.startupNonce,
+        }, descriptor);
+        return this.toolResult(this.adminRouteEnvelope('ephemeral.operatorDelete', id, result));
       }
       // @ref LLP 0184#p2-controlled-mutations — asset delete/GC/key-rotation/
       // export/import direct MCP tools; all route through the host-ops

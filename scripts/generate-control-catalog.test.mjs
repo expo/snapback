@@ -64,6 +64,31 @@ test('unmodified inputs compile cleanly (positive control)', () => {
   }
 });
 
+test('ephemeral operator delete narrows availability and keeps projections honest', () => {
+  const dir = scratchRepo();
+  try {
+    const result = runCompiler(dir);
+    assert.equal(result.ok, true, `expected clean compile, got:\n${result.output}`);
+    const catalog = JSON.parse(readFileSync(
+      join(dir, 'control-catalog/generated/control-catalog.v1.json'),
+      'utf8',
+    ));
+    const entry = catalog.entries.find((candidate) => candidate.operation === 'ephemeral.operatorDelete');
+    assert.ok(entry, 'ephemeral.operatorDelete must be compiled from the live route registry');
+    assert.equal(entry.operability, 'direct');
+    assert.deepEqual(entry.availability, { targets: ['local'] });
+    assert.equal(entry.surfaceAccess, 'native');
+    assert.equal(entry.projections.cli, 'snapback ephemeral operator-delete');
+    assert.equal(entry.projections.mcp, 'snapback_ephemeral_operator_delete');
+    assert.equal(entry.projections.http, 'POST /_snapback/api/ephemeral/operator/delete');
+    assert.equal(entry.projections.hostOps, null);
+    assert.equal(entry.projections.adminClient, null);
+    assert.equal(entry.projections.console, null);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('check preserves the valid generation snapshot while recomputing catalog content', () => {
   const dir = scratchRepo();
   try {

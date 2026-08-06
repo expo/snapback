@@ -122,6 +122,16 @@
       "responseSensitivity": "OperatorMetadata"
     },
     {
+      "method": "POST",
+      "path": "/_snapback/api/ephemeral/operator/delete",
+      "class": "SystemApi",
+      "pathPolicy": "AdminWrite",
+      "credentialResolution": "AdminCredential",
+      "invocationAuthority": "Operator",
+      "effectPolicy": "None",
+      "responseSensitivity": "SensitiveApplicationData"
+    },
+    {
       "method": "GET",
       "path": "/_snapback/api/config/status",
       "class": "SystemApi",

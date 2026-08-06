@@ -2315,6 +2315,17 @@ impl EphemeralApi {
         self.store.disconnect(connection_id, now_ms);
     }
 
+    pub fn operator_delete(
+        &self,
+        request: crate::ephemeral::OperatorDeleteRequest,
+        now_ms: u64,
+    ) -> Result<crate::ephemeral::EphemeralMessage, crate::ephemeral::EphemeralError> {
+        crate::exec_guard::debug_assert_local_snapback_write_scope_inactive(
+            "EphemeralApi::operator_delete",
+        );
+        self.store.operator_delete(request, now_ms)
+    }
+
     /// Whole-ID cleanup for a registry-retired grant whose removal already
     /// enabled mint-only containment. This preserves any exact typed terminal
     /// notifier event and emits no disconnected-resync wake.

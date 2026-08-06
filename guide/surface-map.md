@@ -66,6 +66,7 @@ here (or listed here but gone from the code).
 | /_snapback/api/cron/{name}/run | backend.cron |
 | /_snapback/api/data/{table} | operating.admin-console |
 | /_snapback/api/ephemeral/cleanup | notAuthorFacing (operator maintenance) |
+| /_snapback/api/ephemeral/operator/delete | notAuthorFacing (local operator repair, LLP 0184 §C) |
 | /_snapback/api/errors/issue | backend.error-tracking-v1 |
 | /_snapback/api/errors/issues | backend.error-tracking-v1 |
 | /_snapback/api/errors/transition | backend.error-tracking-v1 |

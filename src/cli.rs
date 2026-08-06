@@ -13,7 +13,7 @@ use clap::Parser;
 use rusqlite::OptionalExtension as _;
 use serde::Deserialize;
 use serde_json::{Value, json};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::ffi::OsString;
 use std::io::{self, ErrorKind, IsTerminal, Read as _};
 use std::net::IpAddr;
@@ -834,6 +834,14 @@ pub enum HostCommand {
         #[command(subcommand)]
         command: ConnectionsCommand,
     },
+    /// ephemeral.operatorDelete — local non-production administrator bypass
+    /// for one exactly inspected ephemeral entry. This is separate from
+    /// application-owned ephemeral deletion and evaluates no application
+    /// authorization (LLP 0184 §C).
+    Ephemeral {
+        #[command(subcommand)]
+        command: EphemeralCommand,
+    },
     /// debug.networkProfile* — inspect or change the process-local network
     /// condition profile through the shared host-ops envelope.
     #[command(name = "network-profile")]
@@ -1202,6 +1210,32 @@ pub enum ConnectionsCommand {
         connection_id: String,
         /// Why this debug perturbation is being invoked (recorded in the
         /// receipt printed on success).
+        #[arg(long)]
+        reason: String,
+    },
+}
+
+#[derive(clap::Subcommand)]
+pub enum EphemeralCommand {
+    /// ephemeral.operatorDelete — administrator bypass delete of one
+    /// ephemeral entry, fenced on BOTH the room's scope epoch and the
+    /// entry's own generation together (LLP 0184 §C). This is NOT the
+    /// same authority as an application deleting its own ephemeral entry;
+    /// it never evaluates application authorization.
+    OperatorDelete {
+        #[command(flatten)]
+        target: TargetArgs,
+        #[arg(long)]
+        collection: String,
+        /// Scope as a JSON object, e.g. '{"boardId":"board-1"}'.
+        #[arg(long = "scope-json")]
+        scope_json: String,
+        #[arg(long = "entry-key")]
+        entry_key: String,
+        #[arg(long = "expected-scope-epoch")]
+        expected_scope_epoch: u64,
+        #[arg(long = "expected-entry-generation")]
+        expected_entry_generation: u64,
         #[arg(long)]
         reason: String,
     },
@@ -2228,6 +2262,7 @@ pub async fn run_from_env() -> anyhow::Result<()> {
         Some(HostCommand::Cron { command }) => cron_command(command),
         Some(HostCommand::Jobs { command }) => jobs_command(command),
         Some(HostCommand::Connections { command }) => connections_command(command),
+        Some(HostCommand::Ephemeral { command }) => ephemeral_command(command),
         Some(HostCommand::NetworkProfile { command }) => match command {
             NetworkProfileCommand::Get { target } => {
                 host_op_via_http(&target, json!({ "operation": "debug.networkProfileGet" }))
@@ -4051,6 +4086,53 @@ fn resolve_http_target_for_operation(
     anyhow::bail!("no target: pass --url or --ready-file")
 }
 
+struct ResolvedOperatorEphemeralTarget {
+    http: ResolvedHttpTarget,
+    startup_nonce: String,
+}
+
+fn resolve_operator_ephemeral_target(
+    target: &TargetArgs,
+) -> anyhow::Result<ResolvedOperatorEphemeralTarget> {
+    if target.url.is_some() {
+        anyhow::bail!(
+            "SNAPBACK_EPHEMERAL_OPERATOR_DELETE_READY_FILE_REQUIRED: ephemeral operator-delete requires --ready-file; --url cannot supply the process-bound startup nonce"
+        );
+    }
+    let path = target.ready_file.as_deref().context(
+        "SNAPBACK_EPHEMERAL_OPERATOR_DELETE_READY_FILE_REQUIRED: pass --ready-file for ephemeral operator-delete",
+    )?;
+    let ready_target = ReadyFileTarget::open_existing(path)?;
+    let canonical_ready = ready_target.pinned_path().to_path_buf();
+    let descriptor_bytes = ready_target
+        .read_owner_only_sibling(&canonical_ready)
+        .with_context(|| format!("failed to read trusted ready file {}", path.display()))?;
+    let value: Value = serde_json::from_slice(&descriptor_bytes)
+        .with_context(|| format!("{} is not valid JSON", path.display()))?;
+    let descriptor = HostReadyDescriptor::validate(&value).map_err(|problems| {
+        anyhow::anyhow!(
+            "{} is not a valid readiness descriptor: {}",
+            path.display(),
+            problems.join("; ")
+        )
+    })?;
+    let health = fetch_health(&descriptor.server_url);
+    verify_live_descriptor_identity(&descriptor, &health, "ephemeral.operatorDelete")
+        .map_err(|diagnostic| anyhow::anyhow!("{}: {}", diagnostic.code, diagnostic.message))?;
+    let startup_nonce = descriptor.startup_nonce.clone().context(
+        "SNAPBACK_EPHEMERAL_OPERATOR_DELETE_READY_FILE_REQUIRED: readiness descriptor has no startupNonce",
+    )?;
+    let minted_token = discover_minted_token_pinned(&ready_target, &canonical_ready, &descriptor);
+    Ok(ResolvedOperatorEphemeralTarget {
+        http: ResolvedHttpTarget {
+            server_url: descriptor.server_url.trim_end_matches('/').to_owned(),
+            minted_token,
+            impersonation_capability: None,
+        },
+        startup_nonce,
+    })
+}
+
 fn read_impersonation_capability_from_stdin()
 -> anyhow::Result<crate::auth::crypto::ImpersonationBearer> {
     use std::io::Read as _;
@@ -4577,6 +4659,15 @@ fn path_segment_escape(raw: &str) -> String {
 /// level more generic (an arbitrary path instead of one hardcoded route).
 fn admin_json_post(target: &TargetArgs, path: &str, value: Value) -> anyhow::Result<Value> {
     let resolved = resolve_http_target_for_operation(target, false)?;
+    admin_json_post_resolved(target, resolved, path, value)
+}
+
+fn admin_json_post_resolved(
+    target: &TargetArgs,
+    resolved: ResolvedHttpTarget,
+    path: &str,
+    value: Value,
+) -> anyhow::Result<Value> {
     let token = target
         .token
         .clone()
@@ -4797,6 +4888,47 @@ fn connections_command(command: ConnectionsCommand) -> anyhow::Result<()> {
                     "ok": true,
                 }))?
             );
+            Ok(())
+        }
+    }
+}
+
+/// The startup nonce is server authority for this operation, not an optional
+/// client hint. A URL alone cannot prove which process owns it, so the CLI
+/// requires an owner-only ready descriptor, validates it against live health,
+/// and posts the nonce from that same pinned descriptor snapshot.
+///
+/// @ref LLP 0184#c-administrator-ephemeral-entry-delete--add-now — process,
+/// epoch, and generation fences on the explicit administrator bypass.
+fn ephemeral_command(command: EphemeralCommand) -> anyhow::Result<()> {
+    match command {
+        EphemeralCommand::OperatorDelete {
+            target,
+            collection,
+            scope_json,
+            entry_key,
+            expected_scope_epoch,
+            expected_entry_generation,
+            reason,
+        } => {
+            let scope: BTreeMap<String, String> = serde_json::from_str(&scope_json)
+                .context("--scope-json must be a JSON object whose values are strings")?;
+            let resolved = resolve_operator_ephemeral_target(&target)?;
+            let response = admin_json_post_resolved(
+                &target,
+                resolved.http,
+                "/_snapback/api/ephemeral/operator/delete",
+                json!({
+                    "collection": collection,
+                    "scope": scope,
+                    "entryKey": entry_key,
+                    "expectedScopeEpoch": expected_scope_epoch,
+                    "expectedEntryGeneration": expected_entry_generation,
+                    "reason": reason,
+                    "startupNonce": resolved.startup_nonce,
+                }),
+            )?;
+            println!("{}", serde_json::to_string_pretty(&response)?);
             Ok(())
         }
     }
@@ -8504,8 +8636,8 @@ mod tests {
         AdminArgs, AdminCommand, Args, AssetsCommand, AuthCommand, AuthConstructionFailure,
         AuthCoordinatorReadinessReceipt, AuthProgramConstructionReceipts,
         BEFORE_STARTUP_TARGET_RESERVATION, Cli, ConfigCommand, ConnectionsCommand, ControlsCommand,
-        CronCommand, DataCommand, DataPatchArgs, ErrorsCommand, ForkCommand, HostCommand,
-        JobsCommand,
+        CronCommand, DataCommand, DataPatchArgs, EphemeralCommand, ErrorsCommand, ForkCommand,
+        HostCommand, JobsCommand,
         ManagedPath, NetworkProfileCommand, ReadyFileTarget, ResolvedHttpTarget, SessionCommand,
         TargetArgs, TelemetryCommand, automatic_reap_before_create, bind_first_available,
         bind_listener, console_claim_fragment_url, console_fragment_url, fork_secret_disposition,
@@ -10539,6 +10671,65 @@ mod tests {
             "http://127.0.0.1:4287",
         ]);
         assert!(missing_reason.is_err());
+    }
+
+    #[test]
+    fn ephemeral_operator_delete_cli_parses_both_fences_and_reason() {
+        let parsed = Cli::parse_from([
+            "snapback",
+            "ephemeral",
+            "operator-delete",
+            "--ready-file",
+            "/tmp/snapback-ready.json",
+            "--collection",
+            "boardCursors",
+            "--scope-json",
+            r#"{"boardId":"board-1"}"#,
+            "--entry-key",
+            "conn_owner",
+            "--expected-scope-epoch",
+            "7",
+            "--expected-entry-generation",
+            "1",
+            "--reason",
+            "stuck presence repair",
+        ]);
+        assert!(matches!(
+            parsed.command,
+            Some(HostCommand::Ephemeral {
+                command: EphemeralCommand::OperatorDelete {
+                    collection,
+                    scope_json,
+                    entry_key,
+                    expected_scope_epoch: 7,
+                    expected_entry_generation: 1,
+                    reason,
+                    ..
+                }
+            }) if collection == "boardCursors"
+                && scope_json == r#"{"boardId":"board-1"}"#
+                && entry_key == "conn_owner"
+                && reason == "stuck presence repair"
+        ));
+
+        let missing_epoch = Cli::try_parse_from([
+            "snapback",
+            "ephemeral",
+            "operator-delete",
+            "--ready-file",
+            "/tmp/snapback-ready.json",
+            "--collection",
+            "boardCursors",
+            "--scope-json",
+            r#"{"boardId":"board-1"}"#,
+            "--entry-key",
+            "conn_owner",
+            "--expected-entry-generation",
+            "1",
+            "--reason",
+            "stuck presence repair",
+        ]);
+        assert!(missing_epoch.is_err());
     }
 
     #[test]

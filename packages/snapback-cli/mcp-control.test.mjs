@@ -205,7 +205,7 @@ try {
     'snapback_errors_issues', 'snapback_errors_issue', 'snapback_errors_transition',
     // LLP 0184 §P2's controlled-mutation and asset-family direct tools.
     'snapback_config_unset', 'snapback_cron_tick', 'snapback_cron_run', 'snapback_jobs_drain',
-    'snapback_connection_disconnect',
+    'snapback_connection_disconnect', 'snapback_ephemeral_operator_delete',
     'snapback_asset_delete', 'snapback_asset_gc_sweep', 'snapback_asset_rotate_signing_key',
     'snapback_asset_export_cut', 'snapback_asset_import_cut',
     // LLP 0184 §A's bounded direct row patch.
@@ -236,6 +236,7 @@ try {
       .inputSchema.properties.applyToken,
     undefined,
   );
+  assert.equal(tools.find((tool) => tool.name === 'snapback_ephemeral_operator_delete').annotations.destructiveHint, true);
 
   const catalog = listed.result._meta['snapback/appDataCatalog'];
   assert.equal(catalog.catalogKind, 'appDataMcpCatalog');
@@ -581,6 +582,24 @@ try {
   assert.notEqual(disconnectUnknown.isError, true, JSON.stringify(disconnectUnknown));
   assert.equal(disconnectUnknown.structuredContent.ok, true, JSON.stringify(disconnectUnknown.structuredContent));
   assert.equal(disconnectUnknown.structuredContent.data.reason, 'acceptance: unknown-connection probe');
+
+  // The fresh MCP process threads its readiness descriptor's startup nonce
+  // into the direct route. An unknown collection must therefore reach the
+  // store's distinct error instead of failing at the process fence.
+  const operatorDeleteUnknown = await client.call('snapback_ephemeral_operator_delete', {
+    collection: 'noSuchCollection',
+    scope: { boardId: 'board-1' },
+    entryKey: 'owner',
+    expectedScopeEpoch: 1,
+    expectedEntryGeneration: 1,
+    reason: 'acceptance: projection and nonce probe',
+  });
+  assert.equal(operatorDeleteUnknown.structuredContent.operation, 'ephemeral.operatorDelete');
+  assert.equal(operatorDeleteUnknown.structuredContent.ok, false, JSON.stringify(operatorDeleteUnknown.structuredContent));
+  assert.equal(
+    operatorDeleteUnknown.structuredContent.diagnostics[0].code,
+    'SNAPBACK_EPHEMERAL_UNKNOWN_COLLECTION',
+  );
 
   // Asset family: gcSweep (deterministic under an injected clock) and
   // rotateSigningKey are both safe, idempotent-enough to run in this
