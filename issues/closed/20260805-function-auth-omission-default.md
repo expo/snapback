@@ -36,3 +36,18 @@ the compatibility-era default impossible to overlook.
 - JavaScript and TypeScript authoring surfaces agree on the requirement.
 - Legacy artifact decoding follows an explicit, tested compatibility version.
 - Guide material states the authored choice and migration path.
+
+## Resolution (2026-08-06)
+
+Sessions-mode functions that omit `auth` now emit the Phase W advisory
+`SNAPBACK_AUTH_REQUIREMENT_IMPLICIT` at generate time: it carries the
+authored source span, states the legacy `optional-user` behavior the
+omission currently receives, links the guide anchor
+(`guide/auth/sessions-and-principals.md#choose-each-functions-auth-requirement`),
+and offers three approval-required policy remediations (`public`,
+`optional-user`, `authenticated`). Explicit `auth` suppresses it; dev
+mode retains the compatibility default without warning. Landed with
+tests (`packages/snapback-codegen/auth-artifacts.test.mjs`), review-
+manifest schema coverage, guide update, and full artifact-manifest
+regeneration (existing omissions now review-visible in Campfire, Signal
+Desk, Party Wall, File Drop). Implemented per LLP 0186 W3 / LLP 0178.
