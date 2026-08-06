@@ -102,6 +102,11 @@ import {
   createCodegenSummary,
   formatCodegenSummary,
 } from './codegen-summary.mjs';
+import {
+  createAppDescriptorV1,
+  serializeAppDescriptorV1,
+  validateAppDescriptorV1,
+} from './app-descriptor.mjs';
 export { formatCodegenSummary };
 
 const SEARCH_FIELD_CLASSIFICATIONS = new Set([
@@ -655,7 +660,17 @@ const RESERVED_WORDS = new Set([
   'throw', 'true', 'try', 'typeof', 'var', 'void', 'while', 'with', 'yield',
   'eval', 'arguments',
 ]);
-const GENERATED_API_RESERVED_EXPORTS = new Set(['api', 'ephemeral']);
+// @ref LLP 0179#existing-exports — standalone query/mutation exports are
+// aliases of app.api nodes, so authored names cannot collide with either the
+// legacy api module namespaces or the new descriptor binding itself.
+const GENERATED_API_RESERVED_EXPORTS = new Set([
+  'api',
+  'app',
+  'artifacts',
+  'defaults',
+  'ephemeral',
+  'groups',
+]);
 const SCHEMA_VERSION = 'snapback.v0';
 const SESSIONS_SCHEMA_VERSION = 'snapback.v1';
 const AUTH_MODES = new Set(['dev', 'sessions']);
@@ -4064,7 +4079,10 @@ export async function generateInProcess(backendDir, options = {}) {
   if (diagnostics.some((d) => d.severity === 'error')) {
     return { ok: false, diagnostics };
   }
-  const apiModule = renderApiModule(
+  const functionSourceSpans = exportedDefinitionSourceSpans(
+    graphEntrySource(functionsGraph, functionsPath),
+  );
+  const generatedReferences = buildGeneratedReferences(
     appId,
     functionManifest.functions,
     functionsModule,
@@ -4073,7 +4091,50 @@ export async function generateInProcess(backendDir, options = {}) {
     routesManifest,
     assetUploadIntents,
     { schemaVersion: artifactVersion, appId, schemaHash, bundleHash, inputsHash },
+    functionSourceSpans,
+  );
+  const appDescriptor = createAppDescriptorV1({
+    app: appId,
+    schema: schemaHash,
+    functions: bundleHash,
+    api: generatedReferences.api,
+    requiredCapabilities: [...requiredTargetCapabilities],
+  });
+  // @ref LLP 0178#integration-with-the-descriptor-spine — descriptor
+  // validation joins the existing unsuppressible lane before any generated
+  // graph is published, preserving the prior complete output on refusal.
+  for (const problem of validateAppDescriptorV1(appDescriptor)) {
+    err(problem.code, 'app-descriptor', problem.message, {
+      path: problem.path,
+      details: problem.details,
+    });
+  }
+  if (diagnostics.some((d) => d.severity === 'error')) {
+    return { ok: false, diagnostics };
+  }
+  const appDescriptorSource = serializeAppDescriptorV1(appDescriptor);
+  const appBindingIdentity = compositionDomainHash('snapback:app-binding:v1:', {
+    descriptor: appDescriptor.identity.descriptor,
+    artifacts: { trustedCompositionActivation },
+  });
+  const appBindingModule = renderAppBindingModule(
+    functionManifest.functions,
+    appDescriptor.identity.descriptor,
     trustedCompositionActivation,
+  );
+  const appModule = renderAppModule(
+    functionManifest.functions,
+    appBindingIdentity,
+  );
+  const appTypes = renderAppTypes(
+    functionManifest.functions,
+    assetUploadIntents,
+  );
+  const apiModule = renderApiModule(
+    functionManifest.functions,
+    generatedReferences.actions,
+    generatedReferences.defaultAssetNames,
+    appBindingIdentity,
   );
   const apiTypes = renderApiTypes(
     functionManifest.functions,
@@ -4153,6 +4214,11 @@ export async function generateInProcess(backendDir, options = {}) {
         types: './api.d.ts',
         import: './api.mjs',
       },
+      './app': {
+        types: './app.d.ts',
+        import: './app.mjs',
+      },
+      './app-descriptor': './app.descriptor.json',
       './schema': './schema.manifest.json',
       './functions': './functions.manifest.json',
       './capabilities': './capability.manifest.json',
@@ -4196,7 +4262,7 @@ export async function generateInProcess(backendDir, options = {}) {
     generatedAt,
     schemaHash,
     bundleHash,
-    artifacts: ['schema.manifest.json', 'functions.manifest.json', 'capability.manifest.json', ...(trustedCompositionActivation ? [TRUSTED_COMPOSITION_ACTIVATION_FILE] : []), 'provider-introspection.json', 'provider-bindings.json', 'provider-bindings.d.ts', 'contract-data.manifest.json', 'api.mjs', 'api.d.ts', API_ENVELOPE_MEMBERS_FILE, 'package.json', ...(microArtifacts ? ['micro.mjs', 'micro.d.ts', 'micro.profile.json'] : []), ...(routesManifest ? ['routes.manifest.json'] : []), ...(seedArtifact ? ['seed.artifact.json'] : []), ...(seedAssetFixtures ? ['seed.asset-fixtures.artifact.json'] : []), ...operationArtifactFiles, ...remoteServiceArtifactFiles, ...contractArtifactFiles],
+    artifacts: ['schema.manifest.json', 'functions.manifest.json', 'capability.manifest.json', ...(trustedCompositionActivation ? [TRUSTED_COMPOSITION_ACTIVATION_FILE] : []), 'provider-introspection.json', 'provider-bindings.json', 'provider-bindings.d.ts', 'contract-data.manifest.json', 'app.descriptor.json', 'app.binding.mjs', 'app.mjs', 'app.d.ts', 'api.mjs', 'api.d.ts', API_ENVELOPE_MEMBERS_FILE, 'package.json', ...(microArtifacts ? ['micro.mjs', 'micro.d.ts', 'micro.profile.json'] : []), ...(routesManifest ? ['routes.manifest.json'] : []), ...(seedArtifact ? ['seed.artifact.json'] : []), ...(seedAssetFixtures ? ['seed.asset-fixtures.artifact.json'] : []), ...operationArtifactFiles, ...remoteServiceArtifactFiles, ...contractArtifactFiles],
     tables: Object.keys(tables),
     ephemeralCollections: ephemeralCollections.map((collection) => collection.name),
     functions: functionManifest.functions.map((f) => ({ id: f.id, name: f.name, kind: f.kind })),
@@ -4228,6 +4294,10 @@ export async function generateInProcess(backendDir, options = {}) {
       providerBindingMetadata,
       providerBindingTypes,
       contractManifest,
+      appDescriptorSource,
+      appBindingModule,
+      appModule,
+      appTypes,
       apiModule,
       apiTypes,
       apiEnvelopeMembers,
@@ -4296,6 +4366,7 @@ export async function generateInProcess(backendDir, options = {}) {
     providerIntrospection,
     providerBindingMetadata,
     contractManifest,
+    appDescriptor,
     artifactIndex,
     summary,
     cacheGraphRoot: verifiedGraph.graphRoot,
@@ -8722,7 +8793,14 @@ function renderMicroDeclaration(functions, functionsModule, schemaDef) {
   return `${lines.join('\n')}\n`;
 }
 
-function renderApiModule(
+function generatedReferenceSourceSpan(sourceSpans, name, fallbackFile) {
+  const span = sourceSpans?.[name];
+  return span
+    ? { file: span.path, line: span.line, column: span.column }
+    : { file: fallbackFile };
+}
+
+function buildGeneratedReferences(
   appId,
   functions,
   functionsModule,
@@ -8731,25 +8809,28 @@ function renderApiModule(
   routesManifest,
   assetUploadIntents = [],
   expectedGeneration,
-  trustedCompositionActivation = null,
+  functionSourceSpans = {},
 ) {
-  const refs = dict();
+  const queries = dict();
+  const mutations = dict();
+  const actions = dict();
+  const assets = dict();
   // Derived default intents also project as api.defaults.<table>.<field>
   // so the zero-ceremony flow reads naturally (LLP 0044 §Ceremony floor).
-  const defaultRefs = dict();
+  const defaultAssetNames = dict();
   for (const reference of renderAssetUploadReferences(appId, assetUploadIntents, functionsModule)) {
-    refs[reference.name] = reference;
+    assets[reference.name] = reference;
     if (reference.name.startsWith('_assets.default.')) {
       const [tableName, fieldName] = reference.name.slice('_assets.default.'.length).split('.');
       if (tableName && fieldName) {
-        (defaultRefs[tableName] ??= dict())[fieldName] = reference;
+        (defaultAssetNames[tableName] ??= dict())[fieldName] = reference.name;
       }
     }
   }
   for (const fn of functions) {
     const composition = functionCompositionIdentityV1(fn);
     const mutationIr = generatedMutationIrV1(fn, schemaManifest, expectedGeneration);
-    refs[fn.name] = {
+    const reference = {
       artifactKind: 'functionReference',
       schemaVersion: SCHEMA_VERSION,
       appId,
@@ -8760,6 +8841,8 @@ function renderApiModule(
       argsContractHash: fn.argsContractHash,
       resultContractHash: fn.resultContractHash,
       expectedGeneration,
+      sourceSpan: generatedReferenceSourceSpan(functionSourceSpans, fn.name, 'functions.mjs'),
+      resultContract: fn.resultContract,
       ...(mutationIr ? { mutationIr } : {}),
       ...(composition ? {
         composition: {
@@ -8779,6 +8862,9 @@ function renderApiModule(
         ...jsonSchemaObjectProperties(functionsModule[fn.name]?.args ?? {}),
       },
     };
+    if (fn.kind === 'Query' || fn.kind === 'LiveQuery') queries[fn.name] = reference;
+    else if (fn.kind === 'Mutation') mutations[fn.name] = reference;
+    else actions[fn.name] = reference;
   }
   const ephemeralRefs = dict();
   for (const collection of ephemeralCollections) {
@@ -8788,8 +8874,11 @@ function renderApiModule(
       appId,
       id: `${appId}:ephemeral:${collection.name}`,
       name: collection.name,
+      sourceSpan: { file: 'schema.mjs' },
       keyMode: collection.keyMode,
       scopeFields: collection.scopeFields,
+      scopeContract: collection.scopeContract,
+      valueContract: collection.valueContract,
       routingFields: collection.routingFields,
       defaultTtlMs: collection.defaultTtlMs,
       maxTtlMs: collection.maxTtlMs,
@@ -8801,26 +8890,134 @@ function renderApiModule(
       deliveryMode: 'latest',
     };
   }
-  refs.ephemeral = ephemeralRefs;
   const groupRefs = renderQueryGroupReferences(
     appId,
     functions,
     routesManifest,
     expectedGeneration,
   );
-  refs.groups = groupRefs;
+  return {
+    api: {
+      queries,
+      mutations,
+      assets,
+      ephemeral: ephemeralRefs,
+      queryGroups: groupRefs,
+    },
+    actions,
+    defaultAssetNames,
+  };
+}
+
+function standaloneDescriptorFunctions(functions) {
+  return functions.filter(({ kind }) => kind === 'Query' || kind === 'LiveQuery' || kind === 'Mutation');
+}
+
+function contentAddressedModuleSpecifier(path, identity) {
+  // @ref LLP 0179#appdescriptor-v1 — the portable descriptor identity also
+  // keys its generated hydration graph, so regenerating in a live process
+  // cannot retain a prior descriptor through the ESM dependency cache.
+  return `${path}?identity=${identity.replace(/^sha256:/, '')}`;
+}
+
+function renderAppBindingModule(functions, descriptorIdentity, trustedCompositionActivation = null) {
+  const standalone = standaloneDescriptorFunctions(functions);
+  const aliases = standalone.map(({ name, kind }) => (
+    `export const ${name} = app.api.${kind === 'Mutation' ? 'mutations' : 'queries'}.${name};`
+  ));
+  const descriptorSpecifier = contentAddressedModuleSpecifier('./app.descriptor.json', descriptorIdentity);
   return `${HEADER}\n` +
+    `import descriptorDocument from ${JSON.stringify(descriptorSpecifier)} with { type: 'json' };\n` +
     `const deepFreeze = (value) => { if (value && typeof value === 'object' && !Object.isFrozen(value)) { for (const child of Object.values(value)) deepFreeze(child); Object.freeze(value); } return value; };\n` +
     `/** @type {import('./api.d.ts').GeneratedArtifacts} */\n` +
     `export const artifacts = deepFreeze(${stableJson({ trustedCompositionActivation })});\n` +
+    `const hydratedDescriptor = structuredClone(descriptorDocument);\n` +
+    `for (const namespace of [hydratedDescriptor.api.queries, hydratedDescriptor.api.mutations]) { for (const reference of Object.values(namespace)) Object.defineProperty(reference, 'artifacts', { value: artifacts, enumerable: false }); }\n` +
+    `/** @type {import('./app.d.ts').GeneratedAppDescriptorV1} */\n` +
+    `export const app = deepFreeze(hydratedDescriptor);\n` +
+    `${aliases.join('\n')}\n` +
+    `export default app;\n`;
+}
+
+function renderAppModule(functions, appBindingIdentity) {
+  const standalone = standaloneDescriptorFunctions(functions);
+  const reexports = ['app', 'artifacts', ...standalone.map(({ name }) => name)].join(', ');
+  const bindingSpecifier = contentAddressedModuleSpecifier('./app.binding.mjs', appBindingIdentity);
+  return `${HEADER}\n` +
+    `export { ${reexports} } from ${JSON.stringify(bindingSpecifier)};\n` +
+    `export { default } from ${JSON.stringify(bindingSpecifier)};\n`;
+}
+
+function renderAppTypes(functions, assetUploadIntents = []) {
+  const standalone = standaloneDescriptorFunctions(functions);
+  const queryNames = standalone
+    .filter(({ kind }) => kind === 'Query' || kind === 'LiveQuery')
+    .map(({ name }) => JSON.stringify(name));
+  const mutationNames = standalone
+    .filter(({ kind }) => kind === 'Mutation')
+    .map(({ name }) => JSON.stringify(name));
+  const assetNames = assetUploadIntents.map(({ name }) => JSON.stringify(name));
+  const union = (names) => names.join(' | ') || 'never';
+  const lines = [
+    HEADER,
+    "import type { GeneratedApi, GeneratedArtifacts, GeneratedEphemeral, GeneratedQueryGroups } from './api.d.ts';",
+    `export type GeneratedAppQueryName = ${union(queryNames)};`,
+    `export type GeneratedAppMutationName = ${union(mutationNames)};`,
+    `export type GeneratedAppAssetName = ${union(assetNames)};`,
+    'export type CapabilityRequirement = string;',
+    'export type CommandDescriptor = never;',
+    'export type SurfaceDescriptor = never;',
+    'export interface AppDescriptorV1 {',
+    "  readonly format: 'snapback.app.v1';",
+    '  readonly identity: Readonly<{ app: string; schema: string; functions: string; descriptor: `sha256:${string}` }>;',
+    '  readonly api: Readonly<{',
+    '    queries: Readonly<Pick<GeneratedApi, GeneratedAppQueryName>>;',
+    '    mutations: Readonly<Pick<GeneratedApi, GeneratedAppMutationName>>;',
+    '    assets: Readonly<Pick<GeneratedApi, GeneratedAppAssetName>>;',
+    '    ephemeral: GeneratedEphemeral;',
+    '    queryGroups: GeneratedQueryGroups;',
+    '  }>;',
+    '  readonly commands: Readonly<Record<string, CommandDescriptor>>;',
+    '  readonly surfaces: Readonly<Record<string, SurfaceDescriptor>>;',
+    '  readonly capabilities: Readonly<{ required: readonly CapabilityRequirement[] }>;',
+    '}',
+    'export type GeneratedAppDescriptorV1 = AppDescriptorV1;',
+    'export declare const artifacts: GeneratedArtifacts;',
+    'export declare const app: GeneratedAppDescriptorV1;',
+  ];
+  for (const { name, kind } of standalone) {
+    lines.push(`export declare const ${name}: GeneratedAppDescriptorV1['api']['${kind === 'Mutation' ? 'mutations' : 'queries'}']['${name}'];`);
+  }
+  lines.push('export default app;');
+  return `${lines.join('\n')}\n`;
+}
+
+function renderApiModule(functions, actionReferences, defaultAssetNames, appBindingIdentity) {
+  const standalone = standaloneDescriptorFunctions(functions);
+  const reexports = ['app', ...standalone.map(({ name }) => name)].join(', ');
+  const appSpecifier = contentAddressedModuleSpecifier('./app.binding.mjs', appBindingIdentity);
+  const defaultAssignments = [];
+  for (const [tableName, fields] of Object.entries(defaultAssetNames)) {
+    defaultAssignments.push(`defaults[${JSON.stringify(tableName)}] = Object.create(null);`);
+    for (const [fieldName, assetName] of Object.entries(fields)) {
+      defaultAssignments.push(`defaults[${JSON.stringify(tableName)}][${JSON.stringify(fieldName)}] = app.api.assets[${JSON.stringify(assetName)}];`);
+    }
+  }
+  return `${HEADER}\n` +
+    `import { app, artifacts } from ${JSON.stringify(appSpecifier)};\n` +
+    `export { ${reexports}, artifacts } from ${JSON.stringify(appSpecifier)};\n` +
+    `const deepFreeze = (value) => { if (value && typeof value === 'object' && !Object.isFrozen(value)) { for (const child of Object.values(value)) deepFreeze(child); Object.freeze(value); } return value; };\n` +
     `/** @type {import('./api.d.ts').GeneratedEphemeral} */\n` +
-    `export const ephemeral = Object.freeze(${stableJson(ephemeralRefs)});\n` +
+    `export const ephemeral = app.api.ephemeral;\n` +
     `/** @type {import('./api.d.ts').GeneratedQueryGroups} */\n` +
-    `export const groups = Object.freeze(${stableJson(groupRefs)});\n` +
+    `export const groups = app.api.queryGroups;\n` +
     `/** @type {import('./api.d.ts').GeneratedAssetUploadDefaults} */\n` +
-    `export const defaults = Object.freeze(${stableJson(defaultRefs)});\n` +
-    `const references = ${stableJson(refs)};\n` +
-    `for (const reference of Object.values(references)) { if (reference?.artifactKind === 'functionReference') Object.defineProperty(reference, 'artifacts', { value: artifacts, enumerable: false }); }\n` +
+    `export const defaults = Object.create(null);\n` +
+    `${defaultAssignments.join('\n')}\n` +
+    `deepFreeze(defaults);\n` +
+    `const actionReferences = ${stableJson(actionReferences)};\n` +
+    `for (const reference of Object.values(actionReferences)) Object.defineProperty(reference, 'artifacts', { value: artifacts, enumerable: false });\n` +
+    `const references = { ...app.api.assets, ...app.api.queries, ...app.api.mutations, ...actionReferences, ephemeral, groups };\n` +
     `/** @type {import('./api.d.ts').GeneratedApi} */\n` +
     `export const api = deepFreeze(references);\n` +
     `export default api;\n`;
@@ -8936,6 +9133,8 @@ function renderApiTypes(
     '  argsContractHash: string;',
     '  resultContractHash: string;',
     '  expectedGeneration: Readonly<{ schemaVersion: SchemaVersion; appId: string; schemaHash: string; bundleHash: string; inputsHash: string }>;',
+    '  sourceSpan?: Readonly<{ file: string; line?: number; column?: number }>;',
+    '  resultContract?: Readonly<Record<string, unknown>>;',
     '  mutationIr?: GeneratedMutationIrV1;',
     '  composition?: Readonly<{ normalizedCompositePlan: Readonly<Record<string, unknown>>; planHash: `sha256:${string}`; resultContract: Readonly<Record<string, unknown>> }>;',
     '  readonly artifacts?: GeneratedArtifacts;',
@@ -9020,8 +9219,11 @@ function renderApiTypes(
     '  appId: string;',
     '  id: string;',
     '  name: Name;',
+    '  sourceSpan: Readonly<{ file: string; line?: number; column?: number }>;',
     '  keyMode: KeyMode;',
     '  scopeFields: readonly string[];',
+    '  scopeContract: Readonly<Record<string, unknown>>;',
+    '  valueContract: Readonly<Record<string, unknown>>;',
     '  routingFields: readonly string[];',
     '  defaultTtlMs: number;',
     '  maxTtlMs: number;',
@@ -9341,6 +9543,9 @@ function renderApiTypes(
   lines.push('}');
   lines.push('export declare const defaults: GeneratedAssetUploadDefaults;');
   lines.push('export declare const api: GeneratedApi;');
+  const descriptorExports = standaloneDescriptorFunctions(functions).map(({ name }) => name);
+  lines.push(`export { app${descriptorExports.length > 0 ? `, ${descriptorExports.join(', ')}` : ''} } from './app';`);
+  lines.push("export type { AppDescriptorV1, CapabilityRequirement, CommandDescriptor, GeneratedAppDescriptorV1, SurfaceDescriptor } from './app';");
   lines.push('export default api;');
   return lines.join('\n') + '\n';
 }
@@ -10877,6 +11082,10 @@ function writeGeneratedOutput(outDir, {
   providerBindingMetadata,
   providerBindingTypes,
   contractManifest,
+  appDescriptorSource,
+  appBindingModule,
+  appModule,
+  appTypes,
   apiModule,
   apiTypes,
   apiEnvelopeMembers,
@@ -10911,6 +11120,10 @@ function writeGeneratedOutput(outDir, {
   writeFileSync(join(outDir, 'provider-bindings.json'), serializeProviderBindingMetadata(providerBindingMetadata));
   writeFileSync(join(outDir, 'provider-bindings.d.ts'), providerBindingTypes);
   writeFileSync(join(outDir, 'contract-data.manifest.json'), stableJson(contractManifest) + '\n');
+  writeFileSync(join(outDir, 'app.descriptor.json'), appDescriptorSource);
+  writeFileSync(join(outDir, 'app.binding.mjs'), appBindingModule);
+  writeFileSync(join(outDir, 'app.mjs'), appModule);
+  writeFileSync(join(outDir, 'app.d.ts'), appTypes);
   writeFileSync(join(outDir, 'api.mjs'), apiModule);
   writeFileSync(join(outDir, 'api.d.ts'), apiTypes);
   if (microArtifacts) {
