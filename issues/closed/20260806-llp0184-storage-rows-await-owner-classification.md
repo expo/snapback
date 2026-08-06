@@ -1,6 +1,21 @@
 # LLP 0184: two storage catalog rows await storage-owner operability classification
 
-**Status:** Open
+**Status:** Resolved 2026-08-06
+
+**Resolution:** `storage.protected-erasure` classified `(apiOnly, direct)` with
+`behavior.destructive: true` and `approvalPosture: humanApprovalRequired` —
+it's a narrowly-scoped, legitimate operator erasure of one identified row
+(`qualified_table` + `row_id`) with its own concrete-credential revalidation
+and fenced-authority publication, not system-internal plumbing, but the
+erasure is irreversible and likely privacy/compliance-sensitive so a human
+must confirm. `storage.operation-coverage.activate` classified `(apiOnly,
+direct)`, no special approval posture — checking
+`InvocationSource::OperationCoverageActivation`'s credential-class mapping in
+`src/auth/invocation.rs` shows it resolves to the ordinary `admin` class (not
+a system-internal-only source), and the route is
+`ResponseSensitivity::OperatorMetadata` rather than destructive: ordinary
+operator maintenance. Both entries added to
+`control-catalog/operability-overrides.json` and regenerated.
 
 `storage.protected-erasure` and `storage.operation-coverage.activate` are the
 last two control-catalog rows carrying the fail-closed default

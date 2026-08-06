@@ -558,6 +558,18 @@
     "operations.explain": {
       "operability": "direct",
       "note": "Route-level twin of the already-classified function.explain host operation (mutationDryRun explain): same admin authority, same explain semantics, reachable at POST /_snapback/api/operations/explain. Direct for the same reason function.explain is; apiOnly derivation stands (the host-op spelling carries the CLI/MCP story)."
+    },
+    "storage.protected-erasure": {
+      "operability": "direct",
+      "behavior": {
+        "destructive": true,
+        "approvalPosture": "humanApprovalRequired"
+      },
+      "note": "LLP 0184 storage-owner classification (2026-08-06): POST /_snapback/api/storage/protected-erasure erases one identified row (qualified_table + row_id), gated by re-validating a concrete admin credential inside the same synchronous commit window and a fenced-authority publication (LLP 0165 protected-deletion-authority-audit). A narrowly-scoped, legitimate operator erasure capability, not system-internal plumbing — an agent should be able to discover and invoke it, but the row it deletes is irreversible and likely privacy/compliance-sensitive, so approvalPosture is humanApprovalRequired rather than a bare confirmFirst. apiOnly stands: no CLI/MCP tool exists yet."
+    },
+    "storage.operation-coverage.activate": {
+      "operability": "direct",
+      "note": "LLP 0184 storage-owner classification (2026-08-06): POST /_snapback/api/storage/operation-coverage/activate activates a coverage manifest for a target/coverage profile (LLP 0162 managed-branch row-4 publication). InvocationSource::OperationCoverageActivation resolves to the ordinary admin credential class, not a system-internal-only source, and the route is ResponseSensitivity::OperatorMetadata rather than destructive — ordinary operator maintenance, ordinarily agent-invokable. apiOnly stands: no CLI/MCP tool exists yet."
     }
   },
   "pinned": {

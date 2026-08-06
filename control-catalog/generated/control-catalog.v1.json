@@ -1,11 +1,11 @@
 {
   "schemaVersion": "snapback.control-catalog.v1",
-  "catalogDigest": "sha256:90d37881f6a608b5990a5c1955a047eaed4b9784eadbf4ceaab65b50138c78fb",
+  "catalogDigest": "sha256:ea592be166581bc0a3b33c446e3e43dcae3ce83cda94a868bac7d2b711580694",
   "buildIdentity": {
-    "sourceCommit": "95bae953d19d96eec883aa8b8c20941b83022c0d",
-    "dirty": false
+    "sourceCommit": "a793258577dfef175a16fe98a600b3bd6add69b0",
+    "dirty": true
   },
-  "generatedAtCommit": "95bae953d19d96eec883aa8b8c20941b83022c0d",
+  "generatedAtCommit": "a793258577dfef175a16fe98a600b3bd6add69b0",
   "entries": [
     {
       "operation": "acceptance.run",
@@ -5232,12 +5232,7 @@
       "status": "shipped",
       "domain": "systemApi",
       "surfaceAccess": "apiOnly",
-      "operability": "unavailable",
-      "unavailableReason": {
-        "owner": "llp/0184-agent-accessible-control-plane",
-        "ticketOrDesignPointer": null,
-        "note": "Not yet manually classified by the LLP 0184 Phase 1 backfill. Defaults to unavailable (never a permissive guess) until an authored operability-overrides.json entry exists."
-      },
+      "operability": "direct",
       "availability": {
         "targets": [
           "local",
@@ -5281,12 +5276,7 @@
       "status": "shipped",
       "domain": "systemApi",
       "surfaceAccess": "apiOnly",
-      "operability": "unavailable",
-      "unavailableReason": {
-        "owner": "llp/0184-agent-accessible-control-plane",
-        "ticketOrDesignPointer": null,
-        "note": "Not yet manually classified by the LLP 0184 Phase 1 backfill. Defaults to unavailable (never a permissive guess) until an authored operability-overrides.json entry exists."
-      },
+      "operability": "direct",
       "availability": {
         "targets": [
           "local",
@@ -5301,8 +5291,8 @@
       },
       "behavior": {
         "readOnly": false,
-        "destructive": false,
-        "approvalPosture": null,
+        "destructive": true,
+        "approvalPosture": "humanApprovalRequired",
         "idempotent": false,
         "openWorld": false,
         "persistsAcrossRestart": true

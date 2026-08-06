@@ -86,7 +86,7 @@ documentation absence never appears as success.
 ## Generated inventory
 
 <!-- BEGIN GENERATED CONTROL CATALOG: CONTROL CATALOG INVENTORY -->
-The embedded build catalog contains **114 operations** at digest `sha256:90d37881f6a608b5990a5c1955a047eaed4b9784eadbf4ceaab65b50138c78fb`. The counts and inventory below are generated; do not edit them by hand.
+The embedded build catalog contains **114 operations** at digest `sha256:ea592be166581bc0a3b33c446e3e43dcae3ce83cda94a868bac7d2b711580694`. The counts and inventory below are generated; do not edit them by hand.
 
 | Axis | Value | Count |
 | --- | --- | ---: |
@@ -95,10 +95,10 @@ The embedded build catalog contains **114 operations** at digest `sha256:90d3788
 | surfaceAccess | `mcpOnly` | 2 |
 | surfaceAccess | `native` | 41 |
 | surfaceAccess | `none` | 4 |
-| operability | `direct` | 89 |
+| operability | `direct` | 91 |
 | operability | `internal` | 11 |
 | operability | `mediated` | 7 |
-| operability | `unavailable` | 7 |
+| operability | `unavailable` | 5 |
 
 | Operation | Surface | Operability | Status | CLI | MCP | Guide |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -209,8 +209,8 @@ The embedded build catalog contains **114 operations** at digest `sha256:90d3788
 | `schema.load` | `native` | `direct` | `shipped` | snapback host load --schema <path> | snapback_load_schema | — |
 | `schema.reload` | `apiOnly` | `unavailable` | `unbuilt` | — | — | — |
 | `secretRead.mint` | `cliOnly` | `direct` | `shipped` | snapback secret-read-mint | — | — |
-| `storage.operation-coverage.activate` | `apiOnly` | `unavailable` | `shipped` | — | — | — |
-| `storage.protected-erasure` | `apiOnly` | `unavailable` | `shipped` | — | — | — |
+| `storage.operation-coverage.activate` | `apiOnly` | `direct` | `shipped` | — | — | — |
+| `storage.protected-erasure` | `apiOnly` | `direct` | `shipped` | — | — | — |
 | `telemetry.events` | `native` | `direct` | `shipped` | snapback telemetry events | snapback_telemetry_events | operating/host-ops.md |
 | `telemetry.export` | `native` | `direct` | `shipped` | snapback telemetry export | snapback_telemetry_export | operating/host-ops.md |
 | `telemetry.stats` | `native` | `direct` | `shipped` | snapback telemetry stats | snapback_telemetry_stats | operating/host-ops.md |
