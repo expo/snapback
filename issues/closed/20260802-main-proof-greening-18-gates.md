@@ -1362,3 +1362,15 @@ deterministically rolled five tracked client chunks and its HTML entry hash to
 the writer-election/quarantine-era closure already measured by the August
 bundle carrier. The refreshed dist is retained as the delivery artifact for
 that source-attributed rollover.
+
+The final named batch merged `origin/main` through `dac1ea722`, including the
+later G2 cold-retained-boot fix (`ec49b1d27`), the control-plane/data-patch
+wave, and the independently completed 0.1.9 release close-out. The merge
+candidate `45de8206d` passed the coded link, launch, and restricted-VM
+qualification without a dirty checkout. G2 changed the Triage source closure,
+so its real 250,000-event producer was rerun at 8/8 and the browser-backed
+local-store producer was recomposed at 16 PASS / 1 declared GAP / 0 SKIPPED.
+The publication finalizer then refreshed the relation/activity carrier and the
+persistent-store receipt chain; sequence allocation reproduced unchanged.
+These are again batched carrier updates, not per-landing regeneration or an
+actively owned correctness edit.

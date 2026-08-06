@@ -6,8 +6,8 @@
     "LLP 0166#executable-acceptance",
     "LLP 0166#d9--carriers-storage-profiles-arms-and-the-bundle"
   ],
-  "startedAt": "2026-08-06T12:31:43.846Z",
-  "completedAt": "2026-08-06T12:34:26.409Z",
+  "startedAt": "2026-08-06T13:34:30.845Z",
+  "completedAt": "2026-08-06T13:36:49.243Z",
   "runtime": {
     "node": "v24.18.0",
     "platform": "darwin",
@@ -15,42 +15,14 @@
     "hostnameClass": "local-evidence-machine"
   },
   "source": {
-    "revision": "b22d1f7299c2597f39a4ec5ee8670a7ff00a80a1",
+    "revision": "45de8206dbaa6b94e3392357e38ac4cad50484d0",
     "dirty": true,
     "dirtyPaths": [
-      "demos/latency-kanban/snapback/generated/artifacts.json",
-      "demos/latency-kanban/snapback/trusted-composition-activation.json",
-      "demos/todo-v2/snapback/generated-remote-service/artifacts.json",
-      "demos/todo-v2/snapback/generated/artifacts.json",
-      "demos/todo/snapback/generated/artifacts.json",
       "demos/triage-graph/snapback/generated/artifacts.json",
       "demos/triage-graph/snapback/trusted-composition-activation.json",
-      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/api.mjs",
-      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.binding.d1aca4350d6a9e8c4ecb09e7a6f89b960a4cceb641d463f776df3165fc1b9aa4.mjs",
-      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.binding.mjs",
-      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.d.ts",
-      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.descriptor.df620a428979e57b53910496294f109545d3031f6e3abcf4feffce7801006b1e.json",
-      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.descriptor.json",
-      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.mjs",
-      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/artifacts.json",
-      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/contract-data.manifest.json",
-      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/functions.manifest.json",
-      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/provider-bindings.json",
-      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/provider-introspection.json",
-      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/schema.manifest.json",
-      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/trusted-composition-activation.json",
-      "demos/zero-bakeoff/apps/contention-calendar/snapback/trusted-composition-activation.json",
-      "tests/acceptance/contention-calendar-rung2-v1-evidence.md",
-      "tests/acceptance/contention-calendar-rung2-v1.mjs",
-      "tests/acceptance/fixtures/contention-calendar/rung2-exit.2026-08-04.r1.v1.json",
-      "tests/acceptance/fixtures/latency-kanban/move3-exit.2026-08-04.r2.v1.json",
       "tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-04.v1.json",
       "tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-04.v1.json",
-      "tests/acceptance/latency-kanban-move3-v1-evidence.md",
-      "tests/acceptance/latency-kanban-move3-v1.mjs",
-      "tests/acceptance/triage-graph-move1-v1-evidence.md",
-      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.binding.668acbd5a981a31debf6bc4fc66263df80e07c506e9c7658593d05098f801bdf.mjs",
-      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.descriptor.a690d18c8dbfb7290ba6341c2db6c802590ca4163a6d739bb1b149e301a653e4.json"
+      "tests/acceptance/triage-graph-move1-v1-evidence.md"
     ],
     "files": [
       {
@@ -107,7 +79,7 @@
       },
       {
         "path": "packages/snapback-client/index.mjs",
-        "sha256": "542adf3dd63b3131bcd30559324346c9aff0cf599d7d6b5e938885204301f7be"
+        "sha256": "eb7c6099ab493213deba4b847b88686734a8fc6d932ef8724479bafd927d5f2c"
       },
       {
         "path": "packages/snapback-client/rqs-store.mjs",
@@ -143,11 +115,11 @@
       },
       {
         "path": "tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-04.v1.json",
-        "sha256": "ba687f3f1b091a5d6b54e096d23a33d494af0ff13a444366875d712555a43d59"
+        "sha256": "eec4f325319246846475cff67a7126a6aca1e405816d66face9a15c92ed6c25e"
       },
       {
         "path": "tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-04.v1.json",
-        "sha256": "6441c929f63103849432f8e818cc2a39f7a9657b0f7fdb66261d1987dfcdc0c2"
+        "sha256": "aaa98d086fe71be087952059580e532f89a7698dc1005123d1b56a70059f7daa"
       }
     ]
   },
@@ -297,7 +269,7 @@
           2,
           3
         ],
-        "relaunchToReadableMs": 1696.13,
+        "relaunchToReadableMs": 1585.74,
         "browser": {
           "executable": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
           "version": "Google Chrome 150.0.7871.187",
@@ -310,12 +282,12 @@
         },
         "cleanup": {
           "firstBrowser": {
-            "pid": 33029,
+            "pid": 31472,
             "requestedSignal": "SIGKILL",
             "processTreeExitAttested": true
           },
           "finalBrowser": {
-            "pid": 33382,
+            "pid": 31664,
             "requestedSignal": "SIGTERM",
             "processTreeExitAttested": true
           },
@@ -413,7 +385,7 @@
           {
             "type": "boundary",
             "boundary": "before-rename",
-            "pid": 93990,
+            "pid": 14053,
             "exit": {
               "code": null,
               "signal": "SIGKILL"
@@ -424,7 +396,7 @@
           {
             "type": "boundary",
             "boundary": "after-rename-before-directory-sync",
-            "pid": 94044,
+            "pid": 14136,
             "exit": {
               "code": null,
               "signal": "SIGKILL"
@@ -457,12 +429,12 @@
       "status": "PASS",
       "evidence": {
         "serverBinary": "target/debug/snapback",
-        "serverBinarySha256": "9fbab0bc2d13f4d3658a491f6cc0a90ec8b2e98aad8c10f0954ebb5fcc571ce9",
+        "serverBinarySha256": "f18216f2b5bc34de96ba7c385e7cbc50e9c5d92a35597ae583e30d45cc142330",
         "launchRung": "configured",
         "backendStoppedBeforeRelaunch": true,
         "activationPreparation": {
           "format": "snapback.composition-activation-preparation.v1",
-          "activationHash": "sha256:8a0c0f9e6c732295ebcde956c4bc8bad42a563c8d23c70f002eaaac27855dfd5",
+          "activationHash": "sha256:e5b3705176be3ee1b16351e207f60dca9fc37338e94c5bc689910c393029f394",
           "sourceClass": "temporary-backend-source",
           "next": "rerun Snapback codegen for this backend"
         },
@@ -504,7 +476,7 @@
         },
         "materialization": {
           "records": 1,
-          "qmk1": "qmk1.24CeT3bc_7MESaWZKY0f52r0Dg2DYj23e9vy4MQM7CY",
+          "qmk1": "qmk1.7sVQvY6JFNbRlH2g7Qb2iWaOSSBgC9t9r0ex5bfu7oA",
           "freshness": "retained",
           "fragments": 1,
           "leaseCustody": 1
@@ -673,7 +645,7 @@
           "version": 7,
           "token": "sbrt1.carrier-exit.7"
         },
-        "maintenanceMs": 133524.023
+        "maintenanceMs": 110135.674
       }
     },
     {
@@ -748,14 +720,14 @@
           "hydrationAttempts": 1,
           "hydrationRows": 100,
           "hydrationPayloadBytes": 14981,
-          "hydrationElapsedMs": 322.017,
+          "hydrationElapsedMs": 214.943,
           "hydrationCeilingMs": 1000
         },
         "receipts": {
           "budgetFreeze": "tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-04.v1.json",
-          "budgetFreezeSha256": "ba687f3f1b091a5d6b54e096d23a33d494af0ff13a444366875d712555a43d59",
+          "budgetFreezeSha256": "eec4f325319246846475cff67a7126a6aca1e405816d66face9a15c92ed6c25e",
           "move1Exit": "tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-04.v1.json",
-          "move1ExitSha256": "6441c929f63103849432f8e818cc2a39f7a9657b0f7fdb66261d1987dfcdc0c2"
+          "move1ExitSha256": "aaa98d086fe71be087952059580e532f89a7698dc1005123d1b56a70059f7daa"
         }
       }
     },
@@ -776,7 +748,7 @@
       "status": "PASS",
       "evidence": {
         "artifact": "tests/acceptance/fixtures/local-persistent-store/bundle-attribution.2026-08-04.v1.json",
-        "minifiedBytes": 655980,
+        "minifiedBytes": 662426,
         "measuredModuleOwnBytes": 112223,
         "modules": 9,
         "browserClosureQualification": {
