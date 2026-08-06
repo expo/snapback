@@ -2,7 +2,7 @@
   "schemaVersion": "snapback.local-persistent-store.bundle-attribution.v1",
   "date": "2026-08-04",
   "source": {
-    "revision": "d194976c610f41792f2697f0b3e7c8a7e573647a",
+    "revision": "b98cdf3b60d44d10b40892ecc6a8a449c718923a",
     "dirty": false,
     "dirtyPaths": [],
     "files": [
@@ -96,11 +96,11 @@
       },
       {
         "path": "tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-04.v1.json",
-        "sha256": "e384b75a71319a4f33ba3197bb6f22b87ada95e06b267268eee5414c5be5196a"
+        "sha256": "f41d5ac3b33cde091e62bb154344bd560a1d3e44bbdd83f585e571f1bc4111d7"
       },
       {
         "path": "tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-04.v1.json",
-        "sha256": "1a05c520e8e00fccef37eed0946d629dd5bfb2407f80c314db298b70579bd9fb"
+        "sha256": "2da5e1ba2ff6e86233f555f0872a397ef3d90f87a23a8766d28ebb7daddd70ef"
       }
     ]
   },
