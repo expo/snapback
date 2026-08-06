@@ -744,6 +744,15 @@ pub enum HostCommand {
         #[arg(long)]
         ready_file: PathBuf,
     },
+    /// host.restart — credential-prove, stop, then spawn the replacement
+    /// server named by the same readiness descriptor.
+    Restart {
+        #[arg(long)]
+        ready_file: PathBuf,
+        /// Operator reason recorded in the composed receipt.
+        #[arg(long, default_value = "cli-restart")]
+        reason: String,
+    },
     /// Open the local admin console with a derived browser credential, or
     /// approve a browser-displayed device code from a token-holding terminal.
     Admin(AdminArgs),
@@ -813,12 +822,15 @@ pub enum HostCommand {
         #[command(subcommand)]
         command: ConfigCommand,
     },
-    /// cron.tick / cron.runOne — the admin-gated forced dispatch surface
-    /// (LLP 0184 §P2: typed CLI/MCP projection of the existing
-    /// admin-write route; bounded work, ordinary receipts).
+    /// cron.list plus the admin-gated cron dispatch surface.
     Cron {
         #[command(subcommand)]
         command: CronCommand,
+    },
+    /// Receipt-bearing operator cleanup for expired ephemeral entries.
+    Ephemeral {
+        #[command(subcommand)]
+        command: EphemeralCommand,
     },
     /// jobs.list / jobs.show (LLP 0184 P1 read-only inspection) plus
     /// jobs.drain (LLP 0184 §P2's injected-clock typed projection of the
@@ -834,20 +846,19 @@ pub enum HostCommand {
         #[command(subcommand)]
         command: ConnectionsCommand,
     },
-    /// ephemeral.operatorDelete — local non-production administrator bypass
-    /// for one exactly inspected ephemeral entry. This is separate from
-    /// application-owned ephemeral deletion and evaluates no application
-    /// authorization (LLP 0184 §C).
-    Ephemeral {
-        #[command(subcommand)]
-        command: EphemeralCommand,
-    },
     /// debug.networkProfile* — inspect or change the process-local network
     /// condition profile through the shared host-ops envelope.
     #[command(name = "network-profile")]
     NetworkProfile {
         #[command(subcommand)]
         command: NetworkProfileCommand,
+    },
+    /// debug.live.forceResync — a non-production debug perturbation forcing
+    /// one live subscription through the normal resync-required recovery
+    /// path (LLP 0184 §B).
+    Debug {
+        #[command(subcommand)]
+        command: DebugCommand,
     },
     /// Mint one short-lived, scoped administrative data-read lease. This is a
     /// ready-file-only operation because the proof root is local operator
@@ -1177,6 +1188,11 @@ pub enum ErrorsCommand {
 /// `tick` so acceptance never depends on wall-clock due-ness.
 #[derive(clap::Subcommand)]
 pub enum CronCommand {
+    /// cron.list — list declared jobs and their current scheduler posture.
+    List {
+        #[command(flatten)]
+        target: TargetArgs,
+    },
     /// cron.tick — force-claim and run every currently-due cron job.
     Tick {
         #[command(flatten)]
@@ -1189,6 +1205,57 @@ pub enum CronCommand {
         target: TargetArgs,
         /// The cron job's declared name.
         name: String,
+    },
+}
+
+/// @ref LLP 0184#p2-controlled-mutations — the operator cleanup is explicit
+/// about cutoff and preview/apply posture, and every apply is bounded.
+#[derive(clap::Subcommand)]
+pub enum EphemeralCommand {
+    #[command(
+        group(clap::ArgGroup::new("cutoff").required(true).multiple(false).args(["older_than_ms", "cutoff_timestamp_ms"])),
+        group(clap::ArgGroup::new("mode").required(true).multiple(false).args(["dry_run", "apply"]))
+    )]
+    Cleanup {
+        #[command(flatten)]
+        target: TargetArgs,
+        /// Select entries whose expiry deadline is at least this old.
+        #[arg(long)]
+        older_than_ms: Option<u64>,
+        /// Select entries whose expiry deadline is at or before this timestamp.
+        #[arg(long)]
+        cutoff_timestamp_ms: Option<u64>,
+        /// Preview counts without deleting entries.
+        #[arg(long)]
+        dry_run: bool,
+        /// Apply ordinary expiry removals.
+        #[arg(long)]
+        apply: bool,
+        /// Maximum entries the corresponding apply may delete.
+        #[arg(long, default_value_t = 1_000)]
+        max_entries: usize,
+    },
+    /// ephemeral.operatorDelete — administrator bypass delete of one
+    /// ephemeral entry, fenced on BOTH the room's scope epoch and the
+    /// entry's own generation together (LLP 0184 §C). This is NOT the
+    /// same authority as an application deleting its own ephemeral entry;
+    /// it never evaluates application authorization.
+    OperatorDelete {
+        #[command(flatten)]
+        target: TargetArgs,
+        #[arg(long)]
+        collection: String,
+        /// Scope as a JSON object, e.g. '{"boardId":"board-1"}'.
+        #[arg(long = "scope-json")]
+        scope_json: String,
+        #[arg(long = "entry-key")]
+        entry_key: String,
+        #[arg(long = "expected-scope-epoch")]
+        expected_scope_epoch: u64,
+        #[arg(long = "expected-entry-generation")]
+        expected_entry_generation: u64,
+        #[arg(long)]
+        reason: String,
     },
 }
 
@@ -1215,29 +1282,44 @@ pub enum ConnectionsCommand {
     },
 }
 
+/// @ref LLP 0184#b-forced-live-resync--add-now — v1 targets exactly one
+/// subscription, fenced by connection id + subscription id (the same
+/// UUIDv7 identity the operator inspect projection already exposes) plus
+/// the running server's startup nonce. Connection-wide targeting is
+/// explicitly out of v1 scope (OQ4), not silently reachable through this
+/// command. Non-production, local-only; refused on a primary
+/// hosted/production target or a derived instance until LLP 0158 grants
+/// recognition for this purpose.
 #[derive(clap::Subcommand)]
-pub enum EphemeralCommand {
-    /// ephemeral.operatorDelete — administrator bypass delete of one
-    /// ephemeral entry, fenced on BOTH the room's scope epoch and the
-    /// entry's own generation together (LLP 0184 §C). This is NOT the
-    /// same authority as an application deleting its own ephemeral entry;
-    /// it never evaluates application authorization.
-    OperatorDelete {
+pub enum DebugCommand {
+    /// debug.live.forceResync — force one live subscription to re-snapshot
+    /// through the normal `resync_required` recovery path. Changes no
+    /// application data.
+    #[command(name = "force-resync")]
+    ForceResync {
         #[command(flatten)]
         target: TargetArgs,
-        #[arg(long)]
-        collection: String,
-        /// Scope as a JSON object, e.g. '{"boardId":"board-1"}'.
-        #[arg(long = "scope-json")]
-        scope_json: String,
-        #[arg(long = "entry-key")]
-        entry_key: String,
-        #[arg(long = "expected-scope-epoch")]
-        expected_scope_epoch: u64,
-        #[arg(long = "expected-entry-generation")]
-        expected_entry_generation: u64,
+        /// The connection id the subscription is open on.
+        #[arg(long = "connection-id")]
+        connection_id: String,
+        /// The live subscription id to force through resync.
+        #[arg(long = "subscription-id")]
+        subscription_id: String,
+        /// Why this debug perturbation is being invoked (a closed
+        /// operator/test reason, recorded in the receipt printed on
+        /// success).
         #[arg(long)]
         reason: String,
+        /// Whether the client must also discard any retained rows for this
+        /// subscription rather than keep them until the fresh snapshot
+        /// lands.
+        #[arg(long = "clear-retained")]
+        clear_retained: bool,
+        /// The target server's startup nonce. Defaults to the value already
+        /// recorded in `--ready-file`'s readiness descriptor; required
+        /// explicitly when targeting `--url` directly.
+        #[arg(long = "startup-nonce")]
+        startup_nonce: Option<String>,
     },
 }
 
@@ -2010,6 +2092,9 @@ pub async fn run_from_env() -> anyhow::Result<()> {
         None => run(cli.serve).await,
         Some(HostCommand::Start(args)) => run(args).await,
         Some(HostCommand::Stop { ready_file }) => host_stop(&ready_file),
+        Some(HostCommand::Restart { ready_file, reason }) => {
+            host_restart(&ready_file, &reason).await
+        }
         Some(HostCommand::Admin(args)) => admin_command(args).await,
         Some(HostCommand::Inspect(target)) => {
             host_op_via_http(&target, json!({ "operation": "app.inspect" }))
@@ -2262,6 +2347,7 @@ pub async fn run_from_env() -> anyhow::Result<()> {
         Some(HostCommand::Errors { command }) => errors_command(command),
         Some(HostCommand::Config { command }) => config_command(command),
         Some(HostCommand::Cron { command }) => cron_command(command),
+        Some(HostCommand::Ephemeral { command }) => ephemeral_command(command),
         Some(HostCommand::Jobs { command }) => jobs_command(command),
         Some(HostCommand::Connections { command }) => connections_command(command),
         Some(HostCommand::Ephemeral { command }) => ephemeral_command(command),
@@ -2276,6 +2362,31 @@ pub async fn run_from_env() -> anyhow::Result<()> {
                     "input": parse_network_profile_selection(&profile)?,
                 }),
             ),
+        },
+        Some(HostCommand::Debug { command }) => match command {
+            DebugCommand::ForceResync {
+                target,
+                connection_id,
+                subscription_id,
+                reason,
+                clear_retained,
+                startup_nonce,
+            } => {
+                let startup_nonce = resolve_startup_nonce(&target, startup_nonce)?;
+                host_op_via_http(
+                    &target,
+                    json!({
+                        "operation": "debug.live.forceResync",
+                        "input": {
+                            "connectionId": connection_id,
+                            "subscriptionId": subscription_id,
+                            "reason": reason,
+                            "clearRetained": clear_retained,
+                            "startupNonce": startup_nonce,
+                        },
+                    }),
+                )
+            }
         },
         Some(HostCommand::Data { command }) => data_command(command),
         Some(HostCommand::Auth { command }) => match command {
@@ -2656,14 +2767,24 @@ fn stored_app_id(database: &Path) -> anyhow::Result<String> {
     let conn = rusqlite::Connection::open(database)?;
     let stored: Option<String> = conn
         .query_row(
-            "SELECT value FROM _snapback_meta WHERE key='schema_manifest'",
-            [],
+            "SELECT value
+               FROM _snapback_meta
+              WHERE key IN (?1, ?2)
+              ORDER BY CASE key WHEN ?1 THEN 0 ELSE 1 END
+              LIMIT 1",
+            rusqlite::params![
+                crate::storage::auth_mode::META_CAPABILITY_AWARE_SCHEMA_MANIFEST,
+                crate::storage::auth_mode::META_LEGACY_SCHEMA_MANIFEST,
+            ],
             |row| row.get(0),
         )
         .optional()?;
     let stored = stored.context("SNAPBACK_FORK_APP_ID_REQUIRED: source has no stored schema")?;
+    // @ref LLP 0058#the-four-keys — Sessions permanently poisons
+    // the predecessor manifest slot. The capability-aware slot is the active
+    // schema for both modes; legacy databases fall back to the old slot.
     let schema: crate::manifest::SchemaManifest =
-        serde_json::from_str(&stored).context("source stored schema is malformed")?;
+        serde_json::from_str(&stored).context("source active schema is malformed")?;
     Ok(schema.app_id)
 }
 
@@ -3250,6 +3371,39 @@ where
                 std::fs::canonicalize(ready_parent)? == destination,
                 "SNAPBACK_FORK_READY_INVALID: ready file must be a direct child of the fork directory"
             );
+            let generated = app_root.join("snapback/generated");
+            let generated_schema = generated.join("schema.manifest.json");
+            let generated_functions = generated.join("functions.manifest.json");
+            let startup_artifacts = if generated_schema.is_file() && generated_functions.is_file() {
+                // @ref LLP 0058#cold-startup-artifact-carrier — a settled
+                // Sessions deployment must receive its exact schema/function
+                // pair before listener bind. Keep the carrier inside the
+                // fork-private tree so exact drop/reap owns it with the rest
+                // of the derived deployment.
+                let carrier = crate::auth::mode::StartupArtifacts {
+                    format_version: crate::auth::mode::STARTUP_ARTIFACT_FORMAT_VERSION,
+                    schema: serde_json::from_value(read_json_file(&generated_schema)?)?,
+                    functions: serde_json::from_value(read_json_file(&generated_functions)?)?,
+                    seed: None,
+                };
+                let path = destination.join("fork-startup-artifacts.json");
+                let bytes = serde_json::to_vec(&carrier)?;
+                crate::secure_file::write_new_owner_only(&path, &bytes).with_context(|| {
+                    format!(
+                        "SNAPBACK_FORK_BOOT_FAILED: could not write {}",
+                        path.display()
+                    )
+                })?;
+                crate::secure_file::sync_parent(&path).with_context(|| {
+                    format!(
+                        "SNAPBACK_FORK_BOOT_FAILED: could not sync {}",
+                        destination.display()
+                    )
+                })?;
+                Some(path)
+            } else {
+                None
+            };
             let log_path = destination.join("fork-runtime.log");
             let log = std::fs::OpenOptions::new()
                 .create(true)
@@ -3272,6 +3426,9 @@ where
                 .env_remove("SNAPBACK_ADMIN_TOKEN")
                 .stdout(std::process::Stdio::from(log))
                 .stderr(std::process::Stdio::from(error_log));
+            if let Some(path) = startup_artifacts.as_deref() {
+                launch.arg("--startup-artifacts").arg(path);
+            }
             #[cfg(unix)]
             {
                 use std::os::unix::process::CommandExt as _;
@@ -3341,26 +3498,22 @@ where
                 token: Some(minted_admin),
                 impersonation_capability_stdin: false,
             };
-            let generated = app_root.join("snapback/generated");
-            for (operation, key, path) in [
-                (
-                    "schema.load",
-                    "schema",
-                    generated.join("schema.manifest.json"),
-                ),
-                (
-                    "functions.load",
-                    "functions",
-                    generated.join("functions.manifest.json"),
-                ),
-            ] {
-                if path.is_file() {
-                    let mut request = json!({ "operation": operation });
-                    request[key] = read_json_file(&path)?;
-                    let response = post_host_op(&target, request)?;
-                    if !response.get("ok").and_then(Value::as_bool).unwrap_or(false) {
-                        let _ = quiet_stop_fork(&ready_file, &database);
-                        anyhow::bail!("SNAPBACK_FORK_LOAD_FAILED: {response}");
+            // A complete pair was already admitted atomically at cold start.
+            // Preserve the historical partial-manifest dev path only when no
+            // complete startup carrier was available.
+            if startup_artifacts.is_none() {
+                for (operation, key, path) in [
+                    ("schema.load", "schema", generated_schema),
+                    ("functions.load", "functions", generated_functions),
+                ] {
+                    if path.is_file() {
+                        let mut request = json!({ "operation": operation });
+                        request[key] = read_json_file(&path)?;
+                        let response = post_host_op(&target, request)?;
+                        if !response.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+                            let _ = quiet_stop_fork(&ready_file, &database);
+                            anyhow::bail!("SNAPBACK_FORK_LOAD_FAILED: {response}");
+                        }
                     }
                 }
             }
@@ -4204,6 +4357,36 @@ fn host_op_via_http(target: &TargetArgs, request: Value) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// LLP 0184 §B: `debug.live.forceResync` fences on the target's startup
+/// nonce so the request cannot silently land on a different process than
+/// the operator inspected. `--ready-file`'s descriptor already carries the
+/// nonce the running server minted at boot; `--url`-only targeting has no
+/// local descriptor to read it from, so the caller must supply
+/// `--startup-nonce` explicitly in that case.
+fn resolve_startup_nonce(target: &TargetArgs, explicit: Option<String>) -> anyhow::Result<String> {
+    if let Some(nonce) = explicit.filter(|value| !value.is_empty()) {
+        return Ok(nonce);
+    }
+    if let Some(path) = &target.ready_file {
+        let value = read_trusted_json_file(path)?;
+        let descriptor = HostReadyDescriptor::validate(&value).map_err(|problems| {
+            anyhow::anyhow!(
+                "{} is not a valid readiness descriptor: {}",
+                path.display(),
+                problems.join("; ")
+            )
+        })?;
+        return descriptor
+            .startup_nonce
+            .clone()
+            .context("readiness descriptor has no startupNonce");
+    }
+    anyhow::bail!(
+        "debug force-resync requires a startup nonce: pass --ready-file (the nonce is read \
+         from its readiness descriptor) or --startup-nonce explicitly when targeting --url"
+    )
+}
+
 fn post_host_op(target: &TargetArgs, request: Value) -> anyhow::Result<Value> {
     // Resolve the URL and optional local capability from one validated
     // descriptor snapshot. Reading the path once for the URL and again for the
@@ -4814,6 +4997,9 @@ fn config_command(command: ConfigCommand) -> anyhow::Result<()> {
 /// CLI projections of the existing admin-gated forced-dispatch routes.
 fn cron_command(command: CronCommand) -> anyhow::Result<()> {
     match command {
+        CronCommand::List { target } => {
+            host_op_via_http(&target, json!({ "operation": "cron.list" }))
+        }
         CronCommand::Tick { target } => {
             let response = admin_json_post(&target, "/_snapback/api/cron/tick", json!({}))?;
             println!("{}", serde_json::to_string_pretty(&response)?);
@@ -4822,6 +5008,71 @@ fn cron_command(command: CronCommand) -> anyhow::Result<()> {
         CronCommand::Run { target, name } => {
             let path = format!("/_snapback/api/cron/{}/run", path_segment_escape(&name));
             let response = admin_json_post(&target, &path, json!({}))?;
+            println!("{}", serde_json::to_string_pretty(&response)?);
+            Ok(())
+        }
+    }
+}
+
+fn ephemeral_command(command: EphemeralCommand) -> anyhow::Result<()> {
+    match command {
+        EphemeralCommand::Cleanup {
+            target,
+            older_than_ms,
+            cutoff_timestamp_ms,
+            dry_run,
+            apply: _,
+            max_entries,
+        } => {
+            let instance = admin_json_get(
+                &target,
+                "/_snapback/api/control-catalog/instance",
+                Vec::new(),
+            )?;
+            let startup_nonce = instance
+                .get("startupNonce")
+                .and_then(Value::as_str)
+                .context("control-catalog instance carried no startupNonce")?;
+            let response = admin_json_post(
+                &target,
+                "/_snapback/api/ephemeral/cleanup",
+                json!({
+                    "cutoffTimestampMs": cutoff_timestamp_ms,
+                    "olderThanMs": older_than_ms,
+                    "dryRun": dry_run,
+                    "maxEntries": max_entries,
+                    "startupNonce": startup_nonce,
+                }),
+            )?;
+            println!("{}", serde_json::to_string_pretty(&response)?);
+            Ok(())
+        }
+        EphemeralCommand::OperatorDelete {
+            target,
+            collection,
+            scope_json,
+            entry_key,
+            expected_scope_epoch,
+            expected_entry_generation,
+            reason,
+        } => {
+            let scope: BTreeMap<String, String> = serde_json::from_str(&scope_json)
+                .context("--scope-json must be a JSON object whose values are strings")?;
+            let resolved = resolve_operator_ephemeral_target(&target)?;
+            let response = admin_json_post_resolved(
+                &target,
+                resolved.http,
+                "/_snapback/api/ephemeral/operator/delete",
+                json!({
+                    "collection": collection,
+                    "scope": scope,
+                    "entryKey": entry_key,
+                    "expectedScopeEpoch": expected_scope_epoch,
+                    "expectedEntryGeneration": expected_entry_generation,
+                    "reason": reason,
+                    "startupNonce": resolved.startup_nonce,
+                }),
+            )?;
             println!("{}", serde_json::to_string_pretty(&response)?);
             Ok(())
         }
@@ -4901,40 +5152,6 @@ fn connections_command(command: ConnectionsCommand) -> anyhow::Result<()> {
 ///
 /// @ref LLP 0184#c-administrator-ephemeral-entry-delete--add-now — process,
 /// epoch, and generation fences on the explicit administrator bypass.
-fn ephemeral_command(command: EphemeralCommand) -> anyhow::Result<()> {
-    match command {
-        EphemeralCommand::OperatorDelete {
-            target,
-            collection,
-            scope_json,
-            entry_key,
-            expected_scope_epoch,
-            expected_entry_generation,
-            reason,
-        } => {
-            let scope: BTreeMap<String, String> = serde_json::from_str(&scope_json)
-                .context("--scope-json must be a JSON object whose values are strings")?;
-            let resolved = resolve_operator_ephemeral_target(&target)?;
-            let response = admin_json_post_resolved(
-                &target,
-                resolved.http,
-                "/_snapback/api/ephemeral/operator/delete",
-                json!({
-                    "collection": collection,
-                    "scope": scope,
-                    "entryKey": entry_key,
-                    "expectedScopeEpoch": expected_scope_epoch,
-                    "expectedEntryGeneration": expected_entry_generation,
-                    "reason": reason,
-                    "startupNonce": resolved.startup_nonce,
-                }),
-            )?;
-            println!("{}", serde_json::to_string_pretty(&response)?);
-            Ok(())
-        }
-    }
-}
-
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct ConsoleCredentialCliResponse {
@@ -5958,6 +6175,16 @@ fn print_envelope(envelope: &Value) -> bool {
 /// synthesized host.stop envelope (the CLI owns this operation — a server
 /// cannot stop itself over its own HTTP surface).
 fn host_stop(ready_file: &Path) -> anyhow::Result<()> {
+    let request_id = crate::ids::mint_time_ordered(crate::ids::Kind::HostOperation);
+    let envelope = host_stop_result(ready_file, &request_id)?;
+    let ok = print_envelope(&serde_json::to_value(&envelope)?);
+    if !ok {
+        std::process::exit(1);
+    }
+    Ok(())
+}
+
+fn host_stop_result(ready_file: &Path, request_id: &str) -> anyhow::Result<HostOpsResult> {
     let value = read_trusted_json_file(ready_file)?;
     let descriptor = HostReadyDescriptor::validate(&value).map_err(|problems| {
         anyhow::anyhow!(
@@ -5975,7 +6202,7 @@ fn host_stop(ready_file: &Path) -> anyhow::Result<()> {
         |ok: bool, data: Value, diagnostics: Vec<crate::diagnostic::Diagnostic>| HostOpsResult {
             schema_version: SNAPBACK_SCHEMA_VERSION.to_owned(),
             result_kind: HOST_OPS_RESULT_KIND.to_owned(),
-            request_id: crate::ids::mint_time_ordered(crate::ids::Kind::HostOperation),
+            request_id: request_id.to_owned(),
             operation: "host.stop".to_owned(),
             ok,
             target: descriptor.target.clone(),
@@ -5999,8 +6226,7 @@ fn host_stop(ready_file: &Path) -> anyhow::Result<()> {
             }),
             vec![diagnostic],
         );
-        print_envelope(&serde_json::to_value(&refused)?);
-        std::process::exit(1);
+        return Ok(refused);
     }
     let stopped = std::process::Command::new("kill")
         .arg(descriptor.pid.to_string())
@@ -6010,7 +6236,7 @@ fn host_stop(ready_file: &Path) -> anyhow::Result<()> {
     if stopped {
         let _ = std::fs::remove_file(ready_file);
     }
-    let envelope = envelope(
+    Ok(envelope(
         stopped,
         json!({
             "stoppedPid": descriptor.pid,
@@ -6018,12 +6244,433 @@ fn host_stop(ready_file: &Path) -> anyhow::Result<()> {
             "verifiedBy": "startupNonce",
         }),
         Vec::new(),
-    );
+    ))
+}
+
+/// Compose the same concrete-credential probe, nonce-verified stop, and
+/// detached replacement start as `snapback_restart` in mcp-control.mjs.
+/// Secrets stay in an in-memory header and never enter child argv or receipts.
+///
+/// @ref LLP 0184#2-derived-ownership-not-a-second-registry — the CLI restart
+/// closes the same named lifecycle authority exception as the MCP projection.
+async fn host_restart(ready_file: &Path, reason: &str) -> anyhow::Result<()> {
+    let request_id = crate::ids::mint_time_ordered(crate::ids::Kind::HostOperation);
+    let envelope = host_restart_result(ready_file, reason, &request_id).await?;
     let ok = print_envelope(&serde_json::to_value(&envelope)?);
     if !ok {
         std::process::exit(1);
     }
     Ok(())
+}
+
+async fn host_restart_result(
+    ready_file: &Path,
+    reason: &str,
+    request_id: &str,
+) -> anyhow::Result<HostOpsResult> {
+    let value = read_trusted_json_file(ready_file)?;
+    let previous_descriptor = HostReadyDescriptor::validate(&value).map_err(|problems| {
+        anyhow::anyhow!(
+            "{} is not a valid readiness descriptor: {}",
+            ready_file.display(),
+            problems.join("; ")
+        )
+    })?;
+
+    let probe = restart_admin_credential_probe(ready_file);
+    let probe = match probe {
+        Ok(probe) if probe.get("ok").and_then(Value::as_bool) == Some(true) => probe,
+        Ok(probe) => {
+            let diagnostics = diagnostics_from_result(&probe).unwrap_or_else(|| {
+                vec![crate::diagnostic::Diagnostic::error(
+                    "SNAPBACK_HOST_RESTART_ADMIN_CREDENTIAL_REQUIRED",
+                    "host-ops",
+                    "host.restart requires an administrator credential accepted by the live host-ops route",
+                )]
+            });
+            let previous = lifecycle_result(
+                request_id,
+                "host.stop",
+                previous_descriptor.target.clone(),
+                false,
+                json!({}),
+                diagnostics,
+            );
+            let current = lifecycle_result(
+                request_id,
+                "host.start",
+                previous_descriptor.target.clone(),
+                false,
+                json!({}),
+                Vec::new(),
+            );
+            return Ok(compose_restart_result(request_id, reason, &previous, &current));
+        }
+        Err(_) => {
+            let previous = lifecycle_result(
+                request_id,
+                "host.stop",
+                previous_descriptor.target.clone(),
+                false,
+                json!({}),
+                vec![crate::diagnostic::Diagnostic::error(
+                    "SNAPBACK_HOST_RESTART_ADMIN_CREDENTIAL_REQUIRED",
+                    "host-ops",
+                    "host.restart could not prove an administrator credential against the live host-ops route",
+                )],
+            );
+            let current = lifecycle_result(
+                request_id,
+                "host.start",
+                previous_descriptor.target.clone(),
+                false,
+                json!({}),
+                Vec::new(),
+            );
+            return Ok(compose_restart_result(request_id, reason, &previous, &current));
+        }
+    };
+    drop(probe);
+
+    let mut previous = host_stop_result(ready_file, request_id)?;
+    if !previous.ok {
+        let current = lifecycle_result(
+            request_id,
+            "host.start",
+            previous_descriptor.target.clone(),
+            false,
+            json!({}),
+            Vec::new(),
+        );
+        return Ok(compose_restart_result(request_id, reason, &previous, &current));
+    }
+
+    let exited = wait_for_server_exit(&previous_descriptor).await;
+    previous.data["exited"] = json!(exited);
+    if !exited {
+        previous.ok = false;
+        previous.diagnostics.push(crate::diagnostic::Diagnostic::error(
+            "SNAPBACK_HOST_RESTART_STOP_TIMEOUT",
+            "host-ops",
+            "the verified server did not stop before the restart deadline",
+        ));
+        let current = lifecycle_result(
+            request_id,
+            "host.start",
+            previous_descriptor.target.clone(),
+            false,
+            json!({}),
+            Vec::new(),
+        );
+        return Ok(compose_restart_result(request_id, reason, &previous, &current));
+    }
+
+    let current = restart_start_result(
+        ready_file,
+        &previous_descriptor,
+        request_id,
+    )
+    .await;
+    Ok(compose_restart_result(request_id, reason, &previous, &current))
+}
+
+fn restart_admin_credential_probe(ready_file: &Path) -> anyhow::Result<Value> {
+    let local_target = TargetArgs {
+        url: None,
+        ready_file: Some(ready_file.to_path_buf()),
+        token: None,
+        impersonation_capability_stdin: false,
+    };
+    // Unlike an ordinary loopback AdminRead, lifecycle proof requires a
+    // concrete credential carrier. Reuse the strict resolver that fails when
+    // the declared owner-only token is missing instead of falling through to
+    // the loopback read convenience.
+    let resolved = resolve_admin_console_target(&local_target)?;
+    let proof_target = TargetArgs {
+        url: Some(resolved.server_url),
+        ready_file: None,
+        token: Some(resolved.token),
+        impersonation_capability_stdin: false,
+    };
+    post_host_op(&proof_target, json!({ "operation": "app.inspect" }))
+}
+
+fn diagnostics_from_result(value: &Value) -> Option<Vec<crate::diagnostic::Diagnostic>> {
+    if let Some(diagnostics) = value.get("diagnostics") {
+        let diagnostics = serde_json::from_value(diagnostics.clone()).ok()?;
+        return Some(diagnostics);
+    }
+    value
+        .get("diagnostic")
+        .cloned()
+        .and_then(|diagnostic| serde_json::from_value(diagnostic).ok())
+        .map(|diagnostic| vec![diagnostic])
+}
+
+fn lifecycle_result(
+    request_id: &str,
+    operation: &str,
+    target: crate::host_ops::HostOpsTarget,
+    ok: bool,
+    data: Value,
+    diagnostics: Vec<crate::diagnostic::Diagnostic>,
+) -> HostOpsResult {
+    HostOpsResult {
+        schema_version: SNAPBACK_SCHEMA_VERSION.to_owned(),
+        result_kind: HOST_OPS_RESULT_KIND.to_owned(),
+        request_id: request_id.to_owned(),
+        operation: operation.to_owned(),
+        ok,
+        target,
+        authority: None,
+        artifacts: HostOpsArtifacts::default(),
+        data,
+        diagnostics,
+        next: Vec::new(),
+        secret_read_tables: Vec::new(),
+        secret_read_rows: 0,
+        secret_read_query: false,
+        secret_read_provenance_complete: true,
+    }
+}
+
+fn compose_restart_result(
+    request_id: &str,
+    reason: &str,
+    previous: &HostOpsResult,
+    current: &HostOpsResult,
+) -> HostOpsResult {
+    let mut diagnostics = previous.diagnostics.clone();
+    diagnostics.extend(current.diagnostics.clone());
+    HostOpsResult {
+        schema_version: SNAPBACK_SCHEMA_VERSION.to_owned(),
+        result_kind: HOST_OPS_RESULT_KIND.to_owned(),
+        request_id: request_id.to_owned(),
+        operation: "host.restart".to_owned(),
+        ok: previous.ok && current.ok,
+        target: current.target.clone(),
+        authority: None,
+        artifacts: current.artifacts.clone(),
+        data: json!({
+            "restartReason": reason,
+            "previous": previous.data,
+            "current": current.data,
+        }),
+        diagnostics,
+        next: Vec::new(),
+        secret_read_tables: Vec::new(),
+        secret_read_rows: 0,
+        secret_read_query: false,
+        secret_read_provenance_complete: true,
+    }
+}
+
+async fn wait_for_server_exit(descriptor: &HostReadyDescriptor) -> bool {
+    for _ in 0..200 {
+        let endpoint_gone = fetch_health(&descriptor.server_url).is_err();
+        #[cfg(unix)]
+        let process_gone = process_is_proven_gone(descriptor.pid).unwrap_or(false);
+        #[cfg(not(unix))]
+        let process_gone = endpoint_gone;
+        if endpoint_gone && process_gone {
+            return true;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+    false
+}
+
+async fn restart_start_result(
+    ready_file: &Path,
+    previous: &HostReadyDescriptor,
+    request_id: &str,
+) -> HostOpsResult {
+    let failure = |code: &'static str, message: String| {
+        lifecycle_result(
+            request_id,
+            "host.start",
+            previous.target.clone(),
+            false,
+            json!({}),
+            vec![crate::diagnostic::Diagnostic::error(code, "host-ops", message)],
+        )
+    };
+    let argv = match restart_start_argv(ready_file, previous) {
+        Ok(argv) => argv,
+        Err(message) => return failure("SNAPBACK_HOST_RESTART_READY_INVALID", message),
+    };
+    let executable = match std::env::current_exe() {
+        Ok(executable) => executable,
+        Err(error) => {
+            return failure(
+                "SNAPBACK_HOST_RESTART_START_FAILED",
+                format!("could not resolve the current snapback executable: {error}"),
+            );
+        }
+    };
+    let mut command = std::process::Command::new(executable);
+    command
+        .args(&argv)
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null());
+    for (key, _) in std::env::vars_os() {
+        if key.to_string_lossy().starts_with("DYLD_") {
+            command.env_remove(key);
+        }
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::CommandExt as _;
+        // The replacement outlives this one-shot CLI process. MCP keeps its
+        // child owner alive; the CLI uses a new session for equivalent custody.
+        unsafe {
+            command.pre_exec(|| {
+                if libc::setsid() == -1 {
+                    return Err(std::io::Error::last_os_error());
+                }
+                Ok(())
+            });
+        }
+    }
+    let mut child = match command.spawn() {
+        Ok(child) => child,
+        Err(error) => {
+            return failure(
+                "SNAPBACK_HOST_RESTART_START_FAILED",
+                format!("could not spawn the replacement server: {error}"),
+            );
+        }
+    };
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
+    let descriptor = loop {
+        if ready_file.exists() {
+            let value = match read_trusted_json_file(ready_file) {
+                Ok(value) => value,
+                Err(error) => {
+                    let _ = child.kill();
+                    return failure(
+                        "SNAPBACK_HOST_RESTART_READY_INVALID",
+                        format!("replacement readiness could not be read: {error}"),
+                    );
+                }
+            };
+            match HostReadyDescriptor::validate(&value) {
+                Ok(descriptor) => break descriptor,
+                Err(problems) => {
+                    let _ = child.kill();
+                    return failure(
+                        "SNAPBACK_HOST_RESTART_READY_INVALID",
+                        format!("replacement readiness was invalid: {}", problems.join("; ")),
+                    );
+                }
+            }
+        }
+        match child.try_wait() {
+            Ok(Some(status)) => {
+                return failure(
+                    "SNAPBACK_HOST_RESTART_START_FAILED",
+                    format!("replacement server exited before readiness with {status}"),
+                );
+            }
+            Err(error) => {
+                return failure(
+                    "SNAPBACK_HOST_RESTART_START_FAILED",
+                    format!("replacement process status could not be read: {error}"),
+                );
+            }
+            Ok(None) => {}
+        }
+        if std::time::Instant::now() >= deadline {
+            let _ = child.kill();
+            return failure(
+                "SNAPBACK_HOST_RESTART_START_TIMEOUT",
+                "replacement server did not publish readiness within 15 seconds".to_owned(),
+            );
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    };
+
+    if descriptor.pid != child.id()
+        || descriptor.database.mode != previous.database.mode
+        || descriptor.database.path != previous.database.path
+        || descriptor.startup_nonce == previous.startup_nonce
+    {
+        let _ = child.kill();
+        return failure(
+            "SNAPBACK_HOST_RESTART_READY_INVALID",
+            "replacement readiness did not identify the spawned successor over the same database"
+                .to_owned(),
+        );
+    }
+
+    let inspect = match restart_admin_credential_probe(ready_file) {
+        Ok(inspect) => inspect,
+        Err(_) => {
+            return failure(
+                "SNAPBACK_HOST_RESTART_START_FAILED",
+                "replacement server was ready but failed the administrator-credential inspect probe"
+                    .to_owned(),
+            );
+        }
+    };
+    let ok = inspect.get("ok").and_then(Value::as_bool) == Some(true);
+    let diagnostics = diagnostics_from_result(&inspect).unwrap_or_default();
+    let artifacts = inspect
+        .get("artifacts")
+        .cloned()
+        .and_then(|artifacts| serde_json::from_value(artifacts).ok())
+        .unwrap_or_default();
+    HostOpsResult {
+        schema_version: SNAPBACK_SCHEMA_VERSION.to_owned(),
+        result_kind: HOST_OPS_RESULT_KIND.to_owned(),
+        request_id: request_id.to_owned(),
+        operation: "host.start".to_owned(),
+        ok,
+        target: descriptor.target.clone(),
+        authority: None,
+        artifacts,
+        data: json!({
+            "attached": false,
+            "managed": true,
+            "pid": descriptor.pid,
+            "serverUrl": descriptor.server_url,
+            "readyFile": ready_file.display().to_string(),
+            "database": descriptor.database.path.as_deref().unwrap_or("memory"),
+            "runtimeState": inspect.pointer("/data/runtimeState").cloned().unwrap_or(Value::Null),
+        }),
+        diagnostics,
+        next: Vec::new(),
+        secret_read_tables: Vec::new(),
+        secret_read_rows: 0,
+        secret_read_query: false,
+        secret_read_provenance_complete: true,
+    }
+}
+
+fn restart_start_argv(
+    ready_file: &Path,
+    descriptor: &HostReadyDescriptor,
+) -> Result<Vec<std::ffi::OsString>, String> {
+    let mut argv = vec![
+        std::ffi::OsString::from("start"),
+        std::ffi::OsString::from("--ready-file"),
+        ready_file.as_os_str().to_owned(),
+    ];
+    match descriptor.database.mode.as_str() {
+        "file" => {
+            let path = descriptor
+                .database
+                .path
+                .as_deref()
+                .ok_or_else(|| "file-backed readiness has no database path".to_owned())?;
+            argv.push(std::ffi::OsString::from("--db"));
+            argv.push(std::ffi::OsString::from(path));
+        }
+        "memory" => argv.push(std::ffi::OsString::from("--memory")),
+        mode => return Err(format!("unsupported readiness database mode {mode:?}")),
+    }
+    Ok(argv)
 }
 
 /// GET the descriptor's `/health` and return its JSON payload, or a
@@ -8636,8 +9283,8 @@ mod tests {
         AdminArgs, AdminCommand, Args, AssetsCommand, AuthCommand, AuthConstructionFailure,
         AuthCoordinatorReadinessReceipt, AuthProgramConstructionReceipts,
         BEFORE_STARTUP_TARGET_RESERVATION, Cli, ConfigCommand, ConnectionsCommand, ControlsCommand,
-        CronCommand, DataCommand, DataPatchArgs, EphemeralCommand, ErrorsCommand, ForkCommand,
-        HostCommand, JobsCommand,
+        CronCommand, DataCommand, DataPatchArgs, DebugCommand, EphemeralCommand, ErrorsCommand,
+        ForkCommand, HostCommand, JobsCommand,
         ManagedPath, NetworkProfileCommand, ReadyFileTarget, ResolvedHttpTarget, SessionCommand,
         TargetArgs, TelemetryCommand, automatic_reap_before_create, bind_first_available,
         bind_listener, console_claim_fragment_url, console_fragment_url, fork_secret_disposition,
@@ -8646,6 +9293,7 @@ mod tests {
         path_with_filename_suffix,
         prepare_database_path, prepare_database_path_for_startup, quiet_stop_fork,
         reject_misdirected_serve_flags, render_guide_command, resolve_http_target,
+        resolve_startup_nonce,
         runtime_auth_program_readiness, search_guide_sections_in, validate_path_disjointness,
         validated_console_origin, validated_secret_read_root_path, write_ready_file_atomic,
         write_ready_file_atomic_protected,
@@ -9448,6 +10096,85 @@ mod tests {
             }
             other => panic!("expected start command, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn restart_subcommand_requires_ready_file_and_parses_reason() {
+        let cli = Cli::parse_from([
+            "snapback",
+            "restart",
+            "--ready-file",
+            ".snapback/dev.ready.json",
+            "--reason",
+            "reload native module",
+        ]);
+        assert!(matches!(
+            cli.command,
+            Some(HostCommand::Restart { ready_file, reason })
+                if ready_file == Path::new(".snapback/dev.ready.json")
+                    && reason == "reload native module"
+        ));
+        assert!(Cli::try_parse_from(["snapback", "restart"]).is_err());
+    }
+
+    #[test]
+    fn restart_start_argv_reuses_descriptor_target_without_authority() {
+        let mut descriptor = stop_descriptor(Some("old-startup"));
+        descriptor.database.mode = "file".to_owned();
+        descriptor.database.path = Some("/tmp/restart.sqlite3".to_owned());
+        descriptor.admin_token_file = Some("/tmp/restart.sqlite3.admin-token".to_owned());
+        let argv = super::restart_start_argv(Path::new("/tmp/restart.ready.json"), &descriptor)
+            .unwrap()
+            .into_iter()
+            .map(|arg| arg.to_string_lossy().into_owned())
+            .collect::<Vec<_>>();
+        assert_eq!(
+            argv,
+            [
+                "start",
+                "--ready-file",
+                "/tmp/restart.ready.json",
+                "--db",
+                "/tmp/restart.sqlite3",
+            ]
+        );
+        assert!(
+            argv.iter().all(|arg| !arg.contains("admin-token")),
+            "authority carriers never enter the replacement argv"
+        );
+    }
+
+    #[test]
+    fn restart_composition_keeps_one_request_id_and_one_envelope() {
+        let descriptor = stop_descriptor(Some("old-startup"));
+        let previous = super::lifecycle_result(
+            "hop_fixed",
+            "host.stop",
+            descriptor.target.clone(),
+            true,
+            json!({ "stoppedPid": descriptor.pid, "exited": true }),
+            Vec::new(),
+        );
+        let current = super::lifecycle_result(
+            "hop_fixed",
+            "host.start",
+            descriptor.target,
+            true,
+            json!({ "pid": 5252, "runtimeState": { "ready": true } }),
+            Vec::new(),
+        );
+        let restart = super::compose_restart_result(
+            "hop_fixed",
+            "acceptance restart",
+            &previous,
+            &current,
+        );
+        assert!(restart.ok);
+        assert_eq!(restart.operation, "host.restart");
+        assert_eq!(restart.request_id, "hop_fixed");
+        assert_eq!(restart.data["restartReason"], "acceptance restart");
+        assert_eq!(restart.data["previous"]["stoppedPid"], 4242);
+        assert_eq!(restart.data["current"]["pid"], 5252);
     }
 
     #[test]
@@ -10566,11 +11293,118 @@ mod tests {
         );
     }
 
-    // @ref LLP 0184#p2-controlled-mutations — parse coverage for the LLP
-    // 0184 §P2 typed CLI verbs (config.unset, cron.tick/runOne, jobs.drain,
-    // connection.disconnect). These only assert clap wiring; the HTTP-level
-    // behavior is covered by mcp-control.test.mjs's real-server acceptance
-    // (the equivalent MCP tools share the same served routes).
+    // @ref LLP 0184#project-the-shipped-long-tail — parse coverage for the
+    // Phase 2 P1 read/diagnose and P2 controlled-mutation CLI projections.
+    // These only assert clap wiring; HTTP behavior is covered by
+    // mcp-control.test.mjs's real-server acceptance because the equivalent
+    // MCP tools share the same served routes.
+    #[test]
+    fn data_scan_cli_parses_table_bounds_and_target() {
+        let parsed = Cli::parse_from([
+            "snapback",
+            "data",
+            "scan",
+            "messages",
+            "--limit",
+            "20",
+            "--offset",
+            "40",
+            "--url",
+            "http://127.0.0.1:4287",
+        ]);
+        assert!(matches!(
+            parsed.command,
+            Some(HostCommand::Data {
+                command: DataCommand::Scan {
+                    table,
+                    limit: 20,
+                    offset: 40,
+                    ..
+                }
+            }) if table == "messages"
+        ));
+    }
+
+    #[test]
+    fn config_read_and_verify_cli_verbs_parse() {
+        let status = Cli::parse_from([
+            "snapback",
+            "config",
+            "status",
+            "--url",
+            "http://127.0.0.1:4287",
+        ]);
+        assert!(matches!(
+            status.command,
+            Some(HostCommand::Config {
+                command: ConfigCommand::Status { .. }
+            })
+        ));
+
+        let plan = Cli::parse_from([
+            "snapback",
+            "config",
+            "plan",
+            "--entry",
+            "stripe.secretKey",
+            "--url",
+            "http://127.0.0.1:4287",
+        ]);
+        assert!(matches!(
+            plan.command,
+            Some(HostCommand::Config {
+                command: ConfigCommand::Plan { entry: Some(entry), .. }
+            }) if entry == "stripe.secretKey"
+        ));
+
+        let verify = Cli::parse_from([
+            "snapback",
+            "config",
+            "verify",
+            "stripe.secretKey",
+            "--url",
+            "http://127.0.0.1:4287",
+        ]);
+        assert!(matches!(
+            verify.command,
+            Some(HostCommand::Config {
+                command: ConfigCommand::Verify { entry, .. }
+            }) if entry == "stripe.secretKey"
+        ));
+    }
+
+    #[test]
+    fn jobs_list_and_show_cli_verbs_parse() {
+        let list = Cli::parse_from([
+            "snapback",
+            "jobs",
+            "list",
+            "--url",
+            "http://127.0.0.1:4287",
+        ]);
+        assert!(matches!(
+            list.command,
+            Some(HostCommand::Jobs {
+                command: JobsCommand::List { .. }
+            })
+        ));
+
+        let show = Cli::parse_from([
+            "snapback",
+            "jobs",
+            "show",
+            "job_01h8x2",
+            "--url",
+            "http://127.0.0.1:4287",
+        ]);
+        assert!(matches!(
+            show.command,
+            Some(HostCommand::Jobs {
+                command: JobsCommand::Show { id, .. }
+            }) if id == "job_01h8x2"
+        ));
+    }
+
     #[test]
     fn config_unset_cli_parses_entry_and_target() {
         let parsed = Cli::parse_from([
@@ -10591,7 +11425,15 @@ mod tests {
     }
 
     #[test]
-    fn cron_cli_parses_tick_and_run() {
+    fn cron_cli_parses_list_tick_and_run() {
+        let list = Cli::parse_from(["snapback", "cron", "list", "--url", "http://127.0.0.1:4287"]);
+        assert!(matches!(
+            list.command,
+            Some(HostCommand::Cron {
+                command: CronCommand::List { .. }
+            })
+        ));
+
         let tick = Cli::parse_from(["snapback", "cron", "tick", "--url", "http://127.0.0.1:4287"]);
         assert!(matches!(
             tick.command,
@@ -10614,6 +11456,65 @@ mod tests {
                 command: CronCommand::Run { name, .. }
             }) if name == "nightly-digest"
         ));
+    }
+
+    #[test]
+    fn ephemeral_cleanup_cli_requires_cutoff_mode_and_bound() {
+        let preview = Cli::parse_from([
+            "snapback",
+            "ephemeral",
+            "cleanup",
+            "--older-than-ms",
+            "60000",
+            "--dry-run",
+            "--max-entries",
+            "25",
+            "--url",
+            "http://127.0.0.1:4287",
+        ]);
+        assert!(matches!(
+            preview.command,
+            Some(HostCommand::Ephemeral {
+                command: EphemeralCommand::Cleanup {
+                    older_than_ms: Some(60_000),
+                    dry_run: true,
+                    max_entries: 25,
+                    ..
+                }
+            })
+        ));
+
+        let apply = Cli::parse_from([
+            "snapback",
+            "ephemeral",
+            "cleanup",
+            "--cutoff-timestamp-ms",
+            "1700000000000",
+            "--apply",
+        ]);
+        assert!(matches!(
+            apply.command,
+            Some(HostCommand::Ephemeral {
+                command: EphemeralCommand::Cleanup {
+                    cutoff_timestamp_ms: Some(1_700_000_000_000),
+                    apply: true,
+                    max_entries: 1_000,
+                    ..
+                }
+            })
+        ));
+
+        assert!(
+            Cli::try_parse_from([
+                "snapback",
+                "ephemeral",
+                "cleanup",
+                "--older-than-ms",
+                "0",
+            ])
+            .is_err(),
+            "cleanup must explicitly select preview or apply"
+        );
     }
 
     #[test]
@@ -10669,6 +11570,114 @@ mod tests {
             "http://127.0.0.1:4287",
         ]);
         assert!(missing_reason.is_err());
+    }
+
+    /// @ref LLP 0184#b-forced-live-resync--add-now — `snapback debug
+    /// force-resync` parses connection id, subscription id, reason, and
+    /// the optional `--clear-retained`/`--startup-nonce` flags; a missing
+    /// reason (a required closed operator/test disclosure, matching
+    /// `connections disconnect`'s precedent) is refused at parse time.
+    #[test]
+    fn debug_force_resync_cli_parses_required_and_optional_fields() {
+        let parsed = Cli::parse_from([
+            "snapback",
+            "debug",
+            "force-resync",
+            "--connection-id",
+            "conn_abc123",
+            "--subscription-id",
+            "sub_def456",
+            "--reason",
+            "acceptance test",
+            "--clear-retained",
+            "--startup-nonce",
+            "explicit-nonce",
+            "--url",
+            "http://127.0.0.1:4287",
+        ]);
+        assert!(matches!(
+            parsed.command,
+            Some(HostCommand::Debug {
+                command: DebugCommand::ForceResync {
+                    ref connection_id,
+                    ref subscription_id,
+                    ref reason,
+                    clear_retained: true,
+                    startup_nonce: Some(ref startup_nonce),
+                    ..
+                }
+            }) if connection_id == "conn_abc123"
+                && subscription_id == "sub_def456"
+                && reason == "acceptance test"
+                && startup_nonce == "explicit-nonce"
+        ));
+
+        let missing_reason = Cli::try_parse_from([
+            "snapback",
+            "debug",
+            "force-resync",
+            "--connection-id",
+            "conn_abc123",
+            "--subscription-id",
+            "sub_def456",
+            "--url",
+            "http://127.0.0.1:4287",
+        ]);
+        assert!(missing_reason.is_err());
+    }
+
+    /// `resolve_startup_nonce` reads the nonce straight from the ready
+    /// file's own readiness descriptor when the caller does not supply one
+    /// explicitly, and refuses when neither is available (`--url` alone).
+    #[test]
+    fn resolve_startup_nonce_reads_ready_file_descriptor_or_refuses() {
+        assert_eq!(
+            resolve_startup_nonce(
+                &TargetArgs {
+                    url: Some("http://127.0.0.1:4287".to_owned()),
+                    ready_file: None,
+                    token: None,
+                    impersonation_capability_stdin: false,
+                },
+                Some("explicit".to_owned()),
+            )
+            .unwrap(),
+            "explicit",
+        );
+
+        let dir = tempfile::tempdir().unwrap();
+        let ready_file = dir.path().join("ready.json");
+        crate::secure_file::write_owner_only(
+            &ready_file,
+            serde_json::to_string(&stop_descriptor(Some("descriptor-nonce")))
+                .unwrap()
+                .as_bytes(),
+        )
+        .unwrap();
+        assert_eq!(
+            resolve_startup_nonce(
+                &TargetArgs {
+                    url: None,
+                    ready_file: Some(ready_file),
+                    token: None,
+                    impersonation_capability_stdin: false,
+                },
+                None,
+            )
+            .unwrap(),
+            "descriptor-nonce",
+        );
+
+        let no_source = resolve_startup_nonce(
+            &TargetArgs {
+                url: Some("http://127.0.0.1:4287".to_owned()),
+                ready_file: None,
+                token: None,
+                impersonation_capability_stdin: false,
+            },
+            None,
+        );
+        assert!(no_source.is_err());
     }
 
     #[test]

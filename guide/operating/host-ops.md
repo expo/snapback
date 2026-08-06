@@ -51,7 +51,7 @@ carries the storage diagnostic; tooling must not substitute zero.
 ## Served request operations
 
 <!-- BEGIN GENERATED CONTROL CATALOG: HOST OPS SERVED -->
-The endpoint serves **38 request spellings**. This count and table are generated from the build catalog's LLP 0024 allowlist projection:
+The endpoint serves **40 request spellings**. This count and table are generated from the build catalog's LLP 0024 allowlist projection:
 
 | Request operation | Purpose |
 | --- | --- |
@@ -79,8 +79,10 @@ The endpoint serves **38 request spellings**. This count and table are generated
 | `branch.inspect.v1` | branch.inspect.v1 |
 | `branch.list.v1` | branch.list.v1 |
 | `branch.reap.v1` | branch.reap.v1 |
+| `cron.list` | List cron jobs |
 | `data.patch.apply` | Apply one previewed bounded direct row patch |
 | `data.patch.preview` | Preview one bounded direct row patch |
+| `debug.live.forceResync` | Force one live subscription to resync (debug perturbation) |
 | `debug.networkProfileGet` | Read the active network condition profile |
 | `debug.networkProfileSet` | Set the active network condition profile |
 | `errors.issue` | Inspect one error issue |
@@ -106,21 +108,29 @@ accepts its closed v1 body only under `input` (with `schemaVersion: 1`),
 refuses legacy sibling fields, and is registered AdminWrite; paths and
 grants are server-owned.
 
-`host.start` and `host.stop` are CLI-only lifecycle verbs today—a running
-server cannot safely own starting/stopping itself; over HTTP they fail as
-`SNAPBACK_HOST_OP_CLI_ONLY`, and the `snapback` CLI is their working
-projection. `host.restart` also fails as `SNAPBACK_HOST_OP_CLI_ONLY` over
-HTTP, but has no CLI command yet; its only current projection is the
-composed `snapback_restart` MCP tool, which spawns `host.stop` then
-`host.start` under one request id and envelope (a `snapback restart` CLI
-command is planned but not shipped). `snapback_stop` (and therefore the
-mutating half of `snapback_restart`) requires the same admin credential the
-HTTP host-ops route requires — it probes `POST /_snapback/api/host-ops`
-with the descriptor's managed admin token before signaling the process, and
-refuses without a valid token instead of stopping the server on local
-process access alone (LLP 0184 §Design/2 closes this gap in Phase 2;
-`snapback_start`'s fresh-spawn leg is unaffected, since there is no prior
-credential to hold when no server yet exists).
+`host.start` and `host.stop` are CLI-only lifecycle verbs—a running server
+cannot safely own starting/stopping itself; over HTTP they fail as
+`SNAPBACK_HOST_OP_CLI_ONLY`. `host.restart` has native CLI and MCP
+projections, but its registered HTTP identity deliberately returns the same
+CLI-only refusal.
+
+## Restart with one credential-bound receipt
+
+```sh fragment reason="The ready descriptor is a runtime-owned capability path."
+snapback restart --ready-file .snapback/dev.ready.json \
+  --reason "reload native dependency"
+```
+
+Both `snapback restart` and `snapback_restart` compose stop then start under
+one request id and one `host.restart` envelope. Before any process signal,
+they resolve a concrete administrator token and prove it through
+`app.inspect` on the AdminRead-gated host-ops route; a missing or refused
+credential leaves the old server running. The stop leg independently checks
+the descriptor's startup nonce, and the start leg accepts only a successor
+descriptor with the same database and a new startup nonce. Credentials never
+enter child argv or the receipt. The fresh-spawn leg has no prior server
+credential to hold.
+
 `schema.reload`, `functions.reload`, and `acceptance.run` are pinned but
 unbuilt and fail as `SNAPBACK_HOST_OP_UNIMPLEMENTED`. All three families are
 registered at AdminWrite so an authenticated request reaches that structured
@@ -129,7 +139,7 @@ envelope; unknown names stay unregistered and fail closed before dispatch.
 ## Registered operation identities
 
 <!-- BEGIN GENERATED CONTROL CATALOG: HOST OPS REGISTERED -->
-The request spellings above expand into **51 registered operation identities**. This inventory is generated from each catalog row's LLP 0031 registry projection:
+The request spellings above expand into **53 registered operation identities**. This inventory is generated from each catalog row's LLP 0031 registry projection:
 
 1. `host_ops.acceptance.run`
 2. `host_ops.app.inspect`
@@ -156,32 +166,34 @@ The request spellings above expand into **51 registered operation identities**. 
 23. `host_ops.branch.inspect.v1`
 24. `host_ops.branch.list.v1`
 25. `host_ops.branch.reap.v1`
-26. `host_ops.data.patch.apply`
-27. `host_ops.data.patch.apply.impersonated`
-28. `host_ops.data.patch.preview`
-29. `host_ops.data.patch.preview.impersonated`
-30. `host_ops.debug.networkProfileGet`
-31. `host_ops.debug.networkProfileSet`
-32. `host_ops.errors.issue`
-33. `host_ops.errors.issues`
-34. `host_ops.errors.transition`
-35. `host_ops.function.explain`
-36. `host_ops.function.explain.impersonated`
-37. `host_ops.function.run.query`
-38. `host_ops.function.run.mutation`
-39. `host_ops.function.run.action`
-40. `host_ops.function.run.unknown`
-41. `host_ops.function.run.impersonated`
-42. `host_ops.functions.load`
-43. `host_ops.functions.reload`
-44. `host_ops.host.restart`
-45. `host_ops.host.start`
-46. `host_ops.host.stop`
-47. `host_ops.schema.load`
-48. `host_ops.schema.reload`
-49. `host_ops.telemetry.events`
-50. `host_ops.telemetry.export`
-51. `host_ops.telemetry.stats`
+26. `host_ops.cron.list`
+27. `host_ops.data.patch.apply`
+28. `host_ops.data.patch.apply.impersonated`
+29. `host_ops.data.patch.preview`
+30. `host_ops.data.patch.preview.impersonated`
+31. `host_ops.debug.live.forceResync`
+32. `host_ops.debug.networkProfileGet`
+33. `host_ops.debug.networkProfileSet`
+34. `host_ops.errors.issue`
+35. `host_ops.errors.issues`
+36. `host_ops.errors.transition`
+37. `host_ops.function.explain`
+38. `host_ops.function.explain.impersonated`
+39. `host_ops.function.run.query`
+40. `host_ops.function.run.mutation`
+41. `host_ops.function.run.action`
+42. `host_ops.function.run.unknown`
+43. `host_ops.function.run.impersonated`
+44. `host_ops.functions.load`
+45. `host_ops.functions.reload`
+46. `host_ops.host.restart`
+47. `host_ops.host.start`
+48. `host_ops.host.stop`
+49. `host_ops.schema.load`
+50. `host_ops.schema.reload`
+51. `host_ops.telemetry.events`
+52. `host_ops.telemetry.export`
+53. `host_ops.telemetry.stats`
 <!-- END GENERATED CONTROL CATALOG: HOST OPS REGISTERED -->
 
 Query/explain reads, durable writes, credential-producing operations, and

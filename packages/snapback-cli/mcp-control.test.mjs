@@ -203,8 +203,13 @@ try {
     'snapback_network_profile_get', 'snapback_network_profile_set',
     'snapback_telemetry_stats', 'snapback_telemetry_events', 'snapback_telemetry_export',
     'snapback_errors_issues', 'snapback_errors_issue', 'snapback_errors_transition',
+    // LLP 0184 Phase 2 P1 read/diagnose projections.
+    'snapback_data_scan', 'snapback_config_status', 'snapback_config_plan',
+    'snapback_config_verify', 'snapback_cron_list', 'snapback_jobs_list', 'snapback_jobs_show',
+    'snapback_asset_list', 'snapback_asset_inspect', 'snapback_asset_retry',
     // LLP 0184 §P2's controlled-mutation and asset-family direct tools.
-    'snapback_config_unset', 'snapback_cron_tick', 'snapback_cron_run', 'snapback_jobs_drain',
+    'snapback_config_unset', 'snapback_cron_tick', 'snapback_cron_run',
+    'snapback_ephemeral_cleanup', 'snapback_jobs_drain',
     'snapback_connection_disconnect', 'snapback_ephemeral_operator_delete',
     'snapback_asset_delete', 'snapback_asset_gc_sweep', 'snapback_asset_rotate_signing_key',
     'snapback_asset_export_cut', 'snapback_asset_import_cut',
@@ -471,6 +476,56 @@ try {
     'SNAPBACK_MCP_DATA_PATCH_TOKEN_UNAVAILABLE',
   );
 
+  // LLP 0184 Phase 2 P1: exercise every read/diagnose projection against the
+  // same live server. Unknown config/job/asset identities intentionally drive
+  // the ordinary typed refusal path; the list/scan calls drive success.
+  const dataScan = await client.call('snapback_data_scan', {
+    table: 'todos', limit: 10, offset: 0,
+  });
+  assert.equal(dataScan.structuredContent.operation, 'data.scan');
+  assert.equal(dataScan.structuredContent.ok, true, JSON.stringify(dataScan.structuredContent));
+  assert.ok(Array.isArray(dataScan.structuredContent.data.rows));
+  assert.equal(dataScan.structuredContent.data.rows.length, 1);
+
+  const configStatus = await client.call('snapback_config_status');
+  assert.equal(configStatus.structuredContent.operation, 'config.status');
+  assert.equal(configStatus.structuredContent.ok, true, JSON.stringify(configStatus.structuredContent));
+  assert.ok(Array.isArray(configStatus.structuredContent.data.entries));
+
+  const configPlan = await client.call('snapback_config_plan');
+  assert.equal(configPlan.structuredContent.operation, 'config.plan');
+  assert.equal(configPlan.structuredContent.ok, true, JSON.stringify(configPlan.structuredContent));
+
+  const configVerify = await client.call('snapback_config_verify', { entry: 'no.such.entry' });
+  assert.equal(configVerify.structuredContent.operation, 'config.verify');
+  assert.equal(configVerify.structuredContent.ok, false, JSON.stringify(configVerify.structuredContent));
+
+  const cronList = await client.call('snapback_cron_list');
+  assert.equal(cronList.structuredContent.operation, 'cron.list');
+  assert.equal(cronList.structuredContent.ok, true, JSON.stringify(cronList.structuredContent));
+  assert.equal(cronList.structuredContent.data.cron.artifactKind, 'snapback.cron-list/v1');
+  assert.ok(Array.isArray(cronList.structuredContent.data.cron.jobs));
+
+  const jobsList = await client.call('snapback_jobs_list');
+  assert.equal(jobsList.structuredContent.operation, 'jobs.list');
+  assert.equal(jobsList.structuredContent.ok, true, JSON.stringify(jobsList.structuredContent));
+
+  const jobsShow = await client.call('snapback_jobs_show', { id: 'job_does_not_exist' });
+  assert.equal(jobsShow.structuredContent.operation, 'jobs.show');
+  assert.equal(jobsShow.structuredContent.ok, false, JSON.stringify(jobsShow.structuredContent));
+
+  const assetList = await client.call('snapback_asset_list');
+  assert.equal(assetList.structuredContent.operation, 'asset.list');
+  assert.equal(assetList.structuredContent.ok, true, JSON.stringify(assetList.structuredContent));
+
+  const assetInspect = await client.call('snapback_asset_inspect', { assetId: 'asset_does_not_exist' });
+  assert.equal(assetInspect.structuredContent.operation, 'asset.inspect');
+  assert.equal(assetInspect.structuredContent.ok, false, JSON.stringify(assetInspect.structuredContent));
+
+  const assetRetry = await client.call('snapback_asset_retry', { assetId: 'asset_does_not_exist' });
+  assert.equal(assetRetry.structuredContent.operation, 'asset.retry');
+  assert.equal(assetRetry.structuredContent.ok, false, JSON.stringify(assetRetry.structuredContent));
+
   // Read diagnostics through MCP: the SC-1a recent-invocations ring reflects
   // the loads and runs since the restart; MCP-local authority refusals never
   // reached the server and are absent.
@@ -564,6 +619,26 @@ try {
   const cronRunUnknown = await client.call('snapback_cron_run', { name: 'no-such-cron-job' });
   assert.equal(cronRunUnknown.structuredContent.operation, 'cron.runOne');
   assert.equal(cronRunUnknown.structuredContent.ok, false, JSON.stringify(cronRunUnknown.structuredContent));
+
+  const cleanupPreview = await client.call('snapback_ephemeral_cleanup', {
+    olderThanMs: 0,
+    dryRun: true,
+    maxEntries: 10,
+  });
+  assert.equal(cleanupPreview.structuredContent.operation, 'ephemeral.cleanup');
+  assert.equal(cleanupPreview.structuredContent.ok, true, JSON.stringify(cleanupPreview.structuredContent));
+  assert.equal(cleanupPreview.structuredContent.data.artifactKind, 'snapback.ephemeral-cleanup-receipt/v1');
+  assert.equal(cleanupPreview.structuredContent.data.dryRun, true);
+  assert.equal(cleanupPreview.structuredContent.data.counts.deleted, 0);
+
+  const cleanupApply = await client.call('snapback_ephemeral_cleanup', {
+    olderThanMs: 0,
+    dryRun: false,
+    maxEntries: 10,
+  });
+  assert.equal(cleanupApply.structuredContent.operation, 'ephemeral.cleanup');
+  assert.equal(cleanupApply.structuredContent.ok, true, JSON.stringify(cleanupApply.structuredContent));
+  assert.equal(cleanupApply.structuredContent.data.dryRun, false);
 
   const jobsDrain = await client.call('snapback_jobs_drain', { nowMs: Date.now(), maxWaves: 1 });
   assert.equal(jobsDrain.structuredContent.operation, 'jobs.drain');

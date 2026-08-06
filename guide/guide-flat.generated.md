@@ -55,7 +55,7 @@ host-op registries. Owner: `ccheever`; label gaps `guide-gap`.
 | backend.observability-v1 | Shipped local Phase-1 backend telemetry with a generation-bound sibling store, operation-class spans, bounded retention and rollups, typed agent-facing queries, Health/Logs projections, and retained clean-release idle/benchmark evidence; hosted arms and declared product analytics remain later capabilities | telemetry, observability, health, logs, metrics, traces | local | shipped | tests/acceptance/telemetry-phase1-evidence.v1.json | llp/0154 | operating/observability.md |
 | backend.error-tracking-v1 | Local Phase E0/E1 backend failure classification, deterministic grouping (including first-ordered authority plus full raw carrier facts for multiple unhandled rejections), retained raw exemplars, release-aware issue lifecycle, typed CLI/MCP operations, and Errors/Health console projections; hosted grouping, E2 alerts, and E3 client ingest remain unbuilt | error tracking, issues, fingerprints, exceptions, failures | local | partial | route /_snapback/api/errors/issues | llp/0156, llp/0154, llp/0108 | operating/error-tracking.md |
 | backend.vector-search | Experimental bounded exact k-NN over declared fixed-width binary64 vector fields, with pinned `dot`/`l2sq` arithmetic, public/owner visibility partitions, exact equality filters, stored fields, synchronous SQLite maintenance, and digest-recheck quarantine; ANN, embedding computation, live/paginated/offline search, hosted targets, PostgreSQL, and sensitive fields remain nonclaims | vector, embeddings, similarity, semantic search, RAG, exact k-NN | local | shipped | schemas/capability.manifest.local-dev-sqlite-ibex.json (`vector_search_v1` + `vectorSearch`) + `defineVectorQuery` in packages/snapback-codegen/define.mjs | llp/0132, llp/0073 | backend/vector-search.md |
-| backend.cron | Scheduled execution | schedule, background jobs, cron tick, run cron now, force tick | local | shipped | route /_snapback/api/cron/tick | llp/0028 | backend/cron.md |
+| backend.cron | Scheduled execution | schedule, cron list, cron status, cron tick, run cron now, force tick | local | shipped | route /_snapback/api/cron | llp/0028 | backend/cron.md |
 | backend.jobs-one-off | Experimental transactional one-off durable work (LLP 0070 first slice): `ctx.jobs.enqueue` inside the mutation transaction, a paved default queue, `availableAt = now + delay`, fenced claims with append-only attempt receipts, producer association on job rows plus bounded `enqueues` facts on confirmed mutation receipts, the generated declared job-status live query (codegen emits the capability requirement and acknowledgment), the injected-clock forced drain (`POST /_snapback/api/jobs/drain`), and the secret-read-leased admin inspection lane (`GET /_snapback/api/jobs`, `/jobs/{id}`). `jobs_one_off_v1` stays experimental and no durable-background-work capability class is claimed while LLP 0070 remains pre-Accepted (in Review since 2026-08-03) | one-off jobs, runAfter, scheduler, durable work, enqueue, background jobs, job status, secret-read lease, job drain, drain jobs | local | partial | route /_snapback/api/jobs/drain | llp/0070, llp/0121, llp/0115 | backend/jobs.md |
 | realtime.live-queries | Subscribe to a query; snapshot + replace/delta updates | subscription, realtime | local | shipped | route /live/{name}/subscribe | llp/0008 | realtime/live-queries.md |
 | realtime.durable-push | Durable WebSocket push lane; connection axis | websocket, stream, push, connection state, connection disconnect, disconnect client, force disconnect | local | shipped | route /live/{connection_id}/stream | llp/0008, llp/0034 | realtime/live-queries.md |
@@ -482,8 +482,9 @@ here (or listed here but gone from the code).
 | /_snapback/api/console/approval/approve | operating.admin-console |
 | /_snapback/api/cron/tick | backend.cron |
 | /_snapback/api/cron/{name}/run | backend.cron |
+| /_snapback/api/cron | backend.cron |
 | /_snapback/api/data/{table} | operating.admin-console |
-| /_snapback/api/ephemeral/cleanup | notAuthorFacing (operator maintenance) |
+| /_snapback/api/ephemeral/cleanup | realtime.ephemeral |
 | /_snapback/api/ephemeral/operator/delete | notAuthorFacing (local operator repair, LLP 0184 §C) |
 | /_snapback/api/errors/issue | backend.error-tracking-v1 |
 | /_snapback/api/errors/issues | backend.error-tracking-v1 |
@@ -573,6 +574,7 @@ here (or listed here but gone from the code).
 | --- | --- |
 | host_ops.app.inspect | operating.host-ops |
 | host_ops.app.reset | operating.host-ops |
+| host_ops.cron.list | backend.cron |
 | host_ops.asset.put | backend.assets |
 | host_ops.asset.ensureSeedFixture | backend.assets |
 | host_ops.asset.inspect | backend.assets |
@@ -606,6 +608,7 @@ here (or listed here but gone from the code).
 | host_ops.acceptance.run | operating.host-ops |
 | host_ops.debug.networkProfileGet | operating.network-profiles |
 | host_ops.debug.networkProfileSet | operating.network-profiles |
+| host_ops.debug.live.forceResync | operating.host-ops |
 | host_ops.host.start | operating.host-ops |
 | host_ops.host.stop | operating.host-ops |
 | host_ops.host.restart | operating.host-ops |
@@ -3177,6 +3180,25 @@ The complete authoring inventory for each job:
 
 Codegen validates job names, schedules, action existence/kind, and the
 auth-requirement boundary before the server loads the manifest.
+
+## Inspect declared jobs and runtime posture
+
+Use the read-only operator projection before forcing any scheduler work:
+
+```sh
+snapback cron list --ready-file .snapback/ready.json
+```
+
+The equivalent control-MCP tool is `snapback_cron_list`; the direct HTTP
+alias is AdminRead-gated `GET /_snapback/api/cron`. The response lists each
+declared job's name, action, schedule, enabled/activation state, next nominal
+and due time, whether work is in flight, last-run time/outcome, and consecutive
+failure count. These are the same facts already held for runtime inspection,
+so listing does not tick, run, or persist scheduler work.
+
+This narrow view intentionally omits exact run IDs, handler error details and
+results, jitter seeds, and recent-run payloads. Use the secret-read-gated full
+`app.inspect`/admin inspect view when those details are actually required.
 
 ## Gate polling on real demand
 
@@ -10181,16 +10203,16 @@ documentation absence never appears as success.
 ## Generated inventory
 
 <!-- BEGIN GENERATED CONTROL CATALOG: CONTROL CATALOG INVENTORY -->
-The embedded build catalog contains **112 operations** at digest `sha256:d50a314a6ad6ea12926715ac43d09cb68a19bd6e150716ad4690f3b6331bba59`. The counts and inventory below are generated; do not edit them by hand.
+The embedded build catalog contains **114 operations** at digest `sha256:7624d26866a45188127af998d7ba84d1a2a5426681cfb9ecd098379a41754f7f`. The counts and inventory below are generated; do not edit them by hand.
 
 | Axis | Value | Count |
 | --- | --- | ---: |
-| surfaceAccess | `apiOnly` | 39 |
+| surfaceAccess | `apiOnly` | 38 |
 | surfaceAccess | `cliOnly` | 29 |
-| surfaceAccess | `mcpOnly` | 3 |
-| surfaceAccess | `native` | 37 |
+| surfaceAccess | `mcpOnly` | 2 |
+| surfaceAccess | `native` | 41 |
 | surfaceAccess | `none` | 4 |
-| operability | `direct` | 80 |
+| operability | `direct` | 82 |
 | operability | `internal` | 11 |
 | operability | `mediated` | 7 |
 | operability | `unavailable` | 14 |
@@ -10263,19 +10285,21 @@ The embedded build catalog contains **112 operations** at digest `sha256:d50a314
 | `control.catalog.describe` | `native` | `direct` | `shipped` | snapback controls describe <operation> | snapback-controls://operation/{operation} | operating/agent-controls.md#describe-one-operation |
 | `control.catalog.instance.read` | `mcpOnly` | `direct` | `shipped` | — | snapback-controls://instance | operating/agent-controls.md#build-versus-instance-identity |
 | `control.catalog.read` | `native` | `direct` | `shipped` | snapback controls list | snapback-controls://catalog | operating/agent-controls.md#search-the-build-catalog |
+| `cron.list` | `native` | `direct` | `shipped` | snapback cron list | snapback_cron_list | backend/cron.md#inspect-declared-jobs-and-runtime-posture |
 | `cron.runOne` | `native` | `direct` | `shipped` | snapback cron run | snapback_cron_run | — |
 | `cron.status.read` | `apiOnly` | `direct` | `shipped` | — | — | — |
 | `cron.tick` | `native` | `direct` | `shipped` | snapback cron tick | snapback_cron_tick | — |
 | `data.patch.apply` | `native` | `direct` | `shipped` | snapback data patch --apply --input <file\|-> | snapback_data_patch_apply | operating/data-patch.md#apply |
 | `data.patch.preview` | `native` | `direct` | `shipped` | snapback data patch --preview --input <file\|-> | snapback_data_patch_preview | operating/data-patch.md#preview |
 | `data.scan` | `native` | `direct` | `shipped` | snapback data scan <table> | snapback_data_scan | operating/host-ops.md#direct-climcp-projections-beyond-host-ops-llp-0184-phase-2-p1 |
+| `debug.live.forceResync` | `native` | `direct` | `shipped` | snapback debug force-resync | snapback_live_force_resync | operating/host-ops.md |
 | `debug.networkProfileGet` | `native` | `direct` | `shipped` | snapback network-profile get | snapback_network_profile_get | operating/network-profiles.md#read-the-active-profile |
 | `debug.networkProfileSet` | `native` | `direct` | `shipped` | snapback network-profile set | snapback_network_profile_set | operating/network-profiles.md#set-a-profile |
 | `direct_runner.action` | `apiOnly` | `direct` | `shipped` | — | — | — |
 | `direct_runner.mutation` | `apiOnly` | `direct` | `shipped` | — | — | — |
 | `direct_runner.query` | `apiOnly` | `direct` | `shipped` | — | — | — |
 | `direct_runner.unknown` | `apiOnly` | `unavailable` | `shipped` | — | — | — |
-| `ephemeral.cleanup` | `apiOnly` | `direct` | `shipped` | — | — | — |
+| `ephemeral.cleanup` | `native` | `direct` | `shipped` | snapback ephemeral cleanup | snapback_ephemeral_cleanup | realtime/ephemeral-state.md#clean-up-expired-entries-operationally |
 | `ephemeral.operatorDelete` | `native` | `direct` | `shipped` | snapback ephemeral operator-delete | snapback_ephemeral_operator_delete | realtime/ephemeral-state.md#delete-one-entry-as-an-operator |
 | `errors.issue` | `native` | `direct` | `shipped` | snapback errors issue | snapback_errors_issue | operating/host-ops.md |
 | `errors.issues` | `native` | `direct` | `shipped` | snapback errors issues | snapback_errors_issues | operating/host-ops.md |
@@ -10286,7 +10310,7 @@ The embedded build catalog contains **112 operations** at digest `sha256:d50a314
 | `functions.reload` | `apiOnly` | `unavailable` | `unbuilt` | — | — | — |
 | `health` | `apiOnly` | `direct` | `shipped` | — | — | — |
 | `health.read` | `apiOnly` | `direct` | `shipped` | — | — | — |
-| `host.restart` | `mcpOnly` | `direct` | `shipped` | — | snapback_restart | — |
+| `host.restart` | `native` | `direct` | `shipped` | snapback restart | snapback_restart | operating/host-ops.md#restart-with-one-credential-bound-receipt |
 | `host.start` | `cliOnly` | `direct` | `shipped` | snapback host start | snapback_start | — |
 | `host.stop` | `cliOnly` | `direct` | `shipped` | snapback host stop | snapback_stop | — |
 | `hostCall.dispatch` | `none` | `internal` | `shipped` | — | — | — |
@@ -10531,7 +10555,7 @@ carries the storage diagnostic; tooling must not substitute zero.
 ## Served request operations
 
 <!-- BEGIN GENERATED CONTROL CATALOG: HOST OPS SERVED -->
-The endpoint serves **38 request spellings**. This count and table are generated from the build catalog's LLP 0024 allowlist projection:
+The endpoint serves **40 request spellings**. This count and table are generated from the build catalog's LLP 0024 allowlist projection:
 
 | Request operation | Purpose |
 | --- | --- |
@@ -10559,8 +10583,10 @@ The endpoint serves **38 request spellings**. This count and table are generated
 | `branch.inspect.v1` | branch.inspect.v1 |
 | `branch.list.v1` | branch.list.v1 |
 | `branch.reap.v1` | branch.reap.v1 |
+| `cron.list` | List cron jobs |
 | `data.patch.apply` | Apply one previewed bounded direct row patch |
 | `data.patch.preview` | Preview one bounded direct row patch |
+| `debug.live.forceResync` | Force one live subscription to resync (debug perturbation) |
 | `debug.networkProfileGet` | Read the active network condition profile |
 | `debug.networkProfileSet` | Set the active network condition profile |
 | `errors.issue` | Inspect one error issue |
@@ -10586,21 +10612,29 @@ accepts its closed v1 body only under `input` (with `schemaVersion: 1`),
 refuses legacy sibling fields, and is registered AdminWrite; paths and
 grants are server-owned.
 
-`host.start` and `host.stop` are CLI-only lifecycle verbs today—a running
-server cannot safely own starting/stopping itself; over HTTP they fail as
-`SNAPBACK_HOST_OP_CLI_ONLY`, and the `snapback` CLI is their working
-projection. `host.restart` also fails as `SNAPBACK_HOST_OP_CLI_ONLY` over
-HTTP, but has no CLI command yet; its only current projection is the
-composed `snapback_restart` MCP tool, which spawns `host.stop` then
-`host.start` under one request id and envelope (a `snapback restart` CLI
-command is planned but not shipped). `snapback_stop` (and therefore the
-mutating half of `snapback_restart`) requires the same admin credential the
-HTTP host-ops route requires — it probes `POST /_snapback/api/host-ops`
-with the descriptor's managed admin token before signaling the process, and
-refuses without a valid token instead of stopping the server on local
-process access alone (LLP 0184 §Design/2 closes this gap in Phase 2;
-`snapback_start`'s fresh-spawn leg is unaffected, since there is no prior
-credential to hold when no server yet exists).
+`host.start` and `host.stop` are CLI-only lifecycle verbs—a running server
+cannot safely own starting/stopping itself; over HTTP they fail as
+`SNAPBACK_HOST_OP_CLI_ONLY`. `host.restart` has native CLI and MCP
+projections, but its registered HTTP identity deliberately returns the same
+CLI-only refusal.
+
+## Restart with one credential-bound receipt
+
+```sh fragment reason="The ready descriptor is a runtime-owned capability path."
+snapback restart --ready-file .snapback/dev.ready.json \
+  --reason "reload native dependency"
+```
+
+Both `snapback restart` and `snapback_restart` compose stop then start under
+one request id and one `host.restart` envelope. Before any process signal,
+they resolve a concrete administrator token and prove it through
+`app.inspect` on the AdminRead-gated host-ops route; a missing or refused
+credential leaves the old server running. The stop leg independently checks
+the descriptor's startup nonce, and the start leg accepts only a successor
+descriptor with the same database and a new startup nonce. Credentials never
+enter child argv or the receipt. The fresh-spawn leg has no prior server
+credential to hold.
+
 `schema.reload`, `functions.reload`, and `acceptance.run` are pinned but
 unbuilt and fail as `SNAPBACK_HOST_OP_UNIMPLEMENTED`. All three families are
 registered at AdminWrite so an authenticated request reaches that structured
@@ -10609,7 +10643,7 @@ envelope; unknown names stay unregistered and fail closed before dispatch.
 ## Registered operation identities
 
 <!-- BEGIN GENERATED CONTROL CATALOG: HOST OPS REGISTERED -->
-The request spellings above expand into **51 registered operation identities**. This inventory is generated from each catalog row's LLP 0031 registry projection:
+The request spellings above expand into **53 registered operation identities**. This inventory is generated from each catalog row's LLP 0031 registry projection:
 
 1. `host_ops.acceptance.run`
 2. `host_ops.app.inspect`
@@ -10636,32 +10670,34 @@ The request spellings above expand into **51 registered operation identities**. 
 23. `host_ops.branch.inspect.v1`
 24. `host_ops.branch.list.v1`
 25. `host_ops.branch.reap.v1`
-26. `host_ops.data.patch.apply`
-27. `host_ops.data.patch.apply.impersonated`
-28. `host_ops.data.patch.preview`
-29. `host_ops.data.patch.preview.impersonated`
-30. `host_ops.debug.networkProfileGet`
-31. `host_ops.debug.networkProfileSet`
-32. `host_ops.errors.issue`
-33. `host_ops.errors.issues`
-34. `host_ops.errors.transition`
-35. `host_ops.function.explain`
-36. `host_ops.function.explain.impersonated`
-37. `host_ops.function.run.query`
-38. `host_ops.function.run.mutation`
-39. `host_ops.function.run.action`
-40. `host_ops.function.run.unknown`
-41. `host_ops.function.run.impersonated`
-42. `host_ops.functions.load`
-43. `host_ops.functions.reload`
-44. `host_ops.host.restart`
-45. `host_ops.host.start`
-46. `host_ops.host.stop`
-47. `host_ops.schema.load`
-48. `host_ops.schema.reload`
-49. `host_ops.telemetry.events`
-50. `host_ops.telemetry.export`
-51. `host_ops.telemetry.stats`
+26. `host_ops.cron.list`
+27. `host_ops.data.patch.apply`
+28. `host_ops.data.patch.apply.impersonated`
+29. `host_ops.data.patch.preview`
+30. `host_ops.data.patch.preview.impersonated`
+31. `host_ops.debug.live.forceResync`
+32. `host_ops.debug.networkProfileGet`
+33. `host_ops.debug.networkProfileSet`
+34. `host_ops.errors.issue`
+35. `host_ops.errors.issues`
+36. `host_ops.errors.transition`
+37. `host_ops.function.explain`
+38. `host_ops.function.explain.impersonated`
+39. `host_ops.function.run.query`
+40. `host_ops.function.run.mutation`
+41. `host_ops.function.run.action`
+42. `host_ops.function.run.unknown`
+43. `host_ops.function.run.impersonated`
+44. `host_ops.functions.load`
+45. `host_ops.functions.reload`
+46. `host_ops.host.restart`
+47. `host_ops.host.start`
+48. `host_ops.host.stop`
+49. `host_ops.schema.load`
+50. `host_ops.schema.reload`
+51. `host_ops.telemetry.events`
+52. `host_ops.telemetry.export`
+53. `host_ops.telemetry.stats`
 <!-- END GENERATED CONTROL CATALOG: HOST OPS REGISTERED -->
 
 Query/explain reads, durable writes, credential-producing operations, and
@@ -12737,7 +12773,7 @@ id: realtime.ephemeral-state
 order: 2
 audience: agent-first
 capabilities: [realtime.ephemeral]
-authorities: [llp/0013-ephemeral-realtime-state.rfc.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0184-agent-accessible-control-plane.rfc.md, src/ephemeral.rs, src/server.rs, src/cli.rs, packages/snapback-cli/mcp-control.mjs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/index.mjs, packages/snapback-contract/index.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts]
+authorities: [llp/0013-ephemeral-realtime-state.rfc.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0184-agent-accessible-control-plane.rfc.md, src/admin.rs, src/ephemeral.rs, src/server.rs, src/cli.rs, packages/snapback-cli/mcp-control.mjs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/index.mjs, packages/snapback-contract/index.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts]
 examples: [demos/cursors-web, demos/todo-v2/snapback/schema.mjs, demos/messaging-snapback/src/lib/useTyping.ts]
 status: current
 targets: [local]
@@ -13001,6 +13037,29 @@ application authorization or ownership, and its receipt says
 ordinary `delete`, while still using the ordinary removal and subscriber
 notification path. The server refuses it on production and on derived
 instances; LLP 0158 does not yet recognize derived identity for this purpose.
+
+## Clean up expired entries operationally
+
+The server's background expiry sweep remains automatic. For an explicit,
+auditable maintenance pass, preview a bounded cutoff before applying it:
+
+```sh fragment reason="Operator example uses a runtime URL rather than a repository-owned server fixture."
+snapback ephemeral cleanup --url http://127.0.0.1:4287 \
+  --older-than-ms 60000 --dry-run --max-entries 1000
+```
+
+`--older-than-ms` means “expired for at least this long”; it is not the age of
+the last publish. Use `--cutoff-timestamp-ms` instead when a wall-clock expiry
+deadline is the operator's source of truth. Exactly one cutoff and exactly one
+of `--dry-run` or `--apply` are required. `--max-entries` is bounded from 1 to
+10,000.
+
+The CLI and the destructive `snapback_ephemeral_cleanup` MCP tool bind each
+request to the current process startup nonce. The receipt reports examined,
+eligible, would-delete, deleted, and remaining counts by collection and opaque
+room digest; it never exposes raw room scope. Apply emits the ordinary
+`Expired` removals and subscription notifications. Cleanup is room-linearized,
+so repeat an apply when `bounds.truncated` is true or `complete` is false.
 
 ## Anti-patterns
 

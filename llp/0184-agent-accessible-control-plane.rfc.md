@@ -6,7 +6,12 @@
 Host operations, HTTP API, Guide, Auth, Security, Diagnostics, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-05
-**Revised:** 2026-08-05 (generation-snapshot reconciliation — the checked catalog recomputes and compares its semantic digest and entries while preserving the schema-validated generation snapshot, because the commit carrying a generated file necessarily postdates the snapshot and cannot self-identify); 2026-08-05 (post-round-5 author-directed closing pass, after a
+**Revised:** 2026-08-06 (Phase 2 residue: `ephemeral.cleanup` now has explicit
+cutoff, preview/apply bound, startup binding, ordinary removal fan-out, and a
+structured receipt through native CLI/MCP projections; `host.restart` is now
+native through a concrete-admin-credential-proven `snapback restart` CLI;
+`cron.list` exposes the already-retained narrow scheduler facts under LLP
+0028/0024 ownership; P1 projection coverage is closed); 2026-08-05 (generation-snapshot reconciliation — the checked catalog recomputes and compares its semantic digest and entries while preserving the schema-validated generation snapshot, because the commit carrying a generated file necessarily postdates the snapshot and cannot self-identify); 2026-08-05 (post-round-5 author-directed closing pass, after a
 5-round llp-super-refine loop (14→10→6→6→6 distinct MATERIAL concerns,
 converging without a design change) left four items for the author: the
 delivery plan's Phase 1 item 3 reworded to match §Design/3a's hand-
@@ -251,7 +256,7 @@ registry/CLI/MCP declarations:
 | --- | --- |
 | `native` | Has both a typed direct CLI command and a typed control-MCP tool. |
 | `cliOnly` | Has a typed direct CLI command, no MCP tool yet. Carries a `mcpDeferralReason`. |
-| `mcpOnly` | Has a typed control-MCP tool, no direct CLI command yet. Carries a `cliDeferralReason` naming why (e.g. `host.restart`'s, corrected in round 5: not implemented yet, not structurally impossible — nothing prevents a `snapback restart` CLI command composing `Start`/`Stop` the same way `snapback_restart` does; Phase 2 lands it — a different reason than an exposed-but-unbuilt tool's `acceptance.run`). |
+| `mcpOnly` | Has a typed control-MCP tool, no direct CLI command yet. Carries a `cliDeferralReason` naming why (for example exposed-but-unbuilt `acceptance.run`; `host.restart` left this class when Phase 2 shipped its direct CLI composition). |
 | `apiOnly` | Has a stable typed HTTP and/or `AdminClient` projection — complete schema, example, credential path, result contract — but no CLI or MCP tool. |
 | `none` | No direct/API projection exists or is appropriate; invocation, if any, happens entirely through the `operability` axis below (e.g. a purely browser-mediated secret-entry step). |
 
@@ -355,7 +360,8 @@ for a materially identical hazard.
 
 This gives every real shape a single, unambiguous pair instead of a forced
 choice: the assets family is `(cliOnly, direct)` — a full typed CLI, zero MCP
-tools, ordinarily invocable. `host.restart` is `(mcpOnly, direct)` — see
+tools, ordinarily invocable. As of the 2026-08-06 Phase 2 delivery,
+`host.restart` is `(native, direct)` — see
 §Design/2's note on what that tool's projection actually is. `snapback admin
 link` (one-time operator claim links, plan/observe/redeem) is `(cliOnly,
 mediated)` — a typed CLI, but human redemption is the operation's whole
@@ -506,19 +512,19 @@ false, and treating `composedFrom` as a substitute for `projections.hostOps`
 would have dropped a registered identity that rule 1 requires a row for —
 undermining the exact rule the field was invented to satisfy.
 
-The row's real anomaly is sharper than round 4's diagnosis, and worth
-representing honestly rather than smoothing over. The two projections
-disagree: the HTTP/host-ops path refuses `host.restart` outright
+The row's real anomaly at the RFC review snapshot was sharper than round 4's
+diagnosis, and worth preserving here rather than smoothing over. The two
+projections disagreed: the HTTP/host-ops path refused `host.restart` outright
 (`SNAPBACK_HOST_OP_CLI_ONLY`, "a running server cannot start or stop itself
-over its own HTTP surface"), while the MCP tool *executes* it by spawning
+over its own HTTP surface"), while the MCP tool *executed* it by spawning
 the co-installed native binary directly — no admin credential gate at all on
 that path, only local process/filesystem access plus the startup nonce. The
-same operation identity therefore succeeds through one projection and always
-refuses through another, which is a live counterexample to "No projection
+same operation identity therefore succeeded through one projection and always
+refused through another, which was a live counterexample to "No projection
 creates authority... return the same result semantics" (§Security and
 ergonomics invariants) for `host.start`/`host.stop`/`host.restart`
-specifically. This RFC does not get to declare that invariant true by
-assertion when the shipped code already contradicts it; instead:
+specifically. This RFC could not declare that invariant true by assertion
+while the shipped code contradicted it; instead:
 
 - **`projections.hostOps` and `composedFrom` are both populated** for this
   row — `hostOps: "host.restart"` (the registered identity rule 1 requires)
@@ -527,8 +533,10 @@ assertion when the shipped code already contradicts it; instead:
 - **The catalog discloses the effective credential carrier per projection**,
   not one route-derived value copied onto every projection — `policy.
   routePolicy: AdminWrite` describes the HTTP path (which refuses this
-  operation entirely); the MCP path's actual gate (local process access,
-  startup nonce, no admin credential) is a separate, named fact on the row.
+  operation entirely); at the snapshot, the MCP path's actual gate (local
+  process access, startup nonce, no admin credential) was a separate, named
+  fact on the row. The generated row now records the closed CLI and MCP
+  credential proofs separately.
 - **The gap is closed, not redefined away.** Round 5 review found that
   restating "no projection creates authority" as "no projection widens the
   authority its own gate enforces" is vacuous as a general principle — any
@@ -536,20 +544,23 @@ assertion when the shipped code already contradicts it; instead:
   nothing on its own. §Security and ergonomics invariants keeps the original
   invariant exactly as written, with **one explicit, scoped, and temporary
   exception** named for `host.start`/`host.stop`/`host.restart`'s MCP
-  projection specifically. Phase 2's `host.restart` vertical slice (added to
-  the delivery plan below) gates the MCP path behind the same
+  projection specifically. Phase 2's `host.restart` vertical slice gated the
+  MCP path behind the same
   admin-credential proof the HTTP path already requires — process-lifecycle
   operations sitting outside the ordinary credential path "by necessity" was
-  a convenience of the current implementation, not a property this RFC
-  endorses keeping. Until that slice lands, the exception is named, dated to
-  Phase 2, and does not apply to any other row.
+  a convenience of that implementation, not a property this RFC endorsed
+  keeping. Before that slice landed, the exception was named, dated to Phase
+  2, and did not apply to any other row. **Implementation record
+  (2026-08-06):** that gate is live for MCP, and the native CLI projection
+  applies the same concrete-credential proof before its stop leg; the
+  exception is closed.
 
 `src/host_ops.rs`'s in-code `CLI_ONLY_HOST_OPS` allowlist and the
 `SNAPBACK_HOST_OP_CLI_ONLY` diagnostic text it drives both assert the
 opposite division of labor ("the CLI owns them" / "use the snapback CLI")
-for `host.restart` while no `snapback restart` CLI command exists; Phase 0
-item 1 corrects both the allowlist comment and the diagnostic text in the
-same pass as the count repair.
+for `host.restart` while no `snapback restart` CLI command existed at the
+RFC snapshot. Phase 0 corrected the diagnostic text; Phase 2 shipped the CLI
+command, so CLI ownership and the implementation now agree.
 
 ### 3. Completeness and parity rules
 
@@ -1116,11 +1127,11 @@ command; it is not the arbitrary-SQL-over-application-data this section and
    allowlists in `src/host_ops.rs`, not only the guide prose; asset and
    network-profile identities belong in that allowlist today and currently
    fall through to `"unrecognized"` in diagnostics. `CLI_ONLY_HOST_OPS` also
-   asserts CLI ownership of `host.restart`, which has no CLI command today —
-   correct both the allowlist comment and the `SNAPBACK_HOST_OP_CLI_ONLY`
-   diagnostic text callers actually receive to reflect `snapback_restart`'s
-   composed-projection shape (§Design/2) rather than a CLI command that does
-   not exist.
+   asserted CLI ownership of `host.restart` before a CLI command existed at
+   the RFC snapshot — correct both the allowlist comment and the
+   `SNAPBACK_HOST_OP_CLI_ONLY` diagnostic text callers actually receive.
+   Phase 2 subsequently made that ownership literal by shipping
+   `snapback restart` (§Design/2).
 2. Correct the network-profile capability/hosted wording and add the
    dedicated page — this resolves LLP 0167's open OQ5 (ship a guide page now
    rather than a GAP row) in the direction 0167's own text leans, and should
@@ -1168,6 +1179,11 @@ creates authority" exception. Landing this also removes `host.restart`'s
 `cliDeferralReason` as a permanent fixture if a `snapback restart` CLI
 command lands alongside it (§Design/2, §Product contract) — either way, the
 row's authority story matches its HTTP sibling by the end of this phase.
+
+**Implemented 2026-08-06.** The MCP gate and native CLI composition both
+prove a concrete administrator credential with `app.inspect` before the
+nonce-verified stop. `host.restart` is now `native`, has no
+`cliDeferralReason`, and returns one request id/envelope in either projection.
 
 ### Phase 3 — build the selected missing controls
 
@@ -1265,13 +1281,11 @@ The RFC is implemented only when all of the following hold:
 ## Security and ergonomics invariants
 
 - **No projection creates authority.** CLI, MCP, AdminClient, and console call
-  the same gate and return the same result semantics. **One named, temporary
-  exception:** `host.start`/`host.stop`/`host.restart`'s MCP projection
-  currently runs on local process/filesystem access plus the startup nonce
-  rather than the HTTP path's admin credential (§Design/2) — a shipped
-  implementation gap this RFC discloses rather than launders, closed by
-  Phase 2's `host.restart` vertical slice, and not a license for any other
-  row to diverge by projection.
+  the same gate and return the same result semantics. The former named,
+  temporary lifecycle exception is closed: native CLI restart and MCP
+  stop/restart prove a concrete administrator credential through the live
+  host-ops gate before signaling, in addition to nonce-verifying the process
+  target (§Design/2).
 - **No secret in convenience channels.** Argv, ordinary MCP parameters/results,
   catalog examples, logs, and receipts are not secret carriers.
 - **No browser automation as API.** Agents use headless operations; a browser is

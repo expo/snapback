@@ -492,6 +492,16 @@
       "responseSensitivity": "SensitiveApplicationData"
     },
     {
+      "method": "GET",
+      "path": "/_snapback/api/cron",
+      "class": "SystemApi",
+      "pathPolicy": "AdminRead",
+      "credentialResolution": "AdminCredential",
+      "invocationAuthority": "Operator",
+      "effectPolicy": "None",
+      "responseSensitivity": "OperatorMetadata"
+    },
+    {
       "method": "POST",
       "path": "/_snapback/api/cron/tick",
       "class": "SystemApi",
@@ -630,6 +640,17 @@
       "responseSensitivity": "SensitiveApplicationData"
     },
     {
+      "operation": "host_ops.cron.list",
+      "parentPath": "/_snapback/api/host-ops",
+      "transport": "HostOps",
+      "class": "SystemApi",
+      "pathPolicy": "AdminRead",
+      "credentialResolution": "AdminCredential",
+      "invocationAuthority": "Operator",
+      "effectPolicy": "None",
+      "responseSensitivity": "OperatorMetadata"
+    },
+    {
       "operation": "host_ops.debug.networkProfileGet",
       "parentPath": "/_snapback/api/host-ops",
       "transport": "HostOps",
@@ -642,6 +663,17 @@
     },
     {
       "operation": "host_ops.debug.networkProfileSet",
+      "parentPath": "/_snapback/api/host-ops",
+      "transport": "HostOps",
+      "class": "SystemApi",
+      "pathPolicy": "AdminWrite",
+      "credentialResolution": "AdminCredential",
+      "invocationAuthority": "Operator",
+      "effectPolicy": "None",
+      "responseSensitivity": "OperatorMetadata"
+    },
+    {
+      "operation": "host_ops.debug.live.forceResync",
       "parentPath": "/_snapback/api/host-ops",
       "transport": "HostOps",
       "class": "SystemApi",
@@ -1183,6 +1215,7 @@
   "hostOpsIdentities": {
     "served": [
       "app.inspect",
+      "cron.list",
       "app.reset",
       "app.seed.ensure.v1",
       "app.seed.preview.v1",
@@ -1219,7 +1252,8 @@
       "asset.delete",
       "asset.rotateSigningKey",
       "debug.networkProfileGet",
-      "debug.networkProfileSet"
+      "debug.networkProfileSet",
+      "debug.live.forceResync"
     ],
     "cliOnly": [
       "host.start",

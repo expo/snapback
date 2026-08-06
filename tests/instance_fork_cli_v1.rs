@@ -5,10 +5,13 @@
 //! exact drop, no-manifest readiness, injected-clock reap, and teardown of the
 //! fork directory that contains runtime/telemetry residue.
 
+use base64::Engine as _;
 use serde_json::Value;
+use sha2::Digest as _;
 use snapback::manifest::SchemaManifest;
 use snapback::storage::LocalDatabase;
 use std::fs::File;
+use std::io::Read as _;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
 use std::time::Duration;
@@ -423,19 +426,31 @@ struct ParentServer {
 
 impl ParentServer {
     fn start(database: &Path, directory: &Path) -> Self {
+        Self::start_with_artifacts(database, directory, None)
+    }
+
+    fn start_with_artifacts(
+        database: &Path,
+        directory: &Path,
+        startup_artifacts: Option<&Path>,
+    ) -> Self {
         let ready = directory.join("parent.ready.json");
         let log = File::create(directory.join("parent-runtime.log")).expect("parent log");
         let error_log = log.try_clone().expect("parent log clone");
-        let child = snapback()
-            .args([
-                "start",
-                "--db",
-                database.to_str().unwrap(),
-                "--port",
-                "0",
-                "--ready-file",
-                ready.to_str().unwrap(),
-            ])
+        let mut command = snapback();
+        command.args([
+            "start",
+            "--db",
+            database.to_str().unwrap(),
+            "--port",
+            "0",
+            "--ready-file",
+            ready.to_str().unwrap(),
+        ]);
+        if let Some(carrier) = startup_artifacts {
+            command.args(["--startup-artifacts", carrier.to_str().unwrap()]);
+        }
+        let child = command
             .stdout(Stdio::from(log))
             .stderr(Stdio::from(error_log))
             .spawn()
@@ -494,6 +509,289 @@ impl Drop for ParentServer {
         let _ = self.child.kill();
         let _ = self.child.wait();
     }
+}
+
+#[derive(Clone, Debug)]
+struct UploadIntent {
+    name: String,
+    policy_hash: String,
+    implementation_hash: String,
+}
+
+fn upload_intent(functions: &Value, exported_name: &str) -> UploadIntent {
+    let intent = functions["assetUploadIntents"]
+        .as_array()
+        .expect("generated asset upload intents")
+        .iter()
+        .find(|intent| intent["exportedName"] == exported_name)
+        .unwrap_or_else(|| panic!("generated upload intent {exported_name}"));
+    UploadIntent {
+        name: intent["exportedName"]
+            .as_str()
+            .expect("upload intent exported name")
+            .to_owned(),
+        policy_hash: intent["intentPolicyHash"]
+            .as_str()
+            .expect("upload intent policy hash")
+            .to_owned(),
+        implementation_hash: intent["implementationHash"]
+            .as_str()
+            .expect("upload intent implementation hash")
+            .to_owned(),
+    }
+}
+
+fn session_request(method: &str, url: &str, bearer: &str) -> ureq::Request {
+    ureq::request(method, url)
+        .set("authorization", &format!("Bearer {bearer}"))
+        .set("x-snapback-auth-client-protocol", "1")
+}
+
+fn json_response(response: Result<ureq::Response, ureq::Error>, operation: &str) -> Value {
+    match response {
+        Ok(response) => response
+            .into_json()
+            .unwrap_or_else(|error| panic!("{operation} response JSON: {error}")),
+        Err(ureq::Error::Status(status, response)) => {
+            let body = response
+                .into_string()
+                .unwrap_or_else(|error| format!("<unreadable: {error}>"));
+            panic!("{operation} failed with HTTP {status}: {body}");
+        }
+        Err(error) => panic!("{operation} transport failed: {error}"),
+    }
+}
+
+fn response_status(response: Result<ureq::Response, ureq::Error>, operation: &str) -> u16 {
+    match response {
+        Ok(response) => response.status(),
+        Err(ureq::Error::Status(status, _)) => status,
+        Err(error) => panic!("{operation} transport failed: {error}"),
+    }
+}
+
+fn minted_session(ready: &Path, token: &str, email: &str) -> Value {
+    let mut command = snapback();
+    command.args([
+        "session",
+        "mint",
+        "--email",
+        email,
+        "--ready-file",
+        ready.to_str().unwrap(),
+        "--token",
+        token,
+    ]);
+    let minted = successful(command, "mint ordinary asset session");
+    assert_eq!(minted["ok"], true);
+    assert!(minted["data"]["token"].as_str().is_some());
+    assert!(minted["data"]["session"]["userId"].as_str().is_some());
+    minted["data"].clone()
+}
+
+/// The full client-facing production path: generated intent identity,
+/// reservation, checksummed TUS transfer, and digest-declared finalization.
+fn upload_over_asset_routes(
+    server_url: &str,
+    bearer: &str,
+    intent: &UploadIntent,
+    bytes: &[u8],
+    file_name: &str,
+    content_type: &str,
+) -> String {
+    let created = json_response(
+        session_request(
+            "POST",
+            &format!("{}/assets/attempts", server_url.trim_end_matches('/')),
+            bearer,
+        )
+        .send_json(serde_json::json!({
+            "intentId": intent.name,
+            "intentPolicyHash": intent.policy_hash,
+            "implementationHash": intent.implementation_hash,
+            "args": {},
+            "declaredFilename": file_name,
+            "declaredLength": bytes.len(),
+            "declaredContentType": content_type,
+        })),
+        "create asset attempt",
+    );
+    let asset_id = created["task"]["assetId"]
+        .as_str()
+        .expect("created asset id")
+        .to_owned();
+    let attempt_id = created["task"]["attemptId"]
+        .as_str()
+        .expect("created attempt id")
+        .to_owned();
+    let upload_url = created["transfer"]["uploadUrl"]
+        .as_str()
+        .expect("TUS upload URL");
+    let checksum = base64::engine::general_purpose::STANDARD.encode(sha2::Sha256::digest(bytes));
+    let patched = session_request(
+        "PATCH",
+        &format!("{}{}", server_url.trim_end_matches('/'), upload_url),
+        bearer,
+    )
+    .set("tus-resumable", "1.0.0")
+    .set("content-type", "application/offset+octet-stream")
+    .set("upload-offset", "0")
+    .set("upload-checksum", &format!("sha256 {checksum}"))
+    .send_bytes(bytes);
+    match patched {
+        Ok(response) => assert_eq!(response.status(), 204, "TUS PATCH status"),
+        Err(ureq::Error::Status(status, response)) => panic!(
+            "TUS PATCH failed with HTTP {status}: {}",
+            response.into_string().unwrap_or_default()
+        ),
+        Err(error) => panic!("TUS PATCH transport failed: {error}"),
+    }
+    let digest = format!("{:x}", sha2::Sha256::digest(bytes));
+    let finalized = json_response(
+        session_request(
+            "POST",
+            &format!(
+                "{}/assets/attempts/{}/finalize",
+                server_url.trim_end_matches('/'),
+                attempt_id
+            ),
+            bearer,
+        )
+        .send_json(serde_json::json!({
+            "attemptId": attempt_id,
+            "lifecycleGeneration": 1,
+            "declaredDigest": digest,
+        })),
+        "finalize asset attempt",
+    );
+    assert_eq!(finalized["task"]["assetId"], asset_id);
+    assert_eq!(finalized["task"]["availability"], "ready");
+    assert_eq!(finalized["task"]["integrityGrade"], "end-to-end-verified");
+    asset_id
+}
+
+fn issue_signed_url(server_url: &str, bearer: &str, asset_id: &str) -> String {
+    let response = json_response(
+        session_request(
+            "POST",
+            &format!(
+                "{}/assets/records/{}/signed-url",
+                server_url.trim_end_matches('/'),
+                asset_id
+            ),
+            bearer,
+        )
+        .send_json(serde_json::json!({ "variant": "primary" })),
+        "issue private-signed asset URL",
+    );
+    response["url"]
+        .as_str()
+        .expect("origin-relative signed URL")
+        .to_owned()
+}
+
+fn signed_bytes(server_url: &str, signed_url: &str) -> Vec<u8> {
+    let response = ureq::get(&format!(
+        "{}{}",
+        server_url.trim_end_matches('/'),
+        signed_url
+    ))
+    .call()
+    .unwrap_or_else(|error| panic!("signed asset delivery failed: {error}"));
+    let mut bytes = Vec::new();
+    response
+        .into_reader()
+        .read_to_end(&mut bytes)
+        .expect("read signed asset bytes");
+    assert!(!bytes.is_empty(), "signed delivery returns canonical bytes");
+    bytes
+}
+
+fn signed_status(server_url: &str, signed_url: &str) -> u16 {
+    response_status(
+        ureq::get(&format!(
+            "{}{}",
+            server_url.trim_end_matches('/'),
+            signed_url
+        ))
+        .call(),
+        "signed asset delivery",
+    )
+}
+
+fn delete_asset(server_url: &str, bearer: &str, asset_id: &str) {
+    let response = session_request(
+        "DELETE",
+        &format!(
+            "{}/assets/records/{}",
+            server_url.trim_end_matches('/'),
+            asset_id
+        ),
+        bearer,
+    )
+    .call();
+    let deleted = json_response(response, "delete asset");
+    assert_eq!(deleted["assetId"], asset_id);
+    assert_eq!(deleted["availability"], "deleted");
+}
+
+fn signed_issue_status(server_url: &str, bearer: &str, asset_id: &str) -> u16 {
+    response_status(
+        session_request(
+            "POST",
+            &format!(
+                "{}/assets/records/{}/signed-url",
+                server_url.trim_end_matches('/'),
+                asset_id
+            ),
+            bearer,
+        )
+        .send_json(serde_json::json!({ "variant": "primary" })),
+        "issue private-signed asset URL",
+    )
+}
+
+fn primary_blob_path(database: &Path, asset_id: &str) -> PathBuf {
+    let conn = rusqlite::Connection::open(database).expect("open asset database");
+    let physical_key: String = conn
+        .query_row(
+            "SELECT b.physical_key
+             FROM _snapback_asset_renditions_v1 r
+             JOIN _snapback_asset_blobs_v1 b ON b.blob_id = r.blob_id
+             WHERE r.asset_id = ?1 AND r.variant_key = 'primary'",
+            [asset_id],
+            |row| row.get(0),
+        )
+        .expect("asset primary blob key");
+    database
+        .parent()
+        .expect("database parent")
+        .join("assets/blobs")
+        .join(physical_key)
+}
+
+fn distinct_png(rgb: [u8; 3]) -> Vec<u8> {
+    let image = image::RgbImage::from_pixel(8, 8, image::Rgb(rgb));
+    let mut bytes = std::io::Cursor::new(Vec::new());
+    image::DynamicImage::ImageRgb8(image)
+        .write_to(&mut bytes, image::ImageFormat::Png)
+        .expect("encode PNG fixture");
+    bytes.into_inner()
+}
+
+fn asset_gc_sweep(ready: &Path, token: &str, now_ms: u64, operation: &str) -> Value {
+    let mut command = snapback();
+    command.args([
+        "assets",
+        "gc-sweep",
+        "--now-ms",
+        &now_ms.to_string(),
+        "--ready-file",
+        ready.to_str().unwrap(),
+        "--token",
+        token,
+    ]);
+    successful(command, operation)
 }
 
 fn todo_titles(database: &Path) -> Vec<String> {
@@ -673,6 +971,319 @@ fn live_parent_writes_after_fork_point_never_appear_in_the_fork() {
         "diff row is the fork-local todo: {}",
         rows[0]
     );
+}
+
+/// @ref LLP 0158#open-questions — OQ5's local ruling requires a same-cut,
+/// fork-private tree whose live upload, delivery/signing, deletion, GC, and
+/// exact instance cleanup remain independent in both directions.
+#[test]
+fn live_fork_asset_lifecycle_is_private_gc_safe_and_exactly_reaped() {
+    let directory = tempfile::tempdir().expect("live fork asset fixture");
+    let repo = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let fixture_generated = repo.join("tests/acceptance/fixtures/asset-conformance/generated");
+    let schema: Value = serde_json::from_slice(
+        &std::fs::read(fixture_generated.join("schema.manifest.json"))
+            .expect("asset fixture schema"),
+    )
+    .expect("asset schema JSON");
+    let functions: Value = serde_json::from_slice(
+        &std::fs::read(fixture_generated.join("functions.manifest.json"))
+            .expect("asset fixture functions"),
+    )
+    .expect("asset functions JSON");
+    let share_upload = upload_intent(&functions, "shareUpload");
+
+    // `fork create --app-root` consumes the normal generated layout. Keep a
+    // private scratch app root so this test never mutates the shared fixture.
+    let app_root = directory.path().join("asset-app");
+    let generated = app_root.join("snapback/generated");
+    std::fs::create_dir_all(&generated).expect("scratch generated directory");
+    std::fs::copy(
+        fixture_generated.join("schema.manifest.json"),
+        generated.join("schema.manifest.json"),
+    )
+    .expect("copy asset schema");
+    std::fs::copy(
+        fixture_generated.join("functions.manifest.json"),
+        generated.join("functions.manifest.json"),
+    )
+    .expect("copy asset functions");
+
+    let parent_carrier = directory.path().join("parent-startup-artifacts.json");
+    std::fs::write(
+        &parent_carrier,
+        serde_json::to_vec(&serde_json::json!({
+            "formatVersion": 1,
+            "schema": schema,
+            "functions": functions,
+        }))
+        .expect("serialize startup carrier"),
+    )
+    .expect("write startup carrier");
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt as _;
+        std::fs::set_permissions(&parent_carrier, std::fs::Permissions::from_mode(0o600))
+            .expect("startup carrier owner-only mode");
+    }
+
+    let source = directory.path().join("parent.sqlite3");
+    let parent =
+        ParentServer::start_with_artifacts(&source, directory.path(), Some(&parent_carrier));
+    let parent_session = minted_session(&parent.ready, &parent.token, "fork-assets@example.test");
+    let parent_bearer = parent_session["token"].as_str().expect("parent bearer");
+    let parent_user = parent_session["session"]["userId"]
+        .as_str()
+        .expect("parent user id");
+
+    // Distinct canonical pixels prevent app-local dedup from collapsing the
+    // two ancestry blobs whose opposite-direction cleanup we prove.
+    let parent_asset_a = upload_over_asset_routes(
+        &parent.server_url,
+        parent_bearer,
+        &share_upload,
+        &distinct_png([210, 20, 20]),
+        "ancestry-a.png",
+        "image/png",
+    );
+    let parent_asset_b = upload_over_asset_routes(
+        &parent.server_url,
+        parent_bearer,
+        &share_upload,
+        &distinct_png([20, 40, 210]),
+        "ancestry-b.png",
+        "image/png",
+    );
+    let parent_a_signed = issue_signed_url(&parent.server_url, parent_bearer, &parent_asset_a);
+    let parent_b_signed = issue_signed_url(&parent.server_url, parent_bearer, &parent_asset_b);
+    let parent_a_bytes = signed_bytes(&parent.server_url, &parent_a_signed);
+    let parent_b_bytes = signed_bytes(&parent.server_url, &parent_b_signed);
+    let parent_a_blob = primary_blob_path(&source, &parent_asset_a);
+    let parent_b_blob = primary_blob_path(&source, &parent_asset_b);
+    assert!(parent_a_blob.is_file() && parent_b_blob.is_file());
+    assert_ne!(
+        parent_a_blob, parent_b_blob,
+        "fixtures stay physically distinct"
+    );
+
+    let fork_root = directory.path().join("forks");
+    let mut cleanup = ForkCleanup {
+        fork_root: fork_root.clone(),
+        app_root: app_root.clone(),
+        fork_ids: Vec::new(),
+    };
+    let created = fork_create(&parent.ready, &app_root, &fork_root, "5m", false);
+    cleanup.track(fork_id(&created));
+    assert_eq!(created["data"]["assetCustody"], "fork-private-same-cut");
+    let fork_database = data_path(&created, "database");
+    let fork_destination = fork_database
+        .parent()
+        .expect("fork destination")
+        .to_path_buf();
+    let fork_startup_carrier = fork_destination.join("fork-startup-artifacts.json");
+    assert!(
+        fork_startup_carrier.is_file(),
+        "the complete generated pair is retained for settled Sessions restarts"
+    );
+    let fork_ready = data_path(&created, "readyFile");
+    let fork_descriptor: Value =
+        serde_json::from_slice(&std::fs::read(&fork_ready).expect("fork ready file"))
+            .expect("fork ready JSON");
+    let fork_token = std::fs::read_to_string(
+        fork_descriptor["adminTokenFile"]
+            .as_str()
+            .expect("fork admin token file"),
+    )
+    .expect("fork admin token")
+    .trim()
+    .to_owned();
+    let fork_url = created["target"]["serverUrl"]
+        .as_str()
+        .expect("fork server URL");
+    let fork_session = minted_session(&fork_ready, &fork_token, "fork-assets@example.test");
+    let fork_bearer = fork_session["token"].as_str().expect("fork bearer");
+    assert_eq!(
+        fork_session["session"]["userId"], parent_user,
+        "copied principal identity can reacquire fresh fork-local session custody"
+    );
+
+    let fork_a_blob = primary_blob_path(&fork_database, &parent_asset_a);
+    let fork_b_blob = primary_blob_path(&fork_database, &parent_asset_b);
+    assert!(fork_a_blob.is_file() && fork_b_blob.is_file());
+    assert_ne!(
+        fork_a_blob, parent_a_blob,
+        "same physical key resolves under a different instance-private root"
+    );
+    assert_eq!(
+        std::fs::read(&fork_a_blob).unwrap(),
+        std::fs::read(&parent_a_blob).unwrap()
+    );
+
+    // The parent URL was minted before the cut. The copied asset exists, so
+    // this 403 specifically witnesses fork signing-key rotation rather than
+    // an absent record. Fresh fork URLs serve both copied assets.
+    assert_eq!(signed_status(fork_url, &parent_a_signed), 403);
+    let fork_a_signed = issue_signed_url(fork_url, fork_bearer, &parent_asset_a);
+    let fork_b_signed = issue_signed_url(fork_url, fork_bearer, &parent_asset_b);
+    assert_eq!(signed_bytes(fork_url, &fork_a_signed), parent_a_bytes);
+    assert_eq!(signed_bytes(fork_url, &fork_b_signed), parent_b_bytes);
+
+    // Upload a brand-new asset inside the live fork through the exact route
+    // sequence the product client owns, not through host-ops or blob writes.
+    let fork_uploaded = upload_over_asset_routes(
+        fork_url,
+        fork_bearer,
+        &share_upload,
+        &distinct_png([20, 190, 80]),
+        "fork-only.png",
+        "image/png",
+    );
+    let fork_uploaded_blob = primary_blob_path(&fork_database, &fork_uploaded);
+    assert!(fork_uploaded_blob.is_file());
+    let fork_uploaded_signed = issue_signed_url(fork_url, fork_bearer, &fork_uploaded);
+    assert_eq!(
+        signed_bytes(fork_url, &fork_uploaded_signed),
+        std::fs::read(&fork_uploaded_blob).expect("read fork-uploaded canonical blob"),
+        "fork signed delivery serves the canonical fork-private bytes"
+    );
+    assert!(
+        signed_issue_status(&parent.server_url, parent_bearer, &fork_uploaded) >= 400,
+        "the parent cannot discover or sign the fork-only asset"
+    );
+    assert!(
+        signed_status(&parent.server_url, &fork_uploaded_signed) >= 400,
+        "the parent cannot serve a URL issued for the fork-only asset"
+    );
+    let parent_fork_key = parent_a_blob
+        .parent()
+        .expect("parent blob root")
+        .join(fork_uploaded_blob.file_name().expect("fork physical key"));
+    assert!(
+        !parent_fork_key.exists(),
+        "fork upload never writes its object into the parent blob tree"
+    );
+
+    // Fork-side delete + GC owns only fork-private A. The same-ancestry A in
+    // the parent remains signed, served, and physically present.
+    delete_asset(fork_url, fork_bearer, &parent_asset_a);
+    assert!(
+        fork_a_blob.is_file(),
+        "delete is logical until blob retention passes"
+    );
+    assert!(signed_status(fork_url, &fork_a_signed) >= 400);
+    let gc_now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .expect("portable clock")
+        .as_millis() as u64
+        + snapback::assets::ASSET_BLOB_RETENTION_MS
+        + 1_000;
+    let fork_gc = asset_gc_sweep(&fork_ready, &fork_token, gc_now, "fork asset GC");
+    assert!(
+        fork_gc["data"]["report"]["blobObjectsDeleted"]
+            .as_u64()
+            .is_some_and(|count| count >= 1),
+        "fork GC reports physical reclamation: {fork_gc}"
+    );
+    assert!(
+        !fork_a_blob.exists(),
+        "fork GC removes only fork-private A bytes"
+    );
+    assert!(
+        parent_a_blob.is_file(),
+        "fork GC never reaches the parent tree"
+    );
+    assert_eq!(
+        signed_bytes(&parent.server_url, &parent_a_signed),
+        parent_a_bytes
+    );
+    assert!(fork_b_blob.is_file() && fork_uploaded_blob.is_file());
+
+    // The reverse direction: parent delete + GC owns only parent-private B;
+    // the already-issued fork URL and fork-private bytes stay valid.
+    delete_asset(&parent.server_url, parent_bearer, &parent_asset_b);
+    let parent_gc = asset_gc_sweep(&parent.ready, &parent.token, gc_now, "parent asset GC");
+    assert!(
+        parent_gc["data"]["report"]["blobObjectsDeleted"]
+            .as_u64()
+            .is_some_and(|count| count >= 1),
+        "parent GC reports physical reclamation: {parent_gc}"
+    );
+    assert!(
+        !parent_b_blob.exists(),
+        "parent GC removes parent-private B bytes"
+    );
+    assert!(
+        fork_b_blob.is_file(),
+        "parent GC never reaches the fork tree"
+    );
+    assert_eq!(signed_bytes(fork_url, &fork_b_signed), parent_b_bytes);
+
+    // Exact drop removes the complete asset-bearing fork tree—including its
+    // cold-start carrier and fork-only upload—without touching the parent.
+    let mut drop_command = snapback();
+    drop_command.args([
+        "fork",
+        "drop",
+        fork_id(&created),
+        "--app-root",
+        app_root.to_str().unwrap(),
+        "--fork-root",
+        fork_root.to_str().unwrap(),
+    ]);
+    let dropped = successful(drop_command, "drop asset-bearing fork");
+    assert_eq!(dropped["data"]["dropped"], true);
+    assert!(!fork_destination.exists());
+    assert!(!fork_startup_carrier.exists());
+    assert!(
+        !fork_uploaded_blob.exists(),
+        "no fork-uploaded orphan survives drop"
+    );
+    assert!(parent_a_blob.is_file());
+    assert_eq!(
+        signed_bytes(&parent.server_url, &parent_a_signed),
+        parent_a_bytes
+    );
+
+    // A second asset-bearing fork takes the deterministic reap path, proving
+    // both exact cleanup verbs rather than treating drop as a proxy for reap.
+    let reaped_fork = fork_create(&parent.ready, &app_root, &fork_root, "5m", false);
+    cleanup.track(fork_id(&reaped_fork));
+    let reaped_database = data_path(&reaped_fork, "database");
+    let reaped_destination = reaped_database
+        .parent()
+        .expect("reaped destination")
+        .to_path_buf();
+    let reaped_blob = primary_blob_path(&reaped_database, &parent_asset_a);
+    assert!(
+        reaped_blob.is_file(),
+        "reap fixture carries a copied asset blob"
+    );
+    let expires_at = reaped_fork["data"]["receipt"]["lineage"]["expiresAtMs"]
+        .as_u64()
+        .expect("reap fixture expiry");
+    let mut reap = snapback();
+    reap.args([
+        "fork",
+        "reap",
+        "--now-ms",
+        &expires_at.to_string(),
+        "--app-root",
+        app_root.to_str().unwrap(),
+        "--fork-root",
+        fork_root.to_str().unwrap(),
+    ]);
+    let reaped = successful(reap, "reap asset-bearing fork");
+    assert_eq!(
+        reaped["data"]["receipt"]["reapedForkIds"],
+        serde_json::json!([fork_id(&reaped_fork)])
+    );
+    assert!(!reaped_destination.exists());
+    assert!(!reaped_blob.exists(), "no copied fork blob survives reap");
+    assert!(
+        parent_a_blob.is_file(),
+        "reap never touches the parent blob"
+    );
+    assert_eq!(health(&parent.server_url)["ok"], true);
 }
 
 /// LLP 0185 Phase 3 item 5: a registry entry whose fork directory is already

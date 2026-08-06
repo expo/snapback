@@ -381,6 +381,21 @@ pub struct LiveSubscriptionInfo {
     pub function: String,
 }
 
+/// Structured receipt for `debug.live.forceResync` (LLP 0184 §B). Names the
+/// consumed target by id, never a live token/credential; the operator/test
+/// `reason` is recorded verbatim so the receipt is auditable without source
+/// archaeology.
+#[derive(Clone, Debug, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ForceLiveResyncReceipt {
+    pub connection_id: String,
+    pub subscription_id: String,
+    pub function: String,
+    pub reason: String,
+    #[serde(rename = "clearRetained")]
+    pub clear_retained: bool,
+}
+
 /// The public projection of [`InspectState`] served at the root `/inspect` and
 /// `/`. It is a typed allowlist: the `From<InspectState>` below destructures the
 /// full struct, so a newly-added `InspectState` (or `StorageInfo`,
@@ -2756,6 +2771,16 @@ impl EphemeralApi {
 
     pub fn cleanup_expired(&self, now_ms: u64) {
         self.store.cleanup_expired(now_ms);
+    }
+
+    pub fn cleanup_expired_bounded(
+        &self,
+        cutoff_timestamp_ms: u64,
+        max_entries: usize,
+        dry_run: bool,
+    ) -> crate::ephemeral::EphemeralCleanupReport {
+        self.store
+            .cleanup_expired_bounded(cutoff_timestamp_ms, max_entries, dry_run)
     }
 
     /// Gather shard diagnostics without the global Local writer. Server
@@ -5581,6 +5606,101 @@ impl LocalSnapback {
         if let Err(error) = self.persist_cron_state() {
             self.record_attached_diagnostics(vec![error.diagnostic]);
         }
+    }
+
+    /// LLP 0184 §B: `debug.live.forceResync`, a non-production debug
+    /// perturbation. It makes exactly one live subscription re-snapshot
+    /// through the protocol's ordinary `resync_required` recovery path (LLP
+    /// 0094/0095) by enqueueing that frame on the subscription's own
+    /// connection outbox — it does not drop the subscription, does not
+    /// touch any application data, and does not invent a new
+    /// per-subscription generation (LLP 0095's subscription-scoped resync
+    /// transition requires only `subscription_id`; this reuses that
+    /// identity rather than the sessions-artifact `expected_generation`
+    /// pinned on [`LiveSubscription`], which is a different, auth-artifact
+    /// fact this operation does not read or repurpose).
+    ///
+    /// Fenced by connection id plus subscription id — the same pair the
+    /// gated `/_snapback/api/inspect` twin already exposes as
+    /// [`LiveSubscriptionInfo`]. The caller's startup nonce and target
+    /// eligibility (local non-production only in v1) are both verified by
+    /// the host-ops HTTP handler before this is ever reached; this method
+    /// assumes both checks already passed and fences only on the
+    /// connection/subscription pair actually being open together.
+    ///
+    /// Connection-wide targeting (every subscription on a connection) is
+    /// explicitly out of v1 scope (LLP 0184 OQ4), not silently reachable
+    /// through this method.
+    ///
+    /// @ref LLP 0184#b-forced-live-resync--add-now — single-subscription
+    ///   v1 scope, startup-nonce fencing, closed operator/test reason,
+    ///   selectable `clearRetained` disposition, normal `resync_required`
+    ///   path, no application-data change.
+    pub(crate) fn force_live_resync(
+        &mut self,
+        connection_id: &str,
+        subscription_id: &str,
+        reason: &str,
+        clear_retained: bool,
+    ) -> Result<ForceLiveResyncReceipt, SnapbackError> {
+        let subscription = self.subscriptions.get(subscription_id).ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_LIVE_FORCE_RESYNC_SUBSCRIPTION_NOT_FOUND",
+                "debug",
+                "no live subscription with that id is currently open",
+            )
+            .with_details(json!({ "subscriptionId": subscription_id }))
+        })?;
+        if subscription.connection_id != connection_id {
+            return Err(SnapbackError::error(
+                "SNAPBACK_LIVE_FORCE_RESYNC_CONNECTION_MISMATCH",
+                "debug",
+                "the subscription id is not open on the given connection id",
+            )
+            .with_details(json!({
+                "subscriptionId": subscription_id,
+                "requestedConnectionId": connection_id,
+                "actualConnectionId": subscription.connection_id,
+            })));
+        }
+        let effect_fence = subscription.effect_fence.clone();
+        let function = subscription.function.clone();
+        let Ok(payload) = serde_json::to_vec(&LiveEnvelope::ResyncRequired {
+            network_profile: None,
+            reason: format!("operator_forced: {reason}"),
+            subscription_id: Some(subscription_id.to_owned()),
+            scope: Some(String::new()),
+            epoch: Some(0),
+            clear_retained,
+        }) else {
+            return Err(SnapbackError::error(
+                "SNAPBACK_LIVE_FORCE_RESYNC_ENCODE_FAILED",
+                "debug",
+                "failed to encode the resync_required frame",
+            ));
+        };
+        // Deferred the same way `finish_committed_reset`'s dropped-subscription
+        // signals are: the ephemeral outbox lock must never nest inside the
+        // Local lock this method already holds.
+        // @ref LLP 0059#locking-and-linearization — after-Local projection
+        //   never overlaps a successor managed Local operation.
+        let ephemeral = self.ephemeral.clone();
+        let connection_id_owned = connection_id.to_owned();
+        crate::exec_guard::run_or_defer_after_local(move || match effect_fence {
+            Some(effect_fence) => {
+                ephemeral.enqueue_durable_bound(connection_id_owned, payload, effect_fence);
+            }
+            None => {
+                ephemeral.enqueue_durable(connection_id_owned, payload);
+            }
+        });
+        Ok(ForceLiveResyncReceipt {
+            connection_id: connection_id.to_owned(),
+            subscription_id: subscription_id.to_owned(),
+            function,
+            reason: reason.to_owned(),
+            clear_retained,
+        })
     }
 
     pub(crate) fn app_generation(&self) -> u64 {

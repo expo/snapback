@@ -664,6 +664,14 @@ export const CONTROL_TOOLS = [
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
   },
   {
+    name: 'snapback_cron_list',
+    operation: 'cron.list',
+    title: 'List cron jobs',
+    description: 'Read declared cron identities and current activation/next/last scheduler posture. Omits run ids, handler diagnostics/results, and jitter seeds.',
+    inputSchema: { type: 'object', additionalProperties: false, properties: {} },
+    annotations: { readOnlyHint: true, openWorldHint: false },
+  },
+  {
     name: 'snapback_jobs_list',
     operation: 'jobs.list',
     title: 'List one-off jobs',
@@ -727,6 +735,28 @@ export const CONTROL_TOOLS = [
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
   },
   {
+    name: 'snapback_ephemeral_cleanup',
+    operation: 'ephemeral.cleanup',
+    title: 'Preview or apply bounded ephemeral expiry cleanup',
+    description: 'Count or remove entries whose expiry deadline is at/before an explicit cutoff. The tool binds the request to the current server startup and returns a room-count receipt.',
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['dryRun', 'maxEntries'],
+      oneOf: [
+        { required: ['olderThanMs'] },
+        { required: ['cutoffTimestampMs'] },
+      ],
+      properties: {
+        olderThanMs: { type: 'integer', minimum: 0, description: 'Select entries whose expiry deadline is at least this old.' },
+        cutoffTimestampMs: { type: 'integer', minimum: 0, description: 'Select entries whose expiry deadline is at or before this Unix millisecond timestamp.' },
+        dryRun: { type: 'boolean', description: 'True previews without deletion; false applies ordinary expiry removals.' },
+        maxEntries: { type: 'integer', minimum: 1, maximum: 10_000 },
+      },
+    },
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
+  },
+  {
     name: 'snapback_jobs_drain',
     operation: 'jobs.drain',
     title: 'Drain due one-off jobs',
@@ -776,6 +806,32 @@ export const CONTROL_TOOLS = [
         expectedScopeEpoch: { type: 'integer', description: 'Fails closed if this does not match the room\'s current epoch.' },
         expectedEntryGeneration: { type: 'integer', description: 'Fails closed if this does not match the entry\'s current generation. Epoch and generation are both required and both checked — generation alone is not fencing-safe against a reborn room.' },
         reason: { type: 'string' },
+      },
+    },
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
+  },
+  // @ref LLP 0184#b-forced-live-resync--add-now — v1 targets exactly one
+  // subscription, fenced by connectionId + subscriptionId (the same UUIDv7
+  // identity the operator inspect projection already exposes) plus the
+  // running server's startupNonce, filled in from this server's own
+  // readiness descriptor — never a caller-supplied value, so an agent
+  // cannot fence a request against a server other than the one this MCP
+  // process is actually managing. Connection-wide targeting is explicitly
+  // out of v1 scope (OQ4). Local non-production only; refused on a primary
+  // hosted/production target or a derived instance until LLP 0158 grants
+  // recognition for this purpose.
+  {
+    name: 'snapback_live_force_resync',
+    operation: 'debug.live.forceResync',
+    title: 'Force one live subscription to resync (debug perturbation)',
+    description: 'Force one live subscription through the normal resync_required recovery path for local debugging. Changes no application data.',
+    inputSchema: {
+      type: 'object', additionalProperties: false, required: ['connectionId', 'subscriptionId', 'reason'],
+      properties: {
+        connectionId: { type: 'string' },
+        subscriptionId: { type: 'string' },
+        reason: { type: 'string', description: 'Why this debug perturbation is being invoked; recorded in the receipt.' },
+        clearRetained: { type: 'boolean', description: 'Also discard retained rows on the client rather than keep them until the fresh snapshot lands. Defaults to false.' },
       },
     },
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
@@ -1780,6 +1836,8 @@ export class McpControlServer {
         return this.adminResult('config.verify', 'POST', '/_snapback/api/config/verify', {
           body: { entry: args.entry },
         });
+      case 'snapback_cron_list':
+        return this.servedResult({ operation: 'cron.list' });
       case 'snapback_jobs_list':
         return this.adminResult('jobs.list', 'GET', '/_snapback/api/jobs');
       case 'snapback_jobs_show':
@@ -1814,6 +1872,18 @@ export class McpControlServer {
       case 'snapback_cron_run': {
         const result = await this.postAdminRoute(`/_snapback/api/cron/${encodeURIComponent(args.name)}/run`, {});
         return this.toolResult(this.adminRouteEnvelope('cron.runOne', id, result));
+      }
+      case 'snapback_ephemeral_cleanup': {
+        const startupNonce = this.currentDescriptor().startupNonce;
+        const body = {
+          dryRun: args.dryRun === true,
+          maxEntries: args.maxEntries,
+          startupNonce,
+          ...(Number.isInteger(args.olderThanMs) ? { olderThanMs: args.olderThanMs } : {}),
+          ...(Number.isInteger(args.cutoffTimestampMs) ? { cutoffTimestampMs: args.cutoffTimestampMs } : {}),
+        };
+        const result = await this.postAdminRoute('/_snapback/api/ephemeral/cleanup', body);
+        return this.toolResult(this.adminRouteEnvelope('ephemeral.cleanup', id, result));
       }
       case 'snapback_jobs_drain': {
         const body = {};
@@ -1851,6 +1921,23 @@ export class McpControlServer {
           startupNonce: descriptor.startupNonce,
         }, descriptor);
         return this.toolResult(this.adminRouteEnvelope('ephemeral.operatorDelete', id, result));
+      }
+      case 'snapback_live_force_resync': {
+        // @ref LLP 0184#b-forced-live-resync--add-now — startupNonce comes
+        // only from this server's own readiness descriptor, never from
+        // caller-supplied args; the server independently verifies it
+        // matches the running process before touching any subscription.
+        const descriptor = this.currentDescriptor();
+        return this.servedResult({
+          operation: 'debug.live.forceResync',
+          input: {
+            connectionId: args.connectionId,
+            subscriptionId: args.subscriptionId,
+            reason: args.reason,
+            clearRetained: args.clearRetained === true,
+            startupNonce: descriptor.startupNonce,
+          },
+        });
       }
       // @ref LLP 0184#p2-controlled-mutations — asset delete/GC/key-rotation/
       // export/import direct MCP tools; all route through the host-ops

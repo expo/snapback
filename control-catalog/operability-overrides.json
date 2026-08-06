@@ -13,12 +13,11 @@
     },
     "host.restart": {
       "operability": "direct",
-      "surfaceAccessOverride": "mcpOnly",
-      "cliDeferralReason": "Nothing prevents a `snapback restart` CLI command composing Start/Stop the same way `snapback_restart` does; not implemented yet — the credential-gating half of the Phase 2 vertical slice landed (see projectionCredentials.mcp below); the CLI command itself remains a follow-on.",
       "composedFrom": ["host.stop", "host.start"],
       "projectionCredentials": {
         "http": "AdminCredential (refuses this operation entirely: SNAPBACK_HOST_OP_CLI_ONLY)",
-        "mcp": "LLP 0184 §Design/2's disclosed, temporary, named exception is now CLOSED: snapback_stop (and therefore the mutating half of snapback_restart) requires the caller to hold an admin token accepted by the same AdminRead-gated /_snapback/api/host-ops route the HTTP path uses, verified with a live probe request before any process signal (packages/snapback-cli/mcp-control.mjs McpControlServer#requireAdminCredentialForLifecycle). snapback_start's fresh-spawn leg is unchanged — there is no prior credential to hold when no server yet exists."
+        "cli": "snapback restart resolves a concrete owner-only admin token and proves it with app.inspect on the AdminRead-gated /_snapback/api/host-ops route before its nonce-verified native stop; no credential enters argv or its receipt (src/cli.rs host_restart_result/restart_admin_credential_probe).",
+        "mcp": "LLP 0184 §Design/2's disclosed, temporary, named exception is CLOSED: snapback_stop (and therefore the mutating half of snapback_restart) requires an admin token accepted by the same AdminRead-gated /_snapback/api/host-ops route, verified with a live probe before any process signal (packages/snapback-cli/mcp-control.mjs McpControlServer#requireAdminCredentialForLifecycle). The fresh-spawn leg has no prior server credential to hold."
       }
     },
     "app.inspect": { "operability": "direct" },
@@ -55,6 +54,12 @@
     },
     "debug.networkProfileGet": { "operability": "direct" },
     "debug.networkProfileSet": { "operability": "direct" },
+    "debug.live.forceResync": {
+      "operability": "direct",
+      "availabilityTargets": ["local"],
+      "adminClient": "forceLiveResync",
+      "note": "LLP 0184 §B, LANDED: single-subscription v1 scope only (connection-wide targeting deliberately deferred — OQ4). Target rule matches data.patch's (§A, not yet landed as of this row): local-non-production only, gated by AppState::debug_perturbation_target_authority — refused on a primary hosted/production target AND on any derived instance (local or hosted) until LLP 0158 grants recognition for this specific purpose. This is NOT debug.networkProfileSet's hosted-derived exception (a different, narrower LLP 0158 grant \"solely for network-profile activation\"), so 'derived-hosted' is deliberately excluded from availabilityTargets here unlike the network-profile rows above. CLI (`snapback debug force-resync`), MCP (`snapback_live_force_resync`), and AdminClient (`forceLiveResync`) all landed from the same host operation; the console leg (admin-ui/app.contract) was NOT reached in this pass — the operation is otherwise complete (server, CLI, MCP, AdminClient, acceptance tests) but has no console button yet. `projections.console` intentionally stays null; do not read that as the operation being unavailable."
+    },
     "asset.put": { "operability": "direct", "mcpDeferralReason": "Assets: full typed CLI, zero MCP tools today — the RFC's (cliOnly, direct) worked example (§Product contract). MCP projection is a Phase 2 P1 item." },
     "asset.ensureSeedFixture": { "operability": "direct", "mcpDeferralReason": "Assets family; see asset.put." },
     "asset.inspect": { "operability": "direct", "note": "LLP 0184 Phase 2 P1: gained snapback_asset_inspect; now (native, direct)." },
@@ -108,11 +113,12 @@
       "note": "Carries a secret value via stdin/fd (the only v1 carrier). Human entry through the existing browser/operator setup page needs no agent-facing handoff row — the agent is never in that call chain."
     },
     "cron.tick": { "operability": "direct", "note": "LLP 0184 §P2 landed `snapback cron tick` (src/cli.rs CronCommand::Tick) and `snapback_cron_tick` (mcp-control.mjs); surfaceAccess is now derived native. AdminClient.tickCron() (packages/snapback-admin-client/index.mjs:577) remains the pre-existing apiOnly path." },
+    "cron.list": { "operability": "direct", "note": "LLP 0184 Phase 2 residue: read-only cron inspection projects the loaded functions manifest and already-held scheduler ledger through the AdminRead cron.list host operation, `GET /_snapback/api/cron`, `snapback cron list`, and `snapback_cron_list`. It deliberately omits run ids, handler diagnostics/results, jitter seeds, and recent-run payloads." },
     "cron.runOne": { "operability": "direct", "note": "LLP 0184 §P2 landed `snapback cron run <name>` and `snapback_cron_run`; surfaceAccess is now derived native. AdminClient.runCronJob() (index.mjs:581)." },
     "jobs.drain": { "operability": "direct", "note": "LLP 0184 §P2 landed `snapback jobs drain` and `snapback_jobs_drain`, both accepting the injected `nowMs`/`maxWaves` clock the route already supported; surfaceAccess is now derived native. AdminClient.drainJobs() (index.mjs:588)." },
     "jobs.list": { "operability": "direct", "note": "LLP 0184 Phase 2 P1: gained snapback jobs list + snapback_jobs_list; now (native, direct). AdminClient.listJobs() (index.mjs:595)." },
     "jobs.show": { "operability": "direct", "note": "LLP 0184 Phase 2 P1: gained snapback jobs show + snapback_jobs_show; now (native, direct). AdminClient.showJob() (index.mjs:599)." },
-    "ephemeral.cleanup": { "operability": "direct", "note": "AdminClient.cleanupEphemeral() (index.mjs:603); RFC: 'Effectively hidden from agents and classified only as notAuthorFacing' today — this Phase 1 row records the operation as genuinely direct so a future CLI/MCP projection (Phase 2 P2) is a pure surfaceAccess widening, not an operability change. DEFERRED in this P2 pass: the RFC's target shape needs cutoff/dry-run/receipt semantics `admin_ephemeral_cleanup` (src/admin.rs) does not have today (it wall-clock-sweeps with a bare 204); projecting the route as-is without that upgrade would misrepresent the catalog row's contract, so this stays apiOnly pending the semantic change." },
+    "ephemeral.cleanup": { "operability": "direct", "behavior": { "persistsAcrossRestart": false }, "note": "LLP 0184 §P2 semantic upgrade: the AdminWrite route now requires an explicit expiry cutoff, dry-run/apply posture, maximum entry count, and startup nonce; it returns a room-count receipt and uses ordinary Expired remove/fan-out mechanics. `snapback ephemeral cleanup` and `snapback_ephemeral_cleanup` make the operation native; the MCP tool is destructive:true/confirmFirst because it can apply deletion. AdminClient.cleanupEphemeral() consciously migrates its existing console caller to a 1,000-entry apply batch bound to the current startup." },
     "ephemeral.operatorDelete": {
       "operability": "direct",
       "availability": { "targets": ["local"] },

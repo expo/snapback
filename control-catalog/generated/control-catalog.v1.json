@@ -1,11 +1,11 @@
 {
   "schemaVersion": "snapback.control-catalog.v1",
-  "catalogDigest": "sha256:d50a314a6ad6ea12926715ac43d09cb68a19bd6e150716ad4690f3b6331bba59",
+  "catalogDigest": "sha256:7624d26866a45188127af998d7ba84d1a2a5426681cfb9ecd098379a41754f7f",
   "buildIdentity": {
-    "sourceCommit": "b5ccf3c14308db5e7d0116518a5767e87cad84ff",
+    "sourceCommit": "251367f3dc55b0453ece065ebddb8f8b0e62cfcf",
     "dirty": false
   },
-  "generatedAtCommit": "b5ccf3c14308db5e7d0116518a5767e87cad84ff",
+  "generatedAtCommit": "251367f3dc55b0453ece065ebddb8f8b0e62cfcf",
   "entries": [
     {
       "operation": "acceptance.run",
@@ -3153,6 +3153,55 @@
       ]
     },
     {
+      "operation": "cron.list",
+      "title": "List cron jobs",
+      "intents": [],
+      "status": "shipped",
+      "domain": "hostOps",
+      "hostOpsDisposition": "served",
+      "registeredOperations": [
+        "host_ops.cron.list"
+      ],
+      "surfaceAccess": "native",
+      "operability": "direct",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "routePolicy": "AdminRead",
+        "effect": "None",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": true,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": "snapback cron list",
+        "mcp": "snapback_cron_list",
+        "hostOps": "cron.list",
+        "http": "POST /_snapback/api/host-ops",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": "backend/cron.md#inspect-declared-jobs-and-runtime-posture",
+      "authorities": [
+        "llp/0024-agent-operating-surface"
+      ],
+      "sources": [
+        "src/host_ops.rs",
+        "packages/snapback-cli/mcp-control.mjs"
+      ]
+    },
+    {
       "operation": "cron.runOne",
       "title": "Force-run one named cron job",
       "intents": [],
@@ -3441,6 +3490,54 @@
       ],
       "sources": [
         "src/server.rs route_registry()"
+      ]
+    },
+    {
+      "operation": "debug.live.forceResync",
+      "title": "Force one live subscription to resync (debug perturbation)",
+      "intents": [],
+      "status": "shipped",
+      "domain": "hostOps",
+      "hostOpsDisposition": "served",
+      "registeredOperations": [
+        "host_ops.debug.live.forceResync"
+      ],
+      "surfaceAccess": "native",
+      "operability": "direct",
+      "availability": {
+        "targets": [
+          "local"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "routePolicy": "AdminWrite",
+        "effect": "None",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": true,
+        "approvalPosture": "confirmFirst",
+        "idempotent": true,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": "snapback debug force-resync",
+        "mcp": "snapback_live_force_resync",
+        "hostOps": "debug.live.forceResync",
+        "http": "POST /_snapback/api/host-ops",
+        "adminClient": "forceLiveResync",
+        "console": null
+      },
+      "guide": "operating/host-ops.md",
+      "authorities": [
+        "llp/0024-agent-operating-surface"
+      ],
+      "sources": [
+        "src/host_ops.rs",
+        "packages/snapback-cli/mcp-control.mjs"
       ]
     },
     {
@@ -3738,11 +3835,11 @@
     },
     {
       "operation": "ephemeral.cleanup",
-      "title": "ephemeral.cleanup",
+      "title": "Preview or apply bounded ephemeral expiry cleanup",
       "intents": [],
       "status": "shipped",
       "domain": "systemApi",
-      "surfaceAccess": "apiOnly",
+      "surfaceAccess": "native",
       "operability": "direct",
       "availability": {
         "targets": [
@@ -3758,21 +3855,21 @@
       },
       "behavior": {
         "readOnly": false,
-        "destructive": false,
-        "approvalPosture": null,
+        "destructive": true,
+        "approvalPosture": "confirmFirst",
         "idempotent": false,
         "openWorld": false,
-        "persistsAcrossRestart": true
+        "persistsAcrossRestart": false
       },
       "projections": {
-        "cli": null,
-        "mcp": null,
+        "cli": "snapback ephemeral cleanup",
+        "mcp": "snapback_ephemeral_cleanup",
         "hostOps": null,
         "http": "POST /_snapback/api/ephemeral/cleanup",
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "realtime/ephemeral-state.md#clean-up-expired-entries-operationally",
       "authorities": [
         "llp/0031-server-route-taxonomy"
       ],
@@ -4278,7 +4375,7 @@
       "registeredOperations": [
         "host_ops.host.restart"
       ],
-      "surfaceAccess": "mcpOnly",
+      "surfaceAccess": "native",
       "operability": "direct",
       "availability": {
         "targets": [
@@ -4293,7 +4390,8 @@
         "responseSensitivity": "SensitiveApplicationData",
         "projectionCredentials": {
           "http": "AdminCredential (refuses this operation entirely: SNAPBACK_HOST_OP_CLI_ONLY)",
-          "mcp": "LLP 0184 §Design/2's disclosed, temporary, named exception is now CLOSED: snapback_stop (and therefore the mutating half of snapback_restart) requires the caller to hold an admin token accepted by the same AdminRead-gated /_snapback/api/host-ops route the HTTP path uses, verified with a live probe request before any process signal (packages/snapback-cli/mcp-control.mjs McpControlServer#requireAdminCredentialForLifecycle). snapback_start's fresh-spawn leg is unchanged — there is no prior credential to hold when no server yet exists."
+          "cli": "snapback restart resolves a concrete owner-only admin token and proves it with app.inspect on the AdminRead-gated /_snapback/api/host-ops route before its nonce-verified native stop; no credential enters argv or its receipt (src/cli.rs host_restart_result/restart_admin_credential_probe).",
+          "mcp": "LLP 0184 §Design/2's disclosed, temporary, named exception is CLOSED: snapback_stop (and therefore the mutating half of snapback_restart) requires an admin token accepted by the same AdminRead-gated /_snapback/api/host-ops route, verified with a live probe before any process signal (packages/snapback-cli/mcp-control.mjs McpControlServer#requireAdminCredentialForLifecycle). The fresh-spawn leg has no prior server credential to hold."
         }
       },
       "behavior": {
@@ -4305,14 +4403,14 @@
         "persistsAcrossRestart": false
       },
       "projections": {
-        "cli": null,
+        "cli": "snapback restart",
         "mcp": "snapback_restart",
         "hostOps": "host.restart",
         "http": "POST /_snapback/api/host-ops",
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "operating/host-ops.md#restart-with-one-credential-bound-receipt",
       "authorities": [
         "llp/0024-agent-operating-surface"
       ],
@@ -4320,7 +4418,6 @@
         "src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
-      "cliDeferralReason": "Nothing prevents a `snapback restart` CLI command composing Start/Stop the same way `snapback_restart` does; not implemented yet — the credential-gating half of the Phase 2 vertical slice landed (see projectionCredentials.mcp below); the CLI command itself remains a follow-on.",
       "composedFrom": [
         "host.stop",
         "host.start"

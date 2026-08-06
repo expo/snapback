@@ -5,7 +5,10 @@
 **Systems:** Cron, Runtime, Realtime, Data gateway, Deployment, Security, Developer experience, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-06-30
-**Revised:** 2026-08-01 (0137 a4-f4: §Inspection and query surface — a
+**Revised:** 2026-08-06 (LLP 0184 Phase 2 residue: §Inspection and query
+surface adds the built, read-only `cron.list` host operation, direct GET
+alias, CLI, and MCP projections over facts already held by the loaded
+manifest and scheduler runtime; no new scheduler storage semantics); 2026-08-01 (0137 a4-f4: §Inspection and query surface — a
 never-run `everyMs` job seeds its first nominal at the most recent
 epoch-aligned slot, not slot 0; the run's trusted clock is bound to its due
 time, so the epoch-0 seed made the documented first catch-up run execute
@@ -697,6 +700,18 @@ return the same structured cron block. Later, token-gated admin/test operations
 can add `run now`, `advance/tick`, `enable/disable`, and `clear run history`
 controls, but read-only job/status inspection should be available as soon as cron
 lands.
+
+**Amended 2026-08-06 (LLP 0184 Phase 2 residue):** `cron.list` is the
+operator-safe convenience projection of those already-existing definition and
+runtime views. The AdminRead host operation is also available as
+`GET /_snapback/api/cron`, `snapback cron list`, and `snapback_cron_list`.
+It returns declared `name`/`action`/schedule/enabled state plus activation,
+next nominal/due time, an in-flight boolean, last-run time/outcome, and the
+consecutive-failure count. It deliberately omits exact run ids, handler error
+detail/results, jitter seeds, and recent-run payloads; callers needing those
+facts use the existing secret-read-gated `app.inspect`/admin inspect surface.
+This is a pure projection of `CronInspectState`: it creates no scheduler state,
+ledger, cursor, or persistence rule.
 
 One wire value in the runtime view needs interpretation rather than direct
 display. Interval schedules keep their nominal grid anchored at Unix epoch 0

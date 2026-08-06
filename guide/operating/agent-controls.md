@@ -86,16 +86,16 @@ documentation absence never appears as success.
 ## Generated inventory
 
 <!-- BEGIN GENERATED CONTROL CATALOG: CONTROL CATALOG INVENTORY -->
-The embedded build catalog contains **112 operations** at digest `sha256:d50a314a6ad6ea12926715ac43d09cb68a19bd6e150716ad4690f3b6331bba59`. The counts and inventory below are generated; do not edit them by hand.
+The embedded build catalog contains **114 operations** at digest `sha256:7624d26866a45188127af998d7ba84d1a2a5426681cfb9ecd098379a41754f7f`. The counts and inventory below are generated; do not edit them by hand.
 
 | Axis | Value | Count |
 | --- | --- | ---: |
-| surfaceAccess | `apiOnly` | 39 |
+| surfaceAccess | `apiOnly` | 38 |
 | surfaceAccess | `cliOnly` | 29 |
-| surfaceAccess | `mcpOnly` | 3 |
-| surfaceAccess | `native` | 37 |
+| surfaceAccess | `mcpOnly` | 2 |
+| surfaceAccess | `native` | 41 |
 | surfaceAccess | `none` | 4 |
-| operability | `direct` | 80 |
+| operability | `direct` | 82 |
 | operability | `internal` | 11 |
 | operability | `mediated` | 7 |
 | operability | `unavailable` | 14 |
@@ -168,19 +168,21 @@ The embedded build catalog contains **112 operations** at digest `sha256:d50a314
 | `control.catalog.describe` | `native` | `direct` | `shipped` | snapback controls describe <operation> | snapback-controls://operation/{operation} | operating/agent-controls.md#describe-one-operation |
 | `control.catalog.instance.read` | `mcpOnly` | `direct` | `shipped` | — | snapback-controls://instance | operating/agent-controls.md#build-versus-instance-identity |
 | `control.catalog.read` | `native` | `direct` | `shipped` | snapback controls list | snapback-controls://catalog | operating/agent-controls.md#search-the-build-catalog |
+| `cron.list` | `native` | `direct` | `shipped` | snapback cron list | snapback_cron_list | backend/cron.md#inspect-declared-jobs-and-runtime-posture |
 | `cron.runOne` | `native` | `direct` | `shipped` | snapback cron run | snapback_cron_run | — |
 | `cron.status.read` | `apiOnly` | `direct` | `shipped` | — | — | — |
 | `cron.tick` | `native` | `direct` | `shipped` | snapback cron tick | snapback_cron_tick | — |
 | `data.patch.apply` | `native` | `direct` | `shipped` | snapback data patch --apply --input <file\|-> | snapback_data_patch_apply | operating/data-patch.md#apply |
 | `data.patch.preview` | `native` | `direct` | `shipped` | snapback data patch --preview --input <file\|-> | snapback_data_patch_preview | operating/data-patch.md#preview |
 | `data.scan` | `native` | `direct` | `shipped` | snapback data scan <table> | snapback_data_scan | operating/host-ops.md#direct-climcp-projections-beyond-host-ops-llp-0184-phase-2-p1 |
+| `debug.live.forceResync` | `native` | `direct` | `shipped` | snapback debug force-resync | snapback_live_force_resync | operating/host-ops.md |
 | `debug.networkProfileGet` | `native` | `direct` | `shipped` | snapback network-profile get | snapback_network_profile_get | operating/network-profiles.md#read-the-active-profile |
 | `debug.networkProfileSet` | `native` | `direct` | `shipped` | snapback network-profile set | snapback_network_profile_set | operating/network-profiles.md#set-a-profile |
 | `direct_runner.action` | `apiOnly` | `direct` | `shipped` | — | — | — |
 | `direct_runner.mutation` | `apiOnly` | `direct` | `shipped` | — | — | — |
 | `direct_runner.query` | `apiOnly` | `direct` | `shipped` | — | — | — |
 | `direct_runner.unknown` | `apiOnly` | `unavailable` | `shipped` | — | — | — |
-| `ephemeral.cleanup` | `apiOnly` | `direct` | `shipped` | — | — | — |
+| `ephemeral.cleanup` | `native` | `direct` | `shipped` | snapback ephemeral cleanup | snapback_ephemeral_cleanup | realtime/ephemeral-state.md#clean-up-expired-entries-operationally |
 | `ephemeral.operatorDelete` | `native` | `direct` | `shipped` | snapback ephemeral operator-delete | snapback_ephemeral_operator_delete | realtime/ephemeral-state.md#delete-one-entry-as-an-operator |
 | `errors.issue` | `native` | `direct` | `shipped` | snapback errors issue | snapback_errors_issue | operating/host-ops.md |
 | `errors.issues` | `native` | `direct` | `shipped` | snapback errors issues | snapback_errors_issues | operating/host-ops.md |
@@ -191,7 +193,7 @@ The embedded build catalog contains **112 operations** at digest `sha256:d50a314
 | `functions.reload` | `apiOnly` | `unavailable` | `unbuilt` | — | — | — |
 | `health` | `apiOnly` | `direct` | `shipped` | — | — | — |
 | `health.read` | `apiOnly` | `direct` | `shipped` | — | — | — |
-| `host.restart` | `mcpOnly` | `direct` | `shipped` | — | snapback_restart | — |
+| `host.restart` | `native` | `direct` | `shipped` | snapback restart | snapback_restart | operating/host-ops.md#restart-with-one-credential-bound-receipt |
 | `host.start` | `cliOnly` | `direct` | `shipped` | snapback host start | snapback_start | — |
 | `host.stop` | `cliOnly` | `direct` | `shipped` | snapback host stop | snapback_stop | — |
 | `hostCall.dispatch` | `none` | `internal` | `shipped` | — | — | — |

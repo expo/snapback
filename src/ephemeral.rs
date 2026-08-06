@@ -7,6 +7,7 @@ use std::sync::{
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use sha2::{Digest as _, Sha256};
 use tokio::sync::Notify;
 
 use crate::diagnostic::{SnapbackError, SnapbackResult};
@@ -2068,6 +2069,54 @@ pub struct EphemeralRoomDiagnostics {
     pub subscribers: usize,
     pub value_bytes: usize,
     pub retained_bytes: usize,
+}
+
+/// Counts captured by one room-linearized operator cleanup pass.
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct EphemeralCleanupCounts {
+    pub examined: usize,
+    pub eligible: usize,
+    pub would_delete: usize,
+    pub deleted: usize,
+    pub remaining: usize,
+}
+
+impl EphemeralCleanupCounts {
+    fn add_assign(&mut self, other: &Self) {
+        self.examined = self.examined.saturating_add(other.examined);
+        self.eligible = self.eligible.saturating_add(other.eligible);
+        self.would_delete = self.would_delete.saturating_add(other.would_delete);
+        self.deleted = self.deleted.saturating_add(other.deleted);
+        self.remaining = self.remaining.saturating_add(other.remaining);
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct EphemeralCleanupRoomReport {
+    /// Stable digest of the complete room identity. Raw scope/routing values
+    /// never enter the operator receipt.
+    pub room_digest: String,
+    pub counts: EphemeralCleanupCounts,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct EphemeralCleanupCollectionReport {
+    pub collection: String,
+    pub counts: EphemeralCleanupCounts,
+    pub rooms: Vec<EphemeralCleanupRoomReport>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct EphemeralCleanupReport {
+    pub counts: EphemeralCleanupCounts,
+    pub collections: Vec<EphemeralCleanupCollectionReport>,
+    pub truncated: bool,
+    pub complete: bool,
+    pub blocked_rooms: usize,
 }
 
 #[derive(Clone, Debug)]
@@ -6670,6 +6719,215 @@ impl LocalEphemeralBackend {
         }
     }
 
+    /// Preview or apply an operator-bounded expiry cleanup at an explicit
+    /// cutoff. The periodic wall-clock sweep above remains the compatibility
+    /// path for server maintenance; this method is the receipt-bearing LLP
+    /// 0184 control operation.
+    ///
+    /// Each room is linearized independently. Apply uses the same
+    /// `remove_entry_locked` + `fan_out_locked` mechanics as ordinary expiry,
+    /// while the global bound caps the number of removed entries across the
+    /// complete pass. Dry-run does not consume or rewrite the expiry index.
+    ///
+    /// @ref LLP 0184#p2-controlled-mutations — explicit cutoff, dry-run
+    /// counts, bounded apply, and an honest truncation/blocked-room report.
+    pub fn cleanup_expired_bounded(
+        &self,
+        cutoff_timestamp_ms: Millis,
+        max_entries: usize,
+        dry_run: bool,
+    ) -> EphemeralCleanupReport {
+        let _lifecycle = self.lifecycle_read("bounded ephemeral expiry cleanup");
+        let due: Vec<RoomId> = {
+            let mut index = lock(&self.shared.expiry_index);
+            if dry_run {
+                index
+                    .iter()
+                    .take_while(|((deadline, _), ())| *deadline <= cutoff_timestamp_ms)
+                    .map(|((_, room_id), ())| room_id.clone())
+                    .collect()
+            } else {
+                let mut due = Vec::new();
+                while let Some(entry) = index.first_entry() {
+                    if entry.key().0 > cutoff_timestamp_ms {
+                        break;
+                    }
+                    let ((_, room_id), ()) = entry.remove_entry();
+                    due.push(room_id);
+                }
+                due
+            }
+        };
+
+        let mut remaining_budget = max_entries;
+        let mut room_reports = Vec::new();
+        let mut blocked_rooms = 0_usize;
+
+        for room_id in due {
+            let collection = self.collection_if_loaded(&room_id.collection);
+            let room_authority = match collection
+                .as_ref()
+                .map(|collection| self.begin_room_authority_act(collection, &room_id))
+                .transpose()
+            {
+                Ok(room_authority) => room_authority.flatten(),
+                Err(_) => {
+                    blocked_rooms = blocked_rooms.saturating_add(1);
+                    if !dry_run {
+                        self.with_existing_room(&room_id, |room| {
+                            if room
+                                .indexed_deadline
+                                .is_some_and(|deadline| deadline <= cutoff_timestamp_ms)
+                            {
+                                room.indexed_deadline = None;
+                                room.retained_bytes = room
+                                    .retained_bytes
+                                    .saturating_sub(retained_expiry_index_entry_bytes(&room_id));
+                            }
+                            if let Some(earliest) = next_expiry_deadline(room) {
+                                self.index_room_deadline(room, &room_id, earliest);
+                            }
+                        });
+                    }
+                    continue;
+                }
+            };
+            let room_authority_generation = room_authority
+                .as_ref()
+                .map(RoomAuthorityPermit::generation)
+                .unwrap_or(0);
+            let available_budget = remaining_budget;
+            let outcome: Option<Result<(EphemeralCleanupCounts, bool), EphemeralError>> = self
+                .with_existing_room(&room_id, |room| {
+                    if !dry_run
+                        && room
+                            .indexed_deadline
+                            .is_some_and(|deadline| deadline <= cutoff_timestamp_ms)
+                    {
+                        room.indexed_deadline = None;
+                        room.retained_bytes = room
+                            .retained_bytes
+                            .saturating_sub(retained_expiry_index_entry_bytes(&room_id));
+                    }
+
+                    let eligible_keys = room
+                        .entries
+                        .iter()
+                        .filter_map(|(key, record)| {
+                            (record.expires_at_ms <= cutoff_timestamp_ms).then_some(key.clone())
+                        })
+                        .collect::<Vec<_>>();
+                    let planned = eligible_keys.len().min(available_budget);
+                    let mut counts = EphemeralCleanupCounts {
+                        examined: room.entries.len(),
+                        eligible: eligible_keys.len(),
+                        would_delete: planned,
+                        deleted: 0,
+                        remaining: eligible_keys.len().saturating_sub(planned),
+                    };
+
+                    if !dry_run && planned > 0 {
+                        if let Err(error) = room.ensure_version_capacity(planned) {
+                            if let Some(earliest) = next_expiry_deadline(room) {
+                                self.index_room_deadline(room, &room_id, earliest);
+                            }
+                            return Err(error);
+                        }
+                        for key in eligible_keys.into_iter().take(planned) {
+                            let affected_connections = room
+                                .entries
+                                .get(&key)
+                                .and_then(|record| room.owner_connections.get(&record.owner))
+                                .cloned()
+                                .unwrap_or_default();
+                            if let Some(message) = remove_entry_locked(
+                                room,
+                                &room_id,
+                                &key,
+                                RemoveReason::Expired,
+                                room_authority_generation,
+                            )
+                            .expect("bounded cleanup capacity is preflighted before mutation")
+                            {
+                                counts.deleted = counts.deleted.saturating_add(1);
+                                self.shared
+                                    .counters
+                                    .expired_entries
+                                    .fetch_add(1, Ordering::Relaxed);
+                                if let Some(collection) = collection.as_ref() {
+                                    self.fan_out_locked(room, &room_id, collection, message);
+                                }
+                                for connection_id in affected_connections {
+                                    self.sync_connection_room_index_locked(
+                                        room,
+                                        &connection_id,
+                                        &room_id,
+                                    );
+                                }
+                            }
+                        }
+                        counts.remaining = counts.eligible.saturating_sub(counts.deleted);
+                    }
+
+                    if !dry_run && let Some(earliest) = next_expiry_deadline(room) {
+                        self.index_room_deadline(room, &room_id, earliest);
+                    }
+                    Ok((
+                        counts,
+                        !dry_run && room.entries.is_empty() && room.subscribers.is_empty(),
+                    ))
+                });
+
+            match outcome {
+                Some(Ok((counts, prunable))) => {
+                    remaining_budget = remaining_budget.saturating_sub(if dry_run {
+                        counts.would_delete
+                    } else {
+                        counts.deleted
+                    });
+                    room_reports.push((room_id.clone(), counts));
+                    if prunable {
+                        self.prune_room_if_empty(&room_id);
+                    }
+                }
+                Some(Err(_)) => {
+                    blocked_rooms = blocked_rooms.saturating_add(1);
+                }
+                None => {}
+            }
+        }
+
+        let mut counts = EphemeralCleanupCounts::default();
+        let mut by_collection = BTreeMap::<String, EphemeralCleanupCollectionReport>::new();
+        for (room_id, room_counts) in room_reports {
+            counts.add_assign(&room_counts);
+            let collection = by_collection
+                .entry(room_id.collection.clone())
+                .or_insert_with(|| EphemeralCleanupCollectionReport {
+                    collection: room_id.collection.clone(),
+                    ..EphemeralCleanupCollectionReport::default()
+                });
+            collection.counts.add_assign(&room_counts);
+            collection.rooms.push(EphemeralCleanupRoomReport {
+                room_digest: ephemeral_cleanup_room_digest(&room_id),
+                counts: room_counts,
+            });
+        }
+        let truncated = counts.remaining > 0
+            && if dry_run {
+                counts.would_delete == max_entries
+            } else {
+                counts.deleted == max_entries
+            };
+        EphemeralCleanupReport {
+            counts,
+            collections: by_collection.into_values().collect(),
+            truncated,
+            complete: blocked_rooms == 0,
+            blocked_rooms,
+        }
+    }
+
     pub fn enqueue_durable(
         &self,
         connection_id: impl Into<String>,
@@ -8262,6 +8520,19 @@ fn collection_requires_room_permission(collection: &EphemeralCollection) -> bool
         collection.subscribe,
         AccessPolicy::RequireRoomPermission { .. }
     )
+}
+
+fn ephemeral_cleanup_room_digest(room_id: &RoomId) -> String {
+    let digest = Sha256::digest(
+        serde_json::to_vec(room_id).expect("RoomId always serializes for cleanup identity"),
+    );
+    let mut encoded = String::with_capacity(7 + digest.len() * 2);
+    encoded.push_str("sha256:");
+    for byte in digest {
+        use std::fmt::Write as _;
+        write!(&mut encoded, "{byte:02x}").expect("writing to String cannot fail");
+    }
+    encoded
 }
 
 fn remove_entry_locked(
@@ -12435,6 +12706,77 @@ mod tests {
                 .get(&published.room, &EntryKey("a".to_owned()))
                 .is_none()
         );
+    }
+
+    /// @ref LLP 0184#p2-controlled-mutations — preview and apply share the
+    /// same global bound, while apply uses ordinary expiry fan-out.
+    #[test]
+    fn bounded_cleanup_previews_then_applies_with_honest_remaining_counts() {
+        let backend = LocalEphemeralBackend::new();
+        backend.register_collection(collection()).unwrap();
+        backend
+            .subscribe(subscribe_request("observer"), 1_000)
+            .unwrap();
+        backend
+            .publish(publish_request("a", b"old-a"), 1_000)
+            .unwrap();
+        backend
+            .publish(publish_request("b", b"old-b"), 1_000)
+            .unwrap();
+        backend
+            .publish(publish_request("c", b"fresh"), 3_000)
+            .unwrap();
+        backend.drain_outbox("observer");
+
+        let preview = backend.cleanup_expired_bounded(6_000, 1, true);
+        assert_eq!(
+            preview.counts,
+            EphemeralCleanupCounts {
+                examined: 3,
+                eligible: 2,
+                would_delete: 1,
+                deleted: 0,
+                remaining: 1,
+            }
+        );
+        assert!(preview.truncated);
+        assert!(preview.complete);
+        assert_eq!(preview.collections.len(), 1);
+        assert_eq!(preview.collections[0].collection, "boardCursors");
+        assert_eq!(preview.collections[0].rooms.len(), 1);
+        assert!(
+            preview.collections[0].rooms[0]
+                .room_digest
+                .starts_with("sha256:")
+        );
+        assert!(backend.drain_outbox("observer").is_empty());
+        assert_eq!(backend.diagnostics().entry_count, 3);
+
+        let first = backend.cleanup_expired_bounded(6_000, 1, false);
+        assert_eq!(first.counts.deleted, 1);
+        assert_eq!(first.counts.remaining, 1);
+        assert!(first.truncated);
+        let remove = first_ephemeral(backend.drain_outbox("observer"));
+        assert!(matches!(
+            remove,
+            EphemeralMessage::Remove {
+                reason: RemoveReason::Expired,
+                ..
+            }
+        ));
+
+        let second = backend.cleanup_expired_bounded(6_000, 10, false);
+        assert_eq!(second.counts.deleted, 1);
+        assert_eq!(second.counts.remaining, 0);
+        assert!(!second.truncated);
+        assert_eq!(backend.diagnostics().entry_count, 1);
+        assert!(matches!(
+            first_ephemeral(backend.drain_outbox("observer")),
+            EphemeralMessage::Remove {
+                reason: RemoveReason::Expired,
+                ..
+            }
+        ));
     }
 
     #[test]

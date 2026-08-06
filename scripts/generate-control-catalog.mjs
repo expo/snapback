@@ -97,6 +97,7 @@ const controlResourcesByOperation = new Map(
 const CLI_PROJECTIONS = {
   'host.start': 'snapback host start',
   'host.stop': 'snapback host stop',
+  'host.restart': 'snapback restart',
   'app.inspect': 'snapback host inspect',
   'app.reset': 'snapback host reset',
   'schema.load': 'snapback host load --schema <path>',
@@ -104,6 +105,7 @@ const CLI_PROJECTIONS = {
   'function.run': 'snapback host run',
   'debug.networkProfileGet': 'snapback network-profile get',
   'debug.networkProfileSet': 'snapback network-profile set',
+  'debug.live.forceResync': 'snapback debug force-resync',
   'telemetry.stats': 'snapback telemetry stats',
   'telemetry.events': 'snapback telemetry events',
   'telemetry.export': 'snapback telemetry export',
@@ -135,6 +137,7 @@ const CLI_PROJECTIONS = {
   'config.status': 'snapback config status',
   'config.plan': 'snapback config plan',
   'config.verify': 'snapback config verify <entry>',
+  'cron.list': 'snapback cron list',
   'jobs.list': 'snapback jobs list',
   'jobs.show': 'snapback jobs show <id>',
   // LLP 0184 §P2 landed CLI verbs, each paired with a mcp-control.mjs
@@ -142,6 +145,7 @@ const CLI_PROJECTIONS = {
   'config.unset': 'snapback config unset',
   'cron.tick': 'snapback cron tick',
   'cron.runOne': 'snapback cron run',
+  'ephemeral.cleanup': 'snapback ephemeral cleanup',
   'jobs.drain': 'snapback jobs drain',
   'connection.disconnect': 'snapback connections disconnect',
   'control.catalog.read': 'snapback controls list',
@@ -150,8 +154,10 @@ const CLI_PROJECTIONS = {
 };
 
 const GUIDE_ANCHORS = {
+  'host.restart': 'operating/host-ops.md#restart-with-one-credential-bound-receipt',
   'debug.networkProfileGet': 'operating/network-profiles.md#read-the-active-profile',
   'debug.networkProfileSet': 'operating/network-profiles.md#set-a-profile',
+  'debug.live.forceResync': 'operating/host-ops.md',
   'app.inspect': 'operating/host-ops.md',
   'telemetry.stats': 'operating/host-ops.md',
   'telemetry.events': 'operating/host-ops.md',
@@ -165,6 +171,8 @@ const GUIDE_ANCHORS = {
   'config.status': 'operating/secrets-and-config.md#cli-and-mcp-projections-for-statusplanverify',
   'config.plan': 'operating/secrets-and-config.md#cli-and-mcp-projections-for-statusplanverify',
   'config.verify': 'operating/secrets-and-config.md#cli-and-mcp-projections-for-statusplanverify',
+  'cron.list': 'backend/cron.md#inspect-declared-jobs-and-runtime-posture',
+  'ephemeral.cleanup': 'realtime/ephemeral-state.md#clean-up-expired-entries-operationally',
   'control.catalog.read': 'operating/agent-controls.md#search-the-build-catalog',
   'control.catalog.describe': 'operating/agent-controls.md#describe-one-operation',
   'control.catalog.instance.read': 'operating/agent-controls.md#build-versus-instance-identity',
@@ -227,8 +235,19 @@ function applyOverride(entry, override) {
   if (override.sources) entry.sources = override.sources;
   if (override.unavailableReason) entry.unavailableReason = override.unavailableReason;
   if (override.internalReason) entry.internalReason = override.internalReason;
+  // @ref LLP 0184#b-forced-live-resync--add-now — availability.targets
+  //   carries a target refusal (e.g. "derived-hosted excluded until LLP
+  //   0158 grants recognition for this purpose"); it is a distinct fact
+  //   from operability and must be authorable per row, not hardcoded to
+  //   the host-ops-family default of every local/derived-hosted target.
+  if (override.availabilityTargets) entry.availability.targets = override.availabilityTargets;
+  if (override.adminClient) entry.projections.adminClient = override.adminClient;
+  if (override.console) entry.projections.console = override.console;
   if (override.projectionCredentials) {
     entry.policy.projectionCredentials = override.projectionCredentials;
+  }
+  if (override.behavior) {
+    entry.behavior = { ...entry.behavior, ...override.behavior };
   }
   return entry;
 }
@@ -458,6 +477,7 @@ const ROUTE_OPERATION_NAMES = {
   'POST /_snapback/api/console/claim/status': 'admin.link.status',
   'POST /_snapback/api/console/claim/revoke': 'admin.link.revoke',
   'POST /_snapback/api/cron/tick': 'cron.tick',
+  'GET /_snapback/api/cron': 'cron.list',
   'POST /_snapback/api/cron/{name}/run': 'cron.runOne',
   'POST /_snapback/api/jobs/drain': 'jobs.drain',
   'GET /_snapback/api/jobs': 'jobs.list',
@@ -502,6 +522,7 @@ const ROUTE_ALREADY_COVERED_BY = {
   'GET /_snapback/api/errors/issue': 'errors.issue',
   'POST /_snapback/api/errors/transition': 'errors.transition',
   'GET /_snapback/api/debug/network-profile': 'debug.networkProfileGet',
+  'GET /_snapback/api/cron': 'cron.list',
   'PUT /_snapback/api/debug/network-profile': 'debug.networkProfileSet',
 };
 

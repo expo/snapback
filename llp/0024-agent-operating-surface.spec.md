@@ -5,7 +5,13 @@
 **Systems:** Developer experience, Runtime, API, Tooling, Testing, Auth, Security, Client integration
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-27
-**Revised:** 2026-08-04 (LLP 0167 OQ2 ruling author-ratified: the `debug.*`
+**Revised:** 2026-08-06 (LLP 0184 Phase 2 residue: `host.restart` is built as
+the native `snapback restart` CLI plus the existing `snapback_restart` MCP
+composition; both prove a concrete admin credential through the live
+AdminRead host-ops route before the nonce-verified stop and return one request
+id/envelope); 2026-08-06 (LLP 0184 Phase 2 residue: add the built AdminRead
+`cron.list` host operation and its direct GET, CLI, and MCP projections over
+the LLP 0028-owned in-memory scheduler inspection state); 2026-08-04 (LLP 0167 OQ2 ruling author-ratified: the `debug.*`
 runtime-perturbation family is decided, with built
 `debug.networkProfileGet` / `debug.networkProfileSet` host operations, CLI
 verbs, and control-plane MCP projections); 2026-08-01 (shared app-data result core amendment: the
@@ -31,6 +37,8 @@ result core); 2026-07-23 (dated pointer note: the provisioning/project-lifecycle
 >   handshake), `host.stop` (CLI, via the readiness descriptor; signals the
 >   pid only after the descriptor's `startupNonce` matches the live `/health`
 >   identity, refusing stale or unverifiable descriptors — ENG-23366),
+>   `host.restart` (native `snapback restart` plus `snapback_restart`; one
+>   credential-proven stop/start composition, request id, and envelope),
 >   `app.inspect`, `app.reset` (with optional seed), `schema.load`,
 >   `functions.load`, `function.run` (queries and mutations; never actions)
 >   — each as CLI verb + HTTP operation, tested in `tests/host_ops_v0.rs`.
@@ -52,8 +60,8 @@ result core); 2026-07-23 (dated pointer note: the provisioning/project-lifecycle
 >   `debug.networkProfileSet` (`AdminWrite`) return the shared envelope and
 >   terminate at the same network-profile activation gate as the dedicated
 >   admin routes.
-> - **Pinned, not built:** `host.restart`, `schema.reload`,
->   `functions.reload`, `acceptance.run` — requested over HTTP they return
+> - **Pinned, not built:** `schema.reload`, `functions.reload`,
+>   `acceptance.run` — requested over HTTP they return
 >   the structured `SNAPBACK_HOST_OP_UNIMPLEMENTED` envelope (`host.*` over
 >   HTTP returns `SNAPBACK_HOST_OP_CLI_ONLY`). As of ENG-25388 these
 >   operations are registered in the HTTP operation registry at their
@@ -156,6 +164,7 @@ through their own reviewed table amendments.
 | `functions.load` | Load generated function bundle/manifest into the local server. | bundle hash, function count, unsupported dependency diagnostics. |
 | `functions.reload` | Re-run function discovery/bundling and load the result. | previous/new bundle hashes, stale-artifact diagnostics. |
 | `app.inspect` | Inspect loaded schema, functions, capabilities, runtime state, subscriptions, clients, and recent diagnostics. | `runtimeState`, `schemaManifest`, `functionManifest`, `capabilityManifest`, diagnostics. |
+| `cron.list` | List declared cron jobs and current operator-safe scheduler posture without running work. | `cron` with declared identity/schedule, activation, next nominal/due, in-flight boolean, last-run/outcome, and consecutive failures; never run ids, handler diagnostics/results, jitter seeds, or recent-run payloads. |
 | `function.run` | Run one generated query or mutation by function id. | return value or mutation commit facts, read/write summaries when available, diagnostics. |
 | `function.explain` | Explain query plans, permission decisions, capability gaps, or mutation denial/dry-run facts without committing. | explanation kind, decision, read/write predictions where available, diagnostics. |
 | `acceptance.run` | Run the local acceptance suite or a named profile. | profile id, passed/failed/skipped counts, diagnostics, artifact paths. |
@@ -376,6 +385,7 @@ The CLI verbs map to operation ids as follows:
 | `snapback load functions <path-or-entry>` | `functions.load` |
 | `snapback reload functions` | `functions.reload` |
 | `snapback inspect` | `app.inspect` |
+| `snapback cron list` | `cron.list` |
 | `snapback run <function-id> --args-json <json>` | `function.run` |
 | `snapback explain <function-id> --args-json <json> --kind <kind>` | `function.explain` |
 | `snapback acceptance run [profile]` | `acceptance.run` |
@@ -442,6 +452,7 @@ operation and returns the same result envelope as JSON.
 | `snapback_load_functions` | `functions.load` |
 | `snapback_reload_functions` | `functions.reload` |
 | `snapback_inspect` | `app.inspect` |
+| `snapback_cron_list` | `cron.list` |
 | `snapback_run_function` | `function.run` |
 | `snapback_explain` | `function.explain` |
 | `snapback_acceptance_run` | `acceptance.run` |
@@ -695,6 +706,18 @@ failure, explicitly not exit 8.
 `SNAPBACK_APP_CLI_*` is registered in LLP 0012's shared diagnostic
 dialect by that Spec's dated registration of the same day; changing an
 emitted code is a compatibility event there.
+
+## Dated amendment: cron inspection projection (2026-08-06)
+
+LLP 0028 owns cron definitions and scheduler state. This Spec owns the
+operator transport shape: `cron.list` is an `AdminRead`/
+`AdminCredential`/`OperatorMetadata` host operation, projected through
+`POST /_snapback/api/host-ops`, the direct `GET /_snapback/api/cron` alias,
+`snapback cron list`, and `snapback_cron_list`. Every projection reads the
+same loaded-manifest and in-memory scheduler inspection facts; none infers
+inspection by calling `cron.tick` or `cron.runOne`, and none creates a new
+ledger or persistence rule. The host-operation result carries the narrow LLP
+0028 DTO under `data.cron`; the direct GET returns that DTO itself.
 
 ## Status
 

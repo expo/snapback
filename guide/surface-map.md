@@ -64,8 +64,9 @@ here (or listed here but gone from the code).
 | /_snapback/api/console/approval/approve | operating.admin-console |
 | /_snapback/api/cron/tick | backend.cron |
 | /_snapback/api/cron/{name}/run | backend.cron |
+| /_snapback/api/cron | backend.cron |
 | /_snapback/api/data/{table} | operating.admin-console |
-| /_snapback/api/ephemeral/cleanup | notAuthorFacing (operator maintenance) |
+| /_snapback/api/ephemeral/cleanup | realtime.ephemeral |
 | /_snapback/api/ephemeral/operator/delete | notAuthorFacing (local operator repair, LLP 0184 §C) |
 | /_snapback/api/errors/issue | backend.error-tracking-v1 |
 | /_snapback/api/errors/issues | backend.error-tracking-v1 |
@@ -155,6 +156,7 @@ here (or listed here but gone from the code).
 | --- | --- |
 | host_ops.app.inspect | operating.host-ops |
 | host_ops.app.reset | operating.host-ops |
+| host_ops.cron.list | backend.cron |
 | host_ops.asset.put | backend.assets |
 | host_ops.asset.ensureSeedFixture | backend.assets |
 | host_ops.asset.inspect | backend.assets |
@@ -188,6 +190,7 @@ here (or listed here but gone from the code).
 | host_ops.acceptance.run | operating.host-ops |
 | host_ops.debug.networkProfileGet | operating.network-profiles |
 | host_ops.debug.networkProfileSet | operating.network-profiles |
+| host_ops.debug.live.forceResync | operating.host-ops |
 | host_ops.host.start | operating.host-ops |
 | host_ops.host.stop | operating.host-ops |
 | host_ops.host.restart | operating.host-ops |

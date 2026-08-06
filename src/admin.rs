@@ -2595,6 +2595,50 @@ impl AppState {
         )
     }
 
+    /// LLP 0184 §B's (and, when it lands, §A's) *local-non-production-only*
+    /// target rule for operator debug perturbations more dangerous than a
+    /// network-profile activation. This deliberately does NOT reuse
+    /// [`Self::network_profile_authority`]'s `permits` predicate: that gate
+    /// extends an explicit hosted-derived exception LLP 0158 grants "solely
+    /// for network-profile activation" (its own text) — a different,
+    /// narrower grant than the one these perturbations would need. Until
+    /// LLP 0158's owner makes that grant for this purpose, every derived
+    /// instance (local or hosted) and every hosted/production target is
+    /// refused; only a local, non-production, non-derived instance is
+    /// eligible.
+    ///
+    /// @ref LLP 0184#b-forced-live-resync--add-now — "Target rule matches
+    ///   §A's: local non-production instances in v1; refused on a primary
+    ///   hosted/production target; refused on a derived instance too until
+    ///   LLP 0158 grants recognition for this purpose."
+    pub(crate) fn debug_perturbation_target_authority(&self) -> Result<(), SnapbackError> {
+        let authority = self.network_profile_authority();
+        let allowed = matches!(
+            authority.server_profile,
+            Some(ServerProfile::Dev | ServerProfile::Demo | ServerProfile::Test)
+        ) && matches!(
+            authority.deployment,
+            Some(crate::auth::deployment::AuthDeploymentTarget::Local)
+        ) && authority.derived_instance_present == Some(false);
+        if allowed {
+            return Ok(());
+        }
+        Err(SnapbackError::error(
+            "SNAPBACK_DEBUG_PERTURBATION_TARGET_REFUSED",
+            "debug",
+            "this operator debug perturbation is local-non-production-only in v1; refused on a primary hosted/production target and on any derived instance until LLP 0158 grants recognition for this purpose",
+        )
+        .with_details(serde_json::json!({
+            "serverProfile": authority.server_profile.map(ServerProfile::as_str),
+            "deployment": authority.deployment.map(|deployment| match deployment {
+                crate::auth::deployment::AuthDeploymentTarget::Local => "local",
+                crate::auth::deployment::AuthDeploymentTarget::Hosted => "hosted",
+            }),
+            "hostedServingPresent": authority.hosted_serving_present,
+            "derivedInstancePresent": authority.derived_instance_present,
+        })))
+    }
+
     /// Both startup and runtime surfaces terminate at this one state-changing
     /// gate; callers may parse different transport representations but cannot
     /// select around classification or provenance capture.
@@ -4055,6 +4099,13 @@ pub(crate) fn admin_route_registrations() -> Vec<RegisteredRoute> {
             post(admin_run_function),
         ),
         RegisteredRoute::new(
+            read(
+                "/_snapback/api/cron",
+                ResponseSensitivity::OperatorMetadata,
+            ),
+            get(admin_cron_list),
+        ),
+        RegisteredRoute::new(
             write(
                 "POST",
                 "/_snapback/api/cron/tick",
@@ -5411,6 +5462,21 @@ async fn admin_cron_tick(
     Ok(Json(runs))
 }
 
+async fn admin_cron_list(
+    State(snapback): State<SharedSnapback>,
+    State(ctx): State<Arc<ServerContext>>,
+    headers: HeaderMap,
+) -> Result<Json<crate::cron::CronListState>, ApiError> {
+    authorize(&ctx, &headers, false)?;
+    let cron = crate::server::with_snapback(&snapback, |snapback| {
+        snapback
+            .inspect_core()
+            .map(|state| crate::cron::CronListState::from(state.cron))
+    })
+    .await?;
+    Ok(Json(cron))
+}
+
 #[derive(Debug, Default, serde::Deserialize)]
 struct JobsDrainRequest {
     /// The injected drain clock. Absent means wall clock — the sibling of
@@ -5532,17 +5598,96 @@ async fn admin_run_cron_job(
 }
 
 async fn admin_ephemeral_cleanup(
-    State(ephemeral): State<EphemeralApi>,
-    State(ctx): State<Arc<ServerContext>>,
+    State(state): State<AppState>,
     headers: HeaderMap,
-) -> Result<StatusCode, ApiError> {
-    // @ref LLP 0017#ephemeral-inspector — ephemeral mutating controls are
-    // privileged writes, gated like durable admin writes.
-    authorize(&ctx, &headers, true)?;
+    Json(body): Json<serde_json::Value>,
+) -> Result<Json<serde_json::Value>, ApiError> {
+    // @ref LLP 0184#p2-controlled-mutations — this named, receipt-bearing
+    // maintenance operation retains the route's privileged AdminWrite gate.
+    authorize(&state.server, &headers, true)?;
+    let request: EphemeralCleanupRequest = serde_json::from_value(body).map_err(|_| {
+        SnapbackError::error(
+            "SNAPBACK_EPHEMERAL_CLEANUP_REQUEST_INVALID",
+            "ephemeral",
+            "cleanup requires startupNonce, dryRun, maxEntries, and exactly one cutoff",
+        )
+    })?;
+    if request.startup_nonce != state.server_startup_nonce() {
+        return Err(SnapbackError::error(
+            "SNAPBACK_EPHEMERAL_CLEANUP_STARTUP_MISMATCH",
+            "ephemeral",
+            "cleanup target startup identity does not match the running server",
+        )
+        .into());
+    }
+    const MAX_EPHEMERAL_CLEANUP_ENTRIES: usize = 10_000;
+    if request.max_entries == 0 || request.max_entries > MAX_EPHEMERAL_CLEANUP_ENTRIES {
+        return Err(SnapbackError::error(
+            "SNAPBACK_EPHEMERAL_CLEANUP_BOUND_INVALID",
+            "ephemeral",
+            format!("maxEntries must be between 1 and {MAX_EPHEMERAL_CLEANUP_ENTRIES}"),
+        )
+        .into());
+    }
+    let evaluated_at_ms = now_millis();
+    let (cutoff_kind, requested_ms, cutoff_timestamp_ms) =
+        match (request.cutoff_timestamp_ms, request.older_than_ms) {
+            (Some(timestamp), None) if timestamp <= evaluated_at_ms => {
+                ("timestamp", timestamp, timestamp)
+            }
+            (None, Some(age)) => (
+                "expiredForAtLeast",
+                age,
+                evaluated_at_ms.saturating_sub(age),
+            ),
+            _ => {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_EPHEMERAL_CLEANUP_CUTOFF_INVALID",
+                    "ephemeral",
+                    "provide exactly one of cutoffTimestampMs or olderThanMs; timestamps cannot be in the future",
+                )
+                .into());
+            }
+        };
     // Room authority is off the global mutex (LLP 0032 L9): cleanup reaches
     // the store directly and cannot queue behind a busy write.
-    ephemeral.cleanup_expired(now_millis());
-    Ok(StatusCode::NO_CONTENT)
+    let report = state.ephemeral.cleanup_expired_bounded(
+        cutoff_timestamp_ms,
+        request.max_entries,
+        request.dry_run,
+    );
+    Ok(Json(serde_json::json!({
+        "artifactKind": "snapback.ephemeral-cleanup-receipt/v1",
+        "schemaVersion": 1,
+        "operation": "ephemeral.cleanup",
+        "dryRun": request.dry_run,
+        "startupNonce": request.startup_nonce,
+        "evaluatedAtMs": evaluated_at_ms,
+        "cutoff": {
+            "kind": cutoff_kind,
+            "requestedMs": requested_ms,
+            "resolvedTimestampMs": cutoff_timestamp_ms,
+        },
+        "bounds": {
+            "maxEntries": request.max_entries,
+            "truncated": report.truncated,
+        },
+        "counts": report.counts,
+        "collections": report.collections,
+        "complete": report.complete,
+        "blockedRooms": report.blocked_rooms,
+        "consistency": "room-linearized",
+    })))
+}
+
+#[derive(Debug, serde::Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct EphemeralCleanupRequest {
+    cutoff_timestamp_ms: Option<u64>,
+    older_than_ms: Option<u64>,
+    dry_run: bool,
+    max_entries: usize,
+    startup_nonce: String,
 }
 
 fn now_millis() -> u64 {
@@ -5955,6 +6100,63 @@ mod tests {
         assert_eq!(
             put.credential_resolution,
             CredentialResolution::AdminCredential
+        );
+    }
+
+    /// @ref LLP 0184#b-forced-live-resync--add-now — v1's local-non-
+    /// production-only target rule for §B (and, when it lands, §A):
+    /// allowed only on a local, non-production, non-derived instance;
+    /// refused on production and on a derived instance even though that
+    /// same derived instance IS extended debug.networkProfileSet's
+    /// separate, narrower hosted-derived exception (proving the two gates
+    /// are genuinely independent, not accidentally identical).
+    #[test]
+    fn debug_perturbation_target_authority_is_local_non_production_only() {
+        let mut local_dev_context = ServerContext::new("127.0.0.1", 0, true);
+        local_dev_context.profile = ServerProfile::Dev;
+        let local_dev = AppState::from_snapback(LocalSnapback::memory().unwrap(), local_dev_context);
+        assert!(local_dev.debug_perturbation_target_authority().is_ok());
+
+        let mut local_prod_context = ServerContext::new("127.0.0.1", 0, true);
+        local_prod_context.profile = ServerProfile::Prod;
+        let local_prod = AppState::from_snapback(LocalSnapback::memory().unwrap(), local_prod_context);
+        let refusal = local_prod
+            .debug_perturbation_target_authority()
+            .expect_err("a production profile must refuse this perturbation");
+        assert_eq!(
+            refusal.diagnostic.code, "SNAPBACK_DEBUG_PERTURBATION_TARGET_REFUSED",
+        );
+
+        // A derived instance stays refused even though it is local and
+        // even though the SAME instance already qualifies for
+        // debug.networkProfileSet's distinct hosted-derived exception —
+        // the two gates must not accidentally collapse into one.
+        let directory = tempfile::tempdir().unwrap();
+        let source = directory.path().join("parent.sqlite3");
+        drop(crate::storage::LocalDatabase::open(&source).unwrap());
+        let destination = directory.path().join("fork");
+        let receipt =
+            crate::instance_fork::publish(&source, &destination, "app-a", "parent-a", 42, None)
+                .unwrap();
+        let mut derived_context = ServerContext::new("127.0.0.1", 0, true);
+        derived_context.profile = ServerProfile::Dev;
+        let derived = AppState::from_snapback(
+            LocalSnapback::open(destination.join(&receipt.database_file)).unwrap(),
+            derived_context,
+        );
+        assert!(derived.derived_instance_identity.is_some());
+        // The distinct, narrower grant this gate deliberately does NOT
+        // inherit: the same derived instance already passes the
+        // network-profile activation gate (see
+        // `network_profile_authority_captures_boot_validated_derived_identity`
+        // above, which proves `derived_instance_present: Some(true)` is
+        // exactly the fact that gate's `permits()` treats as eligible).
+        let derived_refusal = derived
+            .debug_perturbation_target_authority()
+            .expect_err("a derived instance must refuse this perturbation until LLP 0158 grants recognition");
+        assert_eq!(
+            derived_refusal.diagnostic.code,
+            "SNAPBACK_DEBUG_PERTURBATION_TARGET_REFUSED",
         );
     }
 

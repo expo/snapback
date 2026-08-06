@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "73d510d1c137809aadfa76bd1936350fb4cd28c5"
+    "commit": "251367f3dc55b0453ece065ebddb8f8b0e62cfcf"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -871,7 +871,7 @@
       ],
       "reviewed": "2026-08-03",
       "reviewedCommit": "6e5d69d1037c6042fb9338221dfb489e00f5f78a",
-      "sha256": "2cde5d2c82d606f79a2d00e651d275cff19034704442ab00bab6d31a8331330c",
+      "sha256": "2655b32e7597f79679cb4d485691bf32690d9c6677e766d5971e3b73e426d4cb",
       "snippets": [
         {
           "lang": "js",
@@ -1495,7 +1495,7 @@
       "examples": [],
       "reviewed": "2026-08-06",
       "reviewedCommit": "850427c31b9a668d55b46995e08389cd13a2c9b6",
-      "sha256": "8f00e92111426568a0f889654adb2db02cbc1d6161c97c901a05e9c1ebb5ec97",
+      "sha256": "c354f27e4537991793ca969c2938fa1aa594355b3a52c768c729c9576ca23fba",
       "snippets": []
     },
     "clients.app-cli": {
@@ -2274,7 +2274,7 @@
       "examples": [],
       "reviewed": "2026-08-06",
       "reviewedCommit": "2715951cf",
-      "sha256": "21a0a977c9a256dae0c295d558a0687fb150f9578e3e04ae449a5a30c5fce532",
+      "sha256": "a46c7fa2895845da05241a325cad51a7f5b3e757d9d5a60d72f5a4062ab73838",
       "snippets": []
     },
     "operating.data-patch": {
@@ -2408,7 +2408,7 @@
       ],
       "reviewed": "2026-08-06",
       "reviewedCommit": "acbb7b922a060788fd09f3f98211eb9ce35f23f4",
-      "sha256": "7a39ddce0216c1a4e726fc5dd8fa1a990af14b912872e98067595146686ee222",
+      "sha256": "8a65d84436d93df74ab95516da83d047bf31e65a3aacd7552dddc869727b4292",
       "snippets": [
         {
           "lang": "json",
@@ -2607,6 +2607,7 @@
         "llp/0107-react-presence-and-optimistic-lifecycle.spec.md",
         "llp/0114-first-class-react-and-query-groups.spec.md",
         "llp/0184-agent-accessible-control-plane.rfc.md",
+        "src/admin.rs",
         "src/ephemeral.rs",
         "src/server.rs",
         "src/cli.rs",
@@ -2625,7 +2626,7 @@
       ],
       "reviewed": "2026-08-06",
       "reviewedCommit": "6e158169b3c908b8be149db4487a71dc35738470",
-      "sha256": "262b0ba7debc2c5462ac539c9388215d9c56ddc312c3299c9b4805e1f6f42ba9",
+      "sha256": "c8721b8770cd8a2eb86e4d8bbc30355e02b4ab8740d14d1e52a31246d21596a1",
       "snippets": [
         {
           "lang": "tsx",
@@ -2967,7 +2968,7 @@
       "examples": [],
       "reviewed": "2026-08-03",
       "reviewedCommit": "7b467cf16",
-      "sha256": "dde438a85f449ebb98248d778e603908826caa8f45e43eb7479171c034e8bdd4",
+      "sha256": "444d167fabd203a62ba81f92d19cd674dce3cd50769d33576278d37f366dccd9",
       "snippets": []
     },
     "sync.offline-and-retention": {
@@ -3265,8 +3266,8 @@
     ]
   },
   "surfaces": {
-    "routes": 121,
-    "hostOps": 41
+    "routes": 122,
+    "hostOps": 43
   },
-  "contentHash": "8a45a12b90e575bb91b9a22e91ccace491bf6e14725f13a7bce824e00c0e78fe"
+  "contentHash": "a52724b231d3e0bdcf3d68e17bf984c0cafba4575c5a1f06df36333424a2bf3b"
 }

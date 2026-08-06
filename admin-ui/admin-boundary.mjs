@@ -239,8 +239,9 @@ export async function createAdminSurface({ runtime, client }) {
           publishOne('runResult', { ...emptyRun(), ran: true, ok: false, error: error.message });
         }
       },
-      // Ephemeral cleanup: a privileged runtime-state write, then republish inspect
-      // so the realtime counters reflect the purge.
+      // Ephemeral cleanup: AdminClient preserves this button's apply behavior
+      // while binding it to the current startup and a finite batch. Then
+      // republish inspect so the realtime counters reflect the purge.
       cleanup: async (_args, { publishOne }) => {
         try {
           await client.cleanupEphemeral();

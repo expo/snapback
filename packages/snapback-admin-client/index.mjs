@@ -504,6 +504,20 @@ export class AdminClient {
     );
   }
 
+  // @ref LLP 0184#b-forced-live-resync--add-now — a thin projection of the
+  //   `debug.live.forceResync` host operation (there is no dedicated
+  //   `/debug/live/force-resync` route the way network profiles have one;
+  //   this operation is host-ops-only, like most of LLP 0024's surface).
+  //   `startupNonce` fences the request to one exact running process and
+  //   must come from a readiness descriptor or equivalent trusted source
+  //   the caller already holds — this client does not mint or discover it.
+  forceLiveResync({ connectionId, subscriptionId, reason, clearRetained = false, startupNonce }) {
+    return this.#req('POST', '/host-ops', {
+      operation: 'debug.live.forceResync',
+      input: { connectionId, subscriptionId, reason, clearRetained, startupNonce },
+    });
+  }
+
   telemetryStats(filter = {}) {
     return this.#req(
       'GET',
@@ -600,8 +614,29 @@ export class AdminClient {
     return this.#req('GET', `/jobs/${encodeURIComponent(jobId)}`);
   }
 
-  cleanupEphemeral() {
-    return this.#req('POST', '/ephemeral/cleanup');
+  async cleanupEphemeral({
+    cutoffTimestampMs,
+    olderThanMs = cutoffTimestampMs === undefined ? 0 : undefined,
+    dryRun = false,
+    maxEntries = 1_000,
+    startupNonce,
+  } = {}) {
+    // Existing console callers keep apply semantics, but now do so through a
+    // finite batch and an explicit expiry cutoff. Bind the request to the
+    // process observed immediately before the write; a restart between these
+    // calls is refused by the server instead of cleaning a replacement.
+    let nonce = String(startupNonce ?? '').trim();
+    if (!nonce) {
+      const instance = await this.#req('GET', '/control-catalog/instance');
+      nonce = String(instance?.startupNonce ?? '').trim();
+    }
+    return this.#req('POST', '/ephemeral/cleanup', {
+      ...(cutoffTimestampMs === undefined ? {} : { cutoffTimestampMs }),
+      ...(olderThanMs === undefined ? {} : { olderThanMs }),
+      dryRun: dryRun === true,
+      maxEntries,
+      startupNonce: nonce,
+    });
   }
 
   // @ref LLP 0036#status-model-and-app-visibility-d4 — the status primitive:
