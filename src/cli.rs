@@ -5147,7 +5147,7 @@ fn read_config_value_carrier(
         // SAFETY: duplicate is a fresh owned descriptor returned by dup and
         // is converted into exactly one File.
         let file = unsafe { std::fs::File::from_raw_fd(duplicate) };
-        return read_config_value(file);
+        read_config_value(file)
     }
     #[cfg(not(unix))]
     {

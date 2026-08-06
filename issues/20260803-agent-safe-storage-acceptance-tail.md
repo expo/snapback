@@ -509,12 +509,14 @@ publish a capability on its own.
   OQ5.
   **2026-08-05 drift-pass attribution:** strict Clippy at drift candidate
   `d3742fd6f` found the newly landed live asset-lifecycle fixture referring to
-  `ParentServer.server_url` while its helper still exposed only `child`,
-  `ready`, and `token` (12 `E0609` compile errors). This is an actively owned
-  F0a/LLP 0185 correctness failure introduced with `2486ddfe1`, so the drift
-  lane did not repair the fork code. The owner-side successor `4444767cc`
-  supplies the missing fixture field; the drift lane consumed that mainline
-  fix through merge `68f749752` before resuming its proof.
+  `ParentServer.server_url` while the combined branch helper exposed only
+  `child`, `ready`, and `token` (12 `E0609` compile errors). Attribution is the
+  drift lane's earlier mechanical Clippy cleanup `2048ba89f`, which removed
+  the then-unused field, followed by the F0a-owned `2486ddfe1` fixture that
+  began consuming the field. Main's owner-side helper already retained that
+  exact field; the final reconciliation restores the same inert test-helper
+  field and constructor assignment. No fork implementation or correctness
+  seam changed.
 - **Row 8 (resource containment):** create admission (fork-count, per-fork
   bytes, total bytes), diff-work bound, and renewal max-lifetime cap all
   refuse deterministically with observed usage

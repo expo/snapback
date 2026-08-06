@@ -496,6 +496,7 @@ struct ParentServer {
     child: std::process::Child,
     ready: PathBuf,
     token: String,
+    server_url: String,
 }
 
 impl ParentServer {
@@ -557,6 +558,7 @@ impl ParentServer {
             child,
             ready,
             token,
+            server_url,
         }
     }
 
