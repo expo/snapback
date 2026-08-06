@@ -143,5 +143,8 @@ serializer-side length bound. The existing host validator remains the only
 owner of the 1 MiB/string and 4 MiB/result limits. Regression coverage combines
 a 44,084-character result with a trailing lone surrogate, and separately covers
 lone high/low surrogates, an unchanged valid pair, and a lone surrogate after
-byte 16,384 with a preserved suffix. The focused `local_v0`, direct bridge, and
+byte 16,384 with a preserved suffix. Because JSON replacers cannot rename
+object properties, the completed correction also normalizes syntactic lone-
+surrogate escapes in serialized keys while preserving valid-pair keys and a
+user's literal `\\uD800` key text. The focused `local_v0`, direct bridge, and
 full `handler_settlement_v0` suites pass.

@@ -1127,7 +1127,12 @@ fn ibex_handler_lone_surrogate_strings_are_sanitized() {
               "\uD800",
               "\uDC00",
               "\uD83D\uDE00",
-              "x".repeat(16400) + "\uD800" + "tail"
+              "x".repeat(16400) + "\uD800" + "tail",
+              { ["\uD800"]: "lone-high-key" },
+              { ["\uDC00"]: "lone-low-key" },
+              { ["\uD83D\uDE00"]: "valid-pair-key" },
+              { ["\\uD800"]: "literal-escape-key" },
+              { ["x".repeat(16400) + "\uD800" + "tail"]: "long-key" }
             ];
           },
           async createTodo() {
@@ -1147,6 +1152,11 @@ fn ibex_handler_lone_surrogate_strings_are_sanitized() {
             json!("\u{FFFD}"),
             json!("😀"),
             json!(format!("{}\u{FFFD}tail", "x".repeat(16_400))),
+            json!({ "\u{FFFD}": "lone-high-key" }),
+            json!({ "\u{FFFD}": "lone-low-key" }),
+            json!({ "😀": "valid-pair-key" }),
+            json!({ "\\uD800": "literal-escape-key" }),
+            json!({ format!("{}\u{FFFD}tail", "x".repeat(16_400)): "long-key" }),
         ]
     );
 }

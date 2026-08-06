@@ -1314,6 +1314,99 @@
   function __snapbackResultJsonReplacer(_key, value) {
     return typeof value === "string" ? __snapbackCompleteSafeString(value) : value;
   }
+  function __snapbackJsonHexDigit(code) {
+    if (code >= 0x30 && code <= 0x39) return code - 0x30;
+    if (code >= 0x41 && code <= 0x46) return code - 0x41 + 10;
+    if (code >= 0x61 && code <= 0x66) return code - 0x61 + 10;
+    return -1;
+  }
+  function __snapbackJsonEscapedCodeAt(encoded, slashIndex) {
+    if (
+      slashIndex + 5 >= encoded.length ||
+      trustedReflectApply(trustedStringCharCodeAt, encoded, [slashIndex]) !== 0x5C ||
+      trustedReflectApply(trustedStringCharCodeAt, encoded, [slashIndex + 1]) !== 0x75
+    ) return -1;
+    var d0 = __snapbackJsonHexDigit(trustedReflectApply(trustedStringCharCodeAt, encoded, [slashIndex + 2]));
+    var d1 = __snapbackJsonHexDigit(trustedReflectApply(trustedStringCharCodeAt, encoded, [slashIndex + 3]));
+    var d2 = __snapbackJsonHexDigit(trustedReflectApply(trustedStringCharCodeAt, encoded, [slashIndex + 4]));
+    var d3 = __snapbackJsonHexDigit(trustedReflectApply(trustedStringCharCodeAt, encoded, [slashIndex + 5]));
+    return d0 < 0 || d1 < 0 || d2 < 0 || d3 < 0
+      ? -1
+      : (d0 << 12) | (d1 << 8) | (d2 << 4) | d3;
+  }
+  function __snapbackNormalizeJsonKeySurrogates(encoded) {
+    // A replacer can normalize string values but cannot replace property
+    // names. Well-formed JSON.stringify spells a lone surrogate in a name as
+    // a `\uD800` escape, which Rust correctly refuses as a non-scalar. This
+    // lexical pass consumes JSON escapes atomically, leaving a user's literal
+    // `\\uD800` text and escaped or raw valid surrogate pairs unchanged.
+    var out = "";
+    var inString = false;
+    for (var i = 0; i < encoded.length; ) {
+      var code = trustedReflectApply(trustedStringCharCodeAt, encoded, [i]);
+      if (!inString) {
+        out += trustedReflectApply(trustedStringCharAt, encoded, [i]);
+        if (code === 0x22) inString = true;
+        i += 1;
+        continue;
+      }
+      if (code === 0x22) {
+        out += '"';
+        inString = false;
+        i += 1;
+        continue;
+      }
+      if (code === 0x5C) {
+        var escaped = __snapbackJsonEscapedCodeAt(encoded, i);
+        if (escaped >= 0xD800 && escaped <= 0xDBFF) {
+          var low = __snapbackJsonEscapedCodeAt(encoded, i + 6);
+          if (low >= 0xDC00 && low <= 0xDFFF) {
+            for (var pairIndex = 0; pairIndex < 12; pairIndex++) {
+              out += trustedReflectApply(trustedStringCharAt, encoded, [i + pairIndex]);
+            }
+            i += 12;
+          } else {
+            out += "\\uFFFD";
+            i += 6;
+          }
+        } else if (escaped >= 0xDC00 && escaped <= 0xDFFF) {
+          out += "\\uFFFD";
+          i += 6;
+        } else {
+          // Consume a non-Unicode escape (including `\\`) atomically so the
+          // following literal `uD800` cannot be mistaken for a JSON escape.
+          var escapeLength = escaped >= 0 ? 6 : (i + 1 < encoded.length ? 2 : 1);
+          for (var escapeIndex = 0; escapeIndex < escapeLength; escapeIndex++) {
+            out += trustedReflectApply(trustedStringCharAt, encoded, [i + escapeIndex]);
+          }
+          i += escapeLength;
+        }
+        continue;
+      }
+      if (code >= 0xD800 && code <= 0xDBFF) {
+        var next = i + 1 < encoded.length
+          ? trustedReflectApply(trustedStringCharCodeAt, encoded, [i + 1])
+          : -1;
+        if (next >= 0xDC00 && next <= 0xDFFF) {
+          out += trustedReflectApply(trustedStringCharAt, encoded, [i]);
+          out += trustedReflectApply(trustedStringCharAt, encoded, [i + 1]);
+          i += 2;
+        } else {
+          out += "\uFFFD";
+          i += 1;
+        }
+        continue;
+      }
+      if (code >= 0xDC00 && code <= 0xDFFF) {
+        out += "\uFFFD";
+        i += 1;
+        continue;
+      }
+      out += trustedReflectApply(trustedStringCharAt, encoded, [i]);
+      i += 1;
+    }
+    return out;
+  }
   // Single-sourced settlement wrapper (LLP 0048): both engines resolve an
   // invocation to the tagged completion envelope through this one function.
   // The envelope is only constructed after the awaited handler value exists,
@@ -1336,6 +1429,7 @@
         try { trustedDefineProperty(resultError, "__snapbackCode", { value: "SNAPBACK_HANDLER_RESULT_INVALID" }); } catch (_) { resultError.__snapbackCode = "SNAPBACK_HANDLER_RESULT_INVALID"; }
         throw resultError;
       }
+      encodedValue = __snapbackNormalizeJsonKeySurrogates(encodedValue);
       return '{"r":{"__snapbackOk":true,"value":' + encodedValue + '}}';
     } catch (error) {
       var rawCode = null;
