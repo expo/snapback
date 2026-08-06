@@ -6,7 +6,12 @@
 Client SDK, Live queries, Wire Protocol, Codegen, Admin console, Testing
 **Author:** Charlie Cheever / Claude (Fable 5) / Codex
 **Date:** 2026-08-02
-**Revised:** 2026-08-06, later (v0.11.1, residual-review disposition: the
+**Revised:** 2026-08-06, Move-1 closure (the retained qualified Fleet
+Observatory receipt at
+`tests/acceptance/fixtures/fleet-observatory/move1-exit.2026-08-06.v1.json`
+passes all 8 workload gates with 0 blocked; the refreshed carrier exit passes
+17/17 legs with 0 GAP, closing Move 1 without changing Experimental maturity
+or making a remote/hosted claim); 2026-08-06, later (v0.11.1, residual-review disposition: the
 §D8 `sbsb2` restart biconditional is conditioned on decode validity —
 well-formed, unexpired, non-future-issued, current
 `formatVersion`/`keyGeneration` — with decode-validity failures collapsing
@@ -2300,7 +2305,7 @@ or explicitly blocked. “Implementing slice” alone is not a disposition.
 | Cross-query normalization | not admitted; §D7/OQ2 evidence gate | adversarial projection only if proposed |
 | Aggregates including `count` | out; LLP 0130 SD-2 | none here |
 | Interim fail-closed cap milestone | §D3 rule; current tree proves only imperative `collect()` refusal, not the public witness or an LLP 0080 composition milestone | A1 |
-| Move-1 Triage/Fleet exit | normative transcription below; OQ5's reviewed `snapshot-batch.v2` registration landed 2026-08-06 (§D1/§D8), while Fleet still awaits its implementation, frozen vectors, and fresh workload receipt | workload receipts |
+| Move-1 Triage/Fleet exit | satisfied by the fresh Triage 8/8 receipt and qualified Fleet 8/8 receipt (both retained 2026-08-06); Move 1 is closed | workload receipts |
 
 The current tree's `SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED` is specifically the
 inline-handler `collect()` 1,024-row seam in
@@ -2476,10 +2481,10 @@ required output, and forbidden output.
 ### Move-1 workload exit (LLP 0155 normative transcription)
 
 Fresh provider-native Triage Graph and Fleet Observatory implementations must
-prove all of the following. The LLP 0135 OQ5 direction is ruled and the
-reviewed `snapshot-batch.v2` registration landed 2026-08-06 (§D1/§D8); Fleet
-remains blocked on its implementation, frozen cross-language vectors, and
-fresh witness:
+prove all of the following. The retained Triage receipt passes 8/8, and the
+qualified 2026-08-06 Fleet receipt passes 8/8 with 0 blocked after the local
+`snapshot-batch.v2` implementation, frozen cross-language vectors, and A14
+oracle landed. These receipts satisfy the workload exit and close Move 1:
 
 - required screens use generated composites, not JS collection joins;
 - the client retains only the desired bounded query results;
@@ -2586,9 +2591,10 @@ fence beside LLP 0053's. §D8 deliberately does own the cursor wire grammar.
    classification, sealing/resume/work-accounting pins, and required
    parity-vector obligations (§D1, §D3, §D4, §D8), reusing the existing
    class and §D2–D7 record shapes unchanged. LLP 0135's successor ruling
-   continues to govern the closed execution semantics. **Move 1's Fleet exit
-   now requires only implementation, the frozen cross-language vectors, and
-   its fresh workload receipt** (§Commission crosswalk).
+   continues to govern the closed execution semantics. **Resolved
+   2026-08-06:** the implementation, frozen cross-language vectors, and fresh
+   Fleet 8/8 workload receipt landed; §Commission crosswalk records Move 1
+   closed.
 2. The normalization evidence bar (§D7): the adversarial-projection
    fixture corpus and who owns its review — with LLP 0155 OQ2.
 3. A free-standing typed to-one node class: needed, or does LLP 0080's
@@ -2664,8 +2670,11 @@ capability publication authority are all green, no target may admit or
 require the profile at runtime, no shipped generated artifact may require
 the capability (acceptance-corpus fixtures may), and no support,
 capability, or implementation claim may be published. The Fleet Observatory
-carrier-exit row stays an honest GAP until the post-implementation fresh
-workload receipt exists.
+carrier-exit row remained an honest GAP until the post-implementation fresh
+workload receipt existed. That qualified 2026-08-06 receipt is now retained;
+the refreshed carrier exit is 17 PASS / 0 GAP / 0 skipped, so Move 1 is
+closed. This closure does not promote Experimental maturity and does not add
+public-package, remote-service, Cloudflare, or hosted support.
 
 ## `single_table_v1` activation and local publication — 2026-08-04
 

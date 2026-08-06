@@ -6,7 +6,10 @@
 generation, Authorization, Live Queries, Diagnostics, Testing, Demo apps
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-31
-**Revised:** 2026-08-06, later (LLP 0157 v0.11.1 residual disposition: §2.4's
+**Revised:** 2026-08-06, Move-1 successor closure (the commissioned
+implementation and frozen cross-language vectors are now exercised by the
+retained qualified Fleet Observatory 8/8 witness; LLP 0157 records Move 1
+closed, with maturity and remote/hosted nonclaims unchanged); 2026-08-06, later (LLP 0157 v0.11.1 residual disposition: §2.4's
 v1 restart sentence gains the stream/restore-epoch case the implementation
 already had and `expired` in its collapse list, with decode-validity
 failures collapsing before any epoch or parent comparison — the implemented
@@ -1318,9 +1321,15 @@ cross-language vectors, implementation, and fresh Fleet receipts.
 > `sbbc1`'s owner-specific binding and restart outcomes are LLP 0110's and
 > are unchanged. This Spec remains the execution owner; nothing in
 > the amendment changes `snapshot-batch.v1`, `sbsb1`, or `snapshot_batch_v1`
-> bytes or semantics. Implementation, frozen vectors, capability
-> publication, and the fresh Fleet receipt remain outstanding; LLP 0157
-> §D1's gate list is canonical.
+> bytes or semantics.
+>
+> **Dated successor note (2026-08-06):** the implementation, frozen vectors,
+> local Experimental capability publication, and qualified Fleet workload
+> witness have now landed. The retained
+> `tests/acceptance/fixtures/fleet-observatory/move1-exit.2026-08-06.v1.json`
+> receipt passes 8/8 with 0 blocked and satisfies this successor commission;
+> LLP 0157 records Move 1 closed. Public-package, remote-service, Cloudflare,
+> and hosted claims remain absent.
 
 ## Nonclaims
 

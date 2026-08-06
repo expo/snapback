@@ -42,17 +42,17 @@ const CARRIERS = [
     receipts: [
       {
         field: 'qualificationReceiptSha256',
-        path: 'tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-04.v1.json',
+        path: 'tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-06.v1.json',
       },
       {
         field: 'supportingReceiptSha256',
         key: 'triageBudgetFreeze',
-        path: 'tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-04.v1.json',
+        path: 'tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-06.v1.json',
       },
       {
         field: 'supportingReceiptSha256',
         key: 'triageMove1Exit',
-        path: 'tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-04.v1.json',
+        path: 'tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-06.v1.json',
       },
     ],
   },
