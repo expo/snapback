@@ -216,3 +216,13 @@ the composition manifest's pinned release identity correctly refuses a
 regenerated-but-unsynced gateway start; and compiled-fixture reference
 fields are `_id` placeholders. None required runtime changes — Lane 5's
 bugs were all in the new lane's own code/harness, a first for this program.
+
+## 2026-08-06 — Lane 6a: the client data layer and window controller
+
+Lane 6a landed: the typed 19-query adapter with explicit completeness
+states, all 16 mutation adapters with Lane-B-exact reducers and honest
+pending states, the generation-fenced window controller (the D4 workaround
+at the heart of the control), and the client session surface — 58 pure
+tests plus a 6/6 live smoke. The controller is the piece Zerobugs' UX
+actually lives on; having it headless and oracle-tested before any JSX
+exists is the sequencing paying off.

@@ -1,6 +1,6 @@
 # Zerobugs Stage 0.5 current-surface control plan
 
-Status: Lanes 1–4 complete and live-verified; Lane 5 versioned composition implemented with in-sandbox validation passing and its fresh-server live gate awaiting the supervising session
+Status: Lanes 1–5 complete and live-verified; Lane 6a typed client data/window/session layer implemented with in-sandbox validation passing and its fresh-server live smoke awaiting the supervising session; Lane 6b pinned UI port not started
 Governing contract: `demos/zerobugs/manifest/acceptance.v1.md`  
 Source inventory: `demos/zerobugs/stage0/inventory.v1.md`  
 Source pin: `rocicorp/mono@25c2c7308d3eb674d2d895022c9da11ef0c742fb`, `apps/zbugs`  
@@ -22,9 +22,10 @@ five-actor local identity binding, principal-derived role/ownership helpers,
 all 19 frozen typed live-query names, the complete 16-mutator authoritative
 server corpus, transaction-coupled durable notification intent for all eight
 triggers, independent query/mutation oracles, generated-artifact inputs, and a
-minimal React boot. It does **not** claim Lane 6 client reducers/pending UI,
-notification delivery, the composition gateway, pinned UI, or ZB gate lanes
-are implemented. Lane 4's fresh-server parity gate remains awaiting an
+minimal React boot, the Lane 5 versioned composition/delivery control, and the
+Lane 6a typed query/mutation/session adapters plus app-owned headless window
+controller. It does **not** claim the Lane 6b pinned UI port or ZB gate lanes
+are implemented. Lane 6a's fresh-server adapter smoke remains awaiting an
 outside-sandbox run. This control does not claim a hosted target, production
 OAuth, durable notification product capability beyond committed local intent,
 or large-fixture qualification.
@@ -404,9 +405,9 @@ attempt. Using a row before that update fails ZB0.
 | `W-MANUALSET` / app join/filter/sort | Adapter intersects bounded list/search/label ids and assembles rich rows. Owner: control data lane. | Bounded joins/comparators/cursors `snapback/functions.mjs:2255-2439`; set intersection and shared list engine `snapback/functions.mjs:2441-2736`; all 19 typed entry points `snapback/functions.mjs:2760-3674`; independent oracle/cursor witnesses `tests/lane3-oracle.mts:1-164`, `tests/lane3-list-engine.test.mts:1-354`; live source-parity witness `tests/acceptance/lane3-live.mts:1-781` | Implemented as typed server-side manual merge for Lane 3; never broad/unbounded, and retained through control. The route-argument limitation recorded under `W-QGROUP` prevents moving the rich merge into a multi-child generated group without changing the frozen query arguments. | Inputs are role-partitioned before counts or joins; protected child roots prove the parent first; no protected key or partial prefix crosses the actor boundary. | D2/D3/D6. |
 | `W-SEARCH-EPOCH` / manual invalidation | Shipped text search is not live, and current opaque handlers cannot invoke/compose a search plan. Owner: control search lane. | `snapback/schema.mjs:235-245`; `scripts/build-fixture.mts:625-635`; generated rows in `fixtures/normal-seed-v1/searchEpoch.json:1-14`; transactional repair/bump `snapback/functions.mjs:622-666,882-1672`; role-partitioned maintained-document scan and shared consumer `snapback/functions.mjs:2505-2736,3394-3469`; independent raw title/description/comment oracle `tests/lane3-oracle.mts:91-149`; pure/live search checks `tests/lane3-list-engine.test.mts:176-258`, `tests/acceptance/lane3-live.mts:359-422` | Implemented exact-corpus workaround: consult the epoch, scan only admitted visibility partitions, and return `refreshing` with no rows when any partition reaches 1,024. Affected mutations repair the document and bump its visibility partition in the source transaction. This is not advertised as shipped live search. Retained through control pending D6. | Epoch reveals no query text/result membership; documents are partitioned by public/internal; non-crew never query the internal partition; no boundary prefix is released. | D6 derived search. |
 | `W-MUTATION-IR` / complete-program JS fallback | Inventory classifies `issue.addLabel` and `comment.edit` as current-IR from their base database verbs, but the current authoring surface cannot declare the complete authoritative program. Owner: control server lane. | Source-id/identity/intent helpers `snapback/functions.mjs:443-839`; JS-tier current-IR rows `snapback/functions.mjs:1172-1213,1476-1509`; generated-tier assertion `tests/acceptance/lane4-live.mts:456-475` | Implemented as JS/Ibex while retaining the inventory's **current-ir** classification for the base Get/Guard/Insert or Get/Guard/Patch. Generated `Get` accepts physical `_id`, not the frozen source id; `AuthUserId` is the principal, not its app-owned source-user binding; and current IR cannot include recipient-snapshot intent, read-model repair, or the full body policy. | The same server handler derives the bound actor, rechecks ownership, repairs projections, and commits intent; no client authority is inferred from the preliminary inventory class. | D5 source-key/identity bindings plus transaction-coupled intent/read-model composition. |
-| `W-REDUCER` / duplicate handwritten reducer | Current generated optimism cannot express 11 new-verb and some branch/upsert/delete shapes. Owner: Lane 6 control UI lane. | Lane 4 authoritative baseline only: `snapback/functions.mjs:443-1672`, `tests/acceptance/lane4-live.mts:1-588`; client target `src/data/mutations.ts` / TBD-before-use in Lane 6 | **Not used in Lane 4.** Lane 4 implements and tests the authoritative corpus; any visible-fact capture-and-set reducer lands with the pinned UI in Lane 6 and must replace its TBD span before use. | Visible facts only; never predicts authority, hidden recipients, or delivery. | D5 lowering/admission. |
-| `W-PENDING` / server-only pending | Hidden branch/subscription/effect state is not safely locally evaluable. Owner: Lane 6 control UI lane. | Lane 4 settlement facts: `snapback/functions.mjs:840-1672`, `tests/acceptance/lane4-live.mts:1-588`; client target `src/data/mutations.ts`, UI pending components / TBD-before-use in Lane 6 | **Not used in Lane 4 UI because that UI has not landed.** The authoritative result and replay surface are implemented; honest client pending presentation lands in Lane 6 and must replace its TBD span before use. | No speculative protected fact or false settlement. | D5. |
-| `W-WINDOW` / app-owned window controller | No current source-equivalent `useZeroVirtualizer` primitive. Owner: control UI lane. | `src/windowing/*`, list/comments pages / TBD-before-use | Bespoke controller over supported bounded queries; retained through control. | Generation-fenced requests; parent policy on comments; honest completeness. | D4 window workstream. |
+| `W-REDUCER` / duplicate handwritten reducer | Current generated optimism cannot express 11 new-verb and some branch/upsert/delete shapes. Owner: Lane 6 control UI lane. | Lane 4 authoritative baseline `snapback/functions.mjs:443-1672`; typed 16-ref registry and visible facts `src/data/mutations.ts:21-106`; capture-and-set reducers `src/data/mutations.ts:137-623`; overlay/settlement ledger and headless invocation `src/data/mutations.ts:699-840`; pure witnesses `tests/lane6a-mutations.test.mts:1-190`; live actor-paint/settlement/refusal smoke `tests/acceptance/lane6a-live.mts:174-231` | Implemented in Lane 6a as one counted app-owned visible-fact projection layer. Success preserves the layer until a matching authoritative graph arrives; refusal drops it and rebases survivors. Lane 6b still owns the pinned component paint. | Visible facts only; protected visibility, hidden recipients/subscriptions, effects, and authority remain server-owned. | D5 lowering/admission. |
+| `W-PENDING` / server-only pending | Hidden branch/subscription/effect state is not safely locally evaluable. Owner: Lane 6 control UI lane. | Closed pending taxonomy and per-mutator table `src/data/mutations.ts:54-65,155-170,589-645`; presentation ledger `src/data/mutations.ts:724-806`; pure hidden-absence/incomplete-collection witnesses `tests/lane6a-mutations.test.mts:149-169`; refusal smoke `tests/acceptance/lane6a-live.mts:215-231` | Implemented in Lane 6a at the data/presentation boundary. Every Lane B hidden branch remains named pending; no server-only label creation, protected visibility, recipient/effect, absent private upsert, or incomplete two-collection branch is painted as settled. Lane 6b still owns visual treatment. | No speculative protected fact or false settlement. | D5. |
+| `W-WINDOW` / app-owned window controller | No current source-equivalent `useZeroVirtualizer` primitive. Owner: control UI lane. | State machine/data-source mappings `src/windowing/controller.ts:1-651`; React lifecycle `src/windowing/use-window.ts:1-57`; wouter-compatible history tuple `src/windowing/history-state.ts:1-99`; pure walks/fencing/refusal/spacer/restore witnesses `tests/lane6a-window.test.mts:1-226`; live Lane 3-oracle walk `tests/acceptance/lane6a-live.mts:136-170` | Implemented in Lane 6a as a server-backed D4 controller with canonical query/args/order/bounds identity, generation fencing, bounded forward/backward loads, target permalink loads, source-id dedupe, strict adjacency/cursor checks, known/estimated/unknown totals, measured spacers, and retained-vs-current hydration. Lane 6b still owns its list/comments rendering integration. | Generation-fenced requests; parent policy on comments; honest completeness and totals; never broad-fetch-and-slice. | D4 window workstream. |
 | `W-IDENTITY` / identity binding table | Snapback principals and frozen source user ids are distinct namespaces. Owner: auth composition. | `snapback/schema.mjs:144-156`; closed actor map and reusable guards `snapback/functions.mjs:56-152`; loaded-fixture proof and acceptance surfaces `snapback/functions.mjs:212-440`; receipt harness `scripts/bind-actors.mts:9-235`; runtime-independent witnesses `tests/lane2-functions.test.mts:123-254`; live seven-actor/transition gate `tests/acceptance/lane2-live.mts:46-222`; actor metadata in `fixtures/normal-seed-v1/fixture.json:7-33` and `tests/fixtures/fixture-digests.json:20-46` | Implemented as an acceptance-only, frozen-five, one-to-one binding bootstrap over supported dev sessions. Rebinding, unknown source users, role mismatches, sixth actors, and binding after closure refuse. `fixtureInspectTable` closes after the first binding. Retained through control; live gate awaits the supervising session. The adopted-bearer harness ends the server session through the shipped `/auth/logout` route (`authLogout` correctly refuses without browser `AuthCoordinator` custody); external user switch uses `replaceBearerToken`, which blanks predecessor state before refetch. | The stored principal is always `ctx.auth.userId`; every private helper resolves principal → binding → source row and accepts no caller user id. The acceptance actor selector is trusted only inside this fixture-gated bootstrap: current handler auth does not expose the verified mint email, so the mutation additionally requires the complete frozen fixture, exact actor/source/role map, one-to-one rows, five-row closure, and gateway omission. | D7 auth profile. |
 | `C-GATEWAY` / versioned composition gateway | Native Snapback does not own all nine frozen arbitrary routes or GitHub OAuth. Owner: composition lane. | Component contract `composition/zerobugs-control-composition.v1.json:1-145`; gateway `composition/server.mts:1-807`; config/identity/unsubscribe functions `snapback/functions.mjs:3776-3865`; exact envelope/token/Markdown helpers `composition/lib/{envelopes,markdown,tokens}.mts` (complete files); pure witnesses `tests/lane5-{envelope,token}.test.mts` (complete files); live route/health/cleanup witness `tests/acceptance/lane5-live.mts:312-511,639-681,812-824` | Implemented as a formally versioned bespoke D7 companion and supported local control component. All nine demands have exact method/path/input/output/auth bounds; GitHub exchange uses the deterministic local identity fixture, while real public-TLS OAuth remains a named ZB7 GAP. No native arbitrary-route or OAuth claim. | Closed 19-query/16-mutator allowlists; session custody; invalid bearer 401; state/PKCE/redirect fence; one-use purpose token; secrets by name; no `/_snapback/*` proxy; startup refuses non-loopback binding or declared/generated release drift; owned process/port/file cleanup. | D7 routes/auth. |
 | `C-NOTIFY` / durable app ledger and worker | `backend.notifications` is an explicit GAP; current jobs are local experimental and do not carry the explicit ambiguity reconciliation this control requires. Owner: effect composition. | Intent/attempt schema `snapback/schema.mjs:247-292`; snapshot/idempotency helpers and eight trigger writers `snapback/functions.mjs:449-849,908-1569`; Lane 5 lease/settle/action surface `snapback/functions.mjs:4065-4295`; worker/renderers `composition/effects/{deliver,payloads}.mts` (complete files); pure payload witness `tests/lane5-payload.test.mts`; live trigger/retry/ambiguity/non-trigger witness `tests/acceptance/lane5-live.mts:512-638,762-811` | Implemented for the supported local control: source mutations atomically commit intent; the bounded companion tick leases per-target attempts; host-mediated action egress reaches only authenticated local capture; delivered and ambiguous attempts fence replay. Gateway mutations preserve exact `clientID:mutationID:email`; native-direct calls retain the Lane 4 replay-stable runtime fallback and make no frozen-key claim. Hosted/native notification capability remains GAP. | Source transaction owns intent; frozen gateway injects only settlement identity, never authority; crew-admin lease/settle guard; intent-indexed attempt reads and per-intent bound; declared secret grants; Loops/Discord path allowlist; internal recipient snapshot is crew-only; definite pre-send failures retry; post-send uncertainty is terminal ambiguous. | D7 effects; first-class notification capability. |
@@ -564,6 +565,28 @@ artifact freshness into a live-load claim.
   `v.assetRef`, and serves the alias with `nosniff` plus a sandbox CSP. That is
   counted as `C-ASSET`, not described as native image-pipeline support; a guide
   recipe should either teach this safe adapter or name SVG as an explicit GAP.
+
+- **2026-08-06 — app-owned multi-page live windows.** The React and headless
+  query guides document one canonical store per generated query/args pair and
+  explicitly warn against inventing authority from retained data, but they do
+  not provide an intent-indexed recipe for joining multiple bounded cursor
+  subscriptions into one virtualized list. Lane 6a therefore owns interval
+  identity, target permalink cuts, cursor adjacency, source-id de-duplication,
+  generation fencing, spacer estimates, and retained/current hydration in
+  `src/windowing/`. It never broad-fetches and slices. This remains the counted
+  `W-WINDOW` D4 workaround, not a claimed Snapback virtualizer primitive.
+
+- **2026-08-06 — explicit client mutation identity with an app-owned visible
+  reducer.** The mutation guide documents `clientMutationId` on the headless
+  client and the React guide documents a single-store optimistic reducer, but
+  no recipe combines an explicit identity with a source-shaped visible-fact
+  reducer spanning app-owned query windows while leaving hidden branches
+  pending. `useSnapbackMutation` does not accept the explicit identity needed
+  by this frozen contract, so Lane 6a invokes generated refs through
+  `client.mutate`, validates Lane 4's result envelope, retains the layer until
+  authoritative graph adoption, and drops/rebases it on refusal. A documented
+  typed multi-store presentation pattern would reduce this counted
+  `W-REDUCER`/`W-PENDING` layer.
 
 ## Lane 1 validation
 
@@ -921,3 +944,82 @@ Supervisor corrections during the live run (recorded verbatim for ZB6):
 
 Sequencing row 5's completion check is met; Lane 6 (pinned UI + window
 controller) is next.
+
+## Lane 6a validation — typed data, presentation, window, and session control
+
+Lane 6a is deliberately the first half of sequencing row 6. It implements the
+typed client boundary and app-owned headless controller without copying or
+claiming the pinned JSX/CSS port; that remains Lane 6b.
+
+Implemented surface:
+
+- `src/data/types.ts` and `src/data/queries.ts` type all 19 frozen generated
+  refs, flatten the counted server/group child cuts into source-shaped values,
+  retain every root and child completeness fact, expose the closed
+  pending/refreshing/complete/incomplete/not-found-authoritative/refused
+  states, wire the supported React live hook, and provide the imperative twin
+  used by the controller and acceptance. Manual catalog page collection
+  refuses duplicate source ids and never upgrades a non-page-limit prefix.
+- `src/data/mutations.ts` registers all 16 generated mutators and sends an
+  explicit `clientMutationId`. Its reducer table follows Lane B: capture and
+  set only visible facts; protected visibility, absent private upserts,
+  incomplete two-collection predictions, subscriptions, notification/search
+  effects, cascades, and server-only label creation stay named pending. Lane 4
+  `rowID`/`authoritativeTime` envelopes refine the layer; matching
+  authoritative graph adoption retires it; refusal drops it, rebases
+  survivors, and remains surfaced.
+- `src/windowing/controller.ts`, `use-window.ts`, and `history-state.ts` own a
+  canonical query/args/order/bounds identity, generation-fenced bounded page
+  requests, loaded intervals, source-id keys, strict direction/adjacency/
+  terminal-cursor checks, authoritative permalink target cuts, known/
+  estimated/unknown totals, measured before/after spacers, and the same
+  `[state, setState]` history contract the pinned wouter hook consumes. The
+  issue mapping uses only `issueListV2`/`listIssueByID`; comments use only
+  `commentsPage`/`comment`. A retained/refreshing response remains hydrating
+  until a current frame arrives.
+- `src/auth/session.tsx` projects the public session handshake plus the
+  principal-derived `gatewayIdentitySelf` row, begins login through the Lane 5
+  `/api/login/github` identity exchange, calls the shipped `authLogout`
+  coordinator path, maps connection facts for offline presentation, and
+  synchronously blanks predecessor session/user state before an external
+  bearer replacement can publish its successor.
+- Pure Bun witnesses use the frozen fixture JSON and cover all six adapter
+  outcomes, child completeness, manual page proof, all 16 mutation
+  dispositions, protected-field exclusion, capture-and-set rebases, Lane 4
+  envelope settlement/refusal, forward/backward and permalink windows,
+  generation fencing, duplicate/adjacency/cursor refusal, reconnect
+  hydration, dynamic-height spacer math, unknown totals, history state, and
+  session-switch blanking.
+- `tests/acceptance/lane6a-live.mts` is the thin fresh-server smoke. Following
+  Lane 5's integration finding, it installs required config before any app
+  data, then loads the fixture and binds actors. It drives the adapter and
+  controller—not UI—against the Lane 3 oracle order, jumps to an out-of-window
+  permalink, paints and authoritatively settles a reducer-backed mutation
+  (including the runtime's generic `id_` physical row id), rebases a refused
+  mutation away, and proves session-switch predecessor blanking. Its only
+  success output is deterministic receipt `zerobugs-lane6a-live.v1`.
+
+Validation matrix:
+
+| Command | Result |
+| --- | --- |
+| `bun run generate` | PASS; generated API/release identity remained unchanged. The current generator refreshed only its digest-alias/cache inventory; that unrelated cache-index churn was not retained, leaving no tracked generated diff. |
+| `bun run typecheck` | PASS. |
+| `bun run build` | PASS; only the existing Snapback Vite deprecation and chunk-size warnings. |
+| `bun run test:lane6a` | PASS: 17 tests, 81 assertions, 0 failures. |
+| `./ref-check --verbose` (repository root) | PASS; see final in-sandbox verification below. |
+| `SNAPBACK_READY_FILE=<fresh-ready-file> SNAPBACK_RUNTIME_BINARY=<runtime-binary> bun tests/acceptance/lane6a-live.mts` | **AWAITING SUPERVISING LIVE RUN.** The harness emits `zerobugs-lane6a-live.v1` or exits nonzero; no live result is claimed here. |
+
+Lane 6a's in-sandbox completion check is met. Sequencing row 6 remains open
+until Lane 6b ports and verifies the pinned UI over these surfaces.
+
+### Lane 6a completion — live adapter/controller smoke PASS
+
+Run on 2026-08-06 by the supervising session (receipt
+`zerobugs-lane6a-live.v1`, 6/6): forward/backward controller walks match the
+lane3 oracle order with no duplicates or skips; a permalink jump outside the
+loaded window loads its target interval; a reducer-backed mutation paints
+optimistically and settles to the authoritative row; a refused mutation
+rebases away with the refusal surfaced; and a session switch blanks
+predecessor client state. Lane 6b (the pinned UI port over this layer,
+verified in Chrome) completes sequencing row 6.

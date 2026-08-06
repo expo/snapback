@@ -17,6 +17,8 @@
     "test:lane4:live": "bun tests/acceptance/lane4-live.mts",
     "test:lane5": "bun run generate && bun test tests/lane5-token.test.mts tests/lane5-envelope.test.mts tests/lane5-payload.test.mts",
     "test:lane5:live": "bun tests/acceptance/lane5-live.mts",
+    "test:lane6a": "bun test tests/lane6a-adapter.test.mts tests/lane6a-mutations.test.mts tests/lane6a-window.test.mts tests/lane6a-session.test.mts",
+    "test:lane6a:live": "bun tests/acceptance/lane6a-live.mts",
     "build:composition": "bun build composition/server.mts composition/effects/deliver.mts --outdir .snapback/lane5-build --target bun",
     "typecheck": "tsc --noEmit",
     "build": "vite build",
