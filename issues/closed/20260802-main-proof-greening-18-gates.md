@@ -1336,3 +1336,14 @@ the newly asynchronous generated-module identity reader was returned without
 restored the intended generated-plan identities; the real producer and all
 five retained checks then passed. This changes only the proof fixture, not the
 actively owned push seam or F0a implementation.
+
+The final coded launch then failed closed at capability admission and exposed
+the three remaining publication failures directly. The relation/activity and
+sequence-allocation carriers still pinned the pre-wave `local.rs`,
+`storage.rs`, and `define.mjs` bytes; the persistent-store carrier additionally
+pinned the predecessor local-store and Triage receipts plus the pre-wave
+codegen bytes. The coded publication finalizer accepted the retained 16 PASS /
+1 GAP store receipt and 8/8 Triage receipt, refreshed all three closed digest
+chains, regenerated the Rust-owned projection, and passed their conformance
+checks. This is carrier reconciliation attributable to the combined main wave,
+not a new capability claim or an implementation change.
