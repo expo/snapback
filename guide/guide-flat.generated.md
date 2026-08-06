@@ -97,7 +97,7 @@ and `guide-gap`.
 | clients.react | Prepared React provider over one headless store/transport seam: exact generated single/grouped live queries, capability-gated all-live and mixed-route references with one-commit register-mode adoption, explicit per-child registered-live/read-only boot provenance, honest weakest aggregate connection state, explicit live fallback, attach-deadline recovery, sessions authorization adoption, result-validated optimistic mutation rebase/rollback, local managed connection-keyed presence, per-query `freshness`/`retention` offline facts with the `useSnapbackOutbox` queued-intent projection, Strict Mode/HMR sharing, complete cleanup, and retained Signal Desk receipts | react, hooks, useSyncExternalStore, result inference, typed mutation, optimistic rollback, replay advisory, projectRecordFields, optimistic toggle helper, presence, ephemeral hook, useSnapbackPresence, typing indicator, query groups, mixed route, read-only snapshot, bundle prime, registered bundle, hmr, offline freshness, outbox badge | local | shipped | `useSnapbackPresence` in packages/snapback-react/index.d.mts | llp/0012, llp/0064, llp/0074, llp/0090, llp/0101, llp/0114, llp/0106, llp/0107, llp/0129, llp/0157 | clients/react.md |
 | clients.react-expo | React Expo Online surface; independent Android and iOS implementation evidence, with the shipped asset and admin-console paths cross-indexed from the carrier guide | react native, expo, android, ios, mobile, Expo asset upload, Expo ImagePicker, Expo debugging, admin console | local | shipped | `profileId` in demos/partiful-matrix/tests/acceptance/native-react-expo.mjs | llp/0012, llp/0064 | clients/react-expo.md |
 | operating.server-lifecycle | Start/reuse/stop servers safely; ports; provenance; crash detection | run server, ports, bindPortExactly, lifecycle, watchdog, crash, prebuilt binary, seed reset | local | shipped | `startServer` in demos/_kit/server-process.mjs | llp/0010, llp/0030 | testing/acceptance.md |
-| operating.instance-forks | Experimental source-only finite-TTL derived-instance CLI with automatic expiry enforcement, bounded renewal, resource-limit admission, recovery, bounded inspection, scalar projections, diff, concurrency-safe cleanup, and exact drop; implementation evidence is not a capability claim while LLP 0158 stays Draft | fork, derived instance, inspect, status, recover, renew, diff, automatic reap, resource limits | none | partial | `ForkCommand` in src/cli.rs + tests/instance_fork_cli_v1.rs + instance_fork unit matrices (parent-write invisibility, renewal crash cuts, concurrency, egress/credential) + tests/acceptance/instance-fork-fleet-dogfood.2026-08-03.v1.json (source proof only) | llp/0158, llp/0185 | GAP (publication, remaining bypass negatives, exact-diff validation, independent review, and hosted-target work remain; owner: Charlie, review: 2026-08-31; see operating/instance-forks.md) |
+| operating.instance-forks | Experimental source-only finite-TTL derived-instance CLI with automatic expiry enforcement, bounded renewal, resource-limit admission, recovery, bounded inspection, scalar projections, diff, concurrency-safe cleanup, and exact drop; implementation evidence is not a capability claim while LLP 0158 stays Draft | fork, derived instance, inspect, status, recover, renew, diff, automatic reap, resource limits | none | partial | `ForkCommand` in src/cli.rs + tests/instance_fork_cli_v1.rs + instance_fork unit matrices (parent-write invisibility, renewal crash cuts, concurrency, egress/credential) + tests/acceptance/instance-fork-fleet-dogfood.2026-08-03.v1.json (source proof only) | llp/0158, llp/0185 | GAP (publication, exact-diff validation, independent review, and hosted-target work remain; owner: Charlie, review: 2026-08-31; see operating/instance-forks.md) |
 | operating.packaged-dev-loop | Install a native runtime; scaffold, generate, doctor, and watch/load through one CLI. The current packed React/Vite starter and inferred sessions startup pass locally, but the expanded React closure is not yet the byte-verified public `0.1.0` closure. | install, new app, react starter, vite, dev, one command, watch, sessions startup, packaged runtime | local | partial | `runDev` in packages/snapback-cli/index.mjs | llp/0041, llp/0058, llp/0114, llp/0103 | getting-started/the-authoring-loop.md |
 | operating.inspect | Health and inspect projections | inspect, status, debug | local | shipped | route /inspect | llp/0017, llp/0031 | getting-started/the-authoring-loop.md |
 | operating.secrets-config | App secrets/config: declare, set, verify — write-only | secrets, config, api keys, config verification, verify config, config verify | local | shipped | route /_snapback/api/config/status | llp/0036 | operating/secrets-and-config.md |
@@ -11323,6 +11323,41 @@ journal-derived app-row receipt. The maintained Todo proof starts from a
 parent-only edge-case row, mutates the fork, checks the receipt, and verifies
 the live parent never sees the fork-only row.
 
+## Own forks per worktree, per agent run, and per suite lane
+
+The acceptance kit layers deterministic ownership over the CLI lifecycle
+(`demos/_kit/instance-fork.mjs`). `startWorktreeFork` binds a fork to the
+exact canonical git-worktree toplevel; `startAgentFork` binds one to an
+explicit `ownerId`/`runId` pair. Both write a non-secret
+`snapback.fork-owner.v1` record into the fork directory and return
+shell-friendly `envExports` (fork id, URL, ready path). Discovery and
+cleanup then bind to that exact recorded identity — never a guessed
+directory — and every deletion still goes through registry-bound
+`fork drop`:
+
+```js fragment reason="illustrative composition; the CI-verified consumer is demos/todo/tests/acceptance/fork-parallel-dispositions.mjs"
+import {
+  startAgentFork, discoverOwnedForks, dropOwnedForks,
+} from './demos/_kit/instance-fork.mjs';
+
+const fork = await startAgentFork({
+  ownerId: 'my-fleet-lane', runId: process.env.RUN_ID,
+  from: parentDb, appRoot, repoRoot, forkRoot, ttl: '30m',
+});
+// … if this run dies without fork.stop(), a later sweep cleans up exactly:
+await dropOwnedForks({ repoRoot, appRoot, forkRoot,
+  match: { ownerId: 'my-fleet-lane', runId: process.env.RUN_ID } });
+```
+
+Parallel suites share one expensive prepared parent while each lane gets an
+isolated derived instance on its own OS-assigned port. An interrupted run
+settles into one of three named dispositions, each CI-proven in
+`demos/todo/tests/acceptance/fork-parallel-dispositions.mjs`: a fully
+cleaned state; an unexpired orphan swept later by its exact owner/run
+record; or a quarantined incomplete publication repaired through
+`fork recover`. Automatic reap separately handles the fourth shape — an
+expired fork nobody swept.
+
 ## Inspect, review, and dispose forks
 
 `list` is the deliberately advisory registry projection. Safety-sensitive
@@ -11439,8 +11474,20 @@ fork point**, in commit order. It explicitly omits:
 - privileged or raw-SQL writes outside the app journal; and
 - sidecars and telemetry.
 
-It is a review aid, not a complete audit and not production migration
-admission. A long-lived fork can also outlive its journal floor; then diff
+For an exact net base-to-head receipt, create the fork with
+`--retain-base` (a digest-bound immutable snapshot; doubles the fork's byte
+footprint, and admission accounts for it) and run `fork diff FORK_ID --net`.
+The `snapback.fork-net-diff.v1` receipt is computed by comparing the
+retained base against the head directly — independent of the journal — with
+pre- and post-images, a named substrate (`retained-base-v1`) and
+completeness class (`journal-enumerated-v1`), and machine-readable covered/
+omitted domains. Within journal retention every net change is cross-checked
+against the journal; a change the journal cannot explain refuses with
+`SNAPBACK_FORK_DIFF_ORACLE_MISMATCH` instead of lending it cover. Without a
+retained base, `--net` refuses with `SNAPBACK_FORK_NET_DIFF_UNAVAILABLE`.
+
+The attributed receipt is a review aid, not a complete audit and not
+production migration admission. A long-lived fork can also outlive its journal floor; then diff
 refuses instead of returning an incomplete receipt. The attributed span is
 also work-bounded: past `--max-rows` (default 100k) diff refuses with
 `SNAPBACK_FORK_RESOURCE_LIMIT_REFUSED` and the observed row count instead of
@@ -11465,8 +11512,15 @@ for production apply decisions.
 - The default is secret scrubbing. `--with-secrets` is an explicit high-risk
   opt-in for the config-secret sibling; it does not weaken credential minting
   or egress denial.
-- Asset-bearing parents refuse rather than publish metadata whose blobs lack a
-  proven fork-private same-cut copy.
+- Asset-bearing parents fork with **same-cut fork-private custody**: every
+  blob the metadata cut names is copied into the fork's own store,
+  digest- and length-verified, or publication refuses
+  (`SNAPBACK_FORK_ASSET_CUT_INCOMPLETE`) — never a metadata-only success.
+  Unknown stores and digest algorithms fail closed
+  (`SNAPBACK_FORK_ASSET_CUT_UNSUPPORTED`); parent-signed URLs never
+  validate in the fork (fresh signing keys); creation admission counts the
+  blob tree in the fork's byte estimate; `create`/`inspect` report the
+  custody fact (`fork-private-same-cut` or `no-assets`).
 - Manual cron tick and forced job-drain routes refuse in a fork under the
   deny-all posture; autonomous workers are also inert.
 - There is no fork promotion or merge-back. Move conclusions or app-level

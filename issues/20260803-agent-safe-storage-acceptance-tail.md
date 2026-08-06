@@ -59,23 +59,78 @@ and none of this closes a row on its own.
 - **Row 6 (effect quarantine):** the shared host-op gate
   (`deny_derived_fork_host_op`) is behaviorally tested per family, including
   manual cron, provider-adapter selection, and the named-op unclassified
-  fail-closed rule. Open bypass negatives: push-receipt maintenance on a
-  ledger-bearing fork; a VM-level JS-action fetch negative; `CaptureOnly`
-  remains unimplemented for this class.
+  fail-closed rule. The former open bypass negatives closed 2026-08-05:
+  push-receipt maintenance on a ledger-bearing fork refuses before provider
+  I/O (`instance_fork::tests::push_receipt_maintenance_...`), and real JS
+  actions in the Hermes VM cannot `ctx.fetch`/`ctx.fetchStream` from a fork
+  (`tests/instance_fork_vm_egress_v1.rs` — the typed denial survives the VM
+  boundary and both paths deny at `action.externalEffectBegin`).
+  `CaptureOnly` remains unimplemented for this class.
 - **Row 7 (identity/authority):** live, stale, and revoked parent grant
   authority proven absent post-mint; bidirectional live-HTTP bearer replay
   (parent↔fork) proven refused with data-level no-commit checks. Production
   wired-auth legs remain open.
+- **Row 9 (exact fork diff), derived class (2026-08-05):** the local
+  target adopted LLP 0164's delegated substrate choice as an opt-in
+  immutable retained base (`--retain-base`, digest-bound), and
+  `fork diff --net` now emits `snapback.fork-net-diff.v1`: the row set comes
+  from the base/head oracle independent of the journal, the journal is
+  cross-checked within retention (a net change without a journal trace
+  refuses — the lying-journal negative is tested), and substrate plus
+  completeness (`journal-enumerated-v1`, honestly not authorizer-proven per
+  LLP 0165) are named on every receipt. Corpus: creates/updates/deletes,
+  multi-commit, multi-table, revert and insert+delete netting to nothing,
+  schema divergence, sibling no-op fork, tampered base. Open Phase 4 tail:
+  filters, pagination/streaming, human projection, LLP 0163 attribution,
+  and LLP 0165's authorizer-backed completeness upgrade.
+- **Asset custody (LLP 0185 Phase 5, 2026-08-05):** same-cut fork-private
+  blob custody is implemented and negative-tested — byte-identical
+  digest-verified copies, custody independence both directions, torn-cut
+  refusal (missing blob, digest mismatch) with recovery leaving no
+  metadata-only fork, and unclassified store/digest algorithms failing
+  closed. Open legs: live in-fork upload/deletion/GC proof through the
+  full upload machinery, and platform copy-behavior measurement beyond the
+  dev host; shared/content-addressed custody stays F2/hosted per LLP 0158
+  OQ5.
 - **Row 8 (resource containment):** create admission (fork-count, per-fork
   bytes, total bytes), diff-work bound, and renewal max-lifetime cap all
   refuse deterministically with observed usage
   (`SNAPBACK_FORK_RESOURCE_LIMIT_REFUSED`); bounded renewal has a 7-cut
   crash-recovery matrix; creation shares the renewal lifetime cap (author
   rulings 2026-08-05: limit constants ratified; integrated sandbox tier
-  deferred until demand). Still open: a true ENOSPC/disk-pressure simulation (not portably
-  automatable — interrupted-copy behavior is covered by the 20-cut
-  publication crash matrix instead); digest-work/replay-floor legs stay with
-  their owners above.
+  deferred until demand). Real disk pressure is now automated on macOS
+  (`tests/instance_fork_disk_pressure_v1.rs`: a copy onto a full RAM-disk
+  volume fails closed with no bootable residue and recover reaps the
+  staging exactly); other hosts rely on the 20-cut publication crash
+  matrix. Digest-work/replay-floor legs stay with their owners above.
+
+### Phase 6 gate progress (2026-08-05 author rulings + verifications)
+
+- Publication mechanism decided (LLP 0185 Phase 0 item 6): the LLP 0061
+  guide capability-index claim governs `operating.instance-forks`; no LLP
+  0113 manifest or LLP 0134 registration act for the local claim.
+- LLP 0158 moved Draft → Review by author ruling; the LLP 0005 review loop
+  is running (independent GPT-family review commissioned 2026-08-05).
+- LLP 0024/0030 fork-field stability re-verified against the Phase 0
+  freeze: `schemas/host-ready.schema.json` is byte-unchanged since
+  `fbb596876`, and the only `src/host_ops.rs` change (`2af0dc9fc`) is an
+  operation-inventory documentation constant, not envelope fields.
+- Row-13 narrow-claim scope ruled (OQ6): fork lifecycle metrics only.
+  Dated release-profile evidence recorded
+  (`tests/acceptance/instance-fork-lifecycle-bench.2026-08-05.v1.json`,
+  macOS aarch64, commit 447f10fec): cold create 212 ms median (351 ms at a
+  32 MiB parent), live-parent create 200 ms, drop 63 ms, attributed diff
+  47 ms and net diff 68 ms at 10k journal rows, reap-of-three 76 ms, and
+  three concurrent creates at 417 ms wall versus a 212 ms sequential
+  median. **Proposed bounds (pending 0162-author ratification):** create ≤
+  2 s small / ≤ 3 s at 32 MiB / ≤ 2 s live; drop ≤ 1 s; attributed diff ≤
+  500 ms and net diff ≤ 750 ms per 10k rows; reap ≤ 1 s per sweep of
+  three; concurrent 3-create wall ≤ 3× the sequential-create bound.
+  Rerun recipe: `cargo test --release --test instance_fork_bench_v1 --
+  --ignored --nocapture`.
+- Still gated on Track B: LLP 0163/0164/0165 acceptance loops (their
+  implementing integration is unlanded), the contract-bytes freeze, and
+  the independent security review that must follow it.
 
 The detailed LLP 0163 public-carrier work remains in its existing focused
 ticket. The first F1 operating-guide and single-consumer fork-aware harness

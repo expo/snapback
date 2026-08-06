@@ -1294,6 +1294,10 @@ pub enum ForkCommand {
         /// Runtime readiness descriptor. Defaults inside the fork directory.
         #[arg(long)]
         ready_file: Option<PathBuf>,
+        /// Retain a digest-bound post-mint base snapshot inside the fork,
+        /// enabling the exact net diff (doubles the fork's byte footprint).
+        #[arg(long)]
+        retain_base: bool,
         /// Refuse creation once this many managed forks exist.
         #[arg(long, default_value_t = crate::instance_fork::MANAGED_FORK_MAX_COUNT)]
         max_forks: usize,
@@ -1338,6 +1342,10 @@ pub enum ForkCommand {
         /// Refuse an attributed journal span larger than this many rows.
         #[arg(long, default_value_t = crate::instance_fork::FORK_DIFF_MAX_ROWS)]
         max_rows: u64,
+        /// Produce the exact net base-to-head receipt (snapback.fork-net-diff.v1)
+        /// instead of the attributed sequence; requires --retain-base at create.
+        #[arg(long)]
+        net: bool,
     },
     /// Stop and delete exactly one registry-bound fork.
     Drop {
@@ -2328,6 +2336,23 @@ fn fork_envelope_with_diagnostics(
     }
 }
 
+/// The honest asset-custody fact for one fork directory: a fork of an
+/// asset-bearing parent carries a digest-verified private blob tree from the
+/// same cut; a fork of an asset-free parent simply has none.
+fn fork_asset_custody(destination: &Path) -> &'static str {
+    let blobs = destination.join("assets").join("blobs");
+    match std::fs::read_dir(&blobs) {
+        Ok(mut entries) => {
+            if entries.next().is_some() {
+                "fork-private-same-cut"
+            } else {
+                "no-assets"
+            }
+        }
+        Err(_) => "no-assets",
+    }
+}
+
 fn fork_secret_disposition(with_secrets: bool, database: &Path) -> &'static str {
     if crate::config::ConfigStore::path_for_database(database).is_file() {
         "copied-explicitly"
@@ -2728,6 +2753,7 @@ where
             fork_root: requested_root,
             destination,
             ready_file,
+            retain_base,
             max_forks,
             max_fork_bytes,
             max_total_bytes,
@@ -2746,8 +2772,12 @@ where
                 max_fork_bytes,
                 max_total_bytes,
             };
-            let resource_usage =
-                crate::instance_fork::enforce_creation_limits(&root, &source_database, &limits)?;
+            let resource_usage = crate::instance_fork::enforce_creation_limits(
+                &root,
+                &source_database,
+                &limits,
+                retain_base,
+            )?;
             let ttl_ms = parse_fork_ttl(&ttl)?;
             let expires_at_ms = created_at_ms
                 .checked_add(ttl_ms)
@@ -2761,7 +2791,7 @@ where
                 destination.unwrap_or_else(|| PathBuf::from(format!("fork-{}", Uuid::now_v7()))),
             )?;
             let receipt = startup_blocking(|| {
-                crate::instance_fork::publish_managed(
+                crate::instance_fork::publish_managed_with_base(
                     &source_database,
                     &destination,
                     &app_id,
@@ -2769,6 +2799,7 @@ where
                     created_at_ms,
                     expires_at_ms,
                     with_secrets,
+                    retain_base,
                 )
             })?;
             let destination = std::fs::canonicalize(&destination).context(
@@ -2924,7 +2955,7 @@ where
                         "assets": "disabled"
                     },
                     "egressPolicy": "deny-all-v1",
-                    "assetCustody": "refuse-asset-bearing-source",
+                    "assetCustody": fork_asset_custody(&destination),
                     "secrets": fork_secret_disposition(with_secrets, &database),
                     "automaticReap": {
                         "observedAtMs": created_at_ms,
@@ -3068,6 +3099,7 @@ where
                     "assets": "inert",
                 },
                 "egressPosture": "deny-all-v1",
+                "assetCustody": fork_asset_custody(&target.destination),
                 "diffSummary": diff_summary,
             });
             let envelope = fork_envelope_with_diagnostics(
@@ -3093,13 +3125,22 @@ where
             fork_root: requested_root,
             out,
             max_rows,
+            net,
         } => {
             let app_root = std::fs::canonicalize(app_root)?;
             let root = fork_root(&app_root, requested_root)?;
             let target = crate::instance_fork::managed_target(&root, &fork_id)?;
-            let receipt = startup_blocking(|| {
-                crate::instance_fork::diff_receipt_bounded(&target.database, max_rows)
-            })?;
+            let receipt = if net {
+                let receipt = startup_blocking(|| {
+                    crate::instance_fork::net_diff_receipt(&target.database, max_rows)
+                })?;
+                serde_json::to_value(receipt)?
+            } else {
+                let receipt = startup_blocking(|| {
+                    crate::instance_fork::diff_receipt_bounded(&target.database, max_rows)
+                })?;
+                serde_json::to_value(receipt)?
+            };
             if let Some(path) = out.as_ref() {
                 std::fs::write(path, serde_json::to_vec_pretty(&receipt)?)?;
             }

@@ -250,7 +250,10 @@ export async function readCompiledFixture(): Promise<{
   return {tables, digests};
 }
 
-async function mintDevSession(readyFile: string): Promise<{
+export async function mintDevSession(
+  readyFile: string,
+  email = process.env.SNAPBACK_FIXTURE_EMAIL ?? DEFAULT_EMAIL,
+): Promise<{
   baseUrl: string;
   token: string;
   principal: string;
@@ -273,7 +276,7 @@ async function mintDevSession(readyFile: string): Promise<{
   }
   const {stdout} = await execFileAsync(
     command,
-    ['session', 'mint', '--email', process.env.SNAPBACK_FIXTURE_EMAIL ?? DEFAULT_EMAIL, '--ready-file', readyFile],
+    ['session', 'mint', '--email', email, '--ready-file', readyFile],
     {cwd: CONTROL_ROOT, env: mintEnv, maxBuffer: 1024 * 1024},
   );
   const envelope = JSON.parse(stdout) as {

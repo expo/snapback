@@ -314,6 +314,15 @@ try {
       'the protocol offer is sent',
     );
     assert.equal(request.headers.authorization, undefined, 'no bearer is sent');
+    // 0137 A4-f6 regression: the offer header is the only auth carrier, so the
+    // wire body must not carry legacy identity fields — a sessions server
+    // refuses them with SNAPBACK_AUTH_BODY_AUTH_UNSUPPORTED.
+    const anonymousBody = request.bodyText ? JSON.parse(request.bodyText) : {};
+    assert.equal(
+      'auth' in anonymousBody,
+      false,
+      'anonymous-public query bodies carry no legacy auth field',
+    );
     assert.throws(
       () => new SnapbackClient(baseUrl, { custody: 'anonymous-public', bearerToken: 'sbses_x', adminToken: null }),
       /mutually exclusive/,

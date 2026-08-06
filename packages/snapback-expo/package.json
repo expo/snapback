@@ -12,7 +12,9 @@
     "config-plugin.d.mts",
     "index.d.mts",
     "index.mjs",
-    "provider.mjs"
+    "provider.mjs",
+    "supervised-environment.d.mts",
+    "supervised-environment.mjs"
   ],
   "exports": {
     ".": {
@@ -33,6 +35,10 @@
       "types": "./config-plugin.d.mts",
       "require": "./config-plugin.cjs",
       "default": "./config-plugin.cjs"
+    },
+    "./supervised-environment": {
+      "types": "./supervised-environment.d.mts",
+      "import": "./supervised-environment.mjs"
     },
     "./package.json": "./package.json"
   },
@@ -60,6 +66,6 @@
     "access": "public"
   },
   "scripts": {
-    "test": "node ../../scripts/ensure-workspace-hoist.mjs && node app-binding.test.mjs && node config-plugin.test.mjs && node provider.test.mjs && node package.test.mjs && node package-closure.test.mjs && ../../node_modules/.bin/tsc --noEmit --strict --target es2022 --module esnext --moduleResolution bundler types.fixture.ts"
+    "test": "node ../../scripts/ensure-workspace-hoist.mjs && node app-binding.test.mjs && node config-plugin.test.mjs && node provider.test.mjs && node supervised-environment.test.mjs && node package.test.mjs && node package-closure.test.mjs && ../../node_modules/.bin/tsc --noEmit --strict --target es2022 --module esnext --moduleResolution bundler types.fixture.ts"
   }
 }

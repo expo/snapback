@@ -149,3 +149,35 @@ Friction worth keeping:
 - Codex's sandbox cannot bind loopback, so every live-server validation ran
   twice: once to honest BLOCKED inside the sandbox, once for real outside.
   The supervising session doing the live reruns is the working pattern.
+
+## 2026-08-05 — Lane 2: auth and identity composition
+
+Lane 2 landed: identityBinding flow (five deterministic dev-session actors
+bound to the frozen source users), reusable principal/crew/visibility/
+ownership guards for Lanes 3–4, and a nine-check live harness — all PASS
+against a fresh server and full fixture load. Notable: the shipped sessions
+surface covered everything Lane 2 needed (mint, logout route, bearer
+replacement); the only new app code is the acceptance-gated binding mutation
+and guards, all counted under W-IDENTITY. The broad fixture inspector now
+closes permanently once actor binding begins, so Lane 1's loader convenience
+cannot become a ZB4 leak.
+
+## 2026-08-06 — Lane 3: the 19-query corpus, and a third repo bug
+
+Lane 3 landed: all 19 frozen queries on the shared list-predicate engine
+(read models + all-label intersection + maintained search documents), with
+an independent parity oracle recomputing pinned semantics from raw fixture
+JSON — 16/16 live checks PASS including bidirectional keyset walks,
+permalink not-found proofs, crew-only internal visibility, and gated child
+roots.
+
+Two capability boundaries surfaced honestly: route-cut query groups accept
+`routeParam` bindings only from generated declarative queries, so the
+control's JS-authored graph queries cannot join a route cut (recorded under
+W-QGROUP; a generated D2 graph would restore it); and the third real repo
+bug of this program — anonymous-public custody sent legacy `auth` body
+fields because the wire-body strip was gated on a handshake that anonymous
+custody deliberately skips. Sessions servers refused every anonymous public
+query. One-line client fix + regression; the control's actor matrix caught
+it because it exercises anonymous alongside five bound actors on every
+protected surface.

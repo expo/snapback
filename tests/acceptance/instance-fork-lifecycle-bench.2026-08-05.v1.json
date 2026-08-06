@@ -1,0 +1,71 @@
+{
+  "schemaVersion": "snapback.fork-lifecycle-bench.v1",
+  "scope": "LLP 0162 row 13, narrow operating.instance-forks claim (author-scoped 2026-08-05)",
+  "environment": {
+    "os": "macos",
+    "arch": "aarch64",
+    "cpus": 18,
+    "profile": "release",
+    "commit": "447f10fec3f925e4130304003858e090803103be"
+  },
+  "measurements": {
+    "createColdSmallParent": {
+      "samples": 5,
+      "minMs": 199.510042,
+      "medianMs": 211.942417,
+      "maxMs": 2601.5495419999997
+    },
+    "createColdLargeParent32MiB": {
+      "samples": 3,
+      "minMs": 330.26775000000004,
+      "medianMs": 351.052709,
+      "maxMs": 352.11129200000005
+    },
+    "createLiveParent": {
+      "samples": 3,
+      "minMs": 200.009416,
+      "medianMs": 200.01775,
+      "maxMs": 201.97620799999999
+    },
+    "dropSmall": {
+      "samples": 5,
+      "minMs": 62.710291,
+      "medianMs": 63.047958,
+      "maxMs": 65.855375
+    },
+    "dropLarge": {
+      "samples": 3,
+      "minMs": 62.765083,
+      "medianMs": 62.792,
+      "maxMs": 69.847625
+    },
+    "dropLive": {
+      "samples": 3,
+      "minMs": 62.695584,
+      "medianMs": 65.17379199999999,
+      "maxMs": 65.770208
+    },
+    "attributedDiff10kRows": {
+      "samples": 3,
+      "minMs": 46.08175,
+      "medianMs": 47.136708999999996,
+      "maxMs": 53.971375
+    },
+    "netDiff10kRows": {
+      "samples": 3,
+      "minMs": 64.89075,
+      "medianMs": 67.744875,
+      "maxMs": 71.183667
+    },
+    "reapThreeExpiredForks": {
+      "samples": 1,
+      "medianMs": 75.85187499999999
+    },
+    "concurrentCreate3WallMs": 417.39695900000004,
+    "sequentialCreateMedianMs": 211.942417
+  },
+  "notes": [
+    "create latency includes server boot, ready handshake, and manifest load — the full product surface",
+    "diff spans are 10k journal rows, an order of magnitude under the 100k diff-work bound"
+  ]
+}

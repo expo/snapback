@@ -21,11 +21,17 @@ assert.deepEqual(Object.keys(manifest.dependencies).sort(), [
 assert.equal(manifest.publishConfig.access, 'public');
 assert.equal(typeof packageEntry.SnapbackExpoProvider, 'function');
 assert.equal(typeof packageEntry.createSnapbackExpoBoot, 'function');
+assert.equal(typeof packageEntry.createSupervisedExpoEnvironment, 'function');
 assert.equal(typeof packageEntry.useSnapbackQuery, 'function');
 assert.equal(typeof packageEntry.useSnapbackMutation, 'function');
 assert.equal(packageEntry.APP_BINDING_FORMAT, 'snapback.app-binding.v1');
 
-const productionSources = ['index.mjs', 'provider.mjs', 'app-binding.mjs']
+const productionSources = [
+  'index.mjs',
+  'provider.mjs',
+  'app-binding.mjs',
+  'supervised-environment.mjs',
+]
   .map((file) => readFileSync(new URL(file, import.meta.url), 'utf8'))
   .join('\n');
 for (const forbidden of [

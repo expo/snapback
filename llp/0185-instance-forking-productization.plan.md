@@ -6,7 +6,27 @@
 experience, Developer experience, CLI, MCP, Documentation, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-05
-**Revised:** 2026-08-05 (initial draft — turns the remaining LLP 0158 F1/F2
+**Revised:** 2026-08-05 (Phase 0 items 2/6 closed by author ruling: LLP
+0158 is in Review and its acceptance loop is running; the Phase 6
+publication mechanism is the LLP 0061 guide capability-index claim, so
+Phase 6 item 1's gate set binds to the capability-index row rather than an
+LLP 0113 manifest, and LLP 0134's registration act is not required for the
+local claim. OQ6 is resolved by the same ruling — row 13 narrows to fork
+lifecycle metrics for this claim, bounds pending 0162-author ratification
+after measurement.); 2026-08-05 (execution status: Phases 0, 1, 2a, 2b, 3, and 5
+are executed with dated evidence on main, plus Phase 4's first slice (the
+retained-base substrate and oracle-verified `snapback.fork-net-diff.v1`,
+under LLP 0164's explicit target-choice delegation). Author rulings
+2026-08-05: Phase 3 limit constants ratified; creation shares the renewal
+lifetime cap; the item-9 containment answer for v1 is documented OS-boundary
+guidance with no built sandbox tier until demand names one. Open executable
+tail: Phase 4 items 5-8 (filters, pagination, human projection, LLP 0163
+attribution), Phase 5's live in-fork upload/GC leg, and LLP 0165's
+authorizer-backed completeness upgrade. Phase 6 waits on its item-0
+governance gate (LLP 0158/0163/0164/0165 acceptance, LLP 0162 rows incl.
+row 13, independent review); Phase 7 waits on Phase 6; Phase 8 stays
+demand-gated. OQ1 and OQ3 remain open pending Phase 2b fleet observation.);
+2026-08-05 (initial draft — turns the remaining LLP 0158 F1/F2
 work and the agent-safe-storage acceptance tail into an ordered program without
 reopening the implemented F0a/F0b safety and local CLI contracts; entered the
 LLP 0010 super-refine loop, Draft → Review; round 1 revision — added LLP 0024

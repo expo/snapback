@@ -1,6 +1,6 @@
 # Zerobugs Stage 0.5 current-surface control plan
 
-Status: Lane 1 fixture compiler and bounded loader implemented; later behavioral lanes not started
+Status: Lanes 1–2 complete and live-verified; Lane 3 implemented with runtime-independent checks passing and the fresh-server live parity gate awaiting the supervising session
 Governing contract: `demos/zerobugs/manifest/acceptance.v1.md`  
 Source inventory: `demos/zerobugs/stage0/inventory.v1.md`  
 Source pin: `rocicorp/mono@25c2c7308d3eb674d2d895022c9da11ef0c742fb`, `apps/zbugs`  
@@ -18,11 +18,14 @@ all remain in scope.
 
 The current state provides the plan, ten source tables plus support schema,
 deterministic normal/policy fixture compiler, bounded authenticated loader,
-generated-artifact inputs, and a minimal React boot. It does **not** claim the
-19-query/16-mutator product corpus, composition gateway, pinned UI, or ZB gate
-lanes are implemented. It also does not claim a hosted target, production
-OAuth, durable notification product capability, or large-fixture
-qualification.
+five-actor local identity binding, principal-derived role/ownership helpers,
+all 19 frozen typed live-query names, generated list/detail route-group
+identities, independent query-oracle tests, generated-artifact inputs, and a
+minimal React boot. It does **not** claim the 16-mutator product corpus,
+composition gateway, pinned UI, or ZB gate lanes are implemented. Lane 3's
+fresh-server parity gate remains awaiting an outside-sandbox run. This control
+does not claim a hosted target, production OAuth, durable notification product
+capability, or large-fixture qualification.
 
 The control may improve the four source defects frozen in manifest §8, but it
 may not reproduce them: child roots are parent-gated, notification intent is
@@ -104,12 +107,20 @@ explicitly authorizes evidence emission to `demos/zerobugs/evidence/`.
 
 The current relational surface is a bounded two-source equi-join/projection
 surface, not the pinned 22-relation graph. Two-source maintained projections
-are used where they fit. Wider shapes use registered query groups plus a
-counted client merge; list membership/order uses declared read models. Search
-uses shipped `backend.text-search` over `issueSearchDocument`. Since current
-text search is read-only rather than live, `searchEpoch` is a synced
-invalidation fact that triggers a bounded refetch; this is a declared manual
-invalidation workaround, not simulated live search.
+are used where they fit. Wider shapes were predeclared as registered query
+groups plus a counted client merge; Lane 3's route-argument probe instead
+required generated route identities around a counted typed server merge, as
+recorded under `W-QGROUP`/`W-MANUALSET`. List membership/order uses declared
+read models. Search
+was planned to use shipped `backend.text-search` over `issueSearchDocument`.
+Lane 3 codegen proved that an opaque handler cannot compose a search plan and
+that exporting a public search plan cannot safely select the crew-only
+partition. The admitted control therefore scans only the maintained,
+role-partitioned search documents under a 1,024-row proof ceiling and returns
+`refreshing` with no rows on a boundary hit. `searchEpoch` is still consulted
+as the synced invalidation fact. This exact-corpus lowering is counted under
+`W-SEARCH-EPOCH`; it is not a first-class live-search claim and it does not
+silently return a bounded prefix.
 
 ### Query lowering plan
 
@@ -381,18 +392,18 @@ attempt. Using a row before that update fails ZB0.
 
 | ID / class | Reason and owner | Planned files / lines | Status and lifecycle | Security boundary | Removed by |
 | --- | --- | --- | --- | --- | --- |
-| `W-QGROUP` / manual query-group graph join | Current relational capability is bounded two-source, while issue/list shapes span up to 22 relations. Owner: control data lane. | `snapback/routes.mjs`, `src/data/queries.ts` / TBD-before-use | Supported generated groups + bespoke merge; retained through control. | Merge only parent-authorized closed projections; never infer completeness. | D2 graph/query workstream. |
-| `W-READMODEL` / denormalized projection | All-label membership, project-user existence, wide list order, and comment-derived search do not fit one current live query. Owner: control server lane. | `snapback/schema.mjs:158-233`; `scripts/build-fixture.mts:511-643`; generated rows in `fixtures/normal-seed-v1/{projectUserRead,issueListRead,issueLabelRead,issueSearchDocument}.json` (complete files) | Supported maintained projection where available plus app-authored rows; rebuildable; retained through control. | Same-transaction writers, explicit public/private fields, digest audit. | D2 and D6. |
-| `W-MANUALSET` / app join/filter/sort | Adapter intersects bounded list/search/label ids and assembles rich rows. Owner: control data lane. | `src/data/queries.ts` / TBD-before-use | Bespoke; never broad/unbounded; retained through control. | Inputs carry visibility/completeness; no protected join key crosses actor boundary. | D2/D3/D6. |
-| `W-SEARCH-EPOCH` / manual invalidation | Shipped text search is not live. Owner: control search lane. | `snapback/schema.mjs:235-245`; `scripts/build-fixture.mts:625-635`; generated rows in `fixtures/normal-seed-v1/searchEpoch.json:1-14` | Supported search + bespoke synced epoch/refetch; explicit refreshing state. | Epoch reveals no query text/result membership and is partitioned by visibility class. | D6 derived search. |
+| `W-QGROUP` / manual query-group graph join | Current relational capability is bounded two-source, while issue/list shapes span up to 22 relations. Owner: control data lane. | Generated initial-list/detail identities `snapback/routes.mjs:1-30`; parent-authorized bounded graph loaders and manual projection assembly `snapback/functions.mjs:815-941,1497-1581,1789-1878`; group/contract witness `tests/lane3-list-engine.test.mts:153-179` | Implemented as two generated register-eligible route identities around the already parent-authorized assembled live-query projection. Current route argument lowering admits primitive route parameters but rejected the nested/union/null list-context mappings needed for a wider multi-child group, so the Lane 3 graph merge remains in the typed server handler. Retained through control and explicitly re-evaluated in Lane 6. | Every child query starts only after parent authorization; a bounded child contributes its own completeness fact and no merge infers completeness. | D2 graph/query workstream. |
+| `W-READMODEL` / denormalized projection | All-label membership, project-user existence, wide list order, and comment-derived search do not fit one current live query. Owner: control server lane. | `snapback/schema.mjs:158-233`; `scripts/build-fixture.mts:511-643`; generated rows in `fixtures/normal-seed-v1/{projectUserRead,issueListRead,issueLabelRead,issueSearchDocument}.json` (complete files); shared read-model predicate and graph hydration `snapback/functions.mjs:837-1220,1497-2203`; independent raw-source oracle `tests/lane3-oracle.mts:1-164`; generated-handler witness `tests/lane3-list-engine.test.mts:1-358`; live parity harness `tests/acceptance/lane3-live.mts:1-780` | Implemented for Lane 3 as bounded, rebuildable maintained projections plus source-row hydration. Every exact-bound hit refuses or returns no plausible prefix; query result contracts remain source-shaped. Retained through control. | Visibility is applied before releasing `examined`/`total`; all-label membership is intersection; private rows resolve through the Lane 2 principal binding; digest audit covers the projections. | D2 and D6. |
+| `W-MANUALSET` / app join/filter/sort | Adapter intersects bounded list/search/label ids and assembles rich rows. Owner: control data lane. | Bounded joins/comparators/cursors `snapback/functions.mjs:747-941`; set intersection and shared list engine `snapback/functions.mjs:973-1220`; all 19 typed entry points `snapback/functions.mjs:1258-2203`; independent oracle/cursor witnesses `tests/lane3-oracle.mts:1-164`, `tests/lane3-list-engine.test.mts:1-358`; live source-parity witness `tests/acceptance/lane3-live.mts:1-780` | Implemented as typed server-side manual merge for Lane 3; never broad/unbounded, and retained through control. The route-argument limitation recorded under `W-QGROUP` prevented moving the rich merge into a multi-child generated group without changing the frozen query arguments. | Inputs are role-partitioned before counts or joins; protected child roots prove the parent first; no protected key or partial prefix crosses the actor boundary. | D2/D3/D6. |
+| `W-SEARCH-EPOCH` / manual invalidation | Shipped text search is not live, and current opaque handlers cannot invoke/compose a search plan. Owner: control search lane. | `snapback/schema.mjs:235-245`; `scripts/build-fixture.mts:625-635`; generated rows in `fixtures/normal-seed-v1/searchEpoch.json:1-14`; role-partitioned maintained-document scan and epoch facts `snapback/functions.mjs:1003-1048`; shared consumers `snapback/functions.mjs:1050-1220,1892-1969,2068-2141`; independent raw title/description/comment oracle `tests/lane3-oracle.mts:91-149`; pure/live search checks `tests/lane3-list-engine.test.mts:180-262`, `tests/acceptance/lane3-live.mts:359-422` | Implemented exact-corpus workaround: consult the epoch, scan only admitted visibility partitions, and return `refreshing` with no rows when any partition reaches 1,024. This is not advertised as shipped live search. Retained through control pending D6. | Epoch reveals no query text/result membership; documents are partitioned by public/internal; non-crew never query the internal partition; no boundary prefix is released. | D6 derived search. |
 | `W-REDUCER` / duplicate handwritten reducer | Current generated optimism cannot express 11 new-verb and some branch/upsert/delete shapes. Owner: control mutation lane. | `src/data/mutations.ts` / TBD-before-use | Bespoke typed capture-and-set; removed when generated admission exists. | Visible facts only; never predicts authority, hidden recipients, or delivery. | D5 lowering/admission. |
 | `W-PENDING` / server-only pending | Hidden branch/subscription/effect state is not safely locally evaluable. Owner: control mutation lane. | `src/data/mutations.ts`, UI pending components / TBD-before-use | Supported authoritative mutation with honest pending; retained until admitted carrier exists. | No speculative protected fact or false settlement. | D5. |
 | `W-WINDOW` / app-owned window controller | No current source-equivalent `useZeroVirtualizer` primitive. Owner: control UI lane. | `src/windowing/*`, list/comments pages / TBD-before-use | Bespoke controller over supported bounded queries; retained through control. | Generation-fenced requests; parent policy on comments; honest completeness. | D4 window workstream. |
-| `W-IDENTITY` / identity binding table | Snapback principals and frozen source user ids are distinct namespaces. Owner: auth composition. | `snapback/schema.mjs:144-156`; `scripts/build-fixture.mts:345-369`; actor metadata in `fixtures/normal-seed-v1/fixture.json:7-33` and `tests/fixtures/fixture-digests.json:20-46` | App-owned table over supported sessions/external broker; retained through control. | Only server-derived principal writes/reads binding; no caller user-id authority. | D7 auth profile. |
+| `W-IDENTITY` / identity binding table | Snapback principals and frozen source user ids are distinct namespaces. Owner: auth composition. | `snapback/schema.mjs:144-156`; closed actor map and reusable guards `snapback/functions.mjs:56-152`; loaded-fixture proof and acceptance surfaces `snapback/functions.mjs:212-440`; receipt harness `scripts/bind-actors.mts:9-235`; runtime-independent witnesses `tests/lane2-functions.test.mts:123-254`; live seven-actor/transition gate `tests/acceptance/lane2-live.mts:46-222`; actor metadata in `fixtures/normal-seed-v1/fixture.json:7-33` and `tests/fixtures/fixture-digests.json:20-46` | Implemented as an acceptance-only, frozen-five, one-to-one binding bootstrap over supported dev sessions. Rebinding, unknown source users, role mismatches, sixth actors, and binding after closure refuse. `fixtureInspectTable` closes after the first binding. Retained through control; live gate awaits the supervising session. The adopted-bearer harness ends the server session through the shipped `/auth/logout` route (`authLogout` correctly refuses without browser `AuthCoordinator` custody); external user switch uses `replaceBearerToken`, which blanks predecessor state before refetch. | The stored principal is always `ctx.auth.userId`; every private helper resolves principal → binding → source row and accepts no caller user id. The acceptance actor selector is trusted only inside this fixture-gated bootstrap: current handler auth does not expose the verified mint email, so the mutation additionally requires the complete frozen fixture, exact actor/source/role map, one-to-one rows, five-row closure, and gateway omission. | D7 auth profile. |
 | `C-GATEWAY` / versioned composition gateway | Native Snapback does not own all nine frozen arbitrary routes or GitHub OAuth. Owner: composition lane. | `composition/zerobugs-control-composition.v1.json`, `composition/server.mts`, `composition/routes/*` / TBD-before-use | Formally versioned bespoke D7 companion; local supported control component; no native claim. | Narrow route/function allowlist, session custody, redirect/token/secret policy, owned cleanup. | D7 routes/auth. |
 | `C-NOTIFY` / durable app ledger and worker | `backend.notifications` is an explicit GAP; current jobs are local experimental. Owner: effect composition. | `snapback/schema.mjs`, `snapback/functions.mjs`, `composition/effects/*` / TBD-before-use | Supported actions + experimental jobs + bespoke ledger; local partial, hosted GAP. | Intent in mutation transaction; idempotency/fencing; explicit ambiguous outcomes; secrets by name. | D7 effects; first-class notification capability. |
 | `C-ASSET` / source URL adapter and attachment metadata | Native local asset lifecycle differs from S3 presign/Markdown URL source shape. Owner: asset composition. | `snapback/schema.mjs`, `snapback/functions.mjs`, `composition/routes/upload.mts`, `src/assets/upload.ts` / TBD-before-use | Supported local asset capability + bespoke response/Markdown adapter; hosted GAP. | Server MIME/size/checksum, typed attachment, declared delivery/CORS, GC, no credential logging. | D7 assets/routes. |
-| `W-FIXTURE` / fixture transformation and bounded loader | Frozen relational source ids must become typed prefixed placeholder references and support read models, while handlers may only create server-owned runtime ids and LLP 0109 caps a seed at 1,024 effects. Owner: fixture lane. | Compiler `scripts/build-fixture.mts:1-1115`; batch planning/id remap/digest verification `scripts/load-fixture.mts:14-342`; closed mutation and inspection allowlists `snapback/functions.mjs:12-148`; focused witness `tests/fixture-loader.test.mts:1-153`; generated normalized rows in `fixtures/normal-seed-v1/*.json` (complete files); `fixtures/policy-extension-v1.json:1-162`; `tests/fixtures/fixture-digests.json:1-181` | Bespoke deterministic compiler plus 16 bounded ordinary mutation batches; retained for control reproducibility. No `seed.json` is authored. | Dev-minted ordinary session; empty/in-progress frozen-user gate; final `searchEpoch` sentinel closes ingestion; gateway omission; exact ids/counts/digests after inverse remap. | D8 fixture/import profile may standardize a resumable authenticated bulk loader. |
+| `W-FIXTURE` / fixture transformation and bounded loader | Frozen relational source ids must become typed prefixed placeholder references and support read models, while handlers may only create server-owned runtime ids and LLP 0109 caps a seed at 1,024 effects. Owner: fixture lane. | Compiler `scripts/build-fixture.mts:1-1115`; batch planning/id remap/digest verification `scripts/load-fixture.mts:14-342`; closed mutation and inspection allowlists `snapback/functions.mjs:12-274`; runtime-table-selected batch/result `v.json()` carrier `snapback/functions.mjs:239-256`; runtime-table-selected inspector with no expressible single-table document contract `snapback/functions.mjs:258-275`; focused witness `tests/fixture-loader.test.mts:1-153`; generated normalized rows in `fixtures/normal-seed-v1/*.json` (complete files); `fixtures/policy-extension-v1.json:1-162`; `tests/fixtures/fixture-digests.json:1-181` | Bespoke deterministic compiler plus 16 bounded ordinary mutation batches; retained for control reproducibility. No `seed.json` is authored. These two Lane 1 fixture-only dynamic-table boundaries are the only generated unknown shapes; every Lane 3 query uses a precise `results.records(v.object(...))` contract. | Dev-minted ordinary session; empty/in-progress frozen-user gate; final `searchEpoch` sentinel closes ingestion; gateway omission; exact ids/counts/digests after inverse remap. | D8 fixture/import profile may standardize a resumable authenticated bulk loader. |
 | `W-ENUM` / duplicate closed-domain guard | Shipped table field validators do not admit literal unions for the source `role` and `visibility` varchar enums. Owner: schema/mutation lane. | Compiler guards `scripts/build-fixture.mts:190-203,645-742,758-784,811-865`; ingest guard `snapback/functions.mjs:62-90`; source varchar declarations remain `snapback/schema.mjs:16-20,51-54` | Bespoke two-value guards at every ingestion/write boundary; schema remains `v.string()`. | Fail closed before storage; query auth never treats an unknown role as crew or visibility as public. | D5, if generated validation/lowering is extended to portable stored enum domains. |
 
 ## Later-job sequencing and lane acceptance
@@ -448,6 +459,43 @@ artifact freshness into a live-load claim.
   ≤900-row `ingestFixtureBatch` pattern exists only as demo folklore in
   `demos/zero-bakeoff/apps/fleet-observatory/snapback/functions.mjs`; finding
   and adapting it required repository search outside `guide/`.
+
+- **2026-08-05 — binding a session principal to an app-owned source identity.**
+  The sessions guide clearly documents `ctx.auth.userId`, dev-session minting,
+  logout, and external bearer replacement, but has no intent-indexed recipe
+  for securely populating an app-owned principal-to-source-user table. Handler
+  auth exposes the verified principal but not the verified email supplied to
+  `session mint`, so an in-handler actor/email claim cannot independently prove
+  which frozen source row the principal should own. Lane 2 confines that claim
+  to an acceptance-only mutation over the exact loaded fixture, a closed
+  actor/source/role map, one-to-one refusal, five-row closure, and gateway
+  omission. A production external broker still needs a trusted identity claim
+  or privileged provisioning path; this harness is not presented as that
+  product-auth design.
+
+- **2026-08-05 — composing role-partitioned text search inside a typed live
+  query.** The text-search guide documents standalone generated search plans,
+  result typing, and the fact that search is not live. It does not document an
+  admitted way for an opaque JS live-query handler to invoke a search plan, or
+  a pattern for one public query whose search source must be selected from
+  `public` versus `public + internal` only after server-side principal
+  resolution. Exporting the internal plan as public would widen disclosure;
+  accepting a caller role would violate Lane 2 identity custody. Lane 3 uses
+  the maintained document only under a 1,024-row role-partitioned scan, checks
+  `searchEpoch`, and refuses with `refreshing` at the proof boundary. This is
+  recorded as `W-SEARCH-EPOCH`, not described as first-class search.
+
+- **2026-08-05 — generated route-group arguments for structured query
+  contexts.** The snapshot-bundle and query-group pages clearly cover
+  primitive `routeParam()` bindings and literal arguments, but do not state
+  that route lowering rejects a route parameter nested in an object and cannot
+  express the null/union literal members required by the frozen list context.
+  Lane 3's attempted rich list/detail bundle failed generation with
+  `ROUTES_ARGS_INVALID`. It retained generated register-eligible list/detail
+  identities using primitive wrapper arguments and kept the bounded graph
+  merge inside the typed live handler. This limitation and the resulting
+  single-child groups are counted under `W-QGROUP`/`W-MANUALSET` rather than
+  presented as the planned multi-child merge.
 
 ## Lane 1 validation
 
@@ -549,3 +597,114 @@ The observed overall digest equals the compiled contract digest exactly.
 Lane 1's completion check (sequencing row 1) is met: counts/ids/digests pass,
 typed refs and the read-model rebuild digest pass, and `snapback generate`
 passes. Lane 2 (local auth/identity composition) is next.
+
+## Lane 2 validation
+
+Run on 2026-08-05 from `demos/zerobugs/control`. The Codex sandbox cannot bind
+loopback, so every runtime-independent check ran here and the live server gate
+is explicitly left for the supervising session.
+
+| Command | Result |
+| --- | --- |
+| `bun run generate` | PASS, exit 0: 16 tables and seven acceptance-only operations (five queries, two mutations), 38 generated files. The only two warnings remain the declared fixture-only `v.json()`/unknown-result degradation facts. |
+| `bun run test:lane2` | PASS, exit 0: generation plus eight Bun tests. The four Lane 2 tests exercise explicit session gates, identity-free private args, all five frozen bindings and every rebind refusal, sixth/unknown actor refusal, missing and role-mismatched source refusal, unbound-principal refusal, crew and internal-visibility refusal for an ordinary user, creator admission and assignee ownership refusal, principal-owned overlay selection, and closure of the broad fixture inspector after identity bootstrap begins. The four Lane 1 loader tests also remain green. |
+| `bun run typecheck` | PASS, exit 0. |
+| `bun run build` | PASS, exit 0; Vite 8 built the client. The only extra output was the upstream `optimizeDeps.rollupOptions` deprecation warning. |
+| `bun build tests/acceptance/lane2-live.mts --target=bun --outfile=/private/tmp/zerobugs-lane2-live-check.mjs` | PASS, exit 0: the live harness and its 51-module dependency graph parse and bundle for Bun. |
+| `./ref-check --verbose` (repository root) | PASS, exit 0: 188 LLP documents, 3,155 refs in 7,801 files, 0 errors, 0 unchecked. |
+| `node scripts/check-guide.mjs` (repository root) | **BLOCKED OUTSIDE LANE SCOPE, exit 1:** 56 pages, 174 snippets, 111 routes + 37 host-ops joined, with 43 drift warnings. The errors are pre-existing/missing generated examples under `demos/competitive-checkpoint` and `demos/todo-v2`, plus a stale root `guide/guide-manifest.generated.json`. Lane 2 changes no `guide/` file, and its write boundary is `demos/zerobugs/control/`, so no out-of-scope regeneration or example repair was attempted. |
+| `git diff --check` | PASS, exit 0. |
+| `SNAPBACK_READY_FILE=<ready-file> SNAPBACK_RUNTIME_BINARY=<runtime-binary> bun tests/acceptance/lane2-live.mts` | **AWAITING SUPERVISING LIVE RUN.** Against the already Lane-1-loaded scratch database, this emits the deterministic `zerobugs-actor-bindings.v1` receipt and a `zerobugs-lane2-live.v1` receipt, or exits nonzero. It covers the five authenticated actors plus anonymous and forged-bearer attacker semantics; deterministic distinct-email minting; exact source bindings; rebind and actor-set closure; unbound, crew, ownership, anonymous, and attacker refusals; `/auth/logout` invalidation of the current and copied stale adopted bearer; `replaceBearerToken` transition to removed-member without predecessor overlay exposure; caller-selected private-id rejection; and post-bind fixture-inspector closure. Principals are recorded as returned by session mint but are not incorporated into a digest. |
+
+The shipped auth surface does have explicit transition primitives, so Lane 2
+does not record a logout/invalidation product gap. Browser coordinator custody
+uses `authLogout()`; this adopted-bearer harness drives the shipped
+`/auth/logout` endpoint directly because `authLogout()` intentionally refuses
+without an `AuthCoordinator`. `replaceBearerToken()` then provides the
+documented external user-switch barrier. Completion row 2 is not marked met
+until the final command passes on a live server.
+
+### Lane 2 completion — live actor harness PASS
+
+Run on 2026-08-05 by the supervising session (outside the codex sandbox)
+against a fresh server + full Lane 1 fixture load. All nine expected checks
+executed and passed: five frozen actors bind deterministically with rebinding
+refused; unbound principals, anonymous callers, and forged/expired bearers are
+refused on principal-bound paths; the crew guard admits crew-admin and refuses
+ordinary; ownership admits creator and refuses assignee; the logout route and
+user switching retire the predecessor's private overlay; and no private
+overlay path accepts a caller-selected identity. Receipt schema
+`zerobugs-lane2-live.v1` (expectedChecks 9 / executedChecks 9 / status ok).
+Sequencing row 2's completion check is met; Lane 3 (query/read-model corpus)
+is next.
+
+## Lane 3 validation
+
+Run on 2026-08-05 from `demos/zerobugs/control`. The sandbox cannot bind
+loopback, so the runtime-independent implementation and oracle checks ran here
+and the fresh-server parity receipt is explicitly left for the supervising
+session. No live result is claimed below.
+
+| Command | Result |
+| --- | --- |
+| `bun run generate` | PASS, exit 0: 16 tables and 27 operations (five Lane 1/2 queries, 20 live queries comprising the 19 frozen names plus the primitive-argument detail route wrapper, and two mutations), 99 generated files. Both routes are `registerGroupEligible`. The only two warnings are the pre-existing `W-FIXTURE` dynamic-table `v.json()`/unknown shapes; all 19 Lane 3 results generate precise record contracts. |
+| `bun run test:lane3` | PASS, exit 0: generation plus 13 Bun tests across the Lane 1 loader, Lane 2 identity/guards, and Lane 3 query corpus. Lane 3 executes the generated handler against compiled fixture tables while its expected membership comes independently from raw source issue/comment/label/user rows. It proves all filter classes (including all-label intersection and three search sources), all four sort modes, full forward/backward walks without skips/duplicates, deprecated neighbor parity, protected counts, exact route-group identities, nullable-limit refusal, and explicit small-window incompleteness. |
+| `bun run typecheck` | PASS, exit 0. |
+| `bun run build` | PASS, exit 0; Vite 8 built the client. Output contained the upstream `optimizeDeps.rollupOptions` deprecation and the existing chunk-size advisory only. |
+| `bun build tests/acceptance/lane3-live.mts --target=bun --outfile=/private/tmp/zerobugs-lane3-live-check.mjs` | PASS, exit 0: the live parity harness and its 52-module dependency graph parse and bundle for Bun. |
+| `./ref-check --verbose` (repository root) | PASS, exit 0: 188 LLP documents, 3,334 refs in 8,389 files, 0 errors, 0 unchecked. |
+| `git diff --check -- demos/zerobugs/control` | PASS, exit 0. |
+| `SNAPBACK_READY_FILE=<fresh-server-ready-file> SNAPBACK_RUNTIME_BINARY=/Users/ccheever/projects/snapback/target/debug/snapback bun tests/acceptance/lane3-live.mts` | **AWAITING SUPERVISING LIVE RUN.** Run from `demos/zerobugs/control` against an empty fresh server. The harness performs the complete Lane 1 fixture load and Lane 2 five-actor bindings itself, then emits one `zerobugs-lane3-live.v1` receipt with `expectedChecks: 16`, `executedChecks: 16`, and a pass/fail record for every check; any failure exits nonzero after emitting the complete receipt. |
+
+The live oracle reads only the ten compiled source fixture tables and derives
+list membership, text matches (title, description, and comment body), relation
+membership, visibility, and private overlay expectations in test code. It does
+not inspect or reuse the server's `issueListRead`, `issueLabelRead`,
+`issueSearchDocument`, `projectUserRead`, or query output to calculate expected
+results. The 16 checks non-vacuously exercise every frozen query name; all
+single and combined list filters; both ordered fields and directions; forward
+and backward issue/comment cursors; deprecated query parity; inside/outside
+window permalinks; missing-versus-invisible non-oracular not-found shapes;
+crew versus ordinary/anonymous/creator/assignee policy (including counts and
+child roots); principal-bound preferences/view state/notifications; bounded
+preload/detail graphs; and explicit small-page incompleteness.
+
+The creator/assignee mismatch is intentionally pinned: they may own or be
+assigned the policy-extension issue for mutation policy but remain non-crew,
+so query visibility returns the same authoritative not-found shape as a
+missing issue. Their stored issue overlays are consequently not released;
+the oracle expects only principal-owned rows whose parent is visible. Crew
+actors receive exactly their own internal view/notification overlays, while
+all five actors receive exactly their own `userPref` row.
+
+### Lane 3 amendment — route-cut query groups unavailable to JS queries
+
+The runtime refused the Lane 3 routes manifest at boot
+(`SNAPBACK_ROUTES_MANIFEST_INVALID`): `routeParam` bindings require
+schema-derived scalar arg types, which only generated declarative queries
+(`defineLiveQuery`) carry. All Lane 3 graph queries are `defineJsLiveQuery`
+handlers, so none can join a route-cut group. `snapback/routes.mjs` is
+removed; the client assembles screens from individual query calls. This is
+recorded under W-QGROUP as measured control burden: a D2 successor graph
+whose plans are generated (not JS-authored) would restore route-cut group
+identity for these screens.
+
+### Lane 3 completion — live parity harness PASS
+
+Run on 2026-08-06 by the supervising session against a fresh server. All 16
+checks executed and passed (receipt `zerobugs-lane3-live.v1`, expectedChecks
+16 / executedChecks 16): catalog/point parity, label ordering, project-user
+membership and deprecated picker branches, every list filter and combined
+case, four sort modes with bidirectional keyset walks (no duplicates/skips),
+deprecated list/prevNext oracle sharing, permalinks inside/outside the window
+with authoritative not-found, issue-detail and public comment-graph parity,
+gated child roots proving parent visibility first, internal-issue visibility
+(crew-only across list/detail/preload), principal-overlay isolation,
+small-window incompleteness declaration, bounded preload child facts, and
+all-19-names exercised. Two environment findings during the run: the dev
+server's mint surface settles slightly after the ready file appears (harness
+callers should wait for the impersonation capability file), and the live run
+surfaced a client defect — anonymous-public custody sent legacy auth body
+fields (fixed in packages/snapback-client, see
+issues/closed/20260805-anonymous-public-query-body-carries-legacy-auth.md).
+Sequencing row 3's completion check is met; Lane 4 (mutation corpus) is next.

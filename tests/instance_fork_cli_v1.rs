@@ -1273,6 +1273,100 @@ fn resource_limits_refuse_create_and_diff_without_residue() {
     assert!(usage["defaultLimits"]["maxForks"].as_u64().unwrap() >= 1);
 }
 
+/// LLP 0185 Phase 4: the exact net receipt through the executable — named
+/// substrate and completeness, oracle-verified journal consistency, and a
+/// deterministic refusal when the fork has no retained base.
+#[test]
+fn executable_net_diff_names_its_substrate_and_requires_a_retained_base() {
+    let directory = tempfile::tempdir().expect("net diff fixture");
+    let source = parent_with_schema(directory.path());
+    let app_root = directory.path().join("app");
+    std::fs::create_dir(&app_root).unwrap();
+    let fork_root = directory.path().join("forks");
+    std::fs::create_dir(&fork_root).unwrap();
+    let wall_now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .expect("wall clock")
+        .as_millis() as u64;
+
+    let based = snapback::instance_fork::publish_managed_with_base(
+        &source,
+        &fork_root.join("fork-based"),
+        "todo",
+        "net-parent",
+        wall_now,
+        wall_now + 3_600_000,
+        false,
+        true,
+    )
+    .expect("publish base-bearing fork");
+    let database = fork_root.join("fork-based/parent.sqlite3");
+    let conn = rusqlite::Connection::open(&database).expect("open fork database");
+    conn.execute_batch(
+        "INSERT INTO todos(_id,_version,_createdAt,_updatedAt,title,completed,userId)
+         VALUES('todo-net',1,100,100,'net diff row',0,'user_net');
+         UPDATE _snapback_version SET version=1 WHERE id=1;
+         INSERT INTO _snapback_changes(version,table_name,row_id,op,row_json,changed_at_ms)
+         VALUES(1,'todos','todo-net','insert','{}',100);",
+    )
+    .expect("fork workload");
+    drop(conn);
+
+    let mut net = snapback();
+    net.args([
+        "fork",
+        "diff",
+        &based.lineage.fork_id,
+        "--net",
+        "--app-root",
+        app_root.to_str().unwrap(),
+        "--fork-root",
+        fork_root.to_str().unwrap(),
+    ]);
+    let envelope = successful(net, "fork diff --net");
+    let receipt = &envelope["data"]["receipt"];
+    assert_eq!(receipt["schemaVersion"], "snapback.fork-net-diff.v1");
+    assert_eq!(receipt["substrate"], "retained-base-v1");
+    assert_eq!(receipt["completeness"], "journal-enumerated-v1");
+    assert_eq!(receipt["journalConsistency"], "journal-cross-check-verified");
+    let rows = receipt["rows"].as_array().expect("net rows");
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0]["operation"], "insert");
+    assert_eq!(rows[0]["postImage"]["title"], "net diff row");
+    assert!(rows[0].get("preImage").is_none(), "an insert has no pre-image");
+    assert_eq!(receipt["domains"]["appRows"], "net-covered");
+
+    let bare = snapback::instance_fork::publish_managed(
+        &source,
+        &fork_root.join("fork-bare"),
+        "todo",
+        "net-parent",
+        wall_now,
+        wall_now + 3_600_000,
+        false,
+    )
+    .expect("publish bare fork");
+    let refused = snapback()
+        .args([
+            "fork",
+            "diff",
+            &bare.lineage.fork_id,
+            "--net",
+            "--app-root",
+            app_root.to_str().unwrap(),
+            "--fork-root",
+            fork_root.to_str().unwrap(),
+        ])
+        .output()
+        .expect("run bare net diff");
+    assert!(!refused.status.success());
+    assert!(
+        String::from_utf8_lossy(&refused.stderr).contains("SNAPBACK_FORK_NET_DIFF_UNAVAILABLE"),
+        "{}",
+        String::from_utf8_lossy(&refused.stderr)
+    );
+}
+
 #[test]
 fn executable_fork_recover_repairs_one_finite_partial_publication() {
     let directory = tempfile::tempdir().expect("fork recovery fixture");

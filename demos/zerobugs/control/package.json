@@ -7,7 +7,12 @@
     "generate": "snapback generate snapback",
     "dev": "snapback dev snapback --client . --client-command vite",
     "client:dev": "vite",
+    "bind:actors": "bun scripts/bind-actors.mts",
     "test:fixture": "bun run generate && bun test tests/fixture-loader.test.mts",
+    "test:lane2": "bun run generate && bun test tests/fixture-loader.test.mts tests/lane2-functions.test.mts",
+    "test:lane2:live": "bun tests/acceptance/lane2-live.mts",
+    "test:lane3": "bun run generate && bun test tests/fixture-loader.test.mts tests/lane2-functions.test.mts tests/lane3-list-engine.test.mts",
+    "test:lane3:live": "bun tests/acceptance/lane3-live.mts",
     "typecheck": "tsc --noEmit",
     "build": "vite build",
     "test:static": "bun run typecheck && bun run build"

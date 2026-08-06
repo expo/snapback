@@ -17,6 +17,7 @@ import {
   isAppBindingDiagnostic,
   publicBindingFacts,
 } from './app-binding.mjs';
+import { createSupervisedExpoEnvironment } from './supervised-environment.mjs';
 
 const bootContext = createContext(null);
 let bootSequence = 0;
@@ -32,23 +33,6 @@ function diagnostic(code, message, details = {}) {
     severity: 'error',
     message,
     details: freezeRecord(details),
-  });
-}
-
-function remediation(kind, description, precondition, {
-  riskClass = 'mechanical',
-  machineApplicable = false,
-  requiresApproval = false,
-  authorityEffect = 'none',
-} = {}) {
-  return Object.freeze({
-    kind,
-    riskClass,
-    machineApplicable,
-    requiresApproval,
-    authorityEffect,
-    precondition: freezeRecord(precondition),
-    description,
   });
 }
 
@@ -136,40 +120,7 @@ function errorState(error, correlationId) {
   });
 }
 
-const DEFAULT_BINDING_REMEDIATIONS = Object.freeze([
-  remediation(
-    'startExpoSupervisor',
-    'Start the supervised Expo development runtime, or build with an admitted release binding.',
-    { bindingSource: 'unavailable' },
-  ),
-]);
-
-export const defaultSnapbackExpoEnvironment = Object.freeze({
-  format: 'snapback.expo-environment.v1',
-  async resolveBinding() {
-    const error = new Error(
-      'No AppBinding delivery is installed. E0 defines this admission seam; '
-      + 'snapback dev --expo supplies it in E1 and release builds supply it in E3.',
-    );
-    error.code = 'SNAPBACK_APP_BINDING_UNAVAILABLE';
-    error.diagnostic = diagnostic(error.code, error.message, {
-      seam: 'SnapbackExpoEnvironmentV1.resolveBinding',
-    });
-    error.remediations = DEFAULT_BINDING_REMEDIATIONS;
-    throw error;
-  },
-  async adoptAuthority() {
-    return Object.freeze({
-      status: 'authority-required',
-      diagnostic: diagnostic(
-        'SNAPBACK_AUTHORITY_REQUIRED',
-        'An ordinary application session is required before Snapback can prepare the client.',
-        { cause: 'ordinary-session-unavailable' },
-      ),
-      remediations: Object.freeze([]),
-    });
-  },
-});
+export const defaultSnapbackExpoEnvironment = createSupervisedExpoEnvironment();
 
 async function appStateFor(environment) {
   if (environment?.appState?.addEventListener) return environment.appState;
@@ -208,6 +159,10 @@ export function createSnapbackExpoBoot({
   let reactProvider = null;
   let lifecycle = null;
   let authorityDisposer = null;
+  let admittedBinding = null;
+  let admittedBindingFacts = null;
+  let authorityFacts = null;
+  let refreshPromise = null;
   const listeners = new Set();
   const controller = new AbortController();
 
@@ -260,7 +215,7 @@ export function createSnapbackExpoBoot({
         throw error;
       }
       const admission = resolution.admission ?? {};
-      const admittedBinding = await admitAppBindingV1(resolution.binding, app, {
+      admittedBinding = await admitAppBindingV1(resolution.binding, app, {
         mode: bindingOverride === null ? 'resolved' : 'override',
         now: now(),
         productionCondition:
@@ -301,7 +256,7 @@ export function createSnapbackExpoBoot({
         publish(authorityRequiredState(error, correlationId, adopted.remediations));
         return state;
       }
-      const authorityFacts = publicAuthorityFacts(adopted?.publicFacts);
+      authorityFacts = publicAuthorityFacts(adopted?.publicFacts);
       if (adopted?.status !== 'ready' || !adopted.client || authorityFacts === null) {
         const error = new Error('authority adoption did not return an ordinary session client');
         error.code = 'SNAPBACK_AUTHORITY_REQUIRED';
@@ -335,9 +290,10 @@ export function createSnapbackExpoBoot({
           try { environment.onDiagnostic?.(normalizedDiagnostic(error, correlationId)); } catch { /* observational */ }
         },
       });
+      admittedBindingFacts = publicBindingFacts(admittedBinding);
       publish(Object.freeze({
         status: 'ready',
-        binding: publicBindingFacts(admittedBinding),
+        binding: admittedBindingFacts,
         authority: authorityFacts,
       }));
       return state;
@@ -361,6 +317,68 @@ export function createSnapbackExpoBoot({
         startPromise = run();
       }
       return startPromise;
+    },
+    refreshAuthority() {
+      if (refreshPromise !== null) return refreshPromise;
+      refreshPromise = (async () => {
+        if (disposed || state.status !== 'ready' || admittedBinding === null) return state;
+        if (typeof environment.refreshAuthority !== 'function') {
+          const error = new Error('the selected Expo environment cannot refresh ordinary authority');
+          error.code = 'SNAPBACK_EXPO_ENVIRONMENT_INVALID';
+          publish(errorState(error, correlationId));
+          return state;
+        }
+        const resumeAfterRefresh = reactProvider?.inspection?.().hostPaused !== true;
+        publish(Object.freeze({ status: 'starting', stage: 'authority' }));
+        try {
+          // The headless client's bearer barrier owns live-query handles, while
+          // the canonical React provider owns presence rooms and publishers.
+          // Quiescing that owner around replacement gives both resource
+          // families one predecessor/successor cut without teaching Expo a
+          // second subscription or room model.
+          // @ref LLP 0114#provider-construction-and-ownership — authority replacement
+          // crosses the existing provider owner and resumes that same owner.
+          await reactProvider?.pause();
+          const replacement = await environment.refreshAuthority(Object.freeze({
+            app,
+            binding: admittedBinding,
+            signal: controller.signal,
+          }));
+          if (replacement?.status === 'authority-required') {
+            const error = new Error(
+              replacement.diagnostic?.message ?? 'An ordinary application session is required.',
+            );
+            error.code = replacement.diagnostic?.code ?? 'SNAPBACK_AUTHORITY_REQUIRED';
+            error.diagnostic = replacement.diagnostic ?? diagnostic(error.code, error.message);
+            publish(authorityRequiredState(error, correlationId, replacement.remediations));
+            return state;
+          }
+          const nextFacts = publicAuthorityFacts(replacement?.publicFacts);
+          if (replacement?.status !== 'ready' || nextFacts === null) {
+            const error = new Error('authority refresh did not return ordinary session facts');
+            error.code = 'SNAPBACK_AUTHORITY_REQUIRED';
+            publish(authorityRequiredState(error, correlationId));
+            return state;
+          }
+          authorityFacts = nextFacts;
+          if (resumeAfterRefresh) await reactProvider?.resume();
+          publish(Object.freeze({
+            status: 'ready',
+            binding: admittedBindingFacts,
+            authority: authorityFacts,
+          }));
+          return state;
+        } catch (error) {
+          if (
+            error?.authorityRequired === true
+            || error?.code === 'SNAPBACK_AUTH_POLICY_UNAVAILABLE'
+            || error?.code === 'SNAPBACK_AUTHORITY_REQUIRED'
+          ) publish(authorityRequiredState(error, correlationId, error?.remediations));
+          else publish(errorState(error, correlationId));
+          return state;
+        }
+      })().finally(() => { refreshPromise = null; });
+      return refreshPromise;
     },
     reactProvider: () => reactProvider,
     async dispose() {

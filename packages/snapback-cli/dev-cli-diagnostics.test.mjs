@@ -62,6 +62,21 @@ export const listGhosts = defineQuery({ table: 'ghosts', args: {} });
   assert.match(helpSurfaced, /Lifecycle: long-running/, 'help must declare lifecycle');
   assert.doesNotMatch(helpSurfaced, /SNAPBACK_CLI_ARGUMENT_INVALID/);
 
+  for (const [args, message] of [
+    [['--expo-platform', 'android'], /require --expo/u],
+    [['--expo', '--no-watch'], /long-running supervisor/u],
+    [['--expo', '--android-serial', 'emulator-1'], /requires --expo-platform android/u],
+  ]) {
+    const refused = spawnSync(process.execPath, [cli, 'dev', ...args], {
+      cwd: project,
+      encoding: 'utf8',
+      env: { ...process.env },
+      timeout: 60_000,
+    });
+    assert.equal(refused.status, 1);
+    assert.match(`${refused.stdout}\n${refused.stderr}`, message);
+  }
+
   console.log('dev-cli-diagnostics.test.mjs: all cases passed');
 } finally {
   rmSync(root, { recursive: true, force: true });
