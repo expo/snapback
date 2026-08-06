@@ -65,3 +65,15 @@ an omitted property with JSON `null`, which is exactly the documented empty
 value for optional storage. A possible LLP 0178 V-next check is to statically
 refuse an `argOpt` null write into a required, non-optional field; that check is
 not implemented here.
+
+## Closed
+
+2026-08-06: All three acceptance items hold — omission has one coherent
+meaning (caller type `name?: T`, args contract refuses explicit `null`,
+`argOpt` observes omission as `null` at plan evaluation), an omitted property
+consumed through `argOpt` writes a present `null` to optional storage without
+`SNAPBACK_ARG_MISSING` (pinned by a Rust witness), and the codegen refusal now
+suggests the supported shape via the `consumeViaArgOpt` remediation alongside
+the two policy repairs. Verified on a clean fleet checkout. The full
+missing-vs-null algebra (declared defaults, `omitWhenMissing`) remains future
+work named by LLP 0176 §Beyond the golden path.
