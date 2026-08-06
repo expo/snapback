@@ -85,17 +85,16 @@ resolved; items 6 and 7 are re-homed rather than closed here (see below).
 
 ### What landed
 
+Landed SHAs on `origin/main` (rebased onto `ded064bfd`, pushed 2026-08-06):
+
 | commit | what |
 | --- | --- |
-| `77c769267` | item 1 — hermetic surface fixture `packages/snapback-react/fixtures/conversation/app/snapback` |
-| `3a4d0d326` | item 3 — `SNAPBACK_SURFACE_BUDGET_EXCEEDED` + five ceilings, five negative fixtures |
-| `20dfe3460` | items 4 and 5 — the five fixture-less surface refusals, plus the surfaceless-emission pin |
-| `82de5dc74` | registers `guide-pointer.test.mjs` in the canonical test inventory (a separate main red, inherited from `6da170bf1`) |
-| `3ac8fe2fc` | item 2 — trusted-composition activation rebind for the three wedged backends |
-
-(SHAs are the pre-push values on `g2s1/delta-on-fleet`; the landed values after
-the final rebase-before-push are recorded in the landing commit trailer chain
-on `main`.)
+| `9b0531de3` | item 1 — hermetic surface fixture `packages/snapback-react/fixtures/conversation/app/snapback` |
+| `c7aa4eae5` | item 3 — `SNAPBACK_SURFACE_BUDGET_EXCEEDED` + five ceilings, five negative fixtures |
+| `6d6fe7d04` | items 4 and 5 — the five fixture-less surface refusals, plus the surfaceless-emission pin |
+| `bc9320ba5` | registers `guide-pointer.test.mjs` in the canonical test inventory (a separate main red, inherited from `6da170bf1`) |
+| `4d38a23df` | item 2 — trusted-composition activation rebind for the three wedged backends |
+| `e2a2d2dfc` | this close-out |
 
 ### Rebase resolution (item 1 vs. main's G2 work)
 
