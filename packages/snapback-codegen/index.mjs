@@ -5511,7 +5511,7 @@ function validateAuthoringValidator(val, where, report, seen = new Set(), positi
   if (!primitives.get(val.primitive)?.has(val.fieldType)
       && !(val.primitive === 'string' && (idTable !== null || relationIncarnation || assetRef))) {
     const arrayHint = val.primitive === 'array'
-      ? ' (table fields have no array node; declare the field v.json() to store an array, or model one row per element)'
+      ? ' (table fields have no array node; store the field as v.json() and narrow it with v.array(...) in the result contract of any function that returns it, or model one row per element — see guide/getting-started/your-first-backend.md#declare-the-schema)'
       : '';
     report(`${where} has unsupported validator primitive/field type ${JSON.stringify(val.primitive)}/${JSON.stringify(val.fieldType)}${arrayHint}`);
     return false;
