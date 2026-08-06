@@ -33,6 +33,16 @@ function deferred() {
   return { promise, resolve, reject };
 }
 
+function settleWithin(promise, message) {
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => reject(new Error(message)), 1_000);
+    promise.then(
+      (value) => { clearTimeout(timeout); resolve(value); },
+      (error) => { clearTimeout(timeout); reject(error); },
+    );
+  });
+}
+
 function classifyDoneOutcome(outcome) {
   switch (outcome.kind) {
     case 'committed': return 'committed';
@@ -178,6 +188,47 @@ const noAttachmentFactResidues = [];
   // A caller that only awaits the promise must still be able to tell refusal from ambiguity.
   assert.equal(classifyDoneOutcome(await refused.done), 'failed');
   assert.equal(classifyDoneOutcome(await unproved.done), 'ambiguous');
+}
+
+{
+  const providerClosedError = (proved) => {
+    const error = new Error('SNAPBACK_REACT_PROVIDER_CLOSED: React provider is closed');
+    error.code = 'SNAPBACK_REACT_PROVIDER_CLOSED';
+    error.diagnostic = Object.freeze({
+      schemaVersion: 'snapback.client-diagnostic.v1',
+      code: 'SNAPBACK_REACT_PROVIDER_CLOSED',
+      severity: 'error',
+      message: 'React provider is closed',
+      details: Object.freeze(proved ? { effectCommitted: false } : {}),
+    });
+    return error;
+  };
+  const drive = async (proved) => {
+    const asset = controlledAssetTask();
+    const { commands } = fixture({
+      task: asset,
+      invokeMutation: async () => { throw providerClosedError(proved); },
+    });
+    const task = commands.start(command, { roomId: 'room-1', image: file });
+    asset.publish(assetSnapshot('ready'));
+    return task;
+  };
+  // LLP 0180 §Mutation ambiguity scopes ambiguity to "once mutation invocation
+  // begins"; refusal must be PROVEN, and a provider closed before dispatch is
+  // proof — the mutation was never sent.
+  const refused = await drive(true);
+  const refusedOutcome = await refused.done;
+  assert.equal(refusedOutcome.kind, 'failed');
+  assert.equal(refusedOutcome.diagnostic.code, 'SNAPBACK_REACT_PROVIDER_CLOSED');
+  assert.equal(refused.snapshot().mutation.status, 'rejected');
+  assert.equal(refusedOutcome.residue.unattached, 'inferred');
+  assert.notEqual(refusedOutcome.residue.unattached, 'unknown');
+
+  const unproved = await drive(false);
+  const unprovedOutcome = await unproved.done;
+  assert.equal(unprovedOutcome.kind, 'ambiguous');
+  assert.equal(unproved.snapshot().mutation.status, 'ambiguous');
+  assert.equal(unprovedOutcome.residue.unattached, 'unknown');
 }
 
 {
@@ -399,6 +450,69 @@ const noAttachmentFactResidues = [];
   await task.cancel();
   assert.equal(asset.cancelled, 1);
   assert.deepEqual(calls.map(({ kind }) => kind), ['asset']);
+}
+
+{
+  const asset = controlledAssetTask();
+  const { commands, calls } = fixture({ task: asset });
+  const task = commands.start(command, { roomId: 'room-1', image: file });
+  while (task.snapshot().status === 'preparing') await Promise.resolve();
+  assert.equal(task.snapshot().status, 'transferring');
+  assert.deepEqual(commands.inspection(), { activeCommandTasks: 1 });
+  assert.equal(Object.isFrozen(commands.inspection()), true);
+
+  const disposal = commands.dispose();
+  assert.strictEqual(commands.dispose(), disposal, 'command client disposal is idempotent');
+  const outcome = await settleWithin(
+    task.done,
+    'disposing a transferring command must settle its done promise',
+  );
+  await disposal;
+
+  assert.equal(outcome.kind, 'failed');
+  assert.equal(outcome.diagnostic.code, 'SNAPBACK_COMMAND_CLIENT_DISPOSED');
+  assert.equal(outcome.diagnostic.details.phase, 'transferring');
+  assert.equal(asset.cancelled, 1);
+  assert.equal(task.snapshot().status, 'failed');
+  assert.equal(task.snapshot().asset.status, 'cancelled');
+  assert.equal(task.snapshot().mutation, null);
+  assert.equal(task.snapshot().residue, null);
+  assert.deepEqual(calls.map(({ kind }) => kind), ['asset']);
+  assert.deepEqual(commands.inspection(), { activeCommandTasks: 0 });
+}
+
+{
+  const asset = controlledAssetTask();
+  const settlement = deferred();
+  const { commands } = fixture({ task: asset, invokeMutation: () => settlement.promise });
+  const task = commands.start(command, { roomId: 'room-1', image: file });
+  asset.publish(assetSnapshot('ready'));
+  while (task.snapshot().status !== 'committing') await Promise.resolve();
+  assert.equal(commands.inspection().activeCommandTasks, 1);
+
+  const disposal = commands.dispose();
+  const outcome = await settleWithin(
+    task.done,
+    'disposing a committing command must settle its done promise',
+  );
+  await disposal;
+
+  assert.equal(outcome.kind, 'ambiguous');
+  assert.equal(outcome.diagnostic.code, 'SNAPBACK_COMMAND_CLIENT_DISPOSED_DURING_COMMIT');
+  assert.equal(outcome.diagnostic.details.mutationAttemptId, task.snapshot().mutation.id);
+  assert.equal(outcome.residue.unattached, 'unknown');
+  assert.notEqual(outcome.residue.unattached, 'inferred');
+  assert.equal(task.snapshot().status, 'ambiguous');
+  assert.equal(task.snapshot().asset.status, 'ready');
+  assert.equal(task.snapshot().mutation.status, 'pending');
+  assert.equal(asset.cancelled, 0);
+  assert.equal(commands.inspection().activeCommandTasks, 0);
+
+  const terminal = task.snapshot();
+  settlement.resolve('late-commit');
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.strictEqual(task.snapshot(), terminal);
+  assert.strictEqual(await task.done, outcome);
 }
 
 {

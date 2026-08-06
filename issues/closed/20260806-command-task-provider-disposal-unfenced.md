@@ -1,6 +1,6 @@
 # Provider disposal does not fence in-flight command tasks, and a closed-provider mutation reports false ambiguity
 
-**Status:** Open
+**Status:** Closed 2026-08-06
 **Impact:** 3
 **Urgency:** 3
 **Ease:** 3
@@ -69,3 +69,24 @@ Not introduced by any single landing; both are properties of the engine as
 first landed in `17e7ca8ca`. Filed rather than fixed here to keep the G3
 reduce-and-reland scoped to porting coverage onto that engine rather than
 changing its lifecycle design.
+
+## Resolution — 2026-08-06
+
+The command client now owns an inspected live-task set and an idempotent
+disposal fence. Pre-dispatch disposal settles `failed` with
+`SNAPBACK_COMMAND_CLIENT_DISPOSED`, cancels an in-flight asset child, and
+preserves truthful finalized-asset residue; disposal after mutation invocation
+settles `ambiguous` with
+`SNAPBACK_COMMAND_CLIENT_DISPOSED_DURING_COMMIT`. Settled and locally rejected
+tasks leave the live set immediately.
+
+The React provider disposes its command client before its registry and exposes
+the live count as `inspection().commandTasks`. Both terminal-provider checks in
+`runCommandMutation` now prove their pre-dispatch refusal with
+`details.effectCommitted: false`, so the engine reports `failed`, mutation
+`rejected`, and same-authority residue `unattached: "inferred"` instead of
+false ambiguity.
+
+Verification under Node 24.18.0: the focused command, React asset/lifecycle/
+surface, client asset, package-test-inventory, and `ref-check --verbose` gates
+passed; all 54 `snapback-client` and 16 `snapback-react` test files passed.

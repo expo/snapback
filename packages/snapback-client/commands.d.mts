@@ -119,6 +119,8 @@ export declare class SnapbackCommandClient {
     command: Command,
     input: CommandArgs<Command>,
   ): CommandTask<CommandResult<Command>>;
+  inspection(): Readonly<{ activeCommandTasks: number }>;
+  dispose(): Promise<void>;
 }
 export declare function createCommandClient(
   client: SnapbackClient,

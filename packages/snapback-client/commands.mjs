@@ -3,6 +3,7 @@ import { createAssetClient } from './assets.mjs';
 let commandSequence = 0;
 
 const terminalStatuses = new Set(['succeeded', 'failed', 'cancelled', 'ambiguous']);
+const commandTaskHooks = Symbol('snapback.command-task-hooks');
 
 function nextCommandId() {
   commandSequence += 1;
@@ -205,6 +206,7 @@ class CommandTaskImpl {
   #finish(status, { result, diagnostic: failure, residue = null } = {}) {
     if (this.#settled) return;
     this.#settled = true;
+    this.#owner[commandTaskHooks]('settled', this);
     this.#assetOff?.();
     this.#assetOff = null;
     const asset = this.#assetTask?.snapshot?.() ?? null;
@@ -245,6 +247,7 @@ class CommandTaskImpl {
   #rejectLocal(error) {
     if (this.#settled) return;
     this.#settled = true;
+    this.#owner[commandTaskHooks]('settled', this);
     this.#rejectDone(error);
   }
 
@@ -343,7 +346,7 @@ class CommandTaskImpl {
         });
         return;
       }
-      if (this.#settled) return;
+      if (this.#settled || this.#cancelled) return;
       if (asset.status === 'cancelled') {
         this.#finish('cancelled');
         return;
@@ -453,6 +456,45 @@ class CommandTaskImpl {
     this.#finish('cancelled');
   }
 
+  async [commandTaskHooks]() {
+    if (this.#settled) return;
+    this.#cancelled = true;
+    if (this.#mutationInvoked) {
+      const failure = diagnostic(
+        'SNAPBACK_COMMAND_CLIENT_DISPOSED_DURING_COMMIT',
+        'command client was disposed after mutation invocation; server settlement is unknown',
+        { mutationAttemptId: this.#mutationId },
+      );
+      this.#finish('ambiguous', {
+        diagnostic: failure,
+        residue: this.#residue(
+          'ambiguous',
+          'command client disposal occurred after mutation invocation; attachment settlement is unknown',
+        ),
+      });
+      return;
+    }
+    const assetBeforeCancellation = this.#assetTask?.snapshot?.() ?? null;
+    const phase = assetBeforeCancellation?.status === 'ready'
+      ? 'after-finalization'
+      : this.#snapshot.status;
+    const failure = diagnostic(
+      'SNAPBACK_COMMAND_CLIENT_DISPOSED',
+      'command client was disposed before mutation invocation',
+      { phase },
+    );
+    const basis = 'the mutation was never invoked, so this command attempt provably did not attach the finalized asset';
+    let residue = this.#residue('failed', basis);
+    try {
+      if (this.#assetTask && !terminalStatuses.has(assetBeforeCancellation?.status)) {
+        await this.#assetTask.cancel();
+      }
+    } finally {
+      residue ??= this.#residue('failed', basis);
+      this.#finish('failed', { diagnostic: failure, residue });
+    }
+  }
+
   retry() {
     const status = this.#snapshot.status;
     const cleanCancelled = status === 'cancelled' && this.#networkStarted === false;
@@ -482,7 +524,7 @@ class CommandTaskImpl {
       : this.#assetTask && typeof assetSnapshot?.assetId === 'string'
         ? { assetRetryFrom: this.#assetTask }
         : null;
-    return new CommandTaskImpl(this.#owner, this.#command, this.#input, {
+    return startCommandTask(this.#owner, this.#command, this.#input, {
       id: this.id,
       generation: this.generation + 1,
       capture: this.#capture,
@@ -493,7 +535,17 @@ class CommandTaskImpl {
   }
 }
 
+function startCommandTask(owner, command, input, options) {
+  const task = new CommandTaskImpl(owner, command, input, options);
+  owner[commandTaskHooks]('started', task);
+  return task;
+}
+
 export class SnapbackCommandClient {
+  #activeCommandTasks = new Set();
+  #disposed = false;
+  #disposePromise = null;
+
   constructor(client, { assets = null, invokeMutation = null, assetSourceAdapter = null } = {}) {
     if (!client || typeof client !== 'object') throw new TypeError('SnapbackCommandClient requires a SnapbackClient-like owner');
     this.client = client;
@@ -540,6 +592,31 @@ export class SnapbackCommandClient {
     );
   }
 
+  [commandTaskHooks](event, task) {
+    if (event === 'settled') {
+      this.#activeCommandTasks.delete(task);
+      return;
+    }
+    if (event !== 'started') throw new TypeError(`unknown command task event ${String(event)}`);
+    this.#activeCommandTasks.add(task);
+    if (this.#disposed) void task[commandTaskHooks]();
+  }
+
+  inspection() {
+    return Object.freeze({ activeCommandTasks: this.#activeCommandTasks.size });
+  }
+
+  dispose() {
+    if (this.#disposePromise !== null) return this.#disposePromise;
+    this.#disposed = true;
+    const tasks = [...this.#activeCommandTasks];
+    this.#disposePromise = (async () => {
+      await Promise.allSettled(tasks.map((task) => task[commandTaskHooks]()));
+      this.#activeCommandTasks.clear();
+    })();
+    return this.#disposePromise;
+  }
+
   start(command, input) {
     let capture;
     try {
@@ -554,7 +631,7 @@ export class SnapbackCommandClient {
       && Number.isSafeInteger(this.client.__authTransportGeneration)
       ? this.client.__authTransportGeneration
       : undefined;
-    return new CommandTaskImpl(this, command, input, {
+    return startCommandTask(this, command, input, {
       capture,
       externalTransportGeneration,
     });

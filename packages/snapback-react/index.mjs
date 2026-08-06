@@ -1167,7 +1167,15 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     clientMutationId,
     authorityCapture,
   }) => {
-    if (terminal) throw diagnosticError('SNAPBACK_REACT_PROVIDER_CLOSED', 'React provider is closed');
+    // @ref LLP 0180#mutation-ambiguity — these terminal checks refuse before
+    // client.mutate, proving that no mutation effect left this provider.
+    if (terminal) {
+      throw diagnosticError(
+        'SNAPBACK_REACT_PROVIDER_CLOSED',
+        'React provider is closed',
+        { effectCommitted: false },
+      );
+    }
     let admittedMutation;
     try {
       admittedMutation = admittedReactReference(binding, mutationReference, 'Mutation');
@@ -1175,7 +1183,13 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       const target = recoverableGeneration(error, mutationReference);
       if (target === null) throw error;
       await beginGenerationHandoff(target).promise;
-      if (terminal) throw diagnosticError('SNAPBACK_REACT_PROVIDER_CLOSED', 'React provider is closed');
+      if (terminal) {
+        throw diagnosticError(
+          'SNAPBACK_REACT_PROVIDER_CLOSED',
+          'React provider is closed',
+          { effectCommitted: false },
+        );
+      }
       admittedMutation = admittedReactReference(binding, mutationReference, 'Mutation');
     }
     canonicalizeClientValueV1(mutationArgs);
@@ -2414,6 +2428,7 @@ export function createSnapbackReactProvider(binding, options = {}) {
     if (preparedGroup !== null) void abandonConsumedReactQueryGroup(preparedGroup);
     throw error;
   }
+  let disposePromise = null;
   const provider = {
     kind: 'snapback.react-provider.v1',
     providerInstanceId,
@@ -2426,8 +2441,17 @@ export function createSnapbackReactProvider(binding, options = {}) {
     },
     pause: () => registry.pause(),
     resume: () => registry.resume(),
-    inspection: () => registry.inspection(),
-    dispose: () => registry.dispose(),
+    inspection: () => Object.freeze({
+      ...registry.inspection(),
+      commandTasks: commandClientInspectionFor(provider),
+    }),
+    dispose() {
+      disposePromise ??= (async () => {
+        await disposeCommandClientFor(provider);
+        await registry.dispose();
+      })();
+      return disposePromise;
+    },
   };
   provider.surface = (surface, params, surfaceOptions = {}) => (
     bindSnapbackSurface(provider, surface, params, surfaceOptions)
@@ -3418,6 +3442,17 @@ function commandClientFor(provider) {
   });
   commandClients.set(provider, commands);
   return commands;
+}
+
+function commandClientInspectionFor(provider) {
+  return commandClients?.get(provider)?.inspection().activeCommandTasks ?? 0;
+}
+
+async function disposeCommandClientFor(provider) {
+  const commands = commandClients?.get(provider);
+  if (!commands) return;
+  commandClients.delete(provider);
+  await commands.dispose();
 }
 
 function assetRegistryFor(provider) {
