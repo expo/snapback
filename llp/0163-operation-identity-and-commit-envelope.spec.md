@@ -69,6 +69,11 @@ focused namespace/stream/bound-fact validation tests; no storage wiring,
 coverage, or capability claim); 2026-08-03 (initial Draft — extracted from Accepted LLP 0162
 §§0-2 under its OQ14 decision; carries the identity/envelope contracts so
 they can version independently of the profile umbrella)
+**Qualification amendment (2026-08-05):** C31 was abandoned before review
+results or performance after the mandatory fetch found newer main. C32 is the
+normally merged, regenerated successor; the Spec remains `Draft` and every
+related capability remains `Missing`.
+
 **Related:** LLP 0012, LLP 0037, LLP 0043, LLP 0055, LLP 0095, LLP 0133,
 LLP 0148, LLP 0162
 
@@ -912,3 +917,18 @@ pending, and client-suppression projections have direct fail-closed fixtures.
 This Spec stays `Draft` and every related capability stays `Missing` pending
 a fresh exact candidate, dual review, the unchanged performance gates, and
 publication acceptance.
+
+## Implementation record — 2026-08-05, C31 pre-result abandonment and C32 merge
+
+Exact clean C31 commit `58ec598c38b3f8077682266727dbe3e0dc574b1d`
+was abandoned before either fresh review returned because the mandatory fetch
+found newer `origin/main` at `2bb84423b59e81e4afa865339765142ad2769bc2`.
+No C31 review artifact, paired record, or absolute record was accepted.
+
+Merge commit `1eaa30b7f4e810476c556c3c4206b3deb6597849` preserves the C31 global
+lease, lifecycle, and suppression validation while compositionally adding the
+upstream AppDescriptor and artifact-index changes. All maintained generated
+closures were regenerated from the combined source and the full Rust,
+client, schema, publication, guide, reference, and catalog gates were green.
+The Spec remains `Draft` and every related capability remains `Missing`; C32
+must receive fresh exact dual review before any performance process starts.

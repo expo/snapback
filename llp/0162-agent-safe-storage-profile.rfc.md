@@ -13,6 +13,12 @@ preparation, and empty stores retain no protected-detail function or custody
 mutex until their first real protected seal. No benchmark, baseline, bound,
 protocol, estimator, exception, or capability claim changes.
 
+**Qualification amendment (2026-08-05, v0.36):** Exact clean C31 was
+abandoned before review results or performance when the mandatory fetch found
+newer main. C32 retains the repair after a normal, regenerated merge; every
+capability remains `Missing` pending fresh exact review and the unchanged
+performance/publication gates.
+
 **Qualification amendment (2026-08-05, v0.23):** C14's valid failed paired
 result and the prospective pre-C15 production correction are recorded below.
 Ordinary storage keeps history infrastructure eager but pays for the separate
@@ -592,6 +598,17 @@ and client suppression audience moves. These remain prospective correctness
 repairs: every capability stays `Missing` pending a fresh exact candidate,
 dual review, the unchanged one-shot performance gates, and publication
 acceptance.
+
+Exact clean C31 commit `58ec598c38b3f8077682266727dbe3e0dc574b1d`
+was abandoned before either fresh review returned when the required fetch
+found newer `origin/main` at `2bb84423b59e81e4afa865339765142ad2769bc2`.
+No review artifact or performance result was accepted for C31. The three
+upstream commits were merged normally as
+`1eaa30b7f4e810476c556c3c4206b3deb6597849`; its AppDescriptor and
+artifact-index changes were regenerated from the combined source while the
+C31 custody repairs and all `Missing` capability projections were retained.
+C32 is the next prospective exact candidate and must rerun fresh dual review
+and both unchanged one-shot performance gates.
 
 **Implementation evidence:** 2026-08-03 (dated candidate evidence recorded:
 the comparable read/write/idle observations are within threshold on the step-0

@@ -29,6 +29,11 @@ uncovered. The aggregate publication/terminal split now has a truthful
 Pending→supplement lifecycle, but H1/H2/C remain carrier-only and
 review/publication gates are still open.
 
+**Qualification update — 2026-08-05:** C31 was abandoned before review
+results or performance after the mandatory fetch found newer main. C32 is the
+normally merged and regenerated successor; the Spec remains `Draft` and the
+capability remains `Missing`.
+
 The remaining closure gates are:
 
 - invoke the closed production activation command only after independent review,
@@ -98,6 +103,20 @@ blocking projection gaps by globally validating Host leases and pending
 lifecycles before closure or capacity decisions, and it proactively applies
 the same global suppression comparison to client closure. Moved
 lease/pending/suppression projections have direct fail-closed fixtures.
+
+The Spec remains `Draft` and the capability remains `Missing`. Fresh exact
+review, fixed-Air performance, named-author acceptance, and publication
+binding remain open.
+
+## C31 pre-result abandonment and C32 merge — 2026-08-05
+
+Exact clean C31 commit `58ec598c38b3f8077682266727dbe3e0dc574b1d`
+was abandoned before either fresh review returned after the mandatory fetch
+found newer `origin/main` at `2bb84423b59e81e4afa865339765142ad2769bc2`.
+No C31 review or performance artifact was accepted. Merge commit
+`1eaa30b7f4e810476c556c3c4206b3deb6597849` preserves the global lease,
+pending-lifecycle, and suppression checks and regenerates the combined
+AppDescriptor/artifact closure. C32 is the next prospective exact candidate.
 
 The Spec remains `Draft` and the capability remains `Missing`. Fresh exact
 review, fixed-Air performance, named-author acceptance, and publication

@@ -41,6 +41,11 @@ fork/promotion absolute runs. This ticket is the honest remainder against LLP
 0162's single acceptance corpus. It does not reopen implemented work and does
 not authorize capability publication.
 
+**Qualification update — 2026-08-05:** C31 was abandoned before review
+results or performance after the mandatory fetch found newer main. C32 is the
+normally merged and regenerated successor; all capability states remain
+`Missing`.
+
 ## Remaining acceptance work
 
 | LLP 0162 row | State through 2026-08-04 | Required closure |
@@ -57,7 +62,7 @@ not authorize capability publication.
 | 10 — strict promotion | Partial | Frozen v1 no-effect contention/fairness/crash evidence is joined by atomic multi-operation retention. Any captured intent or approved effect fact—including effect-plus-write and transitive effect-dependent chains—refuses strict promotion before canonical mutation with `SNAPBACK_PROMOTION_CAPTURE_ONLY_UNSUPPORTED`. Public effect-bearing promotion remains outside this Track B publication scope; global writer coverage and applicable performance/review remain independent gates. |
 | 11 — history/checkpoint | Partial | Schema publication now atomically projects finite v2 per-record policy, removal erases retained detail, and current/per-version auth plus visible-only pagination/horizon and per-record pruning are covered without changing legacy v1 `maxRows`. The registered-copy sweep invalidates the complete materialized inventory before deletion and preserves crash/unreachable obligations, but it is not yet atomic with canonical protected-record deletion; close that new-checkpoint race and the remaining lifecycle corpus. |
 | 12 — boundary proof | Partial | Promotion and full migration verification are independently derived; migration's separate evaluator has explicit-value/equivalence plus executor-drift and staged-corruption negatives. Checkpoint concurrent-writer/publication/receipt-only no-upcast negatives are covered. Finish the remaining row-wide boundary integrations/coverage before an aggregate claim. |
-| 13 — performance | Partial | C27 produced no result; C28, C29, and C30 were stopped by review before any performance process. The unchanged paired and conditional absolute recorders must run once on a fresh exact post-C31 candidate after correctness/review clears. |
+| 13 — performance | Partial | C27 and C31 produced no result; C28, C29, and C30 were stopped by review before any performance process. The unchanged paired and conditional absolute recorders must run once on a fresh exact post-C32 candidate after correctness/review clears. |
 | 14 — identity lifecycle | Partial | First-party job/cron/migration carriers and transport-level client exclusion are landed. C31 adds automatic sessions range/ACK carriage, bounded successor capacity, required-nullable decoding, global suppression/pending/supplement/lease corruption checks, comparison-complete capacity, out-of-order floor, young-window, and exact final-reclamation negatives; fresh integrated review/publication proof remains. |
 
 The detailed LLP 0163 public-carrier work remains in its existing focused
@@ -148,6 +153,19 @@ divergence. Direct corruption fixtures cover moved Host lease audience/epoch,
 pending lane/audience/epoch, and client suppression audience. Every capability
 remains `Missing`; fresh exact review and both unchanged performance gates are
 still mandatory.
+
+## C31 pre-result abandonment and prospective C32 — 2026-08-05
+
+Exact clean C31 commit `58ec598c38b3f8077682266727dbe3e0dc574b1d`
+was abandoned before either fresh review returned when the mandatory fetch
+found newer `origin/main` at `2bb84423b59e81e4afa865339765142ad2769bc2`.
+No review or performance artifact was accepted for C31. Merge commit
+`1eaa30b7f4e810476c556c3c4206b3deb6597849` compositionally retains the
+Track B carrier and publication closures, adds the upstream AppDescriptor and
+asset-auth changes, and regenerates every maintained generated closure from
+the combined source. Post-merge own-correctness is green. C32 must still pass
+fresh exact dual review and both unchanged one-shot performance gates; every
+capability remains `Missing`.
 
 ## Dated implementation evidence — 2026-08-04
 
