@@ -8016,6 +8016,15 @@ back to `curl`, raw host operations, or a one-off verification script.
 
 ## Run the supervised Expo development loop
 
+<!-- since: 0.1.10 unreleased -->
+
+> **Unreleased.** `@expo/snapback-expo` is in the source tree but not in the
+> newest published closure (`0.1.8`): a packaged consumer on
+> `@expo/snapback-*@0.1.8` cannot install the config plugin or provider this
+> section configures from npm. Use the source-checkout install above until
+> the package joins a published closure
+> (`issues/20260806-snapback-expo-package-not-in-publishable-closure.md`).
+
 The north-star boot has three application-visible pieces: the config-plugin
 entry, the generated `app`, and `SnapbackExpoProvider`. There is no backend URL
 prop and no second application model ([LLP 0181 §Config plugin](repo:llp/0181-zero-configuration-expo.rfc.md#config-plugin),
