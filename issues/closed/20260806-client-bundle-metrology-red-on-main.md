@@ -146,3 +146,7 @@ Node 24.18.0 / esbuild 0.28.1 measured the final seven-profile vector as:
 seven rows. Its predecessor receipts and every unrelated ceiling remain
 immutable, and its guarded writer runs the client, asset, command, IR,
 browser-closure, React, and surface behavior train before minting.
+The minted receipt SHA-256 is
+`72ee7957076b1988aadefc6fbd843b000bb0abb0f29755e3c3a8fd70c7694baf`;
+the resulting current-report SHA-256 is
+`87de5a777b6634e24010986588dcdd62502284cab81c31f1e17eb0cd6499ccf2`.
