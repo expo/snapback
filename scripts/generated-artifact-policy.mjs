@@ -38,6 +38,7 @@ export const CODEGEN_JOBS = Object.freeze([
   { backend: 'demos/party-wall/snapback' },
   { backend: 'demos/file-drop/snapback' },
   { backend: 'packages/snapback-cli/fixtures/comparator/app/snapback' },
+  { backend: 'packages/snapback-react/fixtures/conversation/app/snapback' },
   {
     backend: 'packages/snapback-cli/fixtures/push-seam/app/snapback',
     outboundActions: true,
@@ -76,6 +77,7 @@ export const FULLY_COMMITTED_ROOTS = Object.freeze([
   'demos/zero-bakeoff/apps/contention-calendar/snapback/generated',
   'demos/team-chat/snapback/generated',
   'packages/snapback-cli/fixtures/comparator/app/snapback/generated',
+  'packages/snapback-react/fixtures/conversation/app/snapback/generated',
   'packages/snapback-cli/fixtures/push-seam/app/snapback/generated',
 ]);
 

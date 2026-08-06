@@ -1,0 +1,27 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/app/addReaction.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "conversationId": {
+      "type": "string"
+    },
+    "emoji": {
+      "type": "string"
+    },
+    "messageId": {
+      "type": "string"
+    },
+    "userId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "conversationId",
+    "messageId",
+    "userId",
+    "emoji"
+  ],
+  "title": "app:addReaction arguments",
+  "type": "object"
+}

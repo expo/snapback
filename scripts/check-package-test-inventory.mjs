@@ -602,8 +602,9 @@ const total = results.reduce((sum, result) => sum + result.count, 0);
 // gains the upgrade-required tombstone, dependent hold, and re-entry suite.
 // 216 -> 217 (2026-08-06, LLP 0179 S1): @expo/snapback-react gains the
 // generated-surface canonical-store/room, replacement, and cleanup suite.
-// 217 -> 218 (2026-08-06, LLP 0178 T2): @expo/snapback-codegen gains the
-// guidePointer remediation and policy-diagnostic wiring suite (`6da170bf1`).
+// 217 -> 218 (2026-08-06, LLP 0178/LLP 0187 T2): @expo/snapback-codegen's
+// guidePointer remediation-kind suite landed in the configured test script
+// without a canonical inventory entry (`6da170bf1`); registered here.
 assert.equal(total, 218, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
