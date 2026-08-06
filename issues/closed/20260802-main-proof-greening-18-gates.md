@@ -842,6 +842,13 @@ script, but omitted it from the canonical package inventory. The real CLI
 package suite passed that test in the same KEEP-GOING proof. The inventory now
 registers 205 package/admin test files.
 
+After the sidecar fix merged, main proof run `31062308864` at
+`01cf40e89c0bb7e1595831e7b039b85cae576356` reduced the summary to exactly
+those two remaining roots: `package-test-inventory` and
+`telemetry-receipt-check`, with five package gates blocked solely by the
+inventory producer and the two expected not-selected gates. Every other
+selected gate passed.
+
 While the first replacement receipt was building, LLP 0184 Phase 1 landed on
 main. Its source changed the telemetry closure and its
 `14e4548fd873f00c0beebc4cd5978be5ec52d294` landing added five negative
