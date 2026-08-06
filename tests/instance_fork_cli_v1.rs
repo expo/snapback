@@ -594,6 +594,30 @@ fn live_parent_writes_after_fork_point_never_appear_in_the_fork() {
     .expect("fork admin token")
     .trim()
     .to_owned();
+    // LLP 0185 Phase 3 item 2, over live HTTP: the parent's admin bearer is
+    // stale pre-fork authority for the fork and must be refused; the fork's
+    // freshly minted bearer must equally never work against the parent.
+    let cross = |ready: &Path, token: &str, label: &str| {
+        let output = snapback()
+            .args([
+                "run",
+                "--ready-file",
+                ready.to_str().unwrap(),
+                "--token",
+                token,
+                "createTodo",
+                "--args",
+                r#"{"title":"must-never-commit"}"#,
+                "--user",
+                "acceptance-user",
+            ])
+            .output()
+            .unwrap_or_else(|error| panic!("spawn {label}: {error}"));
+        assert!(!output.status.success(), "{label} must be refused");
+    };
+    cross(&fork_ready, &parent.token, "parent bearer against the fork server");
+    cross(&parent.ready, &fork_token, "fork bearer against the parent server");
+
     let mut fork_mutation = snapback();
     fork_mutation.args([
         "run",

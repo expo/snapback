@@ -1403,9 +1403,9 @@ impl DetachedActionHost {
 
 impl IbexActionHost for DetachedActionHost {
     fn validate_host_call(&mut self, op: &str) -> SnapbackResult<()> {
-        if let Some(family) = crate::instance_fork::EgressFamily::for_derived_host_op(op) {
+        if crate::instance_fork::EgressFamily::for_derived_host_op(op).is_some() {
             let snapback = self.lock_live(op)?;
-            snapback.deny_derived_fork_egress(family, now_millis())?;
+            snapback.deny_derived_fork_host_op(op, now_millis())?;
         }
         // This atomic generation fence keeps ordinary runtime/id/log calls off
         // the global instance mutex. A mutation rechecks while holding that

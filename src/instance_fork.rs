@@ -2831,8 +2831,18 @@ mod tests {
             conn.execute_batch(
                 "CREATE TABLE _auth_sessions(id TEXT PRIMARY KEY, token_hash TEXT);
                  CREATE TABLE _auth_agent_credentials(id TEXT PRIMARY KEY, token_hash TEXT);
+                 CREATE TABLE _auth_grants(id TEXT PRIMARY KEY, subject TEXT, revoked_at_ms INTEGER);
+                 CREATE TABLE _auth_grant_tokens(id TEXT PRIMARY KEY, grant_id TEXT, token_hash TEXT);
                  INSERT INTO _auth_sessions VALUES('session-a','parent-session-token-hash');
-                 INSERT INTO _auth_agent_credentials VALUES('agent-a','parent-agent-token-hash');",
+                 INSERT INTO _auth_agent_credentials VALUES('agent-a','parent-agent-token-hash');
+                 -- One live and one already-revoked grant: neither class of
+                 -- parent authority — current, stale, or revoked — may exist
+                 -- in the fork at all, so revocation cannot be undone by
+                 -- forking (LLP 0185 Phase 3 item 2).
+                 INSERT INTO _auth_grants VALUES('grant-live','agent-a',NULL);
+                 INSERT INTO _auth_grants VALUES('grant-revoked','agent-a',900);
+                 INSERT INTO _auth_grant_tokens VALUES('gtok-live','grant-live','live-hash');
+                 INSERT INTO _auth_grant_tokens VALUES('gtok-revoked','grant-revoked','revoked-hash');",
             )
             .unwrap();
             let tx = conn.transaction().unwrap();
@@ -2874,6 +2884,16 @@ mod tests {
             0,
             "parent agent credential hash is absent"
         );
+        for table in ["_auth_grants", "_auth_grant_tokens"] {
+            assert_eq!(
+                conn.query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |row| {
+                    row.get::<_, u64>(0)
+                })
+                .unwrap(),
+                0,
+                "{table}: live, stale, and revoked parent grant authority is all absent"
+            );
+        }
         let child_admin = fs::read_to_string(crate::admin::admin_token_sibling(&database)).unwrap();
         assert_ne!(child_admin.trim(), parent_admin);
         let child_auth_bytes = fs::read(crate::auth::keyring::AuthKeyringStore::keyring_path(
@@ -2919,6 +2939,96 @@ mod tests {
             .unwrap(),
             crate::assets::SignedTokenOutcome::Invalid
         ));
+    }
+
+    #[test]
+    fn host_op_gate_denies_every_egress_family_and_names_unclassified_ops() {
+        let directory = tempfile::tempdir().unwrap();
+        let source = source_database(directory.path());
+        let destination = directory.path().join("fork");
+        publish(&source, &destination, "app-a", "parent-a", 42, None).unwrap();
+        let database = destination.join("app.sqlite3");
+        let fork = crate::local::LocalSnapback::open(&database).unwrap();
+
+        // The plan's egress families that flow through the shared host-op
+        // gate: HTTP fetch, external effects, push delivery, action streams,
+        // and job enqueue all refuse at the same mediation point.
+        for (op, family) in [
+            ("host.fetch", "fetch"),
+            ("action.externalEffectBegin", "fetch"),
+            ("push.send", "push_send"),
+            ("action.streamOpen", "stream_open"),
+            ("action.streamRead", "stream_read"),
+            ("action.streamCancel", "stream_cancel"),
+            ("jobs.enqueue", "jobs_enqueue"),
+        ] {
+            let error = fork.deny_derived_fork_host_op(op, 43).unwrap_err();
+            assert_eq!(error.diagnostic.code, "SNAPBACK_FORK_EGRESS_DENIED", "{op}");
+            assert_eq!(error.diagnostic.details["family"], family, "{op}");
+            assert_eq!(error.diagnostic.details["hostOp"], op);
+        }
+        // The future-family rule: an op this build has never heard of fails
+        // closed and the diagnostic names the exact op, not just the bucket.
+        let error = fork
+            .deny_derived_fork_host_op("future.networkDial", 44)
+            .unwrap_err();
+        assert_eq!(error.diagnostic.code, "SNAPBACK_FORK_EGRESS_DENIED");
+        assert_eq!(
+            error.diagnostic.details["family"],
+            "unclassified_host_operation"
+        );
+        assert_eq!(error.diagnostic.details["hostOp"], "future.networkDial");
+        // Local-only ops stay admitted on a fork.
+        fork.deny_derived_fork_host_op("db.query", 45).unwrap();
+        fork.deny_derived_fork_host_op("runtime.now", 45).unwrap();
+        drop(fork);
+        // Every refusal above left a durable, payload-free marker.
+        let conn = Connection::open(&database).unwrap();
+        let marker_families: u64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM _snapback_fork_egress_attempts_v1",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(marker_families, 7, "one marker row per denied family");
+
+        // The same gate is inert on an ordinary (non-fork) instance.
+        let plain = crate::local::LocalSnapback::open(&source).unwrap();
+        plain.deny_derived_fork_host_op("host.fetch", 46).unwrap();
+    }
+
+    #[test]
+    fn manual_cron_and_asset_provider_paths_deny_on_a_fork() {
+        let directory = tempfile::tempdir().unwrap();
+        let source = source_database(directory.path());
+        let destination = directory.path().join("fork");
+        publish(&source, &destination, "app-a", "parent-a", 42, None).unwrap();
+        let mut fork =
+            crate::local::LocalSnapback::open(&destination.join("app.sqlite3")).unwrap();
+        let manual_cron = match fork.claim_manual_cron_run("any-job", 43) {
+            Ok(_) => panic!("a fork must never claim a manual cron run"),
+            Err(error) => error,
+        };
+        assert_eq!(
+            manual_cron.diagnostic.code, "SNAPBACK_FORK_EGRESS_DENIED",
+            "a manual cron drain is the same egress family as the scheduler"
+        );
+        // Inherited provider configuration cannot turn a fork into an
+        // outbound asset client: the provider-adapter selection point itself
+        // refuses before any store is constructed.
+        let saved = std::env::var("SNAPBACK_ASSET_STORE").ok();
+        unsafe { std::env::set_var("SNAPBACK_ASSET_STORE", "s3") };
+        let denied = match fork.asset_store_obj() {
+            Ok(_) => panic!("a fork must never construct a provider asset store"),
+            Err(error) => error,
+        };
+        match saved {
+            Some(value) => unsafe { std::env::set_var("SNAPBACK_ASSET_STORE", value) },
+            None => unsafe { std::env::remove_var("SNAPBACK_ASSET_STORE") },
+        }
+        assert_eq!(denied.diagnostic.code, "SNAPBACK_FORK_EGRESS_DENIED");
+        assert_eq!(denied.diagnostic.details["family"], "asset_provider");
     }
 
     #[test]
