@@ -115,11 +115,6 @@ const PRE_S2_RESOLVED_NARROW_SUBPATH_PROFILES = Object.freeze(
 const PRE_S2_RESOLVED_NARROW_SUBPATH_PROFILE_IDS = Object.freeze(
   PRE_S2_RESOLVED_NARROW_SUBPATH_PROFILES.map((profile) => profile.id),
 );
-const S2_COMMANDS_PROFILES = Object.freeze(
-  RESOLVED_NARROW_SUBPATH_PROFILES.filter(
-    (profile) => S2_COMMANDS_PROFILE_IDS.includes(profile.id),
-  ),
-);
 const BEHAVIOR_COMMANDS = Object.freeze([
   ['node', ['packages/snapback-client/package.test.mjs']],
   ['node', ['packages/snapback-client/browser-closure.test.mjs']],
@@ -289,7 +284,6 @@ const SUPPLEMENTAL_LEDGER_SPECS = Object.freeze([
     filename: 'baseline.s2-commands.v1.json',
     profileFilename: 's2-commands-profiles.v1.json',
     profileIds: S2_COMMANDS_PROFILE_IDS,
-    derivedProfiles: S2_COMMANDS_PROFILES,
     authorities: Object.freeze([
       'LLP 0145#phase-a--establish-a-size-ratchet',
       'LLP 0063#workstream-8--performance-and-packaging-budgets',
