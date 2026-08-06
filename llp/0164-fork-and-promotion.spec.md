@@ -5,7 +5,11 @@
 **Systems:** Storage, Runtime, Effects, Auth, Agent experience, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-03
-**Revised:** 2026-08-03 (first in-app implementation slice — immutable
+**Revised:** 2026-08-05 (LLP 0185 Phase 0 ownership reconciliation — this
+Spec owns the remaining row-5 derived post-fork-parent-write fixture and both
+row-9 diff oracles; LLP 0158 remains the derived-deployment contract authority
+and LLP 0165 retains only journal-completeness closure. No row state changed.)
+2026-08-03 (first in-app implementation slice — immutable
 current-head bases, replay-sufficient branch operations, independent exact
 diffs, bounded durable `DenyAll` markers, sealed strict-CAS promotion by
 re-execution, aggregate envelope/source joins, FIFO admission/rebase/re-seal,
@@ -122,6 +126,14 @@ two-session, function-divergent Todo fleet dogfood, including finite TTL,
 default secret scrubbing, inert workers/assets, and deny-all egress. That closes
 the first consumer dependency for the derived-deployment legs of rows 5 and 7;
 it does not complete the in-app branch corpus or advertise either capability.
+
+**Owner note — 2026-08-05:** the remaining derived-deployment fixture proving
+that a parent write committed after the fork point stays invisible to the
+existing fork is this Spec's LLP 0162 row-5 acceptance work, not LLP 0158 F1's
+guide/harness work. For row 9, this Spec likewise owns the independent net-diff
+and attributed-sequence oracles, folding, and schema/system-field coverage;
+LLP 0165 owns the separate generated-writer/SQLite-authorizer completeness
+leg. The consolidated ticket tracks both without changing either to green.
 
 ### Implementation record — 2026-08-03
 
