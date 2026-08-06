@@ -1,9 +1,11 @@
-//! Fail-closed source authority for LLP 0162's two independently publishable
-//! local agent-safe capability components.
+//! Fail-closed source authority for LLP 0162's storage publication and the
+//! independently shaped derived-fork witness chain.
 //!
-//! Each component owns an anchor -> carrier -> qualification-receipt chain.
-//! The checked-in anchors are valid `withheld` records at frozen C, so merely
-//! compiling this machinery cannot advertise either capability.
+//! Each record owns an anchor -> carrier -> qualification-receipt chain. The
+//! checked-in anchors are valid `withheld` records at frozen C, and the
+//! author-ruled derived-fork claim is carried by the LLP 0061 guide row rather
+//! than this manifest predicate, so compiling this machinery cannot advertise
+//! either capability.
 
 use crate::manifest::{
     AgentSafeCapabilityFactsV1, AgentSafeEnvelopeCoverageV1, AgentSafeExplanationAccessV1,
@@ -30,7 +32,7 @@ const STORAGE_COMPONENTS: [&str; 6] = [
 ];
 #[cfg(test)]
 const DERIVED_FORK_COMPONENTS: [&str; 1] = ["derivedDeploymentForkSafetyV1"];
-const EVIDENCE_LOCATORS: [(&str, &str); 6] = [
+const STORAGE_EVIDENCE_LOCATORS: [(&str, &str); 6] = [
     (
         "acceptanceCorpus",
         "tests/acceptance/fixtures/agent-safe-storage/acceptance-corpus.2026-08-04.v1.json",
@@ -56,6 +58,45 @@ const EVIDENCE_LOCATORS: [(&str, &str); 6] = [
         "tests/acceptance/fixtures/agent-safe-storage/author-acceptance.2026-08-04.v1.json",
     ),
 ];
+#[cfg(test)]
+const DERIVED_FORK_EVIDENCE_LOCATORS: [(&str, &str); 9] = [
+    (
+        "lifecycleBenchMacos",
+        "tests/acceptance/instance-fork-lifecycle-bench.2026-08-06.macos-aarch64.v1.json",
+    ),
+    (
+        "lifecycleBenchLinux",
+        "tests/acceptance/instance-fork-lifecycle-bench.2026-08-06.linux-x86_64.v1.json",
+    ),
+    (
+        "boundsRatification",
+        "tests/acceptance/instance-fork-lifecycle-bench.2026-08-06.v1.json",
+    ),
+    (
+        "assetLifecycleEvidence",
+        "tests/acceptance/asset-lifecycle-v1-evidence.md",
+    ),
+    (
+        "specReviewCodex",
+        "llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.codex.md",
+    ),
+    (
+        "specReviewFable",
+        "llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.fable.md",
+    ),
+    (
+        "implementationReviewCodex",
+        "llp/reviews/0158-instance-forking.implementation-2026-08-06.codex.md",
+    ),
+    (
+        "implementationReviewFable",
+        "llp/reviews/0158-instance-forking.implementation-2026-08-06.fable.md",
+    ),
+    (
+        "authorAcceptance",
+        "tests/acceptance/fixtures/instance-forks/author-acceptance.2026-08-06.v1.json",
+    ),
+];
 
 const STORAGE_ANCHOR_BYTES: &[u8] =
     include_bytes!("local-agent-safe-storage-publication.anchor.json");
@@ -67,6 +108,10 @@ const STORAGE_RECEIPT_BYTES: &[u8] = include_bytes!(
 #[cfg(test)]
 const DERIVED_FORK_ANCHOR_BYTES: &[u8] =
     include_bytes!("local-agent-safe-derived-deployment-fork-publication.anchor.json");
+#[cfg(test)]
+const DERIVED_FORK_RECEIPT_BYTES: &[u8] = include_bytes!(
+    "../tests/acceptance/receipts/agent-safe-derived-deployment-fork-publication.2026-08-04.v1.json"
+);
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -175,6 +220,7 @@ pub(crate) fn storage_publication_verified_for_distribution(build_distribution: 
     embedded_publication_verified(
         STORAGE_ID,
         STORAGE_COMPONENTS.as_slice(),
+        STORAGE_EVIDENCE_LOCATORS.as_slice(),
         &storage_target_candidate(),
         STORAGE_ANCHOR_BYTES,
         STORAGE_CARRIER_BYTES,
@@ -189,12 +235,11 @@ pub(crate) fn derived_fork_publication_verified() -> bool {
 }
 
 pub(crate) fn derived_fork_publication_verified_for_distribution(build_distribution: &str) -> bool {
-    // The current evidence vocabulary is deliberately storage-specific: its
-    // absolute recorder measures in-app MaterializedBase operations, not the
-    // end-to-end F0b derived-deployment lifecycle. A JSON-only anchor change
-    // must therefore be incapable of advertising the derived capability.
-    // Publishing it requires a later code change with its own evidence
-    // locators and semantic validator.
+    // @ref LLP 0158#capability-registry-record — the author ruled the LLP 0061
+    // guide capability-index row as the local claim's publication carrier.
+    // This Rust predicate guards only the never-ruled LLP 0113/manifest act,
+    // so JSON-only anchor/carrier changes must remain incapable of turning
+    // the target-capability tuple positive.
     let _ = build_distribution;
     false
 }
@@ -202,6 +247,7 @@ pub(crate) fn derived_fork_publication_verified_for_distribution(build_distribut
 fn embedded_publication_verified(
     capability_id: &str,
     components: &[&str],
+    evidence_locators: &[(&str, &str)],
     exact_candidate: &AgentSafeCapabilityFactsV1,
     anchor_bytes: &[u8],
     carrier_bytes: &[u8],
@@ -212,6 +258,7 @@ fn embedded_publication_verified(
     publication_verified_for(
         capability_id,
         components,
+        evidence_locators,
         exact_candidate,
         anchor_bytes,
         carrier_bytes,
@@ -238,6 +285,7 @@ fn embedded_publication_verified(
 fn publication_verified_for(
     capability_id: &str,
     components: &[&str],
+    evidence_locators: &[(&str, &str)],
     exact_candidate: &AgentSafeCapabilityFactsV1,
     anchor_bytes: &[u8],
     carrier_bytes: &[u8],
@@ -288,13 +336,13 @@ fn publication_verified_for(
         .iter()
         .map(|value| (*value).to_owned())
         .collect::<Vec<_>>();
-    let evidence_locators_match = receipt.evidence.len() == EVIDENCE_LOCATORS.len()
+    let evidence_locators_match = receipt.evidence.len() == evidence_locators.len()
         && receipt
             .evidence
             .iter()
-            .zip(EVIDENCE_LOCATORS)
+            .zip(evidence_locators)
             .all(|(binding, (kind, path))| {
-                binding.kind == kind && binding.path == path && is_nonzero_sha256(&binding.sha256)
+                binding.kind == *kind && binding.path == *path && is_nonzero_sha256(&binding.sha256)
             });
     carrier.schema_version == "snapback.local-agent-safe-publication.v1"
         && carrier.capability_id == capability_id
@@ -365,10 +413,10 @@ mod tests {
                 TARGET_PROFILE_REMOTE_SERVICE_SQLITE_IBEX.to_owned(),
             ],
             negative_build_distributions: vec![
-                crate::identity::BUILD_DISTRIBUTION_PUBLIC_PACKAGE.to_owned(),
+                crate::identity::BUILD_DISTRIBUTION_PUBLIC_PACKAGE.to_owned()
             ],
             qualified_components: components.iter().map(|value| (*value).to_owned()).collect(),
-            evidence: EVIDENCE_LOCATORS
+            evidence: STORAGE_EVIDENCE_LOCATORS
                 .into_iter()
                 .map(|(kind, path)| AgentSafeEvidenceBindingV1 {
                     kind: kind.to_owned(),
@@ -421,15 +469,32 @@ mod tests {
             }
         }
 
-        // The derived chain has an independent performance contract that this
-        // publication does not satisfy. It must stay withheld even when the
-        // narrow storage chain advances.
+        // The guide-row witness is independent of the never-ruled manifest
+        // act. Its withheld receipt still has a closed fork-specific shape.
         assert!(!derived_fork_publication_verified());
         let derived_anchor: LocalAgentSafePublicationAnchorV1 =
             serde_json::from_slice(DERIVED_FORK_ANCHOR_BYTES).unwrap();
         assert_eq!(derived_anchor.capability_id, DERIVED_FORK_ID);
         assert_eq!(derived_anchor.state, PublicationStateV1::Withheld);
         assert_eq!(derived_anchor.carrier_sha256, None);
+        let derived_receipt: AgentSafePublicationReceiptV1 =
+            serde_json::from_slice(DERIVED_FORK_RECEIPT_BYTES).unwrap();
+        assert_eq!(derived_receipt.capability_id, DERIVED_FORK_ID);
+        assert_eq!(derived_receipt.qualified_source_commit, "0".repeat(40));
+        assert!(derived_receipt.qualified_components.is_empty());
+        assert_eq!(
+            derived_receipt.evidence.len(),
+            DERIVED_FORK_EVIDENCE_LOCATORS.len()
+        );
+        for (binding, (kind, path)) in derived_receipt
+            .evidence
+            .iter()
+            .zip(DERIVED_FORK_EVIDENCE_LOCATORS)
+        {
+            assert_eq!(binding.kind, kind);
+            assert_eq!(binding.path, path);
+            assert_eq!(binding.sha256, format!("sha256:{}", "0".repeat(64)));
+        }
     }
 
     #[test]
@@ -440,6 +505,7 @@ mod tests {
         assert!(publication_verified_for(
             STORAGE_ID,
             STORAGE_COMPONENTS.as_slice(),
+            STORAGE_EVIDENCE_LOCATORS.as_slice(),
             &candidate,
             &anchor,
             &carrier,
@@ -471,6 +537,7 @@ mod tests {
             publication_verified_for(
                 id,
                 STORAGE_COMPONENTS.as_slice(),
+                STORAGE_EVIDENCE_LOCATORS.as_slice(),
                 candidate,
                 anchor,
                 carrier,
@@ -528,6 +595,7 @@ mod tests {
         assert!(!publication_verified_for(
             DERIVED_FORK_ID,
             DERIVED_FORK_COMPONENTS.as_slice(),
+            DERIVED_FORK_EVIDENCE_LOCATORS.as_slice(),
             &derived_fork_target_candidate(),
             &anchor,
             &carrier,

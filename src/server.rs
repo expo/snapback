@@ -25232,6 +25232,7 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_FORK_DIFF_ORACLE_MISMATCH"
         | "SNAPBACK_FORK_EVIDENCE_INCOMPLETE"
         | "SNAPBACK_FORK_EVIDENCE_MISMATCH"
+        | "SNAPBACK_FORK_WRITER_COVERAGE_INVALID"
         | "SNAPBACK_FORK_IO_FAILED"
         | "SNAPBACK_FORK_KEYRING_MINT_FAILED"
         | "SNAPBACK_FORK_LINEAGE_INVALID"
@@ -40266,6 +40267,44 @@ globalThis.__snapbackHandlers = {
             "SNAPBACK_HOST_RESTART_STOP_TIMEOUT",
             "CLI-local verified-stop timeout diagnostic; never emitted by the Snapback HTTP server",
         ),
+        // @ref LLP 0184#product-contract-what-agent-accessible-means — the
+        // config.set value carrier and its transport remain CLI-only in v1.
+        (
+            "SNAPBACK_CONFIG_SET_FAILED",
+            "CLI-local config.set HTTP-refusal fallback; the server's actual diagnostic, when present, is classified separately",
+        ),
+        (
+            "SNAPBACK_CONFIG_SET_REQUEST_FAILED",
+            "CLI-local config.set transport diagnostic; no HTTP response was received",
+        ),
+        (
+            "SNAPBACK_CONFIG_SET_RESPONSE_INVALID",
+            "CLI-local config.set response-envelope validation diagnostic; never emitted by the Snapback HTTP server",
+        ),
+        (
+            "SNAPBACK_CONFIG_SET_USAGE_INVALID",
+            "CLI-local config.set argument/value-carrier diagnostic; never emitted by the Snapback HTTP server",
+        ),
+        (
+            "SNAPBACK_CONFIG_VALUE_FD_INVALID",
+            "CLI-local config.set inherited-descriptor diagnostic; never emitted by the Snapback HTTP server",
+        ),
+        (
+            "SNAPBACK_CONFIG_VALUE_FD_UNSUPPORTED",
+            "CLI-local config.set host-capability diagnostic; never emitted by the Snapback HTTP server",
+        ),
+        (
+            "SNAPBACK_CONFIG_VALUE_READ_FAILED",
+            "CLI-local config.set value-carrier read diagnostic; never emitted by the Snapback HTTP server",
+        ),
+        (
+            "SNAPBACK_CONFIG_VALUE_TOO_LARGE",
+            "CLI-local config.set value-carrier bound diagnostic; never emitted by the Snapback HTTP server",
+        ),
+        (
+            "SNAPBACK_EPHEMERAL_OPERATOR_DELETE_READY_FILE_REQUIRED",
+            "CLI-local operator-delete process-binding diagnostic; never emitted by the Snapback HTTP server",
+        ),
         (
             "SNAPBACK_ACTION_MAX_CONCURRENCY",
             "environment variable configuring detached action worker admission",
@@ -40791,6 +40830,9 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_EPHEMERAL_CLEANUP_BOUND_INVALID",
         "SNAPBACK_EPHEMERAL_CLEANUP_CUTOFF_INVALID",
         "SNAPBACK_EPHEMERAL_CLEANUP_REQUEST_INVALID",
+        // @ref LLP 0184#c-administrator-ephemeral-entry-delete--add-now — a
+        // blank reason is malformed input on the raw admin route.
+        "SNAPBACK_EPHEMERAL_OPERATOR_DELETE_REASON_REQUIRED",
         "SNAPBACK_EPHEMERAL_AUTHORITY_PROTOCOL_MISMATCH",
         "SNAPBACK_EPHEMERAL_AUTHORITY_UNSUPPORTED",
         "SNAPBACK_EPHEMERAL_AUTHORITY_INSTANCE_REQUIRED",
@@ -41168,6 +41210,10 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_ADMIN_SECRET_READ_PROOF_STALE",
         "SNAPBACK_ADMIN_SECRET_READ_PROOF_STARTUP_MISMATCH",
         "SNAPBACK_ADMIN_SECRET_READ_SCOPE_DENIED",
+        // @ref LLP 0184#c-administrator-ephemeral-entry-delete--add-now —
+        // these are target-policy refusals from the raw admin route.
+        "SNAPBACK_EPHEMERAL_OPERATOR_DELETE_TARGET_REFUSED_DERIVED",
+        "SNAPBACK_EPHEMERAL_OPERATOR_DELETE_TARGET_REFUSED_HOSTED",
         "SNAPBACK_AUTH_CODE_LOCKED",
         "SNAPBACK_AUTHORIZED_LEASE_AUTHORITY_INVALID",
         "SNAPBACK_AUTH_IMPERSONATION_REQUIRED",
@@ -41207,6 +41253,10 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_BUNDLE_ROUTE_UNKNOWN",
         "SNAPBACK_AUTH_MAILBOX_ENTRY_NOT_FOUND",
         "SNAPBACK_AUTH_MODE_DEV",
+        // @ref LLP 0184#c-administrator-ephemeral-entry-delete--add-now — the
+        // exactly inspected operator-delete target is absent.
+        "SNAPBACK_EPHEMERAL_ENTRY_NOT_FOUND",
+        "SNAPBACK_EPHEMERAL_ROOM_NOT_FOUND",
         "SNAPBACK_MEMBERSHIP_SELF_NOT_FOUND",
         "SNAPBACK_ROW_NOT_FOUND",
         "SNAPBACK_UNKNOWN_CRON_JOB",
@@ -41333,6 +41383,12 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_CONNECTION_TEARDOWN_PENDING",
         "SNAPBACK_EPHEMERAL_AUTHORITY_INSTANCE_CHANGED",
         "SNAPBACK_EPHEMERAL_INCOMPATIBLE_COLLECTION_DEFINITION",
+        // @ref LLP 0184#c-administrator-ephemeral-entry-delete--add-now —
+        // process, room-incarnation, and entry-generation fences conflict
+        // with the caller's earlier observation.
+        "SNAPBACK_EPHEMERAL_OPERATOR_DELETE_STALE_STARTUP_NONCE",
+        "SNAPBACK_EPHEMERAL_STALE_ENTRY_GENERATION",
+        "SNAPBACK_EPHEMERAL_STALE_SCOPE_EPOCH",
         "SNAPBACK_LIVE_STAGE_CONFLICT",
         "SNAPBACK_MUTATION_CONFLICT",
         "SNAPBACK_SCHEMA_REQUIRED_FIELD_BACKFILL_REQUIRED",
@@ -41568,6 +41624,23 @@ globalThis.__snapbackHandlers = {
     const INTERNAL_SERVER_ERROR_DIAGNOSTICS: &[&str] = &[
         // @ref LLP 0184#b-forced-live-resync--add-now
         "SNAPBACK_LIVE_FORCE_RESYNC_ENCODE_FAILED",
+        // @ref LLP 0184#a-bounded-direct-row-patch--add-now — these surface
+        // only inside the host-ops `ok: false` envelope (HTTP 200), so retain
+        // the reviewed fail-safe 500 projection if one ever crosses ApiError.
+        "SNAPBACK_DATA_PATCH_APPLY_TOKEN_CONSUMED",
+        "SNAPBACK_DATA_PATCH_APPLY_TOKEN_EXPIRED",
+        "SNAPBACK_DATA_PATCH_APPLY_TOKEN_MISMATCH",
+        "SNAPBACK_DATA_PATCH_APPLY_TOKEN_MISSING",
+        "SNAPBACK_DATA_PATCH_AUTHORITY_INVALID",
+        "SNAPBACK_DATA_PATCH_RESERVED_FIELD",
+        "SNAPBACK_DATA_PATCH_STALE_VERSION",
+        "SNAPBACK_DATA_PATCH_TARGET_REFUSED",
+        "SNAPBACK_DATA_PATCH_UNKNOWN_FIELD",
+        "SNAPBACK_DATA_PATCH_VALIDATION_FAILED",
+        // @ref LLP 0184#c-administrator-ephemeral-entry-delete--add-now — an
+        // impossible removal-message shape is a server invariant on the raw
+        // admin route, not caller input.
+        "SNAPBACK_EPHEMERAL_OPERATOR_DELETE_RECEIPT_INVALID",
         // Reviewed LLP 0158/0163/0164/0165 server-authored state, proof,
         // journal, custody, I/O, and test-crash invariants.
         "SNAPBACK_BENCH_RANGE_EXHAUSTED",
@@ -41703,6 +41776,7 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_FORK_ASSET_CUT_INCOMPLETE",
         "SNAPBACK_FORK_DIFF_ORACLE_MISMATCH",
         "SNAPBACK_FORK_EVIDENCE_MISMATCH",
+        "SNAPBACK_FORK_WRITER_COVERAGE_INVALID",
         "SNAPBACK_FORK_IO_FAILED",
         "SNAPBACK_FORK_KEYRING_MINT_FAILED",
         "SNAPBACK_FORK_LINEAGE_INVALID",

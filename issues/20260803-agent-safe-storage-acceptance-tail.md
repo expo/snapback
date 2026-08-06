@@ -599,3 +599,22 @@ re-scoped by the LLP 0162 author in a dated revision; the extracted Specs have
 completed their real review/acceptance loop; the target capability manifest is
 updated only to the proved component states; and the Track B closing audit is
 green.
+
+### Narrow-claim fork qualification progress — 2026-08-06 (evening)
+
+Recorded for the derived-deployment fork claim only; no storage-row state
+changes. Landed on main this date: the Track B fork reconciliation ticket
+closed verified; LLP 0165's fork-local authorizer-backed completeness class
+(`authorizer-backed-app-rows-v1`, `snapback.fork-net-diff.v2`, fail-closed
+downgrades); the live fork asset lifecycle proof
+(`live_fork_asset_lifecycle_is_private_gc_safe_and_exactly_reaped`) plus the
+settled-Sessions fork boot fix; dual-platform row-13 receipts at `4444767cc`
+(macOS aarch64 + Linux x86_64, all ratified bounds passing); the
+fork-specific publication witness chain (nine-item evidence vocabulary,
+withheld); and mutually blind dual-family reviews of the integrated surface
+(`llp/reviews/*-2026-08-06.{codex,fable}.md`). The codex implementation
+review returned NOT READY with four blockers (cross-app lifecycle selection
+binding, armed-authorizer sub-DML hardening, receipt digest/stream-boundary
+binding, atomic admission + bounded net-diff work); fix-forward is in
+flight, after which benches re-bind to the new commit and a fresh blind
+round runs. Every capability remains `Missing`.

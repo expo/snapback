@@ -1878,8 +1878,19 @@ This narrowing governs only the additive derived-deployment fork claim
 (§8's not-core capability). It does not modify, substitute for, or rescope
 Track B's storage-engine paired and absolute gates, whose protocol and
 thresholds are unchanged above. For the narrow claim, the remaining row-13
-need is a second-platform (Linux) run of the same bench; the 2026-08-06
-macOS aarch64 receipt alone does not generalize across unmeasured platforms.
+need was a second-platform (Linux) run of the same bench; the 2026-08-06
+macOS aarch64 ratification receipt alone does not generalize across
+unmeasured platforms.
+
+*Second-platform closure — 2026-08-06 (later the same day):* both
+platform-qualified receipts landed at integrated commit `4444767cc` —
+[`instance-fork-lifecycle-bench.2026-08-06.macos-aarch64.v1.json`](../tests/acceptance/instance-fork-lifecycle-bench.2026-08-06.macos-aarch64.v1.json)
+and
+[`instance-fork-lifecycle-bench.2026-08-06.linux-x86_64.v1.json`](../tests/acceptance/instance-fork-lifecycle-bench.2026-08-06.linux-x86_64.v1.json)
+— every ratified median bound passing on both. Row 13 for the narrow claim
+is measurement-complete for those two named environments; receipts must be
+re-run and re-bound if the qualification commit advances. No further
+platform is claimed.
 
 #### Candidate and absolute-operation records — 2026-08-03
 

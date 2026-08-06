@@ -101,7 +101,14 @@ try {
   const packagedBinary = join(packagedRuntimeRoot, 'bin', 'snapback');
   mkdirSync(join(packagedRuntimeRoot, 'bin'), { recursive: true });
   const packagedArtifact = process.platform === 'darwin'
-    ? join(packagedRuntimeRoot, 'Frameworks', 'hermesvm.framework', 'hermesvm')
+    ? join(
+      packagedRuntimeRoot,
+      'Frameworks',
+      'hermesvm.framework',
+      'Versions',
+      '1',
+      'hermesvm',
+    )
     : join(packagedRuntimeRoot, 'lib', 'libhermesvm.so');
   mkdirSync(join(packagedArtifact, '..'), { recursive: true });
   writeFileSync(packagedArtifact, 'packaged hermes fixture');
