@@ -2161,7 +2161,7 @@ impl LocalDatabase {
         crate::fork_promotion::branch_operation_log(&self.conn, branch_id)
     }
 
-    #[allow(dead_code)]
+    #[cfg(test)]
     pub(crate) fn captured_effect_intents(
         &self,
         branch_id: &crate::branches::BranchId,
@@ -2203,42 +2203,6 @@ impl LocalDatabase {
             context,
             result,
             diagnostic_code,
-        )
-    }
-
-    #[allow(dead_code)]
-    pub(crate) fn foreclose_branch_operation_admission(
-        &mut self,
-        branch_id: &crate::branches::BranchId,
-        draft: &crate::fork_promotion::BranchOperationDraftV1,
-        now_ms: i64,
-    ) -> SnapbackResult<()> {
-        crate::fork_promotion::foreclose_branch_operation_admission(
-            &mut self.conn,
-            branch_id,
-            draft,
-            now_ms,
-        )
-    }
-
-    #[allow(dead_code)]
-    pub(crate) fn retain_committed_branch_mutation(
-        &mut self,
-        branch_id: &crate::branches::BranchId,
-        draft: &crate::fork_promotion::BranchOperationDraftV1,
-        committed_version: u64,
-        result: Value,
-        ctx_answers: Value,
-        now_ms: i64,
-    ) -> SnapbackResult<crate::fork_promotion::BranchOperationV1> {
-        crate::fork_promotion::retain_committed_branch_mutation(
-            &mut self.conn,
-            branch_id,
-            draft,
-            committed_version,
-            result,
-            ctx_answers,
-            now_ms,
         )
     }
 
@@ -6514,7 +6478,10 @@ impl LocalDatabase {
         )
     }
 
-    #[allow(clippy::too_many_arguments)]
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "the lane commit boundary keeps writer, authority, and lifecycle checks explicit"
+    )]
     fn commit_buffered_writes_for_lane<G, Check, BeforeCommit>(
         &mut self,
         input: &HandlerInput,
@@ -6713,7 +6680,10 @@ impl LocalDatabase {
         )
     }
 
-    #[allow(clippy::too_many_arguments)]
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "the transaction boundary keeps writer, authority, and lifecycle checks explicit"
+    )]
     fn apply_buffered_writes_with_lifecycle_gated<G, Check, BeforeCommit>(
         &mut self,
         writer_lane: write_authority::LocalWriterLaneV1,
@@ -7493,6 +7463,16 @@ impl LocalDatabase {
             )?;
             tx.commit()?;
         }
+        let tx = self
+            .conn
+            .transaction_with_behavior(TransactionBehavior::Immediate)?;
+        for table in physical_user_tables(&tx)? {
+            if sqlite_table_columns(&tx, &table)?.contains("_version") {
+                ensure_managed_version_integrity_indexes(&tx, &table)?;
+            }
+        }
+        drop_stray_managed_version_integrity_indexes(&tx, None)?;
+        tx.commit()?;
         // Older databases predate settlement and authority metadata. SQLite
         // cannot express ADD COLUMN IF NOT EXISTS, so reserve the writer before
         // inspecting and applying these additive ledger migrations. A sibling
@@ -13343,6 +13323,123 @@ fn create_or_update_table(tx: &Transaction<'_>, table: &TableManifest) -> Snapba
         rebuild_table_with_required_columns(tx, &table.name, &columns, &required)?;
     }
 
+    ensure_managed_version_integrity_indexes(tx, &table.name)?;
+
+    Ok(())
+}
+
+fn managed_version_integrity_index_names(table: &str) -> (String, String) {
+    (
+        format!("_snapback_version_domain_{table}"),
+        format!("_snapback_version_head_{table}"),
+    )
+}
+
+fn managed_version_domain_predicate_is_current(sql: Option<&str>) -> bool {
+    sql.is_some_and(|sql| {
+        sql.contains("typeof(_version) <> 'integer'")
+            && sql.contains("_version <= 0")
+            && sql.contains(&format!("_version > {PORTABLE_STORAGE_VERSION_MAX}"))
+    })
+}
+
+fn managed_version_integrity_index_state(
+    conn: &Connection,
+    table: &str,
+) -> SnapbackResult<(bool, bool)> {
+    let (domain_name, head_name) = managed_version_integrity_index_names(table);
+    let mut statement = conn.prepare_cached(
+        "SELECT tbl_name, sql FROM sqlite_schema WHERE type = 'index' AND name = ?1",
+    )?;
+    let domain: Option<(String, Option<String>)> = statement
+        .query_row(params![domain_name], |row| Ok((row.get(0)?, row.get(1)?)))
+        .optional()?;
+    let head: Option<(String, Option<String>)> = statement
+        .query_row(params![head_name], |row| Ok((row.get(0)?, row.get(1)?)))
+        .optional()?;
+    Ok((
+        domain.as_ref().is_some_and(|(owner, sql)| {
+            owner == table && managed_version_domain_predicate_is_current(sql.as_deref())
+        }),
+        head.as_ref().is_some_and(|(owner, _)| owner == table),
+    ))
+}
+
+fn drop_stray_managed_version_integrity_indexes(
+    conn: &Connection,
+    table: Option<&str>,
+) -> SnapbackResult<()> {
+    let mut statement = conn.prepare(
+        "SELECT name, tbl_name
+         FROM sqlite_schema
+         WHERE type = 'index'
+           AND (name GLOB '_snapback_version_domain_*'
+                OR name GLOB '_snapback_version_head_*')",
+    )?;
+    let indexes = statement
+        .query_map([], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
+    drop(statement);
+    for (name, owner) in indexes {
+        if table.is_some_and(|table| table != owner) {
+            continue;
+        }
+        let (expected_domain, expected_head) = managed_version_integrity_index_names(&owner);
+        let expected = if name.starts_with("_snapback_version_domain_") {
+            expected_domain
+        } else {
+            expected_head
+        };
+        if name != expected {
+            conn.execute(&format!("DROP INDEX {}", quote_ident(&name)?), [])?;
+        }
+    }
+    Ok(())
+}
+
+// @ref LLP 0007#commit-version-graduation-dk-2-decided-2026-07-02 — managed
+//   ordering facts need runtime-owned indexes whose physical definitions are
+//   reconciled after every table rebuild or rename.
+pub(super) fn ensure_managed_version_integrity_indexes(
+    conn: &Connection,
+    table: &str,
+) -> SnapbackResult<()> {
+    drop_stray_managed_version_integrity_indexes(conn, Some(table))?;
+    let (domain_name, head_name) = managed_version_integrity_index_names(table);
+    let (domain_current, head_current) = managed_version_integrity_index_state(conn, table)?;
+    if !domain_current {
+        conn.execute(
+            &format!("DROP INDEX IF EXISTS {}", quote_ident(&domain_name)?),
+            [],
+        )?;
+        conn.execute(
+            &format!(
+                "CREATE INDEX {} ON {}(_version) \
+                 WHERE typeof(_version) <> 'integer' \
+                    OR _version <= 0 \
+                    OR _version > {PORTABLE_STORAGE_VERSION_MAX}",
+                quote_ident(&domain_name)?,
+                quote_ident(table)?,
+            ),
+            [],
+        )?;
+    }
+    if !head_current {
+        conn.execute(
+            &format!("DROP INDEX IF EXISTS {}", quote_ident(&head_name)?),
+            [],
+        )?;
+        conn.execute(
+            &format!(
+                "CREATE INDEX {} ON {}(_version)",
+                quote_ident(&head_name)?,
+                quote_ident(table)?,
+            ),
+            [],
+        )?;
+    }
     Ok(())
 }
 
@@ -14438,20 +14535,56 @@ pub(super) fn validate_managed_table_versions_by_name(
     table_name: &str,
     maximum: u64,
 ) -> SnapbackResult<()> {
-    let sql = format!(
-        "SELECT 1 FROM {} \
-         WHERE typeof(_version) <> 'integer' \
-            OR _version <= 0 \
-            OR _version > ?1 \
-         LIMIT 1",
-        quote_ident(table_name)?
-    );
-    let invalid: Option<i64> = conn
-        .query_row(&sql, params![version_to_sql_integer(maximum)?], |row| {
-            row.get(0)
-        })
-        .optional()?;
-    if invalid.is_some() {
+    // @ref LLP 0007#commit-version-graduation-dk-2-decided-2026-07-02 — every
+    //   persisted row version fails closed, with indexed absence proofs used
+    //   only when both runtime-owned indexes are current.
+    let (domain_current, head_current) = managed_version_integrity_index_state(conn, table_name)?;
+    let invalid = if domain_current && head_current {
+        let (domain_name, head_name) = managed_version_integrity_index_names(table_name);
+        let domain_predicate = format!(
+            "typeof(_version) <> 'integer' OR _version <= 0 OR _version > {PORTABLE_STORAGE_VERSION_MAX}"
+        );
+        let domain_sql = format!(
+            "SELECT _version FROM {} INDEXED BY {} \
+             WHERE {domain_predicate} LIMIT 1",
+            quote_ident(table_name)?,
+            quote_ident(&domain_name)?,
+        );
+        let mut domain_statement = conn.prepare_cached(&domain_sql)?;
+        let domain_invalid: Option<SqlValue> = domain_statement
+            .query_row([], |row| row.get(0))
+            .optional()?;
+        if domain_invalid.is_some() {
+            true
+        } else {
+            let head_sql = format!(
+                "SELECT _version FROM {} INDEXED BY {} \
+                 WHERE _version > ?1 LIMIT 1",
+                quote_ident(table_name)?,
+                quote_ident(&head_name)?,
+            );
+            let mut head_statement = conn.prepare_cached(&head_sql)?;
+            let head_invalid: Option<SqlValue> = head_statement
+                .query_row(params![version_to_sql_integer(maximum)?], |row| row.get(0))
+                .optional()?;
+            head_invalid.is_some()
+        }
+    } else {
+        let sql = format!(
+            "SELECT 1 FROM {} \
+             WHERE typeof(_version) <> 'integer' \
+                OR _version <= 0 \
+                OR _version > ?1 \
+             LIMIT 1",
+            quote_ident(table_name)?
+        );
+        let mut statement = conn.prepare_cached(&sql)?;
+        let invalid: Option<i64> = statement
+            .query_row(params![version_to_sql_integer(maximum)?], |row| row.get(0))
+            .optional()?;
+        invalid.is_some()
+    };
+    if invalid {
         return Err(SnapbackError::error(
             "SNAPBACK_STORAGE_VERSION_CORRUPT",
             "storage",
@@ -28253,6 +28386,116 @@ mod guarded_commit_tests {
         }
     }
 
+    fn managed_version_runtime_indexes(conn: &Connection) -> Vec<(String, String)> {
+        let mut statement = conn
+            .prepare(
+                "SELECT name, tbl_name
+                 FROM sqlite_schema
+                 WHERE type = 'index'
+                   AND (name GLOB '_snapback_version_domain_*'
+                        OR name GLOB '_snapback_version_head_*')
+                 ORDER BY name",
+            )
+            .expect("prepare managed-version index inventory");
+        statement
+            .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))
+            .expect("query managed-version index inventory")
+            .collect::<Result<Vec<_>, _>>()
+            .expect("collect managed-version index inventory")
+    }
+
+    fn explain_query_plan(conn: &Connection, sql: &str, bind: Option<i64>) -> Vec<String> {
+        let mut statement = conn.prepare(sql).expect("prepare query plan");
+        let rows = match bind {
+            Some(bind) => statement
+                .query_map(params![bind], |row| row.get::<_, String>(3))
+                .expect("explain bound query")
+                .collect::<Result<Vec<_>, _>>(),
+            None => statement
+                .query_map([], |row| row.get::<_, String>(3))
+                .expect("explain unbound query")
+                .collect::<Result<Vec<_>, _>>(),
+        };
+        rows.expect("collect query plan")
+    }
+
+    fn managed_version_scale_database(rows: usize) -> LocalDatabase {
+        assert!(rows > 0);
+        let mut db = database();
+        db.seed(seed_data("scale-0", "seed"))
+            .expect("seed scale baseline and storage head");
+        if rows > 1 {
+            db.conn
+                .execute(
+                    "WITH RECURSIVE sequence(value) AS (
+                       SELECT 1
+                       UNION ALL
+                       SELECT value + 1 FROM sequence WHERE value + 1 < ?1
+                     )
+                     INSERT INTO items(_id, _version, _createdAt, _updatedAt, title)
+                     SELECT printf('scale-%d', value), 1, 1, 1, 'seed' FROM sequence",
+                    params![rows as i64],
+                )
+                .expect("seed scale rows through runtime indexes");
+        }
+        db
+    }
+
+    fn measure_buffered_patch_vm_steps(db: &mut LocalDatabase) -> usize {
+        let steps = Arc::new(AtomicUsize::new(0));
+        let observed = Arc::clone(&steps);
+        db.conn.progress_handler(
+            1,
+            Some(move || {
+                observed.fetch_add(1, Ordering::Relaxed);
+                false
+            }),
+        );
+        db.commit_buffered_writes(
+            &HandlerInput::default(),
+            vec![BufferedWrite::Patch {
+                table: "items".to_owned(),
+                id: "scale-0".to_owned(),
+                values: Map::from_iter([("title".to_owned(), json!("mutated"))]),
+            }],
+            Vec::new(),
+            Value::Null,
+        )
+        .expect("measure fixed-size buffered mutation");
+        db.conn.progress_handler(0, None::<fn() -> bool>);
+        steps.load(Ordering::Relaxed)
+    }
+
+    fn measure_legacy_managed_version_scan_vm_steps(db: &LocalDatabase) -> usize {
+        let steps = Arc::new(AtomicUsize::new(0));
+        let observed = Arc::clone(&steps);
+        db.conn.progress_handler(
+            1,
+            Some(move || {
+                observed.fetch_add(1, Ordering::Relaxed);
+                false
+            }),
+        );
+        let maximum = version_to_sql_integer(db.current_version().expect("scale head"))
+            .expect("portable scale head");
+        let invalid: Option<i64> = db
+            .conn
+            .query_row(
+                "SELECT 1 FROM items
+                 WHERE typeof(_version) <> 'integer'
+                    OR _version <= 0
+                    OR _version > ?1
+                 LIMIT 1",
+                params![maximum],
+                |row| row.get(0),
+            )
+            .optional()
+            .expect("measure legacy managed-version scan");
+        assert!(invalid.is_none());
+        db.conn.progress_handler(0, None::<fn() -> bool>);
+        steps.load(Ordering::Relaxed)
+    }
+
     fn force_exhausted_storage_version(db: &LocalDatabase) {
         db.conn
             .execute(
@@ -29010,6 +29253,374 @@ mod guarded_commit_tests {
                 "{name} admin scan"
             );
         }
+    }
+
+    #[test]
+    fn buffered_mutation_fast_path_refuses_every_managed_version_corruption_without_effects() {
+        for (name, make_value) in [
+            (
+                "non-integer-real",
+                Box::new(|_: u64| SqlValue::Real(1.5)) as Box<dyn Fn(u64) -> SqlValue>,
+            ),
+            (
+                "non-integer-text",
+                Box::new(|_: u64| SqlValue::Text("not-a-version".to_owned())),
+            ),
+            (
+                "non-integer-blob",
+                Box::new(|_: u64| SqlValue::Blob(vec![0x01, 0x02])),
+            ),
+            ("zero", Box::new(|_: u64| SqlValue::Integer(0))),
+            ("negative", Box::new(|_: u64| SqlValue::Integer(-1))),
+            (
+                "past-portable-max",
+                Box::new(|_: u64| SqlValue::Integer((PORTABLE_STORAGE_VERSION_MAX + 1) as i64)),
+            ),
+            (
+                "future-head",
+                Box::new(|head: u64| SqlValue::Integer((head + 1) as i64)),
+            ),
+        ] {
+            let mut db = database();
+            db.seed(seed_data("corrupt-row", "must-survive"))
+                .expect("seed managed row");
+            assert_eq!(
+                managed_version_integrity_index_state(&db.conn, "items").unwrap(),
+                (true, true),
+                "{name} exercises the indexed validation path"
+            );
+            let before_version = db.current_version().expect("pre-refusal version");
+            let before_changes = db.change_journal_len().expect("pre-refusal journal");
+            db.conn
+                .execute(
+                    "UPDATE items SET _version = ?1 WHERE _id = 'corrupt-row'",
+                    params![make_value(before_version)],
+                )
+                .expect("inject managed row corruption");
+
+            let error = db
+                .commit_buffered_writes(
+                    &HandlerInput::default(),
+                    vec![BufferedWrite::Insert {
+                        table: "items".to_owned(),
+                        id: "must-not-commit".to_owned(),
+                        values: Map::from_iter([("title".to_owned(), json!("refused"))]),
+                    }],
+                    Vec::new(),
+                    Value::Null,
+                )
+                .expect_err("corrupt managed version must refuse before effects");
+            assert_eq!(
+                error.diagnostic.code, "SNAPBACK_STORAGE_VERSION_CORRUPT",
+                "{name}"
+            );
+            assert_eq!(error.diagnostic.subsystem, "storage", "{name}");
+            assert_eq!(
+                error.diagnostic.message,
+                "managed table items contains a non-portable row storage version",
+                "{name}"
+            );
+            assert_eq!(error.diagnostic.details["table"], json!("items"), "{name}");
+            assert_eq!(db.current_version().unwrap(), before_version, "{name}");
+            assert_eq!(db.change_journal_len().unwrap(), before_changes, "{name}");
+            let attempted_rows: i64 = db
+                .conn
+                .query_row(
+                    "SELECT COUNT(*) FROM items WHERE _id = 'must-not-commit'",
+                    [],
+                    |row| row.get(0),
+                )
+                .unwrap();
+            assert_eq!(attempted_rows, 0, "{name}");
+            let original_title: String = db
+                .conn
+                .query_row(
+                    "SELECT title FROM items WHERE _id = 'corrupt-row'",
+                    [],
+                    |row| row.get(0),
+                )
+                .unwrap();
+            assert_eq!(original_title, "must-survive", "{name}");
+        }
+    }
+
+    #[test]
+    fn managed_version_validation_plans_use_bounded_runtime_indexes() {
+        let db = database();
+        let (domain_name, head_name) = managed_version_integrity_index_names("items");
+        let domain_plan = explain_query_plan(
+            &db.conn,
+            &format!(
+                "EXPLAIN QUERY PLAN
+                 SELECT _version FROM items INDEXED BY {}
+                 WHERE typeof(_version) <> 'integer'
+                    OR _version <= 0
+                    OR _version > {PORTABLE_STORAGE_VERSION_MAX}
+                 LIMIT 1",
+                quote_ident(&domain_name).unwrap()
+            ),
+            None,
+        );
+        assert!(
+            domain_plan
+                .iter()
+                .any(|detail| detail.contains(&domain_name)),
+            "domain probe must use its empty partial index: {domain_plan:?}"
+        );
+
+        let head_plan = explain_query_plan(
+            &db.conn,
+            &format!(
+                "EXPLAIN QUERY PLAN
+                 SELECT _version FROM items INDEXED BY {}
+                 WHERE _version > ?1 LIMIT 1",
+                quote_ident(&head_name).unwrap()
+            ),
+            Some(1),
+        );
+        assert!(
+            head_plan
+                .iter()
+                .any(|detail| { detail.contains("SEARCH") && detail.contains(&head_name) }),
+            "future-head probe must be an indexed range search: {head_plan:?}"
+        );
+
+        let legacy_plan = explain_query_plan(
+            &db.conn,
+            "EXPLAIN QUERY PLAN
+             SELECT 1 FROM items
+             WHERE typeof(_version) <> 'integer'
+                OR _version <= 0
+                OR _version > ?1
+             LIMIT 1",
+            Some(1),
+        );
+        assert!(
+            legacy_plan.iter().any(|detail| detail.contains("SCAN")),
+            "the dynamic legacy predicate remains a cardinality scan: {legacy_plan:?}"
+        );
+    }
+
+    #[test]
+    fn buffered_managed_version_validation_cost_is_cardinality_independent() {
+        let mut small = managed_version_scale_database(1_000);
+        let mut large = managed_version_scale_database(50_000);
+
+        let small_fast = measure_buffered_patch_vm_steps(&mut small);
+        let large_fast = measure_buffered_patch_vm_steps(&mut large);
+        assert!(
+            large_fast <= small_fast.saturating_mul(2).saturating_add(2_000),
+            "indexed buffered validation must stay bounded: small={small_fast}, large={large_fast}"
+        );
+
+        let small_legacy = measure_legacy_managed_version_scan_vm_steps(&small);
+        let large_legacy = measure_legacy_managed_version_scan_vm_steps(&large);
+        assert!(
+            large_legacy > small_legacy.saturating_mul(20),
+            "legacy witness must grow with table cardinality: small={small_legacy}, large={large_legacy}"
+        );
+    }
+
+    #[test]
+    fn reopen_rebuilds_managed_version_indexes_after_upgrade_and_predicate_drift() {
+        let (_dir, path, mut db) = file_database();
+        db.seed(seed_data("healthy-on-reopen", "healthy"))
+            .expect("seed managed row");
+        let (domain_name, head_name) = managed_version_integrity_index_names("items");
+        db.conn
+            .execute(
+                &format!("DROP INDEX {}", quote_ident(&domain_name).unwrap()),
+                [],
+            )
+            .expect("drop domain index");
+        db.conn
+            .execute(
+                &format!("DROP INDEX {}", quote_ident(&head_name).unwrap()),
+                [],
+            )
+            .expect("drop head index");
+        db.conn
+            .execute(
+                &format!(
+                    "CREATE INDEX {} ON items(_version)
+                     WHERE typeof(_version) <> 'integer' OR _version < 0",
+                    quote_ident(&domain_name).unwrap()
+                ),
+                [],
+            )
+            .expect("install stale domain predicate");
+        drop(db);
+
+        let reopened = LocalDatabase::open(&path).expect("healthy reopen upgrades indexes");
+        assert_eq!(
+            managed_version_integrity_index_state(&reopened.conn, "items").unwrap(),
+            (true, true)
+        );
+        let domain_sql: String = reopened
+            .conn
+            .query_row(
+                "SELECT sql FROM sqlite_schema WHERE type = 'index' AND name = ?1",
+                params![domain_name],
+                |row| row.get(0),
+            )
+            .expect("inspect rebuilt domain index");
+        assert!(domain_sql.contains("_version <= 0"), "{domain_sql}");
+        assert!(
+            domain_sql.contains(&format!("_version > {PORTABLE_STORAGE_VERSION_MAX}")),
+            "{domain_sql}"
+        );
+        let plan = explain_query_plan(
+            &reopened.conn,
+            &format!(
+                "EXPLAIN QUERY PLAN
+                 SELECT _version FROM items INDEXED BY {}
+                 WHERE typeof(_version) <> 'integer'
+                    OR _version <= 0
+                    OR _version > {PORTABLE_STORAGE_VERSION_MAX}
+                 LIMIT 1",
+                quote_ident(&domain_name).unwrap()
+            ),
+            None,
+        );
+        assert!(
+            plan.iter().any(|detail| detail.contains(&domain_name)),
+            "{plan:?}"
+        );
+    }
+
+    #[test]
+    fn reopen_refuses_corrupt_managed_versions_before_index_upgrade() {
+        let (_dir, path, mut db) = file_database();
+        db.seed(seed_data("corrupt-on-reopen", "corrupt"))
+            .expect("seed managed row");
+        let (domain_name, head_name) = managed_version_integrity_index_names("items");
+        for name in [&domain_name, &head_name] {
+            db.conn
+                .execute(&format!("DROP INDEX {}", quote_ident(name).unwrap()), [])
+                .expect("simulate pre-index database");
+        }
+        db.conn
+            .execute(
+                "UPDATE items SET _version = ?1 WHERE _id = 'corrupt-on-reopen'",
+                params![SqlValue::Real(1.5)],
+            )
+            .expect("corrupt managed version before reopen");
+        drop(db);
+
+        let error = match LocalDatabase::open(&path) {
+            Ok(_) => panic!("open preflight must refuse before managed-index DDL"),
+            Err(error) => error,
+        };
+        assert_eq!(error.diagnostic.code, "SNAPBACK_STORAGE_VERSION_CORRUPT");
+        let raw = Connection::open(&path).expect("inspect refused database");
+        let runtime_indexes: i64 = raw
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_schema
+                 WHERE type = 'index' AND name IN (?1, ?2)",
+                params![domain_name, head_name],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(
+            runtime_indexes, 0,
+            "preflight refusal must precede index DDL"
+        );
+    }
+
+    #[test]
+    fn missing_managed_version_indexes_fall_back_to_fail_closed_scan() {
+        let mut db = database();
+        db.seed(seed_data("corrupt-row", "must-survive"))
+            .expect("seed managed row");
+        let (domain_name, head_name) = managed_version_integrity_index_names("items");
+        for name in [&domain_name, &head_name] {
+            db.conn
+                .execute(&format!("DROP INDEX {}", quote_ident(name).unwrap()), [])
+                .expect("drop runtime index");
+        }
+        db.conn
+            .execute(
+                "UPDATE items SET _version = ?1 WHERE _id = 'corrupt-row'",
+                params![SqlValue::Real(1.5)],
+            )
+            .expect("inject corruption without sentinel");
+        let before = db.current_version().unwrap();
+
+        let error = db
+            .commit_buffered_writes(
+                &HandlerInput::default(),
+                vec![BufferedWrite::Insert {
+                    table: "items".to_owned(),
+                    id: "must-not-commit".to_owned(),
+                    values: Map::from_iter([("title".to_owned(), json!("refused"))]),
+                }],
+                Vec::new(),
+                Value::Null,
+            )
+            .expect_err("fallback scan must reject corruption");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_STORAGE_VERSION_CORRUPT");
+        assert_eq!(db.current_version().unwrap(), before);
+        let attempted_rows: i64 = db
+            .conn
+            .query_row(
+                "SELECT COUNT(*) FROM items WHERE _id = 'must-not-commit'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(attempted_rows, 0);
+    }
+
+    #[test]
+    fn optional_to_required_rebuild_restores_managed_version_indexes() {
+        let mut db = database();
+        db.seed(SeedData {
+            tables: BTreeMap::from([(
+                "items".to_owned(),
+                vec![Map::from_iter([
+                    ("_id".to_owned(), json!("required-row")),
+                    ("title".to_owned(), json!("ready")),
+                    ("rank".to_owned(), json!(1)),
+                ])],
+            )]),
+        })
+        .expect("seed non-null optional value");
+        let mut required = schema();
+        required.tables[0]
+            .fields
+            .iter_mut()
+            .find(|field| field.name == "rank")
+            .expect("rank field")
+            .optional = false;
+        db.apply_schema(required)
+            .expect("safe optional-to-required rebuild");
+
+        assert_eq!(
+            managed_version_integrity_index_state(&db.conn, "items").unwrap(),
+            (true, true)
+        );
+        assert_eq!(
+            managed_version_runtime_indexes(&db.conn),
+            vec![
+                (
+                    "_snapback_version_domain_items".to_owned(),
+                    "items".to_owned()
+                ),
+                (
+                    "_snapback_version_head_items".to_owned(),
+                    "items".to_owned()
+                ),
+            ]
+        );
+        let rank_not_null: i64 = db
+            .conn
+            .query_row(
+                "SELECT \"notnull\" FROM pragma_table_info('items') WHERE name = 'rank'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(rank_not_null, 1);
     }
 
     #[test]

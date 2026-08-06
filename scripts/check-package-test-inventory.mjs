@@ -64,6 +64,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'load-generated.test.mjs',
       'mcp-control.test.mjs',
       'package.test.mjs',
+      'packaged-store-qualification.test.mjs',
       'sessions-dev-loop.test.mjs',
       'verify.test.mjs',
     ],
@@ -431,7 +432,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 226,
+  expectedTotal = 227,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -690,6 +691,9 @@ export function checkPackageTestInventories(options = {}) {
 // ownership/rollback, readiness-shape, and iOS tooling-direction suite.
 // 225 -> 226 (2026-08-06): the root inventory gains the maintained synthetic
 // drift corpus for the fast pre-push inventory checker.
+// 226 -> 227 (2026-08-06, LLP 0110/0166 public-package amendment):
+// @expo/snapback-cli gains the packaged-store qualification receipt
+// plumbing suite.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');

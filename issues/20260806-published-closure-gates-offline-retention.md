@@ -1,6 +1,6 @@
 # Published closure fences out the offline-retention contract the guide teaches
 
-**Status:** Open — needs Charlie's ruling on what ships
+**Status:** Open — Route 2 shipped on main; closes when 0.1.11 publishes
 **Impact:** 5
 **Urgency:** 4
 **Ease:** 3
@@ -35,3 +35,36 @@ capability gate, not a version vintage, so it may need a new fence
 flavor). Option (a) is what the benchmark needs; option (b) is the honest
 interim. Until one lands, every external bakeoff will re-pay this
 discovery and re-forfeit the dimension.
+
+## Ruling and resolution — 2026-08-06
+
+Charlie ruled **"Route 2"**: ship (a) by a dated author amendment rather
+than by first building the full signed-attestation lane. Landed on main
+the same day:
+
+- **Interim fence (immediate honesty):** banners on
+  `guide/sync/offline-and-retention.md`, `guide/realtime/live-queries.md`,
+  and `guide/realtime/snapshot-bundles.md` telling published-package
+  consumers the declaration is refused on 0.1.10 and ships at 0.1.11.
+- **Amendment:** LLP 0110 "Single-table public-package advertisement
+  amendment — 2026-08-06" (normative) and LLP 0166 "Public-package
+  advertisement amendment — 2026-08-06". For `single_table_v1` only,
+  public-package advertisement = clean-release public-package build
+  identity + the byte-identical embedded contributor carrier chain + a
+  `snapback.packaged-store-qualification.v1` receipt binding the store
+  acceptance run to that exact staged closure and binary. Signed
+  `PackageCapabilityAttestationV1` stays the end state (owner Charlie,
+  review 2026-09-30). All other packaged capability gates unchanged.
+- **Mechanism + proof:** predicate/receipt verification in
+  `src/manifest.rs`, mint subcommand in `src/cli.rs`, loader seam in
+  `@expo/snapback-cli`, harness `scripts/packaged-store-qualification.mjs`;
+  proven end to end on linux-x64 (suite 3/3, receipt-backed advertisement,
+  no-receipt refusal) —
+  `tests/acceptance/receipts/packaged-store-qualification.proof.2026-08-06.v1.json`.
+
+**Stays open until:** the 0.1.11 release stages its real closure, re-runs
+the harness per platform, ships each minted
+`packaged-store-qualification.receipt.json` inside the runtime packages,
+publishes, updates `guide/published-closure.json`, and sweeps the three
+banner fences above plus the capability-index row's 0.1.10 caveat. Close
+this ticket in that landing.

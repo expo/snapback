@@ -38,7 +38,7 @@ host-op registries. Owner: `ccheever`; label gaps `guide-gap`.
 | backend.relational-queries | Bounded two-source equi-joins with explicit visibility, closed projections, and transactionally maintained projection tables (`defineRelationalQuery`, `defineMaintainedProjection`, stable capability since 2026-07-26) | joins, relational queries, denormalized reads, materialized views, conversation membership, message sender, chat joins, defineRelationalQuery, defineMaintainedProjection | local | partial | `defineRelationalQuery` in packages/snapback-codegen/define.mjs | llp/0080, llp/0065 | backend/relational-queries.md |
 | backend.bounded-children-v1 | Experimental one-visible-parent/one-index-bounded-child-page profile with protected relation incarnations and `sbbc1` AEAD keysets; only contributor source builds with the exact embedded atomic carrier advertise it, while public runtime packages and hosted targets retain a structured GAP | one-to-many, parent children, relation incarnation, bounded child page | local | partial | src/local-relation-activity-publication.v1.json | llp/0104, llp/0108, llp/0101 | GAP (public-package attestation and hosted publication; owner: Charlie, review: 2026-08-31) |
 | backend.snapshot-batch-v1 | Experimental local composition of 2–8 complete `bounded-children.v1` nodes: one pinned authoritative snapshot per invocation, structural parent-authorization dedup, a sealed all-or-nothing tuple, one LLP 0157 `sbsb1` continuation, and cursor-free-first-page `live_replace`; hosted and public-package publication remain nonclaims | snapshot batch, board view, multiple child lists, one snapshot, sbsb1, composite query | local | shipped | `snapshot_batch_three_node_cursor_sealing_and_live_acceptance` in src/local.rs + schemas/capability.manifest.local-dev-sqlite-ibex.json (`snapshot_batch_v1`) | llp/0135, llp/0157, llp/0113 | backend/snapshot-batches.md |
-| backend.single-table-v1 | Experimental host-derived `single_table_v1@1` for an exact public, authority-independent declarative live query over one table. It is single-node-only, never author-assertable, uses the class-scoped 1,024 examined-entry QMK-establishment refusal, preserves whole-result/no-cursor semantics, delivers ordered/limited results by `live_replace`, and retains through Arm A `rqs-authority-independent-snapshot-v1` with no `AuthorizedLease`. Only contributor-source local builds with the exact store publication carrier advertise it; public packages and remote/hosted targets remain structured GAPs. | single table, rqsEligible, qmk1, authority-independent retention, single node | local | shipped | src/local-persistent-store-publication.v1.json + schemas/capability.manifest.local-dev-sqlite-ibex.json (`single_table_v1`) | llp/0157, llp/0166, llp/0110, llp/0113 | sync/offline-and-retention.md |
+| backend.single-table-v1 | Experimental host-derived `single_table_v1@1` for an exact public, authority-independent declarative live query over one table. It is single-node-only, never author-assertable, uses the class-scoped 1,024 examined-entry QMK-establishment refusal, preserves whole-result/no-cursor semantics, delivers ordered/limited results by `live_replace`, and retains through Arm A `rqs-authority-independent-snapshot-v1` with no `AuthorizedLease`. Contributor-source builds advertise it via the store publication carrier; the 2026-08-06 LLP 0110/0166 amendment admits clean-release public-package builds with a packaged-closure qualification receipt — 0.1.10 stays a GAP until 0.1.11. Remote/hosted remain GAPs. | single table, rqsEligible, qmk1, authority-independent retention, single node | local | shipped | src/local-persistent-store-publication.v1.json + schemas/capability.manifest.local-dev-sqlite-ibex.json (`single_table_v1`) | llp/0157, llp/0166, llp/0110, llp/0113 | sync/offline-and-retention.md |
 | backend.write-activity-v1 | Experimental closed source-write plus one provenance-bearing activity insert with exact source-effect assertion and LLP 0043/0101 settlement; only contributor source builds with the exact embedded atomic carrier advertise it, while public runtime packages and hosted targets retain a structured GAP | audit log, activity feed, transactional activity, write receipt | local | partial | tests/conformance/relation-activity-publication-v1.receipt.json | llp/0104, llp/0108, llp/0043, llp/0101 | GAP (public-package attestation and hosted publication; owner: Charlie, review: 2026-08-31) |
 | backend.text-search | Portable term, phrase, prefix, exclusion, and equality-filter search with deterministic ranking, bounded highlights, public/owner/membership (seat-per-resource) visibility, and AEAD keyset cursors | full text, text index, phrase, prefix, highlights | local | shipped | `defineSearchQuery` in packages/snapback-codegen/define.mjs | llp/0073, llp/0065, llp/0100 | backend/text-search.md |
 | backend.streamed-actions | Bounded pull-driven response streaming in actions: `ctx.fetchStream`, `ctx.streamAttempt` lease/settlement, durable progress via mutations | streaming, fetchStream, ReadableStream, AI tokens, SSE bytes | local | partial | `open_response_stream` in src/server.rs | llp/0076, llp/0075 | backend/streamed-actions.md |
@@ -12670,8 +12670,10 @@ The fork operation does all of these before it returns:
   `--max-total-bytes`), reporting the admitted usage as
   `data.resourceAdmission`; a fork-root lock keeps the count/byte observation,
   registry intent, and publication one atomic admission interval even when
-  creates race at a boundary; the creation TTL itself is bounded by the same
-  maximum total fork lifetime that caps renewal;
+  creates race at a boundary; lock acquisition has a 30-second monotonic
+  deadline and refuses with `SNAPBACK_FORK_ADMISSION_TIMEOUT` rather than
+  waiting without bound; the creation TTL itself is bounded by the same maximum
+  total fork lifetime that caps renewal;
 - treats those byte checks as admission-time estimates, not a live disk
   quota: fork-local writes and uploads can grow after creation until finite
   TTL/reap cleanup, so use a filesystem/container quota when runtime growth
@@ -12906,6 +12908,7 @@ details object in automation; the message is for people.
 | `SNAPBACK_FORK_REGISTRY_STALE` | Treat the registry as advisory and inspect the named exact path; never recursively sweep based only on the row. |
 | `SNAPBACK_FORK_STOP_UNVERIFIED` | Resolve the missing/stale ready descriptor or live PID; Snapback intentionally will not signal or delete an unproved target. |
 | `SNAPBACK_FORK_EXPIRED_REAP_FAILED` | Inspect the reported expired targets and restore enough evidence to stop/reap them safely before retrying create. |
+| `SNAPBACK_FORK_ADMISSION_TIMEOUT` | Another creator did not finish its atomic admission/publication interval within 30 seconds. Inspect that creator and its exact staging/publication state; retry only after it exits or recovery resolves its destination. |
 | `SNAPBACK_FORK_SERVER_EXPIRED` | Expected finite-TTL enforcement: use `create` or explicit `reap` to prove the stopped process and remove the fork, or `renew` **before** expiry to extend it. |
 | `SNAPBACK_FORK_RENEW_EXPIRED` | Renewal never resurrects: the fork is already past expiry — reap it and create a fresh fork. |
 | `SNAPBACK_FORK_RESOURCE_LIMIT_REFUSED` | A configured bound refused deterministically; the details name the resource (`fork-count`, `fork-bytes`, `total-bytes`, `diff-work`, `renewal-lifetime`) and the observed usage. Net diff additionally reports its streaming `phase`, `limitKind`, journal/scanned rows, and bytes. Drop forks, raise the explicit flag, or bound the request. |
@@ -13415,7 +13418,11 @@ Offline cold retention is a separate per-query opt-in: `auth: 'public'` +
 `authorityIndependent: true` on a declarative live query makes it
 `rqsEligible`; without the declaration nothing persists and the handle's
 `retention` fact names the refusal. The full recipe is in
-[offline retention](../sync/offline-and-retention.md).
+[offline retention](../sync/offline-and-retention.md). Note the declaration
+forces the experimental `single_table_v1` capability, which the published
+`@expo/snapback-*` closure (0.1.10) refuses as a structured GAP — it works on
+contributor-source builds today and reaches npm consumers at 0.1.11 (see the
+banner on the offline-retention page).
 
 Stored document contracts include typed `v.assetRef` fields. A photo-bearing
 table can therefore be queried directly as a live feed; the reference arrives
@@ -13965,6 +13972,13 @@ export const dashboardMetrics = defineLiveQuery({
 Codegen emits `routes.manifest.json`; provision it beside schema and functions
 with `ensureApp({ routes })`. A route may name several queries, but every
 argument must be a literal or a declared route-parameter binding.
+
+Heads-up for published-package consumers: `authorityIndependent: true` forces
+the experimental `single_table_v1` capability, which the published
+`@expo/snapback-*` closure (0.1.10) refuses as a structured GAP
+(`SNAPBACK_CAPABILITY_UNSUPPORTED` at dev-server start). This example runs on
+contributor-source builds today and reaches npm consumers at 0.1.11 — see the
+banner on [offline retention](../sync/offline-and-retention.md).
 
 ## Fetch one consistent page snapshot
 
@@ -14593,6 +14607,19 @@ reviewed-commit: 711e4d763d87cadf0c638bd15ed33a85427e4f11
 > **Local target only.** This page describes the local dev/test target.
 > Hosted targets make deliberately weaker or different claims — see
 > [auth/targets](../auth/targets.md).
+
+> **Published npm packages cannot reach platform retention yet.** On the
+> published `@expo/snapback-*` closure (0.1.10), declaring
+> `authorityIndependent: true` forces the experimental `single_table_v1`
+> capability, which public-package runtime builds refuse as a structured GAP
+> (`SNAPBACK_CAPABILITY_UNSUPPORTED` at dev-server start). The platform
+> cold-retention path this page teaches therefore works only on
+> contributor-source builds today. The 2026-08-06 LLP 0110/0166 author
+> amendment opens public-package advertisement for `single_table_v1` — clean
+> release build identity plus the embedded carrier plus a packaged-closure
+> qualification receipt — and it reaches npm consumers when the 0.1.11
+> closure publishes. Until then the only offline story on the published
+> packages is an app-level cache you persist yourself.
 
 The Contract adapter can retain the last authoritative query snapshot, render
 derived optimistic changes while offline, and replay a durable mutation outbox

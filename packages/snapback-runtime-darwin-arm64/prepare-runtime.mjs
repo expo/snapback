@@ -8,7 +8,10 @@ import { spawnSync } from 'node:child_process';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { assertPublicPackageBuildIdentity } from '../../scripts/runtime-package-authority.mjs';
+import {
+  assertPublicPackageBuildIdentity,
+  installPackagedStoreQualificationReceipt,
+} from '../../scripts/runtime-package-authority.mjs';
 import { produceRuntimePackageSeal } from '../snapback-cli/runtime-readiness.mjs';
 
 const packageRoot = dirname(fileURLToPath(import.meta.url));
@@ -120,6 +123,19 @@ cpSync(join(sourceFramework, 'Versions', '1'), join(
   preserveTimestamps: true,
 });
 cpSync(sourceHermesHeader, join(includeDirectory, 'hermes', 'hermes.h.artifact'));
+try {
+  installPackagedStoreQualificationReceipt({
+    sourceBinary,
+    binDirectory,
+    receiptEnvironmentName:
+      'SNAPBACK_PACKAGED_STORE_QUALIFICATION_RECEIPT_FILE',
+  });
+} catch (error) {
+  fail(
+    error?.code ?? 'SNAPBACK_PACKAGED_STORE_QUALIFICATION_RECEIPT_INVALID',
+    error?.message ?? 'packaged-store qualification receipt could not be installed',
+  );
+}
 try {
   // @ref LLP 0123#package-seal-landing-2026-08-06 — qualify only after the
   // binary and framework occupy the exact loader-relative package layout.

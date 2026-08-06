@@ -13,7 +13,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { assertPublicPackageBuildIdentity } from '../../scripts/runtime-package-authority.mjs';
+import {
+  assertPublicPackageBuildIdentity,
+  installPackagedStoreQualificationReceipt,
+} from '../../scripts/runtime-package-authority.mjs';
 import { resolveRuntimeBinary } from '../snapback-cli/index.mjs';
 import {
   createLinuxRuntimeArtifactAttestation,
@@ -40,6 +43,107 @@ const ignoreRules = readFileSync(new URL('./.gitignore', import.meta.url), 'utf8
   .split(/\r?\n/u)
   .filter(Boolean);
 assert.deepEqual(ignoreRules, ['/bin/', '/lib/', '/include/', '/runtime-readiness.json']);
+
+const receiptRoot = mkdtempSync(join(tmpdir(), 'snapback-linux-package-receipt-'));
+try {
+  const receiptEnvironmentName =
+    'SNAPBACK_RUNTIME_LINUX_X64_QUALIFICATION_RECEIPT';
+  const sourceBinary = join(receiptRoot, 'source', 'snapback');
+  const siblingReceipt = join(
+    receiptRoot,
+    'source',
+    'packaged-store-qualification.receipt.json',
+  );
+  const explicitReceipt = join(receiptRoot, 'explicit-receipt.json');
+  const binDirectory = join(receiptRoot, 'package', 'bin');
+  const installedReceipt = join(
+    binDirectory,
+    'packaged-store-qualification.receipt.json',
+  );
+  const validReceiptBytes = `${JSON.stringify({
+    schemaVersion: 'snapback.packaged-store-qualification.v1',
+    fixture: 'preserve these exact bytes',
+  }, null, 2)}\n`;
+  const siblingReceiptBytes = `${JSON.stringify({
+    schemaVersion: 'snapback.packaged-store-qualification.v1',
+    fixture: 'sibling fallback',
+  })}\n`;
+  mkdirSync(join(receiptRoot, 'source'), { recursive: true });
+  mkdirSync(binDirectory, { recursive: true });
+  writeFileSync(sourceBinary, 'fixture binary');
+
+  writeFileSync(explicitReceipt, validReceiptBytes);
+  writeFileSync(siblingReceipt, siblingReceiptBytes);
+  installPackagedStoreQualificationReceipt({
+    sourceBinary,
+    binDirectory,
+    receiptEnvironmentName,
+    environment: { [receiptEnvironmentName]: explicitReceipt },
+  });
+  assert.equal(readFileSync(installedReceipt, 'utf8'), validReceiptBytes);
+
+  rmSync(installedReceipt);
+  installPackagedStoreQualificationReceipt({
+    sourceBinary,
+    binDirectory,
+    receiptEnvironmentName,
+    environment: {},
+  });
+  assert.equal(readFileSync(installedReceipt, 'utf8'), siblingReceiptBytes);
+
+  rmSync(installedReceipt);
+  rmSync(siblingReceipt);
+  assert.equal(
+    installPackagedStoreQualificationReceipt({
+      sourceBinary,
+      binDirectory,
+      receiptEnvironmentName,
+      environment: {},
+    }),
+    null,
+  );
+  assert.equal(existsSync(installedReceipt), false);
+
+  assert.throws(
+    () => installPackagedStoreQualificationReceipt({
+      sourceBinary,
+      binDirectory,
+      receiptEnvironmentName,
+      environment: { [receiptEnvironmentName]: join(receiptRoot, 'missing.json') },
+    }),
+    (error) => error.code
+      === 'SNAPBACK_PACKAGED_STORE_QUALIFICATION_RECEIPT_UNREADABLE',
+  );
+  assert.equal(existsSync(installedReceipt), false);
+
+  writeFileSync(explicitReceipt, '{invalid json');
+  assert.throws(
+    () => installPackagedStoreQualificationReceipt({
+      sourceBinary,
+      binDirectory,
+      receiptEnvironmentName,
+      environment: { [receiptEnvironmentName]: explicitReceipt },
+    }),
+    (error) => error.code
+      === 'SNAPBACK_PACKAGED_STORE_QUALIFICATION_RECEIPT_INVALID',
+  );
+  assert.equal(existsSync(installedReceipt), false);
+
+  writeFileSync(explicitReceipt, '{"schemaVersion":"wrong"}\n');
+  assert.throws(
+    () => installPackagedStoreQualificationReceipt({
+      sourceBinary,
+      binDirectory,
+      receiptEnvironmentName,
+      environment: { [receiptEnvironmentName]: explicitReceipt },
+    }),
+    (error) => error.code
+      === 'SNAPBACK_PACKAGED_STORE_QUALIFICATION_RECEIPT_INVALID',
+  );
+  assert.equal(existsSync(installedReceipt), false);
+} finally {
+  rmSync(receiptRoot, { recursive: true, force: true });
+}
 
 const attestationRoot = mkdtempSync(join(tmpdir(), 'snapback-linux-attestation-'));
 try {

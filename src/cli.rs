@@ -931,6 +931,17 @@ pub enum HostCommand {
     // independently embedded facts without starting a server, so link probes
     // can classify the exact executable they just launched.
     BuildIdentity,
+    /// Mint the receipt that binds a qualified staged package closure to this
+    /// clean public-package release binary and its embedded store carrier.
+    #[command(name = "packaged-store-qualification-receipt")]
+    PackagedStoreQualificationReceipt {
+        #[arg(long)]
+        closure_manifest: PathBuf,
+        #[arg(long)]
+        suite_result: PathBuf,
+        #[arg(long)]
+        out: PathBuf,
+    },
     /// Prepare the public LLP 0157 activation source from the server-owned
     /// proof keyring and one already-generated manifest pair. Re-run ordinary
     /// codegen afterward; it validates and publishes this source inside the
@@ -2452,6 +2463,15 @@ pub async fn run_from_env() -> anyhow::Result<()> {
             );
             Ok(())
         }
+        Some(HostCommand::PackagedStoreQualificationReceipt {
+            closure_manifest,
+            suite_result,
+            out,
+        }) => packaged_store_qualification_receipt_command(
+            &closure_manifest,
+            &suite_result,
+            &out,
+        ),
         Some(HostCommand::CompositionActivationPrepare {
             db,
             generated,
@@ -3360,6 +3380,59 @@ fn quiet_stop_fork(ready_file: &Path, expected_database: &Path) -> anyhow::Resul
     Ok(Some(descriptor.pid))
 }
 
+#[cfg(unix)]
+fn detached_child_descriptor_ceiling() -> i32 {
+    let observed = ["/proc/self/fd", "/dev/fd"]
+        .into_iter()
+        .find_map(|directory| std::fs::read_dir(directory).ok())
+        .into_iter()
+        .flatten()
+        .filter_map(Result::ok)
+        .filter_map(|entry| entry.file_name().to_str()?.parse::<i32>().ok())
+        .max();
+    if let Some(maximum) = observed {
+        return maximum.saturating_add(1).max(3);
+    }
+
+    let mut limit = std::mem::MaybeUninit::<libc::rlimit>::uninit();
+    if unsafe { libc::getrlimit(libc::RLIMIT_NOFILE, limit.as_mut_ptr()) } == 0 {
+        let current = unsafe { limit.assume_init() }.rlim_cur;
+        return current.min(65_536) as i32;
+    }
+    1_024
+}
+
+#[cfg(unix)]
+fn configure_detached_child(command: &mut std::process::Command) {
+    use std::os::unix::process::CommandExt as _;
+
+    let descriptor_ceiling = detached_child_descriptor_ceiling();
+    // @ref LLP 0158#lifecycle-and-gc — the detached server outlives the
+    // short create CLI, so it must not also prolong arbitrary caller-owned
+    // pipes or locks that happened to cross the CLI's own exec boundary.
+    unsafe {
+        command.pre_exec(move || {
+            for descriptor in 3..descriptor_ceiling {
+                loop {
+                    if libc::fcntl(descriptor, libc::F_SETFD, libc::FD_CLOEXEC) == 0 {
+                        break;
+                    }
+                    let error = std::io::Error::last_os_error();
+                    match error.raw_os_error() {
+                        Some(libc::EBADF) => break,
+                        Some(libc::EINTR) => continue,
+                        _ => return Err(error),
+                    }
+                }
+            }
+            if libc::setsid() == -1 {
+                return Err(std::io::Error::last_os_error());
+            }
+            Ok(())
+        });
+    }
+}
+
 async fn fork_command(command: ForkCommand) -> anyhow::Result<()> {
     fork_command_with_clock(command, now_ms).await
 }
@@ -3545,18 +3618,12 @@ where
             }
             #[cfg(unix)]
             {
-                use std::os::unix::process::CommandExt as _;
                 // The fork server outlives this short CLI projection. A new
                 // session prevents terminal/launcher teardown from killing
-                // the derived deployment immediately after readiness.
-                unsafe {
-                    launch.pre_exec(|| {
-                        if libc::setsid() == -1 {
-                            return Err(std::io::Error::last_os_error());
-                        }
-                        Ok(())
-                    });
-                }
+                // the derived deployment immediately after readiness, while
+                // the descriptor sweep prevents it from retaining caller
+                // capture pipes after the CLI has exited.
+                configure_detached_child(&mut launch);
             }
             let mut child = launch
                 .spawn()
@@ -4111,6 +4178,83 @@ fn read_json_file(path: &Path) -> anyhow::Result<Value> {
     let raw = std::fs::read_to_string(path)
         .with_context(|| format!("failed to read {}", path.display()))?;
     serde_json::from_str(&raw).with_context(|| format!("{} is not valid JSON", path.display()))
+}
+
+fn utc_date_from_unix_seconds(seconds: u64) -> String {
+    let days = (seconds / 86_400) as i64 + 719_468;
+    let era = if days >= 0 { days } else { days - 146_096 } / 146_097;
+    let day_of_era = days - era * 146_097;
+    let year_of_era =
+        (day_of_era - day_of_era / 1_460 + day_of_era / 36_524 - day_of_era / 146_096)
+            / 365;
+    let mut year = year_of_era + era * 400;
+    let day_of_year = day_of_era
+        - (365 * year_of_era + year_of_era / 4 - year_of_era / 100);
+    let month_prime = (5 * day_of_year + 2) / 153;
+    let day = day_of_year - (153 * month_prime + 2) / 5 + 1;
+    let month = month_prime + if month_prime < 10 { 3 } else { -9 };
+    year += i64::from(month <= 2);
+    format!("{year:04}-{month:02}-{day:02}")
+}
+
+fn packaged_store_qualification_receipt_command(
+    closure_manifest: &Path,
+    suite_result: &Path,
+    out: &Path,
+) -> anyhow::Result<()> {
+    const IDENTITY_CODE: &str = "SNAPBACK_PACKAGED_STORE_QUALIFICATION_IDENTITY_UNQUALIFIED";
+    const SUITE_CODE: &str = "SNAPBACK_PACKAGED_STORE_QUALIFICATION_SUITE_UNQUALIFIED";
+    const CLOSURE_CODE: &str = "SNAPBACK_PACKAGED_STORE_QUALIFICATION_CLOSURE_INVALID";
+
+    let identity = crate::identity::binary_identity();
+    let build_distribution = crate::identity::build_distribution();
+    if !crate::manifest::packaged_store_runtime_identity_is_qualified(
+        &identity,
+        build_distribution,
+    ) {
+        anyhow::bail!(
+            "{IDENTITY_CODE}: receipt minting requires a known clean release public-package identity"
+        );
+    }
+
+    let suite = serde_json::from_value::<crate::manifest::PackagedStoreQualificationSuiteV1>(
+        read_json_file(suite_result)
+            .map_err(|error| anyhow::anyhow!("{SUITE_CODE}: {error:#}"))?,
+    )
+    .map_err(|error| anyhow::anyhow!("{SUITE_CODE}: invalid suite result: {error}"))?;
+    if !crate::manifest::packaged_store_qualification_suite_is_qualified(&suite) {
+        anyhow::bail!(
+            "{SUITE_CODE}: suite must pass at least one check with zero failures and zero skips"
+        );
+    }
+    let package_closure =
+        serde_json::from_value::<Vec<crate::manifest::PackagedStoreClosureEntryV1>>(
+            read_json_file(closure_manifest)
+                .map_err(|error| anyhow::anyhow!("{CLOSURE_CODE}: {error:#}"))?,
+        )
+        .map_err(|error| anyhow::anyhow!("{CLOSURE_CODE}: invalid closure manifest: {error}"))?;
+    if crate::manifest::packaged_store_closure_sha256(&package_closure).is_none() {
+        anyhow::bail!(
+            "{CLOSURE_CODE}: closure entries must be unique named versions with non-zero sha256 digests"
+        );
+    }
+    let seconds = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .context("system clock precedes the Unix epoch")?
+        .as_secs();
+    let receipt = crate::manifest::stamp_packaged_store_qualification_receipt(
+        &utc_date_from_unix_seconds(seconds),
+        &identity,
+        build_distribution,
+        package_closure,
+        suite,
+    )
+    .ok_or_else(|| anyhow::anyhow!("{CLOSURE_CODE}: receipt inputs failed validation"))?;
+    let mut bytes = serde_json::to_vec_pretty(&receipt).context("failed to serialize receipt")?;
+    bytes.push(b'\n');
+    std::fs::write(out, bytes)
+        .with_context(|| format!("failed to write qualification receipt {}", out.display()))?;
+    Ok(())
 }
 
 fn read_data_patch_input(path: &Path) -> anyhow::Result<Value> {
@@ -6848,17 +6992,9 @@ async fn restart_start_result(
     }
     #[cfg(unix)]
     {
-        use std::os::unix::process::CommandExt as _;
         // The replacement outlives this one-shot CLI process. MCP keeps its
         // child owner alive; the CLI uses a new session for equivalent custody.
-        unsafe {
-            command.pre_exec(|| {
-                if libc::setsid() == -1 {
-                    return Err(std::io::Error::last_os_error());
-                }
-                Ok(())
-            });
-        }
+        configure_detached_child(&mut command);
     }
     let mut child = match command.spawn() {
         Ok(child) => child,
@@ -9650,6 +9786,37 @@ mod tests {
     use std::path::{Path, PathBuf};
     use std::time::Duration;
     use tokio::net::TcpListener;
+
+    #[test]
+    fn packaged_store_receipt_cli_parses_and_dates_manifest_fields() {
+        let cli = Cli::parse_from([
+            "snapback",
+            "packaged-store-qualification-receipt",
+            "--closure-manifest",
+            "closure.json",
+            "--suite-result",
+            "suite.json",
+            "--out",
+            "receipt.json",
+        ]);
+        match cli.command {
+            Some(HostCommand::PackagedStoreQualificationReceipt {
+                closure_manifest,
+                suite_result,
+                out,
+            }) => {
+                assert_eq!(closure_manifest, PathBuf::from("closure.json"));
+                assert_eq!(suite_result, PathBuf::from("suite.json"));
+                assert_eq!(out, PathBuf::from("receipt.json"));
+            }
+            _ => panic!("expected packaged-store receipt command"),
+        }
+        assert_eq!(super::utc_date_from_unix_seconds(0), "1970-01-01");
+        assert_eq!(
+            super::utc_date_from_unix_seconds(1_775_174_400),
+            "2026-04-03",
+        );
+    }
 
     #[test]
     fn guide_cli_parses_multiword_queries_and_root_help_names_both_channels() {

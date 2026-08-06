@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "1c08d92e95e8e2eb64d4b527f35bd7e9fb9ba881"
+    "commit": "d4d68ce4587feb5d5bf14e5fd47998278c04219d"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -1494,7 +1494,7 @@
       "examples": [],
       "reviewed": "2026-08-06",
       "reviewedCommit": "850427c31b9a668d55b46995e08389cd13a2c9b6",
-      "sha256": "579795fe0c00f85ec4cc2f998741d4435d54c609a5c46e83fea4e6bf2d3630d0",
+      "sha256": "bd02ec83253d0c847720ffcf927580d4561d7bfbe684d1bfd409ff7d59af1afc",
       "snippets": []
     },
     "clients.app-cli": {
@@ -2537,7 +2537,7 @@
       ],
       "reviewed": "2026-08-06",
       "reviewedCommit": "HEAD",
-      "sha256": "f53d2e7ee32406d832c52b75bbb23e982d2baf4dbbe89aef820dff7cafeebc7d",
+      "sha256": "191b62edf64b42e0208a4c03d7ab180dffb4110e70185ff2d842704d7d861540",
       "snippets": [
         {
           "lang": "js",
@@ -2778,7 +2778,7 @@
       ],
       "reviewed": "2026-08-03",
       "reviewedCommit": "6e5d69d1037c6042fb9338221dfb489e00f5f78a",
-      "sha256": "b16f362300516f1d5e77f287a08b3ebe97d2c54ac5172e50b22bb2260534c9ca",
+      "sha256": "d861b6d37d482b88be41bd40c6d1ad002a5aefa09f02bc4c64d429f2a8386e98",
       "snippets": [
         {
           "lang": "js",
@@ -2836,7 +2836,7 @@
       ],
       "reviewed": "2026-08-04",
       "reviewedCommit": "HEAD",
-      "sha256": "110621f80326afdae3c86dbaff05125fb2e85705a80a43f720bcbc27a2730c97",
+      "sha256": "98314bee7bbaa376bed4299007c55051107b9248e7acd51e225fcb46a212788d",
       "snippets": [
         {
           "lang": "js",
@@ -3122,7 +3122,7 @@
       ],
       "reviewed": "2026-08-06",
       "reviewedCommit": "711e4d763d87cadf0c638bd15ed33a85427e4f11",
-      "sha256": "5367f35a6f8f2067bfe02e76ce91e2116ec3a53aa4faeef53d46cd44e9b4d154",
+      "sha256": "2c3d4c8f352b76ae22902110fa0184043b90f3b144cc23684af88afa05c27d3b",
       "snippets": [
         {
           "lang": "js",
@@ -3368,5 +3368,5 @@
     "routes": 122,
     "hostOps": 43
   },
-  "contentHash": "958eca16f1e41635635a0194c717bf9a208b56e810fe066577061555b026a7ca"
+  "contentHash": "75d4455611a2714ea09a013f000315ccd67191dfedfdf03eefcd911547586099"
 }

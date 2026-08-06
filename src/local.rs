@@ -6612,7 +6612,7 @@ impl LocalSnapback {
     ///
     /// @ref LLP 0162#safe-current-head-forks — product creation is current
     ///   head, same app/bundle, server named, and no broader than its creator.
-    #[allow(dead_code)]
+    #[cfg(test)]
     pub(crate) fn create_operator_in_app_branch(
         &mut self,
         allowed_functions: Vec<String>,
@@ -14583,7 +14583,10 @@ impl LocalSnapback {
         Ok(commit)
     }
 
-    #[allow(clippy::too_many_arguments)]
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "the detached commit gate keeps independent authority and lifecycle checks explicit"
+    )]
     pub(crate) fn commit_detached_ibex_mutation_guarded<G, Check, BeforeCommit>(
         &mut self,
         name: &str,

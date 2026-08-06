@@ -1,0 +1,67 @@
+{
+  "schemaVersion": "snapback.packaged-store-qualification.v1",
+  "capabilityId": "single_table_v1",
+  "date": "2026-08-06",
+  "binaryIdentity": {
+    "crateVersion": "0.1.0",
+    "gitCommit": "dbfeee26a3d565d5f39e6facaecc1d259348f01b",
+    "gitDirty": false,
+    "buildProfile": "release",
+    "buildDistribution": "public-package"
+  },
+  "embeddedCarrierSha256": "sha256:86e67bd78aee49404647247c291266a66110bd6b9f5654c20867a625cc37abb3",
+  "packageClosure": [
+    {
+      "name": "@expo/snapback-app-cli",
+      "version": "0.1.11-qual.0",
+      "sha256": "sha256:c24ddab8b844b99d0ef299b56c7371aa5479898849c7eecb3f87b6dd9ec3518a"
+    },
+    {
+      "name": "@expo/snapback-cli",
+      "version": "0.1.11-qual.0",
+      "sha256": "sha256:055c0edd527d6cf191953eb7387a4b32906e2e8f5773c9ba30eff7ea1127da6d"
+    },
+    {
+      "name": "@expo/snapback-client",
+      "version": "0.1.11-qual.0",
+      "sha256": "sha256:3a00a8cd73ad8ad0db67aaa766a820a1227becd1648688b38bf0e117b843ae6f"
+    },
+    {
+      "name": "@expo/snapback-codegen",
+      "version": "0.1.11-qual.0",
+      "sha256": "sha256:cedfd13541cb27e62352433a22d67f7d17c6e59ff2fbb58b862ac0d1d5e0b190"
+    },
+    {
+      "name": "@expo/snapback-contract",
+      "version": "0.1.11-qual.0",
+      "sha256": "sha256:e47fdeb8a8c132323e2ee923651bb605b9de9116bc0b782fc157d4f0b4192650"
+    },
+    {
+      "name": "@expo/snapback-expo",
+      "version": "0.1.11-qual.0",
+      "sha256": "sha256:cb5abf6da9b4e9ac960b30d19986cf0d894316d117c2c23a19585915fb3df199"
+    },
+    {
+      "name": "@expo/snapback-react",
+      "version": "0.1.11-qual.0",
+      "sha256": "sha256:b23704bea5f36fdd53cdfda5f86dcb22ed99c37e041e49c40c806de984670c8c"
+    },
+    {
+      "name": "@expo/snapback-runtime-linux-x64",
+      "version": "0.1.11-qual.0",
+      "sha256": "sha256:886c7457e314beadcda683c35995a8fca3c81575ba21ade791e7afb5f994981d"
+    },
+    {
+      "name": "@expo/snapback-vite",
+      "version": "0.1.11-qual.0",
+      "sha256": "sha256:ea6c2e6871b3942de775fba8a6a2738436bd5504666aa4e5a325d27360d5d5bd"
+    }
+  ],
+  "packageClosureSha256": "sha256:464275a32168edf97d40f584630a14749d325e172bec3c9d273f196788f16669",
+  "suite": {
+    "id": "packaged-store-qualification-v1",
+    "pass": 3,
+    "fail": 0,
+    "skipped": 0
+  }
+}

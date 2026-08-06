@@ -164,6 +164,12 @@ export function scrubDynamicLoaderEnvironment(
   environment?: EnvironmentVariables,
 ): Record<string, string | undefined>;
 
+/** Add an adjacent packaged-store receipt unless the caller already set one. */
+export function runtimeSpawnEnvironment(
+  binary: string,
+  environment?: EnvironmentVariables,
+): Record<string, string | undefined>;
+
 // ---------------------------------------------------------------------------
 // Runtime selection and doctor
 // ---------------------------------------------------------------------------
@@ -554,4 +560,5 @@ export const __test: {
   readReadyDescriptor: typeof readReadyDescriptor;
   runtimePackages: Record<string, string>;
   scrubDynamicLoaderEnvironment: typeof scrubDynamicLoaderEnvironment;
+  runtimeSpawnEnvironment: typeof runtimeSpawnEnvironment;
 };

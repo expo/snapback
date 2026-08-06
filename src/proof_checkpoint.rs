@@ -2098,7 +2098,10 @@ fn placeholder_receipt(
     }
 }
 
-#[allow(clippy::too_many_arguments)]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "the recovery receipt records independent checkpoint facts that must remain explicit"
+)]
 fn checkpoint_recovery_intent(
     checkpoint_id: &str,
     request: &NamedCheckpointRequestV1,

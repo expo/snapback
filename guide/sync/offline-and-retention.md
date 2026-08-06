@@ -19,6 +19,19 @@ reviewed-commit: 711e4d763d87cadf0c638bd15ed33a85427e4f11
 > Hosted targets make deliberately weaker or different claims — see
 > [auth/targets](../auth/targets.md).
 
+> **Published npm packages cannot reach platform retention yet.** On the
+> published `@expo/snapback-*` closure (0.1.10), declaring
+> `authorityIndependent: true` forces the experimental `single_table_v1`
+> capability, which public-package runtime builds refuse as a structured GAP
+> (`SNAPBACK_CAPABILITY_UNSUPPORTED` at dev-server start). The platform
+> cold-retention path this page teaches therefore works only on
+> contributor-source builds today. The 2026-08-06 LLP 0110/0166 author
+> amendment opens public-package advertisement for `single_table_v1` — clean
+> release build identity plus the embedded carrier plus a packaged-closure
+> qualification receipt — and it reaches npm consumers when the 0.1.11
+> closure publishes. Until then the only offline story on the published
+> packages is an app-level cache you persist yourself.
+
 The Contract adapter can retain the last authoritative query snapshot, render
 derived optimistic changes while offline, and replay a durable mutation outbox
 in order after reconnect. It reports this as `Parity` only when every

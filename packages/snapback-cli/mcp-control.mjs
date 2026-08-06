@@ -23,7 +23,7 @@ import {
   native,
   readReadyDescriptor,
   resolveRuntimeBinary,
-  scrubDynamicLoaderEnvironment,
+  runtimeSpawnEnvironment,
   validateDevTarget,
   waitForReady,
 } from './index.mjs';
@@ -1012,7 +1012,7 @@ export class McpControlServer {
     const request = { jsonrpc: '2.0', id: 1, method, params };
     const result = spawnSync(runtime.binary, ['mcp'], {
       cwd: this.projectRoot,
-      env: scrubDynamicLoaderEnvironment(this.env),
+      env: runtimeSpawnEnvironment(runtime.binary, this.env),
       encoding: 'utf8',
       input: `${JSON.stringify(request)}\n`,
       timeout: 30_000,
@@ -1612,7 +1612,7 @@ export class McpControlServer {
         const runtime = this.resolveRuntime();
         const child = spawn(runtime.binary, ['start', '--ready-file', this.readyFile, '--db', this.database], {
           cwd: this.projectRoot,
-          env: scrubDynamicLoaderEnvironment(this.env),
+          env: runtimeSpawnEnvironment(runtime.binary, this.env),
           stdio: 'ignore',
         });
         this.child = child;
