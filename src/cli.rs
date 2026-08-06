@@ -80,6 +80,36 @@ fn auth_policy_unavailable(message: &'static str) -> crate::diagnostic::Snapback
     )
 }
 
+/// The settled-sessions startup pin refusing a regenerated artifact pair is
+/// correct, but it must not dead-end: even a comment-only source edit rotates
+/// the complete deployment identity (the source-byte identity contract), and
+/// without named repair paths authors reverse-engineer an ad-hoc local-store
+/// rollover. Name both supported ways forward on the refusal itself: the
+/// data-preserving live evolution through the running server, and the
+/// data-discarding backup-then-reseed procedure with the real backup command.
+// @ref LLP 0058#cold-startup-artifact-carrier — "this is not a wedge": the
+// refusal must carry its own repair, not just the expected identity
+// (issues/20260805-doc-comment-artifact-mismatch-no-successor-migration.md).
+fn with_settled_pin_repair(
+    mut error: crate::diagnostic::SnapbackError,
+    database: &Path,
+) -> crate::diagnostic::SnapbackError {
+    if let Value::Object(details) = &mut error.diagnostic.details {
+        details.insert(
+            "repair".to_owned(),
+            json!({
+                "keepData": "restart on the startup carrier matching expectedDeployment (regenerate it from the previous sources if needed), then apply the changed sources through the running server's live reload (`snapback dev` watch reload): the running-server provision moves the pinned deployment forward without touching local data",
+                "reseedFresh": format!(
+                    "to discard local data instead: back up the store with `snapback auth backup --db {} --output <ignored-backup-dir>`, move or delete the database file, then restart on the new carrier to reseed from scratch",
+                    database.display()
+                ),
+                "safety": "the refusal is auth-mode deployment state (LLP 0058), not a runtime or codegen defect; do not hand-edit generated artifacts or hashes to match the pin",
+            }),
+        );
+    }
+    error
+}
+
 /// Run a bounded synchronous startup transaction without occupying a Tokio
 /// worker. CLI composition owns `LocalSnapback` directly until listener bind,
 /// so the request-path `spawn_blocking` helpers cannot move a `'static` mutex
@@ -228,7 +258,10 @@ async fn compose_auth_mode_startup_with_embedded(
                     snapback.preflight_auth_artifacts(carrier, AuthMode::Sessions)
                 })?;
                 carrier.require_deployment(expected).map_err(|error| {
-                    with_expected_deployment(error, Some(expected), Some(&observed))
+                    with_settled_pin_repair(
+                        with_expected_deployment(error, Some(expected), Some(&observed)),
+                        &args.db,
+                    )
                 })?;
                 if carrier.seed.is_some() {
                     return Err(crate::diagnostic::SnapbackError::error(
@@ -7990,6 +8023,82 @@ mod tests {
                 .await
                 .unwrap();
         assert_eq!(restarted.active, AuthMode::Sessions);
+    }
+
+    /// issues/20260805-doc-comment-artifact-mismatch-no-successor-migration.md:
+    /// a comment-only source edit rotates the functions bundle identity, and
+    /// the settled restart correctly refuses — but the refusal must name the
+    /// supported repair paths (live evolution through the running server, or
+    /// the `snapback auth backup` backup-then-reseed procedure) instead of
+    /// dead-ending on the identities alone.
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn settled_sessions_pin_refusal_names_supported_repair_paths() {
+        use crate::auth::mode::{AuthProgramReadiness, FUNCTION_V1_PREFIX};
+        use crate::auth::provider::AuthProviderProfile;
+        use crate::local::LocalSnapback;
+        use crate::manifest::AuthMode;
+
+        let directory = tempfile::tempdir().unwrap();
+        let database = directory.path().join("app.sqlite3");
+        let carrier = directory.path().join("startup.json");
+        sessions_startup_carrier(&carrier);
+        let args = Args {
+            db: database.clone(),
+            startup_artifacts: Some(carrier.clone()),
+            ..Args::default()
+        };
+        let mut snapback = LocalSnapback::open(&database).unwrap();
+        let mut runtime = crate::auth::runtime::AuthRuntime::inspect(
+            &mut snapback,
+            Some(&database),
+            AuthProviderProfile::Test,
+        )
+        .unwrap();
+        let readiness = AuthProgramReadiness::new(true, true, true, true, false, false, false);
+        let settled =
+            super::compose_auth_mode_startup(&args, &mut snapback, &mut runtime, &readiness)
+                .await
+                .unwrap();
+        assert_eq!(settled.active, AuthMode::Sessions);
+
+        // The doc-comment edit case: only the functions bundle identity moved.
+        let mut regenerated: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&carrier).unwrap()).unwrap();
+        regenerated["functions"]["bundleHash"] =
+            json!(format!("{FUNCTION_V1_PREFIX}{}", "d".repeat(64)));
+        std::fs::write(&carrier, serde_json::to_vec(&regenerated).unwrap()).unwrap();
+
+        let error =
+            super::compose_auth_mode_startup(&args, &mut snapback, &mut runtime, &readiness)
+                .await
+                .unwrap_err();
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH"
+        );
+        let details = &error.diagnostic.details;
+        assert_ne!(
+            details["expectedDeployment"]["bundleHash"],
+            details["observedDeployment"]["bundleHash"],
+            "the refusal still carries both exact deployment identities"
+        );
+        let repair = &details["repair"];
+        let keep_data = repair["keepData"].as_str().unwrap();
+        assert!(
+            keep_data.contains("running server") && keep_data.contains("watch reload"),
+            "keepData names the live-evolution migration path: {keep_data}"
+        );
+        let reseed = repair["reseedFresh"].as_str().unwrap();
+        assert!(
+            reseed.contains("snapback auth backup --db")
+                && reseed.contains(&database.display().to_string()),
+            "reseedFresh names the exact backup command for this store: {reseed}"
+        );
+        assert!(
+            repair["safety"].as_str().unwrap().contains("LLP 0058"),
+            "safety attributes the pin to auth-mode state"
+        );
     }
 
     #[cfg(unix)]
