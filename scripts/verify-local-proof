@@ -138,6 +138,7 @@ run guide --requires generated-artifacts -- node scripts/check-guide.mjs
 # `cargo test --test control_catalog_registry_export`, run alongside other
 # Rust suites, not by this docs/JS-only step).
 run control-catalog -- node scripts/generate-control-catalog.mjs --check
+run control-catalog-fixtures -- node --test scripts/generate-control-catalog.test.mjs
 # ENG-25268: hand-authored Contract helper sidecars are checked against their
 # exported TypeScript parameter lists; structural result regression catches
 # the All Aboard `headsgn` typo at compile time.
