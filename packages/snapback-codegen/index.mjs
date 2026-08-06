@@ -4188,7 +4188,9 @@ export async function generateInProcess(backendDir, options = {}) {
   const remoteServiceArtifactFiles = remoteServicePublication?.artifacts.map((artifact) => artifact.file) ?? [];
   const legacyArtifactIndex = {
     artifactKind: 'artifactIndex',
-    schemaVersion: SCHEMA_VERSION,
+    // @ref LLP 0037#revisit-triggers — this codegen-owned review index follows
+    // the paired auth artifact generation, not the Rust-owned capability format.
+    schemaVersion: artifactVersion,
     appId,
     inputsHash,
     generatedAt,

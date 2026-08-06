@@ -17,6 +17,7 @@ import {
   VERIFY_RECEIPT_SCHEMA_VERSION,
   aggregateConformance,
   defaultVerifyConfig,
+  probeAdmission,
   probeArtifactFreshness,
   runVerify,
   validateVerifyReceipt,
@@ -116,6 +117,30 @@ let cases = 0;
   assert.equal(receipt.recommendedNext, undefined);
   validateVerifyReceipt(receipt);
   cases += 1;
+}
+
+{
+  const scratch = mkdtempSync(join(tmpdir(), 'snapback-verify-sessions-admission-'));
+  const backend = join(scratch, 'app', 'snapback');
+  mkdirSync(dirname(backend), { recursive: true });
+  cpSync(new URL('./fixtures/push-seam/app/snapback', import.meta.url), backend, {
+    recursive: true,
+    filter(source) { return !source.split('/').includes('generated'); },
+  });
+  try {
+    const generated = await generate(backend);
+    assert.equal(generated.ok, true, JSON.stringify(generated.diagnostics));
+    const fresh = await probeArtifactFreshness(defaultVerifyConfig({ backendDirectory: backend }));
+    assert.equal(fresh.ok, true, JSON.stringify(fresh.diagnostics));
+    const admission = probeAdmission(fresh);
+    assert.equal(admission.ok, true, JSON.stringify(admission.diagnostics));
+    assert.equal(fresh.identity.schemaVersion, 'snapback.v1');
+    assert.equal(fresh.manifests.schema.schemaVersion, 'snapback.v1');
+    assert.equal(fresh.manifests.functions.schemaVersion, 'snapback.v1');
+    cases += 1;
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
 }
 
 const failureMatrix = [
