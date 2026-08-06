@@ -1622,3 +1622,53 @@ canonical gate had not been assigned to any cadence group. The checked policy
 now classifies it beside v1 parity in both the publication and versioned-seed
 groups. All 134 canonical gates classify, the 12 selector/inventory fixtures
 pass, and an exact complete selection receipt validates before execution.
+
+### Combined wave-drift KEEP-GOING disposition — 2026-08-06
+
+The first exact complete proof for this final batch retained ten root failures
+in `/tmp/snapback-complete-proof.YeS2XN/local-proof.log`: Fleet receipt,
+demo materialization, Clippy, Rust, local-store carrier, the real CLI server
+suite, served app CLI, both fork suites, and the app-CLI package. The blocked
+required-surface, headsign, artifact-hygiene, auth-invalidation, and file-drop
+gates were consequences of those roots rather than additional failures.
+
+The carrier and inventory roots were batched as this ticket requires. The real
+Triage producer passed 8/8 over 250,000 events, Fleet passed 8/8, and the
+browser-backed local-store producer passed 17 PASS / 0 GAP / 0 SKIPPED. The
+mechanical finalizer refreshed relation/activity, sequence allocation, and the
+persistent-store carrier; all three conformance checks pass. Generated
+artifacts, deployment identity, the 226-package-test / 24-demo /
+276-publication-leaf / 60-guide-page inventory, and demo materialization now
+pass. The 56-profile client-bundle current report was refreshed for the
+combined root lockfile and its full behavior train passes without a frozen
+ceiling regression.
+
+Strict all-target Clippy exposed only integration debt: a duplicate ephemeral
+dispatch arm, one needless return, one explicit fork-lock truncate posture,
+and one needless test borrow. Those mechanical repairs pass
+`cargo clippy --all-targets -- -D warnings`; no fork or push behavior changed.
+The first real CLI server timeout did not reproduce: the complete package
+suite, including its managed-backend journey, passes against the exact
+qualified binary. The app-CLI failures belonged to main landing `f8d14ae5b`,
+which had overwritten the already-reviewed LLP 0062 dev assertion option at
+the auth-client construction seam. Restoring that existing option makes the
+package suite and all 20 served-journey checks pass, including the sessions
+target's refusal of the legacy body assertion.
+
+The Rust admin coverage test was already green after the later main merge. The
+remaining diagnostic inventory debt was the F0a landing's three unclassified
+server-invariant codes and now passes after their explicit LLP 0158 500-class
+registration. Both F0a acceptance setups were correctly refusing a foreign
+canonical-root binding: carrier commit `1eb88cc4c` had accidentally tracked
+`demos/todo/.snapback/instance-fork-app-identity.v1.json` with another
+worktree's absolute path. The generated receipt is removed and precisely
+ignored; the fail-closed binding remains unchanged. On the exact qualified
+candidate, `forked-parent` passes 4/4 and `fork-parallel-dispositions` passes
+7/7. The owning ticket is closed with the full attribution and evidence.
+
+The retained Linux telemetry receipt remains honestly `HISTORICAL_VALID` and
+`LAGGING`: accepted for this ordinary proof-greening merge, not accepted for a
+new release or capability-promotion claim, with a rolling full proof requested.
+No host repair, admin access, bootstrap bypass, telemetry remint, npm publish,
+or second capstone run is part of this batch. A complete KEEP-GOING proof on
+the exact committed candidate is the closing gate before this branch lands.
