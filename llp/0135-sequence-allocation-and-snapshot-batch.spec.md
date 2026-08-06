@@ -6,7 +6,11 @@
 generation, Authorization, Live Queries, Diagnostics, Testing, Demo apps
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-31
-**Revised:** 2026-08-05 (author ruling: admit `relational_query_v1@1`
+**Revised:** 2026-08-06 (dated note: the commissioned reviewed
+registry/cursor amendment landed as LLP 0157 v0.11, pinning the
+`snapshot-batch.v2` row, exact `sbsb2` bytes, and this Spec's four ruling
+choices there; v1 bytes/semantics unchanged, implementation and vectors
+still outstanding). 2026-08-05 (author ruling: admit `relational_query_v1@1`
 narrowly through the reserved, versioned `snapshot-batch.v2` / `sbsb2`
 successor; v1 remains byte-compatible and bounded-children-only, and no
 implementation or capability claim follows before the reviewed profile
@@ -817,7 +821,18 @@ establishment-time refusal).
 > can be well-formed while the authored result contract has drifted;
 > collapsing the two would hide which artifact to fix. Recorded here so
 > no parallel wire code rides unspecified
-> (`issues/20260803-snapshot-batch-unspecified-diagnostic.md`). New stable public runtime diagnostics:
+> (`issues/20260803-snapshot-batch-unspecified-diagnostic.md`).
+
+> Dated addition (2026-08-06): the implementation also emits
+> `SNAPBACK_SNAPSHOT_BATCH_CURSOR_MINT_UNAVAILABLE`, §2.4's custody-grounds
+> mint refusal (keyring unavailable or retired), publicly classified and
+> distinct from `SNAPBACK_SNAPSHOT_BATCH_CURSOR_INVALID`: it refuses the
+> page without surrendering pagination position and never converts a
+> nonterminal page into a terminal one. Registered here with the LLP 0157
+> v0.11 amendment so no public code rides unregistered — the same residue
+> pattern as the 2026-08-04 addition above.
+
+New stable public runtime diagnostics:
 `SNAPBACK_SEQUENCE_EXHAUSTED`, `SNAPBACK_SEQUENCE_UNDECLARED` (a
 runtime ctx-boundary refusal — generation cannot see through
 imperative handler code, so the undeclared-allocation check enforces
@@ -1276,6 +1291,29 @@ itself activate the fourth profile, publish support, close Move 1, or fill the
 Fleet carrier row. Those claims require the LLP 0157 registry/cursor amendment,
 cross-language vectors, implementation, and fresh Fleet receipts.
 
+> **Dated note (2026-08-06):** the commissioned registry/cursor amendment
+> landed as LLP 0157 v0.11: the `snapshot-batch.v2` registry row, the exact
+> `sbsb2` cursor record and budget, and this ruling's four pinned choices
+> (cursor binding, resume/restart, sealing, work accounting) are now
+> normative there, with the required cross-language parity-vector
+> obligations specified. Under that profile, an authored result contract
+> that narrows the two-arm §2.3 envelope is the same load-time
+> result-contract mismatch: `SNAPBACK_SNAPSHOT_BATCH_RESULT_CONTRACT_INVALID`
+> refuses it (dated extension of the 2026-08-04 addition; the v1 trigger is
+> unchanged). LLP 0157 §D8 also records the snapshot-batch
+> (`sbsb1`/`sbsb2`) family's validation precedence explicitly: the
+> authority-partition comparison is evaluated before the stream/restore-
+> epoch comparison, and because those families' bound partition digest
+> contains the stream incarnation, a genuine rotation collapses to the
+> invalid-cursor class and the restart-on-epoch outcome is the tamper-only
+> case — the order this Spec's 2026-08-03 implementation record shipped.
+> `sbbc1`'s owner-specific binding and restart outcomes are LLP 0110's and
+> are unchanged. This Spec remains the execution owner; nothing in
+> the amendment changes `snapshot-batch.v1`, `sbsb1`, or `snapshot_batch_v1`
+> bytes or semantics. Implementation, frozen vectors, capability
+> publication, and the fresh Fleet receipt remain outstanding; LLP 0157
+> §D1's gate list is canonical.
+
 ## Nonclaims
 
 - **No aggregates, in either part.** No readable counter value, no counts,
@@ -1329,8 +1367,11 @@ cross-language vectors, implementation, and fresh Fleet receipts.
 5. **Resolved by the 2026-08-05 owner ruling above.** V1 stays
    bounded-children-only. The narrow `snapshot-batch.v2` direction and its
    argument binding, relational boundary/terminal/restart mapping, no-parent
-   seal semantics, and joined-lookup accounting are fixed; exact `sbsb2` bytes
-   and executable admission remain gated on the reviewed amendment.
+   seal semantics, and joined-lookup accounting are fixed; the reviewed
+   amendment pinning the exact `sbsb2` bytes landed 2026-08-06 as LLP 0157
+   v0.11 (dated note above), and executable admission remains gated on
+   LLP 0157 §D1's canonical gate list (executor, frozen cross-language
+   vectors, capability publication authority).
 6. The successor shape for locally executed allocating operations: a
    speculative placeholder re-derived at settlement would need a
    sequence-map analog, and a small-integer leaf rewrite is unsound
