@@ -47,3 +47,35 @@ Verdict (0187): NOT READY
 2. **MATERIAL — The external context surface depends on a known-broken projection that neither document schedules for repair.** LLP 0186’s `/llms.txt` points agents at `flat.md` and the capability index (`llp/0186-agent-authoring-efficiency-program.plan.md:236-238`). LLP 0061 defines that flat projection as a one-request rendering of the entire authoring surface and justifies it at approximately 130 KB (`llp/0061-agent-first-snapback-guide.rfc.md:475-492`). The current projection is 718,436 bytes—over five times that premise—and LLP 0187 acknowledges that this breaks the one-request channel but leaves diet/tiering as an open question followed only by “Ticket regardless” (`llp/0187-agent-discoverability-routing.rfc.md:339-343`). No corresponding open ticket or assigned wave exists under `issues/`. Because the projection is a direct dependency of 0186’s flagship context-injection artifact and a distribution concern owned by 0061, the cluster needs an explicit owner and disposition before `/llms.txt` can be claimed as an effective agent surface.
 
 Verdict (set): NOT READY
+## Round 2 — 2026-08-06 — delta round — verbatim review
+
+**Round record:** delta round per LLP 0010 §2 addendum (delta enumerated in the instruction file; concerns classified IN-DELTA vs PRE-EXISTING). Fresh reviewer, same runtime as round 1 (codex exec, gpt-5.6-sol, xhigh, read-only sandbox). Blindness this round instruction-based (round-1 artifacts existed in llp/reviews/), self-attested. Instruction file sha256 872764797c1d0d6c9fdf509450e3d20bd3a91502225a79dd5bd6e17d663da7e1.
+**Bound to revision (b):**
+- 0186 sha256 73d2f0eeb456094b81bb382febb868c2832ff6a067173fa8917b6ee38236eaaa
+- 0187 sha256 90a9616c7c5bcd138a96f475ef1cf29a5443f3a5723bb6decba7eb6978ed4b8a
+
+Revision-(b) hashes match the targets. Most delta claims are repository-supported: the named commits and closed/open tickets align, LLP 0041 confirms the `0.1.8` fast path, LLP 0146 confirms D1–D3 versus D7 status, and the flat guide is exactly 718,436 bytes / 13,948 lines. The reciprocal retrieval-eval landing owner is also coherent. Material evidence, dependency, benchmark-gate, and ownership defects remain, so the cluster is not ready.
+
+## LLP 0186
+
+1. **MATERIAL, PRE-EXISTING — The central benchmark evidence conflates two separate bakeoffs.** The exact 26m03s/11m15s measurement exists only in `diaries/0058-relay-room-expo-backend-bakeoff.diary.md` §Measurement. That diary explicitly says Relay Room had its own model, test data, scripts, and measurements independent of Tandem. `diaries/0059-tandem-expo-messaging-bakeoff.diary.md` describes another implementation and provides no lane timing or token accounting. Therefore LLP 0186’s claim that diaries 0058 and 0059 produced those numbers “with the same agent harness” is false. The adjacent assertion that “almost all” of the 2.3× loss has been decomposed is also stronger than the evidence: Relay Room’s clock includes UI, bundles, offline proof, debugging, and issue filing, without a recorded causal time decomposition. Scope the 2.3× baseline and timing attribution to Relay Room; retain Tandem as qualitative replication.
+
+2. **MATERIAL, IN-DELTA — The claimed independence from companion acceptance contradicts W2.** The revised Summary says the Plan “does not depend on” acceptance of LLPs 0176/0179, but W2 requires a scaffold carrying LLP 0176’s conversation surface and calls itself a consumer of those gates. Repository evidence shows that surface is still proposed: LLP 0179 §S1 maps it to LLP 0176 G2, and LLP 0179 remains `Review`; LLP 0176 G2 is likewise future work. Split W2 into independently shippable skill/alias work and a scaffold explicitly gated on acceptance and implementation of LLP 0179 S1 / LLP 0176 G2.
+
+3. **MATERIAL, PRE-EXISTING — The release-blocking ratchet is specified before its statistical contract exists.** W1 says a timing or token regression beyond an unspecified tolerance fails the release gate, while OQ1 leaves the benchmark epoch/model unresolved and OQ2 leaves tolerance, repetition count, and cadence unresolved. The evidence currently contains one instrumented timing pair and no token baseline. This is not yet a feasible release gate. W1 needs a measurement-only calibration phase and an explicit adoption gate for sample count, variance treatment, epoch pinning, tolerance, and cost before benchmark variance may block releases.
+
+Verdict (0186): NOT READY
+
+## LLP 0187
+
+1. **MATERIAL, PRE-EXISTING — The Summary still claims authority that the revised body assigns to LLP 0061.** The Summary says LLP 0187 owns the CLI/package documentation surface and published-closure fences. T4 instead says guide distribution and the `snapback guide` carrier are LLP 0061 amendments; T5 says the closure fence is an LLP 0061 frontmatter/checker amendment; Non-goals explicitly says LLP 0187 does not own distribution carriers or the frontmatter contract. LLP 0061 §Distribution and discovery confirms that authority. Rewrite the Summary to distinguish LLP 0187’s ownership of diagnosis, requirements, and prioritization from LLP 0061’s ownership of the resulting contracts and carriers.
+
+2. **DETAIL, IN-DELTA — T1’s “landed” description overstates the sweep’s exact result.** Commit `213607235` and current guide pages verify the relational-query, presence, asset-recipe, and React/Expo console routing. However, only `guide/clients/react-expo.md` carries the claimed admin-console pointer; `guide/clients/react.md` and `guide/clients/headless.md` do not. Also, the exact wrong-guess string `useSnapbackEphemeral` appears in page prose but not in the `guide/capabilities.md` alias row or a page heading, despite T1 requiring both locations. The routing fix works in substance, but the worked-example inventory should match what actually landed.
+
+Verdict (0187): NOT READY
+
+## Cluster (set-level)
+
+1. **MATERIAL, IN-DELTA — The combined sequence does not separate independent routing artifacts from golden-path dependencies.** LLP 0186 places the authoring skill, aliases, `/llms.txt`, and the LLP 0176 conversation-surface scaffold in one W2 ownership bucket; LLP 0187 T4 then schedules its funnel alongside W2 and the qualified npm promotion. But the scaffold depends on LLP 0179 S1 / LLP 0176 G2, while the external proof depends later on LLP 0176 G4. The cluster needs an explicit dependency graph: independent W2 routing artifacts after W0; scaffold only after G2/S1; external qualification only after the qualified publication and G4 prerequisites. Without that split, “W2 after W0” has no single executable meaning.
+
+Verdict (set): NOT READY

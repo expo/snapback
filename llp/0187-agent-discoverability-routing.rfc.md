@@ -6,7 +6,7 @@
 Diagnostics
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-05
-**Revised:** 2026-08-06 (b — round-1 dual-family review reconciliation)
+**Revised:** 2026-08-06 (c — post-loop targeted fixes from round-2 verified findings; revision (c) itself is unreviewed)
 **Related:** LLP 0016, LLP 0061, LLP 0146, LLP 0176, LLP 0177, LLP 0178, LLP
 0179, LLP 0184, LLP 0186
 
@@ -43,10 +43,12 @@ out-of-repo discovery funnel, published-closure truthfulness, a smaller
 search space, and a miss-to-eval regression loop — most of which lands as
 scoped work inside existing owners (LLP 0061, 0178, 0179, 0184, 0176, and
 LLP 0186's context-injection wave). This document owns the cross-cutting
-diagnosis, the ranking, and the techniques no other document owns:
-decision-point cross-linking with intra-corpus vocabulary bridging, the
-CLI/package documentation surface, published-closure fences, and the
-standing miss-to-eval regression rule.
+diagnosis, the ranking, and the standing miss-to-eval regression rule,
+and it carries the evidence and requirements for decision-point
+cross-linking with intra-corpus vocabulary bridging, the CLI/package
+documentation funnel, and the published-closure fence — each of which
+lands as a scoped amendment to LLP 0061, which owns the resulting
+conventions, contracts, and carriers (T1/T4/T5).
 
 **Relation to LLP 0186 (authored concurrently, same evidence base):** 0186
 is the *efficiency program* — it owns the repeatable competitive benchmark
@@ -194,8 +196,9 @@ tickets); the live T1 work is the conventions amendment that makes the
 pattern mandatory for every future page.*
 
 Rule: **every "hard way" the guide teaches must name its paved
-alternative at the point of choice.** Concretely (all landed by the
-sweep; retained as the worked examples the convention generalizes):
+alternative at the point of choice.** Concretely (landed by the sweep on
+the pages it touched; retained as the worked examples the convention
+generalizes):
 
 - The `defineJsLiveQuery` teaching content states, before the first worked
   example: "if this handler is a plain join, `defineRelationalQuery`
@@ -225,7 +228,13 @@ amendment** to LLP 0061: anti-pattern sections gain a required "paved
 alternative" link, the alias column's charter expands to grep vocabulary,
 and a vocabulary split between a feature's schema side and client side is
 classified as a guide defect. Without the amendment, the sweep is a
-one-off that the next feature quietly fails to repeat.
+one-off that the next feature quietly fails to repeat. Known residuals
+the amendment must catch (present as of 2026-08-06):
+`guide/realtime/live-queries.md` carries a `defineJsLiveQuery` worked
+example with no relational pointer; the react and headless client pages
+still lack the console pointer the react-expo page gained; and the
+`useSnapbackEphemeral` wrong-guess literal appears in page prose but not
+yet in the capability index's alias row.
 
 ### T2 — Diagnostics as the router (delegated to LLP 0178)
 
@@ -249,8 +258,9 @@ The capability index answers existence questions in under a minute when
 consulted, and the misses show consultation is unreliable when optional.
 LLP 0184's entry ritual (`snapback agent setup` → `controls list --intent`)
 and its deferred Phase 1 items 4–5 (served, queryable catalog; generated
-guide tables replacing hand counts — which have already drifted, 28/39 vs
-30/41) are the structural form of "check the index first." Finish them.
+guide tables replacing hand counts — which had already drifted once,
+28/39 vs 30/41, since corrected by hand) are the structural form of
+"check the index first." Finish them.
 
 ### T4 — Build the out-of-repo funnel before it is tested for real
 

@@ -6,7 +6,7 @@
 Error handling, Code generation, Packaging, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-05
-**Revised:** 2026-08-06 (b — round-1 dual-family review reconciliation)
+**Revised:** 2026-08-06 (c — post-loop targeted fixes from round-2 verified findings; revision (c) itself is unreviewed)
 **Related:** LLP 0061 (agent-first guide), LLP 0130 (Convex parity standing
 decisions), LLP 0146 (agentic authoring affordances), LLP 0176 (Expo
 messaging golden-path program), LLP 0178 (generate-time authoring
@@ -20,22 +20,29 @@ base)
 Snapback should be the cheapest backend for a coding agent to build a real
 application on — measured in wall-clock time and tokens against Convex,
 Supabase, PocketBase, and hand-rolled Postgres — and today it is measurably
-not. The 2026-08-05 paired bakeoffs (diaries 0058 and 0059) put the same
-WhatsApp-shaped brief through Snapback and Convex with the same agent
-harness: **26m03s on Snapback vs 11m15s on Convex**, with the split biased
-in Snapback's favor because Snapback-only orientation reading was excluded
-from the clock.
+not. The 2026-08-05 paired bakeoffs
+(`diaries/0058-relay-room-expo-backend-bakeoff.diary.md` and
+`diaries/0059-tandem-expo-messaging-bakeoff.diary.md`; each arm ran its
+own agent and scripts) put the same WhatsApp-shaped brief through
+Snapback and Convex. The instrumented lane pair is the relay-room
+diary's: **26m03s on Snapback vs 11m15s on Convex**, biased in Snapback's
+favor because Snapback-only orientation reading was excluded from the
+clock; Tandem replicated the friction pattern qualitatively and recorded
+no lane timing.
 
 The central finding of this Plan is that the gap is **not primarily an LLM
-training-data problem**. Decomposed, almost all of the 2.3x loss is
-pre-product plumbing, misleading diagnostics, and shipped-but-undiscovered
-capability — enumerable, mostly cheap, and already largely ticketed. Once
+training-data problem**. Itemized, the dominant frictions behind the 2.3x
+loss are pre-product plumbing, misleading diagnostics, and
+shipped-but-undiscovered capability — enumerable, mostly cheap, and
+already largely ticketed (a qualitative attribution from the diaries'
+friction inventories — the relay-room clock was not causally itemized;
+building the instrument that can itemize it is W1's job). Once
 past setup, Snapback's semantics *saved* agent work relative to Convex
-(ephemeral typing, platform offline, typed assets); diary 0058's
-mature-hypothetical scoring flips the winner, and diary 0059's qualitative
-verdict splits the same way (Convex faster to a conventional live app,
-Snapback clearer on ephemeral and offline semantics). Training data is
-real but its
+(ephemeral typing, platform offline, typed assets); the relay-room
+diary's mature-hypothetical scoring flips the winner, and the Tandem
+diary's qualitative verdict splits the same way (Convex faster to a
+conventional live app, Snapback clearer on ephemeral and offline
+semantics). Training data is real but its
 near-term substitute is context injection: putting the right knowledge in
 front of the agent at zero search cost.
 
@@ -45,8 +52,9 @@ context-injection surface** (published agent skill, llms.txt, competitor
 vocabulary aliases, scaffold template) — and sequences the in-flight
 companion programs (0176/0178/0179/0181, 0146's author-ratified D1–D3
 tranche, 0184 — mostly still `Review`; this Plan makes prioritization asks
-to those owners and does not depend on their acceptance) by benchmark
-impact. It deliberately re-owns none of their mechanisms.
+to those owners and, except where an item is explicitly gated — the W2
+scaffold on LLP 0176 G2 / 0179 S1 — does not depend on their acceptance)
+by benchmark impact. It deliberately re-owns none of their mechanisms.
 
 **Relation to LLP 0187 (authored concurrently, same evidence base):** 0187
 owns the discoverability diagnosis and the in-corpus routing conventions —
@@ -240,7 +248,7 @@ agent installs.
 Exit (unchanged, and not yet met): a cold agent on a fresh, checkout-free
 machine reaches a live, phone-reachable backend from published packages
 with zero corrections not caused by its own authoring mistakes. The
-landed items make this *plausible from source*; only item 2 plus a
+landed items make this *plausible from source*; only items 2 and 5 plus a
 verifying cold run make it *true from npm*.
 
 ### W1 — Competitive benchmark and ratchet (owned here)
@@ -262,7 +270,11 @@ meter") — so today we cannot even state the metric we want to compete on.
   open question settles rather than inventing a competitor.
 - **Ratchet:** record per-release results under `benchmarks/`; a
   regression in Snapback time-to-first-live-backend or token count beyond
-  a tolerance fails the release gate, like a performance benchmark.
+  a tolerance fails the release gate, like a performance benchmark. The
+  ratchet starts measurement-only: it becomes release-gating only after a
+  calibration phase resolves OQ1/OQ2 (pinned model/epoch, repetition
+  count, variance treatment, tolerance, run cost) — until then a breach
+  is a report, not a block.
 - **Fairness rules:** carry the diaries' caveats forward — auth parity
   labeled explicitly, offline/durability guarantees scored rather than
   line counts alone, so the ratchet never rewards omitting guarantees.
@@ -310,7 +322,10 @@ internal LLP tooling only), and no competitor-vocabulary indexing.
   far cheaper editing a working example than composing from prose, and
   published templates/examples are also what enters the next training
   cut. (Relation: LLP 0062's generated-app CLI; the template is a
-  consumer of 0176's gates, not a fork of them.)
+  consumer of 0176's gates, not a fork of them.) This is the one W2 item
+  gated on companion work landing — the conversation surface is LLP 0176
+  G2 / LLP 0179 S1, both future — while the skill, aliases, and
+  `/llms.txt` are independent of it and ship right after W0.
 
 ### W3 — Errors as the primary docs channel (sequencing ask)
 
