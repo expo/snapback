@@ -87,6 +87,41 @@ function resolvedGeneratedSpecifier(artifactPath, resolvedArtifact, suffix) {
   return `${resolvedArtifact}${suffix}`;
 }
 
+const GENERATED_IMPORT_EXTENSIONS = Object.freeze([
+  '.mjs',
+  '.js',
+  '.mts',
+  '.ts',
+  '.jsx',
+  '.tsx',
+  '.json',
+]);
+
+function resolveManifestGeneratedArtifact(generatedRoot, artifactPath) {
+  try {
+    return {
+      artifactPath,
+      resolvedArtifact: resolveGeneratedArtifact(generatedRoot, artifactPath),
+    };
+  } catch (error) {
+    if (error?.code !== 'SNAPBACK_CODEGEN_ARTIFACT_NOT_IN_MANIFEST') throw error;
+    for (const extension of GENERATED_IMPORT_EXTENSIONS) {
+      const candidate = `${artifactPath}${extension}`;
+      try {
+        return {
+          artifactPath: candidate,
+          resolvedArtifact: resolveGeneratedArtifact(generatedRoot, candidate),
+        };
+      } catch (candidateError) {
+        if (candidateError?.code !== 'SNAPBACK_CODEGEN_ARTIFACT_NOT_IN_MANIFEST') {
+          throw candidateError;
+        }
+      }
+    }
+    throw error;
+  }
+}
+
 export function resolveGeneratedImport(id, importer, verifiedGraphRoots = null) {
   if (
     typeof id !== 'string'
@@ -115,8 +150,8 @@ export function resolveGeneratedImport(id, importer, verifiedGraphRoots = null) 
         && artifactPath !== '..'
         && !artifactPath.startsWith('../')
       ) {
-        const resolvedArtifact = resolveGeneratedArtifact(materializedRoot, artifactPath);
-        return resolvedGeneratedSpecifier(artifactPath, resolvedArtifact, suffix);
+        const resolved = resolveManifestGeneratedArtifact(materializedRoot, artifactPath);
+        return resolvedGeneratedSpecifier(resolved.artifactPath, resolved.resolvedArtifact, suffix);
       }
     }
   }
@@ -127,15 +162,15 @@ export function resolveGeneratedImport(id, importer, verifiedGraphRoots = null) 
       && existsSync(resolve(generatedRoot, 'artifacts.json'))
     ) {
       const artifactPath = relative(generatedRoot, requested).split(sep).join('/');
-      const resolvedArtifact = resolveGeneratedArtifact(generatedRoot, artifactPath);
+      const resolved = resolveManifestGeneratedArtifact(generatedRoot, artifactPath);
       if (verifiedGraphRoots instanceof Map) {
-        const graphRoot = artifactPath.split('/').reduce(
+        const graphRoot = resolved.artifactPath.split('/').reduce(
           (root) => dirname(root),
-          resolvedArtifact,
+          resolved.resolvedArtifact,
         );
         verifiedGraphRoots.set(graphRoot, generatedRoot);
       }
-      return resolvedGeneratedSpecifier(artifactPath, resolvedArtifact, suffix);
+      return resolvedGeneratedSpecifier(resolved.artifactPath, resolved.resolvedArtifact, suffix);
     }
     const parent = dirname(generatedRoot);
     if (parent === generatedRoot) return null;

@@ -1090,3 +1090,15 @@ workload identity to `llp-0163-operation-lifecycle-review-tail.v1`. The full
 declared behavior train passed before the carrier and 54-profile current report
 were regenerated. No frozen historical measurement was edited, no unrelated
 profile was rolled over, and no actively owned correctness code was changed.
+
+The first CI run of that exact merge found two further combined-source carrier
+edges. The Track B client closure changed both Cloudflare deployment bundle
+identities, so the Notes and All Aboard identities were regenerated once more.
+Also, moving the Snapback Vite verifier ahead of Rolldown correctly protected
+queried JSON, but meant it now saw extensionless generated imports before
+Vite's normal extension inference. The verifier now performs that inference
+only across manifest-listed extensions and still fails closed for every path
+outside the immutable graph. A package regression and both registry-locked
+production surface builds pass; the tracked Cursors build was refreshed from
+the same combined source. This is publication and bundler integration debt
+from the combined landings, not an actively owned correctness change.

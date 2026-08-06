@@ -201,6 +201,11 @@ try {
   const verifiedApiPath = resolveGeneratedImport(materializedApiImport, appImporter);
   assert.notEqual(verifiedApiPath, join(backend, 'generated', 'api.mjs'));
   assert.match(verifiedApiPath, /[\\/]\.snapback[\\/]codegen-cache[\\/]/);
+  assert.equal(
+    resolveGeneratedImport(materializedApiImport.replace(/\.mjs$/u, ''), appImporter),
+    verifiedApiPath,
+    'pre-resolution preserves Vite extension inference inside the verified graph',
+  );
   const api = (await import(pathToFileURL(verifiedApiPath).href)).default;
   const reviewPlugin = snapbackDev({
     server: { mode: 'off' },
