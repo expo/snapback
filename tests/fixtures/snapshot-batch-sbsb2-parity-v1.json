@@ -1,0 +1,2059 @@
+{
+  "formatVersion": "snapshot-batch-sbsb2-parity-v1",
+  "purposeUtf8": "snapback:snapshot-batch-cursor:xchacha20:v2",
+  "vectors": [
+    {
+      "id": "mixed",
+      "rootHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "nonceHex": "a0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7",
+      "body": {
+        "formatVersion": 2,
+        "keyGeneration": "generation-1",
+        "appId": "app",
+        "databaseId": "db",
+        "targetProfileId": "local",
+        "streamEpoch": "stream",
+        "function": "mixedView",
+        "planHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "args": {
+          "boardId": "board-1"
+        },
+        "parentGroups": [
+          {
+            "groupIndex": 0,
+            "parentAuthorizationKeyDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "parentId": "board-1",
+            "parentIncarnation": "018f4d5a-0000-7000-8000-000000000001",
+            "parentVersion": 7
+          }
+        ],
+        "nodes": [
+          {
+            "position": 0,
+            "nodePlanHash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "state": {
+              "kind": "boundary",
+              "orderFields": [
+                "position"
+              ],
+              "boundary": [
+                9
+              ],
+              "rowId": "card-9"
+            }
+          },
+          {
+            "position": 1,
+            "nodePlanHash": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "state": {
+              "kind": "relational-boundary",
+              "orderFields": [
+                "updatedAt"
+              ],
+              "boundary": [
+                17
+              ],
+              "rowId": "event-17"
+            }
+          },
+          {
+            "position": 2,
+            "nodePlanHash": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+            "state": {
+              "kind": "terminal"
+            }
+          },
+          {
+            "position": 3,
+            "nodePlanHash": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "state": {
+              "kind": "terminal"
+            }
+          }
+        ],
+        "authorityPartition": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "issuedAt": 10000,
+        "expiresAt": 1209610000
+      },
+      "expectedPlaintext": "{\"formatVersion\":2,\"keyGeneration\":\"generation-1\",\"appId\":\"app\",\"databaseId\":\"db\",\"targetProfileId\":\"local\",\"streamEpoch\":\"stream\",\"function\":\"mixedView\",\"planHash\":\"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"args\":{\"boardId\":\"board-1\"},\"parentGroups\":[{\"groupIndex\":0,\"parentAuthorizationKeyDigest\":\"sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"parentId\":\"board-1\",\"parentIncarnation\":\"018f4d5a-0000-7000-8000-000000000001\",\"parentVersion\":7}],\"nodes\":[{\"position\":0,\"nodePlanHash\":\"sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\",\"state\":{\"kind\":\"boundary\",\"orderFields\":[\"position\"],\"boundary\":[9],\"rowId\":\"card-9\"}},{\"position\":1,\"nodePlanHash\":\"sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd\",\"state\":{\"kind\":\"relational-boundary\",\"orderFields\":[\"updatedAt\"],\"boundary\":[17],\"rowId\":\"event-17\"}},{\"position\":2,\"nodePlanHash\":\"sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee\",\"state\":{\"kind\":\"terminal\"}},{\"position\":3,\"nodePlanHash\":\"sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff\",\"state\":{\"kind\":\"terminal\"}}],\"authorityPartition\":\"sha256:1111111111111111111111111111111111111111111111111111111111111111\",\"issuedAt\":10000,\"expiresAt\":1209610000}",
+      "expectedWire": "sbsb2.oKGio6SlpqeoqaqrrK2ur7CxsrO0tba3y4HAZegNtG0MQjbFdElHw9j8r5Pgr6OuWgnph8NS2Jc1DKI73vsgJUBt1RRZgkkwdENuPpYgNKtTXJ2em1lW9KOL2UePT1UUzLwlR_7zdn5RLK13uyHClkX_XreUsijlwQcxhB8jHBkcsXnDruXbbUZQJP4lWd-KPXOw2TrvlCKE3PNxzI6mhOS7BCquV4ctBA0AiWxYPLvxxGG8TCV3EzQXILIfCa-qSwzEBgg1hb-5wtTIIpaqUXFJYhmxDd1ca4R1E7w0-MIN89RCHcnwdPEL3dabO5Oc_rE7YoqheoJHBM9gD1_943YUIJmCurraV5Aub1KTJHC6DLGXBif5BP8sPQ3G6ky5twdT7E5uTHUBQ2UdwG5PEIOk59-hlkjTzD9aTskll-HJqoUOvcv6hbYQhDlhU4zdkFzq6U2Smc8FaFVtCztcRl04386BNPBb_uCaOnRUGj6PSddkOlz_K9JCaRcS9rTn1IfRg5Qbn9N4B2TdfW-AsfDvj1J-G-2H4CqXly5U8vDui65wz32fmbx1HNzK7_idN42aidb6pnwg_Yu4MkHuWI0xTMnGtQ0QfI68ZHQC8ALllK-ETvOXCPd7OE4T-bemhBvsp9yDeU-DpXnFEEwW6LF8SWsOFhGnGaIXntZe_ooEyUoyktppc5Uk82TV0I43daON8wB_oiCbJDXgWw6i-pt54JYjVLFHmxgaV_yq_QsJu9P18VFo9dHFAnAML-6RuIHz8vYBm0wSrrSDMg-WgMSK8FKbAmsN4IuN_NrCsbXwUF2nN-4dppTBdcFYq7_CW-TG9uXjeTcvIsqUpiwP_trPCU6gVik1-Pv2hFOar4pTer738Z0MreaDuisG5gNjVy3bRKjdrBz3C0qMQh-6BiUoSwnva3ehWck3nmqsUZ2rxVL3wPBOEq1447xnI-xENo9R-3o4Rc2FkUNVtKTvOXQ6P1hynjli2vZcVRI6BMaI8XKiApKvgkyBcDa6b86jrJ-_ITYkO_Am7Q8SKXhU9p8--xsbn4dRn10-A96LtG330h6upz65UVdYn-qUdwUSNOL29hAti_orKlxEALUI4GNDssqQwFLrIDtYJJDCRHQHK9xZe0X4XPFtrjaJcG2aNmxcbiCv8sJY3AHppsufGFMHdeTE4f7y10Mttv3sj_OXX8B0zZzQAYdruG8HIRkjMsRje4p3yt_RJhXpr_rybUFgjZXmPwDEttu6oVXXaJM32MTayiZHsQ57N2Xbq7VY6JYr-5YaC2imCg2eYfHopmwMuimPzjP2irOTFTGv06mNvsQw1tqk36Argsdh7G90HEAg8fFQqWO9v9dbeDT-n-pnQJN3kEUl-U0MqzM831sF9E0lEVxVrEO8iSOSY6l6UL2ntsnV1pKxm9nqJOt8HoICgOOrgAj3StupmPNsBHetGTBaCSDtDjMH7IQW1-rK_oJczYkmB1l2bIL_B-3b4yYmCxEXmcCuKwSZYOSSOj5lZlMCjo2XwlIFmfmCGCM3xcZKYYYcdKWJQd8rImYo32iSiCCLEIyNC6d_a80MTDPMXkX4JC5mQccHOeWgnfwGLtn5--j6qL0Oq_eiIuiM6pdht-G3Eq2OFpjNP1wdjQSkH_K8HOHxpqknMRXpecTo6XSdruNbwPHsxdd2aCRZEpTNm0UlfU7IRHcOInZe57hApcQI3UclCWVbsxOLAF-bfwTO97JbLoohFGtKQv8PFlOI7ma3PEa5kxVfxoxmmGmNd_PKrc2aHLHa0G6Nrt-MF0_nrsF7OA"
+    },
+    {
+      "id": "all-relational",
+      "rootHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "nonceHex": "b0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7",
+      "body": {
+        "formatVersion": 2,
+        "keyGeneration": "generation-1",
+        "appId": "app",
+        "databaseId": "db",
+        "targetProfileId": "local",
+        "streamEpoch": "stream",
+        "function": "allRelational",
+        "planHash": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+        "args": {},
+        "parentGroups": [],
+        "nodes": [
+          {
+            "position": 0,
+            "nodePlanHash": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+            "state": {
+              "kind": "relational-boundary",
+              "orderFields": [
+                "sequence"
+              ],
+              "boundary": [
+                41
+              ],
+              "rowId": "event-41"
+            }
+          },
+          {
+            "position": 1,
+            "nodePlanHash": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+            "state": {
+              "kind": "terminal"
+            }
+          }
+        ],
+        "authorityPartition": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+        "issuedAt": 20000,
+        "expiresAt": 1209620000
+      },
+      "expectedPlaintext": "{\"formatVersion\":2,\"keyGeneration\":\"generation-1\",\"appId\":\"app\",\"databaseId\":\"db\",\"targetProfileId\":\"local\",\"streamEpoch\":\"stream\",\"function\":\"allRelational\",\"planHash\":\"sha256:2222222222222222222222222222222222222222222222222222222222222222\",\"args\":{},\"parentGroups\":[],\"nodes\":[{\"position\":0,\"nodePlanHash\":\"sha256:3333333333333333333333333333333333333333333333333333333333333333\",\"state\":{\"kind\":\"relational-boundary\",\"orderFields\":[\"sequence\"],\"boundary\":[41],\"rowId\":\"event-41\"}},{\"position\":1,\"nodePlanHash\":\"sha256:4444444444444444444444444444444444444444444444444444444444444444\",\"state\":{\"kind\":\"terminal\"}}],\"authorityPartition\":\"sha256:5555555555555555555555555555555555555555555555555555555555555555\",\"issuedAt\":20000,\"expiresAt\":1209620000}",
+      "expectedWire": "sbsb2.sLGys7S1tre4ubq7vL2-v8DBwsPExcbHsSnhfCtwX4qB0J9HoDBBAFq1znsFLv_seHHgfZoS3uBfxBYkwoX-LVLefhduJxs1YCII6LeFdpsu1DS6W_oWmFKazH6_nhpuj0LGg8dbLE6RKyCLTkG6kGR4_WSUw8Dg1Vno9JROtebYpxbzelLSqNhG926ADdP3ZikqHUH0PKhoIAB1h0WdfjvOUVgjNZ_EWeUqClTZaPBwGezDzP7gCC_Km4fIkCziPdk6fP3qE4taVrGo5AxBquIrWpHgRMc6o6ARfbOBZIsrw_4c0TyED2qxLaHxFMSmIXc1VtYIZQTnFDDcWrKSXsd6xX7MHq6iRlJtyTY4g28kPY5vK_XQryU29pGO-qgeUgxNOYVDpIPodqgyeITrLx21hbvmH6k4JW34qU9LWutjJOLk3T4KtPYoMmwrrW_Q1x3hAE670ozSwBHb8c6lbrun69_I8NAgmTOlTG901uUmP0mXw6-fLLy3ghPWZaPtFlJu9yzMWRK49Gf5q7d_R32jPzD99KuhsmRWi1lKD9tMqebhcanC4FBItBfT5tDV8RfRyC-FUnqfwUdxdcGOc01NUJxLNK5nppSobsmQe4bKfPXbg-UgjR9QOy3aIXW1k0kP-Q8gy1iWlxoANNnBbh_7CuFnkC785ZmIEszgn3LIckCkH9c-FxwJ2_1Dlx0CuMAUyt4diT_ftQxADItUIfsFbxr6srJesDO9b6E3DytQEf_phjEz08lcbaS-lLOuWftHEPsdQv734gienCUwDHer25-40Rc7pazRXK7f4r9hGNgZdNeEVKg33mcuKZKPIT8HMxNGd-Gv2j9mcqU_rKESIwn7rl4C3404fqU76B1_c1LiK_DlLGe3BsLZfda6tT7fxceLQLbo6xc8aIjPkfGrTXPOsQRXoBeVAjj_o_80VHzW9gfgryS8ezKpYo5gW8o955zV2x7IlLFTVQQACN6LvTmOWsjrSE5G7QQ_vyLyw9xksMimaw9Oi7-sly2yu09mPX-hYYRitB8fobCrSBYJGauTdWG54g"
+    },
+    {
+      "id": "maximum-template",
+      "rootHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "nonceHex": "c0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7",
+      "body": {
+        "formatVersion": 2,
+        "keyGeneration": "generation-maximum-spelling",
+        "appId": "app",
+        "databaseId": "database",
+        "targetProfileId": "local-dev-sqlite-ibex",
+        "streamEpoch": "stream",
+        "function": "maximumTemplate",
+        "planHash": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "args": {
+          "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        },
+        "parentGroups": [
+          {
+            "groupIndex": 0,
+            "parentAuthorizationKeyDigest": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+            "parentId": "parent-maximum",
+            "parentIncarnation": "00000000-0000-0000-0000-000000000000",
+            "parentVersion": 9007199254740991
+          }
+        ],
+        "nodes": [
+          {
+            "position": 0,
+            "nodePlanHash": "sha256:8888888888888888888888888888888888888888888888888888888888888888",
+            "state": {
+              "kind": "boundary",
+              "orderFields": [
+                "boundedString",
+                "boundedId",
+                "safeInteger",
+                "boolFalse",
+                "boolTrue"
+              ],
+              "boundary": [
+                "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000",
+                "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000",
+                -9007199254740991,
+                false,
+                true
+              ],
+              "rowId": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            }
+          },
+          {
+            "position": 1,
+            "nodePlanHash": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+            "state": {
+              "kind": "relational-boundary",
+              "orderFields": [
+                "boundedString",
+                "boundedId",
+                "safeInteger",
+                "boolFalse",
+                "boolTrue"
+              ],
+              "boundary": [
+                "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000",
+                "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000",
+                -9007199254740991,
+                false,
+                true
+              ],
+              "rowId": "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"
+            }
+          }
+        ],
+        "authorityPartition": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "issuedAt": 9007198045140991,
+        "expiresAt": 9007199254740991
+      },
+      "expectedPlaintext": "{\"formatVersion\":2,\"keyGeneration\":\"generation-maximum-spelling\",\"appId\":\"app\",\"databaseId\":\"database\",\"targetProfileId\":\"local-dev-sqlite-ibex\",\"streamEpoch\":\"stream\",\"function\":\"maximumTemplate\",\"planHash\":\"sha256:6666666666666666666666666666666666666666666666666666666666666666\",\"args\":{\"padding\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"},\"parentGroups\":[{\"groupIndex\":0,\"parentAuthorizationKeyDigest\":\"sha256:7777777777777777777777777777777777777777777777777777777777777777\",\"parentId\":\"parent-maximum\",\"parentIncarnation\":\"00000000-0000-0000-0000-000000000000\",\"parentVersion\":9007199254740991}],\"nodes\":[{\"position\":0,\"nodePlanHash\":\"sha256:8888888888888888888888888888888888888888888888888888888888888888\",\"state\":{\"kind\":\"boundary\",\"orderFields\":[\"boundedString\",\"boundedId\",\"safeInteger\",\"boolFalse\",\"boolTrue\"],\"boundary\":[\"\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\",\"\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\",-9007199254740991,false,true],\"rowId\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}},{\"position\":1,\"nodePlanHash\":\"sha256:9999999999999999999999999999999999999999999999999999999999999999\",\"state\":{\"kind\":\"relational-boundary\",\"orderFields\":[\"boundedString\",\"boundedId\",\"safeInteger\",\"boolFalse\",\"boolTrue\"],\"boundary\":[\"\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\",\"\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\",-9007199254740991,false,true],\"rowId\":\"yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy\"}}],\"authorityPartition\":\"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"issuedAt\":9007198045140991,\"expiresAt\":9007199254740991}",
+      "expectedWire": "sbsb2.wMHCw8TFxsfIycrLzM3Oz9DR0tPU1dbXCLF_f7Pw9iOHYlB_6VHDnbYrWHx_U5ZfECzcRrVFicYIVvDm0xCmsa6kNERugKjAMBB1kQmod-W6tcakwooJswr55SSn5_HqFILnRZTefsRsARjDXcCTu5nKYSA2RKD5FM1qxDSazhpPdX0yjSw4CX_w6ByXo0G-vfQPLKBCOnsDZZarvUg6q9fnkkrLRaH4rIhw7HFOGfQ0F1HcIF6nzZz0FWvv7DIj4ltsp6Ik1hBGhb91AB8U1kQwbJNDS55RFCetV5mVFUDLlX36I5gYIwiLP4i3g_JWhIT4ZUPusv8m_5ov3-62xKT2hUJbvb7Knhvc2gK9CRpdVpnun0em5CVZ1QCrueOnBiiE3SeVKhK7X9nIes7qdDSr8ggg79wLhkKId82FEaiPdTJ3cKX-5nm-T1xi3HuOZCBYZDW0Lc3hCESrHgXG7Y3P1KOaSxc-FwJgKK4CzSj2eX6-CR-4Y1awBKv6S8tdR1cJk6nLg6jGSqAuwpCm93fH-9HUD8ckcN1VV83yXiMbdjL4DHBpg4ypZ3K9su-b3JQM4aDJK8i5fNenytFg7g8cVp9_q5-wwRanbo50BLYybQ1Y5RYmlmEqmXFLQDIiUfyXGFqzuUXeFcDCyvnsE37WGHS1WpKS0UuWTQk1_gwLQrS7dY2HJIyAR6q1v1beZa2N5kHiPRL_EsFnvQfWMlYiMwnU135s0D2K46eeU1wM0aHuq023kFSS-DhZb8zFNqys7LuVwod07uRNcRGh99TCw9ukilvn9kh33wlNlkwvl-l4djkwVrDTV7iJcFtHqo5rZAZBUyCBorcvWB3n2wFgGSzYNXpJYUk_Xcj5rOuCE6CP1BNs6dSzlss323E98iBPc83qqjUehgtEvUbDgpq0GS3DBuLkEMIgT9qKetx05aNzAyQH7OYSL53y3palg_vbSWS_cmPoBUexGfHYNdY2pB1GDIffZCanq75jUk8ZyvRPpOcuvHSrutcQMOsOFlIo9A0gGVHyL00TDMSrxmZFZaAQ8CL6f3iHFvm5w4GcVaYBrkqum2UNE0p4T-No7y-BshrUolHJ_zXyL_aVKeut7-umLRR6BdRcZ7i_JD9rH9h2tNJBXf-kbX5Pk0mwMwTGOPMIZsVg2G48q-9r25cOoK2FnwQr8w2AYebIt2TYcNOJsOQ1gV7h9e9NMWygJljSxPNMAkeInxK9lbuNv4UBJtU-nDKSCZkAqCmCsKMsPbxE0KUMtNLuPuwIcp_BjM42OejAwXJFLjJ7yuQn4QteuOmW9G9RdfAmaU2_Kem0MEmHfUOc9ezCGA8pvAAwfDQfo8_Mg8oH_DxzwML7lSb9cNtGtb-xTYDQPOzdNkYv0PLTXc7VTz1tkVVzKDNJeQLZdXD_B6GBULYN8ursmspkkvM20bDMnA5x1ad32wbINxcaM30YGqIg1WAgTIqQxYiRYkO-vC2wNPnIkfDCvI4hwbjGwhrJ5PKdYiLTqpicGxa7ZvsdkfRXUgrcnp2gydKG9jIBmIKzHLps222WzfyLHfVVR2tgEjcPzm8c-zqLUH1gRoL1bB2in3Ig8x2ttQ8tVqtcsr-VYXJqESzV1wDQ8YqV2lZjXPvD-oQ6NlFHBsg7fO01M5-DBhlhfM0Zx_EfNPD19JwFEs2d1cVgdfok7ZHtlRf3o0XkfhRzrYbEsZYs84Dz76GDE1vLCKSeqkdoBfXnJN85_2xMCh4Q2N42HbELIVEgcVYRzhITVena7TzoUFSmav82K1ySnd5wQzQdEgIVXRVF8av4sxi6gtyLigQcYfCyQBaQSeA_0OG0BvDnfMm5c5QHUaA8JakREc63RjnWjY6L_e1XxhcXFv7I0wYylcK3IgvAVOOimb3ifXO2-5h31STyKI9VfZ6cc_lIymz1exqjOm1-g0GINTp8wgjeuYePbpmNPnSJ99EngTl_RpfThFInaJjlMixOYxWgIlhs2JJQALg6NB3cXHCrwrXyNJAB7UED3Y8r-NIn09wE1tJRPw2MTOE3kEVrXdGbhrpOamAHeRbMGmXtKZTxXg3JxlDk5wDtUQJtcp3WtLGXf_OysZvDOhDr81youib1UP3a5cISdW0Sw6Jy9z7NTYVm4Z6QQEf0hJn8JIGU1PrAB8I__hGMkDF55PGfWGpkN-uhci4zgXnQwmfPWyMMt3S8zd_cAj4b0JpEOdVSjruWBcWB76SuBUNMwTOsmkajC7XL511nf9HGrvddLQuUiHYvzB9FHbr0isAE-oH2c3b2ESvgN95nxlhDdu11iyuJLcfPLqMhvfzCPnSTOZWKijKfF_oSRZB7RPnUnBmeeffPpKLOxWvxPCJdrrlYRbsAnPJLtSJIAUZxytCYx-huXkgvYKTallAk-GfpnJBFsai00QR5EUweUi0EAjp4S_oW7zn0m5E_J8_1aCyn7pPqeSXTReUQhjgI7VNaBwqfEQ2ZJvvXtMEZovZQY-TRNKu5r4ZztNZy64Mzbi4DMgXa57ZWFnydhvzaxLKK9gWDvegwvv7Gw9_knhxmAC1SuM-N7_Jx_zX4ijvFJ83HGYczW9rO6QygDGE2Q-lNeN_b6hpQ590urOUqRCVwSHxqwINc6PBYW6uMwKPIPFdIAXrQNLifi6XUL0wtVUTW-fH5q7Wqtzvt_7GzQoQHsNNdY9pi5-EKvY1Wo1zdhSagZfkllEvSQ_VVOjujh0DkVP_LkP_kcMpgqo0G_gzupGgBFQfIvClqGE2akYeZ-cf8yhO1ICKWv35qEkaMEQG6ykSNP0tmW5_Wzw9Dhw2AQQFlrgeiAyUrHqW6-WxyzgGcWrlcrBRcFw9S6lLWWhuc_ctdBEK4akyYnYQM8bQOr0-5zlT8Ra30TpMpfxNf0dK-JJeO48hC6LsK-niiP1ttIEivsfKyICinrrwoBfsoLL8aKYTX52KCmixSTpgmTy21Axui-FD90pn9vMeF0t82tmY2AVaWKeARrVJxWueTAPltbEB88Tcx3Kch9xfGo555h5PxEM6K4gL_8kUuOw1mJIb4IbDYB9N275pDEC60G0hm2IEgm6vRyTP4DuMlb6Pp6dVVimgJ1CI-t7bnupU_rfihMa7WwlKBgYGYFZ8oJcvHdgGGBnHUlH6zh9HD2VRvCFU8A9WiGkZpGPMQJbrkgTmmaNO1eHdgGA5jrEzK_shrlRWqbkfZLOMrvMR748kQWjBRtTrmP_EVn_evA5BoW2aF_wms6mo3vrSWkipK5JGNJ1jIGvU_61ypuzPDrOvdtIeA8fkH3rMUyfA6_BwphAcvSdj6uMEL-QdgiYOTZemuVBlBPvVsWOQ1xig6YW93OnmiovVEFMxmveyn1BUSl3mz9-XyuLbk1ukm-604Yc0qjdncc66kRscfoA-_jZ8QYsTs8XH9B325vlpvXXtV07Iik0iFTjVlrECw6jRySyeMCRHtE4TpTTUYLe6n3VMz0IyKPhVrfTzrIABP2Wgt7u87ZE2sgtpuN8YfIH_uc7k3kZdUrU6qdByXNc3jBc0yQUvmRRwLCVaZcufulKKVNHD9ojPE6Q7JGRs_poQZj7LOV-3RXw8las2QQgugSm3UjpSN1u7_X2E4pn3Ja2_yGbGjxe4kAzXsVeBrY47kKJYNoqYzb2_VvbXnJozcYxF3VN5qj1WCFB9fHJEQfwerEAc3MZ_pjcEqfND8R52thOi3RgC7sxh1yKfNP-GZ90cTAEEG2hGJWsmvo-qutHF9-KDjiqX1aZAN3ltn_grAMkbYSp1wxSeiAL6L4EnnteZO2kMDdYFRFu9_qokXbO-_8sA6Qblyw058pmZArC_EdzkjMjxSXWicDhmqx98hmIAOfkiI3zLJ-7s8pRodCYc4AGIn-o5lng9yeyO-3fljXDQ68QnD9RLoN3pB_8Mf0BlBRD3N9EN8QvmJhk6LZ7Fv68l79Ih8HFeI7aVwpCbJ7XFTVqJ25K4lJNgiFmirnbpuL3uRj1kWB3gVZePgAad5X-DXDtNBmT6wAjCnM9EV7BXZVgwRe23YXWDq2ioAtqKBfDebmXmiAAVwJ1osyMJFoLTTHKrdxDMOiXNyAMqEoUu1sCHCHorh8XPV8YlhLzWLqISsGKLfgTRBsucB966LZb2N5-e4lBkAl4YG-bjG9BXfVXuF2YhSztExMo6kqlBUyYXVfILWYE2SwVTT5r59r-s6IWO3nFUodoQZjEj1xWlz3SQuYJj4KPeUdozZlxo2Lwv7mtGUamgPd2w62JzeaiVJ4Lhe3EsfSPF45Ul3u4d-3Qmro--aThCykPCTE12vXUSRxP8QT6J1XdRJG0w83wejq7JuVN6aJXCW8Hcuw9ZfsQQUGDun5GH04koa9Pp_D_d2obRjEkRRXj882tCLh6AniHipzPEO1p5bAnrP0rr3wj2Z_KXrqjGzbnWyBSvw4p2vFhAdzRertua3O-WUICMWhr_jNag-C__GsfRr_V7Gr0yjo5c5ck7DfTWA3vOeYTv8P4gmtKMn-PAHtGDArdO2X9LZjHhPeAoISwYjzAQxtsxmsiL2IDRh9paZixG1EyRQXB2LAVjHVNTyFaQRW-hpRYDWw1d-naHb-OayBpG8qBBEWJaNTOEShovtJyiBHAMJqyNNLljULwhCHzPC7LLlA_0tYj0rDgXsN8CC7YhotDEI_9XXcGgnq4Nt8kOJXAMVe7cSDhsu41WhtEh9rtmE8xLsLVM5J1fRaM9OPjIOe40tWVRIR-0-_eWNWJq7hsv_yWI7d-D7euGBa-sQC4q1cStauNbyn933l7HfjIYq4bzG9_-hMQLBD-jHb_Nx6UU18hFGOTgIdr1FRhjVh3KDqmi2CpgsVhyqHdGlz4qM5lAfeX5RDTMF1qSkKg3l-Iz7rbEmIrZ-92QRyzwk5SY2uyWniMuJGvRTVzyr5yCzqyvABascfjsqk4l8Q11d_xkODqZY3fZTVwhZxVgCok2OV8ykojAH7AT1CD6j-PHfXRjKXisiBbW99czEIZclR3cW8fbnbGoM1ELkN0ZQuAp5FJTmnepm4GZvimZ5ddlNbs8NT1OEfpiJjcAMly4o-TpG-tJc2_rKdHbM8PT0ou7swqpN2FYbwPuIkF3dsF9tZ7Hlwmjzu2rmY4Tyig9xgwdixkImfS1hgVzVCdu0Qw7b9YKdkk4ldyjECNBG26OwxD-kA7CbuCQxDZivAp3iyVSD_ZMNoD-L6-WrcRX4MK4YTpVQtgANvb6ECPmsQoL7we2EVT0k1ZA9tUx3d7OeRCNV4SQoOyQ2IPLId7EpXs5yVFc9GYfI8-l9X_93spUfq_Dl551C1HhijRwuh62HsEKdkH2fZmi_DcEZU0jlZ7O70lj76dm3qcDJ2KjlqEZBmP7SLROc8RH7qVwnTsbyB5yAGfplCIM7aLui36KFR5IUG3jlg1LU1ysUWdIIZLbGYyHdCLb8xRDcUKRYyb_EfMMsLeCKDbSmG7ZPuwCRaUpelc0tOmnZSNys-FsO_pAaCl8czl6LshGEom5gHKPYhPGRpJIGmlDibpIn9jNNeS0GG8PsoznXEkCMNilqwES4KwOdDtfdYYPoPxHkbvtaF6i3CZNpklVrEWZk5OEbxXQ6NddMFxG68lE89lHsypqCGZcaq9xheuYn-aQ_K9sTtgkPaJlZ3BlpHw3ufyc4aPcJUGP0IJNQV7D0pUZXljmdgNC-JiFsfC76iAUgyg9Vs7mF8X-Nw4xxoaKX6Gx-cPeiVrs1HBE3PMIqZogOGySrOFzLI5qL9Y8NHks-C8lggK9P4uUrUsg1gKmAo9YPdgJlMS4oQ3kpRjU4AtmnSwr5v_RP-CkoVbMiYKZ-RG09tWKf-Uf2YBD68kJU7vhXgVxhDknb31vcxh1e2JV9NvUD3Xvm4RvVERU9gxZ0oQRV2bSnXXvA8oRNMLBwXRdILOk-5N8Plygi0vMZoq2Dz98L5mU7nCnTVuResHC7HRqj4TNk3hJ7b1YCtKnpYRd5nP-lXOo7ihjkkxxyZH7q-H6166Ba9wFlZDsqQQbMsBTf__bFXsL0hWJiSpWKbFukx8HSm0GqhNd7x00N8Sl7iVLKjaXiXYzF0Jf7zQROQhtayRBKrAVpSl2crllTwHzF2jac5Tpy2zVRDTbsxAVPmzG0qC-l8A8XrWNjFMz-bqWVEGRDQkcpTotosaRvLf7CbJnBp8t-6KGYV6_IaqBRxi7R7FWwW4Xm9vFpX97LOqKGXJVQvSa21a0emJ4Od_nE_wDFbKY29hfbgKuHQhVswu-Am7NUGZqW5EfkCS9FRvLa3PXnYzd9lpR-qfrJZIFIKjdvvtc8zpF7TgmKltKGBhSSHeWLXaQEqij1P6UcgcZhkVqUnAaHLoXnwdTMUiSPzgBgrR_2xaqq8JaPxlooriR2kXOm9ZKd626_H3_NsOYQ7k_NA9SzMRfRlOFBz2t1Ort47eTB092dU0SmCTXHEqfCx8ejSlywP75X9vpzUyGh85F1mASYrbU-I3nHhlsgrmWD-SEr5kjT-8-YSE06W14FEB7MT60XMa8L-JfMVbrgxAx_wKWedKnuJN55QBHc3ty_ULmspJceucryUPDerV1zPPR4t8_fwlMabaXSd-XKIOqm_ddGMd_k6rMdc_TfFqOn_jVHEwynGYekQWmghFRJ5RZTpNdqPc38LtZJqXKHcl_WDk4SAsbBOp2U02UDftenXdjZlq8sBrH28S96Vt0L9llqqSfOd2Af8ATXz-VdKYD6zzpG0qFehjT_Dizr3uWSxzrg0uCVIiMuC1RR5KvIOI0U0NkWnLnIQtutMoOUF94Vp0LWvAq8ifJX-OOasYaEBe4lThCq8sw1UbVUeikaxjn_T0JV_N8s5fpMDcrOziAo7bFkPSQ9CjxPa7Icp1pWmG077yN3l6QbWHUtYVHMIIU2l7TmDRPcM1uMii5UKzaMzM-FY4eQTPIFkDo5-ng7YXV9wr7cwARiRqFeXIuG5ZaUz6Ig4RMOyCn0vl43VkJDOgJGYFo6tDyOBnxuB1T_mehhkIA1U5O7_Q3EEkwgxOIoAO8asDJfYdpSGe2yop-0ZmAirof_Cwno99WuyNdTkRCqjIXcT8lRiD6-7RqhmBBDRHWro42kHNb9tOeLJr7isidtpeGVcymgEyRoisiKom_Uyjo_obdhzzqkObjjIXxhNefTsslAnRlioSjGUcTw-vvn2bT9PA8m8DBXOKDqIC4SqEvIJwZd8NlmjpPf4kGCiSxlPEPmtS6Hb-B-IOZXdyg6E-Byp2toZ5YlUhz6Cw324eiTkrMIHuqlk7IltJ4Ja1AWwdUCjRQx_TGE3nZiuv_fC6pPczEDDIl5BNennF-UxGbCzdzUyYQ7gAl_eIVqkwVwk_uGuL19DUrArI0ziW639EvOMObZ485y_udhErlY_xCpRsJ3GTqMzcKTgHgjFvZzHA3xQrpjZXUPdQKwFeP8T9QOaDrAvz_h7S164YqUoHhbnrgWIw1OeoWMPSSx8ZvCl7wS7ILY3Hd9kjrNsZfJYjlrz9DhROSchsNp8h2-mykMJbr8SrSUJ_3mmcZOaq6o7w0N_sG2bdPvD2MlBaO-u8i8EeaxzQxidmFCEcTvZNOtczSy7adIgYMG5HV7BMbDPZmy_q2ja83_OpbmpNc6uFCBMqlTxPeFV0Xb0ZtkR9bG0K0G4vioumDvkuUlibTfmu9KX2hgbyqFJHp2gHuo9KFk9iCpYZZKBMm0kdywTumNjtrJnFKizHMBG7GBeKcatPAxIXipOSuRVgcRTtosCFf7EznpFpEG6TTTBTiYaMBefuZyt38Zfk5kZz36mPbe6U3Sm-bcZ9BV1lUvAl6CpXcZEhcxAzbh9ouiy-2jDLxCRbDZe4ONMVVjRziAAqn4xPDpRmv3V5QVMyey1pCQuMxfXsKMdXBak5PwxXkfS8q5-Qt8T-XWHx76koz5xb1-skNjk11dU4Xu7cc0LDdi-QNtxdkXCPuNlUsVLLDpyYPChU0e2tTyDeFvv9AcTkCHvTaCDS2BAaAYXzUCxvktgwb3f4rijDcbsfsBUrSYCK97gi0shwKzjsQjQhLQOBnDGsBUzseCnoG2wHwrtpUjfUXiWE3-jKqBPCOUikovKGkkLGftbqew4XjI0o8VcfQbw7Pkugpxls4JgeS0UiSYEzev_HzpjM4yCXObK-kXrxvBDRzqPw"
+    }
+  ],
+  "maximumTemplate": {
+    "plaintextBytes": 6099,
+    "wireBytes": 8192,
+    "templateWidths": {
+      "boundedStringMaxEncodedBytes": 32,
+      "boundedIdMaxEncodedBytes": 32,
+      "rootIdBytes": 256,
+      "safeIntegerCharacters": 17,
+      "booleanSpellings": [
+        false,
+        true
+      ],
+      "maximumEscapeScalar": "U+0000"
+    },
+    "overLimitBody": {
+      "formatVersion": 2,
+      "keyGeneration": "generation-maximum-spelling",
+      "appId": "app",
+      "databaseId": "database",
+      "targetProfileId": "local-dev-sqlite-ibex",
+      "streamEpoch": "stream",
+      "function": "maximumTemplate",
+      "planHash": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+      "args": {
+        "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      },
+      "parentGroups": [
+        {
+          "groupIndex": 0,
+          "parentAuthorizationKeyDigest": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+          "parentId": "parent-maximum",
+          "parentIncarnation": "00000000-0000-0000-0000-000000000000",
+          "parentVersion": 9007199254740991
+        }
+      ],
+      "nodes": [
+        {
+          "position": 0,
+          "nodePlanHash": "sha256:8888888888888888888888888888888888888888888888888888888888888888",
+          "state": {
+            "kind": "boundary",
+            "orderFields": [
+              "boundedString",
+              "boundedId",
+              "safeInteger",
+              "boolFalse",
+              "boolTrue"
+            ],
+            "boundary": [
+              "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000",
+              "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000",
+              -9007199254740991,
+              false,
+              true
+            ],
+            "rowId": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          }
+        },
+        {
+          "position": 1,
+          "nodePlanHash": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+          "state": {
+            "kind": "relational-boundary",
+            "orderFields": [
+              "boundedString",
+              "boundedId",
+              "safeInteger",
+              "boolFalse",
+              "boolTrue"
+            ],
+            "boundary": [
+              "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000",
+              "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000",
+              -9007199254740991,
+              false,
+              true
+            ],
+            "rowId": "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"
+          }
+        }
+      ],
+      "authorityPartition": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "issuedAt": 9007198045140991,
+      "expiresAt": 9007199254740991
+    },
+    "overLimitPlaintextBytes": 6100,
+    "expectedEstablishmentOutcome": "SNAPBACK_SNAPSHOT_BATCH_CURSOR_BUDGET_EXCEEDED"
+  },
+  "nearMisses": [
+    {
+      "id": "cross-app",
+      "rootHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "nonceHex": "101112131415161718191a1b1c1d1e1f2021222324252627",
+      "body": {
+        "formatVersion": 2,
+        "keyGeneration": "generation-1",
+        "appId": "other-app",
+        "databaseId": "db",
+        "targetProfileId": "local",
+        "streamEpoch": "stream",
+        "function": "mixedView",
+        "planHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "args": {
+          "boardId": "board-1"
+        },
+        "parentGroups": [
+          {
+            "groupIndex": 0,
+            "parentAuthorizationKeyDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "parentId": "board-1",
+            "parentIncarnation": "018f4d5a-0000-7000-8000-000000000001",
+            "parentVersion": 7
+          }
+        ],
+        "nodes": [
+          {
+            "position": 0,
+            "nodePlanHash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "state": {
+              "kind": "boundary",
+              "orderFields": [
+                "position"
+              ],
+              "boundary": [
+                9
+              ],
+              "rowId": "card-9"
+            }
+          },
+          {
+            "position": 1,
+            "nodePlanHash": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "state": {
+              "kind": "relational-boundary",
+              "orderFields": [
+                "updatedAt"
+              ],
+              "boundary": [
+                17
+              ],
+              "rowId": "event-17"
+            }
+          },
+          {
+            "position": 2,
+            "nodePlanHash": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+            "state": {
+              "kind": "terminal"
+            }
+          },
+          {
+            "position": 3,
+            "nodePlanHash": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "state": {
+              "kind": "terminal"
+            }
+          }
+        ],
+        "authorityPartition": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "issuedAt": 10000,
+        "expiresAt": 1209610000
+      },
+      "expectedPlaintext": "{\"formatVersion\":2,\"keyGeneration\":\"generation-1\",\"appId\":\"other-app\",\"databaseId\":\"db\",\"targetProfileId\":\"local\",\"streamEpoch\":\"stream\",\"function\":\"mixedView\",\"planHash\":\"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"args\":{\"boardId\":\"board-1\"},\"parentGroups\":[{\"groupIndex\":0,\"parentAuthorizationKeyDigest\":\"sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"parentId\":\"board-1\",\"parentIncarnation\":\"018f4d5a-0000-7000-8000-000000000001\",\"parentVersion\":7}],\"nodes\":[{\"position\":0,\"nodePlanHash\":\"sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\",\"state\":{\"kind\":\"boundary\",\"orderFields\":[\"position\"],\"boundary\":[9],\"rowId\":\"card-9\"}},{\"position\":1,\"nodePlanHash\":\"sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd\",\"state\":{\"kind\":\"relational-boundary\",\"orderFields\":[\"updatedAt\"],\"boundary\":[17],\"rowId\":\"event-17\"}},{\"position\":2,\"nodePlanHash\":\"sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee\",\"state\":{\"kind\":\"terminal\"}},{\"position\":3,\"nodePlanHash\":\"sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff\",\"state\":{\"kind\":\"terminal\"}}],\"authorityPartition\":\"sha256:1111111111111111111111111111111111111111111111111111111111111111\",\"issuedAt\":10000,\"expiresAt\":1209610000}",
+      "expectedWire": "sbsb2.EBESExQVFhcYGRobHB0eHyAhIiMkJSYnafCY_QTuHdzZFs-p7YfHzHX1ShgZN5dlFxblTXcvg5Wbf_qEGhRxMSZ7lvMpwcihQxHhqZSQXGtNvbdjVhrcyrFb8ywUEFJnROQs6pBepz646bC1enGdDWOKgSyEj5GN1tHU7i6HJ8W9pwRWlswGO6OZQSai4OkVGUyz2FqznkjYg8BREmusB2jsJAJzcvp_vZzq9a_2ZA80pH5U7ymb3Ey2LoMUXlvya3RWlzeXPcZHZQDFoR89gDv1uMGuJm7zRPu6r7w8JPpMXpx89FlT3g-34-G1z7jZis-70YLtIUgOyENTZmLDHZgnYszas1zbvQCCUOY1wlI6_sC0-mwGL4Iw7nSki8D2cxFccOHSBVrDi-XoGcic_2Hd5bxe7HQl8SvGgf-LRUDTm4ELxAJE8d48Cd_yMV2GmQMNBJvILWPHW8dge8zPHE5vaxlVSRtw8rRnCp54RGVYLedtCWsUDSR0KRkw8hOQsJ2JfUp-5JLnqgCVpFSRwB0aMEVCl38dG8D6dBXSyQ9w_R9W0DrDjT02klgG8aO93DeW-XlhHyXr6nsSq1d625_lf2LDX4cCyDdRxZKwqYlNZKlaknSsrgcqUrGuuhtcS2ypM6fzSvYIYKcJJ6lqdHYzAhqjsldJ2MpJY5rGjnQ28s1bdDnaUXw89sNrnK9520hsamVTtHnnS10q1-FMZGTrE3OkB0vmx3uDS3GbQp8ynKFUTGUYnfl2C5iBEee6GmEHGB76CEviNJwNyFkBCK-G1tht0o5ArIuAqppevwsAUJenngmZantcbMuJqdGz8_y_oF6udBDJe2Gk00hdxKoP3oEr9z5RA9AJnIQdH5EOv1Px7cuWn_MGkZFHUEyLajbUXo37cDIMqWhVkyXGVrjmVLFlN1G6BbiJMO0dZko7uIFfk3Ho9DbhZMcN91GbdzHbp58WDJejPCyj19MpJ2ZpBtIDYZLGbq_4xPXmIqHI3lJCgZh_zZePVEej0k0N-zvai75NWv2t0zbUtTA6nIP_S0R8A3slozxZmjp97Skwnw-RYcBMRBdGr8aVFiitOugd9UgPU3svDb226daeOmakKJ6ZvRdP-Oh1z4jxPBNX5iY9g6dDE-UfXvzbxC5naSRMCJXuWLdaGHYfXLJ7eepyS91j0zgb25lfl5O9zFNwyaljnVtUL7Bqs06onYL-iNMH7hxuVyU6EQDkNw0TLCiiXbPk2OFic4qhUyb6M5IojnPFRl59WrV-ukLKt-v2zFUR7udeyghCKbINKlS_QH-aYqVOAmPT6WPP-u2zH8RiuaKve4FbRAUorQMs3Qpy2gP0o93nl-d2MDZvVxxv7yAegGfFuiny4N-uXS1CKtkT6oipZJwOu54_Memh9ysY8yjgAnQBeQND4Ol3Sgui1-i4BmOfn_pwtBESKVttjckCllQy3w6iNkeVh179WwgW7nwmkXH5gsDgb7r01Bmm4TI2FFS1-oMiedGu9X9lzlQtOhgOoASWeKoW95Tkt-aGobzQVitNzteY1mkpHD7MOl4wU7tIqoaMQffwpui1nhbINrdsHpd04pyv3j6b2NG51U2_Wwd-vP_3OYfzz-zC2ehVqhe4fX4QZnvsS3nIMviG8pjgOUqykqf6NQwFC1hYykQWJOhR74Riy5IAtN_Ys7D2hbd_I4zaexNqJETzaSrwpZFso5bBaZ2lmgZdMreVkYF0cIakTKf9ll1nc2iFsnvUMXVg0T1tZ6dw8VMcIMnjE-RlPfyxk3nrxR3EzsAkhoRPg0AhS1gVYmAPog",
+      "presentation": {
+        "appId": "app",
+        "databaseId": "db",
+        "targetProfileId": "local",
+        "function": "mixedView",
+        "planHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "args": {
+          "boardId": "board-1"
+        },
+        "parentGroups": [
+          {
+            "groupIndex": 0,
+            "parentAuthorizationKeyDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "parentId": "board-1",
+            "parentIncarnation": "018f4d5a-0000-7000-8000-000000000001",
+            "parentVersion": 7
+          }
+        ],
+        "nodeClasses": [
+          "bounded_children_v1",
+          "relational_query_v1",
+          "bounded_children_v1",
+          "relational_query_v1"
+        ],
+        "authorityPartition": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "streamEpoch": "stream",
+        "nowMs": 10001,
+        "parentSurface": "visible",
+        "boundaryValid": true
+      },
+      "expectedOutcome": "SNAPBACK_SNAPSHOT_BATCH_CURSOR_INVALID"
+    },
+    {
+      "id": "cross-database",
+      "rootHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "nonceHex": "1112131415161718191a1b1c1d1e1f202122232425262728",
+      "body": {
+        "formatVersion": 2,
+        "keyGeneration": "generation-1",
+        "appId": "app",
+        "databaseId": "other-db",
+        "targetProfileId": "local",
+        "streamEpoch": "stream",
+        "function": "mixedView",
+        "planHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "args": {
+          "boardId": "board-1"
+        },
+        "parentGroups": [
+          {
+            "groupIndex": 0,
+            "parentAuthorizationKeyDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "parentId": "board-1",
+            "parentIncarnation": "018f4d5a-0000-7000-8000-000000000001",
+            "parentVersion": 7
+          }
+        ],
+        "nodes": [
+          {
+            "position": 0,
+            "nodePlanHash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "state": {
+              "kind": "boundary",
+              "orderFields": [
+                "position"
+              ],
+              "boundary": [
+                9
+              ],
+              "rowId": "card-9"
+            }
+          },
+          {
+            "position": 1,
+            "nodePlanHash": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "state": {
+              "kind": "relational-boundary",
+              "orderFields": [
+                "updatedAt"
+              ],
+              "boundary": [
+                17
+              ],
+              "rowId": "event-17"
+            }
+          },
+          {
+            "position": 2,
+            "nodePlanHash": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+            "state": {
+              "kind": "terminal"
+            }
+          },
+          {
+            "position": 3,
+            "nodePlanHash": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "state": {
+              "kind": "terminal"
+            }
+          }
+        ],
+        "authorityPartition": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "issuedAt": 10000,
+        "expiresAt": 1209610000
+      },
+      "expectedPlaintext": "{\"formatVersion\":2,\"keyGeneration\":\"generation-1\",\"appId\":\"app\",\"databaseId\":\"other-db\",\"targetProfileId\":\"local\",\"streamEpoch\":\"stream\",\"function\":\"mixedView\",\"planHash\":\"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"args\":{\"boardId\":\"board-1\"},\"parentGroups\":[{\"groupIndex\":0,\"parentAuthorizationKeyDigest\":\"sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"parentId\":\"board-1\",\"parentIncarnation\":\"018f4d5a-0000-7000-8000-000000000001\",\"parentVersion\":7}],\"nodes\":[{\"position\":0,\"nodePlanHash\":\"sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\",\"state\":{\"kind\":\"boundary\",\"orderFields\":[\"position\"],\"boundary\":[9],\"rowId\":\"card-9\"}},{\"position\":1,\"nodePlanHash\":\"sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd\",\"state\":{\"kind\":\"relational-boundary\",\"orderFields\":[\"updatedAt\"],\"boundary\":[17],\"rowId\":\"event-17\"}},{\"position\":2,\"nodePlanHash\":\"sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee\",\"state\":{\"kind\":\"terminal\"}},{\"position\":3,\"nodePlanHash\":\"sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff\",\"state\":{\"kind\":\"terminal\"}}],\"authorityPartition\":\"sha256:1111111111111111111111111111111111111111111111111111111111111111\",\"issuedAt\":10000,\"expiresAt\":1209610000}",
+      "expectedWire": "sbsb2.ERITFBUWFxgZGhscHR4fICEiIyQlJicoxBuwC36VcIJpQpAEeTfoYlg0HASS97Wj46790RVzwssRlVZAOyT0dPiTNTIcCoL9941QaqT-UUikSa6o6ao2CQ4rv2cZtW4_7F8vVeQQDYHnqHa1u8038Pn78i_xzKaNru90Qn6hx0Kv39u874uUA2j3kuqzB_3VKIgXtjVFbjSV7gLem6X4QaFa63eiUrtHb51vPEBvBe8vOmUG_SFbQ6dSgzfyYw2kZVI_bJsYoyboCmjj3h1qL1qlVD_IhIWb8mhoKtEf1G2n78QDr-U-ZcMbEkmKAQ1wNPFLDEcC-9bFrjqTJ7EKsUNI4YsMxAfcJqQWK5qwYNcuJWbySecUmTc2Xg01cT1-ZUq4DqLqFVDNuYuf4McUtWUacK5EosL3IvhafaCVf8yeZEYa3sO1ZL70kSr_bTLlN-NPQPeEWujdxkL2nSY5ERuiWNGoqJ-_OIWdDLf1SIxajhdJOhQKo85-5NRajEAGnx5D40vYmNxeD1hI4ROAaaOPmwWajf0TL3_sKFwGY5H9FtbolGsyFYjUsj_W7lDR4WU9KYz0kKcLSszOQZ85yNgUD-uqtYwBuZYpZcEDmDKK5w64Gs077TaYBU5RuO21j9ICRLCQHZd4oa47mJYJZfvqhJR6_0AqIfN_asB65vWpc5dyNyx9ZqWSPaheTLFp4n-9WwYHdreRdsFFaq0Vzxa6LjzfZhvOGwqmgI37atypImTBYw1Par5e7g--lFDj-3lHcLcMMorD8iP_FTNMcz7hW8TKTohTzZiueP9kRb5iw-ER0hXESToH9R5mhs0GB6rK1-Y_tiB7JY1EML9gBI-P6nSQW7W6Kxrz4JmE8Fmg1IDuEAFVccaLE_SRQ2K4HUp9CzIb3cEiIuQaN9LZmekvuDMxz_i-lhLFV22hLPhvYGCrFK6zgsLcKJu75WGnrO4GtcrDT8vOH50bi6e_tswV8yh8Rc4wMGpAGOmp-PX7zg5tR_ixrAzoesQjdBDl7-jM0cEMN36wNFI29LGclFXt0vGrW2BJ-8rsz6xoivz6enK_grt2cN9zyPpDeeM78CiMykfJ24rS8YnYrsIlUxJ6c_QzW3BuQdghwuigRe1W3eGBgwzhbF15ZnFsMtqFY8gC6x9AOmLnpt2VOdg3FFlewlCOnbYLBwSBuydBzzHWLfGUhv6Ux9fyFSIDmRhpqF4d0SQ7N9Q4BOioe4_VkFkaXali2nJNxYAoYOG9qkKbN1mTVuEtk-tG1gEvwWfmpzRKdf5yKXzdE1RvkW5HomCK0rHT_GwZVlWrTrvYVLi17_u6TItQeSt0JRbfNpH9_XG3_KgSxilvtkDuQBRYX0sFtvfML25kN7XIXgf_XIkNyMFwLR53LjZF4gAExGczHQbDoEa1Hcgya_3n3LCoMu_nnU3ebP862IXC_Y9PQsJPdusgAtEBc72bJJJRLNh8OITIClv4TDIxqGn9ZVBOEoMrPQF1lcJxnWMR6kKhM5_f8Z8ZmafGcMADdEDEljS3V1UTX_fzt_Fz8rFXyoQcHO_s2MFFgAbKrv94fXbOIYGkLdIbO4_CcFPzoQwlmhe_tLOBC7aqJc-CVN3BbmruzgEQ7Y4VQe2f3oLOh6qCBNZjlvrMzn4PPhivwLFLj_HMHo_ebfYI1BeCw4YWxEpfrzkIAvdcXVvKRkZ71IfRAOQsKMQhpPgiNBbDeX7NY8XhPNTUAsSJMUcyo-NjkeTlSuYrdNLizdtizm0MNHhgS5Qs3Kroxdh3KtJN90EAngVgkDz-yF9wgD35ZhczSg",
+      "presentation": {
+        "appId": "app",
+        "databaseId": "db",
+        "targetProfileId": "local",
+        "function": "mixedView",
+        "planHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "args": {
+          "boardId": "board-1"
+        },
+        "parentGroups": [
+          {
+            "groupIndex": 0,
+            "parentAuthorizationKeyDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "parentId": "board-1",
+            "parentIncarnation": "018f4d5a-0000-7000-8000-000000000001",
+            "parentVersion": 7
+          }
+        ],
+        "nodeClasses": [
+          "bounded_children_v1",
+          "relational_query_v1",
+          "bounded_children_v1",
+          "relational_query_v1"
+        ],
+        "authorityPartition": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "streamEpoch": "stream",
+        "nowMs": 10001,
+        "parentSurface": "visible",
+        "boundaryValid": true
+      },
+      "expectedOutcome": "SNAPBACK_SNAPSHOT_BATCH_CURSOR_INVALID"
+    },
+    {
+      "id": "cross-target",
+      "rootHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "nonceHex": "12131415161718191a1b1c1d1e1f20212223242526272829",
+      "body": {
+        "formatVersion": 2,
+        "keyGeneration": "generation-1",
+        "appId": "app",
+        "databaseId": "db",
+        "targetProfileId": "remote",
+        "streamEpoch": "stream",
+        "function": "mixedView",
+        "planHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "args": {
+          "boardId": "board-1"
+        },
+        "parentGroups": [
+          {
+            "groupIndex": 0,
+            "parentAuthorizationKeyDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "parentId": "board-1",
+            "parentIncarnation": "018f4d5a-0000-7000-8000-000000000001",
+            "parentVersion": 7
+          }
+        ],
+        "nodes": [
+          {
+            "position": 0,
+            "nodePlanHash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "state": {
+              "kind": "boundary",
+              "orderFields": [
+                "position"
+              ],
+              "boundary": [
+                9
+              ],
+              "rowId": "card-9"
+            }
+          },
+          {
+            "position": 1,
+            "nodePlanHash": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "state": {
+              "kind": "relational-boundary",
+              "orderFields": [
+                "updatedAt"
+              ],
+              "boundary": [
+                17
+              ],
+              "rowId": "event-17"
+            }
+          },
+          {
+            "position": 2,
+            "nodePlanHash": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+            "state": {
+              "kind": "terminal"
+            }
+          },
+          {
+            "position": 3,
+            "nodePlanHash": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "state": {
+              "kind": "terminal"
+            }
+          }
+        ],
+        "authorityPartition": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "issuedAt": 10000,
+        "expiresAt": 1209610000
+      },
+      "expectedPlaintext": "{\"formatVersion\":2,\"keyGeneration\":\"generation-1\",\"appId\":\"app\",\"databaseId\":\"db\",\"targetProfileId\":\"remote\",\"streamEpoch\":\"stream\",\"function\":\"mixedView\",\"planHash\":\"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"args\":{\"boardId\":\"board-1\"},\"parentGroups\":[{\"groupIndex\":0,\"parentAuthorizationKeyDigest\":\"sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"parentId\":\"board-1\",\"parentIncarnation\":\"018f4d5a-0000-7000-8000-000000000001\",\"parentVersion\":7}],\"nodes\":[{\"position\":0,\"nodePlanHash\":\"sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\",\"state\":{\"kind\":\"boundary\",\"orderFields\":[\"position\"],\"boundary\":[9],\"rowId\":\"card-9\"}},{\"position\":1,\"nodePlanHash\":\"sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd\",\"state\":{\"kind\":\"relational-boundary\",\"orderFields\":[\"updatedAt\"],\"boundary\":[17],\"rowId\":\"event-17\"}},{\"position\":2,\"nodePlanHash\":\"sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee\",\"state\":{\"kind\":\"terminal\"}},{\"position\":3,\"nodePlanHash\":\"sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff\",\"state\":{\"kind\":\"terminal\"}}],\"authorityPartition\":\"sha256:1111111111111111111111111111111111111111111111111111111111111111\",\"issuedAt\":10000,\"expiresAt\":1209610000}",
+      "expectedWire": "sbsb2.EhMUFRYXGBkaGxwdHh8gISIjJCUmJygpnLHMNVDBLbIlyV5Y6exoNDZznYZB_aBNcH2jUh4RAxbLTQabSKa3bwtWv63fx_EuE1VI6FOImRAujwSjdtyX-Rk4LB8C8ZoDMyxIfp1pHjC0Z9zxFbmCtcxLloyMniuaD7sTnX2-88159GeemXMK30Vo0A9lO7xc96-RS0gItR9vj_K4G6TI22XSlPMq9_NcKJz9wuovrCB6l0gZpD22luirgHNKfBdxohvu0t9KGVRi1x05McnW7cEDH9m6yR-qu8GNdfWklky-R-IR3kUAWEhkihhwrA7cEU1c-sNy-DNglWDrqWTMpGpx34hx3UhLLOzwDOdFEu-uBtY1xtVYrYGRJI8QQScFPrpb244X1pFoZ9loqyXMdjeQYl1kTBAD_ykSiz2E5sC7Pxk2Ss3f1s8UuiMkgpOnlULh8oCmgJuW41eQQmKe-kKEtBv0je8JdBzmd72R2Dz-lf3XZBh7odXUkV7-OVTIv6g7Hpv5XtZkXg8d6F43mzmXwIUYulF8cYHww50LHVs8hjY5pF_QYj69CbX33fgSo4W7-ghjAB_Jvq6OKAq3Xdh_q41ufmBz1Gm464tqhy9croYd4qsPwbGrNHVV3arw0OHuNDZuhh7_ZNyZJGnoaoi8Vrgff7Dv_4BnuuuJz67_A0LJs1LGBXFtdyjDdxoYxdSl3ekWXK0zGLiNgvXdbTqXtdI4L-k362DJGrrqFUWNenZaHQkvireZK9f_jnfeJFq6mTT-R5dVdEMpgACl834DAb9YgDi8fObrcOVdrGGGNVBgRp-xRO0TH591j8YazZE6fPqZ09zZKfAJFcp8LbLx2GcUv-2xgQ7VhYPtHEbh1YNWm6293MaP-ffxaO3c5PAYVE6oCNIRvq3zOIM7If3POH8w2uOAIlySCrxhU8gtItUQGxp6Gpi5NfMf73P4rR5jSRZ6cjxtqDzwT8GgoNN1dZ6YZg1Ou47AbeOa2wQWbFJr4_VQXm2AiAIM1OgP6Ldn7XSsKZ8PkhJjjEY6zo0ys29PzgnZN7kMsz_1y69TYCNFwk2vHHTSMHyFGNyAn99pcgmYX4DRCyg3SMzwdugbS_Ct6ap8y_pzNTFgNTCAyrYBv5qwjb6gYF-p64c41w_lH2t5IrfxzDlf4pJLLv08bYE-hPs1nd9e-vzgTDQj_jXhP8jTbIDiMMdOOZnIaB5dhmDigCiIHsBXUIfIZk4BXKbMB_9UAF6FZq06DF9X64Ouw22DvEWVEzgHTBFAxIccqhXLFp12Tgzp037SOCjRc01gz7xV8R9hNmRGiB1zRE0QYOzYihJqrgiILExw8sCWpl-PwAYg7PM1sMDJN8iPDJoOeyqqaWeVCj3XG7PrXTJecf8PqqajfKv7BFvoTMHbHqfrSNA3LyT4RsnEFKiPTNamPSNNZA_qArrC945TvmbA4osOSePuh-2-vfKr9pK9Z3zTseHBHExzpOM2Y_edYuFrYTSiaDU-fzU2GFaLNPiUVoQ8Ijms58DxCN_FwRDSiZt70mRR9ZZuvaEet3-qu3FzJu6RgzUL110Kv7BgdD-hwClGzPl-BUlP_-v0sa6Vq2yQX5jTMm-yWSBruUTseI4leu1g7tKTEIxCCzbpeQYhJYuxE7clCvnpR-itJyx0S1i0f5DfMJg986TK7aDKbDV3zbyN8oug7eNFkGGz9PfgQF_X3tvZNdUiooZ5LmSe1ngVM6fD1IAHdrLn5sSGb71RgCXl5AT0qlylr-NYl4IS9etWAjgytEaKf7q6ozzYFm3icg4",
+      "presentation": {
+        "appId": "app",
+        "databaseId": "db",
+        "targetProfileId": "local",
+        "function": "mixedView",
+        "planHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "args": {
+          "boardId": "board-1"
+        },
+        "parentGroups": [
+          {
+            "groupIndex": 0,
+            "parentAuthorizationKeyDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "parentId": "board-1",
+            "parentIncarnation": "018f4d5a-0000-7000-8000-000000000001",
+            "parentVersion": 7
+          }
+        ],
+        "nodeClasses": [
+          "bounded_children_v1",
+          "relational_query_v1",
+          "bounded_children_v1",
+          "relational_query_v1"
+        ],
+        "authorityPartition": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "streamEpoch": "stream",
+        "nowMs": 10001,
+        "parentSurface": "visible",
+        "boundaryValid": true
+      },
+      "expectedOutcome": "SNAPBACK_SNAPSHOT_BATCH_CURSOR_INVALID"
+    },
+    {
+      "id": "cross-function",
+      "rootHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "nonceHex": "131415161718191a1b1c1d1e1f202122232425262728292a",
+      "body": {
+        "formatVersion": 2,
+        "keyGeneration": "generation-1",
+        "appId": "app",
+        "databaseId": "db",
+        "targetProfileId": "local",
+        "streamEpoch": "stream",
+        "function": "otherFunction",
+        "planHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "args": {
+          "boardId": "board-1"
+        },
+        "parentGroups": [
+          {
+            "groupIndex": 0,
+            "parentAuthorizationKeyDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "parentId": "board-1",
+            "parentIncarnation": "018f4d5a-0000-7000-8000-000000000001",
+            "parentVersion": 7
+          }
+        ],
+        "nodes": [
+          {
+            "position": 0,
+            "nodePlanHash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "state": {
+              "kind": "boundary",
+              "orderFields": [
+                "position"
+              ],
+              "boundary": [
+                9
+              ],
+              "rowId": "card-9"
+            }
+          },
+          {
+            "position": 1,
+            "nodePlanHash": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "state": {
+              "kind": "relational-boundary",
+              "orderFields": [
+                "updatedAt"
+              ],
+              "boundary": [
+                17
+              ],
+              "rowId": "event-17"
+            }
+          },
+          {
+            "position": 2,
+            "nodePlanHash": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+            "state": {
+              "kind": "terminal"
+            }
+          },
+          {
+            "position": 3,
+            "nodePlanHash": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "state": {
+              "kind": "terminal"
+            }
+          }
+        ],
+        "authorityPartition": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "issuedAt": 10000,
+        "expiresAt": 1209610000
+      },
+      "expectedPlaintext": "{\"formatVersion\":2,\"keyGeneration\":\"generation-1\",\"appId\":\"app\",\"databaseId\":\"db\",\"targetProfileId\":\"local\",\"streamEpoch\":\"stream\",\"function\":\"otherFunction\",\"planHash\":\"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"args\":{\"boardId\":\"board-1\"},\"parentGroups\":[{\"groupIndex\":0,\"parentAuthorizationKeyDigest\":\"sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"parentId\":\"board-1\",\"parentIncarnation\":\"018f4d5a-0000-7000-8000-000000000001\",\"parentVersion\":7}],\"nodes\":[{\"position\":0,\"nodePlanHash\":\"sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\",\"state\":{\"kind\":\"boundary\",\"orderFields\":[\"position\"],\"boundary\":[9],\"rowId\":\"card-9\"}},{\"position\":1,\"nodePlanHash\":\"sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd\",\"state\":{\"kind\":\"relational-boundary\",\"orderFields\":[\"updatedAt\"],\"boundary\":[17],\"rowId\":\"event-17\"}},{\"position\":2,\"nodePlanHash\":\"sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee\",\"state\":{\"kind\":\"terminal\"}},{\"position\":3,\"nodePlanHash\":\"sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff\",\"state\":{\"kind\":\"terminal\"}}],\"authorityPartition\":\"sha256:1111111111111111111111111111111111111111111111111111111111111111\",\"issuedAt\":10000,\"expiresAt\":1209610000}",
+      "expectedWire": "sbsb2.ExQVFhcYGRobHB0eHyAhIiMkJSYnKCkqSemnwRsN4kUWNqCrrlRSqbf-LGjHZSFS2wQM7Ab5rNfFEESqdbRqUg1iHNHPImjrTRBm2PEjaSiJNjOcyt1qmN-H-ZFssn-NxVT5xSQiqslnQar9xBvL5w1FYGvhthhqUA1tGcDCSNjD6vmC48Fv7fx9JTdEcc1eAjKhb80rBzVWsuTioldLk4PuPumyussWAvM4y-nz6prz85HiyV1kvSHbXy6m6AU6vhuSdYGUUA7rD3C1w_eKnrA28ADSwwjg-kB5urx6HLrAkBexg5JS83OvHIRoBdvG_Cx9QaqYc9XZt3NdBm3ZuydohmYKqJTwmgQ-vu9IBhDHlQzV5b8HfA2LJ-ITj3qPjXfVxtKRyeO3uO61oO13nsAiV7XLVd_6U2cxjw3Y-3BV4VbrMzuCElPCA48NCyCooEtXqygx3qpG-2vr-t6hKtvftmJH7c3S-RDIBAGwFwahtOzRLjiQ6t7Q1ifftMYCxT5NIY0IzD8DpXKC6iUIwWpq7O0aoGv2thy8m5xakiQEk3C-JLhBV5d88_BK7qsM9f5WY0_8yWVmNkg1vk-r6lsb3nWcpat6V861uJ_vVAUBTD3FnvfIDwA_i1u5DHEc5a_cRCWXa-XSWB1ef0lGTmT78-bWUq_3B7B3uFgPJy82xtVkyivgAuV0IN-4nb04G8BCGv5sUAFqVALiqwOFipWSn5pv8nUn2LOTdTrnrgmvIz7FvqxZZ2N2avE-_PGM4HD9YYoYKRktiYNe1YAljwEP5o6Gx3G_6WlKIYSFrzQ7NgmMQ1JJydLI7HUs-ZYxdSX3PSWJPuSuZU7rMeXiqz3BTi80jjum0C0TO445_3yOUOQk1307YCpb9aF_WWJ53PovacE7meRapXsn9E2bfe6RU4eWb6kGyUyomQrWWijw_6EHrcomu32QDeRGqDdgrcZrA8Rb7oCkkzQF2LImRgZWuRFqwWZ-5UepLrS3eGaY9FrW9nCM82CshqsBQOY9PQeJq9_b-swx7LdPZAeSFHVuqNOEWsTnTl9TmmOCWY1Rpd1q4X5zaUAj86wdomcxXHpRleUvxIEu2Wqtd9qraMmVd5h3efByrKHgqfSc4QEfwVXb0fKYDVzS8TumRO_UjaAjq_0vawR5VaGs1EwBbxd5Dy9bHmlLVst9eY7kFcKSancoqSFHtAQUD3PNq8FnQFWxUyVsT8NOqzZGbsboe2wtPgWKHpuQHxCPomnyvxWeBEYfHoVCICKKRsGrIJCDCguL_DLCZS2JdudaEpN-PQlIMUYQiNft1fd1_p4PIjFfA3HAzrkYNc-u5hls0GQqg_-d4CKSnS79opq0CYDQ-CZbuMhG5dGQlZVPRH_vLTLq3WhJMoGqShsMSa1LZJcKmqbPtxMcow7Zt6TuN7hF1JfzneR8u_BOX9d6quUe77e9OmGRnnC3nSHiE-W0lcCz2ttP6ta1_mxjgAnrFrH8ElYtg3rFcLAVw3vYB_eJPAPN2fc065datL4OSYj34tpyaiWxoM3Uhs0rtklUQYKLF1t25LOL5Yhl99DR2abvQeW2LgjEsu9dquzTmS1eOyX0aQwrwGrjcBENfRJkGtUU_js226MzmTcb8wsA9ufJjbQTTc212QFcxxqtNXeQJxvwI5LX_zd8yUR_o_Ad5krlFt71Y54uIEBu_6la95VG9EtDILZu28zLoVRIjnqlqqn39RdCQXXCFa6uUM2dsICUuC4CMEWZNGeQuLIKFMkCifDaAD1p1WTGEMvi6SzqUggI5ZkBLdCGM3y7Li0",
+      "presentation": {
+        "appId": "app",
+        "databaseId": "db",
+        "targetProfileId": "local",
+        "function": "mixedView",
+        "planHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "args": {
+          "boardId": "board-1"
+        },
+        "parentGroups": [
+          {
+            "groupIndex": 0,
+            "parentAuthorizationKeyDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "parentId": "board-1",
+            "parentIncarnation": "018f4d5a-0000-7000-8000-000000000001",
+            "parentVersion": 7
+          }
+        ],
+        "nodeClasses": [
+          "bounded_children_v1",
+          "relational_query_v1",
+          "bounded_children_v1",
+          "relational_query_v1"
+        ],
+        "authorityPartition": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "streamEpoch": "stream",
+        "nowMs": 10001,
+        "parentSurface": "visible",
+        "boundaryValid": true
+      },
+      "expectedOutcome": "SNAPBACK_SNAPSHOT_BATCH_CURSOR_INVALID"
+    },
+    {
+      "id": "cross-plan",
+      "rootHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "nonceHex": "1415161718191a1b1c1d1e1f202122232425262728292a2b",
+      "body": {
+        "formatVersion": 2,
+        "keyGeneration": "generation-1",
+        "appId": "app",
+        "databaseId": "db",
+        "targetProfileId": "local",
+        "streamEpoch": "stream",
+        "function": "mixedView",
+        "planHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "args": {
+          "boardId": "board-1"
+        },
+        "parentGroups": [
+          {
+            "groupIndex": 0,
+            "parentAuthorizationKeyDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "parentId": "board-1",
+            "parentIncarnation": "018f4d5a-0000-7000-8000-000000000001",
+            "parentVersion": 7
+          }
+        ],
+        "nodes": [
+          {
+            "position": 0,
+            "nodePlanHash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "state": {
+              "kind": "boundary",
+              "orderFields": [
+                "position"
+              ],
+              "boundary": [
+                9
+              ],
+              "rowId": "card-9"
+            }
+          },
+          {
+            "position": 1,
+            "nodePlanHash": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "state": {
+              "kind": "relational-boundary",
+              "orderFields": [
+                "updatedAt"
+              ],
+              "boundary": [
+                17
+              ],
+              "rowId": "event-17"
+            }
+          },
+          {
+            "position": 2,
+            "nodePlanHash": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+            "state": {
+              "kind": "terminal"
+            }
+          },
+          {
+            "position": 3,
+            "nodePlanHash": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "state": {
+              "kind": "terminal"
+            }
+          }
+        ],
+        "authorityPartition": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "issuedAt": 10000,
+        "expiresAt": 1209610000
+      },
+      "expectedPlaintext": "{\"formatVersion\":2,\"keyGeneration\":\"generation-1\",\"appId\":\"app\",\"databaseId\":\"db\",\"targetProfileId\":\"local\",\"streamEpoch\":\"stream\",\"function\":\"mixedView\",\"planHash\":\"sha256:0000000000000000000000000000000000000000000000000000000000000000\",\"args\":{\"boardId\":\"board-1\"},\"parentGroups\":[{\"groupIndex\":0,\"parentAuthorizationKeyDigest\":\"sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"parentId\":\"board-1\",\"parentIncarnation\":\"018f4d5a-0000-7000-8000-000000000001\",\"parentVersion\":7}],\"nodes\":[{\"position\":0,\"nodePlanHash\":\"sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\",\"state\":{\"kind\":\"boundary\",\"orderFields\":[\"position\"],\"boundary\":[9],\"rowId\":\"card-9\"}},{\"position\":1,\"nodePlanHash\":\"sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd\",\"state\":{\"kind\":\"relational-boundary\",\"orderFields\":[\"updatedAt\"],\"boundary\":[17],\"rowId\":\"event-17\"}},{\"position\":2,\"nodePlanHash\":\"sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee\",\"state\":{\"kind\":\"terminal\"}},{\"position\":3,\"nodePlanHash\":\"sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff\",\"state\":{\"kind\":\"terminal\"}}],\"authorityPartition\":\"sha256:1111111111111111111111111111111111111111111111111111111111111111\",\"issuedAt\":10000,\"expiresAt\":1209610000}",
+      "expectedWire": "sbsb2.FBUWFxgZGhscHR4fICEiIyQlJicoKSorbnV2vr4GV4ArBjP7EwjqxUaBE4h2tJOyVJwJBoxqs51WC_1wMee_cCYy19g-gF66_ScblRtQrgf4qlyWgbh4QdzDF0Dbe12ZRXgCrwo7GAQUiRrOeoiOmUoMzqqtwnjZSJatT7CnpckqeTN2OSx8ZkOtWwDq0O4Bd1blnh0574hOcx_xfZ1_QfteJjFwi-aZVcDIoLVDo60RfKSHEhoKLJp_8xnTKsrlDl6KqqTUtkD8Ra6W5dzSzemhOm3JrzGUEybkQ5buFqiIo5UKgAlvuixH2FBP6-CHlmnE9cosLaGoq3laVIHD_42yCIe7aTL9XLLwgFJ0tgec5QVezzT3FsoVhOVf5o9KjGoMnPZirQKkeSDnwIC99Zskas3sxO4ZAah9wxz7u2WBu-MP_ttqFz2V94vccJJdEXarJvo6Ido8cq_1zbPNnnp-zjhu5KhuD-VS1MJ0UcQ9TLIqusIz-PCHyRGCy06kZG8EzvVU-R5V2bG5afJxQNG-aKLkHOEgMy4QN8VviPTCH2hYKGkcaLmgS0HAsafrHHFropP4Axtv7QRivfmsP-xhMMvzzith0ab2O_ImaEVWV3vc4L9NsB5pFJurRzAKLv9Zjy6ZPA1X-qc7d_apwJJNXngrV4fgfK8cK-2DR-nCBLTlCkn1jB5qgf0VlrB1fmXvKl8NiNHcgBpvUVzwaqzhRItz6dkIvCTLnKxhBkp4oGbTdqEpOucUGg4Ro9Cb1BgQQKqUNkverbR_ChLRUfsT2D8uCgco-uraPfH5FyiRDO5566CRSnferI--rRifyYAFxh8f19geX9B_N_8vsO_qkokZJCb9yhaKHDxFBCcdA2Ylwz9bdEqPcPjEq2weeY8wk742Jgg1xd2mi3RpvgwyezVW--EXPLLLgHWyxKyvdNc2tr7EIk7qW3kdvv9D8kfEzLgu4pNwLz5xI8JkBl94698h-jMATNKBYHHr8Iwm-JphSqiFk2J6f8I59juSmN7RXaIdqwMgUiZ25gYRpYkRykxTtRfLHyTL3uEHzQHEmw_KoJCfeStpE4PSXY3IPuwcAl9ClgOTYIRYYaBDl4hM2tNfkJH5YAJDIFvtXuXx3bdsqleoLgMgCXXnMqeb_pwliTunpRC0zjmUULp2wkLFZwUtc3yXi0F1DNpcCrunHu-jWHbo1QHZxZcSPaGFYy_Ez-BE1KJtg9SE7NNhVMb_vHh854ceYF2vpuR39Ffkf7lsr7KP0UhWixbBCFz5TBFHZKq9XjFBMRcbd17OggdlXfw9Jm5O_1SiN_pJ76UzybO-9nji05mI6PjW3pZpLj5t7r9aKpIkwm_FgHrlprygid3sgovd7SVTrR0FFV0y6M5GVWlmOuutSc7CURqOUM1GBu8U1CI0HKRJXii4oWVRA8dCAtHBbra3DXpwTJ1T5S_02gkTvPtpcRQChvY3ZLIZZMTPY1QQroU_FGjaly5-A2Si1PzouE6xQYsi4nval5PJdNdowLYTX4GXqrlGMyDzqDJvaugPyckHfnCy7KTW8RqI4WXXioywtZKPusw8_a_rVvZ8B9zFnsRRJc7tXy1C0hSQ8h42ACfGyZEF01eYPAdzdJz_Nk4stNwIPlql1e5aeoCeH7AqgZjcO4Agp2Vtt1YQiCvb6Gxx9ZtS-PIMVKW-pidIz3BiWmzjd5GHYJa5V2_tmNPrH7yeWgpS8BD2bd5e9cyMptu34LKJK0Bnm1k8rfF5-JSjT1JC963YsZM6Wo9lkLgXPtm40E0BqFbtTrToqw",
+      "presentation": {
+        "appId": "app",
+        "databaseId": "db",
+        "targetProfileId": "local",
+        "function": "mixedView",
+        "planHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "args": {
+          "boardId": "board-1"
+        },
+        "parentGroups": [
+          {
+            "groupIndex": 0,
+            "parentAuthorizationKeyDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "parentId": "board-1",
+            "parentIncarnation": "018f4d5a-0000-7000-8000-000000000001",
+            "parentVersion": 7
+          }
+        ],
+        "nodeClasses": [
+          "bounded_children_v1",
+          "relational_query_v1",
+          "bounded_children_v1",
+          "relational_query_v1"
+        ],
+        "authorityPartition": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "streamEpoch": "stream",
+        "nowMs": 10001,
+        "parentSurface": "visible",
+        "boundaryValid": true
+      },
+      "expectedOutcome": "SNAPBACK_SNAPSHOT_BATCH_CURSOR_INVALID"
+    },
+    {
+      "id": "cross-args",
+      "rootHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "nonceHex": "15161718191a1b1c1d1e1f202122232425262728292a2b2c",
+      "body": {
+        "formatVersion": 2,
+        "keyGeneration": "generation-1",
+        "appId": "app",
+        "databaseId": "db",
+        "targetProfileId": "local",
+        "streamEpoch": "stream",
+        "function": "mixedView",
+        "planHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "args": {
+          "boardId": "board-2"
+        },
+        "parentGroups": [
+          {
+            "groupIndex": 0,
+            "parentAuthorizationKeyDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "parentId": "board-1",
+            "parentIncarnation": "018f4d5a-0000-7000-8000-000000000001",
+            "parentVersion": 7
+          }
+        ],
+        "nodes": [
+          {
+            "position": 0,
+            "nodePlanHash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "state": {
+              "kind": "boundary",
+              "orderFields": [
+                "position"
+              ],
+              "boundary": [
+                9
+              ],
+              "rowId": "card-9"
+            }
+          },
+          {
+            "position": 1,
+            "nodePlanHash": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "state": {
+              "kind": "relational-boundary",
+              "orderFields": [
+                "updatedAt"
+              ],
+              "boundary": [
+                17
+              ],
+              "rowId": "event-17"
+            }
+          },
+          {
+            "position": 2,
+            "nodePlanHash": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+            "state": {
+              "kind": "terminal"
+            }
+          },
+          {
+            "position": 3,
+            "nodePlanHash": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "state": {
+              "kind": "terminal"
+            }
+          }
+        ],
+        "authorityPartition": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "issuedAt": 10000,
+        "expiresAt": 1209610000
+      },
+      "expectedPlaintext": "{\"formatVersion\":2,\"keyGeneration\":\"generation-1\",\"appId\":\"app\",\"databaseId\":\"db\",\"targetProfileId\":\"local\",\"streamEpoch\":\"stream\",\"function\":\"mixedView\",\"planHash\":\"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"args\":{\"boardId\":\"board-2\"},\"parentGroups\":[{\"groupIndex\":0,\"parentAuthorizationKeyDigest\":\"sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"parentId\":\"board-1\",\"parentIncarnation\":\"018f4d5a-0000-7000-8000-000000000001\",\"parentVersion\":7}],\"nodes\":[{\"position\":0,\"nodePlanHash\":\"sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\",\"state\":{\"kind\":\"boundary\",\"orderFields\":[\"position\"],\"boundary\":[9],\"rowId\":\"card-9\"}},{\"position\":1,\"nodePlanHash\":\"sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd\",\"state\":{\"kind\":\"relational-boundary\",\"orderFields\":[\"updatedAt\"],\"boundary\":[17],\"rowId\":\"event-17\"}},{\"position\":2,\"nodePlanHash\":\"sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee\",\"state\":{\"kind\":\"terminal\"}},{\"position\":3,\"nodePlanHash\":\"sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff\",\"state\":{\"kind\":\"terminal\"}}],\"authorityPartition\":\"sha256:1111111111111111111111111111111111111111111111111111111111111111\",\"issuedAt\":10000,\"expiresAt\":1209610000}",
+      "expectedWire": "sbsb2.FRYXGBkaGxwdHh8gISIjJCUmJygpKissce6afil9yF-8Gl-JAauJbrDVuGRwxr2VXQ7zt8RCqaSOCKXIJQOBqmxMMua-KFryvqPk_ta2_1t9TSTKtx-VB3Zb_d1yYaF6qk-jnEDhlQGZP4pNzk3o8wyBMdZ8iOGcMmYWUD3Ysa7A5l8EWyaYruRCT6wk1AoJbqqCBJ145Ex9qqcErPwEM6oPiXq0-7QHTbMsYsAHFBK9Me5uevryz1_9CuMxuYI3ieH9ONP85R98_OYiZOrNc0mmbKZKP_re-jyiFLVYcunJm86bEBOGZL0WkCKybbJ6ppXxXvIIR-nnPttz-sIbm9_Ek8mDg2D5twciSFgM_2gahjx3WW7CykHOwZYyd0pvj2g0uQxVrf4Uh4aD3SQjSVg11heOI-L8s_vJy92TwHMMAeSNB9xukzFwdPECeDQ1cRO3E5NdS_pQo53E541cyNpjXDclXvRhxoDG-LSCkMUYX6rWlJ4jtxdUSf8Nm0KZYbdWTKMB21ZDcjygHs74IEgnKcc4FntIus9cCc4zgqiKKvAFRm3RNW0cLTU7KOJ873z2Yiahj96QLO4oko7-HjK7IvocXOBdHZPPJ1NSzyqndL_XuLSixftbjMgtxKsgJyJokVslQlMLmmM_DwEQ_MjwHb09Ax3BnZcpRgBNNHn1h3dyBBfiJdGKraWQBYmH_lmE39HHyDkzQd44Qm6Y0-5yGYSJxiuTr8MkhCB07lKjlejkpOywvO8eTe9OeTR1VUX3JszQ3nXbDvIAaj8atqOXXgCtnG92lEIxpRX5WzBz-Nq44jCObOf-MJWueeNj-rgNXwKaUVZKeG4nRjd5O9-MdcXYF1rXmkE-n-NYu5_3IGM8Jd8hJzH1aOq3eNB1XGmGI0tbIEE6fMJV44O4G2m-RkQeuVrgPT15M1zg-XBcT5PPR7SDd3qUJBtsmEO91Y9awbP44nNJsQeQ_4kxpH3ziZDYBEYEdsboltKb04bswG4on1Gg49MxUt9Akd_ZF0mhhaLrz4SkHgGy9ztOoPNddzZMc-NIdHQeE-q5AVoWaw70Ed5SjzKbOQ24PJwrunhV-THg-Qq04QnnAEb_D7VR6JnKc3zOM42lWM4afIbiTeDYRu_bJPIfiUzIgISzYxuaQ5_5SAmgdseKrfc1CarTq2E8sro4CQ3n73Ir375e5pIe2RKXcPoh_U1K9ndUIqWk6puqMgIrZQhcc3K1juRqYoa4twk4TnnOBcF4UbbvaCs-O5wGodQ7XEyE4h-cxuzJJWCij6CYCWvgflJ7f65NT0WgF0lC_momO0SD_OZYkrvGE5wj4kFgn0VuwiVaueuhlb2jD96PFFTVwUGBVqIKj2r_4bGD0qLIyExlDV85jf0lYuhaTCkYI2LaVG62WeY-0NySyB7UXmn6MJn7fBxD2V8Xuz-DjmsUyspTksaemoeIzU4gMiRKro5FLhGWgAh2jfwox-lWf_2YtJOm0FVk85L5XDB1DvXpdFLGNdaG-gHw5uXPcpdfgcr3dM_-poJNTTu7pAUtPiMbMOwbj1v_ljzsX9ZSC1c1nYSxBAZPLYJZatHrIq6VQvbRDHsRnaLAE2BU2nqZa47JDZGUegLmgCPSBuTD_MUxm1MMjQCL8CGJXUoIZO_FKJnss2c7GnPMfIX6ecMj5ysRhaYas5V7Lf9vfzzhRKHdEYpoCr4j9ADqO14JPncdQCtcvRaKGur63rR3DayNG8BgDHqIw9aqbBMzwquENwAHPigJOzkf1IGhuC1YSrLBvqS5LNDhp0tUdb1o_w",
+      "presentation": {
+        "appId": "app",
+        "databaseId": "db",
+        "targetProfileId": "local",
+        "function": "mixedView",
+        "planHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "args": {
+          "boardId": "board-1"
+        },
+        "parentGroups": [
+          {
+            "groupIndex": 0,
+            "parentAuthorizationKeyDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "parentId": "board-1",
+            "parentIncarnation": "018f4d5a-0000-7000-8000-000000000001",
+            "parentVersion": 7
+          }
+        ],
+        "nodeClasses": [
+          "bounded_children_v1",
+          "relational_query_v1",
+          "bounded_children_v1",
+          "relational_query_v1"
+        ],
+        "authorityPartition": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "streamEpoch": "stream",
+        "nowMs": 10001,
+        "parentSurface": "visible",
+        "boundaryValid": true
+      },
+      "expectedOutcome": "SNAPBACK_SNAPSHOT_BATCH_CURSOR_INVALID"
+    },
+    {
+      "id": "cross-parent",
+      "rootHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "nonceHex": "161718191a1b1c1d1e1f202122232425262728292a2b2c2d",
+      "body": {
+        "formatVersion": 2,
+        "keyGeneration": "generation-1",
+        "appId": "app",
+        "databaseId": "db",
+        "targetProfileId": "local",
+        "streamEpoch": "stream",
+        "function": "mixedView",
+        "planHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "args": {
+          "boardId": "board-1"
+        },
+        "parentGroups": [
+          {
+            "groupIndex": 0,
+            "parentAuthorizationKeyDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "parentId": "board-2",
+            "parentIncarnation": "018f4d5a-0000-7000-8000-000000000001",
+            "parentVersion": 7
+          }
+        ],
+        "nodes": [
+          {
+            "position": 0,
+            "nodePlanHash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "state": {
+              "kind": "boundary",
+              "orderFields": [
+                "position"
+              ],
+              "boundary": [
+                9
+              ],
+              "rowId": "card-9"
+            }
+          },
+          {
+            "position": 1,
+            "nodePlanHash": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "state": {
+              "kind": "relational-boundary",
+              "orderFields": [
+                "updatedAt"
+              ],
+              "boundary": [
+                17
+              ],
+              "rowId": "event-17"
+            }
+          },
+          {
+            "position": 2,
+            "nodePlanHash": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+            "state": {
+              "kind": "terminal"
+            }
+          },
+          {
+            "position": 3,
+            "nodePlanHash": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "state": {
+              "kind": "terminal"
+            }
+          }
+        ],
+        "authorityPartition": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "issuedAt": 10000,
+        "expiresAt": 1209610000
+      },
+      "expectedPlaintext": "{\"formatVersion\":2,\"keyGeneration\":\"generation-1\",\"appId\":\"app\",\"databaseId\":\"db\",\"targetProfileId\":\"local\",\"streamEpoch\":\"stream\",\"function\":\"mixedView\",\"planHash\":\"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"args\":{\"boardId\":\"board-1\"},\"parentGroups\":[{\"groupIndex\":0,\"parentAuthorizationKeyDigest\":\"sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"parentId\":\"board-2\",\"parentIncarnation\":\"018f4d5a-0000-7000-8000-000000000001\",\"parentVersion\":7}],\"nodes\":[{\"position\":0,\"nodePlanHash\":\"sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\",\"state\":{\"kind\":\"boundary\",\"orderFields\":[\"position\"],\"boundary\":[9],\"rowId\":\"card-9\"}},{\"position\":1,\"nodePlanHash\":\"sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd\",\"state\":{\"kind\":\"relational-boundary\",\"orderFields\":[\"updatedAt\"],\"boundary\":[17],\"rowId\":\"event-17\"}},{\"position\":2,\"nodePlanHash\":\"sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee\",\"state\":{\"kind\":\"terminal\"}},{\"position\":3,\"nodePlanHash\":\"sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff\",\"state\":{\"kind\":\"terminal\"}}],\"authorityPartition\":\"sha256:1111111111111111111111111111111111111111111111111111111111111111\",\"issuedAt\":10000,\"expiresAt\":1209610000}",
+      "expectedWire": "sbsb2.FhcYGRobHB0eHyAhIiMkJSYnKCkqKywtqLiWC1l3bvNM-Cv8lPvNpYmw1kGpYxhuuomXQKKrVJGSENlM1gjU3d2wpJLEf_XQ3vdQzUXL_kmt51SW5MvgOZd0-vs8I3zyzImVf2j6EZeZlnat-dOZnw15N1Aj5TLUcS_nARNtKROY5ss919Wvu1m2DT4KjONRFEQMFU-9E43a_4jNA8HsdJVluCiibSjq1Gpy89DMOWZ2XVe5ia3xcw8JJUiMof5BkAQwWFA_YKbW-Leca2jNtZGBExZBW7pvpIF_CQ8TZ7jXAjQY7YbTMp9z8irAM5eQHD1ADlbPVyZoYt7HxtAbB2MlDhqzaUPJsdTCJwBjGH8WF2r_VORTHpfjZa7YZOBdpwXBPjMdWC_pKye3oo16rDyBjmDtE16YGO7Dh0p50ZuiaCL7A1UuC-OZyhTzO8Lw0huYeC3QfYrD_ke5NbJRI0tl1AQt_Mqu5BcPfXNfXzCOSzXqYWOVug2Dxfh7MHWuXzys1zT23F4oCUG75wAt3CU-9qczN36wUYF9r8hggcSVxiIpnkop_KuFRMfkjAYFrKOvifI0REBqkAIhWcCF36di9Fv1x7sM6qNycSt2Q2wssp59En8lhoXJ-Fzn6JEuvn-eiBhi3jNEVWMWLAzlvAGMFTVMzL8SjA8TQFvrFhOAAtzU8nm-_j6ioWKBnUcH7umsRYPfhYVJn-_eGtoxzhLNKePAEZRflmtXzaFvmYUC3yI8L7rkgKHiVUKOES-_aKMBsCQ2P940XHufDbxqv0HeNv1r3RlcQ-mmnMGcNl8Xkellv5DGUaz_8Yrz3LkfKoc7Jf8jjcYvnr5PH1_hg8R2uTdqq4D-KJG446Sd2tfcjyg5GPRlNL-aqmQN7ZWBH-Xmrypo67baB9doyMXpqWETpYBPw3kMBA1HK3n5Ykx7BS0-EhLIh4vMIh-p-aztkUH4b743_pjnhhyrx8hKnIEKsYlkOFJBGk1yzk3T_eLcnQcf2gDDbD-RdzbnWl-_LmLzRJcYygmMJtV2W5xot8b4ylXrwA_OHxFUIxDqIkH73lThYdVJmqWZq4HlCA2IcU0_bTUyTlwujU3zudOBWawqhgelw06LzihBTJbGXywFcc9AzNwK9JWqzxKCHwZjCqJMzT3C7w_YFOMjftdt7TbiYEPo3CF_nypvuQXrWHqHrKofgrlE_5SlOvACfg5gJLeg154KdPjyRNoWgQcazcT_bsQw5q7QikRlSv5-12Pu0mfmdEZu2zTlhcZn753HCXXWhBxHxWfz-V-zSgUDU7QAgErKsmhJtdoC1gCnnp1R04PXaigsrqDyS5mnBBuJnJ_Uqs2zztvy-M-UxxkQseVY6SEo-aVMMGJqBseBFS3ZQrF3hE35rCoTUtwIRw084u9pgBkMWbVkn8fPmmWp4krP8lpcLMqh2EBzMdzTBDZ1FfCxqddex3uokDrAqmcSNfQrdaxQG6-eIMjms9VftrzXccy0WclGkokKZTuOWM7klQS_S4jlCJFConlZqZbs7rdF4WZn_AECmeMUAhgdYRRwi6Iev4cgMAxwbpiLNmem9CNAnYHXUTRahY6rP-xukGLDSRSTPZzN3WNyA5VVjB8vOC7mT-yTvO61C7HS8QCjP2ovGxxUyYbl7VGcluJX6RjAQoUhvwEWEe9zZ1Ux36Bqti2oReNh0XsZkeYq1W6enYf8kdCL90hZg3N4XxuZ9M6g7Q00PhmISQBr7C4nBG_zxyeQfdTU47uGfyqauHLSUIxHOZEzDPvYFDM1w3IVgoGRTlTbtw",
+      "presentation": {
+        "appId": "app",
+        "databaseId": "db",
+        "targetProfileId": "local",
+        "function": "mixedView",
+        "planHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "args": {
+          "boardId": "board-1"
+        },
+        "parentGroups": [
+          {
+            "groupIndex": 0,
+            "parentAuthorizationKeyDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "parentId": "board-1",
+            "parentIncarnation": "018f4d5a-0000-7000-8000-000000000001",
+            "parentVersion": 7
+          }
+        ],
+        "nodeClasses": [
+          "bounded_children_v1",
+          "relational_query_v1",
+          "bounded_children_v1",
+          "relational_query_v1"
+        ],
+        "authorityPartition": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "streamEpoch": "stream",
+        "nowMs": 10001,
+        "parentSurface": "visible",
+        "boundaryValid": true
+      },
+      "expectedOutcome": "SNAPBACK_SNAPSHOT_BATCH_CURSOR_INVALID"
+    },
+    {
+      "id": "cross-authority",
+      "rootHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "nonceHex": "1718191a1b1c1d1e1f202122232425262728292a2b2c2d2e",
+      "body": {
+        "formatVersion": 2,
+        "keyGeneration": "generation-1",
+        "appId": "app",
+        "databaseId": "db",
+        "targetProfileId": "local",
+        "streamEpoch": "stream",
+        "function": "mixedView",
+        "planHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "args": {
+          "boardId": "board-1"
+        },
+        "parentGroups": [
+          {
+            "groupIndex": 0,
+            "parentAuthorizationKeyDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "parentId": "board-1",
+            "parentIncarnation": "018f4d5a-0000-7000-8000-000000000001",
+            "parentVersion": 7
+          }
+        ],
+        "nodes": [
+          {
+            "position": 0,
+            "nodePlanHash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "state": {
+              "kind": "boundary",
+              "orderFields": [
+                "position"
+              ],
+              "boundary": [
+                9
+              ],
+              "rowId": "card-9"
+            }
+          },
+          {
+            "position": 1,
+            "nodePlanHash": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "state": {
+              "kind": "relational-boundary",
+              "orderFields": [
+                "updatedAt"
+              ],
+              "boundary": [
+                17
+              ],
+              "rowId": "event-17"
+            }
+          },
+          {
+            "position": 2,
+            "nodePlanHash": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+            "state": {
+              "kind": "terminal"
+            }
+          },
+          {
+            "position": 3,
+            "nodePlanHash": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "state": {
+              "kind": "terminal"
+            }
+          }
+        ],
+        "authorityPartition": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "issuedAt": 10000,
+        "expiresAt": 1209610000
+      },
+      "expectedPlaintext": "{\"formatVersion\":2,\"keyGeneration\":\"generation-1\",\"appId\":\"app\",\"databaseId\":\"db\",\"targetProfileId\":\"local\",\"streamEpoch\":\"stream\",\"function\":\"mixedView\",\"planHash\":\"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"args\":{\"boardId\":\"board-1\"},\"parentGroups\":[{\"groupIndex\":0,\"parentAuthorizationKeyDigest\":\"sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"parentId\":\"board-1\",\"parentIncarnation\":\"018f4d5a-0000-7000-8000-000000000001\",\"parentVersion\":7}],\"nodes\":[{\"position\":0,\"nodePlanHash\":\"sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\",\"state\":{\"kind\":\"boundary\",\"orderFields\":[\"position\"],\"boundary\":[9],\"rowId\":\"card-9\"}},{\"position\":1,\"nodePlanHash\":\"sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd\",\"state\":{\"kind\":\"relational-boundary\",\"orderFields\":[\"updatedAt\"],\"boundary\":[17],\"rowId\":\"event-17\"}},{\"position\":2,\"nodePlanHash\":\"sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee\",\"state\":{\"kind\":\"terminal\"}},{\"position\":3,\"nodePlanHash\":\"sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff\",\"state\":{\"kind\":\"terminal\"}}],\"authorityPartition\":\"sha256:0000000000000000000000000000000000000000000000000000000000000000\",\"issuedAt\":10000,\"expiresAt\":1209610000}",
+      "expectedWire": "sbsb2.FxgZGhscHR4fICEiIyQlJicoKSorLC0u10sWrrz3NvStQxfXKbyi_WVdXB5uOQsPlSVO-QRy_BO1isSA9KYAAE6pmshucAlyzlGrzmReoxq0ExonRtdetnfL_QD1g7NYmwDzMKUBoJQqdoIi1xwIfzY6wBtxpqNICPMqWTLN2XZbgskWIDhkcwPbguDWCTV8cZ7jweaP2NAbW-xO-f9dAW0sNe3IVvMMqrsL-nKo180RLREbNpeY39EBKOpk1EkZ3ZUXQyVzDyTCrjEwg5Eg1E2z7zaD1cq71yAt7XPfXpKnI5iPAJDNHBzjGzVeEEokxWFaRs9htCULRwEwWAkTo0_KM87Q_SqEED5SxjjG6c_Se56qH6I0jU67fqEpu9ZC8kRsw3TGH4Y9W8zerwCxmUYA7W4pxIwAvt1LBMnxZUWcmmL6xIPxyiPDVztSs613xNdIoNo1GNOWKM5aU47pOh-0mMcZQle6tDsHT26BJfaS-V7AvCQtdEwD2wU4io6hItFupxLqkDqUct3sq-gxnA_wp2D8anPdZyCIHR-dSJzuXVLuxNIsbPv6PoLeh4K3VaFuFznkBFAsHx6uDybtCKfxRbWQIeEId8jR2eys1MdH3h_EXZMCefqIREqjDqc2H2ujcAUznoasuPpv9EuxatTM3ZHqRalwBasUFLh2s4CM1dHu0qMwtiwE8zp8uLA2r0zieAdf4Yh2TLdUE8_tnylEpDTe3nLEe7-8CFgKu-Yvb6-xvZ83FtMNNRLJ3WhEPyYyLl5k6GLmt373E8X8BLzHHP4tId21h8-qXJi0OW5RkqWZ5VV4-_s3jRHVqt_vkgabUcJhJ-MY4KR4Dw3-ZI2exW3mAAwtVDjJJQxOd18cCtno0_M3T3GckI-BjlMVgqHIAmm2JvP0vQ-VrEoJ_t69okyrGUDYrplhU2TPfO6CcnVBSGQQMG7exUt4Hf4Y5IU7FO-BfxZ7xoVN_JCix082Bcxv1rFyw_AVNuyP1K-vmGxOhi1GF2SIJYvcR-9KWEkCl2rrpNc7InySLayM5UuBPUOrPU2vfK4KifxnoEGfNchQSIZRF8JisxwqvTQbSACX_8chjWM9P7x5MjwV5OpaCYsftRBmSyes-lD5HPWuTPGrspQuumj8-JlIw-fR0II-hD0-CWgrAScNhi5kMuCdQ-lDIAUj1RgplZCkKVDZPWT5RwXn98NH5W6fMOiLdD4Smi4s13NmBoGibyMiCD5GpF2YVF3CmGzUSgiuJTslf0tqMgnBA7Scb0Huiwda2mQFymOqkL9bZfapAq4Q0g4j4sDXKt_aIma3DDZlmmUtjBkhm3ohhNuOh2zGbTPyRLzsOALn1UxqYRfbssIcB8i8X_avcQcp7XLcLbi3jCh6MNyBIo3LR3VYYdrqm_tvC-LfsM2nDZoqstKRatNSq24AwCcwI6jqDsjT1WxC8_OdYtl-g-Biud8kbRyvClfZfZ3_5KAO8u6-FY4-L1D0xsUUWPkKB-y6ssR2Zgoo_A0Vs3uICIBzrWQ3UVZMsZtUMtB9AFAdrX9ujNrCHTsNLb88CTx_X5Y8W7RseCGwJ3xvTo-TtYCqgkRX8jccQMQGmeDGSrB_NoM7bwlhAWrOyUJAJbMuuxyNwp2FFgkWaGNr1WV-Mtbn7_8ncSwhjIYTQfwYApggxxKohgYuiSQyfB_I4YAdnGVO5vAu9ggUwOD_tKsocBYd59O0LunsFveJC5SY4yFzWaqvoUCH_vUNs8bogXC4m0TjgZ6ItRdW4CRfx0BtFmi9BwM5oc75i-dPc4GICA5tfA",
+      "presentation": {
+        "appId": "app",
+        "databaseId": "db",
+        "targetProfileId": "local",
+        "function": "mixedView",
+        "planHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "args": {
+          "boardId": "board-1"
+        },
+        "parentGroups": [
+          {
+            "groupIndex": 0,
+            "parentAuthorizationKeyDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "parentId": "board-1",
+            "parentIncarnation": "018f4d5a-0000-7000-8000-000000000001",
+            "parentVersion": 7
+          }
+        ],
+        "nodeClasses": [
+          "bounded_children_v1",
+          "relational_query_v1",
+          "bounded_children_v1",
+          "relational_query_v1"
+        ],
+        "authorityPartition": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "streamEpoch": "stream",
+        "nowMs": 10001,
+        "parentSurface": "visible",
+        "boundaryValid": true
+      },
+      "expectedOutcome": "SNAPBACK_SNAPSHOT_BATCH_CURSOR_INVALID"
+    },
+    {
+      "id": "boundary-invalid",
+      "rootHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "nonceHex": "18191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f",
+      "body": {
+        "formatVersion": 2,
+        "keyGeneration": "generation-1",
+        "appId": "app",
+        "databaseId": "db",
+        "targetProfileId": "local",
+        "streamEpoch": "stream",
+        "function": "mixedView",
+        "planHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "args": {
+          "boardId": "board-1"
+        },
+        "parentGroups": [
+          {
+            "groupIndex": 0,
+            "parentAuthorizationKeyDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "parentId": "board-1",
+            "parentIncarnation": "018f4d5a-0000-7000-8000-000000000001",
+            "parentVersion": 7
+          }
+        ],
+        "nodes": [
+          {
+            "position": 0,
+            "nodePlanHash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "state": {
+              "kind": "boundary",
+              "orderFields": [
+                "position"
+              ],
+              "boundary": [
+                "not-an-integer"
+              ],
+              "rowId": "card-9"
+            }
+          },
+          {
+            "position": 1,
+            "nodePlanHash": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "state": {
+              "kind": "relational-boundary",
+              "orderFields": [
+                "updatedAt"
+              ],
+              "boundary": [
+                17
+              ],
+              "rowId": "event-17"
+            }
+          },
+          {
+            "position": 2,
+            "nodePlanHash": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+            "state": {
+              "kind": "terminal"
+            }
+          },
+          {
+            "position": 3,
+            "nodePlanHash": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "state": {
+              "kind": "terminal"
+            }
+          }
+        ],
+        "authorityPartition": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "issuedAt": 10000,
+        "expiresAt": 1209610000
+      },
+      "expectedPlaintext": "{\"formatVersion\":2,\"keyGeneration\":\"generation-1\",\"appId\":\"app\",\"databaseId\":\"db\",\"targetProfileId\":\"local\",\"streamEpoch\":\"stream\",\"function\":\"mixedView\",\"planHash\":\"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"args\":{\"boardId\":\"board-1\"},\"parentGroups\":[{\"groupIndex\":0,\"parentAuthorizationKeyDigest\":\"sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"parentId\":\"board-1\",\"parentIncarnation\":\"018f4d5a-0000-7000-8000-000000000001\",\"parentVersion\":7}],\"nodes\":[{\"position\":0,\"nodePlanHash\":\"sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\",\"state\":{\"kind\":\"boundary\",\"orderFields\":[\"position\"],\"boundary\":[\"not-an-integer\"],\"rowId\":\"card-9\"}},{\"position\":1,\"nodePlanHash\":\"sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd\",\"state\":{\"kind\":\"relational-boundary\",\"orderFields\":[\"updatedAt\"],\"boundary\":[17],\"rowId\":\"event-17\"}},{\"position\":2,\"nodePlanHash\":\"sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee\",\"state\":{\"kind\":\"terminal\"}},{\"position\":3,\"nodePlanHash\":\"sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff\",\"state\":{\"kind\":\"terminal\"}}],\"authorityPartition\":\"sha256:1111111111111111111111111111111111111111111111111111111111111111\",\"issuedAt\":10000,\"expiresAt\":1209610000}",
+      "expectedWire": "sbsb2.GBkaGxwdHh8gISIjJCUmJygpKissLS4vXQ5UtJBhanRLKuLfaz7fi14KijUwbwYWjodosZOMU8wVAj66NKyYZre1Wy8eh_bdaFh8dSHluG8--Rl4aKwdyM4YqaUbqJ4r7A3ZbOHQAtRFSElk-m_UO0XvuB0a2auNp7eE8vFVm0IubIKK0Z5EhrhfLf-IygX2sw0iPQneynEv9kXUWWpOb6kAXj59Jsc-jyYlRpplVFCVSsWBNFqWNCyPWkf2UT1hFQOOiciR2J06toEwuAsV_pN1wZfHmEdktBxxt7bwy38wPoL_1jnxuH2zYbkAGpxc3ZvDwawvRwDHQaScJIKOH89zezj0G-943p5qQQSq8dFzhNFaLUhsSD6h--EnR3K9ixhoV5XfLhSwMoPR5TlKmR0e7LdIBmSLpmRhxL3Whxny6BipTMtes3Av2AT1m4craAiTp51itKwpI3eGTvHMMXYsNIEUY306XbHMqRwSeUsDTaugxo_E-7ZtYYL7Le1ofsJqm8Ooo9Y45wIup_2zEjbob8qbcaCMgKrUbcR6gzVzQ-Ey8-ngvQM2qr7bvAjh8CIhOI_00i2qhnSv8Sa8ZNe-EmEL7bYPVfwMw5iwzG-sNXjGvqUcYmKSAGDLzJp7t7NaJKKRewoOyqPqbyeJcsFPscrV2FC2cNUmXkSxJauJbI0KIqRqYl7Q8SjayOugYJ5jap4o6g0RqZevLQMI0AgJok_HXg90l_wARuxpSEuTaAFTHM0QPuuoovkK202FlPJxcI4Ztq_zFiXoIEs5pNx00zqBRRP0y7QXuL8jGL2o5kSK5s0iF0xlCpnIKLWksS9tlQcmSWWTSdqBlVnOqcTMfo50WbR0J78mI66XqkDRc1gXb3uXltxmzRD8I1hGXP0TLTzXqXHyWB47Y3KqsJL4gmEnUVJLpdEdbZHFJmrXZHYcMzezfNfY0sDF4JpNdnSb-HXBYHYTyy6pLJvbdwacrU1JU8bDYMDNpiXWDbbBxmUapmD17O4RRVbZyYtWD0Q2-pbuTiXEeXsYFehxWUb_qJFETCpyg8KmtWNWZm3hQBFtG6j5EY86YtQHJTAljeglDZTg5VI_G4DwMfcxKR59Dj6ZteWw4G3XCTXSzmVXYDG9fQ4sOjUaDPUZgpZYR1GhDdvpu5VDnk-ONWO9FzX4LlOtSVZkPTx2Zm1l8NqfKtxderCbhrshPmcmv4huwXcTJU8IczHSuSDWk8osbYDYRSunMLhhC3y9y_IAD57Cb08cgpGXRuzm95bwOypFe2LJWmYK7I8Lrz0P7ZStS5vj2Yv5IDW3min62XY8lwpq-WWjxQEyT4O2D6okU9K1XyPYCrOS1dq5wHqDSbFFv0YsK-0Q5y7yLXvaZfqb82ZuCiSkuAyO_5t-MI2FR1gv4g7d2YXmYOs_U6Q6lzE4cXmYo56XYJ2_tYmqyjiJFqUrWUqIBgFPZSpJPetOZRBxigpzcglBQksjs5pDZrebPELM1h8F8v-PFwPrRhZ3vjYKtsiCjFR5-co4vrqovGAjj55ElMbPVSkt0HLYu9YrRvgivFTh779U4B_M_qsdQgM4K37REytDW3J7fiWMsSsn-MFDBDHABWvm6RxKdOWK9CIYStuoqJxGbQkUxn1ZeuEV--KeD81BK1bwub-IPcPHNnMcg8kIoXG5fRwQrTrKmMGpMA2pkL2jKCaB5S7kKbbFL-BtLHEUa8sE9-iGXorE5F2JEGGqEhQRH6btkC7bioVyG8jpCGGjYR7CyyIOlGaHjeo_PoZJQ2Gqq2_XvYGHNR9nRJI4Mq-x2HSBLWgUhChvc6L3rQ",
+      "presentation": {
+        "appId": "app",
+        "databaseId": "db",
+        "targetProfileId": "local",
+        "function": "mixedView",
+        "planHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "args": {
+          "boardId": "board-1"
+        },
+        "parentGroups": [
+          {
+            "groupIndex": 0,
+            "parentAuthorizationKeyDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "parentId": "board-1",
+            "parentIncarnation": "018f4d5a-0000-7000-8000-000000000001",
+            "parentVersion": 7
+          }
+        ],
+        "nodeClasses": [
+          "bounded_children_v1",
+          "relational_query_v1",
+          "bounded_children_v1",
+          "relational_query_v1"
+        ],
+        "authorityPartition": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "streamEpoch": "stream",
+        "nowMs": 10001,
+        "parentSurface": "visible",
+        "boundaryValid": true
+      },
+      "expectedOutcome": "SNAPBACK_SNAPSHOT_BATCH_CURSOR_INVALID"
+    },
+    {
+      "id": "state-class-mismatch",
+      "rootHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "nonceHex": "191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f30",
+      "body": {
+        "formatVersion": 2,
+        "keyGeneration": "generation-1",
+        "appId": "app",
+        "databaseId": "db",
+        "targetProfileId": "local",
+        "streamEpoch": "stream",
+        "function": "mixedView",
+        "planHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "args": {
+          "boardId": "board-1"
+        },
+        "parentGroups": [
+          {
+            "groupIndex": 0,
+            "parentAuthorizationKeyDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "parentId": "board-1",
+            "parentIncarnation": "018f4d5a-0000-7000-8000-000000000001",
+            "parentVersion": 7
+          }
+        ],
+        "nodes": [
+          {
+            "position": 0,
+            "nodePlanHash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "state": {
+              "kind": "relational-boundary",
+              "orderFields": [
+                "position"
+              ],
+              "boundary": [
+                9
+              ],
+              "rowId": "card-9"
+            }
+          },
+          {
+            "position": 1,
+            "nodePlanHash": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "state": {
+              "kind": "relational-boundary",
+              "orderFields": [
+                "updatedAt"
+              ],
+              "boundary": [
+                17
+              ],
+              "rowId": "event-17"
+            }
+          },
+          {
+            "position": 2,
+            "nodePlanHash": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+            "state": {
+              "kind": "terminal"
+            }
+          },
+          {
+            "position": 3,
+            "nodePlanHash": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "state": {
+              "kind": "terminal"
+            }
+          }
+        ],
+        "authorityPartition": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "issuedAt": 10000,
+        "expiresAt": 1209610000
+      },
+      "expectedPlaintext": "{\"formatVersion\":2,\"keyGeneration\":\"generation-1\",\"appId\":\"app\",\"databaseId\":\"db\",\"targetProfileId\":\"local\",\"streamEpoch\":\"stream\",\"function\":\"mixedView\",\"planHash\":\"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"args\":{\"boardId\":\"board-1\"},\"parentGroups\":[{\"groupIndex\":0,\"parentAuthorizationKeyDigest\":\"sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"parentId\":\"board-1\",\"parentIncarnation\":\"018f4d5a-0000-7000-8000-000000000001\",\"parentVersion\":7}],\"nodes\":[{\"position\":0,\"nodePlanHash\":\"sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\",\"state\":{\"kind\":\"relational-boundary\",\"orderFields\":[\"position\"],\"boundary\":[9],\"rowId\":\"card-9\"}},{\"position\":1,\"nodePlanHash\":\"sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd\",\"state\":{\"kind\":\"relational-boundary\",\"orderFields\":[\"updatedAt\"],\"boundary\":[17],\"rowId\":\"event-17\"}},{\"position\":2,\"nodePlanHash\":\"sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee\",\"state\":{\"kind\":\"terminal\"}},{\"position\":3,\"nodePlanHash\":\"sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff\",\"state\":{\"kind\":\"terminal\"}}],\"authorityPartition\":\"sha256:1111111111111111111111111111111111111111111111111111111111111111\",\"issuedAt\":10000,\"expiresAt\":1209610000}",
+      "expectedWire": "sbsb2.GRobHB0eHyAhIiMkJSYnKCkqKywtLi8wDpZmbXo8cEKHWSvsixJzaywQ9ep6hg1ya9PO7k798HGTNsJ5bqs6m9a4elHqluot9z0El6Ei_b5p6t7JjqJVbZHtElBFxiNd0t3HMY6uGII5cJwORTLC7RcWaMoF9oc_Moz2kH1XEuQifKh204YV1_7SiIvgwzdXJcktyKxBCn2-UBRlRFQUhsCBm5NyKm1Rrcak99EISqoMhTvw8nv_ABBS_ExxZ1w_v5LZQseW1nhhAjNMB1y4hgom-toQRsJBYmEARWMpKw6cMdvQsdauv0hFteBHldI6znulNvO7p2GHOzzJonQIsbLVNHBB2f8pahY5wpqrJdMZHlrZOyj_XtW7ndSRvNMTvM6ESea_hY3I6NWrJ9PysK3gjAB_G9eMYSzU3UuQ8S9B85rzsovV4i9ihP4bbYs0Mx-nR3sbsVfIWX0A_ub9jKrJP_nd7agCO-8sn-GpneWrW35AwADviQgZiw7eUzdt7tCud8crPACrGiG6UEp_GzTJnjUXLfdiPm-Dx3YG7bpMLyIFB-jXrUHTsqs-ISB05uTP_u2oEQnTtQ8kuF3hsGc81TzbJywud9bqUMempGSOyMVTswOG3jARIA3BBZt5qJLj_8Bt2eI0sJr7XLA4AWqzZYTddzhbQhLMDVmwVyBlME7sGGAEBhAZ69wfPfJIV_P9PReEuQY5TFGRs_27grnbCsHmpGzAaT3xgu0hqbCmG14yOgRacJ4o9IoMcUfg0UF2tGyG-wCjHMMpQuve-m_q5YEjuO7CDJK2n5WfSEMS9RbFEwJe5etop7cw5LEPyJumjA1SQBNzUfRC18zU64WEm7fkf8cfm9z5i1clibyVmFT4ByLcVwcMdezYJDpdzu8AU5j5NgwZgUQHWoNKA2_PyC-r14sCJ_IXgrJ_0TrNfK66xzEfmoiljtB2V40Z7kQ9bJdgfTzeTc4oDGREa52YNO8ThPKrgqv045NHD2J7ZxT4U-6dzN7uGiNRO_IqT4T2lyGiq5syQH8oNi5oZxAhBPJkYvI2b84_1GLAG9NA_XvRE61tNDBaFRwbtLzhYdkW11nZNUwL8X1u9Pn3S6T6uiFJ88l-f7gPShm8UK3ZNcVndLWrE03MQL7lpNQsm7d9KqvNFF7pJ90Cyt291OMRCrhhavt2B-CbpMvmuk_CfH4_w__xsJITIORj0ErlCA69v3gGlhF_zBZcT7oYw8fs0tRTTfepWaNmkY8JWswutrR6RZLcHMXfPoW-eudb3yTiUnoF2yNgnhhe0NRmjayVEp2S6HNLi4rQRL1HGFFHJ8tuzw1QcgSXQW9b-pVnWO7pYZXPxk_6jlWNDkVl4kar0R-rD4rKAs1wkNbKpiTLYcRSyqv7EuevijFW31er5lLszDGYGsnc69gsCg_QlqD5ocVxc2CA6oVsUUO43FiPBbF2DXBBXVJdSybpTNMswJ-XH4ptwx7o_FWu6EmxPsKtlZ_twxIFYHnsukMgsM13Txi6C5sk7TXJ0fEpKKcsZZOXp2_Oq3K8nNbkUGF_qAcnzhQNbjCofTJ7ZSKGwz8A0xlX_bFEnwLmvX2c9cBN6nyKJucak5-vCZvWuUkspksbPt5P73mQmKJvU4iJkl2zPsyczjf_LVNM44CTXNOGy8Grx2uNYDF9Wb0mF7uAQxSnx_j1AbwnV5VDhrBCib4iAYJduOKmF9pkB2g97l2g8m9B40YB7Kl2kY9zfVAMAHN8YMUKTaD7G5XbRay-AfP4hF3TTqBWikhIjxxJjUd5CyFo16xV7RPkwXsnhjXUIeu0",
+      "presentation": {
+        "appId": "app",
+        "databaseId": "db",
+        "targetProfileId": "local",
+        "function": "mixedView",
+        "planHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "args": {
+          "boardId": "board-1"
+        },
+        "parentGroups": [
+          {
+            "groupIndex": 0,
+            "parentAuthorizationKeyDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "parentId": "board-1",
+            "parentIncarnation": "018f4d5a-0000-7000-8000-000000000001",
+            "parentVersion": 7
+          }
+        ],
+        "nodeClasses": [
+          "bounded_children_v1",
+          "relational_query_v1",
+          "bounded_children_v1",
+          "relational_query_v1"
+        ],
+        "authorityPartition": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "streamEpoch": "stream",
+        "nowMs": 10001,
+        "parentSurface": "visible",
+        "boundaryValid": true
+      },
+      "expectedOutcome": "SNAPBACK_SNAPSHOT_BATCH_CURSOR_INVALID"
+    },
+    {
+      "id": "changed-epoch",
+      "rootHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "nonceHex": "1a1b1c1d1e1f202122232425262728292a2b2c2d2e2f3031",
+      "body": {
+        "formatVersion": 2,
+        "keyGeneration": "generation-1",
+        "appId": "app",
+        "databaseId": "db",
+        "targetProfileId": "local",
+        "streamEpoch": "tampered-stream",
+        "function": "mixedView",
+        "planHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "args": {
+          "boardId": "board-1"
+        },
+        "parentGroups": [
+          {
+            "groupIndex": 0,
+            "parentAuthorizationKeyDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "parentId": "board-1",
+            "parentIncarnation": "018f4d5a-0000-7000-8000-000000000001",
+            "parentVersion": 7
+          }
+        ],
+        "nodes": [
+          {
+            "position": 0,
+            "nodePlanHash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "state": {
+              "kind": "boundary",
+              "orderFields": [
+                "position"
+              ],
+              "boundary": [
+                9
+              ],
+              "rowId": "card-9"
+            }
+          },
+          {
+            "position": 1,
+            "nodePlanHash": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "state": {
+              "kind": "relational-boundary",
+              "orderFields": [
+                "updatedAt"
+              ],
+              "boundary": [
+                17
+              ],
+              "rowId": "event-17"
+            }
+          },
+          {
+            "position": 2,
+            "nodePlanHash": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+            "state": {
+              "kind": "terminal"
+            }
+          },
+          {
+            "position": 3,
+            "nodePlanHash": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "state": {
+              "kind": "terminal"
+            }
+          }
+        ],
+        "authorityPartition": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "issuedAt": 10000,
+        "expiresAt": 1209610000
+      },
+      "expectedPlaintext": "{\"formatVersion\":2,\"keyGeneration\":\"generation-1\",\"appId\":\"app\",\"databaseId\":\"db\",\"targetProfileId\":\"local\",\"streamEpoch\":\"tampered-stream\",\"function\":\"mixedView\",\"planHash\":\"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"args\":{\"boardId\":\"board-1\"},\"parentGroups\":[{\"groupIndex\":0,\"parentAuthorizationKeyDigest\":\"sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"parentId\":\"board-1\",\"parentIncarnation\":\"018f4d5a-0000-7000-8000-000000000001\",\"parentVersion\":7}],\"nodes\":[{\"position\":0,\"nodePlanHash\":\"sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\",\"state\":{\"kind\":\"boundary\",\"orderFields\":[\"position\"],\"boundary\":[9],\"rowId\":\"card-9\"}},{\"position\":1,\"nodePlanHash\":\"sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd\",\"state\":{\"kind\":\"relational-boundary\",\"orderFields\":[\"updatedAt\"],\"boundary\":[17],\"rowId\":\"event-17\"}},{\"position\":2,\"nodePlanHash\":\"sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee\",\"state\":{\"kind\":\"terminal\"}},{\"position\":3,\"nodePlanHash\":\"sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff\",\"state\":{\"kind\":\"terminal\"}}],\"authorityPartition\":\"sha256:1111111111111111111111111111111111111111111111111111111111111111\",\"issuedAt\":10000,\"expiresAt\":1209610000}",
+      "expectedWire": "sbsb2.GhscHR4fICEiIyQlJicoKSorLC0uLzAx2BZrtkDuQNkzI4Ezd3WVgofWXnFXpf2z8sf_ogx2rD6uRo7odzSz6XG0TBJBU9PT-30V1jEOoC4bt8MtJXk8Q4RFLKXdff8HJPdybFfcNExddSl-E2kHLCtY7Yi4eCxfpZiUS6ic2numdEXhpGX-h94pab6bTJGPtm7cjAYAoAQOm7Gdcw3nQyY8bcrCG5MjJv9AQ1BQlH7PMgWTqoiPWeeH9f0sPErK5-EevdxfRcJrLEmT9XXlFBL4zul9ESC3_BHN1BKPxgF9Npotc8FFa508jC9YwQuQst6mdk0sbiv15ZqbCtwpLXcJRTM9qDbODtKYgf3nrzpIfS03pVxnFDovvQJDo-0pI00eVuz5LbgdZZgc1XBUxEKkJuVYOF_Q2Np_gDLXeffcrK3EDJVyuUujkNyXfmoZdN9MG-_eTEjznqbyJzZRD_rE0DCg8gbvZrwHAqjO6nq2QJ0xXdjcG05VQuiWSbQpiDKV6llxLHPt0b1PrtN2FmJBOWLxXdOPsSi4hre4cwZLRPQALfdUlBB9YD7rdyw_SBZyWv1Zh5-zzii2M2aVq9qTyQyjKsCM_jqcvoWL1sU2QOJFZz1U0di3C7iABiRc-j-VmtSsXb-tr-RxvYnrHYqMZjrxY1w3bVYmR0gWBaScBWJyx9VQ4qRaoJqNFme_XLFy_rf3Wi3uHaWPzNVDvBwTI0gkm7A-qjcmqogbZuvgFNJnjtdiJJqF6xuqUowkzaCXFB3vGoqCUHeoY8a-nZ7LSLxfyS5detQxg9SXtqkfCDmZIawGt--l8_Ra_ASO3BkuTCCX_CTZNP64b0w814YXrD6Hp8c1uk5F0P5lFpo25ucW3CEid9P3HQC4FwjDLi0hMpEkWfmiTH9q1jQsF_ShwT4yJ1nMkX_y65IOLFhZIxiWK-0occ9uvX2QFWSrQkKwZc5yUylqTrzXPCopnyrIQLdsdkeJp9gYi-aS9U6Z3PhZGTyg1YtNC-Z9RPi4ORNID_WUC2UTYZKg8Jam3p6J2OPDaXrTmEHS4IFIfiFOIjMygSianeKncY7I8alAjRKP2bjiFj-N9B2W_QwVpUw9Sk_WE4chrh8dbFM6guBcC2vUjrDFe0NSOuvRFBtwTgboD8BcG0zX1spsSMBNRdV9U33Loh7f0rvA0gcIn-Mo4i49sg1My8AR4qFLNupJJhDy8rifbknb9iG_DZgq0yxkQSyB_HguxFRKaW-lIAHLacVAh9ZuHhbTuP-RCEmXgCCz1nS5qPwpJbCzhXQB691faAA4dSGHVX7YE4_3GoQJ0BU5xLI-QaQ9pZglhoYy8dwrutITbRLddTBSrOYENh3yo0HgU2X9dWAh0czj0WQSsGu4plGA7l42cgSno-6SrJR7zl7-Dj6SweAM3rEa7lIWM0jRQGUgFXLjQVP3G1YqcPQvqrc1vAG9MsIGF_gNxiWA6mB88CS6PyQyUda3W2qGma75SiItb8499JtVOi9mDc2a81pGSH8Hskehgn4uTSmbiHqO-qxpcBeSKWvFxiMwk-0teaErfkbjrT9-QLH_QyLQDjtpDQPqIiKbWNMpSzrPEpCFJVvGFPT03TF6CdBfmSdlEUlxx1wiKPBaDrAaLXqBBn7gwRKMaDbS2GLXVKgBVSoIiCxSnifRrsqu_8Kp-5D7rahgjlahnB6BK7KJQYeShAT_QU742tDt0HBtVcfKFpAHUaOH9k3Cw1Ym0Ky2dQXwhiu_TKLsD23qKwAqIqteqhC7eybm9n6uLSMIft3ZBtakLlluLkOgXu5I4Q",
+      "presentation": {
+        "appId": "app",
+        "databaseId": "db",
+        "targetProfileId": "local",
+        "function": "mixedView",
+        "planHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "args": {
+          "boardId": "board-1"
+        },
+        "parentGroups": [
+          {
+            "groupIndex": 0,
+            "parentAuthorizationKeyDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "parentId": "board-1",
+            "parentIncarnation": "018f4d5a-0000-7000-8000-000000000001",
+            "parentVersion": 7
+          }
+        ],
+        "nodeClasses": [
+          "bounded_children_v1",
+          "relational_query_v1",
+          "bounded_children_v1",
+          "relational_query_v1"
+        ],
+        "authorityPartition": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "streamEpoch": "stream",
+        "nowMs": 10001,
+        "parentSurface": "visible",
+        "boundaryValid": true
+      },
+      "expectedOutcome": "SNAPBACK_SNAPSHOT_BATCH_RESTART_REQUIRED"
+    },
+    {
+      "id": "changed-parent-incarnation-and-version",
+      "rootHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "nonceHex": "1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132",
+      "body": {
+        "formatVersion": 2,
+        "keyGeneration": "generation-1",
+        "appId": "app",
+        "databaseId": "db",
+        "targetProfileId": "local",
+        "streamEpoch": "stream",
+        "function": "mixedView",
+        "planHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "args": {
+          "boardId": "board-1"
+        },
+        "parentGroups": [
+          {
+            "groupIndex": 0,
+            "parentAuthorizationKeyDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "parentId": "board-1",
+            "parentIncarnation": "018f4d5a-0000-7000-8000-000000000001",
+            "parentVersion": 7
+          }
+        ],
+        "nodes": [
+          {
+            "position": 0,
+            "nodePlanHash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "state": {
+              "kind": "boundary",
+              "orderFields": [
+                "position"
+              ],
+              "boundary": [
+                9
+              ],
+              "rowId": "card-9"
+            }
+          },
+          {
+            "position": 1,
+            "nodePlanHash": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "state": {
+              "kind": "relational-boundary",
+              "orderFields": [
+                "updatedAt"
+              ],
+              "boundary": [
+                17
+              ],
+              "rowId": "event-17"
+            }
+          },
+          {
+            "position": 2,
+            "nodePlanHash": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+            "state": {
+              "kind": "terminal"
+            }
+          },
+          {
+            "position": 3,
+            "nodePlanHash": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "state": {
+              "kind": "terminal"
+            }
+          }
+        ],
+        "authorityPartition": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "issuedAt": 10000,
+        "expiresAt": 1209610000
+      },
+      "expectedPlaintext": "{\"formatVersion\":2,\"keyGeneration\":\"generation-1\",\"appId\":\"app\",\"databaseId\":\"db\",\"targetProfileId\":\"local\",\"streamEpoch\":\"stream\",\"function\":\"mixedView\",\"planHash\":\"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"args\":{\"boardId\":\"board-1\"},\"parentGroups\":[{\"groupIndex\":0,\"parentAuthorizationKeyDigest\":\"sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"parentId\":\"board-1\",\"parentIncarnation\":\"018f4d5a-0000-7000-8000-000000000001\",\"parentVersion\":7}],\"nodes\":[{\"position\":0,\"nodePlanHash\":\"sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\",\"state\":{\"kind\":\"boundary\",\"orderFields\":[\"position\"],\"boundary\":[9],\"rowId\":\"card-9\"}},{\"position\":1,\"nodePlanHash\":\"sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd\",\"state\":{\"kind\":\"relational-boundary\",\"orderFields\":[\"updatedAt\"],\"boundary\":[17],\"rowId\":\"event-17\"}},{\"position\":2,\"nodePlanHash\":\"sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee\",\"state\":{\"kind\":\"terminal\"}},{\"position\":3,\"nodePlanHash\":\"sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff\",\"state\":{\"kind\":\"terminal\"}}],\"authorityPartition\":\"sha256:1111111111111111111111111111111111111111111111111111111111111111\",\"issuedAt\":10000,\"expiresAt\":1209610000}",
+      "expectedWire": "sbsb2.GxwdHh8gISIjJCUmJygpKissLS4vMDEyJCFjZfVcxWnwKeXkPRx477bHzFjneqZvaUu7NHNIWm0SUL8nhXP6isN_rsOxbSawhnj7ZcHYn4y5n1BbhEKG1SqZK2NJZGDoQyuoM_A4BxTG2pKRTiA9UOAytY79Ma07EUrEz6FdmBs2HzIWFyvkIOrzKrQ9dv7dK1VOwQL4gShYrnu1PMpDLvlK_EAvPY21Exsej27zjjqg4JrMiKBo3NwzdlWZDym_EZ4KGmr41O7MUadvXMH8dHLINwQwhVilmp11sa_DylXm0B2b2TqpM1FgqT1koAZuTH-SDmqX6t4x50_u2YaYKeSyDtQBuYaA4LthE8A5qFjnJRNjuGXTsCOb4fnYORcO8EtWtwKZ_3vsDCgEGnb_UBt8xyzeR16VT4nn1cAuznv5ws5yrufQgSCvftcTbIoxqKo3oBOLqUL7YjYfO6ByCsLqlxwypR-jmioKNtipitVa7s2Q-9HTsCVWPm8BlyLvx-vGRwIC_ziVcSMtE-5RbgRXFez8_tU_vH7qvA-nAxGURVbz-dg-0fbUWxnfbbMnwFuGxZeebC9QF4PnmO7om24ITT67upb5NKozlEaqJoM9mtGqTgOuI26QtDS6j7K8TKFBWxZbN_H8RJpBYIc-1VEty2U4I4EjbZnFX_USTOW0rvwb458ZcO_NBn_spngTfvh9Qez4eX5BjM0hbXqgHwiq9fwGLyi7o4skPlC0LS65PZoSme6v2O0EoiO7PABzssSJrL28SsNDfkb2tCXqRlBFp3rY4ckTcReRlD-mR-1EOWSYCjQoQcSOYXAvQxxd2FL4CrdKgLxAgcPvWkFgba2YDVw1vLyMKJY9eRuvN-Xm_H1J4kwHQUtU4HACQ7dFPXDx-cwfcov_z6mKql0rklejWfbI6PZbbu8YpOdH91hAb9u1DI1vehhhPVsAacF_tKxuEMJdHhHxi5i81m7W64XX02ANnQIAtBkqVc42ll7QDO0HmdgEGDvQ9lesfUMd7cI6kxiPODXN6M0PiRu9yfmwp5WmsDm-M1vJAIEIl8MYK0g55ZyozBF2TB3Llm0cS4bn4LV_WZ4xGzJAPpJAJxajqvbIWWk6u0IhTb4aXDvvCt3_Rbc5D_DfOm7mjt0AXILiZPw4c7Fwto8xh2M2btUCiho6zf7LxKHM_877EWKsjSp_DLLm6jVsvpn9XOxK4Gib8Yt9umxTd7b7JtmSTVGyOphKAG6WVaO8k3d_W0e3JfSrsi2oWZogcH9aPrBCqG2m9eszwRr6fYPG1Y3pQ3ECdvuy12cEFV0NJOV3NtBCotdJqAa8fS9waGoGyi3vdNhQKz34Erl189sTMvOxrWpfGNdKqW3tCtZ-aJrLqsmVGqFTBkKRgQrGYENfeE9CrGuZ4i56nIRhEWQVnRv003CciKWtdHdOPSRGqbGPrjmgjOq6_N_8ZEYa0PGLacfVOwlr4Vk7LT-VZZK4kAgotTFaFcGa0ipOtUPJetOw7ozzOXfGtzHW1GCFeem8H4rG2V0OK9-JFCk26hf73hFDPrVwkGDrj4ZDUlCqS4jNFA66ls5K3L7hssen-OBnRMi-R1dVFBuwvguPLxqeAi2-oRsWQaGHg3llboz2wj7n9eqXPaIgHB4L15Ib4AFcvDsHxv4Zfj0i_NgP8nJ_nCH0tIvWflWH9MDY24yFklEDMXL6kKBLPgztf5yf5KT4jtiEhdhWuyV9jcDOThWX8G_9T4SniA0Gvh_3hi5hbP-YROkehGkuJUUn8w-cMCbIuASyt9mbHj41-g",
+      "presentation": {
+        "appId": "app",
+        "databaseId": "db",
+        "targetProfileId": "local",
+        "function": "mixedView",
+        "planHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "args": {
+          "boardId": "board-1"
+        },
+        "parentGroups": [
+          {
+            "groupIndex": 0,
+            "parentAuthorizationKeyDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "parentId": "board-1",
+            "parentIncarnation": "018f4d5a-0000-7000-8000-000000000002",
+            "parentVersion": 8
+          }
+        ],
+        "nodeClasses": [
+          "bounded_children_v1",
+          "relational_query_v1",
+          "bounded_children_v1",
+          "relational_query_v1"
+        ],
+        "authorityPartition": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "streamEpoch": "stream",
+        "nowMs": 10001,
+        "parentSurface": "visible",
+        "boundaryValid": true
+      },
+      "expectedOutcome": "SNAPBACK_SNAPSHOT_BATCH_RESTART_REQUIRED"
+    },
+    {
+      "id": "expired",
+      "rootHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "nonceHex": "1c1d1e1f202122232425262728292a2b2c2d2e2f30313233",
+      "body": {
+        "formatVersion": 2,
+        "keyGeneration": "generation-1",
+        "appId": "app",
+        "databaseId": "db",
+        "targetProfileId": "local",
+        "streamEpoch": "stream",
+        "function": "mixedView",
+        "planHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "args": {
+          "boardId": "board-1"
+        },
+        "parentGroups": [
+          {
+            "groupIndex": 0,
+            "parentAuthorizationKeyDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "parentId": "board-1",
+            "parentIncarnation": "018f4d5a-0000-7000-8000-000000000001",
+            "parentVersion": 7
+          }
+        ],
+        "nodes": [
+          {
+            "position": 0,
+            "nodePlanHash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "state": {
+              "kind": "boundary",
+              "orderFields": [
+                "position"
+              ],
+              "boundary": [
+                9
+              ],
+              "rowId": "card-9"
+            }
+          },
+          {
+            "position": 1,
+            "nodePlanHash": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "state": {
+              "kind": "relational-boundary",
+              "orderFields": [
+                "updatedAt"
+              ],
+              "boundary": [
+                17
+              ],
+              "rowId": "event-17"
+            }
+          },
+          {
+            "position": 2,
+            "nodePlanHash": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+            "state": {
+              "kind": "terminal"
+            }
+          },
+          {
+            "position": 3,
+            "nodePlanHash": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "state": {
+              "kind": "terminal"
+            }
+          }
+        ],
+        "authorityPartition": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "issuedAt": 10000,
+        "expiresAt": 1209610000
+      },
+      "expectedPlaintext": "{\"formatVersion\":2,\"keyGeneration\":\"generation-1\",\"appId\":\"app\",\"databaseId\":\"db\",\"targetProfileId\":\"local\",\"streamEpoch\":\"stream\",\"function\":\"mixedView\",\"planHash\":\"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"args\":{\"boardId\":\"board-1\"},\"parentGroups\":[{\"groupIndex\":0,\"parentAuthorizationKeyDigest\":\"sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"parentId\":\"board-1\",\"parentIncarnation\":\"018f4d5a-0000-7000-8000-000000000001\",\"parentVersion\":7}],\"nodes\":[{\"position\":0,\"nodePlanHash\":\"sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\",\"state\":{\"kind\":\"boundary\",\"orderFields\":[\"position\"],\"boundary\":[9],\"rowId\":\"card-9\"}},{\"position\":1,\"nodePlanHash\":\"sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd\",\"state\":{\"kind\":\"relational-boundary\",\"orderFields\":[\"updatedAt\"],\"boundary\":[17],\"rowId\":\"event-17\"}},{\"position\":2,\"nodePlanHash\":\"sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee\",\"state\":{\"kind\":\"terminal\"}},{\"position\":3,\"nodePlanHash\":\"sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff\",\"state\":{\"kind\":\"terminal\"}}],\"authorityPartition\":\"sha256:1111111111111111111111111111111111111111111111111111111111111111\",\"issuedAt\":10000,\"expiresAt\":1209610000}",
+      "expectedWire": "sbsb2.HB0eHyAhIiMkJSYnKCkqKywtLi8wMTIzY2x8VHRr1lmdFDFNLdkEoDkpnn_7PPrmduMNuJE1UO53mUEXyS-E_bINvNfw0XBMWM27V8UQM5EPi8RVBTpoCh1AAK2l7n4LWJ4c0lOi0YuvADqGBiPKpKl7CTgth3t0Bq98gJNvE6jovH_ZkSN81hwie7TUrDGqnV3-cQh0wZM_r0g2_zSkMriWVY1xRXi1fojUOexdB1gH7k29wR9kF-ukn0NTlKFClsJO1aMFQpovz0sKr8jObKBSwViGGGhDheGevmK0SP752Ihqnrbd8Fzjx05TgE1WlRQp-V-iHlOqKj8Vd5TAEtxiQgwnLqp4ksUakMICuDn2rES5cxNWdR3q8ufX-HcexWuiwjKVXD4HRCu7tBpK99TF5Lty4uZqd8BzklKIueJbjG55IzxTPTslrkzFNY4RU0ud6ukejDiOOTdHNHwLp5hrpkis63VJKWAH_1Zum9hUJC8FuMgXb-uc2nSLYPC3K9LsJVreKBzn-A5fE100gu_6tNsUKeEsX3dhSFLpXNY719ELtrwsbmVJeJrCd4hDOK6dTMFC3I-DjGz31rMuRLehYgujx41npe4zQ55FjpIQloH9wrCTCWNVMBONiOlnZIPaVspupLQdgIMKlw4hUKWg27-5v_txoI36jI1lm9eEQxymc5rQovQ0wOBYMF4D684y9kzdkT_T4bWRBUicl8fdMb18rqCvpxE8ACgfehExdrVJZWj6o3W1QMPjgBXZioFFYaNACbuAxILBdGh3isHRk6raqMsCgSBOfPgRVkmVMh2QWxqMCttZLq9H8NUbm2nhd2obP1cAYM_45j-zFxo6DAmw7Flqvmfo4KWAqT7P7w-dfIjxFc3Ns_J0plK3iRJ9uNx9ZCJbSoCvrry7OFdvcwgFW4PWi8T4uC82JozB9tRRjLaVhgxejKRNLxdBYOBpUEuBz9kIEP2kcoXFflpz4OucTfK8FXFq5pIb0UwRGB1rXRd0b5fyBlg738eMa5YMoZSKS09q3R5zRf3S91XznP8u1foxhguY45aVbIOQko5Zydf1h8aS4e_lcibE7EwqTEskm_CAX2smG6rjjeTee6LAn5sSCCUEl7ujW87qqXEXLgdMf6uSJ34e-rlrfxK-XBrIlfnmaJfsRPbaRPzRc-jjOSJwLJBW0ZANAZ338tublEA_tcDvjDF2Yrt9X64nKZaNJMIQeW6zqA6hbnAdXoONkDSlYNqZD8x60p8a4vaOrw6sdSrgePDp3ozqv0oEQKw7WeV4V_fSd-jDjQl_Kq363zksnmUBiddCSbXIjyF8kK0HbRpOSYQIbvJQsHgAq-MrS7ABsR815zzVZU1RPGS6xvgBG6phqriHsab_W7AIuKC6Pf5o2UwUzhpfNPXORfcphDa5zoA21XDAnyZbgxpMeHLdzJbFMOt5oXY39dg0u8qj-GFDrWzceAPHPXDuw0CerW0EcBHm0lPfVbo5vW41LKk0jW7XDA6nD5GL1FfAQ3tQkRVAa8ke2pLV_UlFOVrjXP-etiAzMyUUhDErZBpxOB3d-y9Jl87o1qoaV4pZeDFSw-zms_ncRQltOF70cnRaqjAJ-iucF9Gw1VFDB4q6ydkuIPpvS0v9H74c-4Fb_aiLoxiAloh2SwKTIGwUjoUL5cuQm08QPzA80RFk5Ay0gaf59yK3wdngYbs4glKOCxBIsHwVEWfQM9gYeCdwHTULl6aGiHuJcpjtl4EG0_tEoHHRMOBhy2J74lD7BXKka_v1XF6Ff4l6hii15QbzKC6qhw",
+      "presentation": {
+        "appId": "app",
+        "databaseId": "db",
+        "targetProfileId": "local",
+        "function": "mixedView",
+        "planHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "args": {
+          "boardId": "board-1"
+        },
+        "parentGroups": [
+          {
+            "groupIndex": 0,
+            "parentAuthorizationKeyDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "parentId": "board-1",
+            "parentIncarnation": "018f4d5a-0000-7000-8000-000000000001",
+            "parentVersion": 7
+          }
+        ],
+        "nodeClasses": [
+          "bounded_children_v1",
+          "relational_query_v1",
+          "bounded_children_v1",
+          "relational_query_v1"
+        ],
+        "authorityPartition": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "streamEpoch": "stream",
+        "nowMs": 1209610001,
+        "parentSurface": "visible",
+        "boundaryValid": true
+      },
+      "expectedOutcome": "SNAPBACK_SNAPSHOT_BATCH_CURSOR_INVALID"
+    },
+    {
+      "id": "expired-plus-changed-epoch",
+      "rootHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "nonceHex": "1d1e1f202122232425262728292a2b2c2d2e2f3031323334",
+      "body": {
+        "formatVersion": 2,
+        "keyGeneration": "generation-1",
+        "appId": "app",
+        "databaseId": "db",
+        "targetProfileId": "local",
+        "streamEpoch": "stream",
+        "function": "mixedView",
+        "planHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "args": {
+          "boardId": "board-1"
+        },
+        "parentGroups": [
+          {
+            "groupIndex": 0,
+            "parentAuthorizationKeyDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "parentId": "board-1",
+            "parentIncarnation": "018f4d5a-0000-7000-8000-000000000001",
+            "parentVersion": 7
+          }
+        ],
+        "nodes": [
+          {
+            "position": 0,
+            "nodePlanHash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "state": {
+              "kind": "boundary",
+              "orderFields": [
+                "position"
+              ],
+              "boundary": [
+                9
+              ],
+              "rowId": "card-9"
+            }
+          },
+          {
+            "position": 1,
+            "nodePlanHash": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "state": {
+              "kind": "relational-boundary",
+              "orderFields": [
+                "updatedAt"
+              ],
+              "boundary": [
+                17
+              ],
+              "rowId": "event-17"
+            }
+          },
+          {
+            "position": 2,
+            "nodePlanHash": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+            "state": {
+              "kind": "terminal"
+            }
+          },
+          {
+            "position": 3,
+            "nodePlanHash": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "state": {
+              "kind": "terminal"
+            }
+          }
+        ],
+        "authorityPartition": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "issuedAt": 10000,
+        "expiresAt": 1209610000
+      },
+      "expectedPlaintext": "{\"formatVersion\":2,\"keyGeneration\":\"generation-1\",\"appId\":\"app\",\"databaseId\":\"db\",\"targetProfileId\":\"local\",\"streamEpoch\":\"stream\",\"function\":\"mixedView\",\"planHash\":\"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"args\":{\"boardId\":\"board-1\"},\"parentGroups\":[{\"groupIndex\":0,\"parentAuthorizationKeyDigest\":\"sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"parentId\":\"board-1\",\"parentIncarnation\":\"018f4d5a-0000-7000-8000-000000000001\",\"parentVersion\":7}],\"nodes\":[{\"position\":0,\"nodePlanHash\":\"sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\",\"state\":{\"kind\":\"boundary\",\"orderFields\":[\"position\"],\"boundary\":[9],\"rowId\":\"card-9\"}},{\"position\":1,\"nodePlanHash\":\"sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd\",\"state\":{\"kind\":\"relational-boundary\",\"orderFields\":[\"updatedAt\"],\"boundary\":[17],\"rowId\":\"event-17\"}},{\"position\":2,\"nodePlanHash\":\"sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee\",\"state\":{\"kind\":\"terminal\"}},{\"position\":3,\"nodePlanHash\":\"sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff\",\"state\":{\"kind\":\"terminal\"}}],\"authorityPartition\":\"sha256:1111111111111111111111111111111111111111111111111111111111111111\",\"issuedAt\":10000,\"expiresAt\":1209610000}",
+      "expectedWire": "sbsb2.HR4fICEiIyQlJicoKSorLC0uLzAxMjM0wTrutB0lU9T1TdjJv6QfFciadwclh6gB2eK3TywAjcIHpp_1gIKAwCU2KK8N4P5fPeAEZtjuDe69ZXEwMLQjONhoV16HgqnCIvYimdpO7rp60YJyhF04rLbN2DZkBz3bLaXvUzK0vs1KyYTPuUD9oym4yViyFEAEgUHTbiF9xjnTtn0CsxsoPEd4XdA7rYymbgL2jBVqlqhNm6CsjJf9d4UDt9ZX5WyUeiIFMwxxQ9zOKR7MvI3wh5RgM8f98TLLeNI0L85Twb7XV7g5JWfpn-8RsSOW97smg0TaDMGU1fiHAkG0pTX--Mf3nwYtoIjmmhGdWifYvw5WdZk9T_gqHofBCR7N3VTtzL7O_JaJteeq__Gu-dDTj0hE0khFXy5mg4cSG8FF4KhceIbtq3-9_SnZ_NoGi2pmTB6Gas5N0yf-yBTTIoMA22UtHha_8mIAqHI5iuzvahOLSuqNYA2kQoEeGF-j9rX2IG_GZ1OM5j6O7IaY0cnfRoK8-8QnTniSjVZHqmNYcdSywxjQtMDQiXgcahMDSc4rcHPOfKWBfp-BxTJiQFFf9UefvHrhKOxFiH0HTQo7Ok2hZSSs2FUnrPsptcjFXU3-bWDT36Ha-s_gT7zNYmAv7jd4uSRaDLKTF6y9GPh2z_mnwi798IEd-FxebmH8fmwDD6C1g_I37VSHfPMBy_dwO7eoN9pt5z1suSE7ixEEywnv4xPMPlq92ZulMLK7iWKtxtsSm8A6cUkvFZT4g4P4rQ5n5O_gYHoxGo4KuYuy9uq_sSaAxt4hoT5soAFOF0gLRunhK7WwTCvCLMjuX3aQJ1TOAvJgiEe1PDB3ftu_dCD2u5ljhbG-xOAKh6XyhuuKxi7FAtItIaNCQES7oFP5kID3IN76OVOusLFrgJ8BiC2EWYhl3u6f0fJTrfPoeW8Em_7pemqxTF4KGc_RMXmL-XQ-s3X05YnouA2P3EHFz3mXMsxlZYvwgJHwOYi2-r6d6xOJbZZrPF-wlqU1FO_i7CSYiclQo8Y4ZGT5FocgHguiU2jZLFyqBhBDxiwpmJvZbdIG156kgHGXgfkSkfk4-pyVlM9dqbn-lesfFHsGWtXM-ncvfATNo6LVLuRhRasSdLUCxi4iX3ug1ZljXe9FVns_b7IJUZden8c7BEatwMaL8cMwe7pz3WsFMIAa35AY8RZJayFgaNAwT8faJcyO5dFEmYl0oL92qsPs0T0qiyM8GRusfnB3mClcQs-iC0oZrnbAg2kobhEMSVpSyXxZ3JkmrfkoxJtC0akUxVbFLHaMEiZge-CtmxA43OA5ncd__pD2C4pU818bJjKpHPeJSiUC7kKmbVl0G5wFN58dqcQClnVBgWZ8O5ndvUrBxIToAvvPvuXnwE3CJ7aYf560a2hWsumx68ydZ6pGPDznjcZVngkvMckgYfjNaYb-yMsuTXzGy1dgkvpXgGRGDE2f-oTWE3Km-jrnDgAavEnGnGTm_6_uFsq6XqN4qn9J3qMmCWxYmuTjqFToYyg0MZsYcdSZoQFTzZAgky_jLAyXGhFQBOFQKFJBimTcJv4EosDxjx73NjhTbdM5jg72yvsbzyGoGR8Vp2YSYeKOC6A_1upkbiqc5fleUmMusZgrXZP4eWm-iavu5yvzH0Y8Ao1MRGa580IPvFPSGOMmCqzqK-cuDIVKAmp7vqkLC1FsAvKm6L0IYCOTOk-UwVjZBlTQOMu8bS7kWCcYgWKF63yUQ6j5dAzpx-x2oacQfxQ-UY6R1CMSQyC3EA",
+      "presentation": {
+        "appId": "app",
+        "databaseId": "db",
+        "targetProfileId": "local",
+        "function": "mixedView",
+        "planHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "args": {
+          "boardId": "board-1"
+        },
+        "parentGroups": [
+          {
+            "groupIndex": 0,
+            "parentAuthorizationKeyDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "parentId": "board-1",
+            "parentIncarnation": "018f4d5a-0000-7000-8000-000000000001",
+            "parentVersion": 7
+          }
+        ],
+        "nodeClasses": [
+          "bounded_children_v1",
+          "relational_query_v1",
+          "bounded_children_v1",
+          "relational_query_v1"
+        ],
+        "authorityPartition": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "streamEpoch": "changed-stream",
+        "nowMs": 1209610001,
+        "parentSurface": "visible",
+        "boundaryValid": true
+      },
+      "expectedOutcome": "SNAPBACK_SNAPSHOT_BATCH_CURSOR_INVALID"
+    },
+    {
+      "id": "expired-plus-changed-parent",
+      "rootHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "nonceHex": "1e1f202122232425262728292a2b2c2d2e2f303132333435",
+      "body": {
+        "formatVersion": 2,
+        "keyGeneration": "generation-1",
+        "appId": "app",
+        "databaseId": "db",
+        "targetProfileId": "local",
+        "streamEpoch": "stream",
+        "function": "mixedView",
+        "planHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "args": {
+          "boardId": "board-1"
+        },
+        "parentGroups": [
+          {
+            "groupIndex": 0,
+            "parentAuthorizationKeyDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "parentId": "board-1",
+            "parentIncarnation": "018f4d5a-0000-7000-8000-000000000001",
+            "parentVersion": 7
+          }
+        ],
+        "nodes": [
+          {
+            "position": 0,
+            "nodePlanHash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "state": {
+              "kind": "boundary",
+              "orderFields": [
+                "position"
+              ],
+              "boundary": [
+                9
+              ],
+              "rowId": "card-9"
+            }
+          },
+          {
+            "position": 1,
+            "nodePlanHash": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "state": {
+              "kind": "relational-boundary",
+              "orderFields": [
+                "updatedAt"
+              ],
+              "boundary": [
+                17
+              ],
+              "rowId": "event-17"
+            }
+          },
+          {
+            "position": 2,
+            "nodePlanHash": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+            "state": {
+              "kind": "terminal"
+            }
+          },
+          {
+            "position": 3,
+            "nodePlanHash": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "state": {
+              "kind": "terminal"
+            }
+          }
+        ],
+        "authorityPartition": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "issuedAt": 10000,
+        "expiresAt": 1209610000
+      },
+      "expectedPlaintext": "{\"formatVersion\":2,\"keyGeneration\":\"generation-1\",\"appId\":\"app\",\"databaseId\":\"db\",\"targetProfileId\":\"local\",\"streamEpoch\":\"stream\",\"function\":\"mixedView\",\"planHash\":\"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"args\":{\"boardId\":\"board-1\"},\"parentGroups\":[{\"groupIndex\":0,\"parentAuthorizationKeyDigest\":\"sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"parentId\":\"board-1\",\"parentIncarnation\":\"018f4d5a-0000-7000-8000-000000000001\",\"parentVersion\":7}],\"nodes\":[{\"position\":0,\"nodePlanHash\":\"sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\",\"state\":{\"kind\":\"boundary\",\"orderFields\":[\"position\"],\"boundary\":[9],\"rowId\":\"card-9\"}},{\"position\":1,\"nodePlanHash\":\"sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd\",\"state\":{\"kind\":\"relational-boundary\",\"orderFields\":[\"updatedAt\"],\"boundary\":[17],\"rowId\":\"event-17\"}},{\"position\":2,\"nodePlanHash\":\"sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee\",\"state\":{\"kind\":\"terminal\"}},{\"position\":3,\"nodePlanHash\":\"sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff\",\"state\":{\"kind\":\"terminal\"}}],\"authorityPartition\":\"sha256:1111111111111111111111111111111111111111111111111111111111111111\",\"issuedAt\":10000,\"expiresAt\":1209610000}",
+      "expectedWire": "sbsb2.Hh8gISIjJCUmJygpKissLS4vMDEyMzQ1GrLAHX-3B6uE4-m87g-qTaNfW1XZ4X_-06tY5UKYdprsix621o9whRmF_1j9gupCNpmq_NYcKP19k_rs2DA9LYtmDz_79TiD286n_pq-AA8GuxMu2JPUwIuN1liPc57PbR3_qR2QgHfvecSP9m902LRfMETq-isfd8rImxdOw1mrqBNF1JFBVw_BoKtwWezi4trAdV6EVh0MctPPxUhbBc9SY9fFBVgd-2_MYSJspxoCdCoy1HYpagNUQA2R3mgCMHGOGBR7PKlqMvDunRdvSNSUVul4biuLJMGejiyYvjJJPsX0rGyU3ESK2EwL3mAr7uncWqhTA5xQAWqHMwjneUVwUPyt82vxJ2ws-n3djI6TX2GjJ3GIp8scJS-FsMLtotH7JXevPM3uXnvWEy8S55CJt1GN5e7LZGGW0J9liba1lufjcMQyQ42NJySJGSO17p30rpUaMt9gj9H32Y9GLlt5hV-A-9mY-pZiqsCCvUxS-MW-eIHLE21ynJV2ak0CXmL2DWgfancca7NElrkYScLMLhB1dsNYNpOcwG4NyQnTo7xGXNb3gQCKyLxBx8YtfzjfunXMiKHjjHYqAQzjLpZtAkK9ZngP8ZIevSX_3uqfFHBfR_iHIPYdn75fBGVgcLyevGufGfBKZYlr514RIxSkzLKUWKmKtwDczAhcSdgRg_PJwOWkq9C8HAY3-6rjdpa6q9c7CxBqJvCj03alLcffFt9Ude4wr9_A7z5vxUeGNJeJh5oCUxSDWk4AL2GG3s3HI1EohPsEgUJ__DA_YngrSw6aNn5jaGsfKNha_oXyZjHyMA_0TkyxOeTyo60Xk-EzpkJ07N9-937a4uvTQcXvzrniZtO9pgzotA7O-C5pQlFs4EitNC_myBbP-Gz-36HhHHclJGgQMWfgEdizdnkaNgJP-O3QtBziLV8hbtztYEuSkpMEGH9g-4p4Ti_hX3aRCIiJJ0_hh854j0cpQeYUWuskICMC2PkqYFmz8YsE6at6ZOPgXwtu6D-NZxBAS0_f3gDgHPul-j404z20wpciSi-WDro6kszLuOm2jYLNxiVZw6LA6BmEBZkk_b49s7rvy-mqPhsjz0pFsO7e2ZLIWA61TN2kFw58tl17i25EI8Z90ZJHOXKfPpbFt5p61E6q4rkDtb4sU7YBmVQ2BveZvLrH2KzAxqWhmBVbKA8bDPlaJEtwqjX_Y7mEzUNFRRxUypO1O5z1rO8f13Cub2OhmTfhxtUe4hC1Ob8egNws0AnuwBSCVG8CyWAhjnTgMeCad_oz6Xc0prmkRiCzlk6Xzn74mJBmopTFMCxhWiXx74XFNC2kjtb6Ji_tnHV7ICLyXbDOGv6tI8uBatyF-yHhXGeqpNYxfKvtcsEeqt44VhYkPOh7SbCtDdeCXSCFBMrV0Sz26DsB3bVT6I8YouXlofxIrNrLKvV1WFehowrqSEsOyangJWWyMRnUYu18y6dr3OIy2QUwa1Mu4J_jKLxdh5clJXvbPgEPut4gWmOC2aBF4yDrRnlQd6_5wevCGJ4xpnYHJkIF7eiF4yg6etTQmsyvmWfvKZ9EwLD7eLYCVZT3kvo7Y9kZodIECT_YR_oTn69GdYFR0xh2n7LhIfTHhcGi3p4kvDldjBuymJSk2l3F7s_WhmcpxH9C7CxyB0dzR1qFUqvFC_zfHeZB-I6-UC5pp6BS27mPCvFl9dQFX9wVj1UTImVCF71kj7jTAPFI19_KR0wmUEr4uEzDFReY5069eddCyjgOOF2oAg",
+      "presentation": {
+        "appId": "app",
+        "databaseId": "db",
+        "targetProfileId": "local",
+        "function": "mixedView",
+        "planHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "args": {
+          "boardId": "board-1"
+        },
+        "parentGroups": [
+          {
+            "groupIndex": 0,
+            "parentAuthorizationKeyDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "parentId": "board-1",
+            "parentIncarnation": "018f4d5a-0000-7000-8000-000000000001",
+            "parentVersion": 8
+          }
+        ],
+        "nodeClasses": [
+          "bounded_children_v1",
+          "relational_query_v1",
+          "bounded_children_v1",
+          "relational_query_v1"
+        ],
+        "authorityPartition": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "streamEpoch": "stream",
+        "nowMs": 1209610001,
+        "parentSurface": "visible",
+        "boundaryValid": true
+      },
+      "expectedOutcome": "SNAPBACK_SNAPSHOT_BATCH_CURSOR_INVALID"
+    },
+    {
+      "id": "genuine-rotation",
+      "rootHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "nonceHex": "1f202122232425262728292a2b2c2d2e2f30313233343536",
+      "body": {
+        "formatVersion": 2,
+        "keyGeneration": "generation-1",
+        "appId": "app",
+        "databaseId": "db",
+        "targetProfileId": "local",
+        "streamEpoch": "stream",
+        "function": "mixedView",
+        "planHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "args": {
+          "boardId": "board-1"
+        },
+        "parentGroups": [
+          {
+            "groupIndex": 0,
+            "parentAuthorizationKeyDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "parentId": "board-1",
+            "parentIncarnation": "018f4d5a-0000-7000-8000-000000000001",
+            "parentVersion": 7
+          }
+        ],
+        "nodes": [
+          {
+            "position": 0,
+            "nodePlanHash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "state": {
+              "kind": "boundary",
+              "orderFields": [
+                "position"
+              ],
+              "boundary": [
+                9
+              ],
+              "rowId": "card-9"
+            }
+          },
+          {
+            "position": 1,
+            "nodePlanHash": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "state": {
+              "kind": "relational-boundary",
+              "orderFields": [
+                "updatedAt"
+              ],
+              "boundary": [
+                17
+              ],
+              "rowId": "event-17"
+            }
+          },
+          {
+            "position": 2,
+            "nodePlanHash": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+            "state": {
+              "kind": "terminal"
+            }
+          },
+          {
+            "position": 3,
+            "nodePlanHash": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "state": {
+              "kind": "terminal"
+            }
+          }
+        ],
+        "authorityPartition": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "issuedAt": 10000,
+        "expiresAt": 1209610000
+      },
+      "expectedPlaintext": "{\"formatVersion\":2,\"keyGeneration\":\"generation-1\",\"appId\":\"app\",\"databaseId\":\"db\",\"targetProfileId\":\"local\",\"streamEpoch\":\"stream\",\"function\":\"mixedView\",\"planHash\":\"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"args\":{\"boardId\":\"board-1\"},\"parentGroups\":[{\"groupIndex\":0,\"parentAuthorizationKeyDigest\":\"sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"parentId\":\"board-1\",\"parentIncarnation\":\"018f4d5a-0000-7000-8000-000000000001\",\"parentVersion\":7}],\"nodes\":[{\"position\":0,\"nodePlanHash\":\"sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\",\"state\":{\"kind\":\"boundary\",\"orderFields\":[\"position\"],\"boundary\":[9],\"rowId\":\"card-9\"}},{\"position\":1,\"nodePlanHash\":\"sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd\",\"state\":{\"kind\":\"relational-boundary\",\"orderFields\":[\"updatedAt\"],\"boundary\":[17],\"rowId\":\"event-17\"}},{\"position\":2,\"nodePlanHash\":\"sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee\",\"state\":{\"kind\":\"terminal\"}},{\"position\":3,\"nodePlanHash\":\"sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff\",\"state\":{\"kind\":\"terminal\"}}],\"authorityPartition\":\"sha256:1111111111111111111111111111111111111111111111111111111111111111\",\"issuedAt\":10000,\"expiresAt\":1209610000}",
+      "expectedWire": "sbsb2.HyAhIiMkJSYnKCkqKywtLi8wMTIzNDU2mQBvvTBxTIqOIMb3gIx2AX4H1KnZqd2zY-VF_wq-6umcCI-4Vb1QreTS49EfGb6lhp-CFkq91Fsb6-JCyJEVi7N01bB6ZjHa2caDOYCEi5tnitkpVKyHoNH7AGkOD-M24FxsV58LFIE9Ffkkm1dwfQxk0be8gjCOJUhcmYwJ8GLmfvGleUMGGouD3v7_MUmEIsQ13HWg7lYcG9MerkHsSk2QHYJ320dIk7FfAOnx8uQ346gVcDNAZNNquU5GdSqeBDGyKPSq88bhBacgp5XhmnCwrCGZxirUhYWVZWQOFXCimfkjPUbozGQ5bq3aF4kZ9muWaANWcMR0pEiOyGTX27qcPeow9pStrfz_UPBgYkyVPW9gfG5gMTi4O8nCqvpBix2qlahJG2SCbMuvBdNla2Bs9Hx64SQW3AO8OOmomULZwZC74rwIiB6LqtKYHRDNBfkjm1-ogP3f-g8ox_UxaPbBv0qcXJUY9AaWoc6zvk9pSuYhrkdpZghoXlXhyP-DHs1e_TJgV92X-WS8-Loy0ZMjgLmjqKF5WxAkL4rca2psF3Ln4zLwRNnEKw-JFoGd9rniKQc3bk3Jtrpq9nbCW2tEQdt2M7QyAFKNHYUpoaqRz3ekMFFBlQWGZiYI2I1Ij6Fxoghq3fHKYN4FLzNCQV1DRJROyFu40xCHxbXj0SVWKyRv6GUczBHq0KAyoRRNQHNkvwhKAPFCzlN_wajzprpztXOJyPsDqG6HYIRD3RojSpRh6UV1Z02qyWOFyq8cB1UbOhQQ5QdQAVP7G24upKyZxq0_1X6gzqWetk9lwbSmjmGxLd0kjEWzheDw7csxxLKwVi-6zBxle0YtCQRLhPPwHajB7ocV5ZHda8lHwPV3-yVXxxPWNkOVDFNN8_MoQCkPFwOPj7pJtH5c2t1Kj_BUwq3ZouL4MKHUAPsosUz6n6hITtQEkJMgIL8rDvroFQa6j75ydXxsr2FWuXmUHQvi_wbJcXyIp1a9-NWL9XhLFcMjAiL1ij3By3G04zRdj-ypoYpW8AMdtbHb0gN4RrkegpOehVskaD-KqybghUv632udn7kyQriNyVh7s6LwM_cx0BT-M-hB2q96U5RQdlL0dd7mV13e-tem5-6n0n9KBaMpUiCwS3vibVW41BMB1hbdHz379dCo55qAtDTHfVNw119OvKxf3Tp1-PaNExVrUjILn2JDBB7g2IIpJi8OpkWrBENaDgp2gtQ-nHHDjEp3QJ4FIeyx1UlaSrjknZ1SpbUEOovXfjBBAoNF7j_yDlcUrZS_S9k5Ba2kuQcuwymbz-KNSs7T-Yra1DgkHjTG1YyLJsLo5gE5rxqOMeunvsVoP168two4Y6mjgjarjPbNDJ-9qj8yS9EpZHY9kdRiAZzw43EDYhHP-wI_jwDFIBxDsNs03s-O2ONR_YIzk7dsv6uX6-k0XC46MgrHztlt5miqx8KBEp8nrZwVaLPL63mRmKaJzGU4vUOhiCDgpKsFZgtyB6T3WPGUmRHyzfGbvq-7kMFX8JjQFzti_KAbE6nu4BdTr01u_x9YK6QznS0OzJ_dGznj1cnRkuNb0sJTgu08eBr9ppKEmiE0aWtn6DXkNqlgKODsPUuqAgcX5qrKO0aH3KE3baa4AIEhzquNoaI7GMMhD6DIfHwPQOAlX7VhkCcVLtjGPV9t_U-ww0jfFWkdaa9waSYoBL_8EmLaeB1gfJBHc3jtVEMSPVlb6J62L4VNMmc7jDIuIurDd2rDy1BKBr2g2mjRnzm_eg",
+      "presentation": {
+        "appId": "app",
+        "databaseId": "db",
+        "targetProfileId": "local",
+        "function": "mixedView",
+        "planHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "args": {
+          "boardId": "board-1"
+        },
+        "parentGroups": [
+          {
+            "groupIndex": 0,
+            "parentAuthorizationKeyDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "parentId": "board-1",
+            "parentIncarnation": "018f4d5a-0000-7000-8000-000000000001",
+            "parentVersion": 7
+          }
+        ],
+        "nodeClasses": [
+          "bounded_children_v1",
+          "relational_query_v1",
+          "bounded_children_v1",
+          "relational_query_v1"
+        ],
+        "authorityPartition": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "streamEpoch": "rotated-stream",
+        "nowMs": 10001,
+        "parentSurface": "visible",
+        "boundaryValid": true
+      },
+      "expectedOutcome": "SNAPBACK_SNAPSHOT_BATCH_CURSOR_INVALID"
+    }
+  ],
+  "crossFamilyPresentations": [
+    {
+      "id": "sbsb1-at-v2-visible",
+      "wire": "sbsb1.oKGio6SlpqeoqaqrrK2ur7CxsrO0tba3kYjFdAtilxeGZdH8SasYsZC4q7DZdgjpGvEqxlblTAK7sstbNymQZogfh3xHEcvx4nGiJqnAdkSUfpLoSjlMKnExM2bS10zo_eCLhnVz8Wxfax7gd_iii1eK8i2rPTR9a5aIS7T_ZiKu5yCR26WI0poaJp0rvJLitHt-ezEkQ-yK9Uzqhg9-zyCiVWQFjBNR2u-T-8Sc9swgAjjJSGzuxTtiTolRXkhEkbCV2bMBbqvf6tknaD4OeysfgVdwjHOcOjH0a9h-eYWY90UTh0sRSbYTZS3yW439miPaEQiKDNuana2seJ_KmBWn-NHxVGJxtFGCzDEqbLKzUkQH853WdXRvW3F4AJv-V9-yAB1k4IHqDCvOnZ9pOjcigRvV2dRYOXEfUh3jSK6vffzS0JxQUbJewox_WWJ_MWhyeXcXRnBE35eYA3SDgoT2c7IKuF_tZfFZjX2vRvwNGFPI3YszjQsOnmUCBsv3HwBP7198YYSZ0tYbcYH6gaOUfVcDvx34CWSjieyd-p7yMEPjilBhAWdmVhEtlLbtQneQK1t_s5AJtdtZX5-I7TkdAkxt2XD5FAX-JdakQvThouwrIpfzqoFSNP5uh8ZEqPqoSwXsy3huA5UlFrXgAooSqBrpA5InoF_FYz4PJOQBcYEX_pkWLBJOzE7IfzcEQvoIlN8jrxjURWNui9C8aH6g9MV7mhctkl_krbkxa1BSpWm0ZEBmWoY5WiB5TK7nOI41H6f1zZaCqYzN4eFX_1eJ7lObICJMOo4D9J8LOpPuTzG63I0ctRdqm87Ew8PrDM9_n0CCu_aJSlH8nXbWNYAUBXNWKK8ZHjpg27cNa37gAbMSvOANAMynaxH3X3hnFFU468omDmpr-MehWdbK5Sj_xgmZ_fhU14KvKcyTT9-ZBg6JvzAggyn6ggNNTGfHqdHbNsFfFUHyiXJPHkJgkibVLZ5GBA0LuoRbr0RJw_h_Ach4ZNJPK6O8eOE2HocsDOJT7dqErroTP-MofKx3xQhlUFKfWPWK2KYR5sp4SWriHlBbz2Q19eJzhszxXaRbu_Fd32w2I6zaOE_VefInk113nEWJCqhGJtGgPbfRgbGtvfjfLI38frcFeRfbWV66GOmfx7wiYEVrY3pnMhod7dzGXBMuq29Tz_r4BSSQTMZImo99avK3q6U0WR1cnQzsOJqBJkOXxzWC5QdVs8BBZULoS04oHAcyv6oFV45aIRrUipwxVcYwNCZxG0zkyLyqR6U0VnJ661W3Xeh12lyhSV5cFtxYeU6r5WZmUpeYjIgIOX51_qGOFQxGiTYPuYvgloHz0lo",
+      "surface": "snapshot-batch.v2",
+      "parentSurface": "visible",
+      "expectedOutcome": "SNAPBACK_SNAPSHOT_BATCH_CURSOR_INVALID"
+    },
+    {
+      "id": "sbsb1-at-v2-absent",
+      "wire": "sbsb1.oKGio6SlpqeoqaqrrK2ur7CxsrO0tba3kYjFdAtilxeGZdH8SasYsZC4q7DZdgjpGvEqxlblTAK7sstbNymQZogfh3xHEcvx4nGiJqnAdkSUfpLoSjlMKnExM2bS10zo_eCLhnVz8Wxfax7gd_iii1eK8i2rPTR9a5aIS7T_ZiKu5yCR26WI0poaJp0rvJLitHt-ezEkQ-yK9Uzqhg9-zyCiVWQFjBNR2u-T-8Sc9swgAjjJSGzuxTtiTolRXkhEkbCV2bMBbqvf6tknaD4OeysfgVdwjHOcOjH0a9h-eYWY90UTh0sRSbYTZS3yW439miPaEQiKDNuana2seJ_KmBWn-NHxVGJxtFGCzDEqbLKzUkQH853WdXRvW3F4AJv-V9-yAB1k4IHqDCvOnZ9pOjcigRvV2dRYOXEfUh3jSK6vffzS0JxQUbJewox_WWJ_MWhyeXcXRnBE35eYA3SDgoT2c7IKuF_tZfFZjX2vRvwNGFPI3YszjQsOnmUCBsv3HwBP7198YYSZ0tYbcYH6gaOUfVcDvx34CWSjieyd-p7yMEPjilBhAWdmVhEtlLbtQneQK1t_s5AJtdtZX5-I7TkdAkxt2XD5FAX-JdakQvThouwrIpfzqoFSNP5uh8ZEqPqoSwXsy3huA5UlFrXgAooSqBrpA5InoF_FYz4PJOQBcYEX_pkWLBJOzE7IfzcEQvoIlN8jrxjURWNui9C8aH6g9MV7mhctkl_krbkxa1BSpWm0ZEBmWoY5WiB5TK7nOI41H6f1zZaCqYzN4eFX_1eJ7lObICJMOo4D9J8LOpPuTzG63I0ctRdqm87Ew8PrDM9_n0CCu_aJSlH8nXbWNYAUBXNWKK8ZHjpg27cNa37gAbMSvOANAMynaxH3X3hnFFU468omDmpr-MehWdbK5Sj_xgmZ_fhU14KvKcyTT9-ZBg6JvzAggyn6ggNNTGfHqdHbNsFfFUHyiXJPHkJgkibVLZ5GBA0LuoRbr0RJw_h_Ach4ZNJPK6O8eOE2HocsDOJT7dqErroTP-MofKx3xQhlUFKfWPWK2KYR5sp4SWriHlBbz2Q19eJzhszxXaRbu_Fd32w2I6zaOE_VefInk113nEWJCqhGJtGgPbfRgbGtvfjfLI38frcFeRfbWV66GOmfx7wiYEVrY3pnMhod7dzGXBMuq29Tz_r4BSSQTMZImo99avK3q6U0WR1cnQzsOJqBJkOXxzWC5QdVs8BBZULoS04oHAcyv6oFV45aIRrUipwxVcYwNCZxG0zkyLyqR6U0VnJ661W3Xeh12lyhSV5cFtxYeU6r5WZmUpeYjIgIOX51_qGOFQxGiTYPuYvgloHz0lo",
+      "surface": "snapshot-batch.v2",
+      "parentSurface": "absent",
+      "expectedEnvelope": {
+        "kind": "absent",
+        "nodes": null,
+        "continuation": null
+      }
+    },
+    {
+      "id": "sbsb2-at-v1-visible",
+      "wire": "sbsb2.oKGio6SlpqeoqaqrrK2ur7CxsrO0tba3y4HAZegNtG0MQjbFdElHw9j8r5Pgr6OuWgnph8NS2Jc1DKI73vsgJUBt1RRZgkkwdENuPpYgNKtTXJ2em1lW9KOL2UePT1UUzLwlR_7zdn5RLK13uyHClkX_XreUsijlwQcxhB8jHBkcsXnDruXbbUZQJP4lWd-KPXOw2TrvlCKE3PNxzI6mhOS7BCquV4ctBA0AiWxYPLvxxGG8TCV3EzQXILIfCa-qSwzEBgg1hb-5wtTIIpaqUXFJYhmxDd1ca4R1E7w0-MIN89RCHcnwdPEL3dabO5Oc_rE7YoqheoJHBM9gD1_943YUIJmCurraV5Aub1KTJHC6DLGXBif5BP8sPQ3G6ky5twdT7E5uTHUBQ2UdwG5PEIOk59-hlkjTzD9aTskll-HJqoUOvcv6hbYQhDlhU4zdkFzq6U2Smc8FaFVtCztcRl04386BNPBb_uCaOnRUGj6PSddkOlz_K9JCaRcS9rTn1IfRg5Qbn9N4B2TdfW-AsfDvj1J-G-2H4CqXly5U8vDui65wz32fmbx1HNzK7_idN42aidb6pnwg_Yu4MkHuWI0xTMnGtQ0QfI68ZHQC8ALllK-ETvOXCPd7OE4T-bemhBvsp9yDeU-DpXnFEEwW6LF8SWsOFhGnGaIXntZe_ooEyUoyktppc5Uk82TV0I43daON8wB_oiCbJDXgWw6i-pt54JYjVLFHmxgaV_yq_QsJu9P18VFo9dHFAnAML-6RuIHz8vYBm0wSrrSDMg-WgMSK8FKbAmsN4IuN_NrCsbXwUF2nN-4dppTBdcFYq7_CW-TG9uXjeTcvIsqUpiwP_trPCU6gVik1-Pv2hFOar4pTer738Z0MreaDuisG5gNjVy3bRKjdrBz3C0qMQh-6BiUoSwnva3ehWck3nmqsUZ2rxVL3wPBOEq1447xnI-xENo9R-3o4Rc2FkUNVtKTvOXQ6P1hynjli2vZcVRI6BMaI8XKiApKvgkyBcDa6b86jrJ-_ITYkO_Am7Q8SKXhU9p8--xsbn4dRn10-A96LtG330h6upz65UVdYn-qUdwUSNOL29hAti_orKlxEALUI4GNDssqQwFLrIDtYJJDCRHQHK9xZe0X4XPFtrjaJcG2aNmxcbiCv8sJY3AHppsufGFMHdeTE4f7y10Mttv3sj_OXX8B0zZzQAYdruG8HIRkjMsRje4p3yt_RJhXpr_rybUFgjZXmPwDEttu6oVXXaJM32MTayiZHsQ57N2Xbq7VY6JYr-5YaC2imCg2eYfHopmwMuimPzjP2irOTFTGv06mNvsQw1tqk36Argsdh7G90HEAg8fFQqWO9v9dbeDT-n-pnQJN3kEUl-U0MqzM831sF9E0lEVxVrEO8iSOSY6l6UL2ntsnV1pKxm9nqJOt8HoICgOOrgAj3StupmPNsBHetGTBaCSDtDjMH7IQW1-rK_oJczYkmB1l2bIL_B-3b4yYmCxEXmcCuKwSZYOSSOj5lZlMCjo2XwlIFmfmCGCM3xcZKYYYcdKWJQd8rImYo32iSiCCLEIyNC6d_a80MTDPMXkX4JC5mQccHOeWgnfwGLtn5--j6qL0Oq_eiIuiM6pdht-G3Eq2OFpjNP1wdjQSkH_K8HOHxpqknMRXpecTo6XSdruNbwPHsxdd2aCRZEpTNm0UlfU7IRHcOInZe57hApcQI3UclCWVbsxOLAF-bfwTO97JbLoohFGtKQv8PFlOI7ma3PEa5kxVfxoxmmGmNd_PKrc2aHLHa0G6Nrt-MF0_nrsF7OA",
+      "surface": "snapshot-batch.v1",
+      "parentSurface": "visible",
+      "expectedOutcome": "SNAPBACK_SNAPSHOT_BATCH_CURSOR_INVALID"
+    },
+    {
+      "id": "sbsb2-at-v1-absent",
+      "wire": "sbsb2.oKGio6SlpqeoqaqrrK2ur7CxsrO0tba3y4HAZegNtG0MQjbFdElHw9j8r5Pgr6OuWgnph8NS2Jc1DKI73vsgJUBt1RRZgkkwdENuPpYgNKtTXJ2em1lW9KOL2UePT1UUzLwlR_7zdn5RLK13uyHClkX_XreUsijlwQcxhB8jHBkcsXnDruXbbUZQJP4lWd-KPXOw2TrvlCKE3PNxzI6mhOS7BCquV4ctBA0AiWxYPLvxxGG8TCV3EzQXILIfCa-qSwzEBgg1hb-5wtTIIpaqUXFJYhmxDd1ca4R1E7w0-MIN89RCHcnwdPEL3dabO5Oc_rE7YoqheoJHBM9gD1_943YUIJmCurraV5Aub1KTJHC6DLGXBif5BP8sPQ3G6ky5twdT7E5uTHUBQ2UdwG5PEIOk59-hlkjTzD9aTskll-HJqoUOvcv6hbYQhDlhU4zdkFzq6U2Smc8FaFVtCztcRl04386BNPBb_uCaOnRUGj6PSddkOlz_K9JCaRcS9rTn1IfRg5Qbn9N4B2TdfW-AsfDvj1J-G-2H4CqXly5U8vDui65wz32fmbx1HNzK7_idN42aidb6pnwg_Yu4MkHuWI0xTMnGtQ0QfI68ZHQC8ALllK-ETvOXCPd7OE4T-bemhBvsp9yDeU-DpXnFEEwW6LF8SWsOFhGnGaIXntZe_ooEyUoyktppc5Uk82TV0I43daON8wB_oiCbJDXgWw6i-pt54JYjVLFHmxgaV_yq_QsJu9P18VFo9dHFAnAML-6RuIHz8vYBm0wSrrSDMg-WgMSK8FKbAmsN4IuN_NrCsbXwUF2nN-4dppTBdcFYq7_CW-TG9uXjeTcvIsqUpiwP_trPCU6gVik1-Pv2hFOar4pTer738Z0MreaDuisG5gNjVy3bRKjdrBz3C0qMQh-6BiUoSwnva3ehWck3nmqsUZ2rxVL3wPBOEq1447xnI-xENo9R-3o4Rc2FkUNVtKTvOXQ6P1hynjli2vZcVRI6BMaI8XKiApKvgkyBcDa6b86jrJ-_ITYkO_Am7Q8SKXhU9p8--xsbn4dRn10-A96LtG330h6upz65UVdYn-qUdwUSNOL29hAti_orKlxEALUI4GNDssqQwFLrIDtYJJDCRHQHK9xZe0X4XPFtrjaJcG2aNmxcbiCv8sJY3AHppsufGFMHdeTE4f7y10Mttv3sj_OXX8B0zZzQAYdruG8HIRkjMsRje4p3yt_RJhXpr_rybUFgjZXmPwDEttu6oVXXaJM32MTayiZHsQ57N2Xbq7VY6JYr-5YaC2imCg2eYfHopmwMuimPzjP2irOTFTGv06mNvsQw1tqk36Argsdh7G90HEAg8fFQqWO9v9dbeDT-n-pnQJN3kEUl-U0MqzM831sF9E0lEVxVrEO8iSOSY6l6UL2ntsnV1pKxm9nqJOt8HoICgOOrgAj3StupmPNsBHetGTBaCSDtDjMH7IQW1-rK_oJczYkmB1l2bIL_B-3b4yYmCxEXmcCuKwSZYOSSOj5lZlMCjo2XwlIFmfmCGCM3xcZKYYYcdKWJQd8rImYo32iSiCCLEIyNC6d_a80MTDPMXkX4JC5mQccHOeWgnfwGLtn5--j6qL0Oq_eiIuiM6pdht-G3Eq2OFpjNP1wdjQSkH_K8HOHxpqknMRXpecTo6XSdruNbwPHsxdd2aCRZEpTNm0UlfU7IRHcOInZe57hApcQI3UclCWVbsxOLAF-bfwTO97JbLoohFGtKQv8PFlOI7ma3PEa5kxVfxoxmmGmNd_PKrc2aHLHa0G6Nrt-MF0_nrsF7OA",
+      "surface": "snapshot-batch.v1",
+      "parentSurface": "absent",
+      "expectedEnvelope": {
+        "kind": "absent",
+        "nodes": null,
+        "continuation": null
+      }
+    },
+    {
+      "id": "sbsb1-payload-rewritten-as-sbsb2",
+      "wire": "sbsb2.oKGio6SlpqeoqaqrrK2ur7CxsrO0tba3kYjFdAtilxeGZdH8SasYsZC4q7DZdgjpGvEqxlblTAK7sstbNymQZogfh3xHEcvx4nGiJqnAdkSUfpLoSjlMKnExM2bS10zo_eCLhnVz8Wxfax7gd_iii1eK8i2rPTR9a5aIS7T_ZiKu5yCR26WI0poaJp0rvJLitHt-ezEkQ-yK9Uzqhg9-zyCiVWQFjBNR2u-T-8Sc9swgAjjJSGzuxTtiTolRXkhEkbCV2bMBbqvf6tknaD4OeysfgVdwjHOcOjH0a9h-eYWY90UTh0sRSbYTZS3yW439miPaEQiKDNuana2seJ_KmBWn-NHxVGJxtFGCzDEqbLKzUkQH853WdXRvW3F4AJv-V9-yAB1k4IHqDCvOnZ9pOjcigRvV2dRYOXEfUh3jSK6vffzS0JxQUbJewox_WWJ_MWhyeXcXRnBE35eYA3SDgoT2c7IKuF_tZfFZjX2vRvwNGFPI3YszjQsOnmUCBsv3HwBP7198YYSZ0tYbcYH6gaOUfVcDvx34CWSjieyd-p7yMEPjilBhAWdmVhEtlLbtQneQK1t_s5AJtdtZX5-I7TkdAkxt2XD5FAX-JdakQvThouwrIpfzqoFSNP5uh8ZEqPqoSwXsy3huA5UlFrXgAooSqBrpA5InoF_FYz4PJOQBcYEX_pkWLBJOzE7IfzcEQvoIlN8jrxjURWNui9C8aH6g9MV7mhctkl_krbkxa1BSpWm0ZEBmWoY5WiB5TK7nOI41H6f1zZaCqYzN4eFX_1eJ7lObICJMOo4D9J8LOpPuTzG63I0ctRdqm87Ew8PrDM9_n0CCu_aJSlH8nXbWNYAUBXNWKK8ZHjpg27cNa37gAbMSvOANAMynaxH3X3hnFFU468omDmpr-MehWdbK5Sj_xgmZ_fhU14KvKcyTT9-ZBg6JvzAggyn6ggNNTGfHqdHbNsFfFUHyiXJPHkJgkibVLZ5GBA0LuoRbr0RJw_h_Ach4ZNJPK6O8eOE2HocsDOJT7dqErroTP-MofKx3xQhlUFKfWPWK2KYR5sp4SWriHlBbz2Q19eJzhszxXaRbu_Fd32w2I6zaOE_VefInk113nEWJCqhGJtGgPbfRgbGtvfjfLI38frcFeRfbWV66GOmfx7wiYEVrY3pnMhod7dzGXBMuq29Tz_r4BSSQTMZImo99avK3q6U0WR1cnQzsOJqBJkOXxzWC5QdVs8BBZULoS04oHAcyv6oFV45aIRrUipwxVcYwNCZxG0zkyLyqR6U0VnJ661W3Xeh12lyhSV5cFtxYeU6r5WZmUpeYjIgIOX51_qGOFQxGiTYPuYvgloHz0lo",
+      "surface": "snapshot-batch.v2",
+      "parentSurface": "visible",
+      "expectedOutcome": "SNAPBACK_SNAPSHOT_BATCH_CURSOR_INVALID"
+    },
+    {
+      "id": "sbsb2-payload-rewritten-as-sbsb1",
+      "wire": "sbsb1.oKGio6SlpqeoqaqrrK2ur7CxsrO0tba3y4HAZegNtG0MQjbFdElHw9j8r5Pgr6OuWgnph8NS2Jc1DKI73vsgJUBt1RRZgkkwdENuPpYgNKtTXJ2em1lW9KOL2UePT1UUzLwlR_7zdn5RLK13uyHClkX_XreUsijlwQcxhB8jHBkcsXnDruXbbUZQJP4lWd-KPXOw2TrvlCKE3PNxzI6mhOS7BCquV4ctBA0AiWxYPLvxxGG8TCV3EzQXILIfCa-qSwzEBgg1hb-5wtTIIpaqUXFJYhmxDd1ca4R1E7w0-MIN89RCHcnwdPEL3dabO5Oc_rE7YoqheoJHBM9gD1_943YUIJmCurraV5Aub1KTJHC6DLGXBif5BP8sPQ3G6ky5twdT7E5uTHUBQ2UdwG5PEIOk59-hlkjTzD9aTskll-HJqoUOvcv6hbYQhDlhU4zdkFzq6U2Smc8FaFVtCztcRl04386BNPBb_uCaOnRUGj6PSddkOlz_K9JCaRcS9rTn1IfRg5Qbn9N4B2TdfW-AsfDvj1J-G-2H4CqXly5U8vDui65wz32fmbx1HNzK7_idN42aidb6pnwg_Yu4MkHuWI0xTMnGtQ0QfI68ZHQC8ALllK-ETvOXCPd7OE4T-bemhBvsp9yDeU-DpXnFEEwW6LF8SWsOFhGnGaIXntZe_ooEyUoyktppc5Uk82TV0I43daON8wB_oiCbJDXgWw6i-pt54JYjVLFHmxgaV_yq_QsJu9P18VFo9dHFAnAML-6RuIHz8vYBm0wSrrSDMg-WgMSK8FKbAmsN4IuN_NrCsbXwUF2nN-4dppTBdcFYq7_CW-TG9uXjeTcvIsqUpiwP_trPCU6gVik1-Pv2hFOar4pTer738Z0MreaDuisG5gNjVy3bRKjdrBz3C0qMQh-6BiUoSwnva3ehWck3nmqsUZ2rxVL3wPBOEq1447xnI-xENo9R-3o4Rc2FkUNVtKTvOXQ6P1hynjli2vZcVRI6BMaI8XKiApKvgkyBcDa6b86jrJ-_ITYkO_Am7Q8SKXhU9p8--xsbn4dRn10-A96LtG330h6upz65UVdYn-qUdwUSNOL29hAti_orKlxEALUI4GNDssqQwFLrIDtYJJDCRHQHK9xZe0X4XPFtrjaJcG2aNmxcbiCv8sJY3AHppsufGFMHdeTE4f7y10Mttv3sj_OXX8B0zZzQAYdruG8HIRkjMsRje4p3yt_RJhXpr_rybUFgjZXmPwDEttu6oVXXaJM32MTayiZHsQ57N2Xbq7VY6JYr-5YaC2imCg2eYfHopmwMuimPzjP2irOTFTGv06mNvsQw1tqk36Argsdh7G90HEAg8fFQqWO9v9dbeDT-n-pnQJN3kEUl-U0MqzM831sF9E0lEVxVrEO8iSOSY6l6UL2ntsnV1pKxm9nqJOt8HoICgOOrgAj3StupmPNsBHetGTBaCSDtDjMH7IQW1-rK_oJczYkmB1l2bIL_B-3b4yYmCxEXmcCuKwSZYOSSOj5lZlMCjo2XwlIFmfmCGCM3xcZKYYYcdKWJQd8rImYo32iSiCCLEIyNC6d_a80MTDPMXkX4JC5mQccHOeWgnfwGLtn5--j6qL0Oq_eiIuiM6pdht-G3Eq2OFpjNP1wdjQSkH_K8HOHxpqknMRXpecTo6XSdruNbwPHsxdd2aCRZEpTNm0UlfU7IRHcOInZe57hApcQI3UclCWVbsxOLAF-bfwTO97JbLoohFGtKQv8PFlOI7ma3PEa5kxVfxoxmmGmNd_PKrc2aHLHa0G6Nrt-MF0_nrsF7OA",
+      "surface": "snapshot-batch.v1",
+      "parentSurface": "visible",
+      "expectedOutcome": "SNAPBACK_SNAPSHOT_BATCH_CURSOR_INVALID"
+    }
+  ]
+}

@@ -336,7 +336,12 @@ pub fn mint(root: &[u8; 32], body: &Body) -> Result<String, &'static str> {
     mint_with_nonce(root, body, nonce)
 }
 
-fn mint_with_nonce(root: &[u8; 32], body: &Body, nonce: [u8; 24]) -> Result<String, &'static str> {
+#[doc(hidden)]
+pub fn mint_with_nonce(
+    root: &[u8; 32],
+    body: &Body,
+    nonce: [u8; 24],
+) -> Result<String, &'static str> {
     if body.format_version != FORMAT_VERSION || !valid_body_numbers(body) {
         return Err("invalid");
     }
@@ -415,6 +420,475 @@ pub fn decode(
         return Ok(body);
     }
     Err("invalid")
+}
+
+fn hex(bytes: &[u8]) -> String {
+    bytes.iter().map(|byte| format!("{byte:02x}")).collect()
+}
+
+fn fixed_nonce(seed: u8) -> [u8; 24] {
+    std::array::from_fn(|index| seed.wrapping_add(index as u8))
+}
+
+fn parity_vector(
+    id: &str,
+    root: &[u8; 32],
+    nonce: [u8; 24],
+    body: &Body,
+    presentation: Option<Value>,
+    expected_outcome: Option<&str>,
+) -> Result<Value, &'static str> {
+    let plaintext = String::from_utf8(compact_plaintext(body)?).map_err(|_| "serialize")?;
+    let wire = mint_with_nonce(root, body, nonce)?;
+    let mut record = serde_json::Map::from_iter([
+        ("id".to_owned(), Value::String(id.to_owned())),
+        ("rootHex".to_owned(), Value::String(hex(root))),
+        ("nonceHex".to_owned(), Value::String(hex(&nonce))),
+        (
+            "body".to_owned(),
+            serde_json::to_value(body).map_err(|_| "serialize")?,
+        ),
+        ("expectedPlaintext".to_owned(), Value::String(plaintext)),
+        ("expectedWire".to_owned(), Value::String(wire)),
+    ]);
+    if let Some(presentation) = presentation {
+        record.insert("presentation".to_owned(), presentation);
+    }
+    if let Some(expected_outcome) = expected_outcome {
+        record.insert(
+            "expectedOutcome".to_owned(),
+            Value::String(expected_outcome.to_owned()),
+        );
+    }
+    Ok(Value::Object(record))
+}
+
+fn mixed_vector_body() -> Body {
+    Body::new(
+        "generation-1".into(),
+        "app".into(),
+        "db".into(),
+        "local".into(),
+        "stream".into(),
+        "mixedView".into(),
+        format!("sha256:{}", "a".repeat(64)),
+        serde_json::json!({"boardId":"board-1"}),
+        vec![ParentGroup {
+            group_index: 0,
+            parent_authorization_key_digest: format!("sha256:{}", "b".repeat(64)),
+            parent_id: "board-1".into(),
+            parent_incarnation: "018f4d5a-0000-7000-8000-000000000001".into(),
+            parent_version: 7,
+        }],
+        vec![
+            Node {
+                position: 0,
+                node_plan_hash: format!("sha256:{}", "c".repeat(64)),
+                state: NodeState::Boundary {
+                    order_fields: vec!["position".into()],
+                    boundary: vec![serde_json::json!(9)],
+                    row_id: "card-9".into(),
+                },
+            },
+            Node {
+                position: 1,
+                node_plan_hash: format!("sha256:{}", "d".repeat(64)),
+                state: NodeState::RelationalBoundary {
+                    order_fields: vec!["updatedAt".into()],
+                    boundary: vec![serde_json::json!(17)],
+                    row_id: "event-17".into(),
+                },
+            },
+            Node {
+                position: 2,
+                node_plan_hash: format!("sha256:{}", "e".repeat(64)),
+                state: NodeState::Terminal,
+            },
+            Node {
+                position: 3,
+                node_plan_hash: format!("sha256:{}", "f".repeat(64)),
+                state: NodeState::Terminal,
+            },
+        ],
+        format!("sha256:{}", "1".repeat(64)),
+        10_000,
+    )
+}
+
+fn presentation(body: &Body) -> Value {
+    serde_json::json!({
+        "appId": "app",
+        "databaseId": "db",
+        "targetProfileId": "local",
+        "function": "mixedView",
+        "planHash": format!("sha256:{}", "a".repeat(64)),
+        "args": {"boardId":"board-1"},
+        "parentGroups": [{
+            "groupIndex": 0,
+            "parentAuthorizationKeyDigest": format!("sha256:{}", "b".repeat(64)),
+            "parentId": "board-1",
+            "parentIncarnation": "018f4d5a-0000-7000-8000-000000000001",
+            "parentVersion": 7,
+        }],
+        "nodeClasses": [
+            "bounded_children_v1", "relational_query_v1",
+            "bounded_children_v1", "relational_query_v1",
+        ],
+        "authorityPartition": format!("sha256:{}", "1".repeat(64)),
+        "streamEpoch": "stream",
+        "nowMs": body.issued_at + 1,
+        "parentSurface": "visible",
+        "boundaryValid": true,
+    })
+}
+
+/// Rust-owned emitter input for the complete shared LLP 0157 §D8 parity set.
+/// The small CLI in `src/bin/snapback-sbsb2-vectors.rs` is the only writer.
+/// Both the Rust drift test below and the independent Node consumer read the
+/// committed rendering.
+#[doc(hidden)]
+pub fn reference_parity_fixture() -> Result<Value, &'static str> {
+    let root: [u8; 32] = std::array::from_fn(|index| index as u8);
+    let mixed = mixed_vector_body();
+    let all_relational = Body::new(
+        "generation-1".into(),
+        "app".into(),
+        "db".into(),
+        "local".into(),
+        "stream".into(),
+        "allRelational".into(),
+        format!("sha256:{}", "2".repeat(64)),
+        serde_json::json!({}),
+        Vec::new(),
+        vec![
+            Node {
+                position: 0,
+                node_plan_hash: format!("sha256:{}", "3".repeat(64)),
+                state: NodeState::RelationalBoundary {
+                    order_fields: vec!["sequence".into()],
+                    boundary: vec![serde_json::json!(41)],
+                    row_id: "event-41".into(),
+                },
+            },
+            Node {
+                position: 1,
+                node_plan_hash: format!("sha256:{}", "4".repeat(64)),
+                state: NodeState::Terminal,
+            },
+        ],
+        format!("sha256:{}", "5".repeat(64)),
+        20_000,
+    );
+
+    // The vector records its schema-declared widths explicitly. NUL is the
+    // maximum compact-JSON escape expansion for one stored byte; both string
+    // and id fields consume every byte of their respective declared bound.
+    let template_order_fields = vec![
+        "boundedString".to_owned(),
+        "boundedId".to_owned(),
+        "safeInteger".to_owned(),
+        "boolFalse".to_owned(),
+        "boolTrue".to_owned(),
+    ];
+    let template_boundary = vec![
+        Value::String("\0".repeat(32)),
+        Value::String("\0".repeat(32)),
+        Value::from(-9_007_199_254_740_991_i64),
+        Value::Bool(false),
+        Value::Bool(true),
+    ];
+    let mut maximum = Body::new(
+        "generation-maximum-spelling".into(),
+        "app".into(),
+        "database".into(),
+        "local-dev-sqlite-ibex".into(),
+        "stream".into(),
+        "maximumTemplate".into(),
+        format!("sha256:{}", "6".repeat(64)),
+        serde_json::json!({"padding":""}),
+        vec![ParentGroup {
+            group_index: 0,
+            parent_authorization_key_digest: format!("sha256:{}", "7".repeat(64)),
+            parent_id: "parent-maximum".into(),
+            parent_incarnation: "00000000-0000-0000-0000-000000000000".into(),
+            parent_version: 9_007_199_254_740_991,
+        }],
+        vec![
+            Node {
+                position: 0,
+                node_plan_hash: format!("sha256:{}", "8".repeat(64)),
+                state: NodeState::Boundary {
+                    order_fields: template_order_fields.clone(),
+                    boundary: template_boundary.clone(),
+                    row_id: "x".repeat(256),
+                },
+            },
+            Node {
+                position: 1,
+                node_plan_hash: format!("sha256:{}", "9".repeat(64)),
+                state: NodeState::RelationalBoundary {
+                    order_fields: template_order_fields.clone(),
+                    boundary: template_boundary,
+                    row_id: "y".repeat(256),
+                },
+            },
+        ],
+        format!("sha256:{}", "a".repeat(64)),
+        9_007_198_045_140_991,
+    );
+    let empty_len = compact_plaintext(&maximum)?.len();
+    let padding_len = MAX_PLAINTEXT_BYTES
+        .checked_sub(empty_len)
+        .ok_or("oversize")?;
+    maximum.args = serde_json::json!({"padding":"x".repeat(padding_len)});
+    if compact_plaintext(&maximum)?.len() != MAX_PLAINTEXT_BYTES {
+        return Err("serialize");
+    }
+    let mut over_limit = maximum.clone();
+    let padding = over_limit
+        .args
+        .get("padding")
+        .and_then(Value::as_str)
+        .ok_or("serialize")?
+        .to_owned();
+    over_limit.args = serde_json::json!({"padding":format!("{padding}x")});
+    if compact_plaintext(&over_limit)?.len() != MAX_PLAINTEXT_BYTES + 1
+        || mint_with_nonce(&root, &over_limit, fixed_nonce(0xc0)) != Err("oversize")
+    {
+        return Err("serialize");
+    }
+
+    let mut near_misses = Vec::new();
+    let mut add = |id: &str,
+                   seed: u8,
+                   body: Body,
+                   presented: Value,
+                   outcome: &str|
+     -> Result<(), &'static str> {
+        near_misses.push(parity_vector(
+            id,
+            &root,
+            fixed_nonce(seed),
+            &body,
+            Some(presented),
+            Some(outcome),
+        )?);
+        Ok(())
+    };
+    let invalid = "SNAPBACK_SNAPSHOT_BATCH_CURSOR_INVALID";
+    let restart = "SNAPBACK_SNAPSHOT_BATCH_RESTART_REQUIRED";
+
+    for (id, seed, mutate) in [
+        (
+            "cross-app",
+            0x10,
+            (|body: &mut Body| body.app_id = "other-app".into()) as fn(&mut Body),
+        ),
+        (
+            "cross-database",
+            0x11,
+            (|body: &mut Body| body.database_id = "other-db".into()) as fn(&mut Body),
+        ),
+        (
+            "cross-target",
+            0x12,
+            (|body: &mut Body| body.target_profile_id = "remote".into()) as fn(&mut Body),
+        ),
+        (
+            "cross-function",
+            0x13,
+            (|body: &mut Body| body.function = "otherFunction".into()) as fn(&mut Body),
+        ),
+        (
+            "cross-plan",
+            0x14,
+            (|body: &mut Body| body.plan_hash = format!("sha256:{}", "0".repeat(64)))
+                as fn(&mut Body),
+        ),
+        (
+            "cross-args",
+            0x15,
+            (|body: &mut Body| body.args = serde_json::json!({"boardId":"board-2"}))
+                as fn(&mut Body),
+        ),
+        (
+            "cross-parent",
+            0x16,
+            (|body: &mut Body| body.parent_groups[0].parent_id = "board-2".into()) as fn(&mut Body),
+        ),
+        (
+            "cross-authority",
+            0x17,
+            (|body: &mut Body| {
+                body.authority_partition = format!("sha256:{}", "0".repeat(64));
+            }) as fn(&mut Body),
+        ),
+        (
+            "boundary-invalid",
+            0x18,
+            (|body: &mut Body| {
+                let NodeState::Boundary { boundary, .. } = &mut body.nodes[0].state else {
+                    unreachable!()
+                };
+                boundary[0] = Value::String("not-an-integer".into());
+            }) as fn(&mut Body),
+        ),
+        (
+            "state-class-mismatch",
+            0x19,
+            (|body: &mut Body| {
+                body.nodes[0].state = NodeState::RelationalBoundary {
+                    order_fields: vec!["position".into()],
+                    boundary: vec![serde_json::json!(9)],
+                    row_id: "card-9".into(),
+                };
+            }) as fn(&mut Body),
+        ),
+    ] {
+        let mut body = mixed.clone();
+        mutate(&mut body);
+        add(id, seed, body, presentation(&mixed), invalid)?;
+    }
+
+    let mut epoch = mixed.clone();
+    epoch.stream_epoch = "tampered-stream".into();
+    add("changed-epoch", 0x1a, epoch, presentation(&mixed), restart)?;
+
+    let mut changed_parent = presentation(&mixed);
+    changed_parent["parentGroups"][0]["parentIncarnation"] =
+        Value::String("018f4d5a-0000-7000-8000-000000000002".into());
+    changed_parent["parentGroups"][0]["parentVersion"] = Value::from(8);
+    add(
+        "changed-parent-incarnation-and-version",
+        0x1b,
+        mixed.clone(),
+        changed_parent,
+        restart,
+    )?;
+
+    let mut expired = presentation(&mixed);
+    expired["nowMs"] = Value::from(mixed.expires_at + 1);
+    add("expired", 0x1c, mixed.clone(), expired, invalid)?;
+    let mut expired_epoch = presentation(&mixed);
+    expired_epoch["nowMs"] = Value::from(mixed.expires_at + 1);
+    expired_epoch["streamEpoch"] = Value::String("changed-stream".into());
+    add(
+        "expired-plus-changed-epoch",
+        0x1d,
+        mixed.clone(),
+        expired_epoch,
+        invalid,
+    )?;
+    let mut expired_parent = presentation(&mixed);
+    expired_parent["nowMs"] = Value::from(mixed.expires_at + 1);
+    expired_parent["parentGroups"][0]["parentVersion"] = Value::from(8);
+    add(
+        "expired-plus-changed-parent",
+        0x1e,
+        mixed.clone(),
+        expired_parent,
+        invalid,
+    )?;
+    let mut rotation = presentation(&mixed);
+    rotation["streamEpoch"] = Value::String("rotated-stream".into());
+    rotation["authorityPartition"] = Value::String(format!("sha256:{}", "0".repeat(64)));
+    add("genuine-rotation", 0x1f, mixed.clone(), rotation, invalid)?;
+
+    let mixed_vector = parity_vector("mixed", &root, fixed_nonce(0xa0), &mixed, None, None)?;
+    let all_relational_vector = parity_vector(
+        "all-relational",
+        &root,
+        fixed_nonce(0xb0),
+        &all_relational,
+        None,
+        None,
+    )?;
+    let maximum_vector = parity_vector(
+        "maximum-template",
+        &root,
+        fixed_nonce(0xc0),
+        &maximum,
+        None,
+        None,
+    )?;
+    let v1_fixture: Value = serde_json::from_str(include_str!(
+        "../tests/fixtures/snapshot-batch-sbsb1-parity-v1.json"
+    ))
+    .map_err(|_| "serialize")?;
+    let v1_wire = v1_fixture
+        .get("expectedWire")
+        .and_then(Value::as_str)
+        .ok_or("serialize")?;
+    let v2_wire = mixed_vector
+        .get("expectedWire")
+        .and_then(Value::as_str)
+        .ok_or("serialize")?;
+
+    Ok(serde_json::json!({
+        "formatVersion": "snapshot-batch-sbsb2-parity-v1",
+        "purposeUtf8": "snapback:snapshot-batch-cursor:xchacha20:v2",
+        "vectors": [mixed_vector, all_relational_vector, maximum_vector],
+        "maximumTemplate": {
+            "plaintextBytes": MAX_PLAINTEXT_BYTES,
+            "wireBytes": MAX_WIRE_BYTES,
+            "templateWidths": {
+                "boundedStringMaxEncodedBytes": 32,
+                "boundedIdMaxEncodedBytes": 32,
+                "rootIdBytes": 256,
+                "safeIntegerCharacters": 17,
+                "booleanSpellings": [false, true],
+                "maximumEscapeScalar": "U+0000",
+            },
+            "overLimitBody": over_limit,
+            "overLimitPlaintextBytes": MAX_PLAINTEXT_BYTES + 1,
+            "expectedEstablishmentOutcome": "SNAPBACK_SNAPSHOT_BATCH_CURSOR_BUDGET_EXCEEDED",
+        },
+        "nearMisses": near_misses,
+        "crossFamilyPresentations": [
+            {
+                "id": "sbsb1-at-v2-visible",
+                "wire": v1_wire,
+                "surface": "snapshot-batch.v2",
+                "parentSurface": "visible",
+                "expectedOutcome": invalid,
+            },
+            {
+                "id": "sbsb1-at-v2-absent",
+                "wire": v1_wire,
+                "surface": "snapshot-batch.v2",
+                "parentSurface": "absent",
+                "expectedEnvelope": {"kind":"absent","nodes":null,"continuation":null},
+            },
+            {
+                "id": "sbsb2-at-v1-visible",
+                "wire": v2_wire,
+                "surface": "snapshot-batch.v1",
+                "parentSurface": "visible",
+                "expectedOutcome": invalid,
+            },
+            {
+                "id": "sbsb2-at-v1-absent",
+                "wire": v2_wire,
+                "surface": "snapshot-batch.v1",
+                "parentSurface": "absent",
+                "expectedEnvelope": {"kind":"absent","nodes":null,"continuation":null},
+            },
+            {
+                "id": "sbsb1-payload-rewritten-as-sbsb2",
+                "wire": format!("sbsb2.{}", v1_wire.strip_prefix("sbsb1.").ok_or("serialize")?),
+                "surface": "snapshot-batch.v2",
+                "parentSurface": "visible",
+                "expectedOutcome": invalid,
+            },
+            {
+                "id": "sbsb2-payload-rewritten-as-sbsb1",
+                "wire": format!("sbsb1.{}", v2_wire.strip_prefix("sbsb2.").ok_or("serialize")?),
+                "surface": "snapshot-batch.v1",
+                "parentSurface": "visible",
+                "expectedOutcome": invalid,
+            },
+        ],
+    }))
 }
 
 #[cfg(test)]
@@ -602,6 +1076,144 @@ mod tests {
                 10_001,
             )
             .is_err()
+        );
+    }
+
+    // @ref LLP 0157#sbsb2-plaintext-and-budget — Rust consumes the exact
+    // shared file written by the reference emitter, independently replays
+    // every fixed nonce, and exact-compares the in-module source rendering so
+    // neither committed bytes nor the emitter can drift alone.
+    #[test]
+    fn complete_reference_fixture_is_byte_exact_and_drift_guarded() {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures/snapshot-batch-sbsb2-parity-v1.json");
+        let committed_bytes = std::fs::read(&path).expect("read sbsb2 parity fixture");
+        let committed: Value =
+            serde_json::from_slice(&committed_bytes).expect("parse sbsb2 parity fixture");
+        assert_eq!(
+            committed,
+            reference_parity_fixture().expect("render reference")
+        );
+        assert_eq!(committed["formatVersion"], "snapshot-batch-sbsb2-parity-v1");
+
+        let decode_hex = |value: &str| -> Vec<u8> {
+            (0..value.len())
+                .step_by(2)
+                .map(|index| u8::from_str_radix(&value[index..index + 2], 16).unwrap())
+                .collect()
+        };
+        for vector in committed["vectors"]
+            .as_array()
+            .expect("golden vectors")
+            .iter()
+            .chain(
+                committed["nearMisses"]
+                    .as_array()
+                    .expect("near-miss vectors"),
+            )
+        {
+            let root: [u8; 32] = decode_hex(vector["rootHex"].as_str().expect("root hex"))
+                .try_into()
+                .expect("32-byte root");
+            let nonce: [u8; 24] = decode_hex(vector["nonceHex"].as_str().expect("nonce hex"))
+                .try_into()
+                .expect("24-byte nonce");
+            let body: Body =
+                serde_json::from_value(vector["body"].clone()).expect("closed v2 body");
+            let plaintext = compact_plaintext(&body).expect("compact plaintext");
+            assert_eq!(
+                plaintext,
+                vector["expectedPlaintext"]
+                    .as_str()
+                    .expect("expected plaintext")
+                    .as_bytes(),
+                "{} plaintext",
+                vector["id"]
+            );
+            assert_eq!(
+                mint_with_nonce(&root, &body, nonce).expect("fixed nonce mints"),
+                vector["expectedWire"].as_str().expect("expected wire"),
+                "{} wire",
+                vector["id"]
+            );
+        }
+
+        let mixed = &committed["vectors"][0]["body"];
+        assert_eq!(mixed["parentGroups"].as_array().expect("groups").len(), 1);
+        assert_eq!(
+            mixed["nodes"]
+                .as_array()
+                .expect("mixed nodes")
+                .iter()
+                .map(|node| node["state"]["kind"].as_str().expect("state tag"))
+                .collect::<Vec<_>>(),
+            vec!["boundary", "relational-boundary", "terminal", "terminal"],
+        );
+        assert!(
+            committed["vectors"][1]["body"]["parentGroups"]
+                .as_array()
+                .expect("all-relational groups")
+                .is_empty()
+        );
+        assert_eq!(
+            committed["vectors"][2]["expectedPlaintext"]
+                .as_str()
+                .expect("maximum plaintext")
+                .len(),
+            MAX_PLAINTEXT_BYTES
+        );
+        assert_eq!(
+            committed["vectors"][2]["expectedWire"]
+                .as_str()
+                .expect("maximum wire")
+                .len(),
+            MAX_WIRE_BYTES
+        );
+        let over: Body =
+            serde_json::from_value(committed["maximumTemplate"]["overLimitBody"].clone())
+                .expect("over-limit body");
+        assert_eq!(
+            compact_plaintext(&over).unwrap().len(),
+            MAX_PLAINTEXT_BYTES + 1
+        );
+        assert_eq!(mint_with_nonce(&[0; 32], &over, [0; 24]), Err("oversize"));
+
+        let near = committed["nearMisses"].as_array().expect("near misses");
+        for required in [
+            "cross-app",
+            "cross-database",
+            "cross-target",
+            "cross-function",
+            "cross-plan",
+            "cross-args",
+            "cross-parent",
+            "cross-authority",
+            "expired",
+            "boundary-invalid",
+            "state-class-mismatch",
+            "changed-epoch",
+            "changed-parent-incarnation-and-version",
+            "expired-plus-changed-epoch",
+            "expired-plus-changed-parent",
+            "genuine-rotation",
+        ] {
+            assert!(
+                near.iter().any(|entry| entry["id"] == required),
+                "{required}"
+            );
+        }
+        assert_eq!(
+            near.iter()
+                .find(|entry| entry["id"] == "expired-plus-changed-epoch")
+                .expect("decode-first overlap")["expectedOutcome"],
+            "SNAPBACK_SNAPSHOT_BATCH_CURSOR_INVALID"
+        );
+        assert_eq!(
+            committed["crossFamilyPresentations"]
+                .as_array()
+                .expect("cross-family presentations")
+                .len(),
+            6
         );
     }
 }

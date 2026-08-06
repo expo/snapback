@@ -13914,6 +13914,22 @@ mod membership_manifest_grammar_tests {
             "SNAPBACK_SNAPSHOT_BATCH_PLAN_INVALID",
         );
 
+        for nodes in [vec![relational.clone()], vec![relational.clone(); 9]] {
+            let out_of_range = SnapshotBatchPlanV2 {
+                profile: "snapshot-batch.v2".to_owned(),
+                nodes,
+                normalized_composite_plan: Value::Null,
+                plan_hash: String::new(),
+            };
+            assert_eq!(
+                validate_snapshot_batch_v2_plan_shape(&out_of_range)
+                    .expect_err("v2 admits exactly two through eight nodes")
+                    .diagnostic
+                    .code,
+                "SNAPBACK_SNAPSHOT_BATCH_PLAN_INVALID",
+            );
+        }
+
         let exceeded = SnapshotBatchPlanV2 {
             profile: "snapshot-batch.v2".to_owned(),
             nodes: vec![

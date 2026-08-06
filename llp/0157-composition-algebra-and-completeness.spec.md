@@ -379,10 +379,10 @@ published.
 class-tagged plan admission, local composite executor, mixed-node authoring and
 identity mirror, and local-only `snapshot_batch_v2` experimental capability
 registration have landed together with the required same-commit introduction
-record. Remote-service and Cloudflare targets retain explicit GAP rows. This
-checkpoint makes no Move-1 exit claim: §D8's frozen cross-language vectors and
-A14 acceptance oracle, followed by the fresh Fleet workload receipt, remain
-the gates before any guide capability-row promotion or hosted claim.
+record, the §D8 frozen Rust/JavaScript parity vectors, and the A14 local oracle.
+Remote-service and Cloudflare targets retain explicit GAP rows. This checkpoint
+makes no Move-1 exit claim: a fresh Fleet workload receipt remains the gate
+before any guide capability-row promotion or hosted claim.
 
 **Growth stop rule.** The active registry has exactly four node classes and
 four plan profiles (`single-node.v1`, `snapshot-batch.v1`, `mixed-route.v2`,
