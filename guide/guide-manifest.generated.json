@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "8b821028a86723ed0395bce1b1c46c18ccbc2c63"
+    "commit": "850427c31b9a668d55b46995e08389cd13a2c9b6"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -1481,9 +1481,9 @@
         "packages/snapback-react/index.mjs"
       ],
       "examples": [],
-      "reviewed": "2026-08-05",
-      "reviewedCommit": "f3c7d9fbb394a413370a9264f22e72b6f151a25e",
-      "sha256": "58c6429173a09184b1cd815117abc27b38563c3c0a1c9242f957ac4e910aa3e6",
+      "reviewed": "2026-08-06",
+      "reviewedCommit": "850427c31b9a668d55b46995e08389cd13a2c9b6",
+      "sha256": "a3dec630c583f309fc0856f6ef9349f76e1efd8d1983d622607f8bf64df834ad",
       "snippets": []
     },
     "clients.app-cli": {
@@ -1714,6 +1714,7 @@
         "llp/0114-first-class-react-and-query-groups.spec.md",
         "llp/0176-expo-messaging-golden-path.plan.md",
         "llp/0181-zero-configuration-expo.rfc.md",
+        "packages/snapback-cli/expo-dev.mjs",
         "packages/snapback-client/index.mjs",
         "packages/snapback-client/react-binding.mjs",
         "packages/snapback-client/rqs-store-default.mjs",
@@ -1722,6 +1723,7 @@
         "packages/snapback-expo/config-plugin.cjs",
         "packages/snapback-expo/index.mjs",
         "packages/snapback-expo/provider.mjs",
+        "packages/snapback-expo/supervised-environment.mjs",
         "packages/snapback-react/index.mjs",
         "scripts/install-local-snapback-packages.mjs",
         "demos/partiful-matrix/tests/acceptance/native-react-expo.mjs",
@@ -1729,6 +1731,8 @@
       ],
       "examples": [
         "demos/expo-golden-path-fixture",
+        "demos/expo-golden-path-fixture/receipts/20260806-g1-ios-simulator.md",
+        "demos/expo-golden-path-fixture/receipts/20260806-g1-android-emulator.md",
         "demos/partiful-matrix/native/react-expo",
         "packages/snapback-client/webcrypto-fallback.test.mjs",
         "packages/snapback-expo/provider.test.mjs",
@@ -1740,13 +1744,19 @@
         "demos/tandem-expo-bakeoff/scripts/build-ios-dev-client",
         "demos/_kit/tests/repo-layout-unit.mjs"
       ],
-      "reviewed": "2026-08-05",
-      "reviewedCommit": "f3c7d9fbb394a413370a9264f22e72b6f151a25e",
-      "sha256": "c8ef99c01805ef9fc4d941853eec12f901dd41aa2b0448e70c003ce37fc039e1",
+      "reviewed": "2026-08-06",
+      "reviewedCommit": "850427c31b9a668d55b46995e08389cd13a2c9b6",
+      "sha256": "7b66b87fb0a947c27f12498626aa74b507167d64a78e61fe0ab5a62c2c045b74",
       "snippets": [
         {
+          "lang": "json",
+          "class": "transcluded",
+          "source": "demos/expo-golden-path-fixture/app.json"
+        },
+        {
           "lang": "tsx",
-          "class": "fragment"
+          "class": "transcluded",
+          "source": "demos/expo-golden-path-fixture/App.tsx"
         },
         {
           "lang": "ts",
@@ -2160,10 +2170,12 @@
         "llp/0000-snapback.explainer.md",
         "llp/0042-agent-mcp-surface.rfc.md",
         "llp/0064-native-client-surfaces.rfc.md",
+        "llp/0181-zero-configuration-expo.rfc.md",
         "llp/0184-agent-accessible-control-plane.rfc.md",
         "src/cli.rs",
         "src/guide_mcp.rs",
         "packages/snapback-cli/index.mjs",
+        "packages/snapback-cli/expo-dev.mjs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
       "examples": [
@@ -2171,11 +2183,12 @@
         "demos/todo-v2",
         "demos/cursors-web",
         "demos/card-game",
-        "demos/partiful-matrix"
+        "demos/partiful-matrix",
+        "demos/expo-golden-path-fixture"
       ],
-      "reviewed": "2026-08-05",
-      "reviewedCommit": "f3c7d9fbb394a413370a9264f22e72b6f151a25e",
-      "sha256": "bf2e2a49e951f5f3c6db419d6d571f5300a55e03dca1c29c79ca16570d6967d7",
+      "reviewed": "2026-08-06",
+      "reviewedCommit": "850427c31b9a668d55b46995e08389cd13a2c9b6",
+      "sha256": "fee341be6522a82e2ae19c3d0745719403bf633a2692a6adb6751d57617869c4",
       "snippets": [
         {
           "lang": "json",
@@ -3165,5 +3178,5 @@
     "routes": 116,
     "hostOps": 37
   },
-  "contentHash": "c9e7d83cd19830969a21c86d9219287a7deb83a9edb97396aa2065599115552f"
+  "contentHash": "978eadbd3f78163fccbfc3219266030b1fadfb51b719ab0dad6c6b83a0c94ea6"
 }

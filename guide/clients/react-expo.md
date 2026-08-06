@@ -4,13 +4,13 @@ id: clients.react-expo
 order: 3
 audience: agent-first
 capabilities: [clients.react-expo]
-authorities: [llp/0012-headless-integration-contract.spec.md, llp/0017-admin-console-inspection-surface.rfc.md, llp/0041-packaged-dev-loop.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0176-expo-messaging-golden-path.plan.md, llp/0181-zero-configuration-expo.rfc.md, packages/snapback-client/index.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-client/rqs-store-default.mjs, packages/snapback-client/rqs-store-expo.mjs, packages/snapback-expo/app-binding.mjs, packages/snapback-expo/config-plugin.cjs, packages/snapback-expo/index.mjs, packages/snapback-expo/provider.mjs, packages/snapback-react/index.mjs, scripts/install-local-snapback-packages.mjs, demos/partiful-matrix/tests/acceptance/native-react-expo.mjs, demos/_kit/eas-stage-build.mjs]
-examples: [demos/expo-golden-path-fixture, demos/partiful-matrix/native/react-expo, packages/snapback-client/webcrypto-fallback.test.mjs, packages/snapback-expo/provider.test.mjs, packages/snapback-react/webcrypto-fallback.test.mjs, packages/snapback-client/rqs-store-expo.test.mjs, packages/snapback-client/rqs-resume-expo.test.mjs, scripts/local-source-package-closure.test.mjs, demos/rn-durable-store-witness/probe-App.tsx, demos/tandem-expo-bakeoff/scripts/build-ios-dev-client, demos/_kit/tests/repo-layout-unit.mjs]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0017-admin-console-inspection-surface.rfc.md, llp/0041-packaged-dev-loop.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0176-expo-messaging-golden-path.plan.md, llp/0181-zero-configuration-expo.rfc.md, packages/snapback-cli/expo-dev.mjs, packages/snapback-client/index.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-client/rqs-store-default.mjs, packages/snapback-client/rqs-store-expo.mjs, packages/snapback-expo/app-binding.mjs, packages/snapback-expo/config-plugin.cjs, packages/snapback-expo/index.mjs, packages/snapback-expo/provider.mjs, packages/snapback-expo/supervised-environment.mjs, packages/snapback-react/index.mjs, scripts/install-local-snapback-packages.mjs, demos/partiful-matrix/tests/acceptance/native-react-expo.mjs, demos/_kit/eas-stage-build.mjs]
+examples: [demos/expo-golden-path-fixture, demos/expo-golden-path-fixture/receipts/20260806-g1-ios-simulator.md, demos/expo-golden-path-fixture/receipts/20260806-g1-android-emulator.md, demos/partiful-matrix/native/react-expo, packages/snapback-client/webcrypto-fallback.test.mjs, packages/snapback-expo/provider.test.mjs, packages/snapback-react/webcrypto-fallback.test.mjs, packages/snapback-client/rqs-store-expo.test.mjs, packages/snapback-client/rqs-resume-expo.test.mjs, scripts/local-source-package-closure.test.mjs, demos/rn-durable-store-witness/probe-App.tsx, demos/tandem-expo-bakeoff/scripts/build-ios-dev-client, demos/_kit/tests/repo-layout-unit.mjs]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-05
-reviewed-commit: f3c7d9fbb394a413370a9264f22e72b6f151a25e
+reviewed: 2026-08-06
+reviewed-commit: 850427c31b9a668d55b46995e08389cd13a2c9b6
 ---
 
 # React Expo Online clients
@@ -96,51 +96,117 @@ operator surface, not part of the Expo bundle; the command derives a browser
 credential without exposing the master admin token. Check it before falling
 back to `curl`, raw host operations, or a one-off verification script.
 
-## Boot from the generated application descriptor
+## Run the supervised Expo development loop
 
-The E0 facade's application-facing shape has no URL prop and no second app
-model. Add `@expo/snapback-expo` to `expo.plugins`, import the generated `app`,
-and mount one provider:
+The north-star boot has three application-visible pieces: the config-plugin
+entry, the generated `app`, and `SnapbackExpoProvider`. There is no backend URL
+prop and no second application model ([LLP 0181 §Config plugin](repo:llp/0181-zero-configuration-expo.rfc.md#config-plugin),
+[LLP 0181 §Provider](repo:llp/0181-zero-configuration-expo.rfc.md#provider)).
+The working fixture's plugin entry is:
 
-```tsx fragment reason="application root layout and generated import path vary by Expo Router project"
-import { SnapbackExpoProvider } from '@expo/snapback-expo';
-import { app } from './snapback/generated/app';
+```json source=demos/expo-golden-path-fixture/app.json
+    "plugins": ["@expo/snapback-expo"],
+```
 
-export default function Root() {
-  return <SnapbackExpoProvider app={app}>{/* routes */}</SnapbackExpoProvider>;
+Its application root mounts the provider with the generated descriptor and an
+optional boot-state fallback, still with no URL or binding prop:
+
+```tsx source=demos/expo-golden-path-fixture/App.tsx
+export default function App() {
+  return (
+    <SnapbackExpoProvider
+      app={app}
+      fallback={(state: ExpoBootState) => <BootFallback state={state} />}
+    >
+      <ReceiptScreen />
+    </SnapbackExpoProvider>
+  );
 }
 ```
 
-The package verifies the closed `snapback.app-binding.v1` union before it
-adopts ordinary session authority or prepares a store. Its boot projection is
-`starting` (`binding`, `authority`, or `client`), `ready`,
-`authority-required`, `unsupported`, or `error`; missing Sessions-mode
-authority is never anonymous success. AppState lifecycle signals quiesce and
-resume the existing React owner rather than introducing an Expo cache or sync
-protocol.
-
-For the default local-development path, run the owning supervisor from the app
-directory and select the carrier explicitly:
+From an Expo app whose backend is the conventional `snapback/` child, start
+the iOS default or select Android explicitly:
 
 ```sh
-snapback dev snapback --expo --expo-dir . --expo-platform ios
-snapback dev snapback --expo --expo-dir . --expo-platform android
+snapback dev --expo
+snapback dev --expo --expo-platform android
 ```
 
-The supervisor starts backend, Metro, and the no-store bootstrap exchange on
-host loopback, then emits the origin Expo Go should open. Android prefers and
-verifies one `adb reverse` rule for each owned listener, so the app still dials
-`127.0.0.1`; `10.0.2.2` is only a `routing: "port-forward"` fallback and never
-permission for a LAN listener. The provider obtains the expiring binding and
-ordinary Sessions authority through this supervised seam—neither is placed in
-the app descriptor, public Expo configuration, Metro bundle, or source map.
+Use `--expo-dir`, a positional backend directory, `--email`, or
+`--android-serial` only when the project layout or selected emulator requires
+it; the fixture README gives the full source-checkout commands
+([runnable fixture](repo:demos/expo-golden-path-fixture/README.md)).
 
+### Know what the supervisor owns
+
+One supervisor starts or adopts the exact backend generation, starts Metro,
+issues an expiring `source: "supervised-dev"` binding, mints an ordinary
+session, and verifies the backend, Metro, and bootstrap listeners before
+reporting readiness. It also owns signal forwarding and reclaims the backend,
+Metro, bootstrap exchange, binding material, and port forwards on exit
+([LLP 0181 §Supervised development baseline](repo:llp/0181-zero-configuration-expo.rfc.md#supervised-development-baseline),
+[`runExpoDev`](repo:packages/snapback-cli/expo-dev.mjs)).
+
+Metro receives only the credential-free rendezvous origin. At runtime the Expo
+facade performs a `GET /_snapback/expo/v1/bootstrap` with `cache: "no-store"`;
+the loopback-only response pairs the expiring binding with either an ordinary
+session or a structured authority refusal. The exchange has the supervisor's
+lifetime and is reclaimed with the other children
+([LLP 0181 §Delivery E1, "E1 carrier disposition"](repo:llp/0181-zero-configuration-expo.rfc.md#e1--simulatoremulator-loop),
+[supervised environment](repo:packages/snapback-expo/supervised-environment.mjs)).
+LLP 0181's E1 acceptance requires the bearer to remain absent from the named
+static/public surfaces; the retained receipt JSONL scans additionally establish
+its absence from the readiness stream. Neither fact proves confidentiality or
+peer authentication against another local process.
+
+### Settle the backend into Sessions mode first
+
+The automatic mint inherits the native `auth.mintSession` precondition: the
+app must already be settled and available in Sessions mode. The fixture does
+this in its [schema](repo:demos/expo-golden-path-fixture/snapback/schema.mjs).
+If that precondition is absent, the mint refuses and the provider reports
+`authority-required` with the native diagnostic; it never hangs or silently
+continues as anonymous. See [Sessions and principals](../auth/sessions-and-principals.md)
+for the mode transition, and [LLP 0181 §Provider](repo:llp/0181-zero-configuration-expo.rfc.md#provider)
+for the provider state contract.
+
+### Choose simulator or emulator routing
+
+| Carrier | Route selected by the supervised baseline | What stays loopback-only |
+| --- | --- | --- |
+| iOS simulator | Same-host loopback; the binding and Expo origin use `127.0.0.1`. | Backend, Metro, and bootstrap exchange. |
+| Android emulator | Preferred: one verified `adb reverse` rule for each of the backend, Metro, and bootstrap ports, so the app still addresses `127.0.0.1`. Fallback: the emulator-only `10.0.2.2` host alias under `routing: "port-forward"`. | Every host listener. The fallback is routing posture, not permission to bind on LAN. |
+
+These routes and their cleanup are the closed iOS/Android branches in the
+[supervisor](repo:packages/snapback-cli/expo-dev.mjs),
+[LLP 0181 §iOS simulator](repo:llp/0181-zero-configuration-expo.rfc.md#ios-simulator),
+and
+[LLP 0181 §Android emulator](repo:llp/0181-zero-configuration-expo.rfc.md#android-emulator).
 Supervised binding admission tolerates at most 60 seconds of the host issuer's
 clock running ahead of the simulator/emulator clock. Expiry remains strict; a
 larger skew refuses with `SNAPBACK_APP_BINDING_NOT_YET_VALID`, in which case
-fix the clocks and restart the supervisor. Release binding selection and
-attestation remain separate from this local path, not ambient runtime URL
-configuration. Tests and advanced multi-target shells may inject a
+fix the clocks and restart the supervisor.
+
+### Keep the proof boundary visible
+
+The runnable example is
+[`demos/expo-golden-path-fixture`](repo:demos/expo-golden-path-fixture/README.md).
+Its independent
+[iOS simulator receipt](repo:demos/expo-golden-path-fixture/receipts/20260806-g1-ios-simulator.md)
+and
+[Android emulator receipt](repo:demos/expo-golden-path-fixture/receipts/20260806-g1-android-emulator.md)
+prove provider readiness, ordinary Sessions authority, a seeded live query,
+an ordinary mutation returning through that query, loopback listener
+enumeration, and complete supervisor cleanup. Together they complete the LLP
+0176 G1 simulator/emulator exit.
+
+This supervised loop does **not** claim physical-device development, a LAN or
+tunnel edge, or a release build. Physical-device and LAN carriers remain
+separately gated; release bindings and per-OS release acceptance use the
+separate path later on this page
+([LLP 0181 §Real devices in the baseline](repo:llp/0181-zero-configuration-expo.rfc.md#real-devices-in-the-baseline),
+[LLP 0181 §Release binding](repo:llp/0181-zero-configuration-expo.rfc.md#release-binding)).
+Tests and advanced multi-target shells may inject a
 `SnapbackExpoEnvironmentV1`, but its binding still passes the same
 source-specific admission.
 
