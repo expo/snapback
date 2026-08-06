@@ -7,7 +7,11 @@ React/Expo, Live queries, Ephemeral state, Assets, Auth, Testing, Exact,
 Contract
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-05
-**Revised:** 2026-08-06 (g) — G2 surface-design revision: descriptor binding
+**Revised:** 2026-08-06 (h) — Reconciled §Headless projection with shipped S1:
+the non-React spelling is `observeSnapbackSurface` plus the prepared-provider
+`surface`/`bindSnapbackSurface` seam, not the never-implemented
+`client.surface`; the one-owner design is unchanged and `commands` remains
+S2/G3 work. Earlier same day (g) — G2 surface-design revision: descriptor binding
 must remain process-cold reachable through LLP 0114's single persisted
 binding-receipt/RQS owner. The receipt retains a compact admitted deployment
 projection for the byte-identical descriptor; surfaces gain no cache, receipt
@@ -460,6 +464,44 @@ const task = chat.commands.send({ body, image })
 Headless bindings expose the same canonical keys, capability requirements,
 child references, and cleanup. React is a lifecycle projection over this
 owner, not the definition of a surface.
+
+**2026-08-06 — shipped v1 spelling.** S1 ships the non-React observer seam as
+`observeSnapbackSurface(provider, surface, params, options, listener)` from
+`@expo/snapback-react` (`packages/snapback-react/index.mjs`), alongside
+`provider.surface(...)` on the prepared React provider and the exported
+`bindSnapbackSurface(...)`; surface admission itself remains in
+`packages/snapback-client/react-binding.mjs`. The `client.surface(...)`
+spelling in the example above was never implemented. This follows the existing
+`observeSnapbackQueries`, `observeSnapbackPresence`, and
+`observeSnapbackOutbox` precedent, giving non-React consumers the same owner
+without a second registry. The normative contract above therefore holds
+unchanged for the shipped spelling: canonical keys, capability requirements,
+child references, and cleanup remain shared, with React only a lifecycle
+projection over the one owner. The adversarial assertion in
+`packages/snapback-react/surface.test.mjs` requires
+`surface.snapshot().state.messages` and
+`observeSnapbackQueries(...).snapshot().queries.messages` to be the same object
+("surface and low-level reads observe the exact same LLP 0114 store snapshot"),
+and its Strict Mode case with a low-level sibling requires exactly one upstream
+message subscription. The shipped spelling of the example above is:
+
+```ts
+const chat = provider.surface(app.surfaces.conversation, { conversationId })
+// or, without holding the provider value: observeSnapbackSurface(
+//   provider, app.surfaces.conversation, { conversationId }, options, listener)
+
+const stop = chat.reads.messages.subscribe(listener)
+await chat.mutations.addReaction({ messageId, userId, emoji })
+await chat.dispose()
+```
+
+A client-side `client.surface` alias was considered and deliberately not added
+in v1: no consumer asked for it, and a second public entry point to the same
+owner would invite exactly the second-owner outcome this RFC forbids elsewhere.
+Reopen that alias only on real demand from a non-React consumer that cannot use
+the observer seam. The example's `commands` member is not admitted in S1:
+codegen currently refuses it with `SNAPBACK_SURFACE_MEMBER_CLASS_UNSUPPORTED`
+and "commands are reserved for descriptor slice S2"; it arrives with S2/G3.
 
 ## Lifecycle, identity, and composition
 
