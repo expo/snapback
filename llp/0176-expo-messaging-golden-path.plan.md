@@ -7,7 +7,7 @@ Ephemeral state, Code generation, Developer experience, Packaging, Local
 server lifecycle, Testing, Competitive evaluation
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-05
-**Revised:** 2026-08-06 (o) — G2 exit complete: the north-star conversation
+**Revised:** 2026-08-06 (p) — sitting #4 ruling on the dev-persona owner: when LLP 0181 E1 concretely needs the declared-dev-persona contract, LLP 0039 receives a narrow dated amendment authorizing that contract only — no general unfreeze, nothing now. 2026-08-06 (o) — G2 exit complete: the north-star conversation
 surface passed the repaired headless checkpoint and real iOS-simulator and
 Android-emulator runs, with one canonical query/presence owner and all owned
 resources reclaimed. This corrects (m)'s premature exit wording; Status stays

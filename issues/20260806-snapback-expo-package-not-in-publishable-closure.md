@@ -1,6 +1,6 @@
 # Author decision: @expo/snapback-expo is not in the publishable closure
 
-**Status:** Open — needs Charlie's ruling
+**Status:** Open — APPROVED 2026-08-06 (sitting #4): widen to ten packages at 0.1.10, operator timing; ticket stays open for the execution — needs Charlie's ruling
 **Impact:** 4
 **Urgency:** 3
 **Ease:** 4

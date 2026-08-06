@@ -1124,6 +1124,17 @@ flagged here so the GA-front-door closure decision resolves it explicitly.
 
 ## Fast-path pre-consumer release (2026-08-01)
 
+Author ruling (Charlie, 2026-08-06, sitting #4): **LLP 0134 does not
+govern npm packaging** — its evidence bar (soak windows, maturity
+receipts) is struck from npm-promotion checklists, and this document owns
+packaging evidence. Once the ceremony resumes, its bar is qualified
+staging receipts (after the EAS-provenance validator repair,
+`issues/20260806-qualified-publish-eas-provenance-blocker.md`) — no
+14-day soak. Version authority: the operator supplies the version at
+publish time and the publish lane must cross-check the guide fences
+(`guide/published-closure.json` and page `since:` markers) before
+publishing.
+
 Author decision (Charlie, 2026-08-01): while the nine packages have no
 external consumers — the only consumer is Charlie himself, and the LLP 0137
 re-verification arms are the effective test — a release may skip qualified

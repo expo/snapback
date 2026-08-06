@@ -1151,6 +1151,11 @@ value an agent cannot exploit while its model of the app is still wrong.
 
 ## Open questions
 
+> **2026-08-06 (sitting #4):** D7 is RATIFIED and pulled forward as the
+> next construction item. D4 is RATIFIED CONTINGENT on the LLP 0115
+> CV-14 custody owner's dated amendment (OQ7's boundary stands). D5/D6
+> stay deferred for re-scope after Wave 1.
+
 **Ruled 2026-08-03 — author decision sitting #2
 (`issues/20260803-author-decision-sitting-2.md`).** The D1–D3 first
 tranche is ratified for implementation (commissioned as

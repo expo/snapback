@@ -1,6 +1,8 @@
 # Author decision: what LLP 0134 evidence must an npm promotion carry?
 
-**Status:** Open — needs Charlie's ruling
+**Status:** Closed — ruled 2026-08-06 (sitting #4)
+
+**Status-pre-ruling:** Open — needs Charlie's ruling
 **Impact:** 3
 **Urgency:** 3
 **Ease:** 4
@@ -58,3 +60,12 @@ Charlie's ruling, recorded here and in the promotion capstone ticket:
    started-but-incomplete soak with the 14-day window as a later gate.
 2. Who decides the target version, and where is that decision recorded?
    Confirm or replace the inferred `0.1.9`.
+
+
+## Resolution — 2026-08-06 (sitting #4)
+
+Ruled per `issues/closed/20260806-author-decision-sitting-4.md` ruling 3:
+LLP 0134 does not govern npm packaging; LLP 0041 owns packaging evidence
+(dated note landed there); ceremony bar = qualified staging receipts
+post EAS-provenance repair, no soak; version authority = operator at
+publish time, cross-checked against guide fences.
