@@ -70,8 +70,9 @@ and none of this closes a row on its own.
   bytes, total bytes), diff-work bound, and renewal max-lifetime cap all
   refuse deterministically with observed usage
   (`SNAPBACK_FORK_RESOURCE_LIMIT_REFUSED`); bounded renewal has a 7-cut
-  crash-recovery matrix. Open: author ratification of the provisional limit
-  constants; a true ENOSPC/disk-pressure simulation (not portably
+  crash-recovery matrix; creation shares the renewal lifetime cap (author
+  rulings 2026-08-05: limit constants ratified; integrated sandbox tier
+  deferred until demand). Still open: a true ENOSPC/disk-pressure simulation (not portably
   automatable — interrupted-copy behavior is covered by the 20-cut
   publication crash matrix instead); digest-work/replay-floor legs stay with
   their owners above.
