@@ -13,6 +13,7 @@ use clap::Parser;
 use rusqlite::OptionalExtension as _;
 use serde::Deserialize;
 use serde_json::{Value, json};
+use std::collections::HashMap;
 use std::ffi::OsString;
 use std::io::{self, ErrorKind, IsTerminal, Read as _};
 use std::net::IpAddr;
@@ -723,7 +724,8 @@ impl Default for Args {
 #[derive(Debug, Parser)]
 #[command(
     name = "snapback",
-    about = "Snapback local server + host operations (LLP 0024 first slice)"
+    about = "Snapback local server, host operations, and embedded Guide",
+    after_help = "Documentation:\n  snapback guide [QUERY]  Browse or search the build-bound Snapback Guide\n  snapback mcp            Serve the same Guide as read-only MCP resources"
 )]
 pub struct Cli {
     #[command(subcommand)]
@@ -846,6 +848,16 @@ pub enum HostCommand {
     Fork {
         #[command(subcommand)]
         command: ForkCommand,
+    },
+    // @ref LLP 0187#t4--build-the-out-of-repo-funnel-before-it-is-tested-for-real —
+    // the packaged native runtime is the checkout-independent guide carrier.
+    // @ref LLP 0061#4-distribution-and-discovery — the CLI searches the same
+    // build-bound corpus served over HTTP and MCP rather than a second copy.
+    /// Show the build-bound Guide channels or search matching Markdown sections.
+    Guide {
+        /// Words to find together in a Guide section. Omit to show all channels.
+        #[arg(value_name = "QUERY")]
+        query: Vec<String>,
     },
     /// Serve the build-bound Snapback Guide as read-only MCP resources over
     /// stdio. This is the resource-first Phase 2b slice; it exposes no tools.
@@ -1576,6 +1588,161 @@ impl std::fmt::Debug for TargetArgs {
     }
 }
 
+const DEFAULT_SERVED_GUIDE_URL: &str = "http://127.0.0.1:4287/_snapback/guide";
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct GuideSectionMatch {
+    path: String,
+    heading: String,
+    anchor: String,
+}
+
+fn markdown_heading(line: &str) -> Option<&str> {
+    let trimmed = line.trim_start();
+    let level = trimmed.bytes().take_while(|byte| *byte == b'#').count();
+    if !(1..=6).contains(&level) || trimmed.as_bytes().get(level) != Some(&b' ') {
+        return None;
+    }
+    let heading = trimmed[level + 1..].trim();
+    (!heading.is_empty()).then_some(heading)
+}
+
+fn markdown_anchor(heading: &str) -> String {
+    let mut anchor = String::new();
+    for character in heading.chars().flat_map(char::to_lowercase) {
+        if character.is_alphanumeric() || character == '_' || character == '-' {
+            anchor.push(character);
+        } else if character.is_whitespace() {
+            anchor.push('-');
+        }
+    }
+    if anchor.is_empty() {
+        "section".to_owned()
+    } else {
+        anchor
+    }
+}
+
+fn search_guide_sections_in(
+    files: &[crate::guide::EmbeddedGuideFile],
+    query: &str,
+) -> Vec<GuideSectionMatch> {
+    let query = query.to_lowercase();
+    let mut matches = Vec::new();
+
+    for file in files {
+        if !file.path.ends_with(".md") || file.path == crate::guide::FLAT_PATH {
+            continue;
+        }
+        let Ok(markdown) = std::str::from_utf8(file.bytes) else {
+            continue;
+        };
+        let mut anchor_counts = HashMap::<String, usize>::new();
+        let mut current: Option<(String, String, String)> = None;
+        let mut active_fence = None;
+
+        let finish_section = |current: Option<(String, String, String)>,
+                              matches: &mut Vec<GuideSectionMatch>| {
+            if let Some((heading, anchor, text)) = current
+                && text.to_lowercase().contains(&query)
+            {
+                matches.push(GuideSectionMatch {
+                    path: file.path.to_owned(),
+                    heading,
+                    anchor,
+                });
+            }
+        };
+
+        for line in markdown.lines() {
+            let trimmed = line.trim_start();
+            let fence = if trimmed.starts_with("```") {
+                Some('`')
+            } else if trimmed.starts_with("~~~") {
+                Some('~')
+            } else {
+                None
+            };
+            if let Some(fence) = fence {
+                match active_fence {
+                    Some(active) if active == fence => active_fence = None,
+                    None => active_fence = Some(fence),
+                    _ => {}
+                }
+            }
+
+            if active_fence.is_none()
+                && let Some(heading) = markdown_heading(line)
+            {
+                finish_section(current.take(), &mut matches);
+                let base_anchor = markdown_anchor(heading);
+                let count = anchor_counts.entry(base_anchor.clone()).or_default();
+                let anchor = if *count == 0 {
+                    base_anchor
+                } else {
+                    format!("{base_anchor}-{count}")
+                };
+                *count += 1;
+                current = Some((heading.to_owned(), anchor, format!("{heading}\n")));
+            } else if let Some((_, _, text)) = &mut current {
+                text.push_str(line);
+                text.push('\n');
+            }
+        }
+        finish_section(current, &mut matches);
+    }
+
+    matches
+}
+
+fn search_guide_sections(query: &str) -> Vec<GuideSectionMatch> {
+    search_guide_sections_in(crate::guide::EMBEDDED_GUIDE_FILES, query)
+}
+
+fn render_guide_command(query_words: &[String]) -> String {
+    let query = query_words.join(" ");
+    let query = query.trim();
+    if query.is_empty() {
+        return format!(
+            "Snapback Guide documentation channels\n\
+             \n\
+             The URLs below use the first default dev port. If Snapback selected another port, replace the origin with the one printed by snapback dev or snapback start.\n\
+             \n\
+             Start with the capability index: {DEFAULT_SERVED_GUIDE_URL}/capabilities.md\n\
+             Browse the Guide:             {DEFAULT_SERVED_GUIDE_URL}\n\
+             Flat agent projection:         {DEFAULT_SERVED_GUIDE_URL}/flat.md\n\
+             Search this embedded build:    snapback guide <query>\n\
+             Read through MCP:              snapback mcp\n\
+             MCP entry resource:            snapback-guide://manifest\n"
+        );
+    }
+
+    let matches = search_guide_sections(query);
+    if matches.is_empty() {
+        return format!(
+            "No embedded Guide sections matched {query:?}.\nStart with the capability index: {DEFAULT_SERVED_GUIDE_URL}/capabilities.md\n"
+        );
+    }
+
+    let mut output = format!("Embedded Guide sections matching {query:?}:\n");
+    for matched in &matches {
+        output.push_str(&format!(
+            "- {}#{} — {}\n  {DEFAULT_SERVED_GUIDE_URL}/{}#{}\n",
+            matched.path, matched.anchor, matched.heading, matched.path, matched.anchor
+        ));
+    }
+    output.push_str(&format!("{} section(s) matched.\n", matches.len()));
+    output
+}
+
+fn guide_command(query: &[String]) -> anyhow::Result<()> {
+    use std::io::Write as _;
+
+    std::io::stdout()
+        .write_all(render_guide_command(query).as_bytes())
+        .context("failed to write Guide output")
+}
+
 pub async fn run_from_env() -> anyhow::Result<()> {
     let cli = Cli::parse();
     reject_misdirected_serve_flags(&cli)?;
@@ -1850,6 +2017,7 @@ pub async fn run_from_env() -> anyhow::Result<()> {
             AuthCommand::Restore { from, db } => auth_restore(&from, &db),
         },
         Some(HostCommand::Fork { command }) => fork_command(command).await,
+        Some(HostCommand::Guide { query }) => guide_command(&query),
         Some(HostCommand::Mcp) => crate::guide_mcp::run_stdio(),
         Some(HostCommand::BuildIdentity) => {
             println!(
@@ -7762,16 +7930,17 @@ mod tests {
         AuthCoordinatorReadinessReceipt, AuthProgramConstructionReceipts,
         BEFORE_STARTUP_TARGET_RESERVATION, Cli, ErrorsCommand, ForkCommand, HostCommand,
         ManagedPath, NetworkProfileCommand, ReadyFileTarget, ResolvedHttpTarget, SessionCommand,
-        TargetArgs, TelemetryCommand,
-        automatic_reap_before_create, bind_first_available, bind_listener,
-        console_claim_fragment_url, console_fragment_url, fork_secret_disposition,
+        TargetArgs, TelemetryCommand, automatic_reap_before_create, bind_first_available,
+        bind_listener, console_claim_fragment_url, console_fragment_url, fork_secret_disposition,
         managed_startup_paths, mint_secret_read_via_http, parse_fork_ttl,
         parse_network_profile_selection, parse_run_args, path_with_filename_suffix,
         prepare_database_path, prepare_database_path_for_startup, quiet_stop_fork,
-        reject_misdirected_serve_flags, resolve_http_target, runtime_auth_program_readiness,
-        validate_path_disjointness, validated_console_origin, validated_secret_read_root_path,
-        write_ready_file_atomic, write_ready_file_atomic_protected,
+        reject_misdirected_serve_flags, render_guide_command, resolve_http_target,
+        runtime_auth_program_readiness, search_guide_sections_in, validate_path_disjointness,
+        validated_console_origin, validated_secret_read_root_path, write_ready_file_atomic,
+        write_ready_file_atomic_protected,
     };
+    use crate::guide::EmbeddedGuideFile;
     use crate::instance_lock::TargetInstanceReservation;
     use clap::{CommandFactory, Parser};
     use serde_json::json;
@@ -7779,6 +7948,64 @@ mod tests {
     use std::path::{Path, PathBuf};
     use std::time::Duration;
     use tokio::net::TcpListener;
+
+    #[test]
+    fn guide_cli_parses_multiword_queries_and_root_help_names_both_channels() {
+        let cli = Cli::parse_from(["snapback", "guide", "live", "query"]);
+        match cli.command {
+            Some(HostCommand::Guide { query }) => {
+                assert_eq!(query, ["live", "query"]);
+            }
+            _ => panic!("expected guide command"),
+        }
+
+        let help = Cli::command().render_long_help().to_string();
+        assert!(help.contains("snapback guide [QUERY]"), "{help}");
+        assert!(help.contains("snapback mcp"), "{help}");
+    }
+
+    #[test]
+    fn guide_search_returns_matching_sections_with_stable_markdown_anchors() {
+        let files = [
+            EmbeddedGuideFile {
+                path: "backend/example.md",
+                bytes: b"---\ntitle: Example\n---\n# Example page\nIntro.\n## Live queries\nUse the live query handle.\n## Live queries\nSecond live query spelling.\n",
+                content_type: "text/markdown; charset=utf-8",
+            },
+            EmbeddedGuideFile {
+                path: crate::guide::FLAT_PATH,
+                bytes: b"# Duplicate projection\nlive query handle\n",
+                content_type: "text/markdown; charset=utf-8",
+            },
+        ];
+
+        let matches = search_guide_sections_in(&files, "live query");
+        assert_eq!(
+            matches,
+            [
+                super::GuideSectionMatch {
+                    path: "backend/example.md".to_owned(),
+                    heading: "Live queries".to_owned(),
+                    anchor: "live-queries".to_owned(),
+                },
+                super::GuideSectionMatch {
+                    path: "backend/example.md".to_owned(),
+                    heading: "Live queries".to_owned(),
+                    anchor: "live-queries-1".to_owned(),
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn guide_channel_output_starts_with_capabilities_and_names_flat_and_mcp() {
+        let output = render_guide_command(&[]);
+        let capability = output.find("/capabilities.md").unwrap();
+        let browse = output.find("Browse the Guide").unwrap();
+        assert!(capability < browse, "{output}");
+        assert!(output.contains("/_snapback/guide/flat.md"), "{output}");
+        assert!(output.contains("snapback mcp"), "{output}");
+    }
 
     #[test]
     fn fork_cli_pins_finite_ttl_and_explicit_secret_opt_in() {
