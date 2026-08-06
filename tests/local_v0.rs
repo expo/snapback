@@ -1123,7 +1123,12 @@ fn ibex_handler_lone_surrogate_strings_are_sanitized() {
         r#"
         globalThis.__snapbackHandlers = {
           async listTodos() {
-            return ["\uD800"];
+            return [
+              "\uD800",
+              "\uDC00",
+              "\uD83D\uDE00",
+              "x".repeat(16400) + "\uD800" + "tail"
+            ];
           },
           async createTodo() {
             return null;
@@ -1135,7 +1140,15 @@ fn ibex_handler_lone_surrogate_strings_are_sanitized() {
     let output = snapback
         .invoke_query("listTodos", input(json!({}), "user_1"))
         .expect("lone surrogate should not break JSON transport");
-    assert_eq!(output.rows, vec![json!("\u{FFFD}")]);
+    assert_eq!(
+        output.rows,
+        vec![
+            json!("\u{FFFD}"),
+            json!("\u{FFFD}"),
+            json!("😀"),
+            json!(format!("{}\u{FFFD}tail", "x".repeat(16_400))),
+        ]
+    );
 }
 
 #[test]

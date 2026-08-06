@@ -126,3 +126,22 @@ security tests, `./ref-check --verbose`, and
 harness scratch run could not bind `127.0.0.1:0` in the agent sandbox (`EPERM`),
 so the same generated schema/function manifests were driven through the exact
 embedded `LocalSnapback` handler runtime to obtain the post-fix witness above.
+
+### Post-merge scalar-normalization correction — 2026-08-05
+
+The initial resolution removed the failure-metadata replacer wholesale from
+success serialization. That preserved long strings, but it also removed the
+replacer's independent UTF-16 normalization duty: Hermes correctly emitted a
+lone surrogate as `\\ud800`, while Rust's Unicode-scalar JSON boundary rejected
+the envelope and misclassified the settled handler as
+`SNAPBACK_HANDLER_DID_NOT_SETTLE`.
+
+The sanitizer now has one shared code-unit walk with two policies. Failure
+metadata retains the witnessed 16 KiB bound; successful values use the same
+valid-pair preservation and lone-surrogate-to-U+FFFD normalization with no
+serializer-side length bound. The existing host validator remains the only
+owner of the 1 MiB/string and 4 MiB/result limits. Regression coverage combines
+a 44,084-character result with a trailing lone surrogate, and separately covers
+lone high/low surrogates, an unchanged valid pair, and a lone surrogate after
+byte 16,384 with a preserved suffix. The focused `local_v0`, direct bridge, and
+full `handler_settlement_v0` suites pass.

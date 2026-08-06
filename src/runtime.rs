@@ -5000,7 +5000,7 @@ mod handler_result_bridge_tests {
         let module = IbexModule {
             source: r#"
               globalThis.__snapbackHandlers = {
-                async probe() { return { body: 'x'.repeat(44084) }; }
+                async probe() { return { body: 'x'.repeat(44084) + '\uD800' }; }
               };
             "#
             .to_owned(),
@@ -5010,8 +5010,8 @@ mod handler_result_bridge_tests {
         let result = run_ibex_handler_with_context(&module, &mut invocation, None)
             .expect("large handler result crosses the VM bridge");
         let body = result["body"].as_str().expect("body string");
-        assert_eq!(body.len(), 44_084);
-        assert_eq!(body, "x".repeat(44_084));
+        assert_eq!(body.len(), 44_087);
+        assert_eq!(body, format!("{}\u{FFFD}", "x".repeat(44_084)));
     }
 }
 

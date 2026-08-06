@@ -1213,7 +1213,7 @@
     }
   };
   var SNAPBACK_FAILURE_EXTRACTION_MAX_BYTES = 16 * 1024;
-  function __snapbackBoundedSafeString(value) {
+  function __snapbackSafeStringRecord(value, maxBytes) {
     var text = trustedString(value);
     var out = "";
     var bytes = 0;
@@ -1244,7 +1244,7 @@
         valueText = trustedReflectApply(trustedStringCharAt, text, [i]);
         width = code <= 0x7F ? 1 : (code <= 0x7FF ? 2 : 3);
       }
-      if (bytes + width > SNAPBACK_FAILURE_EXTRACTION_MAX_BYTES) {
+      if (maxBytes !== null && bytes + width > maxBytes) {
         truncated = true;
         break;
       }
@@ -1254,8 +1254,20 @@
     }
     return { value: out, truncated: truncated };
   }
+  function __snapbackBoundedSafeString(value) {
+    return __snapbackSafeStringRecord(value, SNAPBACK_FAILURE_EXTRACTION_MAX_BYTES);
+  }
   function __snapbackSafeString(value) {
     return __snapbackBoundedSafeString(value).value;
+  }
+  // JSON.stringify is well-formed for JavaScript lone surrogates, but its
+  // `\\uD800` spelling is not a Unicode scalar and the Rust JSON boundary
+  // deliberately rejects it. Successful results therefore normalize only
+  // unpaired surrogate code units while preserving every other code unit and
+  // the complete string length. Failure metadata uses the separately bounded
+  // sanitizer above.
+  function __snapbackCompleteSafeString(value) {
+    return __snapbackSafeStringRecord(value, null).value;
   }
   function __snapbackValidatedErrorClass(error) {
     // Each access/conversion is independent. A poisoned name, constructor, or
@@ -1299,6 +1311,9 @@
   function __snapbackFailureJsonReplacer(_key, value) {
     return typeof value === "string" ? __snapbackSafeString(value) : value;
   }
+  function __snapbackResultJsonReplacer(_key, value) {
+    return typeof value === "string" ? __snapbackCompleteSafeString(value) : value;
+  }
   // Single-sourced settlement wrapper (LLP 0048): both engines resolve an
   // invocation to the tagged completion envelope through this one function.
   // The envelope is only constructed after the awaited handler value exists,
@@ -1312,7 +1327,10 @@
       // @ref LLP 0108#result-contract-vocabulary — successful results cross
       // this engine-neutral JSON boundary at full fidelity; the host-side
       // validator owns the declared 1 MiB-per-string and 4 MiB-result ceilings.
-      var encodedValue = trustedJsonStringify(value === undefined ? null : value);
+      var encodedValue = trustedJsonStringify(
+        value === undefined ? null : value,
+        __snapbackResultJsonReplacer
+      );
       if (encodedValue === undefined) {
         var resultError = new TrustedError("handler returned a value that is not JSON-serializable");
         try { trustedDefineProperty(resultError, "__snapbackCode", { value: "SNAPBACK_HANDLER_RESULT_INVALID" }); } catch (_) { resultError.__snapbackCode = "SNAPBACK_HANDLER_RESULT_INVALID"; }
