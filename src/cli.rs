@@ -799,6 +799,35 @@ pub enum HostCommand {
         #[command(subcommand)]
         command: ErrorsCommand,
     },
+    /// config.unset — remove an entry's stored value. Carries only an entry
+    /// identifier (LLP 0184 §P2/§P3: no secret value crosses the wire, so no
+    /// secret carrier is needed, unlike `config.set`).
+    Config {
+        #[command(subcommand)]
+        command: ConfigCommand,
+    },
+    /// cron.tick / cron.runOne — the admin-gated forced dispatch surface
+    /// (LLP 0184 §P2: typed CLI/MCP projection of the existing
+    /// admin-write route; bounded work, ordinary receipts).
+    Cron {
+        #[command(subcommand)]
+        command: CronCommand,
+    },
+    /// jobs.drain — the injected-clock one-off jobs drain (LLP 0184 §P2's
+    /// typed projection of the existing `POST /_snapback/api/jobs/drain`
+    /// route; `jobs list`/`jobs show` are a separate, P1 read-only
+    /// projection of `GET /_snapback/api/jobs[/{id}]`).
+    Jobs {
+        #[command(subcommand)]
+        command: JobsCommand,
+    },
+    /// connection.disconnect — an explicit debug perturbation of one live
+    /// connection, never presented as application disconnect authority
+    /// (LLP 0184 §P2).
+    Connections {
+        #[command(subcommand)]
+        command: ConnectionsCommand,
+    },
     /// debug.networkProfile* — inspect or change the process-local network
     /// condition profile through the shared host-ops envelope.
     #[command(name = "network-profile")]
@@ -1137,6 +1166,84 @@ pub enum ErrorsCommand {
         target: TargetArgs,
         #[arg(long)]
         open_before: String,
+    },
+}
+
+/// @ref LLP 0184#p2-controlled-mutations — `config.unset` carries no secret
+/// value, so it needs no secret carrier; it is a direct, `AdminWrite`
+/// projection of the existing `POST /_snapback/api/config/unset` route.
+#[derive(clap::Subcommand)]
+pub enum ConfigCommand {
+    /// config.unset — remove a config entry's stored value.
+    Unset {
+        #[command(flatten)]
+        target: TargetArgs,
+        /// The config entry identifier (e.g. `stripe.secretKey`).
+        #[arg(long)]
+        entry: String,
+    },
+}
+
+/// @ref LLP 0184#p2-controlled-mutations — typed CLI/MCP projections of the
+/// existing admin-gated cron dispatch routes, with an injected clock for
+/// `tick` so acceptance never depends on wall-clock due-ness.
+#[derive(clap::Subcommand)]
+pub enum CronCommand {
+    /// cron.tick — force-claim and run every currently-due cron job.
+    Tick {
+        #[command(flatten)]
+        target: TargetArgs,
+    },
+    /// cron.runOne — force-claim and run one named cron job regardless of
+    /// its schedule.
+    Run {
+        #[command(flatten)]
+        target: TargetArgs,
+        /// The cron job's declared name.
+        name: String,
+    },
+}
+
+/// @ref LLP 0184#p2-controlled-mutations — the mutating jobs.drain
+/// projection; `jobs list`/`jobs show` are the separate P1 read-only
+/// projection of `GET /_snapback/api/jobs[/{id}]` (owned by a parallel
+/// workstream).
+#[derive(clap::Subcommand)]
+pub enum JobsCommand {
+    /// jobs.drain — claim and run due one-off jobs under an injected clock.
+    Drain {
+        #[command(flatten)]
+        target: TargetArgs,
+        /// The injected drain clock in epoch milliseconds. Absent means wall
+        /// clock.
+        #[arg(long)]
+        now_ms: Option<u64>,
+        /// Bounded cascade waves (server default 1 when absent).
+        #[arg(long)]
+        max_waves: Option<usize>,
+    },
+}
+
+/// @ref LLP 0184#p2-controlled-mutations — `connection.disconnect` is an
+/// explicit debug perturbation of the existing admin-gated route
+/// (`POST /_snapback/api/connections/{id}/disconnect`), never application
+/// disconnect authority. `reason` is recorded in this command's own receipt
+/// (the route itself carries no request body today); the readiness
+/// descriptor's startup nonce is verified by the ordinary target-resolution
+/// path before the request is sent, so a stale/reused server can never be
+/// the disconnect target.
+#[derive(clap::Subcommand)]
+pub enum ConnectionsCommand {
+    /// connection.disconnect — force-close one live connection by id.
+    Disconnect {
+        #[command(flatten)]
+        target: TargetArgs,
+        /// The connection id to disconnect.
+        connection_id: String,
+        /// Why this debug perturbation is being invoked (recorded in the
+        /// receipt printed on success).
+        #[arg(long)]
+        reason: String,
     },
 }
 
@@ -2088,6 +2195,10 @@ pub async fn run_from_env() -> anyhow::Result<()> {
         }
         Some(HostCommand::Telemetry { command }) => telemetry_command(command),
         Some(HostCommand::Errors { command }) => errors_command(command),
+        Some(HostCommand::Config { command }) => config_command(command),
+        Some(HostCommand::Cron { command }) => cron_command(command),
+        Some(HostCommand::Jobs { command }) => jobs_command(command),
+        Some(HostCommand::Connections { command }) => connections_command(command),
         Some(HostCommand::NetworkProfile { command }) => match command {
             NetworkProfileCommand::Get { target } => {
                 host_op_via_http(&target, json!({ "operation": "debug.networkProfileGet" }))
@@ -4431,6 +4542,172 @@ fn errors_command(command: ErrorsCommand) -> anyhow::Result<()> {
                 }),
             )?;
             println!("{}", serde_json::to_string_pretty(&response)?);
+            Ok(())
+        }
+    }
+}
+
+/// Minimal percent-encoding for one dynamic path segment (cron job names,
+/// connection ids). No existing CLI helper in this module needed one before
+/// these commands; this avoids pulling in a new dependency for two call
+/// sites while still refusing to build an unescaped URL from caller input.
+fn path_segment_escape(raw: &str) -> String {
+    let mut escaped = String::with_capacity(raw.len());
+    for byte in raw.bytes() {
+        match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                escaped.push(byte as char);
+            }
+            _ => escaped.push_str(&format!("%{byte:02X}")),
+        }
+    }
+    escaped
+}
+
+/// A generic admin-gated JSON POST, shared by the LLP 0184 §P2 typed
+/// projections below (`config.unset`, `cron.tick`/`cron.runOne`,
+/// `jobs.drain`). Mirrors `errors_json_post`'s token resolution exactly, one
+/// level more generic (an arbitrary path instead of one hardcoded route).
+fn admin_json_post(target: &TargetArgs, path: &str, value: Value) -> anyhow::Result<Value> {
+    let resolved = resolve_http_target_for_operation(target, false)?;
+    let token = target
+        .token
+        .clone()
+        .or_else(|| std::env::var("SNAPBACK_ADMIN_TOKEN").ok())
+        .filter(|token| !token.is_empty())
+        .or(resolved.minted_token);
+    let mut request = ureq::post(&format!("{}{path}", resolved.server_url));
+    if let Some(token) = token {
+        request = request.set("x-snapback-admin-token", &token);
+    }
+    match request.send_json(value) {
+        Ok(response) => response
+            .into_json()
+            .with_context(|| format!("{path} response was not JSON")),
+        Err(ureq::Error::Status(status, response)) => {
+            let body = response
+                .into_string()
+                .unwrap_or_else(|_| "<unreadable response>".to_owned());
+            anyhow::bail!("{path} failed with HTTP {status}: {body}")
+        }
+        Err(error) => Err(error).context(format!("{path} request failed")),
+    }
+}
+
+/// The `connection.disconnect` sibling of `admin_json_post`: the route
+/// returns `204 No Content` on success (no envelope to print), so this
+/// reports only failure. LLP 0184 §P2: the route carries no request body
+/// today, so `reason` is a client-recorded receipt field, not a
+/// server-acknowledged one — the printed receipt says so.
+fn admin_json_post_no_content(target: &TargetArgs, path: &str, value: Value) -> anyhow::Result<()> {
+    let resolved = resolve_http_target_for_operation(target, false)?;
+    let token = target
+        .token
+        .clone()
+        .or_else(|| std::env::var("SNAPBACK_ADMIN_TOKEN").ok())
+        .filter(|token| !token.is_empty())
+        .or(resolved.minted_token);
+    let mut request = ureq::post(&format!("{}{path}", resolved.server_url));
+    if let Some(token) = token {
+        request = request.set("x-snapback-admin-token", &token);
+    }
+    match request.send_json(value) {
+        Ok(_response) => Ok(()),
+        Err(ureq::Error::Status(status, response)) => {
+            let body = response
+                .into_string()
+                .unwrap_or_else(|_| "<unreadable response>".to_owned());
+            anyhow::bail!("{path} failed with HTTP {status}: {body}")
+        }
+        Err(error) => Err(error).context(format!("{path} request failed")),
+    }
+}
+
+/// @ref LLP 0184#p2-controlled-mutations — `config.unset` direct CLI
+/// projection; LLP 0036 pairs it with a 1:1 `snapback_config_unset` MCP tool
+/// landed alongside (`packages/snapback-cli/mcp-control.mjs`).
+fn config_command(command: ConfigCommand) -> anyhow::Result<()> {
+    match command {
+        ConfigCommand::Unset { target, entry } => {
+            let response = admin_json_post(
+                &target,
+                "/_snapback/api/config/unset",
+                json!({ "entry": entry, "source": "cli" }),
+            )?;
+            println!("{}", serde_json::to_string_pretty(&response)?);
+            Ok(())
+        }
+    }
+}
+
+/// @ref LLP 0184#p2-controlled-mutations — `cron.tick`/`cron.runOne` direct
+/// CLI projections of the existing admin-gated forced-dispatch routes.
+fn cron_command(command: CronCommand) -> anyhow::Result<()> {
+    match command {
+        CronCommand::Tick { target } => {
+            let response = admin_json_post(&target, "/_snapback/api/cron/tick", json!({}))?;
+            println!("{}", serde_json::to_string_pretty(&response)?);
+            Ok(())
+        }
+        CronCommand::Run { target, name } => {
+            let path = format!("/_snapback/api/cron/{}/run", path_segment_escape(&name));
+            let response = admin_json_post(&target, &path, json!({}))?;
+            println!("{}", serde_json::to_string_pretty(&response)?);
+            Ok(())
+        }
+    }
+}
+
+/// @ref LLP 0184#p2-controlled-mutations — `jobs.drain`'s direct CLI
+/// projection; the injected `nowMs`/`maxWaves` fields are the same
+/// deterministic seam `JobsDrainRequest` already accepts (`src/admin.rs`).
+fn jobs_command(command: JobsCommand) -> anyhow::Result<()> {
+    match command {
+        JobsCommand::Drain {
+            target,
+            now_ms,
+            max_waves,
+        } => {
+            let mut body = serde_json::Map::new();
+            if let Some(now_ms) = now_ms {
+                body.insert("nowMs".to_owned(), json!(now_ms));
+            }
+            if let Some(max_waves) = max_waves {
+                body.insert("maxWaves".to_owned(), json!(max_waves));
+            }
+            let response =
+                admin_json_post(&target, "/_snapback/api/jobs/drain", Value::Object(body))?;
+            println!("{}", serde_json::to_string_pretty(&response)?);
+            Ok(())
+        }
+    }
+}
+
+/// @ref LLP 0184#p2-controlled-mutations — `connection.disconnect` as an
+/// explicit debug perturbation: the receipt this command prints is a client
+/// record of `reason` and target, not a server-returned envelope, because
+/// the underlying route (`src/admin.rs`'s `disconnect`) returns no body.
+fn connections_command(command: ConnectionsCommand) -> anyhow::Result<()> {
+    match command {
+        ConnectionsCommand::Disconnect {
+            target,
+            connection_id,
+            reason,
+        } => {
+            let path = format!(
+                "/_snapback/api/connections/{}/disconnect",
+                path_segment_escape(&connection_id)
+            );
+            admin_json_post_no_content(&target, &path, json!({ "reason": reason }))?;
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&json!({
+                    "operation": "connection.disconnect",
+                    "connectionId": connection_id,
+                    "reason": reason,
+                    "ok": true,
+                }))?
+            );
             Ok(())
         }
     }
@@ -8137,12 +8414,14 @@ mod tests {
     use super::{
         AdminArgs, AdminCommand, Args, AssetsCommand, AuthCommand, AuthConstructionFailure,
         AuthCoordinatorReadinessReceipt, AuthProgramConstructionReceipts,
-        BEFORE_STARTUP_TARGET_RESERVATION, Cli, ErrorsCommand, ForkCommand, HostCommand,
+        BEFORE_STARTUP_TARGET_RESERVATION, Cli, ConfigCommand, ConnectionsCommand, CronCommand,
+        ErrorsCommand, ForkCommand, HostCommand, JobsCommand,
         ManagedPath, NetworkProfileCommand, ReadyFileTarget, ResolvedHttpTarget, SessionCommand,
         TargetArgs, TelemetryCommand, automatic_reap_before_create, bind_first_available,
         bind_listener, console_claim_fragment_url, console_fragment_url, fork_secret_disposition,
         managed_startup_paths, mint_secret_read_via_http, parse_fork_ttl,
-        parse_network_profile_selection, parse_run_args, path_with_filename_suffix,
+        parse_network_profile_selection, parse_run_args, path_segment_escape,
+        path_with_filename_suffix,
         prepare_database_path, prepare_database_path_for_startup, quiet_stop_fork,
         reject_misdirected_serve_flags, render_guide_command, resolve_http_target,
         runtime_auth_program_readiness, search_guide_sections_in, validate_path_disjointness,
@@ -10030,6 +10309,117 @@ mod tests {
             .unwrap()["name"],
             "tiny"
         );
+    }
+
+    // @ref LLP 0184#p2-controlled-mutations — parse coverage for the LLP
+    // 0184 §P2 typed CLI verbs (config.unset, cron.tick/runOne, jobs.drain,
+    // connection.disconnect). These only assert clap wiring; the HTTP-level
+    // behavior is covered by mcp-control.test.mjs's real-server acceptance
+    // (the equivalent MCP tools share the same served routes).
+    #[test]
+    fn config_unset_cli_parses_entry_and_target() {
+        let parsed = Cli::parse_from([
+            "snapback",
+            "config",
+            "unset",
+            "--entry",
+            "stripe.secretKey",
+            "--url",
+            "http://127.0.0.1:4287",
+        ]);
+        assert!(matches!(
+            parsed.command,
+            Some(HostCommand::Config {
+                command: ConfigCommand::Unset { entry, .. }
+            }) if entry == "stripe.secretKey"
+        ));
+    }
+
+    #[test]
+    fn cron_cli_parses_tick_and_run() {
+        let tick = Cli::parse_from(["snapback", "cron", "tick", "--url", "http://127.0.0.1:4287"]);
+        assert!(matches!(
+            tick.command,
+            Some(HostCommand::Cron {
+                command: CronCommand::Tick { .. }
+            })
+        ));
+
+        let run = Cli::parse_from([
+            "snapback",
+            "cron",
+            "run",
+            "nightly-digest",
+            "--url",
+            "http://127.0.0.1:4287",
+        ]);
+        assert!(matches!(
+            run.command,
+            Some(HostCommand::Cron {
+                command: CronCommand::Run { name, .. }
+            }) if name == "nightly-digest"
+        ));
+    }
+
+    #[test]
+    fn jobs_drain_cli_parses_injected_clock_and_waves() {
+        let parsed = Cli::parse_from([
+            "snapback",
+            "jobs",
+            "drain",
+            "--url",
+            "http://127.0.0.1:4287",
+            "--now-ms",
+            "1700000000000",
+            "--max-waves",
+            "3",
+        ]);
+        assert!(matches!(
+            parsed.command,
+            Some(HostCommand::Jobs {
+                command: JobsCommand::Drain {
+                    now_ms: Some(1_700_000_000_000),
+                    max_waves: Some(3),
+                    ..
+                }
+            })
+        ));
+    }
+
+    #[test]
+    fn connections_disconnect_cli_requires_a_reason() {
+        let parsed = Cli::parse_from([
+            "snapback",
+            "connections",
+            "disconnect",
+            "conn_abc123",
+            "--reason",
+            "stuck presence repair",
+            "--url",
+            "http://127.0.0.1:4287",
+        ]);
+        assert!(matches!(
+            parsed.command,
+            Some(HostCommand::Connections {
+                command: ConnectionsCommand::Disconnect { connection_id, reason, .. }
+            }) if connection_id == "conn_abc123" && reason == "stuck presence repair"
+        ));
+
+        let missing_reason = Cli::try_parse_from([
+            "snapback",
+            "connections",
+            "disconnect",
+            "conn_abc123",
+            "--url",
+            "http://127.0.0.1:4287",
+        ]);
+        assert!(missing_reason.is_err());
+    }
+
+    #[test]
+    fn path_segment_escape_encodes_reserved_bytes() {
+        assert_eq!(path_segment_escape("nightly-digest"), "nightly-digest");
+        assert_eq!(path_segment_escape("a/b c"), "a%2Fb%20c");
     }
 
     #[test]

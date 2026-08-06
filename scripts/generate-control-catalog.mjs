@@ -126,6 +126,13 @@ const CLI_PROJECTIONS = {
   'config.verify': 'snapback config verify <entry>',
   'jobs.list': 'snapback jobs list',
   'jobs.show': 'snapback jobs show <id>',
+  // LLP 0184 §P2 landed CLI verbs, each paired with a mcp-control.mjs
+  // CONTROL_TOOLS entry landed in the same change.
+  'config.unset': 'snapback config unset',
+  'cron.tick': 'snapback cron tick',
+  'cron.runOne': 'snapback cron run',
+  'jobs.drain': 'snapback jobs drain',
+  'connection.disconnect': 'snapback connections disconnect',
 };
 
 const GUIDE_ANCHORS = {
@@ -495,11 +502,15 @@ for (const route of registryExport.routes) {
       effect: route.effectPolicy,
       responseSensitivity: route.responseSensitivity,
     },
+    // @ref LLP 0184#3-completeness-and-parity-rules — rule 8 (destructive
+    // rows require approvalPosture) only has teeth if `destructive` is ever
+    // true here. A tool's own annotations are the authored, checked-in fact
+    // when one exists; the method-based guess is the apiOnly-only fallback.
     behavior: {
-      readOnly: tool?.annotations?.readOnlyHint ?? (route.method === 'GET'),
-      destructive: tool?.annotations?.destructiveHint ?? false,
+      readOnly: tool ? (tool.annotations?.readOnlyHint ?? false) : route.method === 'GET',
+      destructive: tool ? (tool.annotations?.destructiveHint ?? false) : false,
       approvalPosture: tool?.annotations?.destructiveHint ? 'confirmFirst' : null,
-      idempotent: tool?.annotations?.idempotentHint ?? (route.method === 'GET'),
+      idempotent: tool ? (tool.annotations?.idempotentHint ?? false) : route.method === 'GET',
       openWorld: tool?.annotations?.openWorldHint ?? false,
       persistsAcrossRestart: route.method !== 'GET',
     },

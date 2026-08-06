@@ -548,6 +548,136 @@ export const CONTROL_TOOLS = [
     inputSchema: { type: 'object', additionalProperties: false, properties: { profile: { type: 'string' } } },
     annotations: { readOnlyHint: true, openWorldHint: false },
   },
+  // @ref LLP 0184#p2-controlled-mutations — config.unset carries no secret
+  // value, so it needs no secret carrier (unlike config.set, which stays
+  // cliOnly for v1 per §Product contract); LLP 0036 pairs a 1:1
+  // snapback_config_* MCP mapping with the CLI verb.
+  {
+    name: 'snapback_config_unset',
+    operation: 'config.unset',
+    title: 'Unset a config entry',
+    description: 'Remove one config entry\'s stored value. Carries only the entry identifier; no value crosses the wire.',
+    inputSchema: {
+      type: 'object', additionalProperties: false, required: ['entry'],
+      properties: { entry: { type: 'string' } },
+    },
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
+  },
+  {
+    name: 'snapback_cron_tick',
+    operation: 'cron.tick',
+    title: 'Force-claim and run every due cron job',
+    description: 'Typed projection of the admin-gated forced cron dispatch route. Bounded to currently-due jobs.',
+    inputSchema: { type: 'object', additionalProperties: false, properties: {} },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+  },
+  {
+    name: 'snapback_cron_run',
+    operation: 'cron.runOne',
+    title: 'Force-run one named cron job',
+    description: 'Force-claim and run one cron job by name, regardless of its schedule.',
+    inputSchema: {
+      type: 'object', additionalProperties: false, required: ['name'],
+      properties: { name: { type: 'string' } },
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+  },
+  {
+    name: 'snapback_jobs_drain',
+    operation: 'jobs.drain',
+    title: 'Drain due one-off jobs',
+    description: 'Claim and run due one-off jobs under an injected clock (nowMs) and bounded cascade waves (maxWaves).',
+    inputSchema: {
+      type: 'object', additionalProperties: false,
+      properties: {
+        nowMs: { type: 'integer', description: 'Injected drain clock, epoch ms. Absent means wall clock.' },
+        maxWaves: { type: 'integer', minimum: 1 },
+      },
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+  },
+  // @ref LLP 0184#p2-controlled-mutations — an explicit debug perturbation
+  // of one live connection, never application disconnect authority. The
+  // underlying route carries no request body; `reason` is recorded in this
+  // tool's own receipt, not acknowledged by the server.
+  {
+    name: 'snapback_connection_disconnect',
+    operation: 'connection.disconnect',
+    title: 'Force-disconnect one live connection (debug perturbation)',
+    description: 'Force-close one connection by id for local debugging. This is not application disconnect authority.',
+    inputSchema: {
+      type: 'object', additionalProperties: false, required: ['connectionId', 'reason'],
+      properties: {
+        connectionId: { type: 'string' },
+        reason: { type: 'string', description: 'Why this debug perturbation is being invoked; recorded in the receipt.' },
+      },
+    },
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
+  },
+  // @ref LLP 0184#p2-controlled-mutations — direct MCP tools for the
+  // already-shipped asset delete/GC/key-rotation/export/import CLI paths.
+  // asset.list/inspect/retry are the P1 read/diagnose projection (a
+  // parallel LLP 0184 workstream) and are intentionally not added here.
+  // These all route through the host-ops multiplexer, exactly like the
+  // shipped CLI (`snapback assets ...`).
+  {
+    name: 'snapback_asset_delete',
+    operation: 'asset.delete',
+    title: 'Delete one asset',
+    description: 'Explicit authorized delete through asset.delete; refuses while typed references remain.',
+    inputSchema: {
+      type: 'object', additionalProperties: false, required: ['assetId'],
+      properties: {
+        assetId: { type: 'string' },
+        userId: { type: 'string', description: 'Delete as this app user (owner authority); omitted deletes as the operator.' },
+      },
+    },
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
+  },
+  {
+    name: 'snapback_asset_gc_sweep',
+    operation: 'asset.gcSweep',
+    title: 'Run asset reclamation and publication maintenance',
+    description: 'Run every asset reclamation and publication-maintenance class at an explicit injected millisecond timestamp.',
+    inputSchema: {
+      type: 'object', additionalProperties: false, required: ['nowMs'],
+      properties: { nowMs: { type: 'integer', description: 'Injected Unix time in milliseconds; required so runs are deterministic.' } },
+    },
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
+  },
+  {
+    name: 'snapback_asset_rotate_signing_key',
+    operation: 'asset.rotateSigningKey',
+    title: 'Rotate the asset delivery signing key',
+    description: 'Retire every signing key and mint a fresh one; every outstanding signed URL stops validating.',
+    inputSchema: { type: 'object', additionalProperties: false, properties: {} },
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
+  },
+  {
+    name: 'snapback_asset_export_cut',
+    operation: 'asset.exportCut',
+    title: 'Export a consistent asset cut',
+    description: 'Write the consistent-cut manifest and every referenced blob object, digest-verified, into an empty directory on the server host.',
+    inputSchema: {
+      type: 'object', additionalProperties: false, required: ['dir'],
+      properties: { dir: { type: 'string', description: 'Absolute path of an empty (or absent) export directory, on the server host.' } },
+    },
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+  },
+  {
+    name: 'snapback_asset_import_cut',
+    operation: 'asset.importCut',
+    title: 'Validate or apply an exported asset cut',
+    description: 'Validate an export directory (refuse-partial); with apply, restore it onto an empty asset state (requires SNAPBACK_ASSET_IMPORT_EXPERIMENTAL=1 server-side).',
+    inputSchema: {
+      type: 'object', additionalProperties: false, required: ['dir'],
+      properties: {
+        dir: { type: 'string', description: 'Absolute path of the export directory to validate or apply, on the server host.' },
+        apply: { type: 'boolean', default: false, description: 'Apply the validated cut (empty-target restore).' },
+      },
+    },
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
+  },
 ];
 
 export class McpControlServer {
@@ -875,6 +1005,112 @@ export class McpControlServer {
     }
   }
 
+  // Close LLP 0184 §Design/2's disclosed, temporary "no projection creates
+  // authority" exception for host.start/host.stop/host.restart: until this
+  // gate existed, the MCP path stopped or restarted the local server on
+  // local process/filesystem access plus the startup nonce alone, with no
+  // admin credential proof at all — while the HTTP host-ops path enforces
+  // an AdminRead floor (§Design/2, `RoutePolicy::AdminRead` on
+  // `/_snapback/api/host-ops` in `src/server.rs`) before any operation,
+  // including `app.inspect`, is dispatched. This probes that exact
+  // route+gate with the descriptor's managed admin token, so a stop/restart
+  // caller must hold the identical credential an HTTP AdminRead/AdminWrite
+  // caller would need — not a new, MCP-only authority mode.
+  //
+  // @ref LLP 0184#2-derived-ownership-not-a-second-registry — the named,
+  //   temporary MCP/HTTP authority-gap exception this closes for
+  //   host.start/host.stop/host.restart specifically.
+  async requireAdminCredentialForLifecycle(operation, toolName) {
+    let probe;
+    try {
+      probe = await this.postHostOp({ operation: 'app.inspect' });
+    } catch (error) {
+      return {
+        refusal: this.envelope(operation, {
+          diagnostics: [error.diagnostic ?? diagnostic(
+            'SNAPBACK_MCP_ADMIN_CREDENTIAL_REQUIRED',
+            `${toolName} requires the same admin-credential proof the host-ops HTTP surface requires: ${error.message}`,
+            { tool: toolName },
+          )],
+        }),
+      };
+    }
+    if (probe.ok !== true) {
+      return {
+        refusal: this.envelope(operation, {
+          diagnostics: probe.diagnostics?.length
+            ? probe.diagnostics
+            : [diagnostic(
+              'SNAPBACK_MCP_ADMIN_CREDENTIAL_REQUIRED',
+              `${toolName} requires the same admin-credential proof the host-ops HTTP surface requires; the live server refused the admin-token-authenticated probe`,
+              { tool: toolName },
+            )],
+        }),
+      };
+    }
+    return {};
+  }
+
+  // POST an admin-gated route outside the host-ops multiplexer (config,
+  // cron, jobs, connection disconnect all predate/sit beside the host-ops
+  // surface — LLP 0184 §P2 projects each existing route as-is, not through
+  // it). Same admin-token presentation as postHostOp; the response body is
+  // whatever JSON (or none, for a 204) that route already returns.
+  async postAdminRoute(path, body) {
+    const descriptor = this.currentDescriptor();
+    const adminToken = managedAdminToken(descriptor, this.database);
+    const url = `${descriptor.serverUrl.replace(/\/$/, '')}${path}`;
+    let response;
+    try {
+      response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          ...(adminToken ? { 'x-snapback-admin-token': adminToken } : {}),
+        },
+        body: JSON.stringify(body ?? {}),
+      });
+    } catch (cause) {
+      const error = diagnosticError('SNAPBACK_MCP_TRANSPORT_FAILED', `admin request to ${url} failed: ${cause.message}`, { url });
+      error.cause = cause;
+      throw error;
+    }
+    let json = null;
+    if (response.status !== 204) {
+      try {
+        json = await response.json();
+      } catch (cause) {
+        const error = diagnosticError(
+          'SNAPBACK_MCP_TRANSPORT_FAILED',
+          `admin response from ${url} was not JSON (HTTP ${response.status})`,
+          { url, status: response.status },
+        );
+        error.cause = cause;
+        throw error;
+      }
+    }
+    return { ok: response.ok, status: response.status, body: json };
+  }
+
+  // Wrap a non-host-ops admin route result in the same envelope shape every
+  // other control tool returns, so a caller need not special-case these five
+  // operations. On failure, the server's own ApiError diagnostic (present at
+  // `body.diagnostic`) is surfaced verbatim rather than replaced.
+  adminRouteEnvelope(operation, id, result) {
+    return this.envelope(operation, {
+      requestId: id,
+      ok: result.ok,
+      data: result.ok ? (result.body ?? {}) : {},
+      diagnostics: result.ok
+        ? []
+        : [result.body?.diagnostic ?? diagnostic(
+          'SNAPBACK_MCP_ADMIN_ROUTE_FAILED',
+          `admin route returned HTTP ${result.status} with no structured diagnostic`,
+          { status: result.status },
+        )],
+    });
+  }
+
   async waitForExit(pid, timeoutMs = 10_000) {
     const deadline = Date.now() + timeoutMs;
     while (Date.now() < deadline) {
@@ -962,6 +1198,13 @@ export class McpControlServer {
     } catch {
       // The native stop reports the invalid descriptor itself.
     }
+    // @ref LLP 0184#2-derived-ownership-not-a-second-registry — the stop leg
+    // (also the mutating half of snapback_restart) requires the same
+    // admin-credential proof the host-ops HTTP surface requires, closing the
+    // disclosed MCP/HTTP authority gap. Checked before the native stop, so a
+    // caller without the credential never signals the process.
+    const { refusal } = await this.requireAdminCredentialForLifecycle('host.stop', 'snapback_stop');
+    if (refusal) return { ...refusal, requestId: id };
     const runtime = this.resolveRuntime();
     // The native stop verifies the live startupNonce before signaling, so a
     // stale descriptor never routes a signal to a reused PID.
@@ -1126,6 +1369,68 @@ export class McpControlServer {
         return this.servedResult({
           operation: 'acceptance.run',
           ...(typeof args.profile === 'string' ? { args: { profile: args.profile } } : {}),
+        });
+      // @ref LLP 0184#p2-controlled-mutations — the five P2 typed
+      // projections below sit outside the host-ops multiplexer, so they go
+      // through postAdminRoute rather than servedResult/postHostOp.
+      case 'snapback_config_unset': {
+        const result = await this.postAdminRoute('/_snapback/api/config/unset', {
+          entry: args.entry,
+          source: 'mcp',
+        });
+        return this.toolResult(this.adminRouteEnvelope('config.unset', id, result));
+      }
+      case 'snapback_cron_tick': {
+        const result = await this.postAdminRoute('/_snapback/api/cron/tick', {});
+        return this.toolResult(this.adminRouteEnvelope('cron.tick', id, {
+          ...result,
+          body: result.ok ? { runs: result.body } : result.body,
+        }));
+      }
+      case 'snapback_cron_run': {
+        const result = await this.postAdminRoute(`/_snapback/api/cron/${encodeURIComponent(args.name)}/run`, {});
+        return this.toolResult(this.adminRouteEnvelope('cron.runOne', id, result));
+      }
+      case 'snapback_jobs_drain': {
+        const body = {};
+        if (Number.isInteger(args.nowMs)) body.nowMs = args.nowMs;
+        if (Number.isInteger(args.maxWaves)) body.maxWaves = args.maxWaves;
+        const result = await this.postAdminRoute('/_snapback/api/jobs/drain', body);
+        return this.toolResult(this.adminRouteEnvelope('jobs.drain', id, result));
+      }
+      case 'snapback_connection_disconnect': {
+        // The route carries no request body; `reason` is recorded in this
+        // tool's own receipt (§P2's "never presented as application
+        // disconnect authority" — the server acknowledges only the
+        // disconnect itself, not a reason).
+        const result = await this.postAdminRoute(
+          `/_snapback/api/connections/${encodeURIComponent(args.connectionId)}/disconnect`,
+          { reason: args.reason },
+        );
+        return this.toolResult(this.adminRouteEnvelope('connection.disconnect', id, {
+          ...result,
+          body: result.ok ? { connectionId: args.connectionId, reason: args.reason } : result.body,
+        }));
+      }
+      // @ref LLP 0184#p2-controlled-mutations — asset delete/GC/key-rotation/
+      // export/import direct MCP tools; all route through the host-ops
+      // multiplexer exactly like the shipped CLI.
+      case 'snapback_asset_delete':
+        return this.servedResult({
+          operation: 'asset.delete',
+          input: { assetId: args.assetId },
+          ...(typeof args.userId === 'string' && args.userId ? { userId: args.userId } : {}),
+        });
+      case 'snapback_asset_gc_sweep':
+        return this.servedResult({ operation: 'asset.gcSweep', input: { nowMs: args.nowMs } });
+      case 'snapback_asset_rotate_signing_key':
+        return this.servedResult({ operation: 'asset.rotateSigningKey' });
+      case 'snapback_asset_export_cut':
+        return this.servedResult({ operation: 'asset.exportCut', input: { dir: args.dir } });
+      case 'snapback_asset_import_cut':
+        return this.servedResult({
+          operation: 'asset.importCut',
+          input: { dir: args.dir, apply: args.apply === true },
         });
       default: {
         const entry = (this.catalog?.entries ?? []).find((candidate) => candidate.toolName === name);
