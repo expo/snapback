@@ -1,6 +1,46 @@
 # Guide manifest regeneration blocked by missing demo-generated artifacts
 
-Status: open
+Status: Resolved 2026-08-06
+
+**Resolution:** neither gap is a code bug — both demos' generated
+artifacts are already covered by canonical repo tooling that a fresh
+worktree simply hadn't run yet:
+
+- `demos/competitive-checkpoint/snapback/generated/` — already correctly
+  handled by `scripts/check-generated-artifacts` via
+  `scripts/generated-artifact-policy.mjs jobs`, which threads
+  `SNAPBACK_OUTBOUND_ACTIONS=1` for this specific demo (it has a streamed
+  Action, which requires the `bounded_response_stream_v1` capability — a
+  capability gap on the plain `local-dev-sqlite-ibex` target's default
+  manifest, present on the `.outbound-actions.json` variant). Running
+  `./scripts/check-generated-artifacts` (or
+  `SNAPBACK_OUTBOUND_ACTIONS=1 node packages/snapback-codegen/index.mjs
+  demos/competitive-checkpoint/snapback` directly) regenerates it.
+- `demos/todo-v2/snapback/generated/contract/` — not produced by
+  `snapback-codegen` at all; it's Exact/Contract-generated output from
+  `demos/todo-v2/surfaces/contract`'s own Vite build
+  (`@exact/devtools/contract-web`'s `exactContractWeb` plugin), which in
+  turn needs the ordinary codegen cache primed first. Verified working
+  recipe: `node packages/snapback-cli/cli.mjs generate snapback` (from
+  `demos/todo-v2`) to prime `.snapback/codegen-cache/`, then
+  `bun install --frozen-lockfile --cwd demos/todo-v2/surfaces/contract &&
+  bun run --cwd demos/todo-v2/surfaces/contract build`. The canonical,
+  already-existing path for this is `scripts/verify-local-proof`'s
+  `exact-todo-v2-install`/`exact-todo-v2-contract` jobs
+  (`bun demos/todo-v2/tests/acceptance/contract.mjs`).
+
+The actual gap was diagnostic clarity: `scripts/guide-lib.mjs`'s
+"snippet source does not exist" / "examples path does not exist" errors
+gave no pointer to either remediation. Fixed by adding a
+`missingDemoArtifactHint()` helper that recognizes both path shapes
+(`demos/*/snapback/generated/...` and
+`demos/*/(snapback/generated/contract|surfaces/contract)/...`) and appends
+the exact fix command to the error. Verified by reproducing both original
+failures (moving the generated dirs aside) and confirming the new hint
+text appears, then restoring and confirming `node scripts/check-guide.mjs`
+and `cargo test --lib
+generated_demo_manifests_pass_the_effect_ceiling_subset_check` both pass
+clean.
 
 `node scripts/generate-guide-manifest.mjs` (and therefore `node
 scripts/check-guide.mjs`'s full pass) refuses to write over a failing

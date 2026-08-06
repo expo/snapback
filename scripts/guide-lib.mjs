@@ -321,6 +321,21 @@ export function extractFences(body, path) {
 
 const normalize = (text) => text.split('\n').map((line) => line.replace(/\s+$/, '')).join('\n');
 
+// Guide pages transclude from demo-generated output, which a fresh
+// worktree/clone does not have yet — this docs-only fast path never runs
+// codegen itself. Point at the exact canonical remediation instead of a
+// bare "missing file" (LLP 0061; ticketed after this was hit repeatedly
+// with no pointer to the fix).
+function missingDemoArtifactHint(ref) {
+  if (/^demos\/[^/]+\/(?:snapback\/generated\/contract|surfaces\/contract)\//.test(ref)) {
+    return ' — this is Exact/Contract-generated output; run `bun install --frozen-lockfile --cwd demos/<name>/surfaces/contract && bun demos/<name>/tests/acceptance/contract.mjs` first (see scripts/verify-local-proof\'s exact-<name>-install/-contract jobs)';
+  }
+  if (/^demos\/[^/]+\/snapback\/generated\//.test(ref)) {
+    return ' — run `./scripts/check-generated-artifacts` first (it regenerates every committed demo backend, including any SNAPBACK_OUTBOUND_ACTIONS-gated ones per scripts/generated-artifact-policy.mjs)';
+  }
+  return '';
+}
+
 export function checkSnippets(root, pageBodies, errors) {
   const records = new Map();
   for (const [path, body] of pageBodies) {
@@ -347,7 +362,7 @@ export function checkSnippets(root, pageBodies, errors) {
       }
       const sourcePath = join(root, source);
       if (!existsSync(sourcePath)) {
-        errors.push(`${path}:${fence.line}: snippet source does not exist: ${source}`);
+        errors.push(`${path}:${fence.line}: snippet source does not exist: ${source}${missingDemoArtifactHint(source)}`);
         continue;
       }
       const fileText = normalize(readFileSync(sourcePath, 'utf8'));
@@ -714,7 +729,9 @@ export function loadCorpus(root) {
     if (frontmatter) validateFrontmatter(frontmatter, path, errors);
     for (const field of ['authorities', 'examples']) {
       for (const ref of frontmatter?.[field] ?? []) {
-        if (!existsSync(join(root, ref))) errors.push(`${path}: ${field} path does not exist: ${ref}`);
+        if (!existsSync(join(root, ref))) {
+          errors.push(`${path}: ${field} path does not exist: ${ref}${missingDemoArtifactHint(ref)}`);
+        }
       }
     }
     pageInfo.set(path, { frontmatter, raw });
