@@ -190,3 +190,20 @@ the published versions.
   ledger, publish any package, move `latest`, or run public-registry/G4 smoke
   proofs. A landed gate repair and fresh green candidate proof are required
   before retry.
+
+- **2026-08-06 — 0.1.11 successor attempt 2 BLOCKED before staging; nothing
+  published.** The attempt fetched and pinned clean `origin/main`
+  `ea347f4122fe975902669849c6db6be5834bf967`, confirmed npm authentication as
+  `ccheever`, observed `latest: 0.1.10` and no `0.1.11` on all ten names, and
+  selected the complete 134-gate inventory under the repository-pinned Node
+  24.18.0. The repaired capability-maturity and agent-safe-publication gates,
+  governed client-bundle metrology (56 profiles, no frozen-ceiling
+  regressions), and hermetic Fleet receipt (8/8 PASS) were green. The proof
+  then stopped after 43 PASS at `demo-materialization`: discovery correctly
+  includes the metadata-declared `demos/fleet-observatory-move1`, but
+  `tests/demo_setup_v0.mjs` omits that id from its exact expected inventory.
+  Filed `issues/20260806-local-proof-demo-materialization-inventory-drift.md`.
+  Per this log's central-gate rule, the attempt did not stage tarballs, create
+  a 0.1.11 ledger, publish or move any dist-tag, or run public-registry/G4
+  smoke proofs. A landed inventory repair and fresh complete green candidate
+  proof are required before retry.
