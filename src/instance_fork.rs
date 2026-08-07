@@ -121,6 +121,9 @@ struct AppRootIdentityV1 {
 thread_local! {
     static DIFF_AFTER_HEADER_HOOK: std::cell::RefCell<Option<Box<dyn FnOnce()>>> =
         const { std::cell::RefCell::new(None) };
+    static JSON_BEFORE_RENAME_HOOK: std::cell::RefCell<
+        Option<Box<dyn FnOnce(&Path, &Path)>>,
+    > = const { std::cell::RefCell::new(None) };
 }
 
 #[cfg(test)]
@@ -138,6 +141,26 @@ fn run_diff_after_header_hook() {
             hook();
         }
     });
+}
+
+#[cfg(test)]
+fn install_json_before_rename_hook(hook: impl FnOnce(&Path, &Path) + 'static) {
+    JSON_BEFORE_RENAME_HOOK.with(|slot| {
+        assert!(slot.borrow().is_none(), "JSON publication hook is one-shot");
+        *slot.borrow_mut() = Some(Box::new(hook));
+    });
+}
+
+fn run_json_before_rename_hook(temporary: &Path, published: &Path) {
+    #[cfg(test)]
+    JSON_BEFORE_RENAME_HOOK.with(|slot| {
+        if let Some(hook) = slot.borrow_mut().take() {
+            hook(temporary, published);
+        }
+    });
+
+    #[cfg(not(test))]
+    let _ = (temporary, published);
 }
 
 fn fork_error(code: &'static str, message: impl Into<String>) -> SnapbackError {
@@ -1350,6 +1373,11 @@ fn rotate_protected_erasure_generation(tx: &Transaction<'_>) -> SnapbackResult<(
     Ok(())
 }
 
+/// Publish one durable JSON carrier without exposing a truncated final path.
+///
+/// @ref LLP 0158#design-sketch — fork identity and evidence are authority at
+///   non-transactional filesystem boundaries, so visibility follows a synced
+///   same-directory temporary file and atomic rename.
 fn write_json_sync(path: &Path, value: &impl Serialize) -> SnapbackResult<()> {
     let bytes = serde_json::to_vec(value).map_err(|error| {
         fork_error(
@@ -1357,11 +1385,7 @@ fn write_json_sync(path: &Path, value: &impl Serialize) -> SnapbackResult<()> {
             format!("fork evidence could not be encoded: {error}"),
         )
     })?;
-    let mut file = File::create(path).map_err(|error| io_error("create fork evidence", error))?;
-    file.write_all(&bytes)
-        .map_err(|error| io_error("write fork evidence", error))?;
-    file.sync_all()
-        .map_err(|error| io_error("sync fork evidence", error))
+    replace_bytes_sync(path, &bytes)
 }
 
 /// Replace one already-published JSON carrier without exposing truncated
@@ -1399,6 +1423,7 @@ fn replace_bytes_sync(path: &Path, bytes: &[u8]) -> SnapbackResult<()> {
             .map_err(|error| io_error("write replacement fork evidence", error))?;
         file.sync_all()
             .map_err(|error| io_error("sync replacement fork evidence", error))?;
+        run_json_before_rename_hook(&temporary, path);
         fs::rename(&temporary, path)
             .map_err(|error| io_error("publish replacement fork evidence", error))?;
         sync_directory(directory)
@@ -5097,6 +5122,76 @@ pub fn recover(parent: &Path, destination: &Path) -> SnapbackResult<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn json_publication_hides_the_final_path_until_synced_temp_is_complete() {
+        let directory = tempfile::tempdir().unwrap();
+        let published = directory.path().join("identity.json");
+        let expected = AppRootIdentityV1 {
+            schema_version: "snapback.fork-app-identity.v1".to_owned(),
+            canonical_app_root: directory.path().display().to_string(),
+            app_id: "app-a".to_owned(),
+        };
+        let expected_in_hook = expected.clone();
+        let published_in_hook = published.clone();
+        let hook_ran = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let hook_ran_in_hook = hook_ran.clone();
+        install_json_before_rename_hook(move |temporary, final_path| {
+            assert_eq!(final_path, published_in_hook);
+            assert!(
+                !final_path.exists(),
+                "first publication must not expose the final name before rename"
+            );
+            let staged: AppRootIdentityV1 =
+                serde_json::from_slice(&fs::read(temporary).unwrap()).unwrap();
+            assert_eq!(staged, expected_in_hook);
+            hook_ran_in_hook.store(true, std::sync::atomic::Ordering::SeqCst);
+        });
+
+        write_json_sync(&published, &expected).unwrap();
+
+        assert!(hook_ran.load(std::sync::atomic::Ordering::SeqCst));
+        let recorded: AppRootIdentityV1 =
+            serde_json::from_slice(&fs::read(&published).unwrap()).unwrap();
+        assert_eq!(recorded, expected);
+    }
+
+    #[test]
+    fn concurrent_app_root_identity_first_publication_is_idempotent() {
+        const WRITERS: usize = 32;
+        let directory = tempfile::tempdir().unwrap();
+        let app_root = directory.path().join("app");
+        fs::create_dir(&app_root).unwrap();
+        let canonical_app_root = fs::canonicalize(&app_root).unwrap();
+        let barrier = std::sync::Arc::new(std::sync::Barrier::new(WRITERS));
+
+        std::thread::scope(|scope| {
+            let handles = (0..WRITERS)
+                .map(|_| {
+                    let app_root = app_root.clone();
+                    let barrier = barrier.clone();
+                    scope.spawn(move || {
+                        barrier.wait();
+                        ensure_expected_app(&app_root, "app-a")
+                    })
+                })
+                .collect::<Vec<_>>();
+            for handle in handles {
+                let expected = handle.join().unwrap().unwrap();
+                assert_eq!(expected.canonical_app_root(), canonical_app_root);
+                assert_eq!(expected.app_id(), "app-a");
+            }
+        });
+
+        let identity = app_root.join(".snapback").join(APP_ROOT_IDENTITY_FILE);
+        let recorded: AppRootIdentityV1 =
+            serde_json::from_slice(&fs::read(identity).unwrap()).unwrap();
+        assert_eq!(recorded.app_id, "app-a");
+        assert_eq!(
+            recorded.canonical_app_root,
+            canonical_app_root.display().to_string()
+        );
+    }
 
     fn managed_expected(root: &Path) -> ExpectedForkAppV1 {
         ensure_expected_app(root, "app-a").unwrap()
