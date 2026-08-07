@@ -29,9 +29,13 @@ const DERIVED_FORK_EVIDENCE = [
   ['boundsRatification', 'tests/acceptance/instance-fork-lifecycle-bench.2026-08-06.v1.json'],
   ['assetLifecycleEvidence', 'tests/acceptance/asset-lifecycle-v1-evidence.md'],
   ['specReviewCodex', 'llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.codex.md'],
+  ['specReviewCodexVerdicts', 'llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.codex.verdicts.v1.json'],
   ['specReviewFable', 'llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.fable.md'],
+  ['specReviewFableVerdicts', 'llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.fable.verdicts.v1.json'],
   ['implementationReviewCodex', 'llp/reviews/0158-instance-forking.implementation-2026-08-06.codex.md'],
+  ['implementationReviewCodexVerdicts', 'llp/reviews/0158-instance-forking.implementation-2026-08-06.codex.verdicts.v1.json'],
   ['implementationReviewFable', 'llp/reviews/0158-instance-forking.implementation-2026-08-06.fable.md'],
+  ['implementationReviewFableVerdicts', 'llp/reviews/0158-instance-forking.implementation-2026-08-06.fable.verdicts.v1.json'],
   ['authorAcceptance', 'tests/acceptance/fixtures/instance-forks/author-acceptance.2026-08-06.v1.json'],
 ];
 
@@ -47,6 +51,12 @@ export const IMPLEMENTATION_ROOTS = [
   'scripts/check-agent-safe-publication.mjs',
   'scripts/generated-artifact-policy.mjs',
 ];
+
+export const IMPLEMENTATION_DIGEST_VERSION =
+  'snapback:agent-safe-implementation-tree:v2';
+const LEGACY_IMPLEMENTATION_DIGEST_VERSION =
+  'snapback:agent-safe-implementation-tree:v1';
+const REVIEW_HISTORY_SCHEMA_VERSION = 'snapback.review-verdicts.v2';
 
 export const PUBLICATION_CYCLE_ALLOWLIST = new Set([
   'src/local-agent-safe-storage-publication.anchor.json',
@@ -87,15 +97,12 @@ export const LOCAL_STORE_PUBLICATION_TRANSFORM = {
   receipts: [
     {
       path: 'tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-06.v1.json',
-      value: (carrier) => carrier.qualificationReceiptSha256,
     },
     {
       path: 'tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-06.v1.json',
-      value: (carrier) => carrier.supportingReceiptSha256?.triageBudgetFreeze,
     },
     {
       path: 'tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-06.v1.json',
-      value: (carrier) => carrier.supportingReceiptSha256?.triageMove1Exit,
     },
   ],
 };
@@ -138,9 +145,13 @@ const PUBLICATION_ONLY_PATHS = new Set([
   'llp/reviews/0162-agent-safe-storage-profile.implementation-2026-08-04.fable.md',
   'llp/reviews/0162-agent-safe-storage-profile.implementation-2026-08-04.codex.md',
   'llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.codex.md',
+  'llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.codex.verdicts.v1.json',
   'llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.fable.md',
+  'llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.fable.verdicts.v1.json',
   'llp/reviews/0158-instance-forking.implementation-2026-08-06.codex.md',
+  'llp/reviews/0158-instance-forking.implementation-2026-08-06.codex.verdicts.v1.json',
   'llp/reviews/0158-instance-forking.implementation-2026-08-06.fable.md',
+  'llp/reviews/0158-instance-forking.implementation-2026-08-06.fable.verdicts.v1.json',
   'issues/20260803-agent-safe-storage-acceptance-tail.md',
   'issues/20260803-0163-public-operation-identity-carrier.md',
   'issues/20260803-guide-gap-instance-forks.md',
@@ -346,15 +357,17 @@ export function allowedPublicationChange(change, generatedPaths, publicationEntr
     && published.mode === expected.mode;
 }
 
-function publicationChangesBetween(root, from, to) {
+export function qualifiedImplementationChangesBetween(root, from, to) {
   const raw = execFileSync('git', [
-    'diff', '--name-status', '--no-renames', '-z', `${from}..${to}`,
+    'diff', '--name-status', '--no-renames', '-z', `${from}..${to}`, '--',
+    ...IMPLEMENTATION_ROOTS, 'vendor/ibex',
   ], { cwd: root });
   const fields = raw.toString().split('\0').filter(Boolean);
-  if (fields.length % 2 !== 0) fail('could not decode P-vs-C changed-path status');
+  if (fields.length % 2 !== 0) fail('could not decode qualified implementation drift');
   const changes = [];
   for (let index = 0; index < fields.length; index += 2) {
-    changes.push({ status: fields[index], path: fields[index + 1] });
+    const change = { status: fields[index], path: fields[index + 1] };
+    if (!PUBLICATION_CYCLE_ALLOWLIST.has(change.path)) changes.push(change);
   }
   return changes;
 }
@@ -387,21 +400,22 @@ export function expectedLocalStorePublicationTransform(root, qualificationCommit
     qualificationCommit,
     LOCAL_STORE_PUBLICATION_TRANSFORM.carrier,
   );
-  let carrier;
-  try {
-    carrier = JSON.parse(carrierAtQualification);
-  } catch (error) {
-    fail(`qualification-C local-store carrier is not valid JSON: ${error.message}`);
-  }
+  parseCanonicalPublicationJson(carrierAtQualification, 'qualification-C local-store carrier');
 
+  // After canonical validation, the transitive transform treats the frozen
+  // carrier and anchor as opaque signed bytes and permits only an exact,
+  // single-occurrence substitution of each receipted digest.
   let expectedCarrier = carrierAtQualification;
   for (const receipt of LOCAL_STORE_PUBLICATION_TRANSFORM.receipts) {
-    const recorded = receipt.value(carrier);
     const receiptAtQualification = committedBytes(root, qualificationCommit, receipt.path);
-    if (recorded !== sha256(receiptAtQualification)) {
-      fail(`qualification-C local-store carrier was stale at ${receipt.path}`);
-    }
-    const published = sha256(readFileSync(join(root, receipt.path)));
+    parseCanonicalPublicationJson(
+      receiptAtQualification,
+      `qualification-C local-store receipt ${receipt.path}`,
+    );
+    const recorded = sha256(receiptAtQualification);
+    const publishedReceipt = readFileSync(join(root, receipt.path));
+    parseCanonicalPublicationJson(publishedReceipt, `published local-store receipt ${receipt.path}`);
+    const published = sha256(publishedReceipt);
     expectedCarrier = substituteSinglePinnedDigest(
       expectedCarrier,
       recorded,
@@ -412,8 +426,14 @@ export function expectedLocalStorePublicationTransform(root, qualificationCommit
 
   const carrierDigestAtQualification = sha256(carrierAtQualification);
   const expectedCarrierDigest = sha256(expectedCarrier);
+  const anchorAtQualification = committedBytes(
+    root,
+    qualificationCommit,
+    LOCAL_STORE_PUBLICATION_TRANSFORM.anchor,
+  );
+  parseCanonicalPublicationJson(anchorAtQualification, 'qualification-C local-store anchor');
   const expectedAnchor = substituteSinglePinnedDigest(
-    committedBytes(root, qualificationCommit, LOCAL_STORE_PUBLICATION_TRANSFORM.anchor),
+    anchorAtQualification,
     carrierDigestAtQualification,
     expectedCarrierDigest,
     LOCAL_STORE_PUBLICATION_TRANSFORM.anchor,
@@ -506,33 +526,117 @@ export function exactCandidate(id) {
   fail(`unknown candidate id ${id}`);
 }
 
-function updateTreeDigest(hash, path, bytes) {
+function updateTreeDigest(hash, { mode, type, path, bytes }) {
   const length = Buffer.alloc(8);
   length.writeBigUInt64BE(BigInt(bytes.length));
+  hash.update(mode);
+  hash.update(Buffer.from([0]));
+  hash.update(type);
+  hash.update(Buffer.from([0]));
   hash.update(path);
   hash.update(Buffer.from([0]));
   hash.update(length);
   hash.update(bytes);
 }
 
-export function implementationDigestAt(root, commit) {
-  const names = git(root, ['ls-tree', '-r', '--name-only', commit, '--', ...IMPLEMENTATION_ROOTS])
-    .split('\n')
-    .filter(Boolean)
-    .filter((path) => !PUBLICATION_CYCLE_ALLOWLIST.has(path))
-    .sort();
-  if (names.length === 0) fail(`implementation tree at ${commit} is empty`);
-  const hash = createHash('sha256');
-  hash.update('snapback:agent-safe-implementation-tree:v1\n');
-  for (const path of names) {
-    updateTreeDigest(hash, path, execFileSync('git', ['show', `${commit}:${path}`], {
+function parseTreeEntries(bytes, label) {
+  return bytes.toString('utf8').split('\0').filter(Boolean).map((record) => {
+    const separator = record.indexOf('\t');
+    const match = /^([0-9]{6}) (blob|commit) ([0-9a-f]{40,64})$/u.exec(
+      record.slice(0, separator),
+    );
+    if (separator < 0 || match === null) fail(`${label} emitted an invalid Git tree entry`);
+    return {
+      mode: match[1],
+      type: match[2],
+      oid: match[3],
+      path: record.slice(separator + 1),
+    };
+  });
+}
+
+function committedTreeEntryBytes(root, entry) {
+  if (entry.type === 'blob') {
+    return execFileSync('git', ['cat-file', 'blob', entry.oid], {
       cwd: root,
       maxBuffer: 32 * 1024 * 1024,
-    }));
+    });
   }
-  const gitlink = git(root, ['rev-parse', `${commit}:vendor/ibex`]);
-  updateTreeDigest(hash, 'vendor/ibex', Buffer.from(gitlink));
+  if (entry.type === 'commit' && entry.mode === '160000') return Buffer.from(entry.oid);
+  fail(`implementation tree entry ${entry.path} has unsupported ${entry.mode} ${entry.type}`);
+}
+
+function implementationEntriesAt(root, commit) {
+  const entries = parseTreeEntries(execFileSync('git', [
+    'ls-tree', '-r', '-z', commit, '--', ...IMPLEMENTATION_ROOTS,
+  ], { cwd: root }), `implementation tree at ${commit}`)
+    .filter(({ path }) => !PUBLICATION_CYCLE_ALLOWLIST.has(path));
+  const ibexEntries = parseTreeEntries(execFileSync('git', [
+    'ls-tree', '-z', commit, '--', 'vendor/ibex',
+  ], { cwd: root }), `vendor/ibex tree at ${commit}`);
+  if (ibexEntries.length !== 1
+      || ibexEntries[0].path !== 'vendor/ibex'
+      || ibexEntries[0].mode !== '160000'
+      || ibexEntries[0].type !== 'commit') {
+    fail(`implementation tree at ${commit} does not contain vendor/ibex as a gitlink`);
+  }
+  return [...entries, ibexEntries[0]].sort((left, right) => (
+    left.path < right.path ? -1 : left.path > right.path ? 1 : 0
+  ));
+}
+
+export function implementationDigestAt(root, commit) {
+  const entries = implementationEntriesAt(root, commit);
+  if (entries.length === 1) fail(`implementation tree at ${commit} is empty`);
+  const hash = createHash('sha256');
+  hash.update(`${IMPLEMENTATION_DIGEST_VERSION}\n`);
+  for (const entry of entries) {
+    updateTreeDigest(hash, { ...entry, bytes: committedTreeEntryBytes(root, entry) });
+  }
   return `sha256:${hash.digest('hex')}`;
+}
+
+function assertImplementationDigestVersion(version, label) {
+  if (version !== IMPLEMENTATION_DIGEST_VERSION) {
+    const presented = version ?? 'missing';
+    const legacy = presented === LEGACY_IMPLEMENTATION_DIGEST_VERSION ? 'v1-era' : 'unsupported';
+    fail(`${label} presents ${legacy} implementation digest version ${presented}; `
+      + `re-qualification with ${IMPLEMENTATION_DIGEST_VERSION} is required`);
+  }
+}
+
+// @ref LLP 0162#source-owned-publication-carrier-amendment--2026-08-04
+// Qualification custody covers the implementation digest's exact leaf scope,
+// not unrelated repository history that happens to land between C and P. The
+// receipt must name the committed implementation at C as well as the tree at P.
+export function assertQualifiedImplementationDigestAtPublication(root, {
+  capabilityId,
+  qualificationCommit,
+  publicationCommit,
+  expectedDigest,
+  expectedDigestVersion,
+}) {
+  assertImplementationDigestVersion(expectedDigestVersion, capabilityId);
+  const qualificationDigest = implementationDigestAt(root, qualificationCommit);
+  const publicationDigest = implementationDigestAt(root, publicationCommit);
+  if (qualificationDigest !== expectedDigest || publicationDigest !== expectedDigest) {
+    const changes = qualifiedImplementationChangesBetween(
+      root,
+      qualificationCommit,
+      publicationCommit,
+    );
+    const changedPaths = changes.length > 0
+      ? changes.map(({ status, path }) => `${status}:${path}`).join(',')
+      : 'none detected between C and P (receipt or digest scope is inconsistent)';
+    fail([
+      `${capabilityId} qualified implementation digest mismatch`,
+      `in-scope paths drifted: ${changedPaths}`,
+      `receipt ${expectedDigest}`,
+      `qualification C ${qualificationDigest}`,
+      `publication P ${publicationDigest}`,
+    ].join('; '));
+  }
+  return publicationDigest;
 }
 
 function checkedOutImplementationGitlink(root) {
@@ -552,16 +656,32 @@ function checkedOutImplementationGitlink(root) {
 
 export function implementationDigestWorkingTree(root) {
   const checkedOutIbex = checkedOutImplementationGitlink(root);
-  const names = execFileSync('git', ['ls-files', '-z', '--', ...IMPLEMENTATION_ROOTS], { cwd: root })
-    .toString()
-    .split('\0')
-    .filter(Boolean)
-    .filter((path) => !PUBLICATION_CYCLE_ALLOWLIST.has(path))
-    .sort();
+  const entries = execFileSync('git', [
+    'ls-files', '--stage', '-z', '--', ...IMPLEMENTATION_ROOTS,
+  ], { cwd: root }).toString('utf8').split('\0').filter(Boolean).map((record) => {
+    const separator = record.indexOf('\t');
+    const match = /^([0-9]{6}) ([0-9a-f]{40,64}) 0$/u.exec(record.slice(0, separator));
+    if (separator < 0 || match === null) fail('implementation index emitted an invalid entry');
+    const mode = match[1];
+    return {
+      mode,
+      type: mode === '160000' ? 'commit' : 'blob',
+      oid: match[2],
+      path: record.slice(separator + 1),
+    };
+  }).filter(({ path }) => !PUBLICATION_CYCLE_ALLOWLIST.has(path));
+  entries.push({
+    mode: '160000',
+    type: 'commit',
+    oid: checkedOutIbex,
+    path: 'vendor/ibex',
+  });
+  entries.sort((left, right) => (left.path < right.path ? -1 : left.path > right.path ? 1 : 0));
   const hash = createHash('sha256');
-  hash.update('snapback:agent-safe-implementation-tree:v1\n');
-  for (const path of names) updateTreeDigest(hash, path, readFileSync(join(root, path)));
-  updateTreeDigest(hash, 'vendor/ibex', Buffer.from(checkedOutIbex));
+  hash.update(`${IMPLEMENTATION_DIGEST_VERSION}\n`);
+  for (const entry of entries) {
+    updateTreeDigest(hash, { ...entry, bytes: committedTreeEntryBytes(root, entry) });
+  }
   return `sha256:${hash.digest('hex')}`;
 }
 
@@ -572,13 +692,25 @@ function evidenceLocatorsFor(record) {
 }
 
 function validateReceiptShape(receipt, record, published) {
-  exactKeys(receipt, [
+  const legacyKeys = [
     'schemaVersion', 'capabilityId', 'qualifiedSourceCommit', 'implementationTreeSha256',
     'candidateFactsSha256', 'qualifiedTargetProfileId', 'negativeTargetProfileIds',
     'negativeBuildDistributions', 'qualifiedComponents', 'evidence',
-  ], `${record.id} receipt`);
-  if (receipt.schemaVersion !== 'snapback.agent-safe-publication-receipt.v1'
-      || receipt.capabilityId !== record.id
+  ];
+  const currentKeys = [...legacyKeys, 'implementationDigestVersion'];
+  if (receipt.schemaVersion === 'snapback.agent-safe-publication-receipt.v1') {
+    exactKeys(receipt, legacyKeys, `${record.id} receipt`);
+    if (published) {
+      fail(`${record.id} receipt uses the stale v1 implementation digest contract; `
+        + `re-qualification with ${IMPLEMENTATION_DIGEST_VERSION} is required`);
+    }
+  } else if (receipt.schemaVersion === 'snapback.agent-safe-publication-receipt.v2') {
+    exactKeys(receipt, currentKeys, `${record.id} receipt`);
+    assertImplementationDigestVersion(receipt.implementationDigestVersion, `${record.id} receipt`);
+  } else {
+    fail(`${record.id} receipt schema is stale or unsupported`);
+  }
+  if (receipt.capabilityId !== record.id
       || receipt.qualifiedTargetProfileId !== 'local-dev-sqlite-ibex'
       || JSON.stringify(receipt.negativeTargetProfileIds)
         !== JSON.stringify(['cloudflare-do-sqlite-v8', 'remote-service-sqlite-ibex'])
@@ -602,12 +734,26 @@ function requireEvidence(condition, message) {
   if (!condition) fail(`published evidence: ${message}`);
 }
 
-function readEvidenceJson(root, path, label) {
+// @ref LLP 0162#source-owned-publication-carrier-amendment--2026-08-04
+// Invariant: no publication-chain JSON is ever read non-canonically. This is one closed
+// parser boundary for anchors, carriers, receipts, acceptances, evidence,
+// benches, and verdict histories; callers may not fall back to bare JSON.parse.
+function parseCanonicalPublicationJson(bytes, label) {
+  const text = Buffer.isBuffer(bytes) ? bytes.toString('utf8') : bytes;
+  let value;
   try {
-    return JSON.parse(readFileSync(join(root, path), 'utf8'));
+    value = JSON.parse(text);
   } catch (error) {
     fail(`${label} is not valid JSON: ${error.message}`);
   }
+  if (text !== `${JSON.stringify(value, null, 2)}\n`) {
+    fail(`${label} is not canonical JSON`);
+  }
+  return value;
+}
+
+function readCanonicalPublicationJson(root, path, label) {
+  return parseCanonicalPublicationJson(readFileSync(join(root, path), 'utf8'), label);
 }
 
 function closeNumber(left, right) {
@@ -933,7 +1079,10 @@ export function validatePairedPerformanceArtifact(value, commit) {
 
 function validatePairedPerformance(root, commit) {
   const path = STORAGE_EVIDENCE[1][1];
-  validatePairedPerformanceArtifact(readEvidenceJson(root, path, 'paired performance'), commit);
+  validatePairedPerformanceArtifact(
+    readCanonicalPublicationJson(root, path, 'paired performance'),
+    commit,
+  );
 }
 
 function statistics(values) {
@@ -1026,13 +1175,13 @@ export function validateAbsolutePerformanceArtifact(value, commit) {
 
 function validateAbsolutePerformance(root, commit) {
   const path = STORAGE_EVIDENCE[2][1];
-  const value = readEvidenceJson(root, path, 'absolute performance');
+  const value = readCanonicalPublicationJson(root, path, 'absolute performance');
   validateAbsolutePerformanceArtifact(value, commit);
 }
 
 function validateAcceptanceCorpus(root, commit, implementationTree) {
   const path = STORAGE_EVIDENCE[0][1];
-  const value = readEvidenceJson(root, path, 'acceptance corpus');
+  const value = readCanonicalPublicationJson(root, path, 'acceptance corpus');
   requireEvidence(value.schemaVersion === 'snapback.agent-safe-storage-acceptance-corpus.v1',
     'acceptance corpus schema drifted');
   requireEvidence(value.date === '2026-08-04'
@@ -1068,11 +1217,15 @@ function validateAcceptanceCorpus(root, commit, implementationTree) {
 
 function markdownField(text, label) {
   const escaped = label.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
-  const match = text.match(new RegExp(`^\\*\\*${escaped}:\\*\\*\\s+(.+)$`, 'mu'));
-  return match?.[1].replaceAll('`', '').trim();
+  const matches = [...text.matchAll(new RegExp(
+    `^\\*\\*${escaped}:\\*\\*\\s+(.+)$`,
+    'gmu',
+  ))];
+  if (matches.length !== 1) return undefined;
+  return matches[0][1].replaceAll('`', '').trim();
 }
 
-function validateReview(root, path, family, commit, implementationTree) {
+export function validateReview(root, path, family, commit, implementationTree) {
   const text = readFileSync(join(root, path), 'utf8');
   requireEvidence(markdownField(text, 'Reviewer family') === family,
     `${family} review family drifted`);
@@ -1100,17 +1253,20 @@ function validateReview(root, path, family, commit, implementationTree) {
   );
 }
 
-function validateAuthorAcceptance(root, commit, implementationTree) {
+function validateAuthorAcceptance(root, receipt, commit, implementationTree) {
   const path = STORAGE_EVIDENCE[5][1];
-  const value = readEvidenceJson(root, path, 'author acceptance');
-  requireEvidence(value.schemaVersion === 'snapback.agent-safe-storage-author-acceptance.v1'
+  const value = readCanonicalPublicationJson(root, path, 'author acceptance');
+  requireEvidence(value.schemaVersion === 'snapback.agent-safe-storage-author-acceptance.v2'
     && value.date === '2026-08-04'
     && value.author === 'Charlie Cheever'
     && value.accepted === true
-    && value.authorizationSource === 'explicit-user-instruction-2026-08-04',
+    && value.authorizationSource === 'explicit-user-instruction-2026-08-04'
+    && value.implementationDigestVersion === IMPLEMENTATION_DIGEST_VERSION
+    && value.implementationDigestVersion === receipt.implementationDigestVersion,
   'named-author acceptance identity or decision drifted');
   requireEvidence(value.qualifiedSourceCommit === commit
     && value.implementationTreeSha256 === implementationTree
+    && value.implementationTreeSha256 === receipt.implementationTreeSha256
     && value.qualifiedCapability === 'agent_safe_storage_v1'
     && JSON.stringify(value.qualifiedComponents) === JSON.stringify(STORAGE_COMPONENTS),
   'author acceptance source or component scope drifted');
@@ -1218,7 +1374,11 @@ export function validateDerivedForkLifecycleBenchArtifact(value, commit, os, arc
 }
 
 function validateDerivedForkBoundsRatification(root, commit) {
-  const value = readEvidenceJson(root, DERIVED_FORK_EVIDENCE[2][1], 'fork bounds ratification');
+  const value = readCanonicalPublicationJson(
+    root,
+    DERIVED_FORK_EVIDENCE[2][1],
+    'fork bounds ratification',
+  );
   const ratificationCommit = value.environment?.commit;
   requireEvidence(/^[0-9a-f]{40}$/u.test(ratificationCommit ?? ''),
     'fork bounds ratification commit is invalid');
@@ -1230,77 +1390,108 @@ function validateDerivedForkBoundsRatification(root, commit) {
   }
 }
 
-function finalReviewRound(text) {
-  const rounds = [...text.matchAll(/^## Round [0-9]+[^\n]*$/gmu)];
-  return rounds.length === 0 ? text : text.slice(rounds.at(-1).index);
-}
-
-function reviewField(text, ...labels) {
-  for (const label of labels) {
-    const escaped = label.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
-    const match = text.match(new RegExp(
-      `^(?:-\\s+)?\\*\\*${escaped}:\\*\\*\\s+(.+)$`,
-      'mu',
-    ));
-    if (match) return match[1].replaceAll('`', '').trim();
-  }
-  return undefined;
-}
-
-function reviewFamily(text, path) {
-  const finalRound = finalReviewRound(text);
-  const family = reviewField(finalRound, 'Reviewer family', 'Family');
-  const provider = reviewField(finalRound, 'Provider / runtime', 'Provider/runtime');
-  const date = reviewField(finalRound, 'Date');
-  const redacted = reviewField(finalRound, 'Redacted');
-  const method = reviewField(finalRound, 'Method');
-  requireEvidence(Boolean(family && provider && method)
-    && date === '2026-08-06'
-    && /^(?:yes|no)(?:\b|\s*[—-])/iu.test(redacted ?? ''),
-  `${path} lacks the LLP 0005 provenance header`);
-  const codex = /(?:codex|gpt|openai)/iu.test(family);
-  const fable = /(?:fable|claude|anthropic)/iu.test(family);
-  requireEvidence(codex !== fable, `${path} reviewer family is ambiguous or unrecognized`);
-  return codex ? 'codex' : 'fable';
-}
-
-function finalReviewVerdictIsReady(text) {
-  const finalRound = finalReviewRound(text);
-  if (reviewField(finalRound, 'Verdict') === 'READY') return true;
-  const normalized = finalRound.replace(/\s+/gu, ' ');
-  return normalized.includes(
-    '**READY for publication of the narrow local `operating.instance-forks`',
-  ) || normalized.includes(
-    '**READY for implementation/security publication of the narrow local `operating.instance-forks`',
-  );
-}
-
-function finalSpecReviewVerdictsAreReady(text) {
-  const finalRound = finalReviewRound(text);
-  if (reviewField(finalRound, 'Verdict') === 'READY') return true;
-  return ['0163', '0164', '0165'].every((number) => new RegExp(
-    `^\\| LLP ${number} \\|[^\\n]*\\bREADY\\b[^\\n]*\\|$`,
-    'mu',
-  ).test(finalRound));
-}
-
-function validateDerivedForkReview(root, index, expectedFamily, implementation) {
-  const path = DERIVED_FORK_EVIDENCE[index][1];
-  let text;
-  try {
-    text = readFileSync(join(root, path), 'utf8');
-  } catch {
-    fail(`published evidence: missing or unreadable review ${path}`);
-  }
-  const family = reviewFamily(text, path);
-  requireEvidence(family === expectedFamily, `${path} came from the wrong reviewer family`);
+// @ref LLP 0162#source-owned-publication-carrier-amendment--2026-08-04 — review authority is a closed,
+// digest-bound JSON history. The adjacent Markdown remains required evidence,
+// but no heading, table, quotation, or verdict-shaped prose is authoritative.
+export function validateDerivedForkReview(root, {
+  reviewIndex,
+  verdictIndex,
+  expectedKind,
+  qualificationCommit,
+}) {
+  const reviewPath = DERIVED_FORK_EVIDENCE[reviewIndex][1];
+  const verdictPath = DERIVED_FORK_EVIDENCE[verdictIndex][1];
   requireEvidence(
-    implementation
-      ? finalReviewVerdictIsReady(text)
-      : finalSpecReviewVerdictsAreReady(text),
-    `${path} final review verdict is not READY`,
+    expectedKind === 'forkSpecConformance'
+      || expectedKind === 'derivedForkPublication',
+    `${verdictPath} expected verdict kind is unrecognized`,
   );
-  return family;
+  let reviewBytes;
+  try {
+    reviewBytes = readFileSync(join(root, reviewPath));
+  } catch {
+    fail(`published evidence: missing or unreadable review ${reviewPath}`);
+  }
+  const value = readCanonicalPublicationJson(root, verdictPath, `${reviewPath} verdict contract`);
+  exactKeys(value, ['schemaVersion', 'verdicts'], `${verdictPath} contract`);
+  requireEvidence(value.schemaVersion === REVIEW_HISTORY_SCHEMA_VERSION
+    && Array.isArray(value.verdicts)
+    && value.verdicts.length > 0,
+  `${verdictPath} contract identity or verdict population drifted; a complete v2 history is required`);
+
+  const currentReviewSha256 = sha256(reviewBytes);
+  let previousCommit;
+  let previousEntrySha256 = null;
+  let declaredFamily;
+  for (const [index, entry] of value.verdicts.entries()) {
+    exactKeys(entry, [
+      'reviewArtifact', 'reviewArtifactSha256', 'family', 'round', 'reviewedCommit',
+      'previousEntrySha256', 'verdict',
+    ], `${verdictPath} round ${index + 1}`);
+    // This is deliberately a current-state binding, not a claim about the
+    // prose bytes as they existed when a historical verdict was recorded.
+    requireEvidence(entry.reviewArtifact === reviewPath
+      && entry.reviewArtifactSha256 === currentReviewSha256,
+    `${verdictPath} round ${index + 1} does not bind its exact prose artifact`);
+    requireEvidence(entry.family === 'codex' || entry.family === 'fable',
+      `${verdictPath} round ${index + 1} reviewer family is unrecognized`);
+    declaredFamily ??= entry.family;
+    requireEvidence(entry.family === declaredFamily,
+      `${verdictPath} reviewer family changed between rounds`);
+    requireEvidence(Number.isSafeInteger(entry.round)
+      && entry.round === index + 1,
+    `${verdictPath} rounds are missing, duplicated, or non-monotonic`);
+    requireEvidence(entry.previousEntrySha256 === previousEntrySha256,
+      `${verdictPath} round ${entry.round} predecessor digest broke; history was truncated, restarted, or replaced`);
+    requireEvidence(/^[0-9a-f]{40}$/u.test(entry.reviewedCommit ?? ''),
+      `${verdictPath} round ${entry.round} reviewed commit is invalid`);
+    if (index === value.verdicts.length - 1) {
+      requireEvidence(entry.reviewedCommit === qualificationCommit,
+        `${verdictPath} authoritative verdict does not name qualification C`);
+    }
+    if (previousCommit !== undefined) {
+      try {
+        git(root, ['merge-base', '--is-ancestor', previousCommit, entry.reviewedCommit]);
+      } catch {
+        fail(`published evidence: ${verdictPath} reviewed commits are inconsistent`);
+      }
+    }
+    previousCommit = entry.reviewedCommit;
+
+    if (expectedKind === 'forkSpecConformance') {
+      exactKeys(entry.verdict, [
+        'kind', 'llp0163', 'llp0164', 'llp0165',
+      ], `${verdictPath} round ${entry.round} verdict`);
+      requireEvidence(entry.verdict.kind === expectedKind
+        && ['READY', 'NOT_READY'].includes(entry.verdict.llp0163)
+        && ['READY', 'NOT_READY'].includes(entry.verdict.llp0164)
+        && ['READY', 'NOT_READY'].includes(entry.verdict.llp0165),
+      `${verdictPath} round ${entry.round} spec verdict is invalid`);
+    } else {
+      exactKeys(entry.verdict, ['kind', 'status'], `${verdictPath} round ${entry.round} verdict`);
+      requireEvidence(entry.verdict.kind === 'derivedForkPublication'
+        && ['READY', 'NOT_READY'].includes(entry.verdict.status),
+      `${verdictPath} round ${entry.round} publication verdict is invalid`);
+    }
+    previousEntrySha256 = sha256(Buffer.from(`${JSON.stringify(entry, null, 2)}\n`));
+  }
+
+  const authoritative = value.verdicts.at(-1);
+  const ready = expectedKind === 'forkSpecConformance'
+    ? ['llp0163', 'llp0164', 'llp0165'].every((key) => (
+      authoritative.verdict[key] === 'READY'
+    ))
+    : authoritative.verdict.status === 'READY';
+  return {
+    family: authoritative.family,
+    headEntrySha256: previousEntrySha256,
+    historyKind: DERIVED_FORK_EVIDENCE[verdictIndex][0],
+    ready,
+    round: authoritative.round,
+    roundCount: value.verdicts.length,
+    reviewPath,
+    verdictPath,
+  };
 }
 
 function validateDerivedForkAssetEvidence(root) {
@@ -1311,20 +1502,29 @@ function validateDerivedForkAssetEvidence(root) {
   'asset lifecycle evidence identity drifted');
 }
 
-function validateDerivedForkAuthorAcceptance(root, receipt, commit, implementationTree) {
+function validateDerivedForkAuthorAcceptance(
+  root,
+  receipt,
+  commit,
+  implementationTree,
+  reviewHistories,
+) {
   const path = DERIVED_FORK_EVIDENCE.at(-1)[1];
-  const value = readEvidenceJson(root, path, 'derived-fork author acceptance');
+  const value = readCanonicalPublicationJson(root, path, 'derived-fork author acceptance');
   exactKeys(value, [
     'schemaVersion', 'capabilityId', 'accepted', 'authorLine', 'qualifiedSourceCommit',
-    'implementationTreeSha256', 'candidateFactsSha256', 'qualifiedComponents',
-    'evidenceSha256',
+    'implementationDigestVersion', 'implementationTreeSha256', 'candidateFactsSha256',
+    'qualifiedComponents', 'evidenceSha256', 'reviewHistoryHeads',
   ], 'derived-fork author acceptance');
-  requireEvidence(value.schemaVersion === 'snapback.derived-fork-author-acceptance.v1'
+  requireEvidence(value.schemaVersion === 'snapback.derived-fork-author-acceptance.v2'
     && value.capabilityId === 'agent_safe_derived_deployment_fork_v1'
     && value.accepted === true
     && value.authorLine === 'Charlie Cheever — accepted 2026-08-06'
     && value.qualifiedSourceCommit === commit
+    && value.implementationDigestVersion === IMPLEMENTATION_DIGEST_VERSION
+    && value.implementationDigestVersion === receipt.implementationDigestVersion
     && value.implementationTreeSha256 === implementationTree
+    && value.implementationTreeSha256 === receipt.implementationTreeSha256
     && value.candidateFactsSha256 === receipt.candidateFactsSha256
     && JSON.stringify(value.qualifiedComponents) === JSON.stringify(DERIVED_COMPONENTS),
   'derived-fork named-author/source/component acceptance drifted');
@@ -1334,6 +1534,17 @@ function validateDerivedForkAuthorAcceptance(root, receipt, commit, implementati
   requireEvidence(nonselfBindings.every(({ kind, sha256: digest }) => (
     value.evidenceSha256[kind] === digest
   )), 'derived-fork author acceptance did not bind the exact non-self receipt digest set');
+  const expectedHistoryKinds = reviewHistories.map(({ historyKind }) => historyKind);
+  exactKeys(value.reviewHistoryHeads, expectedHistoryKinds,
+    'derived-fork author-accepted review histories');
+  for (const review of reviewHistories) {
+    const acceptedHead = value.reviewHistoryHeads[review.historyKind];
+    exactKeys(acceptedHead, ['roundCount', 'headEntrySha256'],
+      `derived-fork accepted ${review.historyKind} history head`);
+    requireEvidence(acceptedHead.roundCount === review.roundCount
+      && acceptedHead.headEntrySha256 === review.headEntrySha256,
+    `${review.historyKind} history does not match the named-author accepted complete history`);
+  }
 }
 
 export function validatePublishedDerivedForkEvidenceSemantics(root, record, commit, receipt) {
@@ -1350,8 +1561,16 @@ export function validatePublishedDerivedForkEvidenceSemantics(root, record, comm
     fail('published evidence: derived-fork qualification commit is not an ancestor of publication HEAD');
   }
   validateDerivedForkBoundsRatification(root, commit);
-  const macos = readEvidenceJson(root, DERIVED_FORK_EVIDENCE[0][1], 'macOS fork lifecycle bench');
-  const linux = readEvidenceJson(root, DERIVED_FORK_EVIDENCE[1][1], 'Linux fork lifecycle bench');
+  const macos = readCanonicalPublicationJson(
+    root,
+    DERIVED_FORK_EVIDENCE[0][1],
+    'macOS fork lifecycle bench',
+  );
+  const linux = readCanonicalPublicationJson(
+    root,
+    DERIVED_FORK_EVIDENCE[1][1],
+    'Linux fork lifecycle bench',
+  );
   validateDerivedForkLifecycleBenchArtifact(macos, commit, 'macos', 'aarch64');
   validateDerivedForkLifecycleBenchArtifact(linux, commit, 'linux', 'x86_64');
   requireEvidence(new Set([
@@ -1359,22 +1578,59 @@ export function validatePublishedDerivedForkEvidenceSemantics(root, record, comm
     `${linux.environment.os}/${linux.environment.arch}`,
   ]).size === 2, 'both distinct release platforms were not present');
   validateDerivedForkAssetEvidence(root);
-  const specCodex = validateDerivedForkReview(root, 4, 'codex', false);
-  const specFable = validateDerivedForkReview(root, 5, 'fable', false);
-  const implementationCodex = validateDerivedForkReview(root, 6, 'codex', true);
-  const implementationFable = validateDerivedForkReview(root, 7, 'fable', true);
-  requireEvidence(specCodex !== specFable
-    && implementationCodex !== implementationFable
-    && specCodex === implementationCodex
-    && specFable === implementationFable,
-  'derived-fork reviews did not preserve two distinct model families');
+  const specCodex = validateDerivedForkReview(root, {
+    reviewIndex: 4,
+    verdictIndex: 5,
+    expectedKind: 'forkSpecConformance',
+    qualificationCommit: commit,
+  });
+  const specFable = validateDerivedForkReview(root, {
+    reviewIndex: 6,
+    verdictIndex: 7,
+    expectedKind: 'forkSpecConformance',
+    qualificationCommit: commit,
+  });
+  const implementationCodex = validateDerivedForkReview(root, {
+    reviewIndex: 8,
+    verdictIndex: 9,
+    expectedKind: 'derivedForkPublication',
+    qualificationCommit: commit,
+  });
+  const implementationFable = validateDerivedForkReview(root, {
+    reviewIndex: 10,
+    verdictIndex: 11,
+    expectedKind: 'derivedForkPublication',
+    qualificationCommit: commit,
+  });
+  requireEvidence(new Set([specCodex.family, specFable.family]).size === 2
+    && new Set([implementationCodex.family, implementationFable.family]).size === 2,
+  'derived-fork review pairs did not preserve two distinct model families');
+  requireEvidence(specCodex.family === 'codex'
+    && specFable.family === 'fable'
+    && implementationCodex.family === 'codex'
+    && implementationFable.family === 'fable'
+    && specCodex.family === implementationCodex.family
+    && specFable.family === implementationFable.family,
+  'derived-fork verdict family did not match its fixed review artifact');
+  for (const review of [specCodex, specFable, implementationCodex, implementationFable]) {
+    requireEvidence(review.ready, `${review.verdictPath} authoritative verdict is not READY`);
+  }
   const implementationTree = implementationDigestAt(root, commit);
-  validateDerivedForkAuthorAcceptance(root, receipt, commit, implementationTree);
+  validateDerivedForkAuthorAcceptance(root, receipt, commit, implementationTree, [
+    specCodex,
+    specFable,
+    implementationCodex,
+    implementationFable,
+  ]);
 }
 
 export function validatePublishedEvidenceSemantics(root, record, commit, receipt = undefined) {
+  const boundReceipt = receipt ?? readCanonicalPublicationJson(
+    root,
+    record.receipt,
+    `${record.id} receipt`,
+  );
   if (record.id === 'agent_safe_derived_deployment_fork_v1') {
-    const boundReceipt = receipt ?? JSON.parse(readFileSync(join(root, record.receipt)));
     validatePublishedDerivedForkEvidenceSemantics(root, record, commit, boundReceipt);
     return;
   }
@@ -1387,22 +1643,17 @@ export function validatePublishedEvidenceSemantics(root, record, commit, receipt
   validateAcceptanceCorpus(root, commit, implementationTree);
   validateReview(root, STORAGE_EVIDENCE[3][1], 'Fable', commit, implementationTree);
   validateReview(root, STORAGE_EVIDENCE[4][1], 'Codex', commit, implementationTree);
-  validateAuthorAcceptance(root, commit, implementationTree);
+  validateAuthorAcceptance(root, boundReceipt, commit, implementationTree);
 }
 
 export function validatePublicationRecord(root, record) {
   const anchorBytes = readFileSync(join(root, record.anchor));
   const carrierBytes = readFileSync(join(root, record.carrier));
   const receiptBytes = readFileSync(join(root, record.receipt));
-  const anchor = JSON.parse(anchorBytes);
-  const carrier = JSON.parse(carrierBytes);
-  const receipt = JSON.parse(receiptBytes);
+  const anchor = parseCanonicalPublicationJson(anchorBytes, `${record.id} anchor`);
+  const carrier = parseCanonicalPublicationJson(carrierBytes, `${record.id} carrier`);
+  const receipt = parseCanonicalPublicationJson(receiptBytes, `${record.id} receipt`);
   exactKeys(anchor, ['schemaVersion', 'capabilityId', 'state', 'carrierSha256'], `${record.id} anchor`);
-  exactKeys(carrier, [
-    'schemaVersion', 'capabilityId', 'targetProfileId', 'maturity', 'qualifiedSourceCommit',
-    'implementationTreeSha256', 'candidateFactsSha256', 'qualificationReceiptSha256',
-    'buildProvenanceRequirement', 'candidateFacts',
-  ], `${record.id} carrier`);
   if (anchor.schemaVersion !== 'snapback.local-capability-publication-anchor.v1'
       || anchor.capabilityId !== record.id
       || !['withheld', 'published'].includes(anchor.state)) {
@@ -1414,18 +1665,28 @@ export function validatePublicationRecord(root, record) {
     if (anchor.carrierSha256 !== null) fail(`${record.id} withheld anchor carries authority`);
     return { id: record.id, state: 'withheld' };
   }
+  exactKeys(carrier, [
+    'schemaVersion', 'capabilityId', 'targetProfileId', 'maturity', 'qualifiedSourceCommit',
+    'implementationDigestVersion', 'implementationTreeSha256', 'candidateFactsSha256',
+    'qualificationReceiptSha256', 'buildProvenanceRequirement', 'candidateFacts',
+  ], `${record.id} carrier`);
   if (!isSha256(anchor.carrierSha256, true) || anchor.carrierSha256 !== sha256(carrierBytes)) {
     fail(`${record.id} anchor/carrier digest mismatch`);
   }
-  if (carrier.schemaVersion !== 'snapback.local-agent-safe-publication.v1'
+  const candidateFacts = exactCandidate(record.id);
+  const candidateFactsSha256 = sha256(Buffer.from(JSON.stringify(candidateFacts)));
+  if (carrier.schemaVersion !== 'snapback.local-agent-safe-publication.v2'
       || carrier.capabilityId !== record.id
       || carrier.targetProfileId !== 'local-dev-sqlite-ibex'
       || carrier.maturity !== 'experimental'
       || carrier.buildProvenanceRequirement !== 'known-clean-contributor-source'
       || carrier.qualificationReceiptSha256 !== sha256(receiptBytes)
-      || JSON.stringify(carrier.candidateFacts) !== JSON.stringify(exactCandidate(record.id))
-      || carrier.candidateFactsSha256 !== sha256(Buffer.from(JSON.stringify(carrier.candidateFacts)))
-      || receipt.candidateFactsSha256 !== carrier.candidateFactsSha256
+      || JSON.stringify(carrier.candidateFacts) !== JSON.stringify(candidateFacts)
+      || carrier.candidateFactsSha256 !== candidateFactsSha256
+      || receipt.candidateFactsSha256 !== candidateFactsSha256
+      || carrier.implementationDigestVersion !== IMPLEMENTATION_DIGEST_VERSION
+      || receipt.implementationDigestVersion !== IMPLEMENTATION_DIGEST_VERSION
+      || receipt.implementationDigestVersion !== carrier.implementationDigestVersion
       || receipt.implementationTreeSha256 !== carrier.implementationTreeSha256
       || receipt.qualifiedSourceCommit !== carrier.qualifiedSourceCommit
       || JSON.stringify(receipt.qualifiedComponents) !== JSON.stringify(record.components)) {
@@ -1441,40 +1702,37 @@ export function validatePublicationRecord(root, record) {
       fail(`${record.id} evidence bytes drifted at ${binding.path}`);
     }
   }
+  const publication = git(root, ['rev-parse', 'HEAD']);
+  try {
+    git(root, ['merge-base', '--is-ancestor', carrier.qualifiedSourceCommit, publication]);
+  } catch {
+    fail(`${record.id} qualification commit is not an ancestor of publication HEAD`);
+  }
+  const implementationDigest = assertQualifiedImplementationDigestAtPublication(root, {
+    capabilityId: record.id,
+    qualificationCommit: carrier.qualifiedSourceCommit,
+    publicationCommit: publication,
+    expectedDigest: receipt.implementationTreeSha256,
+    expectedDigestVersion: receipt.implementationDigestVersion,
+  });
   validatePublishedEvidenceSemantics(root, record, carrier.qualifiedSourceCommit, receipt);
-  return { id: record.id, state: 'published', commit: carrier.qualifiedSourceCommit };
+  return {
+    id: record.id,
+    state: 'published',
+    commit: carrier.qualifiedSourceCommit,
+    implementationDigest,
+  };
 }
 
 export function runChecker(root) {
-  const publication = git(root, ['rev-parse', 'HEAD']);
   const results = RECORDS.map((record) => validatePublicationRecord(root, record));
   for (const result of results.filter(({ state }) => state === 'published')) {
-    try {
-      git(root, ['merge-base', '--is-ancestor', result.commit, publication]);
-    } catch {
-      fail(`${result.id} qualification commit is not an ancestor of publication HEAD`);
-    }
-    const carrier = JSON.parse(readFileSync(join(root, RECORDS.find(({ id }) => id === result.id).carrier)));
-    const generatedPaths = generatedPublicationPathsAt(root, result.commit);
-    const publicationEntries = treeEntriesAt(root, publication, [
-      ...REVIEW_CACHE_ROOTS, ...FULLY_COMMITTED_ROOTS, ...ADMIN_GENERATED_ROOTS,
-    ]);
-    const changedAfterQualification = publicationChangesBetween(root, result.commit, publication);
-    const forbidden = changedAfterQualification.filter((change) => (
-      !allowedPublicationChange(change, generatedPaths, publicationEntries)
-    ));
-    if (forbidden.length > 0) {
-      fail(`${result.id} P changed forbidden post-qualification paths: ${forbidden
-        .map(({ status, path }) => `${status}:${path}`).join(',')}`);
-    }
     validateLocalStorePublicationTransform(root, result.commit);
-    const atQualification = implementationDigestAt(root, result.commit);
-    const atPublication = implementationDigestWorkingTree(root);
-    if (carrier.implementationTreeSha256 !== atQualification
-        || atQualification !== atPublication) {
-      fail(`${result.id} P-vs-C implementation tree drifted`);
+    const workingTreeDigest = implementationDigestWorkingTree(root);
+    if (result.implementationDigest !== workingTreeDigest) {
+      fail(`${result.id} publication HEAD and clean working-tree implementation digests differ; `
+        + `expected ${result.implementationDigest}; actual ${workingTreeDigest}`);
     }
-    checkedOutImplementationGitlink(root);
   }
   return results;
 }

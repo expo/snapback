@@ -102,7 +102,7 @@ const adbRun = (_binary, args) => {
     return {
       status: 0,
       stdout: [...installed.entries()]
-        .map(([device, host]) => `R58MUSB123 ${device} ${host}`)
+        .map(([device, host]) => `host-16 ${device} ${host}`)
         .join('\n'),
       stderr: '',
     };

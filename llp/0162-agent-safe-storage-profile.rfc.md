@@ -5,6 +5,12 @@
 **Systems:** Storage, Runtime, Sync, Auth, Effects, Migrations, Agent experience, Diagnostics, Testing, Performance
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-03
+**Revised:** 2026-08-06 (v0.46 — round-7 Fable found canonical JSON enforcement applied only to verdict sidecars, leaving every other publication-chain object exposed to duplicate-member last-wins parsing; the derived named-author acceptance could therefore visibly deny acceptance or visibly retain a six-round history while the oracle parsed approval or a fabricated round-1 restart. One closed parser boundary now enforces the invariant that no publication-chain JSON is ever read non-canonically across anchors, carriers, receipts, author acceptances, evidence fixtures, benchmark receipts, and verdict sidecars, with A4/A5 and per-artifact duplicate-member negatives. The transcript-recoverable Codex and Fable round-6 prose is restored verbatim to all four artifacts; all four sidecars are consistently chained v2 histories with rounds 1–6 and the recorded Scope-1 READY / Scope-2 NOT_READY values at `bdc682964`. `reviewArtifactSha256` is stated plainly as a current-state binding with no append-only strength of its own; the author-accepted `(roundCount, headEntrySha256)` is the sole review-history root of trust. Both anchors remain withheld pending fresh round-7 verdicts against the new qualification commit and new named-author acceptance of their exact heads.)
+**Revised:** 2026-08-06 (v0.45 — the round-6 Codex adversarial review found that a complete verdict file could be deleted and restarted at round 1, and that implementation-tree v1 omitted Git mode/object type. Verdict authority is now `snapback.review-verdicts.v2`: every entry hashes the prior entry's canonical bytes, and named-author acceptance binds the exact round count and head-entry digest for all four histories, so truncation, restart, or replacement refuses relative to the accepted chain. The implementation digest is now `snapback:agent-safe-implementation-tree:v2`, hashing mode, object type, path, and bytes for every leaf and the `160000 commit` Ibex gitlink. Carrier, receipt, and author-acceptance contracts name that version explicitly; all v1 digests and artifacts that name them are stale and cannot publish. The stored v1 reviewer artifacts are preserved unmodified, both anchors remain withheld, and fresh v2 histories, a fresh qualification commit, fresh cross-family verdicts, and new named-author acceptance are required.)
+**Revised:** 2026-08-06 (v0.44 — round-6 publication-oracle closure: every fork-review verdict sidecar must equal its canonical `JSON.stringify(parsed, null, 2) + "\\n"` bytes, so duplicate JSON members and every byte-level non-canonical form refuse before shape or verdict interpretation. The per-entry prose digest is explicitly a current-complete-artifact binding, not a historical as-of-round claim; restoring the four transcript-recovered round-4 sections therefore rotates all five entries in each sidecar without changing any verdict. The separate legacy storage-review Markdown path now requires exactly one occurrence of every declared field, so an appended blocking verdict cannot be shadowed by an earlier READY line; it remains a single-document compatibility path with no structured round history, and both publication anchors remain withheld.)
+**Revised:** 2026-08-06 (v0.43 — the round-5 Codex adversarial review proved that v0.42's prose-verdict parser still published through four independent Markdown shapes: a verdict inside a fenced quotation, a lower-numbered historical round appended last, tab-delimited CommonMark headings hiding the actual final round, and a second conflicting Scope-1 table ignored after the first. Review authority is redesigned as four fixed-locator, exact-shape JSON verdict histories beside the still-required prose artifacts. Every entry binds its prose path and digest, family, round, reviewed commit, and typed Scope-1 or Scope-2 value; histories must be contiguous and commit-monotonic, the highest round must name qualification C, the two families must be distinct, and the verdict-file digests join the receipt and author-acceptance chain. Missing, malformed, duplicated, reordered, unknown-field, family-mismatched, commit-mismatched, or non-READY authority refuses. No prose body is parsed for authority. Both anchors remain withheld: at `b08e835f1`, both families record LLP 0163/0164/0165 READY and Scope 2 NOT READY pending this defect, so a fresh structured round at a new qualification commit is required before publication)
+**Revised:** 2026-08-06 (v0.42 — the mutually blind Codex and Fable round-4 re-qualification reviews of LLP 0158 independently found two High publication-oracle defects in v0.41: an allowlisted receipt could rotate its implementation digest to P without ever matching the qualified tree at C, and the verdict parser could accept `NOT READY` or quoted READY prose as `READY`; Fable additionally found that qualification-specific commit/tree/facts/evidence literals in the in-scope Rust mirror recreated the source-digest cycle and made an honest receipt unsatisfiable. The Rust mirror now asserts only closed structural shape, publication requires committed `implementationDigestAt(C) == receipt == implementationDigestAt(P)`, author acceptance binds the receipt's implementation-tree digest, the checker reconstructs the exact candidate-facts digest, and only anchored authoritative verdict cells/statements in the final review round count; both anchors remain withheld)
+**Revised:** 2026-08-06 (v0.41 — Charlie Cheever authorized narrowing the C-to-P custody rule to the exact implementation-digest scope after unrelated concurrent-session churn made the whole-repository rule unsatisfiable under AGENTS.md's fast-moving-main constraint; publication now directly compares the receipt digest with the implementation digest at P, preserving exact qualified-byte, ancestry, clean-worktree, and vendor-gitlink guarantees without asserting that out-of-scope repository bytes are unchanged; both anchors remain withheld)
 **Revised:** 2026-08-06 (v0.40 — the row-13 narrowing and fork-lifecycle bound ratification for the narrow `operating.instance-forks` claim, ruled by the author 2026-08-05/06 and previously recorded only in LLP 0185, the acceptance-tail ticket, and the dated bench artifact, are transcribed into this RFC as the named revision authority; the Track B storage paired/absolute gates are unchanged and every capability remains Missing); 2026-08-06 (v0.39 — landed commit a0852be190d7a908e2419ccaac43f30eee977ee2 produced a preserved failed paired record: eight of nine comparisons and every idle gate passed, but current-range p95 crossed the unchanged faster-side equivalence edge; the absolute recorder did not run, statement caching is removed from the ordinary bounded range path to restore the pinned per-call preparation boundary, and every capability remains Missing); 2026-08-05 (v0.35 — exact C30 stopped before performance after one NOT READY review found moved Host-lease and pending-capacity projections; prospective C31 validates both globally and also closes the same client-suppression closure asymmetry while every capability remains Missing); 2026-08-05 (v0.34 — exact C29 stopped before performance after fresh review; prospective C30 closes terminal-supplement retention coherence, automatic sessions ACK custody, the public explanation oracle, direct Host terminal/pending rollback proof, and Accepted-0158 documentation drift while every capability remains Missing); 2026-08-05 (v0.33 — exact merged C28 failed fresh review before performance on automatic sessions range custody, required-null host tombstone schema, retention-time SQL/JSON coherence, and pending-writer rollback proof; prospective C29 repairs all four while every capability remains Missing); 2026-08-05 (v0.32 — exact C27 was abandoned pre-result after four identity-lifecycle defects; prospective C28 adds comparison-complete tombstones, contiguous floors, a 1,024-identity epoch cap, and transaction-side writer guards; no artifact or capability claim changes); 2026-08-05 (v0.31 — C25 was abandoned before any performance artifact after review found that strict decoding preempted ValidateRequired violation facts and the backfill exception lacked a staged-destination proof; C26 makes NonNull targets exact and rejects backfill/copy destinations not introduced by earlier AddField, with no measurement or capability claim change); 2026-08-05 (v0.30 — C21 passed exact performance but did not publish after a later target-projection/order defect; C24 validly failed only point-read p95 on the faster-side interval, the absolute gate was not run, and a prospective C25 repair now enforces LLP 0007's exact portable physical representation on every application-visible decoded row without changing the measurement contract or any capability claim); 2026-08-05 (v0.29 — prospective pre-C21 production release-layout repair recorded: the exact C20 binary's 2,359,296-byte `__TEXT` excess closely matched its RSS gap, so the shipped release profile now uses full LTO and one codegen unit to reduce cross-module duplication and fragmentation; no source route, benchmark, threshold, protocol, estimator, exception, or capability claim changes, and all capabilities remain Missing pending a new exact clean candidate); 2026-08-05 (v0.28 — C20 valid paired failure recorded: eight of nine read/write comparisons plus idle CPU and disk passed, but point-read p95 crossed the unchanged two-sided 5% equivalence edge on the faster side and idle RSS's confidence interval crossed the upper edge; the absolute gate was not run and every capability remains Missing pending a genuine prospective product repair and a new exact clean candidate); 2026-08-05 (v0.27 — C18/C19 pre-result abandonments and pre-C20 transport repair recorded: own-correctness first repaired a stale TableManifest test initializer, then the row-14 audit found that two intended public identity protocol refusals projected as HTTP 500 and lacked served-route negatives; their stable codes are now deliberately classified as 400 and the exact transport refusals are exercised before handler execution. No performance artifact or capability claim was produced, and every capability remains Missing pending a new exact clean candidate); 2026-08-05 (v0.26 — C17 valid paired failure recorded: thin LTO cleared the unchanged idle CPU, disk, and RSS gates, eight of nine read/write comparisons passed, point-read p95 alone exceeded the unchanged 5% equivalence interval, the absolute gate was not run, and every capability remains Missing pending a new exact post-mainline candidate); 2026-08-05 (v0.25 — C16 pre-result abandonment after the required post-commit fetch found newer origin/main; the additive demo-only mainline was merged normally, no performance artifact was produced, and every capability remains Missing pending a new exact candidate); 2026-08-05 (v0.24 — C15 valid paired failure and prospective pre-C16 production release-layout correction recorded in the dated body; all nine read/write comparisons plus idle CPU and disk passed, idle RSS alone exceeded the unchanged 5% interval edge, the absolute gate was not run, and every capability remains Missing); 2026-08-05 (v0.23 — C14 valid paired failure and prospective pre-C15 pay-for-play checkpoint/erasure infrastructure correction recorded in the dated body; all nine read/write comparisons plus idle CPU and disk passed, idle RSS alone exceeded the unchanged 5% interval edge, the absolute gate was not run, and every capability remains Missing); 2026-08-05 (v0.22 — C11/C12 pre-result abandonments, C13 valid paired failure, and prospective pre-C14 production query/custody correction recorded in the dated body; every capability remains Missing and a new exact clean candidate must rerun the unchanged gates); 2026-08-04 (v0.21 — seventh fixed-Air candidate failure and prospective pre-C10 precision/product-memory repair: exact candidate `eae262bd91fee6bfed6ae77ddd40af22dd10c8b6` failed point-read p95, query-plan p50/p95, and RSS under the unchanged v2 gate; artifact and exact metrics are recorded in the dated body, and the absolute gate was not run. The v3 recorder retains three mirrored, time-local subpairs inside each of the unchanged 11 outer pairs, reduces each outer metric by the median of its three raw paired regressions, and applies the same 20,000-sample bootstrap only to those 11 outer values; thresholds, baseline, and effective sample count stay unchanged, while all raw observations remain independently checkable and idle CPU/disk remain conservative over every raw candidate. Empty databases defer protected-detail key minting until first use while retained ciphertext still authenticates at boot. No result, exception, or capability claim is made before a new exact candidate reruns every gate); 2026-08-04 (v0.20 — sixth fixed-Air candidate failure and pre-C9 repair: exact candidate `f34fdb41ef603d07f6720685728a28a1b18d3fa7` passed eight of nine read/write comparisons plus idle CPU and disk, but point-read p95's two-sided interval was 0.805 percentage points beyond the unchanged lower equivalence edge and RSS's interval was 0.160 percentage points beyond its upper edge; see the dated body record. Point hits now fail closed unless the decoded opaque string id exactly equals the requested id. No benchmark, threshold, protocol, estimator, exception, or claim changed); 2026-08-04 (v0.19 — fifth fixed-Air candidate failure and pre-C8 repair: see the dated body record for the exact commit, artifact, and metrics; read caching is narrowed and TEMP-table custody is replaced by direct-only in-connection crypto whose zeroizing root key never crosses SQL; thresholds, protocol, and claims remain unchanged); 2026-08-04 (v0.18 — fourth fixed-Air measurement repair: clean candidate `ba00491f29c6db76f6fb0a2b1723b7bc44bcdf44` produced a preserved failed paired record, SHA-256 `debd40d041d853e869faeb09823e092f9561ccd610ed76f43b0dab905360e20c`. Seven of nine read/write comparisons plus idle CPU and disk passed; point-read p95 failed the unchanged 5% equivalence band at median 2.4291% with bootstrap interval -1.1443–8.0552%, query-plan-read p95 failed at median 1.9324% with interval 0.1568–5.1517%, and RSS failed at median 5.3365% with interval 4.8413–5.6836%. No exception is ratified and the absolute gate was not run. The production current-read hot paths now use the existing connection statement cache while armed writer connections retain capacity zero and therefore re-run the fail-closed authorizer on every prepare. The rare real manifest-activation cut now asks the macOS allocator to return unused setup pages after SQLite cache relief without dropping the live manifest, issued range, connection, or authorizer. Direct Host-incarnation crash/reopen and served explanation/projection fixtures close two compositional proof gaps. No threshold, protocol, estimator, or capability claim changed; a new exact clean candidate must rerun every original gate); 2026-08-04 (v0.17 — third failed-candidate product-memory repair: clean fixed-Air candidate `1364781e48c35686eb0c89b543a7ab9287de2f01` passed all nine read/write comparisons plus idle CPU and disk, but preserved record SHA-256 `2856a1eb3fd2081d49f551e8458a687146f365eece521a835656620190ca9abd` honestly failed the unchanged 5% RSS bound at median 5.2108% and bootstrap interval 4.9324–5.8917%; no exception is ratified. The shared production manifest-arming seam now requests SQLite to release unused connection memory after the rare activation/validation transaction and before installing the same connection-local fail-closed authorizer; only a new fixed-Air run can establish its RSS effect; the durable manifest, same armed connection, and issued range remain live. No threshold, protocol, estimator, or claim changed. A new exact clean candidate must rerun every original gate); 2026-08-04 (v0.16 — second failed-candidate repair: clean fixed-Air candidate `949db8be40e43cdbd7449a58b70550f6e18d2098` passed all nine read/write comparisons plus idle CPU and disk, but its preserved paired record, SHA-256 `29be1887ef5d5a85d14c909f8e68b6686e132907a818b1f2a217174d4ee86032`, honestly failed the unchanged 5% RSS equivalence bound (median 5.88%, bootstrap 5.41–6.40%). The paired candidate worker now measures active read/write costs in its parent and active idle state in a fresh child process whose preceding allocation/code footprint is the dormant comparator workload; the child then activates and retains the real armed storage connection and issued range across the window. This per-metric fixture separation removes transient active-write setup from the otherwise-idle RSS metric without changing any bound, estimator, product behavior, or claim. A third exact clean candidate must rerun every original gate); 2026-08-04 (v0.15 — post-failure measurement repair: fixed-Air candidate `e6412b9b24887322d0fdb07bdd65b8e8bd86edbf` produced and preserves a failed paired record, SHA-256 `24ff252962d3f12b17c8dbb883c2a9f9052ea2b6d0413b5573681e2d8917798a`; no bound, exception, or claim changed. The candidate idle fixture now consumes the real activated carrier into its same armed `LocalDatabase`, dropping and joining unrelated telemetry setup before the five-second window while retaining the durable coverage manifest and server-issued range. The dormant SQLite writer authorizer is installed only at activation/reopen of an active manifest, removing its pre-capability statement-prepare tax without weakening the active cut. The paired semantic checker now maps camelCase comparison identities to Rust's snake_case raw report keys. A new exact clean candidate must pass every original gate before publication); 2026-08-04 (v0.14 — pre-freeze publication-authority repair: the canonical proof now runs the P-vs-C history checker and its adversarial suite; published evidence is parsed semantically for the exact clean candidate, passed paired/absolute thresholds, Acceptance rows 1–4/13/14, two distinct `READY` review families, named-author acceptance, and explicit broader/derived `Missing` scope. Contributor-source authority independently requires a clean root, the exact checked-out clean `vendor/ibex` gitlink, and the implementation digest, regardless of general build-identity overrides. The derived-deployment chain is structurally non-publishable until a distinct end-to-end F0b performance contract lands. Every anchor remains withheld before results); 2026-08-04 (v0.13 — **contention bound corrected and ratified by Charlie before the final fixed-Air run**, under the user's explicit acceptance instruction: the production v1 policy is precisely a 1,000-ms head-reservation interval and a separate 500-ms maximum promotion-commit duration, not a 500-ms reservation. The fixed 128-sample/eight-writer active-carrier request-to-COMMIT p99 ceiling is therefore 1,250,000 µs. This pre-result correction preserves the reviewed production policy, permits 250 ms beyond its intentional reservation interval for the real envelope-bearing writer and SQLite commit tail, supersedes v0.12's mistaken 500-ms/750,000-µs pairing, and leaves every capability `Missing` until the actual run and applicable correctness gates pass); 2026-08-04 (v0.12 — **absolute performance bounds ratified by Charlie** before the final Track B fixed-Air run: on the recorded 512-row/one-change fixture, median ceilings are 1,000 µs fork creation, 2,500 µs exact diff, 7,500 µs strict promotion, and 250 µs TTL reap; ordinary-writer request-to-COMMIT p99 behind the frozen 500-ms production reservation is at most 750,000 µs. These fail-closed ceilings are informed by the preserved 2026-08-03 integrated record but fixed independently of the final candidate result; capability state remains `Missing` until every applicable gate passes); 2026-08-03 (v0.11 — sequencing gates recorded: the dated step-0 pre-profile baseline fixes hardware, fixtures, warm-up, run count, median/MAD, formulas, and bounds; OQ13's reproducible spike proves a held source snapshot but no intrinsic database-size WAL bound, narrowing LLP 0165 to budgeted pin or stable refusal; capability rows remain `Missing`); 2026-08-03 (v0.10 — post-acceptance scoped-review repairs from the combined light round (artifacts `llp/reviews/0163-0165-extraction.{fable,codex}.md`): host-originator reclamation predicate added (terminal-receipt-plus-declared-window; range-less host epochs close on incarnation rotation) with an Acceptance 14 leg; §8 provenance table rebuilt contiguous with Accepted/Draft ownership split; reservation-quota sufficiency added to the declared fairness terms; the legacy 0097 projection made total; protected-lane custody assigned to LLP 0163; tombstone bound recorded); 2026-08-03 (v0.9 — **Accepted by Charlie** after the seven-round super-refine loop (see `llp/reviews/0162-agent-safe-storage-profile.super-refine.md`), with three author decisions applied: OQ11 decided — an agent principal holding an LLP 0055 scoped grant may approve a `PromotionRequestV1`; OQ14 executed — the identity/envelope, fork/promotion, and proof/checkpoint contracts are extracted to LLP 0163/0164/0165 with this RFC as the profile umbrella; the commissioned dated amendments landed in LLP 0097, 0133, 0043, 0012, and 0095. Acceptance changes the document's status only: every capability remains `Missing` until the acceptance corpus passes (§Summary claim boundary), and the step-0 baseline artifact, the OQ13 snapshot-pinning spike, and LLP 0163-0165's own acceptance still gate advertisement); 2026-08-03 (v0.8 — final targeted repair from the seventh, delta-scoped cross-family round (repairs unreviewed; the loop closed at the declared stopping rule): re-seal widened to the full approved-facts digest (reads, ctx answers, decision/result facts, writes, effects, coverage) with the original approval preserved and re-seal as a separately identified engine attestation; identity tombstones retained until the epoch floor passes, closing the two-identity/same-epoch hole, with `result-expired`-before-`identity-horizon-passed` lookup precedence; journal completeness re-founded on an enforceable write-authority choke point (generated transaction API + SQLite authorizer) with an honest enumerated-fixture fallback class; post-expiry aggregate explanation gets `authorization-unprovable` fail-closed; promotion durably copies replay-log envelope facts into canonical; the aggregate promotion identity pinned to the rebase-invariant admission ticket; head reservation quotaed with a p99 contention metric and TTL-sufficiency condition; 0158 sentinel + intra-state crash matrix imported into Acceptance 12 with the registry-authority deviation declared; effect facts split into egress-family and 0066 settlement-capability axes; offline range exhaustion dispositioned; `verifiedCopyFidelity` named as its own proof class; per-component performance gating clarified; legacy `Missing` projection rationale recorded); 2026-08-03 (v0.7 — sixth cross-family review round applied: `PromotionRequestV1` re-seals automatically across rebase when re-execution reproduces the approved facts; promotion's admissible identity unified on the aggregate (per-source identities demoted to non-admissible write-fact-granularity provenance joins, Acceptance 3 carved); liveness weakened to declared conditional fairness with a bounded head-reservation escalation and ticket-lifetime/budget terms; offline minting closed via server-preallocated authenticated finite identity ranges; epoch closure defined on acknowledgement with the crashed-client wedge stated; the `result-expired` middle-regime disposition named and amended; checkpoint claims re-scoped to verified copy fidelity with 0158's publication state machine imported and the snapshot-pinning spike named; journal completeness given a closed write-path-registry derivation; the non-row authorization rule owned here; derived-deployment fork support moved out of core into a 0158-gated additive capability; `Promotable(noEffects)` named as a strictly narrower claim with a conservative legacy projection; index costs split; OQ4 authority corrected); 2026-08-03 (v0.6 — fifth cross-family review round applied: identity keyspace partitioned by originator class with server-authenticated host derivations (squatting foreclosed); envelope compact identity given a bounded retention clock independent of the resume floor and journal prune, with asymmetric-join dispositions; non-row authorization dropped to LLP 0088's current-policy rule with the residual named; `DenyAll` records a bounded payload-free attempt marker so no-egress promotion is provable; `PromotionRequestV1` seals the reviewed branch head and promotion commits one canonical transaction with an aggregate envelope; epoch issuance server-recorded so closure sees minted-not-just-admitted identities; §8 provenance claim replaced by a per-component owner/status table and the 0097 amendment scope widened to every touched section; FIFO admission tickets held across rebase with a concurrency-scaled budget and progress fixture; pins made finite renewable leases; exception authority corrected to dated author ratification with a hard ceiling; bounded envelope enumeration added; per-class credential acceptance; sequencing step-3(a)/5(a) duplication fixed); 2026-08-03 (v0.5 — fourth cross-family review round applied: audience decided to be a bound compared fact, not a key component (LLP 0133's collision rule preserved; key = stream-qualified operation identity, promotion identities derived from the globally non-reusable `childStreamId`); the epoch floor given an issuer/closure/advancement protocol that cannot strand in-flight identities; a dated proposed-normative amendment to LLP 0097 §Capability classes declared for the axis split and `DenyAll`; promotion contention answered with serialized admission and a bounded rebase budget; checkpoint dual-path proof pinned to one source snapshot; non-row fact authorization made current-plus-captured; the core tier's per-version rule owned by this RFC; aggregate membership and performance thresholds closed with LLP 0130 as exception authority; sequencing gains a baseline step 0 and splits mediation from capture-ledger work); 2026-08-03 (v0.4 — third cross-family review round applied: envelope/suppression identity stream-qualified with branch-local namespaces and deterministic promotion re-mint; suppression reclamation restricted to acknowledged receipts plus an epoch-bearing anti-replay floor, `identity-horizon-passed` reclassified as outcome-unknown; per-fact-class authorization for non-row explanation facts; fork capability split into orthogonal axes (egress/promotion/base/isolation) with no-egress `DenyAll` branches promotable; `AgentSafeV1` layered into a core aggregate, an app-effective conformance fact, and a history tier gated on LLP 0088; checkpoint dual-path proof derivation and erasure/custody protocol; measurement gate scoped per component against the dated baseline; rebase-by-replay affordance; uncovered-lane co-writes make a branch non-promotable); 2026-08-03 (v0.3 — second cross-family review round applied: `operationId` defined as the shipped `ClientMutationIdentity` widened (LLP 0133's extend-don't-ride-beside discipline) with per-originator identity sources and a bounded suppression lifecycle after LLP 0043's settlement pattern; LLP 0088 §6's per-post-image authorization rule imported verbatim with elision fixtures; the diff surface split into attributed change sequence versus net state diff with first-write-preimage/immutable-base requirement and canonical folding; deny-all egress renamed `DenyAll` (CaptureOnly reserved for 0097's ledger-backed meaning); "covered" given a definition; §8 given a base-class axis, a manifest-extension relationship to LLP 0134, and a closed v1 aggregate matrix; performance gate re-founded on a dated statistically controlled baseline artifact; `branches::promote` reframed as a deviation from Accepted LLP 0097 and ticketed there); 2026-08-03 (v0.2 — first cross-family review round applied: envelope keyed by operation identity with the commit version demoted to a stream-qualified snapshot association; the promotable fork class pinned to LLP 0097's in-app branch, with LLP 0158 derived-deployment forks capture-only; named checkpoints split into materialized and receipt-only substrate classes; per-fact read-set provenance discriminators per LLP 0007/0133/0146; LLP 0088's history invariants imported normatively; replay-sufficient promotion record required and the landed post-image `branches::promote` path marked superseded; capability claims routed through LLP 0134; commissioning authorities and amendment ownership named)
 **Qualification amendment (2026-08-05, v0.22):** The C11 and C12
 pre-result abandonments and C13's valid failed paired result are recorded
@@ -1636,6 +1642,17 @@ receipt bridge. If any component demotes under LLP 0134's rules, every tier
 containing it demotes with it. A target with a missing component advertises
 the individual capabilities it actually has.
 
+Publication-proof algorithms are capability facts too. A digest or verdict
+history is interpreted only under the explicit algorithm/schema version named
+by its carrier, receipt, and named-author acceptance; an older artifact is not
+silently reinterpreted under a newer checker. `snapback.review-verdicts.v2`
+and `snapback:agent-safe-implementation-tree:v2` are the minimum publication
+contracts after the round-6 repairs below. A v1 receipt, acceptance artifact,
+or verdict history may remain retained evidence behind a `withheld` anchor,
+but it cannot establish target support or app-effective coverage and must
+refuse with a version-specific re-qualification diagnostic if presented for
+publication.
+
 ### 9. Storage engine and portability
 
 Stock SQLite remains the canonical local physical engine. This RFC introduces
@@ -2294,7 +2311,12 @@ the carrier. The build independently verifies a clean root and an exact,
 clean checked-out `vendor/ibex` gitlink regardless of general build-identity
 environment overrides. The implementation tree includes Cargo/build inputs,
 Rust implementation, codegen and contract packages, the publication checker,
-recorders, and the `vendor/ibex` gitlink identity. Incremental builds track
+recorders, and the `vendor/ibex` gitlink identity. Its algorithm identifier is
+`snapback:agent-safe-implementation-tree:v2`. Each canonical leaf frame hashes
+the Git mode, Git object type, repository-relative path, content length, and
+content bytes; a symlink is therefore a `120000 blob`, an executable regular
+file differs from `100644`, and `vendor/ibex` is explicitly a `160000 commit`
+entry whose content is the gitlink object id. Incremental builds track
 the vendored source directories plus the resolved submodule worktree and
 common-git metadata, so an in-place Ibex source, index, HEAD, or ref change
 cannot retain a cached clean digest. The two anchors, carriers,
@@ -2307,13 +2329,65 @@ second, closed transitive cycle exclusion. The checker derives the exact
 receipt substitutions and resulting anchor digest from C; source maps and all
 other carrier/anchor bytes are immutable. Rust and conformance-test bytes stay
 inside the implementation digest and cannot change at P. The history-aware
-checker, now in the canonical local proof, proves the
-qualification commit C
-is an ancestor of publication commit P and that the implementation tree is
-identical at C and P; the carrier binds the receipt, which in turn binds the
-acceptance record, paired and absolute performance records, two independent
-reviews, and author acceptance by path and SHA-256. It also parses those
+checker, now in the canonical local proof, proves the qualification commit C
+is an ancestor of publication commit P. Under Charlie Cheever's
+author-authorized 2026-08-06 narrowing, it recomputes the implementation digest
+from committed bytes at C and again from committed bytes at P, and requires
+both to equal the receipt's `implementationTreeSha256`. The receipt, carrier,
+and anchors are cycle exclusions and may rotate at P, so a P-only comparison
+would be self-satisfying; the three-way equality is the proof that the receipt
+names the qualified implementation and that P still has it. A refusal reports
+the receipt, C, and P digests plus every changed in-scope path. That digest's scope is precisely
+`IMPLEMENTATION_ROOTS` plus the `vendor/ibex` gitlink, minus the closed
+`PUBLICATION_CYCLE_ALLOWLIST`; a mismatch reports every changed in-scope path
+between C and P. The checker separately
+requires a clean publication worktree and an exact, clean checked-out
+`vendor/ibex` gitlink. Therefore the residual custody guarantee is direct: the
+qualified implementation Git entries — mode, type, path, bytes, and Ibex
+gitlink — are identical at publication.
+It deliberately no longer asserts that bytes elsewhere in the repository are
+unchanged. This is required by AGENTS.md's fast-moving-main constraint: demos,
+guide prose, unrelated packages, and other subsystems' LLPs or issues can land
+between C and P without invalidating qualification, provided they remain
+strictly outside the digest scope. The carrier binds the receipt, which in
+turn binds the acceptance record, paired and absolute performance records, two
+independent reviews, and author acceptance by path and SHA-256. It also parses those
 artifacts semantically for exact clean candidate/hardware/protocol identity.
+The candidate-facts field has no parallel rotation hole: the checker
+reconstructs the closed candidate object from implementation code covered by
+the same C/receipt/P digest, hashes its deterministic `JSON.stringify` bytes, and
+requires that exact digest independently in the carrier and receipt; derived
+author acceptance directly binds both that candidate digest and the receipt's
+implementation digest, while storage author acceptance directly binds the
+same receipt implementation digest. The qualified source commit, component list, target,
+negative targets/distributions, and evidence locator order are likewise
+reconstructed or exact-shape checked rather than trusted from one mutable
+publication record.
+
+The carrier, receipt, and applicable storage or derived author-acceptance
+artifact must all name the v2 algorithm explicitly, under their corresponding
+v2 schemas. Every digest computed with
+`snapback:agent-safe-implementation-tree:v1` is stale: changing only an
+executable bit or replacing a file with a symlink could preserve that value.
+No v1 value is reinterpreted as v2. A v1 receipt may remain inert behind a
+`withheld` anchor so the historical storage and fork chains remain inspectable,
+but presenting it through a `published` anchor refuses with a version-specific
+re-qualification error. Re-qualification produces a new v2 digest and requires
+new carrier, receipt, and author-acceptance bindings; the old recorded digest
+does not survive the algorithm change.
+
+Fable's round-4 review also caught a cycle inside the Rust structural mirror:
+its test pinned C's exact commit, implementation-tree digest, candidate-facts
+digest, and author-acceptance evidence digest as literals in `src/`, which is
+itself in `IMPLEMENTATION_ROOTS`. Those qualification-specific assertions are
+removed. The mirror still requires the receipt schema, capability, source-
+commit shape, nonzero digest shapes, exact target and negative profiles,
+component list, and ordered evidence locator kinds/paths. Exact cycle-dependent
+values live only in the receipt/carrier/anchor and author-acceptance records in
+`PUBLICATION_CYCLE_ALLOWLIST`, where the JS checker binds them. Consequently a
+candidate's implementation digest is stable when those publication records are
+added or rotated, so the receipt can honestly name the commit that qualified
+it.
 It recomputes every paired regression, bootstrap interval, idle gate,
 absolute median/MAD/range, and contention percentile from the retained raw
 observations before accepting the reported passed paired and absolute gates,
@@ -2321,14 +2395,129 @@ Acceptance rows 1–4/13/14, distinct Fable
 and Codex `READY` verdicts, Charlie's scoped acceptance, and every wider fact
 remaining `Missing`.
 
-Generated publication projections are fail-closed too. One implementation-
-digest-bound registry covers every backend in the canonical artifact ledger.
-At C the checker freezes the exact regular-blob leaves: each review manifest,
-only its tracked `consumer-committed` projections, and the pre-existing leaves
-of the explicitly fully committed and admin-generated roots. P may modify
-those leaves without changing their modes, but may not add, delete, rename,
-retag, or widen them from a mutable P manifest. Source inputs, regenerable
-caches, unmanaged roots, and every new executable path remain forbidden.
+Every JSON artifact in either publication chain is structured, closed, and
+fail-closed. **No publication-chain JSON is ever read non-canonically.** One
+parser boundary requires an anchor, carrier, receipt, author acceptance,
+evidence fixture, benchmark receipt, or verdict sidecar's complete bytes to
+equal `JSON.stringify(parsed, null, 2) + '\n'` before any shape, value, digest,
+or authority check. This rejects duplicate member names, alternate whitespace
+or line endings, missing or extra final newlines, and every representation that
+does not round-trip to exactly what the checker parsed. There is no weaker
+publication-path JSON reader for a new artifact to select accidentally.
+
+Review verdict authority is structured, closed, and fail-closed. Each of the
+four fixed prose review locators has exactly one fixed adjacent
+`*.verdicts.v1.json` locator (the legacy locator spelling is fixed; publication
+requires `schemaVersion: "snapback.review-verdicts.v2"` inside it). The prose remains mandatory human-facing review
+evidence and remains digest-bound in the receipt, but **nothing in its body is
+authoritative or parsed for a verdict**. Its sidecar has exact top-level keys
+`schemaVersion` and `verdicts`; every verdict entry has exactly
+`reviewArtifact`, `reviewArtifactSha256`, `family`, `round`,
+`reviewedCommit`, `previousEntrySha256`, and `verdict`. The typed verdict is either the closed
+Scope-1 map for LLPs 0163/0164/0165 or the closed Scope-2 publication status,
+and its only values are `READY` and `NOT_READY`.
+
+Every v2 history starts at round 1 and is stored in strictly increasing,
+contiguous order. Round 1 has `previousEntrySha256: null`; each later entry
+must name the SHA-256 of its predecessor's canonical
+`JSON.stringify(entry, null, 2) + '\n'` bytes. A missing, duplicated, reordered,
+or predecessor-mismatched round refuses; the highest numbered entry is
+therefore unambiguously authoritative. Every entry binds the same fixed prose
+path and the exact SHA-256 of the **current complete prose artifact**, retains
+one recognized family throughout the history, and names a 40-hex reviewed
+commit whose history is ancestry-monotonic.
+`reviewArtifactSha256` is deliberately a current-state tamper binding, not a
+claim about the artifact bytes as they existed when that historical round was
+recorded. Consequently appending or restoring prose requires rewriting that
+field in all earlier entries, recomputing their predecessor chain, and rotating
+the enclosing receipt chain; the JSON history is logically ordered but not
+physically append-only. It has **no append-only property of its own**: anyone
+able to rewrite all entries can recompute this field and the predecessor chain.
+All review-history strength therefore rests on the named-author accepted
+`(roundCount, headEntrySha256)` pair; that acceptance is the sole root of trust
+against deletion, restart, or replacement of an otherwise internally valid
+history. The authoritative entry must name the exact
+qualification commit C. The two fixed review pairs must contain distinct Codex
+and Fable families, and the family must match the fixed prose artifact.
+
+The named-author acceptance v2 object additionally has an exact
+`reviewHistoryHeads` map for all four fixed histories. Each value contains the
+accepted `roundCount` and canonical `headEntrySha256`. The receipt binds that
+acceptance object's bytes. Publication therefore validates the complete
+history recorded by the reviewer/author chain: a prefix deletion, middle
+truncation followed by renumbering/rechaining, wholesale round-1 restart, or
+replacement changes the accepted count and/or head and refuses. Rebinding only
+the sidecar, receipt evidence digests, carrier, and anchor is insufficient.
+Missing or malformed JSON, any unknown field, an unknown status or family, a
+prose-digest/path mismatch, a commit mismatch, an inconsistent history, a
+same-family pair, or any authoritative `NOT_READY` refuses. The receipt and
+named-author acceptance bind both the prose digest and sidecar digest, making
+either artifact tamper-evident in the existing anchor → carrier → receipt
+chain.
+
+The residual trust assumption is explicit. Reviewer entries and named-author
+acceptance are repository artifacts, not reviewer/author digital signatures or
+an external append-only transparency log. The checker does not claim to resist
+an actor with commit access who is willing and able to fabricate or replace
+both the reviewer history and the named-author acceptance that declares its
+head. It does detect accidental loss and adversarial truncation/restart relative
+to the accepted chain, and it does not equate Git commit access with reviewer
+or author identity.
+
+The redesign is credited to the Codex and Fable round-4 reviews that first
+caught the C/P, substring-verdict, and source-cycle defects; to the Codex
+round-5 adversarial review that demonstrated four surviving full-chain
+bypasses in v0.42; and to the Fable round-5 review that independently reopened
+the prose parser and showed that the review chain did not name the qualified
+commit. The round-6 Codex review is credited for demonstrating that v0.44 could
+delete/restart an entire verdict history and that implementation digest v1 was
+blind to Git entry mode/type. The four round-5 demonstrated full-chain shapes were a positive verdict inside
+a fenced Markdown quotation, a lower-numbered historical round appended after
+the real final round, tab-delimited CommonMark headings hiding a blocking final
+round, and a second conflicting Scope-1 table ignored after a positive first
+table. Those shapes are now structurally irrelevant because the checker never
+interprets Markdown: changing the prose only changes the digest the structured
+entry and receipt must bind, while authority stays in the closed JSON value. At
+`b08e835f112517cf1629a842f5bcae12841ddcf0`, both families' Scope-1 verdicts
+for LLPs 0163/0164/0165 are `READY`, and both Scope-2 verdicts are
+`NOT_READY` pending this oracle repair. Both anchors therefore remain
+withheld. Since this checker redesign changes the qualified implementation
+tree, publication requires a fresh structured highest round bound to the new
+qualification commit; historical READY prose or sidecars bound to
+`b08e835f1` cannot qualify it. The transcript-recoverable round-6 bodies are now
+restored verbatim in all four prose artifacts, and all four checked-in sidecars
+are v2 histories containing contiguous rounds 1–6. Their recorded round-6
+values are unchanged: both families have Scope 1 `READY` for LLPs
+0163/0164/0165 and Scope 2 `NOT_READY` at `bdc682964`. Publication remains
+blocked until the canonical-reader fix lands in a fresh qualification C, both
+reviewer families append fresh round-7 entries whose highest verdicts name that
+C and are `READY` for their applicable scopes, the two release-platform
+receipts are rebound, and Charlie provides new v2 named-author acceptance for
+the exact history counts/heads and implementation digest. Only then may a v2
+receipt/carrier be constructed and the source anchor be considered for
+`published`.
+
+The older `agent_safe_storage_v1` review path has not migrated to these
+structured sidecars. Its compatibility validator still consumes one fixed
+Markdown document per family, but now requires **exactly one** occurrence of
+every declared `**Label:**` field. A missing field or any duplicate — including
+an appended later `**Verdict:** NOT_READY` after an earlier READY field —
+refuses instead of selecting the first match. This closes the shadowing defect
+without pretending the storage artifacts have round/history semantics. What
+remains is explicit: the storage path has no authoritative append-only round
+record, its two expected dated review artifacts are absent, and its anchor is
+withheld. A future storage review workflow that appends rounds must migrate its
+fixed locators, receipt bindings, author acceptance, and validator to a closed
+structured history before publication.
+
+The reviewed generated-publication leaf registry remains a separate,
+fail-closed inventory check: it freezes each review manifest, its tracked
+`consumer-committed` projections, and the pre-existing leaves of the explicitly
+fully committed and admin-generated roots. It does not expand the C-to-P
+custody claim beyond the receipt's implementation digest. Generated leaves
+outside that digest may change concurrently and are not evidence that the
+qualified implementation changed; any generated leaf inside the digest scope
+is covered by the same exact P digest comparison.
 
 The storage candidate is reconstructed in Rust and is exactly six facts: the
 ordinary-mutation and host-child-mutation lanes across HostPlan and

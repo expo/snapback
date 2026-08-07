@@ -1,11 +1,11 @@
 # LLP 0164: Fork and promotion
 
 **Type:** Spec
-**Status:** Draft
+**Status:** Accepted
 **Systems:** Storage, Runtime, Effects, Auth, Agent experience, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-03
-**Revised:** 2026-08-06 (receipt-evolution acknowledgement — the local target's net receipt advanced to snapback.fork-net-diff.v3 with stream-qualified boundaries, a canonical digest, writer-coverage and attribution-absence facts, and the registered-connection-defensive-app-rows-v1 class under this Spec's target-choice delegation; LLP 0158 carries the wire contract, LLP 0165 the class semantics; Draft/Missing unchanged); 2026-08-06 (derived-deployment reconciliation — row-5 parent-write fixture recorded closed at module and live-server level, §Diff target-choice delegation recorded exercised by the retained-base net diff, asset coverage-fact satisfaction stated, LLP 0185 added to Related; Draft/Missing unchanged); 2026-08-05 (LLP 0185 Phase 0 ownership reconciliation — this
+**Revised:** 2026-08-06 (accepted by Charlie Cheever after three mutually blind dual-family review rounds converged `READY`; acceptance approves this Spec's contract while leaving the wider in-app promotion/effect-settlement program, broader Track B facts, hosted targets, and every manifest predicate `Missing`; the narrow local derived fork remains non-promotable with no merge-back); 2026-08-06 (receipt-evolution acknowledgement — the local target's net receipt advanced to snapback.fork-net-diff.v3 with stream-qualified boundaries, a canonical digest, writer-coverage and attribution-absence facts, and the registered-connection-defensive-app-rows-v1 class under this Spec's target-choice delegation; LLP 0158 carries the wire contract, LLP 0165 the class semantics; Draft/Missing unchanged); 2026-08-06 (derived-deployment reconciliation — row-5 parent-write fixture recorded closed at module and live-server level, §Diff target-choice delegation recorded exercised by the retained-base net diff, asset coverage-fact satisfaction stated, LLP 0185 added to Related; Draft/Missing unchanged); 2026-08-05 (LLP 0185 Phase 0 ownership reconciliation — this
 Spec owns the remaining row-5 derived post-fork-parent-write fixture and both
 row-9 diff oracles; LLP 0158 remains the derived-deployment contract authority
 and LLP 0165 retains only journal-completeness closure. No row state changed.);
@@ -538,3 +538,14 @@ capability claim changes.
 5. The consolidated acceptance tail, including author bound ratification and
    the residual corpus, is tracked in
    [`issues/20260803-agent-safe-storage-acceptance-tail.md`](../issues/20260803-agent-safe-storage-acceptance-tail.md).
+
+## Status
+
+**Accepted 2026-08-06 (Charlie Cheever).** Three mutually blind rounds of
+Codex- and Fable-family review converged `READY` for this Spec. Acceptance is
+of the fork-and-promotion contract; it does not publish the broader
+agent-safe-storage aggregate or close the remaining in-app promotion,
+effect-settlement, and Track B work. The separately published local
+derived-deployment fork is `NotPromotable`: promotion, merge-back, hosted
+targets, and every target-manifest predicate remain `Missing` or explicit
+nonclaims.

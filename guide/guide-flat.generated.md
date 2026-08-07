@@ -8532,6 +8532,60 @@ optimistic mutations work unchanged: for a like/favorite button backed by a
 live feed, use [the optimistic toggle recipe](../recipes/optimistic-toggle.md)
 rather than component state plus a local counter delta.
 
+## Install the published Expo path
+
+<!-- since: 0.1.11 -->
+
+In a standalone Expo 57 app, install the package roots that the app imports
+plus the native file, random, and picker modules used by the durable image
+path:
+
+```sh
+npx expo install \
+  @expo/snapback-cli@^0.1.11 \
+  @expo/snapback-client@^0.1.11 \
+  @expo/snapback-codegen@^0.1.11 \
+  @expo/snapback-expo@^0.1.11 \
+  @expo/snapback-react@^0.1.11 \
+  expo-file-system expo-crypto expo-image-picker
+```
+
+Do not add `@expo/snapback-contract` directly; the client/codegen packages
+own their exact Contract edge. Keep one coherent version vector in the lock,
+with no `file:`, `link:`, workspace, override, or checkout path.
+
+The current CLI has no backend-only initializer. `snapback new` creates a
+whole project, so when adding Snapback to an existing blank Expo app, create
+the packaged React scaffold in a clean sibling directory and copy its
+conventional `snapback/` child into the Expo root before authoring and
+generating:
+
+```sh
+npx snapback new ../snapback-backend-scaffold --template react
+cp -R ../snapback-backend-scaffold/snapback ./snapback
+npx snapback generate snapback --json
+```
+
+This is the published workflow proved by the external G4 repository; the
+extra sibling ceremony is a known scaffold limitation rather than a hidden
+`snapback init` command.
+
+A blank Expo TypeScript scaffold includes the whole tree. Snapback's generated
+directory also carries provider-neutral Contract source projections that are
+not Expo runtime inputs, so keep the app check on entrypoints plus generated
+declarations:
+
+```json fragment reason="external Expo typecheck boundary proved by the G4 receipt"
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": { "strict": true },
+  "include": ["App.tsx", "index.ts", "snapback/generated/*.d.ts"]
+}
+```
+
+This is a typecheck boundary, not permission to hide errors in the imported
+descriptor declarations; `npx tsc --noEmit` must still pass.
+
 ## Install the Expo facade from this source checkout
 
 For an Expo app nested anywhere under this checkout, run one command from the
@@ -8598,14 +8652,18 @@ back to `curl`, raw host operations, or a one-off verification script.
 
 <!-- since: 0.1.10 -->
 
-> **Published 0.1.10 caveat.** The package names exist on npm, but the dated
+> **Published 0.1.11 boundary.** The dated 0.1.10
 > [external-consumer G4 proof](repo:demos/expo-golden-path-fixture/receipts/20260806-g4-external-summary.md)
-> found that the 0.1.10 generated descriptor requires `single_table_v1` while
-> the 0.1.10 packaged runtime rejects it, before Metro starts. That Expo
-> package also predates the provider's ImagePicker source adapter. Use the
-> source-checkout install above until a successor closure containing both
-> already-landed source repairs is published; do not cast the picker asset or
-> mix checkout and registry packages to force 0.1.10 through.
+> found a runtime-capability and ImagePicker-closure mismatch. The live 0.1.11
+> vector repairs both: the external iOS simulator reached its complete
+> live-query/image-send marker, and the same app reached the Android marker
+> after a verification-only adb compatibility wrapper. G4 still fails as a
+> distribution gate: current adb may label selected reverse rules `host-16`,
+> which 0.1.11 rejects; EAS CLI cannot resolve the documented package-root
+> config-plugin entry; and release exports still retain the supervised
+> bootstrap path, origin-symbol vocabulary, and development host literals.
+> Source repairs for the first two await a successor package. Do not patch
+> `node_modules` or mix source and registry packages to hide those boundaries.
 
 The north-star boot has three application-visible pieces: the config-plugin
 entry, the generated `app`, and `SnapbackExpoProvider`. There is no backend URL
@@ -8616,6 +8674,18 @@ The working fixture's plugin entry is:
 ```json source=demos/expo-golden-path-fixture/app.json
     "plugins": ["@expo/snapback-expo"],
 ```
+
+For EAS CLI against exactly 0.1.11, use the already-exported config-plugin
+subpath instead:
+
+```json fragment reason="0.1.11 EAS compatibility spelling proved by the G4 receipt"
+    "plugins": ["@expo/snapback-expo/app.plugin"]
+```
+
+The package-root entry works with `expo config` but 0.1.11 exposes no CommonJS
+root for EAS's resolver. The source package now supplies that conditional root
+and retains the subpath; either spelling will work after the successor is
+published.
 
 Its application root mounts the provider with the generated descriptor and an
 optional boot-state fallback, still with no URL or binding prop:
@@ -8636,6 +8706,15 @@ the iOS default or select Android explicitly:
 ```sh
 snapback dev --expo
 snapback dev --expo --expo-platform android
+```
+
+Ignore both local-state forms before copying, staging, or archiving the app;
+the sibling restore lock records an absolute target-instance reservation and
+is not portable between hosts:
+
+```gitignore
+.snapback/
+*.snapback.restore.lock
 ```
 
 Use `--expo-dir`, a positional backend directory, `--email`, or
@@ -8705,6 +8784,15 @@ the unchanged binding `source: "supervised-dev"`; Android USB remains
 `bindingRouting: "port-forward"`. Device selection is exact and ambiguity
 refuses rather than allowing adb to choose whichever target happens to be
 first.
+
+Published 0.1.11 has one current-adb compatibility boundary: a selected-device
+`adb reverse --list` row may begin with a transport token such as `host-16`
+instead of echoing `emulator-5554`. The 0.1.11 supervisor mistakes that token
+for the selected serial and refuses after installing its rules. The source
+repair treats the already `adb -s <serial>`-scoped listing as belonging to the
+selected device; until that ships, an unmodified 0.1.11 Android supervised run
+on an affected adb is expected to fail with
+`SNAPBACK_EXPO_ADB_REVERSE_FAILED`.
 
 Supervised binding admission tolerates at most 60 seconds of the host issuer's
 clock running ahead of the simulator/emulator clock. Expiry remains strict; a
@@ -9036,9 +9124,10 @@ node demos/_kit/eas-stage-build.mjs demos/tandem-expo-bakeoff/snapback/native-sh
 node demos/_kit/eas-stage-build.mjs <app-dir> --stage-only
 ```
 
-The helper excludes `node_modules`, `.expo`, `.git`, and `dist` at every
-depth, refuses any staging directory that is still inside a Git checkout, and
-keeps the small native "shell" pattern workable: the shell carries only
+The helper excludes `node_modules`, `.expo`, `.git`, `dist`/`dist-*`,
+`.snapback`, and the sibling restore lock at every depth, refuses any staging
+directory that is still inside a Git checkout, and keeps the small native
+"shell" pattern workable: the shell carries only
 native dependencies and EAS config while loading the product bundle from the
 parent Metro server (see
 [repo:demos/tandem-expo-bakeoff/scripts/build-ios-dev-client](repo:demos/tandem-expo-bakeoff/scripts/build-ios-dev-client)

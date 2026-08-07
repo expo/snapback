@@ -21,7 +21,9 @@
   "exports": {
     ".": {
       "types": "./index.d.mts",
-      "import": "./index.mjs"
+      "import": "./index.mjs",
+      "require": "./app.plugin.js",
+      "default": "./index.mjs"
     },
     "./app-binding": {
       "types": "./app-binding.d.mts",

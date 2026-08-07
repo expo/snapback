@@ -59,7 +59,7 @@ const STORAGE_EVIDENCE_LOCATORS: [(&str, &str); 6] = [
     ),
 ];
 #[cfg(test)]
-const DERIVED_FORK_EVIDENCE_LOCATORS: [(&str, &str); 9] = [
+const DERIVED_FORK_EVIDENCE_LOCATORS: [(&str, &str); 13] = [
     (
         "lifecycleBenchMacos",
         "tests/acceptance/instance-fork-lifecycle-bench.2026-08-06.macos-aarch64.v1.json",
@@ -81,16 +81,32 @@ const DERIVED_FORK_EVIDENCE_LOCATORS: [(&str, &str); 9] = [
         "llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.codex.md",
     ),
     (
+        "specReviewCodexVerdicts",
+        "llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.codex.verdicts.v1.json",
+    ),
+    (
         "specReviewFable",
         "llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.fable.md",
+    ),
+    (
+        "specReviewFableVerdicts",
+        "llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.fable.verdicts.v1.json",
     ),
     (
         "implementationReviewCodex",
         "llp/reviews/0158-instance-forking.implementation-2026-08-06.codex.md",
     ),
     (
+        "implementationReviewCodexVerdicts",
+        "llp/reviews/0158-instance-forking.implementation-2026-08-06.codex.verdicts.v1.json",
+    ),
+    (
         "implementationReviewFable",
         "llp/reviews/0158-instance-forking.implementation-2026-08-06.fable.md",
+    ),
+    (
+        "implementationReviewFableVerdicts",
+        "llp/reviews/0158-instance-forking.implementation-2026-08-06.fable.verdicts.v1.json",
     ),
     (
         "authorAcceptance",
@@ -137,6 +153,7 @@ struct LocalAgentSafePublicationCarrierV1 {
     target_profile_id: String,
     maturity: String,
     qualified_source_commit: String,
+    implementation_digest_version: Option<String>,
     implementation_tree_sha256: String,
     candidate_facts_sha256: String,
     qualification_receipt_sha256: String,
@@ -150,6 +167,7 @@ struct AgentSafePublicationReceiptV1 {
     schema_version: String,
     capability_id: String,
     qualified_source_commit: String,
+    implementation_digest_version: Option<String>,
     implementation_tree_sha256: String,
     candidate_facts_sha256: String,
     qualified_target_profile_id: String,
@@ -348,18 +366,21 @@ fn publication_verified_for(
             .all(|(binding, (kind, path))| {
                 binding.kind == *kind && binding.path == *path && is_nonzero_sha256(&binding.sha256)
             });
-    carrier.schema_version == "snapback.local-agent-safe-publication.v1"
+    carrier.schema_version == "snapback.local-agent-safe-publication.v2"
         && carrier.capability_id == capability_id
         && carrier.target_profile_id == TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX
         && carrier.maturity == "experimental"
         && carrier.build_provenance_requirement == "known-clean-contributor-source"
+        && carrier.implementation_digest_version.as_deref()
+            == Some("snapback:agent-safe-implementation-tree:v2")
         && is_source_commit(&carrier.qualified_source_commit)
         && carrier.implementation_tree_sha256 == build_implementation_tree_sha256
         && carrier.candidate_facts_sha256 == sha256_prefixed(&candidate_bytes)
         && carrier.qualification_receipt_sha256 == sha256_prefixed(receipt_bytes)
         && candidate == exact_candidate
-        && receipt.schema_version == "snapback.agent-safe-publication-receipt.v1"
+        && receipt.schema_version == "snapback.agent-safe-publication-receipt.v2"
         && receipt.capability_id == capability_id
+        && receipt.implementation_digest_version == carrier.implementation_digest_version
         && receipt.qualified_source_commit == carrier.qualified_source_commit
         && receipt.implementation_tree_sha256 == carrier.implementation_tree_sha256
         && receipt.candidate_facts_sha256 == carrier.candidate_facts_sha256
@@ -406,9 +427,12 @@ mod tests {
         let commit = "b".repeat(40);
         let candidate_sha256 = sha256_prefixed(&serde_json::to_vec(&candidate).unwrap());
         let receipt = AgentSafePublicationReceiptV1 {
-            schema_version: "snapback.agent-safe-publication-receipt.v1".to_owned(),
+            schema_version: "snapback.agent-safe-publication-receipt.v2".to_owned(),
             capability_id: capability_id.to_owned(),
             qualified_source_commit: commit.clone(),
+            implementation_digest_version: Some(
+                "snapback:agent-safe-implementation-tree:v2".to_owned(),
+            ),
             implementation_tree_sha256: tree.clone(),
             candidate_facts_sha256: candidate_sha256.clone(),
             qualified_target_profile_id: TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX.to_owned(),
@@ -417,7 +441,7 @@ mod tests {
                 TARGET_PROFILE_REMOTE_SERVICE_SQLITE_IBEX.to_owned(),
             ],
             negative_build_distributions: vec![
-                crate::identity::BUILD_DISTRIBUTION_PUBLIC_PACKAGE.to_owned()
+                crate::identity::BUILD_DISTRIBUTION_PUBLIC_PACKAGE.to_owned(),
             ],
             qualified_components: components.iter().map(|value| (*value).to_owned()).collect(),
             evidence: STORAGE_EVIDENCE_LOCATORS
@@ -431,11 +455,14 @@ mod tests {
         };
         let receipt_bytes = serde_json::to_vec(&receipt).unwrap();
         let carrier = LocalAgentSafePublicationCarrierV1 {
-            schema_version: "snapback.local-agent-safe-publication.v1".to_owned(),
+            schema_version: "snapback.local-agent-safe-publication.v2".to_owned(),
             capability_id: capability_id.to_owned(),
             target_profile_id: TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX.to_owned(),
             maturity: "experimental".to_owned(),
             qualified_source_commit: commit,
+            implementation_digest_version: Some(
+                "snapback:agent-safe-implementation-tree:v2".to_owned(),
+            ),
             implementation_tree_sha256: tree.clone(),
             candidate_facts_sha256: candidate_sha256,
             qualification_receipt_sha256: sha256_prefixed(&receipt_bytes),
@@ -473,8 +500,9 @@ mod tests {
             }
         }
 
-        // The guide-row witness is independent of the never-ruled manifest
-        // act. Its withheld receipt still has a closed fork-specific shape.
+        // @ref LLP 0162#source-owned-publication-carrier-amendment--2026-08-04
+        // A fully populated receipt remains non-authoritative while its
+        // independent source-owned anchor is withheld.
         assert!(!derived_fork_publication_verified());
         let derived_anchor: LocalAgentSafePublicationAnchorV1 =
             serde_json::from_slice(DERIVED_FORK_ANCHOR_BYTES).unwrap();
@@ -483,18 +511,31 @@ mod tests {
         assert_eq!(derived_anchor.carrier_sha256, None);
         let derived_receipt: AgentSafePublicationReceiptV1 =
             serde_json::from_slice(DERIVED_FORK_RECEIPT_BYTES).unwrap();
+        assert_eq!(
+            derived_receipt.schema_version,
+            "snapback.agent-safe-publication-receipt.v1"
+        );
         assert_eq!(derived_receipt.capability_id, DERIVED_FORK_ID);
+        assert!(is_source_commit(&derived_receipt.qualified_source_commit));
+        assert_ne!(derived_receipt.qualified_source_commit, "0".repeat(40));
+        assert!(is_nonzero_sha256(
+            &derived_receipt.implementation_tree_sha256
+        ));
+        assert!(is_nonzero_sha256(&derived_receipt.candidate_facts_sha256));
         assert_eq!(
-            derived_receipt.qualified_source_commit,
-            "0ee1fadc136e837f430556374a5842ac82069004"
+            derived_receipt.qualified_target_profile_id,
+            TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX
         );
         assert_eq!(
-            derived_receipt.implementation_tree_sha256,
-            "sha256:2cad36279fbb319c4b828026c1fc0c2ed2d8ac38bffc14bd2ba39b3849eedf33"
+            derived_receipt.negative_target_profile_ids,
+            [
+                TARGET_PROFILE_CLOUDFLARE_DO_SQLITE_V8.to_owned(),
+                TARGET_PROFILE_REMOTE_SERVICE_SQLITE_IBEX.to_owned(),
+            ]
         );
         assert_eq!(
-            derived_receipt.candidate_facts_sha256,
-            "sha256:b487d69d7a0392626e01f39e7fa81bd85251291c5ed119cd38a6cc30e50bfc88"
+            derived_receipt.negative_build_distributions,
+            [crate::identity::BUILD_DISTRIBUTION_PUBLIC_PACKAGE.to_owned()]
         );
         assert_eq!(
             derived_receipt.qualified_components,
@@ -504,20 +545,14 @@ mod tests {
             derived_receipt.evidence.len(),
             DERIVED_FORK_EVIDENCE_LOCATORS.len()
         );
-        for (index, (binding, (kind, path))) in derived_receipt
+        for (binding, (kind, path)) in derived_receipt
             .evidence
             .iter()
             .zip(DERIVED_FORK_EVIDENCE_LOCATORS)
-            .enumerate()
         {
             assert_eq!(binding.kind, kind);
             assert_eq!(binding.path, path);
-            assert!(is_sha256(&binding.sha256));
-            if index + 1 == DERIVED_FORK_EVIDENCE_LOCATORS.len() {
-                assert_eq!(binding.sha256, format!("sha256:{}", "0".repeat(64)));
-            } else {
-                assert_ne!(binding.sha256, format!("sha256:{}", "0".repeat(64)));
-            }
+            assert!(is_nonzero_sha256(&binding.sha256));
         }
     }
 

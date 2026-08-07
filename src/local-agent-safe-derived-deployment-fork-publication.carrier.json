@@ -3,10 +3,58 @@
   "capabilityId": "agent_safe_derived_deployment_fork_v1",
   "targetProfileId": "local-dev-sqlite-ibex",
   "maturity": "experimental",
-  "qualifiedSourceCommit": "0000000000000000000000000000000000000000",
-  "implementationTreeSha256": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
-  "candidateFactsSha256": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
-  "qualificationReceiptSha256": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "qualifiedSourceCommit": "0ee1fadc136e837f430556374a5842ac82069004",
+  "implementationTreeSha256": "sha256:2cad36279fbb319c4b828026c1fc0c2ed2d8ac38bffc14bd2ba39b3849eedf33",
+  "candidateFactsSha256": "sha256:b487d69d7a0392626e01f39e7fa81bd85251291c5ed119cd38a6cc30e50bfc88",
+  "qualificationReceiptSha256": "sha256:054b4c5090ad40bd5edca9984bddf679417741a1aa81018b09d3718d13f03e7e",
   "buildProvenanceRequirement": "known-clean-contributor-source",
-  "candidateFacts": null
+  "candidateFacts": {
+    "envelope": {
+      "ordinaryMutation": {
+        "hostPlan": "Missing",
+        "ibexBuffered": "Missing"
+      },
+      "hostChildMutation": {
+        "hostPlan": "Missing",
+        "ibexBuffered": "Missing"
+      },
+      "migration": "Missing",
+      "durableBackgroundWork": "Missing",
+      "push": "Missing",
+      "auth": "Missing"
+    },
+    "explanation": {
+      "scopedFacts": []
+    },
+    "forks": {
+      "inApp": {
+        "egress": "Missing",
+        "promotion": "Missing",
+        "base": "Missing",
+        "isolation": "Missing"
+      },
+      "derivedDeployment": {
+        "egress": "denyAll",
+        "promotion": "notPromotable",
+        "base": "currentHead",
+        "isolation": "hostMediated"
+      }
+    },
+    "diff": {
+      "data": "Missing",
+      "effects": "Missing"
+    },
+    "history": "Missing",
+    "proof": "Missing",
+    "replay": {
+      "handlers": "Missing",
+      "actions": "Missing"
+    },
+    "schemaEvolution": "Missing",
+    "resourceBounds": "Missing",
+    "aggregate": {
+      "core": "Missing",
+      "history": "Missing"
+    }
+  }
 }

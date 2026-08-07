@@ -1,0 +1,117 @@
+{
+  "schemaVersion": "snapback.desktop-sidecar-promotion-gate.v1",
+  "date": "2026-08-06",
+  "status": "PASS",
+  "purpose": "LLP 0129 Phase-2b listener-bound promotion gate: outside-sandbox run of the real-child acceptance suite plus the same-database two-runtime settlement PoC, at origin/main, to evidence-promote the hot-swap-with-pending build past the earlier managed-sandbox EPERM block recorded in hot-swap-design.2026-08-06.v1.md section 5.",
+  "authority": [
+    "LLP 0129 Phase 2b",
+    "LLP 0030 attach"
+  ],
+  "source": {
+    "revision": "e99d2a328e864c0d4021bec750328d861176ebc3",
+    "revisionSubject": "docs(issues): drift hook inherits the pusher's toolchain — metrology method-pin misdiagnosis",
+    "branch": "origin/main",
+    "dirty": false,
+    "checkout": "isolated git worktree, not the primary checkout (/Users/ccheever/projects/snapback-wt-lane-e on branch lane-e-sidecar-promotion)"
+  },
+  "machine": {
+    "host": "Charlies-MacBook-Pro.local",
+    "os": "Darwin 25.5.0 arm64 (RELEASE_ARM64_T6050)",
+    "cargo": "cargo 1.97.0 (c980f4866 2026-06-30)",
+    "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+    "node": "v25.9.0",
+    "sandbox": "outside-sandbox (dangerouslyDisableSandbox=true); the managed-sandbox run at LLP 0129 top-of-file previously hit EPERM binding 127.0.0.1:0, which this run exists to clear"
+  },
+  "runtime": {
+    "platform": "darwin",
+    "architecture": "arm64",
+    "binary": "target/debug/snapback",
+    "provenance": "scripts/bootstrap-ibex-runtime, using prebuilt Ibex/Hermes artifacts from sibling checkout /Users/ccheever/projects/ibex (SNAPBACK_IBEX_CHECKOUT)",
+    "qualification": "restricted-no-eval-handler-vm probe ok=true at bootstrap time (SNAPBACK_IBEX_RUNTIME_LINK_OK)"
+  },
+  "gateCommand": "DYLD_FRAMEWORK_PATH=$PWD/vendor/ibex/ios/Frameworks SNAPBACK_RUNTIME_BINARY=$PWD/target/debug/snapback node --test tests/acceptance/desktop-sidecar-v1.mjs",
+  "suiteResult": {
+    "command": "node --test tests/acceptance/desktop-sidecar-v1.mjs",
+    "exitCode": 0,
+    "tests": 1,
+    "pass": 1,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0,
+    "durationMs": 3133.887375,
+    "testName": "LLP 0129 Phase 2b desktop sidecar first rung",
+    "note": "single node:test entry containing all scenario assertions inline; per-scenario detail is captured in the regenerated receipt tests/acceptance/fixtures/desktop-sidecar/phase-2b.2026-08-06.v1.json, reproduced verbatim below for this dated record.",
+    "regeneratedReceipt": {
+      "schemaVersion": "snapback.desktop-sidecar-acceptance.v1",
+      "date": "2026-08-06",
+      "status": "PASS",
+      "source": {
+        "revision": "e99d2a328e864c0d4021bec750328d861176ebc3",
+        "dirty": false
+      },
+      "runtime": {
+        "platform": "darwin",
+        "architecture": "arm64",
+        "binary": "target/debug/snapback",
+        "binarySha256": "37e954d77821a3bf7b83dfd874a5bf3f10d1ef278c726a9e501f231f03172b08"
+      },
+      "sections": {
+        "healthyStart": { "status": "PASS" },
+        "portCustody": { "status": "PASS" },
+        "crashRestart": { "status": "PASS", "errorCode": "SIDECAR_CHILD_DIED", "restartAttempts": 1, "boundedMaximum": 1, "newProcessAttached": true },
+        "pendingOutboxSwap": {
+          "status": "PASS",
+          "pendingBefore": 1,
+          "pendingAfter": 0,
+          "durableRecordStatus": "settled",
+          "rowCountUnchangedByDuplicate": true,
+          "disposition": "pending-work-preserving stop/start swap",
+          "note": "covers the named 'pending drain' and 'duplicate republish' scenarios"
+        },
+        "emptyOutboxSwap": {
+          "status": "PASS",
+          "pendingBefore": 0,
+          "pendingAfter": 0,
+          "outcome": "swapped",
+          "note": "covers the named 'empty swap' scenario"
+        },
+        "failClosedMatrix": {
+          "status": "PASS",
+          "identityDivergence": "candidate stopped; predecessor reattached; intent pending",
+          "writerFenceNotAcquired": "candidate stopped; predecessor reattached; intent pending",
+          "incompatibleSuccessor": "candidate stopped; predecessor reattached; intent pending",
+          "note": "covers the named 'identity-divergence rollback', 'writer-fence rollback', and 'incompatible-generation rollback' scenarios"
+        },
+        "gracefulStop": { "status": "PASS", "nativeNonceVerifiedStop": true, "childExited": true, "descriptorRemoved": true, "healthUnavailable": true }
+      }
+    }
+  },
+  "settlementPoc": {
+    "command": "node tests/acceptance/fixtures/desktop-sidecar/hot-swap-settlement-poc.2026-08-06.v1.mjs",
+    "exitCode": 0,
+    "output": {
+      "schemaVersion": "snapback.hot-swap-settlement-poc.v1",
+      "status": "PASS",
+      "databaseShared": true,
+      "old": {
+        "url": "http://127.0.0.1:56833",
+        "startupNonce": "019fda24-259c-7e33-92d5-df27ad7270e8",
+        "pid": 94307
+      },
+      "candidate": {
+        "url": "http://127.0.0.1:56840",
+        "startupNonce": "019fda24-26b0-7dc2-9d83-7046600d03c9",
+        "pid": 94714
+      },
+      "clientMutationId": "cm_hot_swap_settlement_poc",
+      "firstVersion": 1,
+      "replayedVersion": 1,
+      "rowCount": 1,
+      "rowId": "todos_01kzd289hne0gvea2gm248g675",
+      "sameResult": true,
+      "sameReceipt": true
+    },
+    "note": "unblocks hot-swap-design.2026-08-06.v1.md section 5 ('Same-database, two-runtime settlement — bounded attempt blocked'); this run reached the settlement assertions and passed them, which the earlier managed-sandbox attempt could not do because it failed before the first ready descriptor."
+  },
+  "disposition": "evidence-promoted at the first-rung boundary: both the real-child promotion-gate suite (including the pending-drain, duplicate-republish, and three fail-closed rollback scenarios) and the same-database two-runtime settlement PoC pass outside the sandbox at origin/main. Honest boundary language (stop/start swap, not zero-downtime; see explicitFollowOns in phase-2b.2026-08-06.v1.json) is unchanged by this run."
+}
