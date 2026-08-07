@@ -1046,3 +1046,211 @@ at genuine round-10 `READY` entries for `fac516e9a`, the lifecycle evidence is
 re-minted canonically at that C, and Charlie accepts the exact four new heads,
 evidence digests, and `sha256:d49f0353…`. Then rotate the receipt, carrier,
 anchor, and guide row and let the unchanged publication checker decide at P.
+
+## Round 11 — 2026-08-07, qualification commit `a127e9b47`
+
+### Provenance
+
+- **Reviewer family:** Codex
+- **Provider/runtime:** OpenAI Codex, GPT-5 family runtime
+- **Date:** 2026-08-07
+- **Commit:** `a127e9b474dd5bedb31c73afa57022f4d8b82aed`
+- **Redacted:** no
+- **Method:** Bounded delta review from the accepted publication commit
+  `fac516e9aaa83fda398ca684285f45a57192e826` to the exact qualification C. I
+  enumerated the production checker's `IMPLEMENTATION_ROOTS`, compared all
+  changed leaves plus the `vendor/ibex` gitlink, inspected the Rust lifecycle
+  assertion and distribution guard, ran its exact unit test, ran the mandatory
+  committed-schema drift test, and spot-checked the four review histories and
+  canonical evidence records. I did not rerun the full attack corpus because
+  the targeted checks exposed a sufficient qualification blocker.
+- **Verdict:** **NOT_READY**
+
+### Delta and guard assessment
+
+Across the exact digest roots, `fac516e9a..a127e9b47` changes four regular
+files: `src/agent_safe_publication.rs`, `src/manifest.rs`,
+`tests/fixtures/client-bundle-metrology/current.v1.json`, and the new
+`tests/fixtures/client-bundle-metrology/baseline.asset-delivery-selection.v1.json`.
+The `vendor/ibex` gitlink remains mode `160000` at
+`4c34c831aa087d6783b0d68f281cdb374ed7fc89`. The implementation digest rotates
+from `sha256:d49f0353b3d41943f8dbe7ed4560027671c40d6e069dc0af90a6cd12823cc6ea`
+to `sha256:0b5d8e7f88cf7899d8c1d53aac04a331da0fa8e2a147c17e55625af0e52ee577`.
+
+The metrology fixture changes are unrelated digest churn. The
+`agent_safe_publication.rs` change is relevant and sound: the production
+`derived_fork_publication_verified_for_distribution` body is byte-for-byte
+unchanged and still returns `false` for every distribution; the live target
+and app-effective tuples remain wholly `Missing`; the capability remains a
+GAP and absent from supported capabilities. The replacement test parses the
+closed anchor/carrier/receipt types, checks synthetic withheld and published
+chains separately, and proves that the synthetic published fixture satisfies
+the private structural verifier before separately asserting that both
+contributor-source and public-package distribution guards remain false. This
+is not a vacuous lifecycle-independent assertion. In a disposable checkout at
+the exact C, its exact test passed: `1 passed; 0 failed`.
+
+### Blocking finding R11-1 — manifest wire change leaves generated contracts stale
+
+The same delta adds lower-camel serde spellings in `src/manifest.rs` for the
+positive egress and promotion variants: `denyAll`, `captureOnly`,
+`notPromotable`, and `promotable`. That makes the Rust publication parser agree
+with the actual lower-camel candidate carrier, but it is a global public
+manifest wire change, not a publication-test-only adaptation. The committed
+`capability.manifest.schema.json`, `inspect.schema.json`, public/admin inspect
+schemas, and `packages/snapback-codegen/index.d.mts` still declare the old
+Pascal-case values.
+
+At exact C, the mandatory drift gate fails:
+
+```text
+cargo test --test artifact_schemas_v0 dk7_committed_schemas_match_rust_types -- --exact
+test dk7_committed_schemas_match_rust_types ... FAILED
+capability.manifest.schema.json drifted from the Rust types; regenerate with cargo run --bin snapback-schemagen
+test result: FAILED. 0 passed; 1 failed
+```
+
+This breaks qualification satisfiability at C. In particular,
+`packages/snapback-codegen/index.d.mts` is itself inside
+`IMPLEMENTATION_ROOTS`, so bringing the public declarations back into sync
+cannot be performed only in the C-to-P publication leaves: it rotates the
+implementation digest and requires a new qualification commit. The lifecycle
+test passing does not compensate for a failing mandatory generated-contract
+gate.
+
+### Chain spot-check
+
+Before this append, all four Codex/Fable v2 histories were canonical,
+contiguous through round 10, ended at `fac516e9a`, and validated through the
+production closed parser with `READY` heads. This entry extends the genuine
+Codex implementation history as round 11; it does not replace or renumber
+prior rounds.
+
+At inspection time the macOS and Linux lifecycle receipts, author acceptance,
+publication receipt, and carrier were canonical JSON but still named earlier
+qualification commits; the anchor remained canonically withheld and the guide
+capability remained a GAP. The round brief identifies those receipts as being
+re-minted in parallel, so their old commit names are expected in-flight state,
+not an additional finding. Because R11-1 blocks this C, no acceptance or
+publication chain should advance using it.
+
+### Scope verdicts
+
+- **Scope 1:** LLP 0163 remains **READY**, LLP 0164 is **NOT_READY**, and LLP
+  0165 remains **READY**. The delta does not change operation identity,
+  lifecycle/custody/isolation enforcement, authorizer, journal completeness,
+  pruning, or net-diff behavior. However, LLP 0164 expressly owns the fork and
+  promotion contracts and artifact schemas, so the inconsistent global
+  egress/promotion wire projection is a conformance failure even though no
+  positive target/app fact is advertised.
+- **Scope 2:** **NOT_READY** at `a127e9b47`. The distribution guard was not
+  weakened, but the qualification commit fails the mandatory DK7
+  generated-schema/type consistency gate.
+
+### Recommended next step
+
+Regenerate the committed schemas and generated TypeScript declaration, or
+isolate publication-chain parsing so it does not mutate the global manifest
+wire contract. Either repair changes digest-covered content, so qualify a new
+C and rerun DK7 plus the exact lifecycle test before another bounded review.
+Re-review the LLP 0164 projection and keep the anchor and guide row withheld.
+
+## Round 12 — 2026-08-07, qualification commit `ad0ad5874`
+
+### Provenance
+
+- **Reviewer family:** Codex
+- **Provider/runtime:** OpenAI Codex, GPT-5 family runtime
+- **Date:** 2026-08-07
+- **Commit:** `ad0ad58748981010204b61eb5002e35b887a5093`
+- **Redacted:** no
+- **Method:** Bounded delta review from round-11 C
+  `a127e9b474dd5bedb31c73afa57022f4d8b82aed` to the exact qualification C.
+  I enumerated the exact implementation roots and `vendor/ibex` gitlink,
+  inspected both repair commits and the Rust serde authority, compared every
+  named schema/TypeScript projection, searched tracked machine-consumed files
+  for an unreported stale spelling, recomputed the implementation digests, and
+  ran the exact DK7 committed-schema drift test. I compared the publication
+  source blob at both Cs and re-inspected the hard-false guard and lifecycle
+  test. An attempted exact lifecycle-test rerun stopped during compilation
+  because this clean checkout lacks two ignored generated Todo manifests; I
+  did not create files outside the four authorized review artifacts. The
+  round-11 exact pass carries forward because the complete source blob is
+  unchanged. I did not rerun the full attack corpus because the delta and
+  focused checks were sufficient.
+- **Verdict:** **READY**
+
+### Repair and artifact assessment
+
+The two commits in `a127e9b47..ad0ad5874` contain exactly the advertised
+repairs. Commit `3664973bc` changes only the four committed capability and
+inspect schemas, replacing the positive egress/promotion enums with
+`denyAll`, `captureOnly`, `notPromotable`, and `promotable` (plus the
+generator-derived enum description). Commit `ad0ad5874` changes only the two
+corresponding unions in `packages/snapback-codegen/index.d.mts`. There is no
+other mainline churn in this bounded range and no mode change.
+
+The four schemas now expose the same three-value closed enums as Rust:
+`Missing | denyAll | captureOnly` and
+`Missing | notPromotable | promotable`. The public TypeScript declaration
+matches those values exactly. The mandatory focused gate now passes:
+
+```text
+cargo test --test artifact_schemas_v0 dk7_committed_schemas_match_rust_types -- --exact
+test dk7_committed_schemas_match_rust_types ... ok
+test result: ok. 1 passed; 0 failed
+```
+
+A type-name search found the two declarations only in the Rust authority, the
+four generated schema definitions/references, and the one exported TypeScript
+declaration. A separate old-literal search over tracked Rust, JSON, and
+JavaScript/TypeScript-family files found no stale generated or declared
+artifact. It found only the object-shaped `DenyAll`/`CaptureOnly` values in
+two deliberate rejection fixtures
+(`src/manifest.rs::agent_safe_wire_tampering_is_rejected` and
+`tests/artifact_schemas_v0.rs::agent_safe_capability_schema_rejects_axis_and_extension_tampering`);
+those assert rejection of a malformed non-scalar axis and are not wire
+projections. No third stale artifact was found.
+
+### Exact implementation delta
+
+The schema-only commit is outside `IMPLEMENTATION_ROOTS`: both
+`a127e9b47` and `3664973bc` compute
+`sha256:0b5d8e7f88cf7899d8c1d53aac04a331da0fa8e2a147c17e55625af0e52ee577`.
+Across the exact roots, the only `a127e9b47..ad0ad5874` change is
+`packages/snapback-codegen/index.d.mts`, producing C's digest
+`sha256:fc6e3e58453b4700ce06c647aaef87132879e0da336e560eca834d1d42c5459a`.
+The `vendor/ibex` gitlink remains mode `160000` at
+`4c34c831aa087d6783b0d68f281cdb374ed7fc89`.
+
+### Carry-forward and Scope 2 verdict
+
+The complete `src/agent_safe_publication.rs` blob is identical at the two Cs
+(blob `7fef417acfbc38591fdcfb7c5b8c73c1eb03b5b0`). The production
+`derived_fork_publication_verified_for_distribution` still ignores the
+distribution and returns literal `false`, covering contributor-source and
+public-package builds. The unchanged lifecycle test remains non-vacuous: it
+constructs distinct synthetic withheld and published chains, asserts the
+published chain passes the private structural verifier, then separately
+asserts the public distribution guard is false for both build kinds. Round 11
+ran that exact test successfully; this delta cannot change its result.
+
+**Scope 2 is READY at `ad0ad5874` for implementation/security publication of
+the narrow local `operating.instance-forks` surface, subject to the unchanged
+production checker and exact P-time evidence, acceptance, review-head, and
+implementation-digest bindings.** This review does not itself publish the
+capability.
+
+### History integrity and next step
+
+The checked-in Codex artifacts presented to this round ended at round 10. I
+recovered the genuine round-11 Codex prose and v2 entries from
+`/private/tmp/review-preserve/r11-codex`; the checked-in round-10 files were
+byte-identical to their preserved round-10 copies, so this restores rather
+than reconstructs or invents the missing history. Round 12 extends that
+history and rebinds the current-state artifact hashes and predecessor chain.
+
+Keep the anchor and guide row withheld until the other required reviewer,
+lifecycle evidence, Charlie acceptance, and all P-time bindings name this
+exact C and implementation digest; then let the unchanged closed checker
+decide publication.

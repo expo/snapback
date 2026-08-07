@@ -1,6 +1,6 @@
 # Derived-fork publication: author gate
 
-**Status:** Resolution 2 implemented; publication still withheld
+**Status:** Closed 2026-08-07 — published
 **Opened:** 2026-08-06
 **Systems:** Instance forks, capability publication, LLP governance
 **Related:** LLP 0158, LLP 0162, LLP 0163, LLP 0164, LLP 0165, LLP 0185
@@ -329,3 +329,33 @@ fresh canonical macOS/aarch64 and Linux/x86_64 lifecycle receipts bound to C,
 and Charlie's new v2 acceptance of the resulting four history heads and
 implementation digest. Only after those records bind may the receipt, carrier,
 and published anchor be constructed.
+
+
+## Closed — published 2026-08-07
+
+`operating.instance-forks` published at qualification commit
+`ad0ad58748981010204b61eb5002e35b887a5093`, landed as `7cada777b`. The
+oracle reports `agent_safe_derived_deployment_fork_v1:published`;
+`agent_safe_storage_v1` remains `withheld` and unweakened.
+
+All three author decisions this ticket was opened for were made by Charlie
+on 2026-08-06 and executed: LLPs 0163/0164/0165 accepted; the claimed
+platform set confirmed as exactly `macos/aarch64` plus `linux/x86_64`; and
+the acceptance artifact authored on his behalf under explicit authorization
+(superseding this ticket's original "an agent must not create it" line,
+recorded rather than deleted).
+
+Getting from that authorization to a valid publication took resolution 2
+(simplifying the gate) plus twelve review rounds, because the publication
+machinery — not the fork implementation — carried six defeatable defects,
+each demonstrated with a working exploit. The full record is in LLP 0162's
+capability-honesty section and the four review artifacts.
+
+Deferred with tickets rather than left implicit:
+`issues/20260807-review-prose-history-not-frozen.md` and
+`issues/20260807-codegen-declaration-has-no-drift-gate.md`.
+
+Still open Phase 6 work, deliberately not re-scoped: item 2
+(released-binary/npm parity) and the "normal installation rather than a
+source checkout" exit clause. The published row and the operating guide both
+say so in their own text.

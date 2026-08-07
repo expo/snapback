@@ -25,13 +25,15 @@ schema- or function-divergent development against realistic rows. The fork has
 the same logical `appId`, but fresh instance, authorization-stream,
 data-stream, admin-token, and resume-keyring identities.
 
-This is a **partial, unpublished surface**. The local design in
-[LLP 0158](repo:llp/0158-instance-forking.rfc.md) was Accepted on 2026-08-06,
-but the separate
-`agent_safe_derived_deployment_fork_v1` qualification and publication gates
-remain unsatisfied and its public tuple remains wholly `Missing`. The guide
-teaches the implemented source workflow; it does not claim a packaged, hosted,
-promotable, or process-sandboxed capability.
+This is a **partial contributor-source local surface**, published for exactly
+the two measured release platforms, `macos/aarch64` and `linux/x86_64`, by the
+[dated digest-bound receipt](repo:tests/acceptance/receipts/agent-safe-derived-deployment-fork-publication.2026-08-04.v1.json).
+The separate `agent_safe_derived_deployment_fork_v1` target-manifest tuple
+remains wholly `Missing` by the author's ruling; the capability-index row is
+the claim carrier. The guide teaches the implemented source-checkout workflow.
+Released-binary/npm parity and the Phase 6 normal-installation exit remain
+open. This claim includes no public package, hosted/Cloudflare/remote target,
+promotion or merge-back, or process sandbox.
 
 ## Give a worktree its own backend
 
@@ -430,7 +432,14 @@ OS/container/filesystem authority boundary for that threat.
   deny-all posture; autonomous workers are also inert.
 - There is no fork promotion or merge-back. Move conclusions or app-level
   changes, not fork storage, into the parent.
-- There is no hosted fork contract or packaged capability advertisement yet.
+- There is no hosted/Cloudflare/remote fork contract, released-binary/npm
+  parity, normal-installation proof, or public-package claim.
+- Publication artifacts are unsigned and not transparency-logged. A
+  commit-capable actor who fabricates both reviewer histories and the named
+  author acceptance is outside the guarantee. The known weakness that review
+  prose is bound only as a current complete artifact, not frozen per round, is
+  tracked in
+  [`issues/20260807-review-prose-history-not-frozen.md`](repo:issues/20260807-review-prose-history-not-frozen.md).
 
 ## Anti-patterns
 
