@@ -4,6 +4,10 @@ set -euo pipefail
 # @ref LLP 0175#same-change-frozen-record-coupling — install the two-hour
 # complete-registry backstop without changing the invoking checkout.
 repo_root="$(cd "$(dirname "$0")/.." && pwd -P)"
+# The runner checkout (ProgramArguments) and the prepared source checkout may
+# differ: install from the durable backstop clone while pointing the source at
+# a prepared primary checkout via SNAPBACK_BACKSTOP_SOURCE.
+backstop_source="${SNAPBACK_BACKSTOP_SOURCE:-$repo_root}"
 launch_agents="$HOME/Library/LaunchAgents"
 plist="$launch_agents/com.snapback.drift-backstop.plist"
 template="$repo_root/scripts/launchd/com.snapback.drift-backstop.plist.template"
@@ -18,18 +22,20 @@ escape_sed_replacement() {
 }
 
 escaped_repo="$(escape_sed_replacement "$repo_root")"
+escaped_source="$(escape_sed_replacement "$backstop_source")"
 escaped_home="$(escape_sed_replacement "$HOME")"
 temporary_plist="$(mktemp "${TMPDIR:-/tmp}/com.snapback.drift-backstop.XXXXXX")"
 trap 'rm -f "$temporary_plist"' EXIT
 
 sed \
   -e "s|__SNAPBACK_REPO__|$escaped_repo|g" \
+  -e "s|__SNAPBACK_BACKSTOP_SOURCE__|$escaped_source|g" \
   -e "s|__HOME__|$escaped_home|g" \
   "$template" > "$temporary_plist"
 install -m 0644 "$temporary_plist" "$plist"
 
 temporary_config="$(mktemp "${TMPDIR:-/tmp}/snapback-drift-backstop-config.XXXXXX")"
-printf '%s\n' "$repo_root" > "$temporary_config"
+printf '%s\n' "$backstop_source" > "$temporary_config"
 install -m 0644 "$temporary_config" "$config_file"
 rm -f "$temporary_config"
 

@@ -20,7 +20,7 @@
   <key>EnvironmentVariables</key>
   <dict>
     <key>SNAPBACK_BACKSTOP_SOURCE</key>
-    <string>__SNAPBACK_REPO__</string>
+    <string>__SNAPBACK_BACKSTOP_SOURCE__</string>
     <key>PATH</key>
     <string>/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:__HOME__/.volta/bin:__HOME__/.bun/bin</string>
   </dict>
