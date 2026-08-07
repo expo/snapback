@@ -11,6 +11,32 @@ closure and packaging facets), LLP 0145 (client bundle metrology), LLP 0148
 
 ## Running log
 
+- **2026-08-05 — green source proof and qualified staging completed; first
+  production use stopped honestly at two fail-closed machinery gaps.**
+  Candidate source `4c8245a1a05e4f5f724771e7557f9a583bac2410` had green
+  main local-proof run `31035872210`: 119 selected gates passed, zero failed
+  or blocked gates, and only the two expected not-selected gates. Qualified
+  EAS staging run `019fd366-7f4c-7998-a1ff-1c4382ac338d` then completed for
+  `0.1.9`; both runtime builds, nine-package assembly, both staged cold
+  installs, and final retention succeeded. The retained release archive
+  SHA-256 was
+  `feea37839dfd2e426eab0b1376886fe8972a86af20d98c6b166a348e77249b81`;
+  qualified ledger file SHA-256
+  `f1501bd223eea5f69366624177e6c2530d900657ebc820d7c6e1940bab0b41cd`;
+  macOS/Linux receipt SHA-256 values
+  `99f491e231109c37492d419366275cfc21577774598395ad10c6a7e9e7f0db6f`
+  and
+  `464fed1f7ad6c5ace22805bdc58abf9284c21e240017e27de7af3cd289ff7b80`.
+  Publication stopped before npm mutation because the instruction named no
+  capability transition from which LLP 0134 could construct a maturity
+  receipt, and the real-publication validator rejected the EAS-hosted
+  receipts. The findings are retained in
+  `issues/closed/20260805-0134-npm-promotion-route-undefined.md` and
+  `issues/closed/20260805-eas-qualified-receipts-rejected-by-publish-validator.md`;
+  their later dispositions are recorded there. No candidate or `latest` tag
+  changed in this stopped attempt; the public vector remained `0.1.8` at that
+  checkpoint.
+
 - **2026-08-05 — source-checkout consumer found a non-hermetic local package
   edge.** Relay Room installed `@expo/snapback-client` and
   `@expo/snapback-react` from local `file:` paths, but the client's exact
