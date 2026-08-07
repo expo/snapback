@@ -88,6 +88,13 @@ for the hook's state and lifecycle contract. Reach for the lower-level
 `subscribeEphemeral` overlay below only in headless code or when you
 deliberately need to own overlay lifecycle, manual draining, or polling.
 
+> **Coming from Convex/Supabase?** Supabase steers slower-changing state
+> (online/typing) toward Presence and high-frequency state (cursors) toward
+> Broadcast — two different primitives. Snapback uses one mechanism for
+> both — see
+> [Typing indicators and cursors: presence vs. broadcast](../recipes/coming-from-convex-and-supabase.md#ephemeral-presence)
+> for the TTL-vs-connection-driven expiry distinction that actually matters.
+
 ## Declare the complete collection contract
 
 One collection declaration contains every routing, ownership, budget,

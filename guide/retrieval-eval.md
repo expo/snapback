@@ -70,6 +70,41 @@ fixed in the guide, must add a seed case here that would have caught it.
    older supervisor, and restart the supervised loop; it fails if it suggests
    overriding the identity or weakening binding admission.
 
+Cases 10–14 are Rosetta-tier seeds from the LLP 0186 W2 amendment's
+worked-example journeys (`protected-live-crud`, `expo-media-upload`,
+`relational-queries`, `ephemeral-presence`, `reactive-queries`): a
+coding agent arriving with competitor vocabulary must still land on the
+correct Snapback security boundary, not a plausible-sounding guess.
+
+10. **Rosetta — protected reads:** "I'm coming from Supabase — how do I
+    scope a query with row-level security so users only see their own
+    rows?" Expected pages: `auth/sessions-and-principals.md` and
+    `recipes/coming-from-convex-and-supabase.md`. The run fails if the plan
+    claims `authScopeField` alone enforces the filter, or if it never
+    states the `authUserId()` predicate in the query's filter as the
+    actual boundary.
+11. **Rosetta — asset upload:** "I'm used to Supabase Storage — how do I
+    upload and attach a photo from an Expo app securely?" Expected pages:
+    `backend/assets.md` and `recipes/coming-from-convex-and-supabase.md`.
+    The run fails if the plan treats upload authorization as anonymous.
+12. **Rosetta — relational reads:** "I'm used to Supabase's nested joins —
+    how do I read a conversation's messages with the sender's name
+    attached?" Expected pages: `backend/relational-queries.md` and
+    `recipes/coming-from-convex-and-supabase.md`. The run fails if the
+    plan hand-writes the join in a JS live query instead of using the
+    bounded relational surface.
+13. **Rosetta — presence and cursors:** "I'm coming from Supabase
+    Presence/Broadcast — how do I show who's online and live cursor
+    positions?" Expected pages: `realtime/ephemeral-state.md` and
+    `recipes/coming-from-convex-and-supabase.md`. The run fails if the
+    plan invents two different Snapback mechanisms for the two cases
+    instead of one ephemeral mechanism with TTL.
+14. **Rosetta — reactive queries:** "I'm used to Convex's useQuery — how
+    do queries stay live in Snapback?" Expected pages: `clients/react.md`
+    and `recipes/coming-from-convex-and-supabase.md`. The run fails if the
+    plan claims Snapback's hook is identical to Convex's auto-reactive
+    model without naming the backend-declares/client-subscribes split.
+
 ## Budget
 
 The relevant guide page must be loaded within the first ~15 tool uses.

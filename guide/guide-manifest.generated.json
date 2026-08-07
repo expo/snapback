@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "cf47cc3b75172cec3ac6c44428ce40db48d81465"
+    "commit": "1a4463d767cf01a1af0bf68ef606c7074824c7fa"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -312,6 +312,11 @@
         "id": "recipes.optimistic-toggle",
         "order": 3,
         "title": "Recipe: optimistic toggle"
+      },
+      {
+        "id": "recipes.coming-from-convex-and-supabase",
+        "order": 4,
+        "title": "Recipe: coming from Convex and Supabase"
       }
     ],
     "sync": [
@@ -557,7 +562,7 @@
       ],
       "reviewed": "2026-08-03",
       "reviewedCommit": "c442237dedd412d1fe66a85c7a0ed463eba1e013",
-      "sha256": "e868958cff234cfcb65bdae3aee84164370dc761274fc793b1afe25ec20ea61f",
+      "sha256": "0250804490e0603853192e82a0ac88a2f493196a7eb5362f969d5f05a5dfa78b",
       "snippets": [
         {
           "lang": "js",
@@ -760,7 +765,7 @@
       ],
       "reviewed": "2026-08-06",
       "reviewedCommit": "HEAD",
-      "sha256": "65aeef8cae8157936da0d82bc5587dc737f1b5b55cbb4d5bcbdfdd9018fbc4fb",
+      "sha256": "1078bf02a6131cc4c49704d7cd0a3dcf274804c796555b64fdabab6758c0e301",
       "snippets": [
         {
           "lang": "js",
@@ -1068,7 +1073,7 @@
       ],
       "reviewed": "2026-08-05",
       "reviewedCommit": "f3c7d9fbb394a413370a9264f22e72b6f151a25e",
-      "sha256": "b35e238819659f0f679d9934978d1656717450735281147d68a0286538a16753",
+      "sha256": "5944b2eefebc149f34f24742f030b23925e5e5ea7678e9ad07991de93299463c",
       "snippets": [
         {
           "lang": "js",
@@ -1114,7 +1119,7 @@
       ],
       "reviewed": "2026-08-05",
       "reviewedCommit": "f3c7d9fbb394a413370a9264f22e72b6f151a25e",
-      "sha256": "4b2c35d8a96cc48f86faae62e0f8688e43ab7c079d592303a84a61d9d25a7cd8",
+      "sha256": "6daed24064514df0990a43b6c5152fc61f99338361a3a0068d6637e290f86579",
       "snippets": [
         {
           "lang": "js",
@@ -1494,7 +1499,7 @@
       "examples": [],
       "reviewed": "2026-08-06",
       "reviewedCommit": "850427c31b9a668d55b46995e08389cd13a2c9b6",
-      "sha256": "8a670efb2e6ea11eaa5df82afed3bcada55f80d2cfc1b7f7709cec1b649e6faa",
+      "sha256": "7e3fcc10c2bf91769ddbefea5175bcaff2cf5ac9a06080cb8f38d5f6f99fa590",
       "snippets": []
     },
     "clients.app-cli": {
@@ -1848,7 +1853,7 @@
       ],
       "reviewed": "2026-08-06",
       "reviewedCommit": "4ac8387f080a2659484fc09916ff22a076dc4ca8",
-      "sha256": "05b130a6a4b298986e6c4309263773ba802aeeaaa7e6e46a979a3e5a09ee3779",
+      "sha256": "3aecf4dd69647b335e168ca51ebe53c1d3f2e413f74872427727ba1ef33e4d27",
       "snippets": [
         {
           "lang": "ts",
@@ -2301,7 +2306,7 @@
       ],
       "reviewed": "2026-08-06",
       "reviewedCommit": "850427c31b9a668d55b46995e08389cd13a2c9b6",
-      "sha256": "65f70324616129d43ee2aa3f0a5b641240f224cc175be8eaab1915fd944bb980",
+      "sha256": "73876b1c50d68821c8b6126a127ce9600cbfcdcbc24f27cc8f0f743e52ab10d8",
       "snippets": [
         {
           "lang": "json",
@@ -2731,7 +2736,7 @@
       ],
       "reviewed": "2026-08-06",
       "reviewedCommit": "6e158169b3c908b8be149db4487a71dc35738470",
-      "sha256": "4d1b6b6edb088e618d4a595d00c124b2198c49f8527e32ca1e2032dc4a3c86fb",
+      "sha256": "0fd88c4f58ac717dc705eba502a8ac44a67833032db6e95f18ca3e58cd71ccc2",
       "snippets": [
         {
           "lang": "tsx",
@@ -2859,6 +2864,129 @@
           "lang": "js",
           "class": "transcluded",
           "source": "demos/public-dashboard/tests/acceptance/headless.mjs"
+        }
+      ]
+    },
+    "recipes.coming-from-convex-and-supabase": {
+      "path": "guide/recipes/coming-from-convex-and-supabase.md",
+      "title": "Recipe: coming from Convex and Supabase",
+      "order": 4,
+      "status": "current",
+      "targets": [
+        "local"
+      ],
+      "maturity": "partial",
+      "capabilities": [
+        "backend.functions",
+        "auth.scoped-queries",
+        "clients.react",
+        "backend.assets",
+        "backend.relational-queries",
+        "realtime.ephemeral"
+      ],
+      "authorities": [
+        "llp/0186-agent-authoring-efficiency-program.plan.md",
+        "demos/card-game/snapback/functions.mjs",
+        "demos/card-game/tests/acceptance/authority-scope.mjs",
+        "packages/snapback-codegen/asset-upload-authoring.test.mjs",
+        "demos/expo-golden-path-fixture/src/screens/chat-screen.tsx",
+        "demos/competitive-checkpoint/snapback/functions.mjs",
+        "demos/messaging-snapback/src/lib/useTyping.ts",
+        "demos/cursors-web/snapback/schema.mjs",
+        "demos/partiful-matrix/native/react-expo/App.js"
+      ],
+      "examples": [
+        "demos/card-game",
+        "demos/expo-golden-path-fixture",
+        "demos/competitive-checkpoint",
+        "demos/messaging-snapback",
+        "demos/cursors-web",
+        "demos/partiful-matrix"
+      ],
+      "reviewed": "2026-08-07",
+      "reviewedCommit": "HEAD",
+      "sha256": "46d3a5ad63cbadbbc8e74e3b43c23bf4061a02720b931fcec6f087767b343ae6",
+      "snippets": [
+        {
+          "lang": "ts",
+          "class": "fragment"
+        },
+        {
+          "lang": "ts",
+          "class": "fragment"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/card-game/snapback/functions.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/card-game/tests/acceptance/authority-scope.mjs"
+        },
+        {
+          "lang": "ts",
+          "class": "fragment"
+        },
+        {
+          "lang": "ts",
+          "class": "fragment"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "packages/snapback-codegen/asset-upload-authoring.test.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "packages/snapback-codegen/asset-upload-authoring.test.mjs"
+        },
+        {
+          "lang": "tsx",
+          "class": "transcluded",
+          "source": "demos/expo-golden-path-fixture/src/screens/chat-screen.tsx"
+        },
+        {
+          "lang": "ts",
+          "class": "fragment"
+        },
+        {
+          "lang": "ts",
+          "class": "fragment"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/competitive-checkpoint/snapback/functions.mjs"
+        },
+        {
+          "lang": "ts",
+          "class": "fragment"
+        },
+        {
+          "lang": "ts",
+          "class": "fragment"
+        },
+        {
+          "lang": "tsx",
+          "class": "transcluded",
+          "source": "demos/messaging-snapback/src/lib/useTyping.ts"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/cursors-web/snapback/schema.mjs"
+        },
+        {
+          "lang": "ts",
+          "class": "fragment"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/partiful-matrix/native/react-expo/App.js"
         }
       ]
     },
@@ -3049,7 +3177,7 @@
       "examples": [],
       "reviewed": "2026-08-03",
       "reviewedCommit": "3109a3b4f5068595a71448b10788b56b4fa358f5",
-      "sha256": "a2c79123854809e3df37bda3a5cf18a423d71b9028add143a84d7cfba2ef6043",
+      "sha256": "b2371ef6335b99a363921645b76621ba00d9b3d3a2ec0b532e7be1c541edb377",
       "snippets": []
     },
     "meta.surface-map": {
@@ -3375,5 +3503,5 @@
     "routes": 122,
     "hostOps": 43
   },
-  "contentHash": "98e66a763f0608265cacfce33716ff457383503800d757dc43950d29255070a1"
+  "contentHash": "accc06d3ce304ab52429893f016a0a77069666a9c26afbf5ffe18d6fbca8a5e6"
 }

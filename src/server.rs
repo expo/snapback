@@ -7984,7 +7984,12 @@ pub const GUIDE_BUILD_COMMIT_HEADER: &str = "x-snapback-server-build-commit";
 
 // @ref LLP 0186#w2-context-injection-surface-owned-here — the convention
 // endpoint gives agent probes a short index into the build-bound guide.
-const LLMS_TXT: &str = "# Snapback\n\n> Snapback is a local-first app backend. This server embeds its own authoring guide.\n\n## Docs\n\n- [Complete guide, single file](/_snapback/guide/flat.md)\n- [Capability index](/_snapback/guide/capabilities.md)\n- [Guide index](/_snapback/guide)\n";
+// Index-first, matching W2's phased design: the capability index carries
+// 0061's enforced ~40 KiB budget and is the intended default read; the
+// flat single-file projection has outgrown that budget (issues/20260806-
+// guide-flat-projection-oversize.md is still open) and is listed last, as
+// a large, explicit fallback rather than the first-offered link.
+const LLMS_TXT: &str = "# Snapback\n\n> Snapback is a local-first app backend. This server embeds its own authoring guide.\n\n## Docs\n\n- [Capability index](/_snapback/guide/capabilities.md) \u{2014} start here: the compact, capability-complete map.\n- [Guide index](/_snapback/guide)\n- [Complete guide, single file](/_snapback/guide/flat.md) \u{2014} everything in one request; large and growing, prefer the capability index or a specific page first.\n";
 
 fn guide_bound_response(body: &'static [u8], content_type: &'static str) -> Response {
     let mut response = Response::new(Body::from(body));
