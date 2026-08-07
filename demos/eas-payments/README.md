@@ -1,27 +1,40 @@
 # EAS Payments — engine-first slice
 
 A learning/prototype **vertical slice** of the EAS Payments Engine on Snapback,
-built to the brief in [`BRIEF.md`](./BRIEF.md). It is not production M1. It
-proves one path end to end:
+built to the briefs in [`BRIEF.md`](./BRIEF.md) and
+[`BRIEF-slices-2-3.md`](./BRIEF-slices-2-3.md). It is not production M1. It
+proves both halves of the notification design end to end:
 
 ```
-store notification  ->  action        (resolve authoritative state; stubbed here)
-                    ->  mutation      (one atomic commit, idempotent)
-                    ->  entitlementGrants   (the derived read model)
-                    ->  live query    (what the app actually gates on)
+        store                                              developer
+          |  notification (trigger only)                       ^
+          v                                                    |
+      action ---- ctx.fetch ----> store (authoritative state)  |
+          |                                                    |
+          v                                                    |
+      mutation (one atomic commit, idempotent)                 |
+          |                                                    |
+          +--> entitlementGrants  --> live query (the app gates here)
+          |
+          +--> entitlementChanges --> pollChanges { userId, seq } ---+
+          |                                                          |
+          +--> jobs.enqueue -----> notifyDeveloper --- POST ---------+
+                                   (retried; a hint, not the truth)
 ```
 
 ```
 eas-payments/
-  BRIEF.md                    # the build brief this slice implements
-  demo.snapback.json          # demo manifest (surfaces, capabilities, gaps)
+  BRIEF.md, BRIEF-slices-2-3.md   # the build briefs
+  demo.snapback.json              # demo manifest (surfaces, capabilities, gaps)
   snapback/
-    schema.mjs                # source-authored schema (the source of truth)
-    functions.mjs             # inline JS handlers, action, cron
-    seed.json                 # deterministic catalog seed
-    generated/artifacts.json  # committed review manifest
+    schema.mjs                    # source-authored schema (the source of truth)
+    functions.mjs                 # inline JS handlers, actions, cron
+    seed.json                     # deterministic catalog seed
+    generated/artifacts.json      # committed review manifest
   tests/acceptance/
-    headless.mjs              # required surface acceptance suite
+    headless.mjs                  # required surface acceptance suite
+    fake-store.mjs                # stand-in for Apple/Google/Stripe
+    fake-developer.mjs            # stand-in for a customer's webhook endpoint
 ```
 
 ## The three design constraints
@@ -114,10 +127,45 @@ and duplicate-free across all of them. The sweep can flip several users in one
 commit, and each still gets a distinct `seq`, so a poller resuming mid-sweep
 cannot lose the later users.
 
-`notifyDeveloper` is the outbound ping, and it is **a stub**: it records a
-would-be delivery in `deliveries` instead of sending anything. What it does
-pin down is the payload shape — `{ userId, seq }` and nothing else. Slice 5
-replaces the recorded attempt with a real signed POST plus retry.
+## Real delivery, with retry
+
+`notifyDeveloper` performs a real `ctx.fetch` POST to a registered endpoint,
+and it is **run by the durable job queue** rather than called inline. The
+enqueue happens inside the same mutation that appends the feed row, so the two
+land in one commit — a rolled-back reconcile provably schedules no delivery,
+and the mutation receipt carries the `enqueues` entry as evidence.
+
+The body is `{ userId, seq }`. A failing endpoint throws, which is how the
+handler asks the queue for another attempt; `maxAttempts: 5` bounds the ladder.
+`deliveries` records one row per *attempt*, so the ladder is inspectable after
+the fact rather than only in the job's own state.
+
+`idempotencyKey: 'change:<seq>'` means one delivery per feed position however
+many times the enqueueing mutation is retried.
+
+**The feed is authoritative; the ping is a hint.** If delivery gives up after
+five attempts, the change is still in `entitlementChanges` and still pollable —
+the acceptance asserts exactly that. The same reasoning lets a sweep that moves
+more users than the queue's 16-enqueues-per-mutation limit drop the extra
+pings without losing anything.
+
+## Known prototype gap: the ping is authenticated, not signed
+
+The POST carries `Authorization: Bearer <developerWebhookSecret>`. That proves
+the *sender*; it does **not** bind the *body*. A real webhook wants an HMAC
+over the payload so a receiver can detect tampering, and this build cannot
+produce one: the handler-reachable host-op surface is `db.*`, `jobs.enqueue`,
+`runtime.now/id/log`, `host.fetch`, `sequence.allocate`, `push.send`,
+`membership.write`, and `permissions.requireRole` — no digest primitive.
+
+The alternative would be hand-rolling SHA-256 in the inline-handler subset,
+which refuses dynamic computed member access (`buf[i]`) and would make that
+implementation both grotesque and slow. Hand-rolled crypto in a reference demo
+is worse than an honest gap, so the gap is here instead.
+
+Also missing for production: the registration path fences only on
+`http://` / `https://`. A real one must refuse loopback and link-local targets,
+or the webhook becomes an SSRF primitive.
 
 ## Known prototype gap: change-feed sequence allocation
 
@@ -126,14 +174,16 @@ mutation. Two mutations committing concurrently can read the same maximum and
 mint the same `seq`, which would let a poller miss one of them. The acceptance
 is sequential, so it never hits this.
 
-A real deployment needs an atomic allocator. That is Snapback's unpublished
-scoped-sequences surface ([`guide/backend/sequences.md`](../../guide/backend/sequences.md)),
-which explicitly warns against hand-rolling one from `ctx.runtime.now()` or
-`ctx.runtime.id()` — so this stops where it is rather than getting cleverer.
+A real deployment needs an atomic allocator. Snapback has one —
+`ctx.sequence.allocate(counter, scopeId)`
+([`guide/backend/sequences.md`](../../guide/backend/sequences.md), Experimental
+on contributor-source local builds) — but it does not fit this feed as written:
+**a mutation may allocate only once**, and the expiry sweep appends a row per
+affected user in a single commit. Adopting it would mean restructuring the
+sweep to one mutation per user.
 
-Note that `_version` is *not* a substitute here: the expiry sweep writes
-several feed rows in a single commit, and they would all share one commit
-version.
+`_version` is not a substitute either, for the same reason: those rows share a
+commit, so they would share a version.
 
 ## Known prototype gap: reconcile authority
 

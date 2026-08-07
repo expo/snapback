@@ -47,6 +47,16 @@ export const appConfig = defineConfig({
       + 'acceptance sets one. The real adapters take an Apple App Store Server '
       + 'API key, a Google service account, or a Stripe secret key.',
   },
+  developerWebhookSecret: {
+    description: 'Shared secret presented to the developer webhook endpoint',
+    purpose: 'Lets the receiving developer authenticate that a ping came from us',
+    required: true,
+    pool: false,
+    howToGet:
+      'Generated when a developer registers a webhook endpoint, and shown to '
+      + 'them once. This authenticates the SENDER; it is not a body signature '
+      + '— see the signing gap in the demo README.',
+  },
 });
 
 // --- Read path ----------------------------------------------------------------
@@ -204,6 +214,42 @@ async function readMaxChangeSeq(ctx) {
   return last.length === 0 ? 0 : last[0].seq;
 }
 
+// Append one feed row and, if a developer has registered an endpoint, schedule
+// the outbound ping for it.
+//
+// The enqueue is transactional with the append: they land in the same commit,
+// so a rolled-back reconcile provably schedules no delivery. The job carries a
+// URL snapshot rather than re-reading at send time — actions have no ctx.db,
+// and pinning the URL also keeps the job's idempotency identity stable.
+//
+// The feed is the authoritative mechanism and the ping is only a hint, which
+// is why `mayEnqueue` can be false: one sweep may move more users than the
+// paved queue's 16-enqueues-per-mutation limit allows, and dropping a hint is
+// harmless when the poller still sees every seq.
+async function appendChange(ctx, userId, seq, now, mayEnqueue) {
+  await ctx.db.insert('entitlementChanges', {
+    userId: userId,
+    seq: seq,
+    changedAt: now,
+  });
+  if (!mayEnqueue) return false;
+  const endpoints = await ctx.db
+    .query('webhookEndpoints')
+    .withIndex('by_active')
+    .eq('active', true)
+    .take(1)
+    .collect();
+  if (endpoints.length === 0) return false;
+  await ctx.jobs.enqueue(
+    'notifyDeveloper',
+    { userId: userId, seq: seq, url: endpoints[0].url },
+    // One delivery per feed position, however many times this mutation is
+    // retried; maxAttempts is the retry ladder for a failing endpoint.
+    { idempotencyKey: 'change:' + seq, maxAttempts: 5 },
+  );
+  return true;
+}
+
 // Recompute every entitlement a product can affect. Returns how many moved.
 async function applyProductEntitlements(ctx, userId, productId) {
   const mappings = await ctx.db
@@ -233,7 +279,7 @@ export const recordPurchase = defineJsMutation({
     environment: v.string(),
     expiresAt: v.optional(v.integer()),
   },
-  reads: ['transactions', 'productEntitlements', 'entitlementGrants', 'entitlementChanges'],
+  reads: ['transactions', 'productEntitlements', 'entitlementGrants', 'entitlementChanges', 'webhookEndpoints'],
   writes: ['transactions', 'entitlementGrants', 'entitlementChanges'],
   result: results.value(v.object({
     transactionId: v.string(),
@@ -275,11 +321,7 @@ export const recordPurchase = defineJsMutation({
     // user's transactions, and the grant is recomputed from all of them.
     const granted = await applyProductEntitlements(ctx, userId, args.productId);
     if (granted > 0) {
-      await ctx.db.insert('entitlementChanges', {
-        userId: userId,
-        seq: (await readMaxChangeSeq(ctx)) + 1,
-        changedAt: ctx.runtime.now(),
-      });
+      await appendChange(ctx, userId, (await readMaxChangeSeq(ctx)) + 1, ctx.runtime.now(), true);
     }
     return { transactionId: transactionId, deduped: false, grants: granted };
   },
@@ -399,7 +441,7 @@ export const reconcileTransaction = defineJsMutation({
     environment: v.string(),
     expiresAt: v.optional(v.integer()),
   },
-  reads: ['transactions', 'productEntitlements', 'entitlementGrants', 'entitlementChanges'],
+  reads: ['transactions', 'productEntitlements', 'entitlementGrants', 'entitlementChanges', 'webhookEndpoints'],
   writes: ['transactions', 'entitlementGrants', 'entitlementChanges'],
   result: results.value(v.object({
     changed: v.boolean(),
@@ -458,11 +500,7 @@ export const reconcileTransaction = defineJsMutation({
     // Only an actual move in the active set reaches the feed. A redundant
     // notification updates nothing and says nothing.
     if (entitlementsChanged > 0) {
-      await ctx.db.insert('entitlementChanges', {
-        userId: userId,
-        seq: (await readMaxChangeSeq(ctx)) + 1,
-        changedAt: ctx.runtime.now(),
-      });
+      await appendChange(ctx, userId, (await readMaxChangeSeq(ctx)) + 1, ctx.runtime.now(), true);
     }
     return {
       changed: entitlementsChanged > 0,
@@ -551,7 +589,7 @@ export const applyStoreState = defineAction({
 // under system authority, so it is scoped by by_active rather than by_user.
 export const applyGrantExpiry = defineJsMutation({
   args: {},
-  reads: ['entitlementGrants', 'entitlementChanges'],
+  reads: ['entitlementGrants', 'entitlementChanges', 'webhookEndpoints'],
   writes: ['entitlementGrants', 'entitlementChanges'],
   result: results.value(v.object({ expired: v.integer(), now: v.integer() })),
   handler: async (ctx) => {
@@ -578,11 +616,9 @@ export const applyGrantExpiry = defineJsMutation({
         // "whose access moved", and they re-read the whole answer anyway.
         if (notified.indexOf(grant.userId) < 0) {
           notified.push(grant.userId);
-          await ctx.db.insert('entitlementChanges', {
-            userId: grant.userId,
-            seq: nextSeq,
-            changedAt: now,
-          });
+          // The paved queue admits 16 enqueues per mutation. Past that the
+          // feed still records every user; only the courtesy ping is dropped.
+          await appendChange(ctx, grant.userId, nextSeq, now, notified.length <= 16);
           nextSeq += 1;
         }
       }
@@ -643,56 +679,131 @@ export const pollChanges = defineJsQuery({
   },
 });
 
-// Slice-4 stub for the outbound ping. Actions have no ctx.db, so the durable
-// record goes through a mutation like every other write.
-export const recordDeliveryAttempt = defineJsMutation({
-  args: { userId: v.string(), seq: v.integer(), endpoint: v.string() },
-  writes: ['deliveries'],
-  result: results.value(v.id('deliveries')),
-  handler: async (ctx, args) => ctx.db.insert('deliveries', {
-    userId: args.userId,
-    seq: args.seq,
-    endpoint: args.endpoint,
-    attemptedAt: ctx.runtime.now(),
-  }),
+// A developer registers where they want pings delivered. One active endpoint
+// per deployment in this prototype.
+export const registerWebhookEndpoint = defineJsMutation({
+  args: { url: v.string() },
+  reads: ['webhookEndpoints'],
+  writes: ['webhookEndpoints'],
+  result: results.value(v.id('webhookEndpoints')),
+  handler: async (ctx, args) => {
+    const url = String(args.url ?? '').trim();
+    if (!url) throw new Error('url is required');
+    // Prototype fence only. A real registration must also refuse loopback and
+    // link-local targets, or the webhook becomes an SSRF primitive.
+    if (url.indexOf('http://') !== 0 && url.indexOf('https://') !== 0) {
+      throw new Error('url must be http or https');
+    }
+    const existing = await ctx.db
+      .query('webhookEndpoints')
+      .withIndex('by_active')
+      .eq('active', true)
+      .take(1)
+      .collect();
+    if (existing.length > 0) {
+      await ctx.db.patch('webhookEndpoints', existing[0]._id, { url: url });
+      return existing[0]._id;
+    }
+    return await ctx.db.insert('webhookEndpoints', { url: url, active: true });
+  },
 });
 
-// The "something changed for this user" ping. Deliberately NOT sent in this
-// slice — the deliverable here is the poll read model, and a fake webhook
-// target would prove nothing the fake store does not already prove.
+// Actions have no ctx.db, so the delivery ledger is written through a mutation
+// like every other durable effect. Attempt numbers are derived here rather
+// than passed in, so a retried job cannot misreport which attempt it was.
+export const recordDeliveryAttempt = defineJsMutation({
+  args: {
+    userId: v.string(),
+    seq: v.integer(),
+    endpoint: v.string(),
+    outcome: v.string(),
+    status: v.integer(),
+  },
+  reads: ['deliveries'],
+  writes: ['deliveries'],
+  result: results.value(v.integer()),
+  handler: async (ctx, args) => {
+    if (args.outcome !== 'delivered' && args.outcome !== 'failed') {
+      throw new Error('outcome must be delivered or failed');
+    }
+    const prior = await ctx.db
+      .query('deliveries')
+      .withIndex('by_seq')
+      .eq('seq', args.seq)
+      .collect();
+    const attempt = prior.length + 1;
+    await ctx.db.insert('deliveries', {
+      userId: args.userId,
+      seq: args.seq,
+      endpoint: args.endpoint,
+      attempt: attempt,
+      outcome: args.outcome,
+      status: args.status,
+      attemptedAt: ctx.runtime.now(),
+    });
+    return attempt;
+  },
+});
+
+// The real outbound ping (decision 20, last mile). Run by the durable job
+// queue, so a failing endpoint is retried with backoff instead of dropped.
 //
-// What matters architecturally is the payload shape: { userId, seq } and
-// nothing else, so the developer must come back and read. Slice 5 replaces the
-// recorded attempt below with a real signed POST plus retry.
+// The body is { userId, seq } and nothing else. A developer receiving this
+// learns only that something moved and must call back for the answer — which
+// means a delayed, duplicated, or out-of-order ping is harmless.
+//
+// SIGNING GAP: the ping authenticates with a shared-secret bearer, which
+// proves the sender but does NOT bind the body. A real webhook wants an HMAC
+// over the payload, and the handler surface has no digest primitive to build
+// one with (the host-op surface is db/jobs/runtime/host.fetch/sequence/push).
+// See the demo README.
 export const notifyDeveloper = defineAction({
   args: {
     userId: v.string(),
     seq: v.integer(),
-    endpoint: v.optional(v.string()),
+    url: v.string(),
   },
+  uses: ['developerWebhookSecret'],
   writes: ['deliveries'],
   result: results.value(v.object({
-    recorded: v.boolean(),
-    endpoint: v.string(),
-    payloadKeys: v.string(),
+    delivered: v.boolean(),
+    status: v.integer(),
+    attempt: v.integer(),
   })),
   handler: async (ctx, args) => {
-    const endpoint = String(args.endpoint ?? '').trim()
-      || 'https://developer.example/webhooks/entitlements';
-    // SLICE 5 goes here:
-    //   await ctx.fetch({ url: endpoint, method: 'POST',
-    //     headers: { 'x-snapback-signature': sign(body) },
-    //     body: JSON.stringify({ userId: args.userId, seq: args.seq }) });
-    await ctx.runMutation('recordDeliveryAttempt', {
+    const url = String(args.url ?? '').trim();
+    if (!url) throw new Error('url is required');
+    const body = JSON.stringify({ userId: args.userId, seq: args.seq });
+
+    const response = await ctx.fetch({
+      url: url,
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        authorization: ctx.secrets.get('developerWebhookSecret').asBearer(),
+      },
+      body: body,
+    });
+
+    const delivered = response.ok === true && response.status === 200;
+    // Record the attempt before deciding to fail, so the ledger shows the
+    // whole retry ladder rather than only the attempt that finally worked.
+    const attempt = await ctx.runMutation('recordDeliveryAttempt', {
       userId: args.userId,
       seq: args.seq,
-      endpoint: endpoint,
+      endpoint: url,
+      outcome: delivered ? 'delivered' : 'failed',
+      status: response.status,
     });
-    return { recorded: true, endpoint: endpoint, payloadKeys: 'userId,seq' };
+    if (!delivered) {
+      // Throwing is what asks the queue for another attempt.
+      throw new Error('developer endpoint refused: ' + response.status);
+    }
+    return { delivered: true, status: response.status, attempt: attempt };
   },
 });
 
-// What the stub recorded, so a suite can prove the ping carried no state.
+// The delivery ledger, so a suite can prove what was actually sent.
 export const listDeliveries = defineQuery({
   table: 'deliveries',
   args: {},

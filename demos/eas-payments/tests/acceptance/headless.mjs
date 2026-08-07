@@ -23,6 +23,8 @@ import { importGeneratedModule, readGeneratedJson } from '../../../_kit/generate
 import { startServer } from '../../../_kit/server-process.mjs';
 import { assert, assertEqual, assertThrows, createSuite, runAcceptance } from '../../../_kit/harness.mjs';
 import { startFakeStore } from './fake-store.mjs';
+import { startFakeDeveloper } from './fake-developer.mjs';
+import { AdminClient } from '../../../../packages/snapback-admin-client/index.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(here, '..', '..', '..', '..');
@@ -49,15 +51,21 @@ const IVY = 'user_ivy';
 const JO = 'user_jo';
 const KIT = 'user_kit';
 const LEO = 'user_leo';
+const MIA = 'user_mia';
+const NIA = 'user_nia';
+const OMAR = 'user_omar';
 
 const STORE_KEY = 'fake-store-key-slice-2';
 const WRONG_STORE_KEY = 'not-the-store-key';
+const WEBHOOK_SECRET = 'developer-shared-secret-slice-5';
 
-const suite = createSuite('eas-payments / headless', { expectedChecks: 31 });
+const suite = createSuite('eas-payments / headless', { expectedChecks: 36 });
 const cleanups = [];
 let server = null;
 let db = null;
 let store = null;
+let developer = null;
+let admin = null;
 // Set by the cron-expiry check; read by the feed check that inspects that tick.
 let sweepCursor = 0;
 
@@ -73,17 +81,38 @@ const notify = ({ userId, store: storeName, storeTxnId }, callerId) => db.action
   userId: callerId ?? userId,
 });
 
-const setStoreKey = async (value) => {
+const setConfig = async (entry, value) => {
   const res = await fetch(`${server.baseUrl}/_snapback/api/config/set`, {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
       'x-snapback-admin-token': server.adminToken,
     },
-    body: JSON.stringify({ entry: 'storeValidation', value }),
+    body: JSON.stringify({ entry, value }),
   });
   if (!res.ok) throw new Error(`config set failed: HTTP ${res.status} ${await res.text()}`);
   return res.json();
+};
+const setStoreKey = (value) => setConfig('storeValidation', value);
+
+// The jobs worker is inert in this suite; every claim goes through the drain
+// seam so the retry ladder is observed rather than waited on.
+//
+// The injected clock is both the due-ness test AND the base the runtime uses
+// to schedule a failed attempt's next try, so re-injecting the same instant
+// leaves a retry permanently in the future. Extra `maxWaves` does not help
+// either: every wave in one call shares that call's nowMs. A retry ladder
+// therefore needs successive drains at successive virtual moments.
+let virtualNowMs = Date.now();
+const drain = async (rounds = 1) => {
+  const receipts = [];
+  for (let round = 0; round < rounds; round += 1) {
+    // Two virtual minutes per round clears the whole backoff ladder
+    // (base 1 s, capped at 60 s, jitter ceiling 1 s).
+    virtualNowMs = Math.max(virtualNowMs, Date.now()) + 120_000;
+    receipts.push(await admin.drainJobs({ nowMs: virtualNowMs, maxWaves: 1 }));
+  }
+  return receipts;
 };
 
 const activeEntitlementIds = async (userId) => {
@@ -121,6 +150,8 @@ await runAcceptance(suite, async () => {
   // mid-assertion; the suite forces every tick it wants (LLP 0028).
   store = await startFakeStore({ apiKey: STORE_KEY });
   cleanups.push(() => store.close());
+  developer = await startFakeDeveloper({ secret: WEBHOOK_SECRET });
+  cleanups.push(() => developer.close());
 
   server = await startServer({
     port: 0,
@@ -129,7 +160,9 @@ await runAcceptance(suite, async () => {
     cronDisabled: true,
     // Generation opting in does not grant the process network authority; the
     // runtime is the security boundary and needs its own opt-in.
-    env: { SNAPBACK_OUTBOUND_ACTIONS: '1' },
+    // SNAPBACK_JOBS_DISABLED is cron's sibling switch: separate subsystem,
+    // separate inert-worker flag, so the suite owns every job claim too.
+    env: { SNAPBACK_OUTBOUND_ACTIONS: '1', SNAPBACK_JOBS_DISABLED: '1' },
     provenance: {
       appId: 'eas-payments',
       artifactsPath: join(backendDir, 'generated', 'artifacts.json'),
@@ -137,6 +170,7 @@ await runAcceptance(suite, async () => {
   });
   cleanups.push(() => server.stop());
   db = new SnapbackClient(server.baseUrl, server.clientOptions);
+  admin = new AdminClient(`${server.baseUrl}/_snapback/api`, { token: server.adminToken });
 
   await suite.check('health reports a local ibex+sqlite target', async () => {
     const health = await db.health();
@@ -186,6 +220,7 @@ await runAcceptance(suite, async () => {
   // Config entries are declared in the function manifest, so the deployment
   // value can only be set once that manifest is loaded.
   await setStoreKey(STORE_KEY);
+  await setConfig('developerWebhookSecret', WEBHOOK_SECRET);
 
   await suite.check('deterministic reset + declarative seed installs the catalog', async () => {
     await db.reset();
@@ -587,23 +622,153 @@ await runAcceptance(suite, async () => {
     assertEqual(page[0].userId, JO, 'named the right user');
   });
 
-  await suite.check('notifyDeveloper pings with only userId and seq', async () => {
+  // --- Slice 5: real outbound delivery -----------------------------------------
+
+  await suite.check('no registered endpoint means no delivery is scheduled', async () => {
+    // Everything so far ran with no webhook registered, so the feed has been
+    // filling without ever scheduling a ping.
+    const jobs = await admin.listJobs();
+    assertEqual(jobs.jobs ?? jobs.rows ?? [], [], 'nothing enqueued before registration');
+    assertEqual(developer.received.length, 0, 'developer heard nothing');
+  });
+
+  await suite.check('a change enqueues a delivery transactionally with the feed row', async () => {
+    await db.mutate(api.registerWebhookEndpoint, { args: { url: developer.url }, userId: JO });
     const cursor = await changeCursor();
-    const res = await db.action(api.notifyDeveloper, {
-      args: { userId: JO, seq: cursor },
-      userId: JO,
+
+    const commit = await db.mutate(api.recordPurchase, {
+      args: {
+        productId: 'plus_monthly',
+        store: 'stripe',
+        storeTxnId: 'stripe:receipt_mia_plus',
+        status: 'active',
+        environment: 'sandbox',
+        expiresAt: Date.now() + 86_400_000,
+      },
+      userId: MIA,
     });
-    assert(res.ok, `notifyDeveloper failed: ${JSON.stringify(res.diagnostic)}`);
-    assertEqual(res.result.recorded, true, 'the attempt was recorded');
-    assertEqual(res.result.payloadKeys, 'userId,seq', 'the ping body carries no entitlement state');
+    assertEqual(commit.result.grants, 1, 'the purchase moved a grant');
+
+    // The mutation receipt carries the enqueue: the feed row and the job
+    // landed in the same commit, so a rollback could not have left one behind.
+    const enqueues = commit.enqueues ?? commit.receipt?.enqueues ?? [];
+    assertEqual(enqueues.length, 1, `expected one enqueue on the receipt, got ${JSON.stringify(commit)}`);
+    assertEqual(enqueues[0].action, 'notifyDeveloper', 'the enqueued action');
+
+    const page = await pollChanges(cursor);
+    assertEqual(page.length, 1, 'one feed row');
+    assertEqual(page[0].userId, MIA, 'for the right user');
+    // Still not delivered — the worker is inert until the suite drains.
+    assertEqual(developer.received.length, 0, 'nothing sent before the drain');
+    return { jobId: enqueues[0].jobId, seq: page[0].seq };
+  });
+
+  await suite.check('draining delivers a ping carrying only userId and seq', async () => {
+    const before = await changeCursor();
+    await drain();
+    assertEqual(developer.received.length, 1, 'exactly one delivery');
+    const ping = developer.received[0];
+    assertEqual(ping.authorized, true, 'presented the shared secret');
+    assertEqual(ping.outcome, 200, 'endpoint accepted it');
+    assertEqual(Object.keys(ping.body).sort(), ['seq', 'userId'], 'ping body shape');
+    assertEqual(ping.body.userId, MIA, 'named the user whose access moved');
+    assertEqual(ping.body.seq, before, 'named the feed position');
 
     const deliveries = await db.query(api.listDeliveries, {});
     const last = deliveries.rows[deliveries.rows.length - 1];
-    assertEqual(last.userId, JO, 'delivery names the user');
-    assertEqual(last.seq, cursor, 'delivery names the cursor position');
-    // Recording a would-be ping must not itself disturb the feed.
-    assertEqual(await pollChanges(cursor), [], 'notifying is not a change');
-    return { endpoint: last.endpoint, deliveries: deliveries.rows.length };
+    assertEqual(last.outcome, 'delivered', 'ledger records success');
+    assertEqual(last.attempt, 1, 'first attempt');
+    assertEqual(last.status, 200, 'ledger records the status');
+    // Delivering must not itself be a change.
+    assertEqual(await pollChanges(before), [], 'the ping did not append to the feed');
+    return { body: ping.body };
+  });
+
+  await suite.check('a failing endpoint is retried until it succeeds', async () => {
+    developer.reset();
+    developer.failNext(2);
+    await db.mutate(api.recordPurchase, {
+      args: {
+        productId: 'pro_monthly',
+        store: 'stripe',
+        storeTxnId: 'stripe:receipt_nia_pro',
+        status: 'active',
+        environment: 'sandbox',
+        expiresAt: Date.now() + 86_400_000,
+      },
+      userId: NIA,
+    });
+
+    // Three successive virtual moments: fail, fail, succeed.
+    await drain(4);
+
+    const attempts = developer.received;
+    assert(attempts.length >= 3, `expected retries, saw ${attempts.length} attempts`);
+    assertEqual(attempts[0].outcome, 503, 'first attempt refused');
+    assertEqual(attempts[attempts.length - 1].outcome, 200, 'final attempt accepted');
+    // Every attempt carried the same payload — a retry is not a new event.
+    for (const attempt of attempts) {
+      assertEqual(Object.keys(attempt.body).sort(), ['seq', 'userId'], 'retry body shape');
+      assertEqual(attempt.body.userId, NIA, 'same user throughout');
+    }
+
+    const ledger = (await db.query(api.listDeliveries, {})).rows
+      .filter((row) => row.userId === NIA);
+    assertEqual(ledger.map((row) => row.outcome), ['failed', 'failed', 'delivered'], 'the retry ladder is recorded');
+    assertEqual(ledger.map((row) => row.attempt), [1, 2, 3], 'attempts are numbered');
+    return { attempts: attempts.length };
+  });
+
+  await suite.check('a permanently failing endpoint stops after maxAttempts', async () => {
+    developer.reset();
+    developer.failAlways(true);
+    try {
+      await db.mutate(api.recordPurchase, {
+        args: {
+          productId: 'pro_monthly',
+          store: 'stripe',
+          storeTxnId: 'stripe:receipt_omar_pro',
+          status: 'active',
+          environment: 'sandbox',
+          expiresAt: Date.now() + 86_400_000,
+        },
+        userId: OMAR,
+      });
+      await drain(10);
+
+      const ledger = (await db.query(api.listDeliveries, {})).rows
+        .filter((row) => row.userId === OMAR);
+      assertEqual(ledger.length, 5, 'stopped at the declared maxAttempts of 5');
+      assert(ledger.every((row) => row.outcome === 'failed'), 'every attempt failed');
+
+      // The change itself survived the failed delivery: the feed is the
+      // authoritative mechanism and the ping is only a hint.
+      const feed = (await pollChanges(0)).filter((row) => row.userId === OMAR);
+      assertEqual(feed.length, 1, 'the change is still pollable after delivery gave up');
+      assertEqual(await activeEntitlementIds(OMAR), ['pro'], 'and the entitlement is real');
+      return { attempts: ledger.length };
+    } finally {
+      developer.failAlways(false);
+    }
+  });
+
+  await suite.check('a no-op reconcile schedules no delivery', async () => {
+    developer.reset();
+    // Mia's transaction was committed directly, so teach the store the same
+    // state; reconciling against it must then be a no-op.
+    store.setState('stripe:receipt_mia_plus', {
+      productId: 'plus_monthly',
+      status: 'active',
+      environment: 'sandbox',
+      expiresAt: (await grantFor(MIA, 'plus')).activeUntil,
+    });
+    const cursor = await changeCursor();
+    const res = await notify({ userId: MIA, store: 'stripe', storeTxnId: 'stripe:receipt_mia_plus' });
+    assert(res.ok, `applyStoreState failed: ${JSON.stringify(res.diagnostic)}`);
+    assertEqual(res.result.changed, false, 'nothing moved');
+    await drain(2);
+    assertEqual(developer.received.length, 0, 'silence on the wire, not just in the feed');
+    assertEqual(await pollChanges(cursor), [], 'and nothing in the feed either');
   });
 
   await suite.check('the expireGrants cron job is declared against the sweep action', async () => {

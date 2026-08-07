@@ -10,6 +10,7 @@
     "Runtime",
     "Realtime",
     "Scheduled execution",
+    "Durable background work",
     "Developer experience"
   ],
   "requiredCapabilities": {
@@ -20,7 +21,8 @@
     "actions": true,
     "cron": true,
     "outboundActions": true,
-    "declaredConfig": true
+    "declaredConfig": true,
+    "durableJobs": true
   },
   "backend": {
     "source": "snapback/schema.mjs + snapback/functions.mjs",
@@ -48,7 +50,10 @@
       "user_ivy",
       "user_jo",
       "user_kit",
-      "user_leo"
+      "user_leo",
+      "user_mia",
+      "user_nia",
+      "user_omar"
     ]
   },
   "surfaces": {
@@ -56,7 +61,7 @@
       "requirement": "required",
       "buildTargets": [],
       "runner": "node demos/eas-payments/tests/acceptance/headless.mjs",
-      "toolchain": "node>=22 (built-in fetch); cargo to build/run the local server; the suite starts its own fake store"
+      "toolchain": "node>=22 (built-in fetch); cargo to build/run the local server; the suite starts its own fake store and fake developer endpoint"
     }
   },
   "acceptanceChecks": {
@@ -86,7 +91,12 @@
       "a grant appends exactly one change the developer can poll",
       "pollChanges carries no entitlement state",
       "a no-op reconcile appends nothing to the feed",
-      "notifyDeveloper pings with only userId and seq",
+      "no registered endpoint means no delivery is scheduled",
+      "a change enqueues a delivery transactionally with the feed row",
+      "draining delivers a ping carrying only userId and seq",
+      "a failing endpoint is retried until it succeeds",
+      "a permanently failing endpoint stops after maxAttempts",
+      "a no-op reconcile schedules no delivery",
       "the expireGrants cron job is declared against the sweep action",
       "a grant past activeUntil flips off on a scheduler tick",
       "the expiry sweep participates in the feed, one seq per user",
@@ -96,8 +106,9 @@
   },
   "capabilityGaps": [
     "store_adapters_apple_google_stripe",
-    "real_outbound_webhook_delivery",
-    "atomic_sequence_allocation",
+    "webhook_body_signing",
+    "atomic_sequence_allocation_for_multi_row_commits",
+    "ssrf_fencing_on_endpoint_registration",
     "per_project_isolation",
     "sessions_auth",
     "offerings_and_merchandising",
@@ -107,8 +118,9 @@
     "real store validation — validateReceipt and applyStoreState perform real outbound fetches, but against a fake local store fixture, not Apple/Google/Stripe, and with no signature or JWS verification",
     "production auth — the slice runs in dev auth mode; sessions mode is out of scope",
     "system-authority fencing for the reconcile path — reconcileTransaction takes userId as an argument because a store notification carries no session, and dev auth cannot restrict it to system authority",
-    "real outbound webhook delivery — notifyDeveloper records a would-be delivery rather than sending one; the deliverable of slice 4 is the poll read model",
-    "concurrency-safe change-feed sequencing — seq is minted read-max-plus-one inside the mutation, so concurrent commits could mint a duplicate; an atomic allocator is the unpublished scoped-sequences surface",
+    "webhook body signing — the ping authenticates the sender with a shared-secret bearer but does not bind the payload; the handler surface exposes no digest primitive to build an HMAC with",
+    "SSRF fencing — webhook endpoint registration checks only the http/https scheme, not loopback or link-local targets",
+    "concurrency-safe change-feed sequencing — seq is minted read-max-plus-one inside the mutation; ctx.sequence.allocate exists but permits one allocation per mutation, and the expiry sweep appends a row per user in one commit",
     "metering or billing — transactions carry an environment tag so sandbox rows can be excluded later, and nothing consumes it yet"
   ]
 }

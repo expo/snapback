@@ -85,12 +85,24 @@ export default defineSchema({
     // by_seq is the keyset cursor a poller walks.
     .index('by_seq', ['seq']),
 
-  // Slice-4 stub for the outbound ping. Records that a delivery *would* have
-  // been attempted; slice 5 replaces this with a real signed POST.
+  // Where a developer wants their pings delivered. Registered at runtime
+  // rather than seeded, because a real one is configured per deployment.
+  webhookEndpoints: defineTable({
+    url: v.string(),
+    active: v.boolean(),
+  }).index('by_active', ['active']),
+
+  // The delivery ledger. One row per *attempt*, not per change, so the retry
+  // ladder is visible after the fact instead of only in the job's own state.
   deliveries: defineTable({
     userId: v.string(),
     seq: v.integer(),
     endpoint: v.string(),
+    attempt: v.integer(),
+    outcome: v.string(),
+    status: v.integer(),
     attemptedAt: v.integer(),
-  }).index('by_seq', ['seq']),
+  })
+    .index('by_seq', ['seq'])
+    .index('by_outcome', ['outcome']),
 });
