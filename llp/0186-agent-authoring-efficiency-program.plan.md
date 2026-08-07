@@ -11,6 +11,7 @@ Error handling, Code generation, Packaging, Client integration, Testing
 **Revised:** 2026-08-06 (g — revision of the (f) amendment after one `llp-review` round, two independent families instructed to prioritize generative feedback over compliance nitpicking: `llp/reviews/0186-agent-authoring-efficiency-program.claude.md` and `.gpt-5.md`, round 4. Both reviews converged on the same three defects — an evidence/concept-list mismatch, a closed four-demo source list two of the four concepts can't actually satisfy, and an OQ6 left as a named risk rather than a mechanism — plus the GPT-family review found a fourth, more serious one: the (f) revision's own worked "structural difference" example for Supabase RLS was itself wrong in exactly the way the tier exists to prevent. This revision fixes that bug, replaces the four-card list with a quick-map-plus-deep-journeys shape prioritized by an explicit evidence rubric, opens the source pool beyond the four originally named demos, and answers OQ6 with a generated-projection mechanism instead of naming it as unresolved.)
 **Revised:** 2026-08-07 (h — implementation record: see the dated amendment. All five (g) journeys shipped; `/llms.txt` found already landed by unrelated fleet work with a phasing defect, now corrected.)
 **Revised:** 2026-08-07 (i — implementation record: the W2 published authoring skill shipped as `skills/snapback-authoring/SKILL.md`, with its embedded Rosetta projection checked against the canonical records by `scripts/check-rosetta.mjs`; see the dated amendment. Its paired-lane success test remains gated on the W1 instrument.)
+**Revised:** 2026-08-07 (j — W2 golden-path scaffold shipped v1 as the `expo-chat` template in `snapback new`; see the dated amendment paragraph.)
 **Related:** LLP 0061 (agent-first guide), LLP 0130 (Convex parity standing
 decisions), LLP 0146 (agentic authoring affordances), LLP 0176 (Expo
 messaging golden-path program), LLP 0178 (generate-time authoring
@@ -740,7 +741,25 @@ completes when 0061's projection lands") is therefore not a future addition but 
 ordering fix plus a still-open size problem — the flat projection itself still needs LLP 0061's
 diet/tier amendment before pointing agents at it first is honest.
 
-**Not yet built:** the published Snapback authoring skill and the `create-snapback-app`
-golden-path scaffold remain open, per the (g)/original W2 text's own gating (the scaffold waits on
-LLP 0176 G2 / LLP 0179 S1; the skill's discriminating success test needs the W1 instrument, which
-remains unbuilt beyond scaffolding).
+**Golden-path scaffold: shipped v1 (2026-08-07).** With its stated gate satisfied (LLP 0176
+G2+G3 completed 2026-08-06; LLP 0179 S1 shipped), the scaffold landed as a third template in the
+existing `snapback new` mechanism rather than a separate `create-snapback-app` tool:
+`snapback new <name> --template expo-chat`
+(`packages/snapback-cli/templates/expo-chat/`). It carries the LLP 0176 conversation surface as
+runnable code derived from `demos/expo-golden-path-fixture`: a `messages` table with an image
+`assetRef` field, the `messageImageUpload` intent (strip + required variant), public live queries,
+the generated `conversation` surface (reads, bound `sendText` mutation, the composed `send`
+command with optional image upload, typing presence, the raw asset lane), seeded personas, and an
+Expo/React Native chat screen driving everything through `useSurface` — plus the starter
+acceptance pair (`acceptance.mjs` live receipt, `acceptance.static.mjs` coherence) and an
+`AGENTS.md` funnel per LLP 0187 T4. It deliberately omits the fixture's G2/G3 emit probes and
+witness reporting, the inbox/memberships/reactions/replies breadth, and sessions auth (the
+template keeps the dev auth profile with an explicit pointer to the auth guide; the fixture
+remains the full sessions-mode surface). CI coverage: `packages/snapback-cli/package.test.mjs`
+scaffolds the template, runs codegen over it (asserting zero degraded results and that the
+`conversation` surface generates), and executes its static acceptance; the live acceptance was
+verified against a real runtime at landing time. The out-of-repo packaged proof
+(`scripts/snapback-package-cold-install.mjs`) does not yet exercise this template — ticketed as a
+follow-on (`issues/20260807-expo-chat-template-cold-install-coverage.md`). With the authoring
+skill shipped the same day (revision (i) above), every W2 lane now has a landed artifact; the
+skill's paired-lane success test remains gated on the W1 instrument.

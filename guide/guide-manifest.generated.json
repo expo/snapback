@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "99141117bbde0383b400bce4ca9b27a0c824d30a"
+    "commit": "42f699749699f416b0015781a6bb729414db4464"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -2203,13 +2203,14 @@
       "examples": [
         "packages/snapback-cli/templates/todo-contract",
         "packages/snapback-cli/templates/react",
+        "packages/snapback-cli/templates/expo-chat",
         "packages/snapback-cli/sessions-dev-loop.test.mjs",
         "demos/todo/tests/acceptance/headless.mjs",
         "demos/todo/surfaces/headless/run.mjs"
       ],
       "reviewed": "2026-08-05",
       "reviewedCommit": "4a6000ac6f17a8c94bc2aecf573c0654e850b758",
-      "sha256": "52d065c8229acfe3aea5a2ec91ba3b0b77a00cb5ef1f73f1a796d73eff29f1e8",
+      "sha256": "a6867a93767b3f55740f0ab288f023182b2ea83e7670b266ba282acd88c5aff4",
       "snippets": []
     },
     "getting-started.your-first-backend": {
@@ -3599,5 +3600,5 @@
     "routes": 122,
     "hostOps": 43
   },
-  "contentHash": "1abfe39730725976a839d11eae8c30e00c927dfc2666f1964ef4db8277a49a53"
+  "contentHash": "a9ea8fbc4fcd1da8046d948582760869c5271a48315bd8a1071dbdf7c35d2908"
 }

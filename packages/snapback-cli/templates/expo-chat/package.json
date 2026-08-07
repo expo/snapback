@@ -1,0 +1,32 @@
+{
+  "name": "snapback-expo-chat",
+  "private": true,
+  "type": "module",
+  "main": "expo/AppEntry",
+  "packageManager": "bun@1.3.12",
+  "scripts": {
+    "generate": "snapback generate snapback",
+    "dev": "snapback dev snapback --expo",
+    "start": "expo start",
+    "typecheck": "tsc --noEmit",
+    "test": "node acceptance.mjs",
+    "test:static": "node acceptance.static.mjs",
+    "test:live": "node acceptance.mjs"
+  },
+  "dependencies": {
+    "@expo/snapback-cli": "__SNAPBACK_VERSION__",
+    "@expo/snapback-client": "__SNAPBACK_VERSION__",
+    "@expo/snapback-codegen": "__SNAPBACK_VERSION__",
+    "@expo/snapback-expo": "__SNAPBACK_VERSION__",
+    "@expo/snapback-react": "__SNAPBACK_VERSION__",
+    "expo": "~57.0.7",
+    "expo-file-system": "~57.0.1",
+    "expo-image-picker": "~57.0.7",
+    "react": "19.2.3",
+    "react-native": "0.86.2"
+  },
+  "devDependencies": {
+    "@types/react": "~19.2.0",
+    "typescript": "~6.0.3"
+  }
+}

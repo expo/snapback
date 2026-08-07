@@ -19,7 +19,9 @@ cd my-app
 bun install
 ```
 
-Use `--template react` for the React/Vite starter.
+Use `--template react` for the React/Vite starter, or `--template expo-chat`
+for the golden-path Expo conversation starter (messages with image upload,
+live queries, the generated conversation surface, and typing presence).
 
 ## The golden path
 

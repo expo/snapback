@@ -10723,7 +10723,7 @@ order: 2
 audience: agent-first
 capabilities: [backend.codegen, operating.packaged-dev-loop, testing.acceptance, operating.inspect]
 authorities: [llp/0010-agent-dx-and-acceptance.spec.md, llp/0041-packaged-dev-loop.rfc.md, packages/snapback-cli/index.mjs, packages/snapback-codegen/index.mjs, scripts/snapback-package-cold-install.mjs, scripts/verify-local-proof]
-examples: [packages/snapback-cli/templates/todo-contract, packages/snapback-cli/templates/react, packages/snapback-cli/sessions-dev-loop.test.mjs, demos/todo/tests/acceptance/headless.mjs, demos/todo/surfaces/headless/run.mjs]
+examples: [packages/snapback-cli/templates/todo-contract, packages/snapback-cli/templates/react, packages/snapback-cli/templates/expo-chat, packages/snapback-cli/sessions-dev-loop.test.mjs, demos/todo/tests/acceptance/headless.mjs, demos/todo/surfaces/headless/run.mjs]
 status: current
 targets: [local]
 maturity: partial
@@ -10752,6 +10752,27 @@ cd my-app
 bun install
 bun run dev
 ```
+
+<!-- since: 0.1.12 unreleased -->
+
+> **Unreleased.** The `expo-chat` template is newer than the newest
+> published closure (0.1.11); in a packaged consumer it arrives with the
+> next release. `todo-contract` and `react` are published.
+
+Three templates ship in the packaged CLI: `todo-contract` (headless
+backend + generated client references), `react` (the React/Vite web
+starter above), and `expo-chat` — the golden-path Expo starter carrying
+the LLP 0176 conversation surface as runnable code: a `messages` table
+with an image `assetRef` field, the `messageImageUpload` intent, live
+queries, the generated `conversation` surface (reads, a bound `sendText`
+mutation, the composed `send` command with optional image upload, and
+typing presence), and a React Native chat screen driving all of it
+through `useSurface`. Scaffold it with
+`snapback new my-chat --template expo-chat` and edit the working example
+instead of composing that wiring from prose. The starter deliberately
+keeps the dev auth profile and seeded personas; a production chat adopts
+sessions auth and derives sender identity from the adopted session
+([auth](../auth/sessions-and-principals.md)).
 
 The generated `dev` script is one supervisor:
 `snapback dev snapback --client . --client-command vite`. It generates the
