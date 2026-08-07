@@ -45,6 +45,13 @@ than two sources, or a self-join. V1 explicitly refuses the same table as
 both `root` and `joined`; reply-preview self-joins and reaction counts are
 missing capability, not hidden relational options.
 
+> **Coming from Convex/Supabase?** Convex joins are JS-side traversal or
+> indexed lookups; Supabase exposes foreign-key-derived nested selection —
+> see
+> [Reading related data without hand-writing the wrong join](../recipes/coming-from-convex-and-supabase.md#relational-queries)
+> for the bounded two-source `defineRelationalQuery` vs. `defineMaintainedProjection`
+> translation and the multi-way/self-join GAP.
+
 ```js source=packages/snapback-codegen/relational-authoring.test.mjs
 export const booksWithAuthors = defineRelationalQuery({
   root: schema.tables.books,

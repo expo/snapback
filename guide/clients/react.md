@@ -167,7 +167,10 @@ arguments stay isolated.
 > (backend) from the subscribing hook (client) — see
 > [Protected live CRUD, end to end](../recipes/coming-from-convex-and-supabase.md#protected-live-crud)
 > for the complete slice, including the server-side auth scoping `useQuery`
-> alone doesn't give you.
+> alone doesn't give you, and
+> [Reactive queries: useQuery vs. declare-then-subscribe](../recipes/coming-from-convex-and-supabase.md#reactive-queries)
+> for a code-shape comparison plus a real dual-backend app running the same
+> app against both.
 
 ## Read a query group
 

@@ -1,0 +1,31 @@
+{
+  "id": "relational-queries",
+  "title": "Reading related data without hand-writing the wrong join",
+  "anchor": "relational-queries",
+  "capabilities": ["backend.relational-queries"],
+  "aliases": ["Convex joins", "Supabase joins"],
+  "competitor": [
+    {
+      "provider": "Convex",
+      "concept": "Convex has no join operator: a query function reads related data by walking relationships in plain TypeScript — calling ctx.db.get(doc.otherId) to follow a stored id, or ctx.db.query('other').withIndex(...) to look up by a denormalized foreign key — and assembles the joined result by hand inside the function body.",
+      "version": "1.24.8",
+      "sourceUrl": "https://docs.convex.dev/database/reading-data",
+      "retrievedAt": "2026-08-07"
+    },
+    {
+      "provider": "Supabase",
+      "concept": "PostgREST resource embedding: a nested select like `.select('*, author:authors(name)')` follows a Postgres foreign-key relationship server-side, with join modifiers (`!inner`, `!left`, explicit FK-name disambiguation) controlling whether the embed filters or preserves the parent row.",
+      "version": "2.45.4 (supabase-js / PostgREST)",
+      "sourceUrl": "https://supabase.com/docs/guides/database/joins-and-nesting",
+      "retrievedAt": "2026-08-07"
+    }
+  ],
+  "snapbackSources": [
+    "demos/competitive-checkpoint/snapback/functions.mjs"
+  ],
+  "backlinkPages": [
+    "guide/backend/relational-queries.md"
+  ],
+  "lastVerified": "2026-08-07",
+  "reviewBy": "2026-11-07"
+}

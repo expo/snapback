@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "51a014c2c574643049f17c5e8253c78846b17967"
+    "commit": "3d7f6eb4075c9aeebda35640a574e2667195972a"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -1119,7 +1119,7 @@
       ],
       "reviewed": "2026-08-05",
       "reviewedCommit": "f3c7d9fbb394a413370a9264f22e72b6f151a25e",
-      "sha256": "4b2c35d8a96cc48f86faae62e0f8688e43ab7c079d592303a84a61d9d25a7cd8",
+      "sha256": "6daed24064514df0990a43b6c5152fc61f99338361a3a0068d6637e290f86579",
       "snippets": [
         {
           "lang": "js",
@@ -1499,7 +1499,7 @@
       "examples": [],
       "reviewed": "2026-08-06",
       "reviewedCommit": "850427c31b9a668d55b46995e08389cd13a2c9b6",
-      "sha256": "ffa0d8d55bd0c4790ad996d00ae0a33f3b53109ca92c9a60aadbeddf217f6b69",
+      "sha256": "7e3fcc10c2bf91769ddbefea5175bcaff2cf5ac9a06080cb8f38d5f6f99fa590",
       "snippets": []
     },
     "clients.app-cli": {
@@ -1853,7 +1853,7 @@
       ],
       "reviewed": "2026-08-06",
       "reviewedCommit": "4ac8387f080a2659484fc09916ff22a076dc4ca8",
-      "sha256": "69092ff85b77d281f116044f187dc0e3e591d6c49fc4d24e4be8a88c4cf08a77",
+      "sha256": "3aecf4dd69647b335e168ca51ebe53c1d3f2e413f74872427727ba1ef33e4d27",
       "snippets": [
         {
           "lang": "ts",
@@ -2736,7 +2736,7 @@
       ],
       "reviewed": "2026-08-06",
       "reviewedCommit": "6e158169b3c908b8be149db4487a71dc35738470",
-      "sha256": "4d1b6b6edb088e618d4a595d00c124b2198c49f8527e32ca1e2032dc4a3c86fb",
+      "sha256": "0fd88c4f58ac717dc705eba502a8ac44a67833032db6e95f18ca3e58cd71ccc2",
       "snippets": [
         {
           "lang": "tsx",
@@ -2880,22 +2880,32 @@
         "backend.functions",
         "auth.scoped-queries",
         "clients.react",
-        "backend.assets"
+        "backend.assets",
+        "backend.relational-queries",
+        "realtime.ephemeral"
       ],
       "authorities": [
         "llp/0186-agent-authoring-efficiency-program.plan.md",
         "demos/card-game/snapback/functions.mjs",
         "demos/card-game/tests/acceptance/authority-scope.mjs",
         "packages/snapback-codegen/asset-upload-authoring.test.mjs",
-        "demos/expo-golden-path-fixture/src/screens/chat-screen.tsx"
+        "demos/expo-golden-path-fixture/src/screens/chat-screen.tsx",
+        "demos/competitive-checkpoint/snapback/functions.mjs",
+        "demos/messaging-snapback/src/lib/useTyping.ts",
+        "demos/cursors-web/snapback/schema.mjs",
+        "demos/partiful-matrix/native/react-expo/App.js"
       ],
       "examples": [
         "demos/card-game",
-        "demos/expo-golden-path-fixture"
+        "demos/expo-golden-path-fixture",
+        "demos/competitive-checkpoint",
+        "demos/messaging-snapback",
+        "demos/cursors-web",
+        "demos/partiful-matrix"
       ],
       "reviewed": "2026-08-07",
       "reviewedCommit": "HEAD",
-      "sha256": "f32c8a4135fd9293f17cc4be399bd05353349cb0c650d84bd57456db23a4c457",
+      "sha256": "46d3a5ad63cbadbbc8e74e3b43c23bf4061a02720b931fcec6f087767b343ae6",
       "snippets": [
         {
           "lang": "ts",
@@ -2937,6 +2947,46 @@
           "lang": "tsx",
           "class": "transcluded",
           "source": "demos/expo-golden-path-fixture/src/screens/chat-screen.tsx"
+        },
+        {
+          "lang": "ts",
+          "class": "fragment"
+        },
+        {
+          "lang": "ts",
+          "class": "fragment"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/competitive-checkpoint/snapback/functions.mjs"
+        },
+        {
+          "lang": "ts",
+          "class": "fragment"
+        },
+        {
+          "lang": "ts",
+          "class": "fragment"
+        },
+        {
+          "lang": "tsx",
+          "class": "transcluded",
+          "source": "demos/messaging-snapback/src/lib/useTyping.ts"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/cursors-web/snapback/schema.mjs"
+        },
+        {
+          "lang": "ts",
+          "class": "fragment"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/partiful-matrix/native/react-expo/App.js"
         }
       ]
     },
@@ -3127,7 +3177,7 @@
       "examples": [],
       "reviewed": "2026-08-03",
       "reviewedCommit": "3109a3b4f5068595a71448b10788b56b4fa358f5",
-      "sha256": "a8a1c7f5ee16de7d0c5ce84d8672ea213986084a78b5ee4d0dcefb96c78367af",
+      "sha256": "b2371ef6335b99a363921645b76621ba00d9b3d3a2ec0b532e7be1c541edb377",
       "snippets": []
     },
     "meta.surface-map": {
@@ -3453,5 +3503,5 @@
     "routes": 122,
     "hostOps": 43
   },
-  "contentHash": "22dbe322862d328b12d9f1374cbac34c27dfc2a57f1aee886a4809b5d5201fdb"
+  "contentHash": "7a1578c40f29340c3582d2a837a678d07f960cb4581e6ee914d2661f1d63840e"
 }
