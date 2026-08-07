@@ -539,15 +539,17 @@ export function implementationDigestAt(root, commit) {
 
 // @ref LLP 0162#source-owned-publication-carrier-amendment--2026-08-04
 // Qualification custody covers the implementation digest's exact leaf scope,
-// not unrelated repository history that happens to land between C and P.
+// not unrelated repository history that happens to land between C and P. The
+// receipt must name the committed implementation at C as well as the tree at P.
 export function assertQualifiedImplementationDigestAtPublication(root, {
   capabilityId,
   qualificationCommit,
   publicationCommit,
   expectedDigest,
 }) {
-  const actualDigest = implementationDigestAt(root, publicationCommit);
-  if (actualDigest !== expectedDigest) {
+  const qualificationDigest = implementationDigestAt(root, qualificationCommit);
+  const publicationDigest = implementationDigestAt(root, publicationCommit);
+  if (qualificationDigest !== expectedDigest || publicationDigest !== expectedDigest) {
     const changes = qualifiedImplementationChangesBetween(
       root,
       qualificationCommit,
@@ -559,11 +561,12 @@ export function assertQualifiedImplementationDigestAtPublication(root, {
     fail([
       `${capabilityId} qualified implementation digest mismatch`,
       `in-scope paths drifted: ${changedPaths}`,
-      `expected ${expectedDigest}`,
-      `actual ${actualDigest}`,
+      `receipt ${expectedDigest}`,
+      `qualification C ${qualificationDigest}`,
+      `publication P ${publicationDigest}`,
     ].join('; '));
   }
-  return actualDigest;
+  return publicationDigest;
 }
 
 function checkedOutImplementationGitlink(root) {
@@ -1131,7 +1134,7 @@ function validateReview(root, path, family, commit, implementationTree) {
   );
 }
 
-function validateAuthorAcceptance(root, commit, implementationTree) {
+function validateAuthorAcceptance(root, receipt, commit, implementationTree) {
   const path = STORAGE_EVIDENCE[5][1];
   const value = readEvidenceJson(root, path, 'author acceptance');
   requireEvidence(value.schemaVersion === 'snapback.agent-safe-storage-author-acceptance.v1'
@@ -1142,6 +1145,7 @@ function validateAuthorAcceptance(root, commit, implementationTree) {
   'named-author acceptance identity or decision drifted');
   requireEvidence(value.qualifiedSourceCommit === commit
     && value.implementationTreeSha256 === implementationTree
+    && value.implementationTreeSha256 === receipt.implementationTreeSha256
     && value.qualifiedCapability === 'agent_safe_storage_v1'
     && JSON.stringify(value.qualifiedComponents) === JSON.stringify(STORAGE_COMPONENTS),
   'author acceptance source or component scope drifted');
@@ -1261,9 +1265,48 @@ function validateDerivedForkBoundsRatification(root, commit) {
   }
 }
 
+// @ref LLP 0158#capability-registry-record — review authority comes from the
+// current round's named Scope 1/Scope 2 statement, never a verdict-shaped
+// substring elsewhere in the artifact.
 function finalReviewRound(text) {
   const rounds = [...text.matchAll(/^## Round [0-9]+[^\n]*$/gmu)];
   return rounds.length === 0 ? text : text.slice(rounds.at(-1).index);
+}
+
+function finalReviewRoundNumber(text) {
+  const match = finalReviewRound(text).match(/^## Round ([0-9]+)\b/mu);
+  return match ? Number(match[1]) : undefined;
+}
+
+function normalizedHeading(value) {
+  return value.trim().replace(/\s+/gu, ' ').toLowerCase();
+}
+
+function authoritativeReviewSection(finalRound, headings) {
+  const accepted = new Set(headings.map(normalizedHeading));
+  const matches = [...finalRound.matchAll(/^### ([^\n]+)$/gmu)]
+    .filter((match) => accepted.has(normalizedHeading(match[1])));
+  if (matches.length !== 1) return undefined;
+  const start = matches[0].index + matches[0][0].length;
+  const remainder = finalRound.slice(start);
+  const nextHeading = remainder.search(/^#{2,3} /mu);
+  return nextHeading === -1 ? remainder : remainder.slice(0, nextHeading);
+}
+
+function markdownTableCells(line) {
+  const trimmed = line.trim();
+  if (!trimmed.startsWith('|') || !trimmed.endsWith('|')) return undefined;
+  return trimmed.slice(1, -1).split('|').map((cell) => cell.trim());
+}
+
+function markdownTableSeparator(cells) {
+  return Array.isArray(cells)
+    && cells.length > 0
+    && cells.every((cell) => /^:?-{3,}:?$/u.test(cell));
+}
+
+function exactReadyVerdictCell(cell) {
+  return /^\*\*READY\*\*(?:$|[\s(—-])/u.test(cell ?? '');
 }
 
 function reviewField(text, ...labels) {
@@ -1297,22 +1340,63 @@ function reviewFamily(text, path) {
 
 function finalReviewVerdictIsReady(text) {
   const finalRound = finalReviewRound(text);
-  if (reviewField(finalRound, 'Verdict') === 'READY') return true;
-  const normalized = finalRound.replace(/\s+/gu, ' ');
-  return normalized.includes(
-    '**READY for publication of the narrow local `operating.instance-forks`',
-  ) || normalized.includes(
-    '**READY for implementation/security publication of the narrow local `operating.instance-forks`',
-  );
+  const section = authoritativeReviewSection(finalRound, [
+    'Scope 2 verdict',
+    'Overall verdict',
+    'Verdict for the re-qualified tree',
+  ]);
+  const statement = section?.match(/^\s*\*\*([\s\S]*?)\*\*/u)?.[1]
+    .replace(/\s+/gu, ' ')
+    .trim();
+  return /^(?:READY for publication|READY for implementation\/security publication) of the narrow local `operating\.instance-forks`(?=\s|$)/u
+    .test(statement ?? '');
 }
 
 function finalSpecReviewVerdictsAreReady(text) {
   const finalRound = finalReviewRound(text);
-  if (reviewField(finalRound, 'Verdict') === 'READY') return true;
-  return ['0163', '0164', '0165'].every((number) => new RegExp(
-    `^\\| LLP ${number} \\|[^\\n]*\\bREADY\\b[^\\n]*\\|$`,
-    'mu',
-  ).test(finalRound));
+  const roundNumber = finalReviewRoundNumber(text);
+  const section = authoritativeReviewSection(finalRound, [
+    'Scope 1 re-verdict',
+    'Re-verdicts (fork-relevant surface)',
+    'Re-verdicts',
+  ]);
+  if (!section) return false;
+  const lines = section.split('\n');
+  for (let index = 0; index + 1 < lines.length; index += 1) {
+    const header = markdownTableCells(lines[index]);
+    const separator = markdownTableCells(lines[index + 1]);
+    if (header?.[0] !== 'Document' || !markdownTableSeparator(separator)
+        || separator.length !== header.length) continue;
+    const explicitVerdictColumns = header
+      .map((cell, column) => (
+        normalizedHeading(cell) === 'fork-relevant verdict' ? column : -1
+      ))
+      .filter((column) => column >= 0);
+    const currentRoundColumns = header
+      .map((cell, column) => (
+        roundNumber !== undefined
+          && normalizedHeading(cell) === `round ${roundNumber}`
+          ? column
+          : -1
+      ))
+      .filter((column) => column >= 0);
+    const verdictColumns = explicitVerdictColumns.length > 0
+      ? explicitVerdictColumns
+      : currentRoundColumns;
+    if (verdictColumns.length !== 1) return false;
+    const verdictColumn = verdictColumns[0];
+    const verdicts = new Map();
+    for (const line of lines.slice(index + 2)) {
+      const cells = markdownTableCells(line);
+      if (!cells || cells.length !== header.length) break;
+      const document = cells[0].match(/^LLP (016[345])$/u)?.[1];
+      if (document) verdicts.set(document, cells[verdictColumn]);
+    }
+    return ['0163', '0164', '0165'].every((number) => (
+      exactReadyVerdictCell(verdicts.get(number))
+    ));
+  }
+  return false;
 }
 
 function validateDerivedForkReview(root, index, expectedFamily, implementation) {
@@ -1356,6 +1440,7 @@ function validateDerivedForkAuthorAcceptance(root, receipt, commit, implementati
     && value.authorLine === 'Charlie Cheever — accepted 2026-08-06'
     && value.qualifiedSourceCommit === commit
     && value.implementationTreeSha256 === implementationTree
+    && value.implementationTreeSha256 === receipt.implementationTreeSha256
     && value.candidateFactsSha256 === receipt.candidateFactsSha256
     && JSON.stringify(value.qualifiedComponents) === JSON.stringify(DERIVED_COMPONENTS),
   'derived-fork named-author/source/component acceptance drifted');
@@ -1404,8 +1489,8 @@ export function validatePublishedDerivedForkEvidenceSemantics(root, record, comm
 }
 
 export function validatePublishedEvidenceSemantics(root, record, commit, receipt = undefined) {
+  const boundReceipt = receipt ?? JSON.parse(readFileSync(join(root, record.receipt)));
   if (record.id === 'agent_safe_derived_deployment_fork_v1') {
-    const boundReceipt = receipt ?? JSON.parse(readFileSync(join(root, record.receipt)));
     validatePublishedDerivedForkEvidenceSemantics(root, record, commit, boundReceipt);
     return;
   }
@@ -1418,7 +1503,7 @@ export function validatePublishedEvidenceSemantics(root, record, commit, receipt
   validateAcceptanceCorpus(root, commit, implementationTree);
   validateReview(root, STORAGE_EVIDENCE[3][1], 'Fable', commit, implementationTree);
   validateReview(root, STORAGE_EVIDENCE[4][1], 'Codex', commit, implementationTree);
-  validateAuthorAcceptance(root, commit, implementationTree);
+  validateAuthorAcceptance(root, boundReceipt, commit, implementationTree);
 }
 
 export function validatePublicationRecord(root, record) {
@@ -1448,15 +1533,17 @@ export function validatePublicationRecord(root, record) {
   if (!isSha256(anchor.carrierSha256, true) || anchor.carrierSha256 !== sha256(carrierBytes)) {
     fail(`${record.id} anchor/carrier digest mismatch`);
   }
+  const candidateFacts = exactCandidate(record.id);
+  const candidateFactsSha256 = sha256(Buffer.from(JSON.stringify(candidateFacts)));
   if (carrier.schemaVersion !== 'snapback.local-agent-safe-publication.v1'
       || carrier.capabilityId !== record.id
       || carrier.targetProfileId !== 'local-dev-sqlite-ibex'
       || carrier.maturity !== 'experimental'
       || carrier.buildProvenanceRequirement !== 'known-clean-contributor-source'
       || carrier.qualificationReceiptSha256 !== sha256(receiptBytes)
-      || JSON.stringify(carrier.candidateFacts) !== JSON.stringify(exactCandidate(record.id))
-      || carrier.candidateFactsSha256 !== sha256(Buffer.from(JSON.stringify(carrier.candidateFacts)))
-      || receipt.candidateFactsSha256 !== carrier.candidateFactsSha256
+      || JSON.stringify(carrier.candidateFacts) !== JSON.stringify(candidateFacts)
+      || carrier.candidateFactsSha256 !== candidateFactsSha256
+      || receipt.candidateFactsSha256 !== candidateFactsSha256
       || receipt.implementationTreeSha256 !== carrier.implementationTreeSha256
       || receipt.qualifiedSourceCommit !== carrier.qualifiedSourceCommit
       || JSON.stringify(receipt.qualifiedComponents) !== JSON.stringify(record.components)) {
@@ -1472,32 +1559,35 @@ export function validatePublicationRecord(root, record) {
       fail(`${record.id} evidence bytes drifted at ${binding.path}`);
     }
   }
+  const publication = git(root, ['rev-parse', 'HEAD']);
+  try {
+    git(root, ['merge-base', '--is-ancestor', carrier.qualifiedSourceCommit, publication]);
+  } catch {
+    fail(`${record.id} qualification commit is not an ancestor of publication HEAD`);
+  }
+  const implementationDigest = assertQualifiedImplementationDigestAtPublication(root, {
+    capabilityId: record.id,
+    qualificationCommit: carrier.qualifiedSourceCommit,
+    publicationCommit: publication,
+    expectedDigest: receipt.implementationTreeSha256,
+  });
   validatePublishedEvidenceSemantics(root, record, carrier.qualifiedSourceCommit, receipt);
-  return { id: record.id, state: 'published', commit: carrier.qualifiedSourceCommit };
+  return {
+    id: record.id,
+    state: 'published',
+    commit: carrier.qualifiedSourceCommit,
+    implementationDigest,
+  };
 }
 
 export function runChecker(root) {
-  const publication = git(root, ['rev-parse', 'HEAD']);
   const results = RECORDS.map((record) => validatePublicationRecord(root, record));
   for (const result of results.filter(({ state }) => state === 'published')) {
-    try {
-      git(root, ['merge-base', '--is-ancestor', result.commit, publication]);
-    } catch {
-      fail(`${result.id} qualification commit is not an ancestor of publication HEAD`);
-    }
-    const record = RECORDS.find(({ id }) => id === result.id);
-    const receipt = JSON.parse(readFileSync(join(root, record.receipt)));
     validateLocalStorePublicationTransform(root, result.commit);
-    const atPublication = assertQualifiedImplementationDigestAtPublication(root, {
-      capabilityId: result.id,
-      qualificationCommit: result.commit,
-      publicationCommit: publication,
-      expectedDigest: receipt.implementationTreeSha256,
-    });
     const workingTreeDigest = implementationDigestWorkingTree(root);
-    if (atPublication !== workingTreeDigest) {
+    if (result.implementationDigest !== workingTreeDigest) {
       fail(`${result.id} publication HEAD and clean working-tree implementation digests differ; `
-        + `expected ${atPublication}; actual ${workingTreeDigest}`);
+        + `expected ${result.implementationDigest}; actual ${workingTreeDigest}`);
     }
   }
   return results;

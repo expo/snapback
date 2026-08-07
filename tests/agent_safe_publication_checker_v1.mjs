@@ -344,11 +344,68 @@ function writeJson(rootPath, path, value) {
   return bytes;
 }
 
+function derivedReviewBytes(kind, family, ready) {
+  const provenance = [
+    `**Family:** ${family}`,
+    '**Provider/runtime:** checker self-test',
+    '**Date:** 2026-08-06',
+    '**Redacted:** no',
+    '**Method:** cli-runner',
+  ];
+  const historical = [
+    `# ${kind}`,
+    '## Round 2 — historical blocked review',
+    '',
+    '### Scope 2 verdict',
+    '',
+    '**NOT READY for implementation/security publication of the narrow local `operating.instance-forks` surface.**',
+    '',
+  ];
+  if (kind.startsWith('specReview')) {
+    const verdict = ready ? '**READY**' : '**NOT READY**';
+    return Buffer.from([
+      ...historical,
+      '## Round 3 — authoritative review',
+      '',
+      ...provenance,
+      '',
+      '### Scope 1 re-verdict',
+      '',
+      '| Document | Round 2 | Round 3 |',
+      '| --- | --- | --- |',
+      '| LLP 0163 | **NOT READY** | **READY** |',
+      '| LLP 0164 | **NOT READY** | **READY** |',
+      `| LLP 0165 | **NOT READY** | ${verdict} |`,
+      '',
+    ].join('\n'));
+  }
+  const verdict = ready ? 'READY' : 'NOT READY';
+  const lines = [
+    ...historical,
+    '## Round 3 — authoritative review',
+    '',
+    ...provenance,
+    '',
+    '### Scope 2 verdict',
+    '',
+    `**${verdict} for implementation/security publication of the narrow local \`operating.instance-forks\` surface.**`,
+    '',
+  ];
+  if (!ready) {
+    lines.push(
+      'Rejected wording quoted for diagnosis: **READY for implementation/security publication of the narrow local `operating.instance-forks` surface.**',
+      '',
+    );
+  }
+  return Buffer.from(lines.join('\n'));
+}
+
 function publishedDerivedFixture({
   omitReview,
   omitAuthor = false,
   zeroAuthorDigest = false,
   mutateMacos,
+  notReadyReview,
 } = {}) {
   const scratch = mkdtempSync(join(tmpdir(), 'snapback-derived-fork-publication-'));
   execFileSync('git', ['init', '--quiet'], { cwd: scratch });
@@ -386,16 +443,7 @@ function publishedDerivedFixture({
       writeFileSync(join(scratch, path), bytes);
     } else {
       const family = kind.endsWith('Codex') ? 'OpenAI Codex' : 'Claude Fable';
-      bytes = Buffer.from([
-        `# ${kind}`,
-        `**Reviewer family:** ${family}`,
-        '**Provider / runtime:** checker self-test',
-        '**Date:** 2026-08-06',
-        '**Redacted:** no',
-        '**Method:** cli-runner',
-        '**Verdict:** READY',
-        '',
-      ].join('\n'));
+      bytes = derivedReviewBytes(kind, family, kind !== notReadyReview);
       if (path !== omitReview) {
         mkdirSync(dirname(join(scratch, path)), { recursive: true });
         writeFileSync(join(scratch, path), bytes);
@@ -548,9 +596,25 @@ test('derived receipt rejects storage-evidence substitution while withheld', () 
   assert.throws(() => validatePublicationRecord(scratch, derived), /evidence 0 drifted/u);
 });
 
-test('published derived-fork chain accepts its exact dedicated witness', () => {
+test('published derived-fork chain accepts final READY after historical NOT READY verdicts', () => {
   const scratch = publishedDerivedFixture();
   assert.equal(validatePublicationRecord(scratch, derived).state, 'published');
+});
+
+test('published derived-fork chain refuses an authoritative Scope 1 NOT READY cell', () => {
+  const scratch = publishedDerivedFixture({ notReadyReview: 'specReviewCodex' });
+  assert.throws(
+    () => validatePublicationRecord(scratch, derived),
+    /final review verdict is not READY/u,
+  );
+});
+
+test('published derived-fork chain refuses Scope 2 NOT READY despite a quoted READY needle', () => {
+  const scratch = publishedDerivedFixture({ notReadyReview: 'implementationReviewFable' });
+  assert.throws(
+    () => validatePublicationRecord(scratch, derived),
+    /final review verdict is not READY/u,
+  );
 });
 
 test('published derived-fork chain refuses a missing review', () => {
@@ -821,6 +885,32 @@ test('history digest is deterministic for an immutable qualification commit', ()
   assert.equal(first, second);
 });
 
+test('receipt, carrier, and anchor publication updates do not move the implementation digest', () => {
+  const { scratch, qualification, expectedDigest } = qualifiedImplementationScopeFixture();
+  const publicationRecords = [derived.receipt, derived.carrier, derived.anchor];
+  for (const path of publicationRecords) {
+    mkdirSync(dirname(join(scratch, path)), { recursive: true });
+    writeFileSync(join(scratch, path), '{"state":"withheld"}\n');
+  }
+  const carrierCommit = commitFixture(
+    scratch,
+    'add publication-cycle records',
+    ...publicationRecords,
+  );
+  assert.equal(implementationDigestAt(scratch, qualification), expectedDigest);
+  assert.equal(implementationDigestAt(scratch, carrierCommit), expectedDigest);
+
+  for (const path of publicationRecords) {
+    writeFileSync(join(scratch, path), '{"state":"published"}\n');
+  }
+  const publication = commitFixture(
+    scratch,
+    'rotate publication-cycle records',
+    ...publicationRecords,
+  );
+  assert.equal(implementationDigestAt(scratch, publication), expectedDigest);
+});
+
 test('C-to-P custody permits unrelated demo and LLP churn outside the qualified digest', () => {
   const { scratch, qualification, expectedDigest } = qualifiedImplementationScopeFixture();
   mkdirSync(join(scratch, 'demos/unrelated'), { recursive: true });
@@ -842,7 +932,31 @@ test('C-to-P custody permits unrelated demo and LLP churn outside the qualified 
   }), expectedDigest);
 });
 
-test('C-to-P custody refuses an in-scope byte change with paths and digest mismatch', () => {
+test('C-to-P custody refuses a receipt rotated to P that does not match C', () => {
+  const { scratch, qualification, expectedDigest: qualificationDigest } =
+    qualifiedImplementationScopeFixture();
+  writeFileSync(join(scratch, 'src/qualified.rs'), 'pub const QUALIFIED: bool = false;\n');
+  const publication = commitFixture(scratch, 'drift qualified source', 'src/qualified.rs');
+  const receiptDigest = implementationDigestAt(scratch, publication);
+
+  assert.throws(
+    () => assertQualifiedImplementationDigestAtPublication(scratch, {
+      capabilityId: 'fixture_capability_v1',
+      qualificationCommit: qualification,
+      publicationCommit: publication,
+      expectedDigest: receiptDigest,
+    }),
+    (error) => {
+      assert.match(error.message, /in-scope paths drifted: M:src\/qualified\.rs/u);
+      assert.ok(error.message.includes(`receipt ${receiptDigest}`));
+      assert.ok(error.message.includes(`qualification C ${qualificationDigest}`));
+      assert.ok(error.message.includes(`publication P ${receiptDigest}`));
+      return true;
+    },
+  );
+});
+
+test('C-to-P custody refuses a receipt matching C when P drifted in scope', () => {
   const { scratch, qualification, expectedDigest } = qualifiedImplementationScopeFixture();
   writeFileSync(join(scratch, 'src/qualified.rs'), 'pub const QUALIFIED: bool = false;\n');
   const publication = commitFixture(scratch, 'drift qualified source', 'src/qualified.rs');
@@ -857,8 +971,9 @@ test('C-to-P custody refuses an in-scope byte change with paths and digest misma
     }),
     (error) => {
       assert.match(error.message, /in-scope paths drifted: M:src\/qualified\.rs/u);
-      assert.ok(error.message.includes(`expected ${expectedDigest}`));
-      assert.ok(error.message.includes(`actual ${actualDigest}`));
+      assert.ok(error.message.includes(`receipt ${expectedDigest}`));
+      assert.ok(error.message.includes(`qualification C ${expectedDigest}`));
+      assert.ok(error.message.includes(`publication P ${actualDigest}`));
       return true;
     },
   );
@@ -885,8 +1000,9 @@ test('C-to-P custody refuses a vendor/ibex gitlink change', () => {
     }),
     (error) => {
       assert.match(error.message, /in-scope paths drifted: M:vendor\/ibex/u);
-      assert.ok(error.message.includes(`expected ${expectedDigest}`));
-      assert.ok(error.message.includes(`actual ${actualDigest}`));
+      assert.ok(error.message.includes(`receipt ${expectedDigest}`));
+      assert.ok(error.message.includes(`qualification C ${expectedDigest}`));
+      assert.ok(error.message.includes(`publication P ${actualDigest}`));
       return true;
     },
   );

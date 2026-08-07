@@ -484,18 +484,31 @@ mod tests {
         assert_eq!(derived_anchor.carrier_sha256, None);
         let derived_receipt: AgentSafePublicationReceiptV1 =
             serde_json::from_slice(DERIVED_FORK_RECEIPT_BYTES).unwrap();
+        assert_eq!(
+            derived_receipt.schema_version,
+            "snapback.agent-safe-publication-receipt.v1"
+        );
         assert_eq!(derived_receipt.capability_id, DERIVED_FORK_ID);
+        assert!(is_source_commit(&derived_receipt.qualified_source_commit));
+        assert_ne!(derived_receipt.qualified_source_commit, "0".repeat(40));
+        assert!(is_nonzero_sha256(
+            &derived_receipt.implementation_tree_sha256
+        ));
+        assert!(is_nonzero_sha256(&derived_receipt.candidate_facts_sha256));
         assert_eq!(
-            derived_receipt.qualified_source_commit,
-            "0ee1fadc136e837f430556374a5842ac82069004"
+            derived_receipt.qualified_target_profile_id,
+            TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX
         );
         assert_eq!(
-            derived_receipt.implementation_tree_sha256,
-            "sha256:2cad36279fbb319c4b828026c1fc0c2ed2d8ac38bffc14bd2ba39b3849eedf33"
+            derived_receipt.negative_target_profile_ids,
+            [
+                TARGET_PROFILE_CLOUDFLARE_DO_SQLITE_V8.to_owned(),
+                TARGET_PROFILE_REMOTE_SERVICE_SQLITE_IBEX.to_owned(),
+            ]
         );
         assert_eq!(
-            derived_receipt.candidate_facts_sha256,
-            "sha256:b487d69d7a0392626e01f39e7fa81bd85251291c5ed119cd38a6cc30e50bfc88"
+            derived_receipt.negative_build_distributions,
+            [crate::identity::BUILD_DISTRIBUTION_PUBLIC_PACKAGE.to_owned()]
         );
         assert_eq!(
             derived_receipt.qualified_components,
@@ -514,10 +527,6 @@ mod tests {
             assert_eq!(binding.path, path);
             assert!(is_nonzero_sha256(&binding.sha256));
         }
-        assert_eq!(
-            derived_receipt.evidence.last().unwrap().sha256,
-            "sha256:e349b0698a5b42fff14d05a23ab4571b3adabed897b6827915389562ec8fd228"
-        );
     }
 
     #[test]
