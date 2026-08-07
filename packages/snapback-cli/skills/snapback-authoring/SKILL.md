@@ -38,7 +38,8 @@ Local target; hosted targets make deliberately weaker claims
 
 1. **Install and scaffold.** The `snapback` command ships in
    `@expo/snapback-cli`. Check the toolchain, then scaffold:
-   `snapback doctor --json`, then `snapback new my-app --template react`,
+   `snapback doctor --json`, then `snapback new my-app --template react`
+   (messaging-shaped briefs: `--template expo-chat`, a full chat starter),
    `cd my-app`, `bun install`.
 2. **Schema.** Author `snapback/schema.mjs` with
    `defineSchema`/`defineTable`/`v.*`, chainable `.index(...)` and `.sync()`.
@@ -59,6 +60,9 @@ Local target; hosted targets make deliberately weaker claims
 6. **First upload.** Generated upload intents, trusted SHA-256 finalization,
    typed `v.assetRef` attachment, under ordinary session custody — the Expo
    ImagePicker-to-Blob recipe is in [assets](../../guide/backend/assets.md).
+   App-side uploads require sessions mode and scaffolds default to dev mode:
+   flip the schema to `{ auth: { mode: 'sessions' } }` **before** building
+   upload UI.
 
 ## The done-oracle
 
@@ -113,6 +117,14 @@ is in [verify](../../guide/testing/verify.md).
    successor migration yet, so it can cost a manual local-store rollover —
    batch comment churn with real edits
    (`issues/20260805-doc-comment-artifact-mismatch-no-successor-migration.md`).
+8. **The supervised Expo flow is native-first today.** Its web carrier is
+   unpaved — bootstrap CORS, an AppState deep-import that breaks
+   react-native-web, `blob:` picker URIs — see the workarounds in
+   `issues/20260807-supervised-expo-web-carrier-unpaved.md`.
+9. **Surface-bound commands materialize omitted optional inputs as
+   `undefined`**, which the canonical-value gate refuses — split the command
+   per optional shape or call the mutation directly
+   (`issues/20260807-surface-command-optional-input-undefined.md`).
 
 When anything refuses, read the code before searching: every `SNAPBACK_*`
 refusal an authoring agent can trigger is required to name the violated rule
