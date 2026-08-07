@@ -676,3 +676,20 @@ file and refused with `SNAPBACK_FORK_APP_BINDING_REQUIRED` / `EOF while parsing
 a value at line 1 column 0`; the other 14 live-server fork cases passed. This
 drift lane records the recurrence and makes no fork-code correctness change.
 Owner close condition remains unchanged.
+
+### Post-main-merge exact-head recurrence — 2026-08-07 UTC
+
+The complete affected KEEP-GOING proof at clean, coded-bootstrap-qualified
+merge revision `b3034f9d24237f64bb0ff6c0085dd3c6945fa690` again reproduced the
+F0a-owned race in
+`instance_fork_cli_v1::concurrent_fork_creates_bind_distinct_ports_and_drop_cleanly`.
+One concurrent `fork create` read
+`.snapback/instance-fork-app-identity.v1.json` as empty JSON and refused with
+`SNAPBACK_FORK_APP_BINDING_REQUIRED` / `EOF while parsing a value at line 1
+column 0`; the other 14 live-server fork cases passed. The proof recorded one
+root failure (`rust-tests`), one dependent block (`auth-invalidation-report`),
+and completed every independent gate, including the previously failing
+versioned-seed, asset, app-CLI, todo, and workout chain. Structured results:
+`target/proof/local-proof-results.jsonl` in the proving worktree. This drift
+lane makes no fork-code correctness change. Owner close condition remains
+unchanged.
