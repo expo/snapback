@@ -83,17 +83,21 @@ elif ! "$backstop_repo/scripts/bootstrap-ibex-runtime"; then
   printf '[snapback-drift-schedule] prerequisite warning: Ibex bootstrap failed; affected gates should report INFRASTRUCTURE\n' >&2
 fi
 
-for demo in \
-  demos/todo/snapback \
-  demos/rbac/snapback \
-  demos/todo-v2/snapback \
-  demos/competitive-checkpoint/snapback
-do
-  if ! (cd "$backstop_repo" && node packages/snapback-codegen/index.mjs "$demo"); then
+codegen_demo() {
+  local demo="$1"
+  shift
+  if ! (cd "$backstop_repo" && env "$@" node packages/snapback-codegen/index.mjs "$demo"); then
     printf '[snapback-drift-schedule] prerequisite warning: codegen failed for %s; affected gates should report INFRASTRUCTURE\n' \
       "$demo" >&2
   fi
-done
+}
+
+codegen_demo demos/todo/snapback
+codegen_demo demos/rbac/snapback
+codegen_demo demos/todo-v2/snapback
+# competitive-checkpoint declares outboundActions: true in
+# scripts/generated-artifact-policy.mjs; codegen refuses without the fence.
+codegen_demo demos/competitive-checkpoint/snapback SNAPBACK_OUTBOUND_ACTIONS=1
 
 backstop_status=0
 (
