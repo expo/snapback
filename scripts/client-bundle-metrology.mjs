@@ -931,6 +931,36 @@ const ROLLOVER_LEDGER_SPECS = Object.freeze([
       ['node', ['packages/snapback-expo/provider.test.mjs']],
     ]),
   }),
+  Object.freeze({
+    filename: 'baseline.asset-delivery-selection.v1.json',
+    profileFilename: 'client-bundle-disposition-profiles.v1.json',
+    workloadVersion: 'asset-delivery-selection.2026-08-07.v1',
+    profileIds: Object.freeze(['react-external']),
+    predecessors: Object.freeze([
+      Object.freeze({
+        filename: 'baseline.client-bundle-disposition.v2.json',
+        profileIds: Object.freeze(['react-external']),
+      }),
+    ]),
+    authorities: Object.freeze([
+      'LLP 0063#workstream-8--performance-and-packaging-budgets',
+      'LLP 0145#phase-a--establish-a-size-ratchet',
+      'LLP 0044#delivery-profiles',
+      'LLP 0180#react-and-surface-projections',
+    ]),
+    rationale: Object.freeze({
+      date: '2026-08-07',
+      fix: 'Charlie-directed strict-URL asset-delivery fix in packages/snapback-react: useSnapbackAssetImage now selects the most-permissive granted URL, holds the rendition-publication race as pending, and diagnoses sessions-mode strict delivery.',
+      ticket: 'issues/20260806-asset-image-src-strict-url-sessions.md',
+      byteDeltas: 'react-external gzip 28,739 -> 28,751 bytes (+12); Brotli 25,028 -> 25,034 bytes (+6).',
+      summary: 'Advance only react-external for the intentional URL-selection and diagnostic strings added by the strict-URL asset-delivery correction; every other active ceiling and the v2 predecessor remain immutable.',
+    }),
+    beforeAfterProfileIds: Object.freeze(['react-external']),
+    behaviorCommands: Object.freeze([
+      ['node', ['packages/snapback-react/package.test.mjs']],
+      ['node', ['packages/snapback-react/assets.test.mjs']],
+    ]),
+  }),
 ]);
 
 function fail(message) {
