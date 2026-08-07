@@ -277,9 +277,12 @@ export interface ScaffoldResult {
   ok: true;
   template: string;
   target: string;
+  readonly skillFiles: readonly string[];
 }
 
 export function listTemplates(): string[];
+
+export function renderScaffoldAuthoringSkill(canonicalContent: string): string;
 
 export function scaffoldApp(target: string, options?: {
   readonly template?: string;
