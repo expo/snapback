@@ -29,9 +29,13 @@ const DERIVED_FORK_EVIDENCE = [
   ['boundsRatification', 'tests/acceptance/instance-fork-lifecycle-bench.2026-08-06.v1.json'],
   ['assetLifecycleEvidence', 'tests/acceptance/asset-lifecycle-v1-evidence.md'],
   ['specReviewCodex', 'llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.codex.md'],
+  ['specReviewCodexVerdicts', 'llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.codex.verdicts.v1.json'],
   ['specReviewFable', 'llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.fable.md'],
+  ['specReviewFableVerdicts', 'llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.fable.verdicts.v1.json'],
   ['implementationReviewCodex', 'llp/reviews/0158-instance-forking.implementation-2026-08-06.codex.md'],
+  ['implementationReviewCodexVerdicts', 'llp/reviews/0158-instance-forking.implementation-2026-08-06.codex.verdicts.v1.json'],
   ['implementationReviewFable', 'llp/reviews/0158-instance-forking.implementation-2026-08-06.fable.md'],
+  ['implementationReviewFableVerdicts', 'llp/reviews/0158-instance-forking.implementation-2026-08-06.fable.verdicts.v1.json'],
   ['authorAcceptance', 'tests/acceptance/fixtures/instance-forks/author-acceptance.2026-08-06.v1.json'],
 ];
 
@@ -138,9 +142,13 @@ const PUBLICATION_ONLY_PATHS = new Set([
   'llp/reviews/0162-agent-safe-storage-profile.implementation-2026-08-04.fable.md',
   'llp/reviews/0162-agent-safe-storage-profile.implementation-2026-08-04.codex.md',
   'llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.codex.md',
+  'llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.codex.verdicts.v1.json',
   'llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.fable.md',
+  'llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.fable.verdicts.v1.json',
   'llp/reviews/0158-instance-forking.implementation-2026-08-06.codex.md',
+  'llp/reviews/0158-instance-forking.implementation-2026-08-06.codex.verdicts.v1.json',
   'llp/reviews/0158-instance-forking.implementation-2026-08-06.fable.md',
+  'llp/reviews/0158-instance-forking.implementation-2026-08-06.fable.verdicts.v1.json',
   'issues/20260803-agent-safe-storage-acceptance-tail.md',
   'issues/20260803-0163-public-operation-identity-carrier.md',
   'issues/20260803-guide-gap-instance-forks.md',
@@ -1265,157 +1273,98 @@ function validateDerivedForkBoundsRatification(root, commit) {
   }
 }
 
-// @ref LLP 0158#capability-registry-record — review authority comes from the
-// current round's named Scope 1/Scope 2 statement, never a verdict-shaped
-// substring elsewhere in the artifact.
-function finalReviewRound(text) {
-  const rounds = [...text.matchAll(/^## Round [0-9]+[^\n]*$/gmu)];
-  return rounds.length === 0 ? text : text.slice(rounds.at(-1).index);
-}
-
-function finalReviewRoundNumber(text) {
-  const match = finalReviewRound(text).match(/^## Round ([0-9]+)\b/mu);
-  return match ? Number(match[1]) : undefined;
-}
-
-function normalizedHeading(value) {
-  return value.trim().replace(/\s+/gu, ' ').toLowerCase();
-}
-
-function authoritativeReviewSection(finalRound, headings) {
-  const accepted = new Set(headings.map(normalizedHeading));
-  const matches = [...finalRound.matchAll(/^### ([^\n]+)$/gmu)]
-    .filter((match) => accepted.has(normalizedHeading(match[1])));
-  if (matches.length !== 1) return undefined;
-  const start = matches[0].index + matches[0][0].length;
-  const remainder = finalRound.slice(start);
-  const nextHeading = remainder.search(/^#{2,3} /mu);
-  return nextHeading === -1 ? remainder : remainder.slice(0, nextHeading);
-}
-
-function markdownTableCells(line) {
-  const trimmed = line.trim();
-  if (!trimmed.startsWith('|') || !trimmed.endsWith('|')) return undefined;
-  return trimmed.slice(1, -1).split('|').map((cell) => cell.trim());
-}
-
-function markdownTableSeparator(cells) {
-  return Array.isArray(cells)
-    && cells.length > 0
-    && cells.every((cell) => /^:?-{3,}:?$/u.test(cell));
-}
-
-function exactReadyVerdictCell(cell) {
-  return /^\*\*READY\*\*(?:$|[\s(—-])/u.test(cell ?? '');
-}
-
-function reviewField(text, ...labels) {
-  for (const label of labels) {
-    const escaped = label.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
-    const match = text.match(new RegExp(
-      `^(?:-\\s+)?\\*\\*${escaped}:\\*\\*\\s+(.+)$`,
-      'mu',
-    ));
-    if (match) return match[1].replaceAll('`', '').trim();
-  }
-  return undefined;
-}
-
-function reviewFamily(text, path) {
-  const finalRound = finalReviewRound(text);
-  const family = reviewField(finalRound, 'Reviewer family', 'Family');
-  const provider = reviewField(finalRound, 'Provider / runtime', 'Provider/runtime');
-  const date = reviewField(finalRound, 'Date');
-  const redacted = reviewField(finalRound, 'Redacted');
-  const method = reviewField(finalRound, 'Method');
-  requireEvidence(Boolean(family && provider && method)
-    && date === '2026-08-06'
-    && /^(?:yes|no)(?:\b|\s*[—-])/iu.test(redacted ?? ''),
-  `${path} lacks the LLP 0005 provenance header`);
-  const codex = /(?:codex|gpt|openai)/iu.test(family);
-  const fable = /(?:fable|claude|anthropic)/iu.test(family);
-  requireEvidence(codex !== fable, `${path} reviewer family is ambiguous or unrecognized`);
-  return codex ? 'codex' : 'fable';
-}
-
-function finalReviewVerdictIsReady(text) {
-  const finalRound = finalReviewRound(text);
-  const section = authoritativeReviewSection(finalRound, [
-    'Scope 2 verdict',
-    'Overall verdict',
-    'Verdict for the re-qualified tree',
-  ]);
-  const statement = section?.match(/^\s*\*\*([\s\S]*?)\*\*/u)?.[1]
-    .replace(/\s+/gu, ' ')
-    .trim();
-  return /^(?:READY for publication|READY for implementation\/security publication) of the narrow local `operating\.instance-forks`(?=\s|$)/u
-    .test(statement ?? '');
-}
-
-function finalSpecReviewVerdictsAreReady(text) {
-  const finalRound = finalReviewRound(text);
-  const roundNumber = finalReviewRoundNumber(text);
-  const section = authoritativeReviewSection(finalRound, [
-    'Scope 1 re-verdict',
-    'Re-verdicts (fork-relevant surface)',
-    'Re-verdicts',
-  ]);
-  if (!section) return false;
-  const lines = section.split('\n');
-  for (let index = 0; index + 1 < lines.length; index += 1) {
-    const header = markdownTableCells(lines[index]);
-    const separator = markdownTableCells(lines[index + 1]);
-    if (header?.[0] !== 'Document' || !markdownTableSeparator(separator)
-        || separator.length !== header.length) continue;
-    const explicitVerdictColumns = header
-      .map((cell, column) => (
-        normalizedHeading(cell) === 'fork-relevant verdict' ? column : -1
-      ))
-      .filter((column) => column >= 0);
-    const currentRoundColumns = header
-      .map((cell, column) => (
-        roundNumber !== undefined
-          && normalizedHeading(cell) === `round ${roundNumber}`
-          ? column
-          : -1
-      ))
-      .filter((column) => column >= 0);
-    const verdictColumns = explicitVerdictColumns.length > 0
-      ? explicitVerdictColumns
-      : currentRoundColumns;
-    if (verdictColumns.length !== 1) return false;
-    const verdictColumn = verdictColumns[0];
-    const verdicts = new Map();
-    for (const line of lines.slice(index + 2)) {
-      const cells = markdownTableCells(line);
-      if (!cells || cells.length !== header.length) break;
-      const document = cells[0].match(/^LLP (016[345])$/u)?.[1];
-      if (document) verdicts.set(document, cells[verdictColumn]);
-    }
-    return ['0163', '0164', '0165'].every((number) => (
-      exactReadyVerdictCell(verdicts.get(number))
-    ));
-  }
-  return false;
-}
-
-function validateDerivedForkReview(root, index, expectedFamily, implementation) {
-  const path = DERIVED_FORK_EVIDENCE[index][1];
-  let text;
-  try {
-    text = readFileSync(join(root, path), 'utf8');
-  } catch {
-    fail(`published evidence: missing or unreadable review ${path}`);
-  }
-  const family = reviewFamily(text, path);
-  requireEvidence(family === expectedFamily, `${path} came from the wrong reviewer family`);
+// @ref LLP 0162#source-owned-publication-carrier-amendment--2026-08-04 — review authority is a closed,
+// digest-bound JSON history. The adjacent Markdown remains required evidence,
+// but no heading, table, quotation, or verdict-shaped prose is authoritative.
+export function validateDerivedForkReview(root, {
+  reviewIndex,
+  verdictIndex,
+  expectedKind,
+  qualificationCommit,
+}) {
+  const reviewPath = DERIVED_FORK_EVIDENCE[reviewIndex][1];
+  const verdictPath = DERIVED_FORK_EVIDENCE[verdictIndex][1];
   requireEvidence(
-    implementation
-      ? finalReviewVerdictIsReady(text)
-      : finalSpecReviewVerdictsAreReady(text),
-    `${path} final review verdict is not READY`,
+    expectedKind === 'forkSpecConformance'
+      || expectedKind === 'derivedForkPublication',
+    `${verdictPath} expected verdict kind is unrecognized`,
   );
-  return family;
+  let reviewBytes;
+  try {
+    reviewBytes = readFileSync(join(root, reviewPath));
+  } catch {
+    fail(`published evidence: missing or unreadable review ${reviewPath}`);
+  }
+  const value = readEvidenceJson(root, verdictPath, `${reviewPath} verdict contract`);
+  exactKeys(value, ['schemaVersion', 'verdicts'], `${verdictPath} contract`);
+  requireEvidence(value.schemaVersion === 'snapback.review-verdicts.v1'
+    && Array.isArray(value.verdicts)
+    && value.verdicts.length > 0,
+  `${verdictPath} contract identity or verdict population drifted`);
+
+  let previousCommit;
+  let declaredFamily;
+  for (const [index, entry] of value.verdicts.entries()) {
+    exactKeys(entry, [
+      'reviewArtifact', 'reviewArtifactSha256', 'family', 'round', 'reviewedCommit',
+      'verdict',
+    ], `${verdictPath} round ${index + 1}`);
+    requireEvidence(entry.reviewArtifact === reviewPath
+      && entry.reviewArtifactSha256 === sha256(reviewBytes),
+    `${verdictPath} round ${index + 1} does not bind its exact prose artifact`);
+    requireEvidence(entry.family === 'codex' || entry.family === 'fable',
+      `${verdictPath} round ${index + 1} reviewer family is unrecognized`);
+    declaredFamily ??= entry.family;
+    requireEvidence(entry.family === declaredFamily,
+      `${verdictPath} reviewer family changed between rounds`);
+    requireEvidence(Number.isSafeInteger(entry.round)
+      && entry.round === index + 1,
+    `${verdictPath} rounds are missing, duplicated, or non-monotonic`);
+    requireEvidence(/^[0-9a-f]{40}$/u.test(entry.reviewedCommit ?? ''),
+      `${verdictPath} round ${entry.round} reviewed commit is invalid`);
+    if (index === value.verdicts.length - 1) {
+      requireEvidence(entry.reviewedCommit === qualificationCommit,
+        `${verdictPath} authoritative verdict does not name qualification C`);
+    }
+    if (previousCommit !== undefined) {
+      try {
+        git(root, ['merge-base', '--is-ancestor', previousCommit, entry.reviewedCommit]);
+      } catch {
+        fail(`published evidence: ${verdictPath} reviewed commits are inconsistent`);
+      }
+    }
+    previousCommit = entry.reviewedCommit;
+
+    if (expectedKind === 'forkSpecConformance') {
+      exactKeys(entry.verdict, [
+        'kind', 'llp0163', 'llp0164', 'llp0165',
+      ], `${verdictPath} round ${entry.round} verdict`);
+      requireEvidence(entry.verdict.kind === expectedKind
+        && ['READY', 'NOT_READY'].includes(entry.verdict.llp0163)
+        && ['READY', 'NOT_READY'].includes(entry.verdict.llp0164)
+        && ['READY', 'NOT_READY'].includes(entry.verdict.llp0165),
+      `${verdictPath} round ${entry.round} spec verdict is invalid`);
+    } else {
+      exactKeys(entry.verdict, ['kind', 'status'], `${verdictPath} round ${entry.round} verdict`);
+      requireEvidence(entry.verdict.kind === 'derivedForkPublication'
+        && ['READY', 'NOT_READY'].includes(entry.verdict.status),
+      `${verdictPath} round ${entry.round} publication verdict is invalid`);
+    }
+  }
+
+  const authoritative = value.verdicts.at(-1);
+  const ready = expectedKind === 'forkSpecConformance'
+    ? ['llp0163', 'llp0164', 'llp0165'].every((key) => (
+      authoritative.verdict[key] === 'READY'
+    ))
+    : authoritative.verdict.status === 'READY';
+  return {
+    family: authoritative.family,
+    ready,
+    round: authoritative.round,
+    reviewPath,
+    verdictPath,
+  };
 }
 
 function validateDerivedForkAssetEvidence(root) {
@@ -1475,15 +1424,43 @@ export function validatePublishedDerivedForkEvidenceSemantics(root, record, comm
     `${linux.environment.os}/${linux.environment.arch}`,
   ]).size === 2, 'both distinct release platforms were not present');
   validateDerivedForkAssetEvidence(root);
-  const specCodex = validateDerivedForkReview(root, 4, 'codex', false);
-  const specFable = validateDerivedForkReview(root, 5, 'fable', false);
-  const implementationCodex = validateDerivedForkReview(root, 6, 'codex', true);
-  const implementationFable = validateDerivedForkReview(root, 7, 'fable', true);
-  requireEvidence(specCodex !== specFable
-    && implementationCodex !== implementationFable
-    && specCodex === implementationCodex
-    && specFable === implementationFable,
-  'derived-fork reviews did not preserve two distinct model families');
+  const specCodex = validateDerivedForkReview(root, {
+    reviewIndex: 4,
+    verdictIndex: 5,
+    expectedKind: 'forkSpecConformance',
+    qualificationCommit: commit,
+  });
+  const specFable = validateDerivedForkReview(root, {
+    reviewIndex: 6,
+    verdictIndex: 7,
+    expectedKind: 'forkSpecConformance',
+    qualificationCommit: commit,
+  });
+  const implementationCodex = validateDerivedForkReview(root, {
+    reviewIndex: 8,
+    verdictIndex: 9,
+    expectedKind: 'derivedForkPublication',
+    qualificationCommit: commit,
+  });
+  const implementationFable = validateDerivedForkReview(root, {
+    reviewIndex: 10,
+    verdictIndex: 11,
+    expectedKind: 'derivedForkPublication',
+    qualificationCommit: commit,
+  });
+  requireEvidence(new Set([specCodex.family, specFable.family]).size === 2
+    && new Set([implementationCodex.family, implementationFable.family]).size === 2,
+  'derived-fork review pairs did not preserve two distinct model families');
+  requireEvidence(specCodex.family === 'codex'
+    && specFable.family === 'fable'
+    && implementationCodex.family === 'codex'
+    && implementationFable.family === 'fable'
+    && specCodex.family === implementationCodex.family
+    && specFable.family === implementationFable.family,
+  'derived-fork verdict family did not match its fixed review artifact');
+  for (const review of [specCodex, specFable, implementationCodex, implementationFable]) {
+    requireEvidence(review.ready, `${review.verdictPath} authoritative verdict is not READY`);
+  }
   const implementationTree = implementationDigestAt(root, commit);
   validateDerivedForkAuthorAcceptance(root, receipt, commit, implementationTree);
 }

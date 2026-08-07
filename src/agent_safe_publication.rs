@@ -59,7 +59,7 @@ const STORAGE_EVIDENCE_LOCATORS: [(&str, &str); 6] = [
     ),
 ];
 #[cfg(test)]
-const DERIVED_FORK_EVIDENCE_LOCATORS: [(&str, &str); 9] = [
+const DERIVED_FORK_EVIDENCE_LOCATORS: [(&str, &str); 13] = [
     (
         "lifecycleBenchMacos",
         "tests/acceptance/instance-fork-lifecycle-bench.2026-08-06.macos-aarch64.v1.json",
@@ -81,16 +81,32 @@ const DERIVED_FORK_EVIDENCE_LOCATORS: [(&str, &str); 9] = [
         "llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.codex.md",
     ),
     (
+        "specReviewCodexVerdicts",
+        "llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.codex.verdicts.v1.json",
+    ),
+    (
         "specReviewFable",
         "llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.fable.md",
+    ),
+    (
+        "specReviewFableVerdicts",
+        "llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.fable.verdicts.v1.json",
     ),
     (
         "implementationReviewCodex",
         "llp/reviews/0158-instance-forking.implementation-2026-08-06.codex.md",
     ),
     (
+        "implementationReviewCodexVerdicts",
+        "llp/reviews/0158-instance-forking.implementation-2026-08-06.codex.verdicts.v1.json",
+    ),
+    (
         "implementationReviewFable",
         "llp/reviews/0158-instance-forking.implementation-2026-08-06.fable.md",
+    ),
+    (
+        "implementationReviewFableVerdicts",
+        "llp/reviews/0158-instance-forking.implementation-2026-08-06.fable.verdicts.v1.json",
     ),
     (
         "authorAcceptance",

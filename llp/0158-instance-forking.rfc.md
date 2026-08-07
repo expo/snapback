@@ -1782,8 +1782,10 @@ at
 now reserves, in exact order, the macOS/aarch64 lifecycle receipt, the
 Linux/x86_64 lifecycle receipt, the author-ratified original bounds record,
 the local asset-lifecycle evidence map, Codex- and Fable-family reviews of LLPs
-0163–0165, Codex- and Fable-family final implementation reviews of LLP 0158,
-and Charlie's author-acceptance fixture. This is the dated, digest-bound
+0163–0165 each followed by its structured verdict history, Codex- and
+Fable-family final implementation reviews of LLP 0158 each followed by its
+structured verdict history, and Charlie's author-acceptance fixture. This is
+the dated, digest-bound
 **witness** LLP 0185 Phase 6 says the `operating.instance-forks` capability
 row must point at. It is not an LLP 0113/0134 manifest publication act: the
 author's Phase 0 item-6 ruling makes the LLP 0061 guide capability-index row
@@ -1793,7 +1795,8 @@ publishes the local claim.
 
 Before author sign-off, the anchor stayed `withheld`, with a zero source
 commit/tree/facts digest, empty `qualifiedComponents`, zero evidence digests,
-and no requirement that the four future review files or author fixture exist.
+and no requirement that the four future review files, four verdict histories,
+or author fixture exist.
 In `published`, every digest is
 nonzero and matches the bytes at its fixed locator; components equal exactly
 `["derivedDeploymentForkSafetyV1"]`; candidate facts equal exactly
@@ -1801,25 +1804,28 @@ nonzero and matches the bytes at its fixed locator; components equal exactly
 40-hex ancestor of publication HEAD; both platform receipts name C, retain the
 closed `macos/aarch64` and `linux/x86_64` release identities, reproduce the
 2026-08-06 author-ratified bounds, and keep every lifecycle median within its
-bound. The original bounds record remains a frozen ancestor of C. Each review
-must carry LLP 0005's five-field provenance header, the Codex and Fable
-families must remain distinct, and both final implementation verdict lines
-must be exactly `READY`. The author fixture has the closed
+bound. The original bounds record remains a frozen ancestor of C. Each prose
+review remains required and digest-bound, but its body is never parsed for
+authority. Its fixed exact-shape JSON history binds the prose path and digest,
+family, contiguous round number, and reviewed commit; the highest round must
+name C and record `READY`. The Codex and Fable families must remain distinct.
+The author fixture has the closed
 `snapback.derived-fork-author-acceptance.v1` shape, the exact line
 `Charlie Cheever — accepted 2026-08-06`, the C/tree/facts/component identity,
-and an exact `evidenceSha256` map for the eight non-self evidence bindings;
+and an exact `evidenceSha256` map for the twelve non-self evidence bindings;
 the receipt binds the author fixture's own digest and closes that intentional
 self-cycle break.
 
 C-versus-P custody follows necessity, not directory. The ratified original
 bounds record and the asset evidence map already exist and stay frozen in C.
 The two platform receipts must be rebound to the final C, the four independent
-reviews can happen only after C freezes, and named-author acceptance comes
-last; those seven locators are publication-only. Of those, the two platform
+reviews and their four structured verdict histories can happen only after C
+freezes, and named-author acceptance comes last; those eleven locators are
+publication-only. Of those, the two platform
 JSON receipts and author fixture sit under the implementation-tree roots, so
 they are also explicitly excluded from C's self-digest. The checker, Rust
 mirror, fixed receipt shape/locator order, and all executable behavior must
-already be in C. P may fill the fixed receipt bindings, add those seven
+already be in C. P may fill the fixed receipt bindings, add those eleven
 evidence files, and update the ruled guide/LLP publication records plus the
 anchor/carrier; it may not change executable behavior or widen the evidence
 vocabulary.

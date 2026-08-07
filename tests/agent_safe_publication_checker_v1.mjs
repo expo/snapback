@@ -21,6 +21,7 @@ import {
   PUBLICATION_CYCLE_ALLOWLIST,
   runChecker,
   validateAbsolutePerformanceArtifact,
+  validateDerivedForkReview,
   validatePairedPerformanceArtifact,
   validatePublicationRecord,
   validateLocalStorePublicationTransform,
@@ -291,9 +292,13 @@ const derivedEvidence = [
   ['boundsRatification', 'tests/acceptance/instance-fork-lifecycle-bench.2026-08-06.v1.json'],
   ['assetLifecycleEvidence', 'tests/acceptance/asset-lifecycle-v1-evidence.md'],
   ['specReviewCodex', 'llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.codex.md'],
+  ['specReviewCodexVerdicts', 'llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.codex.verdicts.v1.json'],
   ['specReviewFable', 'llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.fable.md'],
+  ['specReviewFableVerdicts', 'llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.fable.verdicts.v1.json'],
   ['implementationReviewCodex', 'llp/reviews/0158-instance-forking.implementation-2026-08-06.codex.md'],
+  ['implementationReviewCodexVerdicts', 'llp/reviews/0158-instance-forking.implementation-2026-08-06.codex.verdicts.v1.json'],
   ['implementationReviewFable', 'llp/reviews/0158-instance-forking.implementation-2026-08-06.fable.md'],
+  ['implementationReviewFableVerdicts', 'llp/reviews/0158-instance-forking.implementation-2026-08-06.fable.verdicts.v1.json'],
   ['authorAcceptance', 'tests/acceptance/fixtures/instance-forks/author-acceptance.2026-08-06.v1.json'],
 ];
 
@@ -344,7 +349,7 @@ function writeJson(rootPath, path, value) {
   return bytes;
 }
 
-function derivedReviewBytes(kind, family, ready) {
+function derivedReviewBytes(kind, family) {
   const provenance = [
     `**Family:** ${family}`,
     '**Provider/runtime:** checker self-test',
@@ -352,7 +357,7 @@ function derivedReviewBytes(kind, family, ready) {
     '**Redacted:** no',
     '**Method:** cli-runner',
   ];
-  const historical = [
+  return Buffer.from([
     `# ${kind}`,
     '## Round 2 — historical blocked review',
     '',
@@ -360,44 +365,40 @@ function derivedReviewBytes(kind, family, ready) {
     '',
     '**NOT READY for implementation/security publication of the narrow local `operating.instance-forks` surface.**',
     '',
-  ];
-  if (kind.startsWith('specReview')) {
-    const verdict = ready ? '**READY**' : '**NOT READY**';
-    return Buffer.from([
-      ...historical,
-      '## Round 3 — authoritative review',
-      '',
-      ...provenance,
-      '',
-      '### Scope 1 re-verdict',
-      '',
-      '| Document | Round 2 | Round 3 |',
-      '| --- | --- | --- |',
-      '| LLP 0163 | **NOT READY** | **READY** |',
-      '| LLP 0164 | **NOT READY** | **READY** |',
-      `| LLP 0165 | **NOT READY** | ${verdict} |`,
-      '',
-    ].join('\n'));
-  }
-  const verdict = ready ? 'READY' : 'NOT READY';
-  const lines = [
-    ...historical,
     '## Round 3 — authoritative review',
     '',
     ...provenance,
     '',
     '### Scope 2 verdict',
     '',
-    `**${verdict} for implementation/security publication of the narrow local \`operating.instance-forks\` surface.**`,
+    '**READY for implementation/security publication of the narrow local `operating.instance-forks` surface.**',
     '',
-  ];
-  if (!ready) {
-    lines.push(
-      'Rejected wording quoted for diagnosis: **READY for implementation/security publication of the narrow local `operating.instance-forks` surface.**',
-      '',
-    );
-  }
-  return Buffer.from(lines.join('\n'));
+  ].join('\n'));
+}
+
+function derivedVerdictContract(kind, family, commit, reviewPath, reviewBytes, ready) {
+  const spec = kind.startsWith('specReview');
+  return {
+    schemaVersion: 'snapback.review-verdicts.v1',
+    verdicts: [1, 2, 3].map((round) => ({
+      reviewArtifact: reviewPath,
+      reviewArtifactSha256: digest(reviewBytes),
+      family,
+      round,
+      reviewedCommit: commit,
+      verdict: spec
+        ? {
+          kind: 'forkSpecConformance',
+          llp0163: round === 1 ? 'NOT_READY' : 'READY',
+          llp0164: round === 1 ? 'NOT_READY' : 'READY',
+          llp0165: round === 3 && ready ? 'READY' : 'NOT_READY',
+        }
+        : {
+          kind: 'derivedForkPublication',
+          status: round === 3 && ready ? 'READY' : 'NOT_READY',
+        },
+    })),
+  };
 }
 
 function publishedDerivedFixture({
@@ -406,6 +407,9 @@ function publishedDerivedFixture({
   zeroAuthorDigest = false,
   mutateMacos,
   notReadyReview,
+  malformedVerdict,
+  mutateReview,
+  mutateVerdict,
 } = {}) {
   const scratch = mkdtempSync(join(tmpdir(), 'snapback-derived-fork-publication-'));
   execFileSync('git', ['init', '--quiet'], { cwd: scratch });
@@ -429,6 +433,7 @@ function publishedDerivedFixture({
   const implementationTree = implementationDigestAt(scratch, commit);
 
   const bindings = [];
+  const reviewBytes = new Map();
   for (const [kind, path] of derivedEvidence.slice(0, -1)) {
     let bytes;
     if (kind === 'lifecycleBenchMacos' || kind === 'lifecycleBenchLinux'
@@ -441,9 +446,31 @@ function publishedDerivedFixture({
       bytes = readFileSync(join(root, path));
       mkdirSync(dirname(join(scratch, path)), { recursive: true });
       writeFileSync(join(scratch, path), bytes);
+    } else if (kind.endsWith('Verdicts')) {
+      const reviewKind = kind.slice(0, -'Verdicts'.length);
+      const reviewPath = derivedEvidence.find(([candidate]) => candidate === reviewKind)[1];
+      const family = kind.includes('Codex') ? 'codex' : 'fable';
+      const value = derivedVerdictContract(
+        reviewKind,
+        family,
+        commit,
+        reviewPath,
+        reviewBytes.get(reviewKind),
+        reviewKind !== notReadyReview,
+      );
+      mutateVerdict?.(kind, value);
+      bytes = kind === malformedVerdict
+        ? Buffer.from('{"schemaVersion":')
+        : Buffer.from(`${JSON.stringify(value, null, 2)}\n`);
+      if (path !== omitReview) {
+        mkdirSync(dirname(join(scratch, path)), { recursive: true });
+        writeFileSync(join(scratch, path), bytes);
+      }
     } else {
       const family = kind.endsWith('Codex') ? 'OpenAI Codex' : 'Claude Fable';
-      bytes = derivedReviewBytes(kind, family, kind !== notReadyReview);
+      bytes = derivedReviewBytes(kind, family);
+      bytes = mutateReview?.(kind, bytes) ?? bytes;
+      reviewBytes.set(kind, bytes);
       if (path !== omitReview) {
         mkdirSync(dirname(join(scratch, path)), { recursive: true });
         writeFileSync(join(scratch, path), bytes);
@@ -596,6 +623,45 @@ test('derived receipt rejects storage-evidence substitution while withheld', () 
   assert.throws(() => validatePublicationRecord(scratch, derived), /evidence 0 drifted/u);
 });
 
+test('checked-in verdict histories transcribe rounds 1-5 and remain blocked at b08e835f1', () => {
+  const qualificationCommit = 'b08e835f112517cf1629a842f5bcae12841ddcf0';
+  const reviews = [
+    validateDerivedForkReview(root, {
+      reviewIndex: 4,
+      verdictIndex: 5,
+      expectedKind: 'forkSpecConformance',
+      qualificationCommit,
+    }),
+    validateDerivedForkReview(root, {
+      reviewIndex: 6,
+      verdictIndex: 7,
+      expectedKind: 'forkSpecConformance',
+      qualificationCommit,
+    }),
+    validateDerivedForkReview(root, {
+      reviewIndex: 8,
+      verdictIndex: 9,
+      expectedKind: 'derivedForkPublication',
+      qualificationCommit,
+    }),
+    validateDerivedForkReview(root, {
+      reviewIndex: 10,
+      verdictIndex: 11,
+      expectedKind: 'derivedForkPublication',
+      qualificationCommit,
+    }),
+  ];
+  assert.deepEqual(
+    reviews.map(({ family, ready, round }) => ({ family, ready, round })),
+    [
+      { family: 'codex', ready: true, round: 5 },
+      { family: 'fable', ready: true, round: 5 },
+      { family: 'codex', ready: false, round: 5 },
+      { family: 'fable', ready: false, round: 5 },
+    ],
+  );
+});
+
 test('published derived-fork chain accepts final READY after historical NOT READY verdicts', () => {
   const scratch = publishedDerivedFixture();
   assert.equal(validatePublicationRecord(scratch, derived).state, 'published');
@@ -605,7 +671,7 @@ test('published derived-fork chain refuses an authoritative Scope 1 NOT READY ce
   const scratch = publishedDerivedFixture({ notReadyReview: 'specReviewCodex' });
   assert.throws(
     () => validatePublicationRecord(scratch, derived),
-    /final review verdict is not READY/u,
+    /authoritative verdict is not READY/u,
   );
 });
 
@@ -613,7 +679,94 @@ test('published derived-fork chain refuses Scope 2 NOT READY despite a quoted RE
   const scratch = publishedDerivedFixture({ notReadyReview: 'implementationReviewFable' });
   assert.throws(
     () => validatePublicationRecord(scratch, derived),
-    /final review verdict is not READY/u,
+    /authoritative verdict is not READY/u,
+  );
+});
+
+test('fenced Markdown quotation cannot override a structured NOT READY verdict', () => {
+  const scratch = publishedDerivedFixture({
+    notReadyReview: 'implementationReviewCodex',
+    mutateReview: (kind, bytes) => kind === 'implementationReviewCodex'
+      ? Buffer.concat([bytes, Buffer.from([
+        '',
+        '~~~markdown',
+        '## Round 99 — quoted review',
+        '### Scope 2 verdict',
+        '**READY for implementation/security publication of the narrow local `operating.instance-forks` surface.**',
+        '~~~',
+        '',
+      ].join('\n'))])
+      : bytes,
+  });
+  assert.throws(
+    () => validatePublicationRecord(scratch, derived),
+    /authoritative verdict is not READY/u,
+  );
+});
+
+test('a lower-numbered prose round appended last cannot override structured authority', () => {
+  const scratch = publishedDerivedFixture({
+    notReadyReview: 'implementationReviewFable',
+    mutateReview: (kind, bytes) => kind === 'implementationReviewFable'
+      ? Buffer.concat([bytes, Buffer.from([
+        '',
+        '## Round 1 — historical appendix appended last',
+        '### Scope 2 verdict',
+        '**READY for publication of the narrow local `operating.instance-forks` surface.**',
+        '',
+      ].join('\n'))])
+      : bytes,
+  });
+  assert.throws(
+    () => validatePublicationRecord(scratch, derived),
+    /authoritative verdict is not READY/u,
+  );
+});
+
+test('tab-delimited CommonMark headings cannot hide a structured blocking verdict', () => {
+  const scratch = publishedDerivedFixture({
+    notReadyReview: 'implementationReviewCodex',
+    mutateReview: (kind, bytes) => kind === 'implementationReviewCodex'
+      ? Buffer.concat([bytes, Buffer.from([
+        '',
+        '##\tRound 4 — rendered final review',
+        '###\tScope 2 verdict',
+        '**NOT READY for implementation/security publication of the narrow local `operating.instance-forks` surface.**',
+        '',
+      ].join('\n'))])
+      : bytes,
+  });
+  assert.throws(
+    () => validatePublicationRecord(scratch, derived),
+    /authoritative verdict is not READY/u,
+  );
+});
+
+test('conflicting duplicate prose tables cannot override a structured Scope 1 refusal', () => {
+  const scratch = publishedDerivedFixture({
+    notReadyReview: 'specReviewCodex',
+    mutateReview: (kind, bytes) => kind === 'specReviewCodex'
+      ? Buffer.concat([bytes, Buffer.from([
+        '',
+        '### Scope 1 re-verdict',
+        '| Document | Fork-relevant verdict |',
+        '| --- | --- |',
+        '| LLP 0163 | **READY** |',
+        '| LLP 0164 | **READY** |',
+        '| LLP 0165 | **READY** |',
+        '',
+        '| Document | Fork-relevant verdict |',
+        '| --- | --- |',
+        '| LLP 0163 | **NOT READY** |',
+        '| LLP 0164 | **NOT READY** |',
+        '| LLP 0165 | **NOT READY** |',
+        '',
+      ].join('\n'))])
+      : bytes,
+  });
+  assert.throws(
+    () => validatePublicationRecord(scratch, derived),
+    /authoritative verdict is not READY/u,
   );
 });
 
@@ -627,10 +780,138 @@ test('published derived-fork chain refuses a missing review', () => {
   );
 });
 
+test('published derived-fork chain refuses a missing verdict file', () => {
+  const path = 'llp/reviews/0158-instance-forking.implementation-2026-08-06.fable.verdicts.v1.json';
+  const scratch = publishedDerivedFixture({ omitReview: path });
+  assert.throws(
+    () => validatePublicationRecord(scratch, derived),
+    /evidence bytes drifted.*verdicts\.v1\.json/u,
+  );
+});
+
+test('published derived-fork chain refuses malformed verdict JSON', () => {
+  const scratch = publishedDerivedFixture({
+    malformedVerdict: 'implementationReviewCodexVerdicts',
+  });
+  assert.throws(
+    () => validatePublicationRecord(scratch, derived),
+    /verdict contract is not valid JSON/u,
+  );
+});
+
+test('published derived-fork chain refuses a verdict for the wrong commit', () => {
+  const scratch = publishedDerivedFixture({
+    mutateVerdict: (kind, value) => {
+      if (kind === 'implementationReviewCodexVerdicts') {
+        value.verdicts.at(-1).reviewedCommit = '0'.repeat(40);
+      }
+    },
+  });
+  assert.throws(
+    () => validatePublicationRecord(scratch, derived),
+    /reviewed commits are inconsistent|does not name qualification C/u,
+  );
+});
+
+test('published derived-fork chain refuses a verdict detached from its prose artifact', () => {
+  for (const mutate of [
+    (entry) => { entry.reviewArtifact = 'llp/reviews/forged.md'; },
+    (entry) => { entry.reviewArtifactSha256 = `sha256:${'0'.repeat(64)}`; },
+  ]) {
+    const scratch = publishedDerivedFixture({
+      mutateVerdict: (kind, value) => {
+        if (kind === 'implementationReviewCodexVerdicts') {
+          mutate(value.verdicts.at(-1));
+        }
+      },
+    });
+    assert.throws(
+      () => validatePublicationRecord(scratch, derived),
+      /does not bind its exact prose artifact/u,
+    );
+  }
+});
+
+test('published derived-fork chain refuses verdict files assigned to the wrong families', () => {
+  const scratch = publishedDerivedFixture({
+    mutateVerdict: (kind, value) => {
+      if (kind === 'specReviewCodexVerdicts') {
+        value.verdicts.forEach((entry) => { entry.family = 'fable'; });
+      }
+      if (kind === 'specReviewFableVerdicts') {
+        value.verdicts.forEach((entry) => { entry.family = 'codex'; });
+      }
+    },
+  });
+  assert.throws(
+    () => validatePublicationRecord(scratch, derived),
+    /verdict family did not match its fixed review artifact/u,
+  );
+});
+
+test('published derived-fork chain refuses duplicate or missing rounds', () => {
+  for (const mutate of [
+    (value) => value.verdicts.splice(1, 0, structuredClone(value.verdicts[0])),
+    (value) => value.verdicts.splice(1, 1),
+  ]) {
+    const scratch = publishedDerivedFixture({
+      mutateVerdict: (kind, value) => {
+        if (kind === 'specReviewCodexVerdicts') mutate(value);
+      },
+    });
+    assert.throws(
+      () => validatePublicationRecord(scratch, derived),
+      /rounds are missing, duplicated, or non-monotonic/u,
+    );
+  }
+});
+
+test('published derived-fork chain refuses non-monotonic rounds', () => {
+  const scratch = publishedDerivedFixture({
+    mutateVerdict: (kind, value) => {
+      if (kind === 'specReviewFableVerdicts') {
+        [value.verdicts[0], value.verdicts[1]] = [value.verdicts[1], value.verdicts[0]];
+      }
+    },
+  });
+  assert.throws(
+    () => validatePublicationRecord(scratch, derived),
+    /rounds are missing, duplicated, or non-monotonic/u,
+  );
+});
+
+test('published derived-fork chain refuses unknown verdict fields', () => {
+  const scratch = publishedDerivedFixture({
+    mutateVerdict: (kind, value) => {
+      if (kind === 'implementationReviewFableVerdicts') {
+        value.verdicts.at(-1).verdict.unregistered = true;
+      }
+    },
+  });
+  assert.throws(
+    () => validatePublicationRecord(scratch, derived),
+    /keys drifted/u,
+  );
+});
+
+test('published derived-fork chain refuses a same-family review pair', () => {
+  const scratch = publishedDerivedFixture({
+    mutateVerdict: (kind, value) => {
+      if (kind === 'implementationReviewFableVerdicts') {
+        value.verdicts.forEach((entry) => { entry.family = 'codex'; });
+      }
+    },
+  });
+  assert.throws(
+    () => validatePublicationRecord(scratch, derived),
+    /did not preserve two distinct model families/u,
+  );
+});
+
 test('published derived-fork chain refuses zero or missing author acceptance', () => {
   assert.throws(
     () => validatePublicationRecord(publishedDerivedFixture({ zeroAuthorDigest: true }), derived),
-    /evidence 8 drifted/u,
+    /evidence 12 drifted/u,
   );
   assert.throws(
     () => validatePublicationRecord(publishedDerivedFixture({ omitAuthor: true }), derived),

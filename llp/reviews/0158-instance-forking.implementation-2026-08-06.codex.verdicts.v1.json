@@ -1,0 +1,60 @@
+{
+  "schemaVersion": "snapback.review-verdicts.v1",
+  "verdicts": [
+    {
+      "reviewArtifact": "llp/reviews/0158-instance-forking.implementation-2026-08-06.codex.md",
+      "reviewArtifactSha256": "sha256:81a17ab627f0cccc34afab39a8e06d351d59fadd536168511639b510adfe1db0",
+      "family": "codex",
+      "round": 1,
+      "reviewedCommit": "7c2a27e0e90cf1d19b57825a187cb3be041ab92f",
+      "verdict": {
+        "kind": "derivedForkPublication",
+        "status": "NOT_READY"
+      }
+    },
+    {
+      "reviewArtifact": "llp/reviews/0158-instance-forking.implementation-2026-08-06.codex.md",
+      "reviewArtifactSha256": "sha256:81a17ab627f0cccc34afab39a8e06d351d59fadd536168511639b510adfe1db0",
+      "family": "codex",
+      "round": 2,
+      "reviewedCommit": "96fd0ad1c38109aa524e4cbc39439c8982e18766",
+      "verdict": {
+        "kind": "derivedForkPublication",
+        "status": "NOT_READY"
+      }
+    },
+    {
+      "reviewArtifact": "llp/reviews/0158-instance-forking.implementation-2026-08-06.codex.md",
+      "reviewArtifactSha256": "sha256:81a17ab627f0cccc34afab39a8e06d351d59fadd536168511639b510adfe1db0",
+      "family": "codex",
+      "round": 3,
+      "reviewedCommit": "cdc0fe03e8d75c4a1d1d25f79fe820f20b772ef7",
+      "verdict": {
+        "kind": "derivedForkPublication",
+        "status": "READY"
+      }
+    },
+    {
+      "reviewArtifact": "llp/reviews/0158-instance-forking.implementation-2026-08-06.codex.md",
+      "reviewArtifactSha256": "sha256:81a17ab627f0cccc34afab39a8e06d351d59fadd536168511639b510adfe1db0",
+      "family": "codex",
+      "round": 4,
+      "reviewedCommit": "0b8b0ff71bfc3eaa968b53a694a61f8a472ee295",
+      "verdict": {
+        "kind": "derivedForkPublication",
+        "status": "NOT_READY"
+      }
+    },
+    {
+      "reviewArtifact": "llp/reviews/0158-instance-forking.implementation-2026-08-06.codex.md",
+      "reviewArtifactSha256": "sha256:81a17ab627f0cccc34afab39a8e06d351d59fadd536168511639b510adfe1db0",
+      "family": "codex",
+      "round": 5,
+      "reviewedCommit": "b08e835f112517cf1629a842f5bcae12841ddcf0",
+      "verdict": {
+        "kind": "derivedForkPublication",
+        "status": "NOT_READY"
+      }
+    }
+  ]
+}

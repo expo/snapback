@@ -13,10 +13,14 @@
     { "kind": "lifecycleBenchLinux", "path": "tests/acceptance/instance-fork-lifecycle-bench.2026-08-06.linux-x86_64.v1.json", "sha256": "sha256:c227ff46c97521e6f3a62c9a97fb0028c309cf669ad85a24e721f8b3b4f05f0e" },
     { "kind": "boundsRatification", "path": "tests/acceptance/instance-fork-lifecycle-bench.2026-08-06.v1.json", "sha256": "sha256:4c61c8c85a0890484c422a0f87a5e26707ab8419f919095e62861e1d6dbd18e2" },
     { "kind": "assetLifecycleEvidence", "path": "tests/acceptance/asset-lifecycle-v1-evidence.md", "sha256": "sha256:222eba70394ac3fa812525766f9d514a88d876386f5413dfc6f4c367bc444ff2" },
-    { "kind": "specReviewCodex", "path": "llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.codex.md", "sha256": "sha256:24dc3d08a1fb4321c2bc29426ded9fdef40d1a7e4fbdefeb5373a1d84f46cf0d" },
-    { "kind": "specReviewFable", "path": "llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.fable.md", "sha256": "sha256:f7be6ead40033ec085714a8328453229274efb0576fc40ce1660b9cc08ebee17" },
-    { "kind": "implementationReviewCodex", "path": "llp/reviews/0158-instance-forking.implementation-2026-08-06.codex.md", "sha256": "sha256:8f3843d89016d1233b38d32609157ae6c0f74e1a2b4299e5f72ea398fa1eb6ee" },
-    { "kind": "implementationReviewFable", "path": "llp/reviews/0158-instance-forking.implementation-2026-08-06.fable.md", "sha256": "sha256:bb79512ec6b9514a3fab4d8a650fd91ac09a2164435c724beaaf40606d337d10" },
-    { "kind": "authorAcceptance", "path": "tests/acceptance/fixtures/instance-forks/author-acceptance.2026-08-06.v1.json", "sha256": "sha256:e349b0698a5b42fff14d05a23ab4571b3adabed897b6827915389562ec8fd228" }
+    { "kind": "specReviewCodex", "path": "llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.codex.md", "sha256": "sha256:1da98b47ac35a57aa065f4f8805fe098956d98550d3c08cd4a603cc2c93045af" },
+    { "kind": "specReviewCodexVerdicts", "path": "llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.codex.verdicts.v1.json", "sha256": "sha256:d2b419d76b14f7bbe2a0b47c9ed7bce10a85543a19b1d379e1372380bcc76605" },
+    { "kind": "specReviewFable", "path": "llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.fable.md", "sha256": "sha256:4a6a7978fe58df0661d6ac7c8ad211910beba599ebac84fcebbd60c309ecc437" },
+    { "kind": "specReviewFableVerdicts", "path": "llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.fable.verdicts.v1.json", "sha256": "sha256:c3291438d252c8677830ede7c2c76a3c6ecc3db09f60f70871274da3182a8848" },
+    { "kind": "implementationReviewCodex", "path": "llp/reviews/0158-instance-forking.implementation-2026-08-06.codex.md", "sha256": "sha256:81a17ab627f0cccc34afab39a8e06d351d59fadd536168511639b510adfe1db0" },
+    { "kind": "implementationReviewCodexVerdicts", "path": "llp/reviews/0158-instance-forking.implementation-2026-08-06.codex.verdicts.v1.json", "sha256": "sha256:c560c884ffdd5d7f0a8bac285bf6f2a85b7578d212e31f719aebe3c002f45beb" },
+    { "kind": "implementationReviewFable", "path": "llp/reviews/0158-instance-forking.implementation-2026-08-06.fable.md", "sha256": "sha256:d4e638cbc480ad84d727eb1f86f9b79ffd9cddd40c18d3a7dfffe6b25692d58a" },
+    { "kind": "implementationReviewFableVerdicts", "path": "llp/reviews/0158-instance-forking.implementation-2026-08-06.fable.verdicts.v1.json", "sha256": "sha256:48d918d14feb05b87768eb596fa1deebb2538efa12f16d1009e1eb1ac044ba12" },
+    { "kind": "authorAcceptance", "path": "tests/acceptance/fixtures/instance-forks/author-acceptance.2026-08-06.v1.json", "sha256": "sha256:37689eedbc151df0ae5efe339208fa6d5a07a6faf1404e15c15ad3ee6b4b5adf" }
   ]
 }
