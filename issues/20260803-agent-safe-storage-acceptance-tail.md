@@ -693,3 +693,15 @@ versioned-seed, asset, app-CLI, todo, and workout chain. Structured results:
 `target/proof/local-proof-results.jsonl` in the proving worktree. This drift
 lane makes no fork-code correctness change. Owner close condition remains
 unchanged.
+
+### Exact-head live-server rerun recurrence — 2026-08-07 UTC
+
+After recording the merge-proof recurrence, the complete 15-test
+`instance_fork_cli_v1` suite was rerun at clean, coded-bootstrap-qualified
+revision `483f943b6a663cee8a99d01cb10b09a156891483` with four test threads. The
+concurrent-create case passed on this execution, but
+`detached_fork_server_closes_unrelated_inherited_descriptors_on_exec` failed
+because the detached server retained an unrelated caller descriptor after the
+create CLI exited. The other 14 live-server cases passed. This is another
+actively owned F0a fork-correctness recurrence, not wave drift; this lane makes
+no fork-code change. Owner close condition remains unchanged.
