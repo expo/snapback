@@ -618,3 +618,25 @@ binding, armed-authorizer sub-DML hardening, receipt digest/stream-boundary
 binding, atomic admission + bounded net-diff work); fix-forward is in
 flight, after which benches re-bind to the new commit and a fresh blind
 round runs. Every capability remains `Missing`.
+
+### Dual-platform executable evidence at the qualification commit — 2026-08-06
+
+Recorded for the narrow `operating.instance-forks` claim. Qualification
+commit `cdc0fe03e`; both platform row-13 receipts are bound to it
+(`instance-fork-lifecycle-bench.2026-08-06.macos-aarch64.v1.json`,
+`…linux-x86_64.v1.json`), every ratified median bound passing.
+
+Executable fork suites run at that exact commit on both supported release
+platforms, satisfying the round-3 reviewer condition that process spawning,
+SQLite write authority, and crash recovery be executed rather than read:
+
+| Suite | macOS aarch64 | Linux x86_64 |
+| --- | --- | --- |
+| `instance_fork::` | 48/48 | 48/48 |
+| `fork_promotion::` | 37/37 | 37/37 |
+| `instance_fork_cli_v1` (live servers) | 15/15 | 15/15 |
+| `instance_fork_vm_egress_v1` (Hermes VM) | 1/1 | 1/1 |
+| `instance_fork_disk_pressure_v1` | 1/1 | macOS-only fixture |
+| row-13 release bench | pass | pass |
+
+No platform beyond these two is claimed or measured.

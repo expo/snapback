@@ -149,3 +149,79 @@ The temporary registered-manifest-gap exploit test also passed, demonstrating th
 ### Verdict and recommended next step
 
 LLP 0163 and LLP 0164 are **READY** for their fork-relevant surfaces. LLP 0165 is **NOT READY**, and the narrow local `operating.instance-forks` publication remains **NOT READY**. Preserve the lifecycle binding, v3 receipts, defensive/default-deny authorizer, registered-writer factory, and root admission work. Close the registered-manifest continuity gap and make scanned-row byte admission pre-allocation, then rerun the two new adversarial negatives plus the existing exact-revision suite before commissioning the next independent implementation/security verdict.
+
+## Round 3 — 2026-08-06, commit cdc0fe03e
+
+### Provenance
+
+- **Family:** codex
+- **Provider/runtime:** OpenAI Codex, GPT-5 family runtime
+- **Date:** 2026-08-06
+- **Commit:** `cdc0fe03e8d75c4a1d1d25f79fe820f20b772ef7`
+- **Redacted:** no
+- **Method:** Independent round-3 delta review. I read both families' committed round-1 and round-2 artifacts, the root LLP, the fork-relevant portions of LLP 0163/0164/0165, LLP 0158's implementation review, and the instance-forks guide. I inspected the three named fix slices and their current code/tests at the pinned commit. In a disposable exact-revision checkout, after the required native-runtime qualification, I ran the focused committed tests listed below and added one temporary review-only continuity-row exploit variant. The pinned worktree remained unchanged except for the two requested review appends.
+
+### Delta assessment
+
+I found **no new MATERIAL defect** in the reviewed delta. The two Codex round-2 findings are closed, as are the armed-renewal and journal-pruning findings recorded by Fable. The three new slices preserve the narrow registered-connection/local-process boundary stated by LLP 0165; none silently expands it into same-user file containment (`llp/0165-proof-domains-and-checkpoints.spec.md:399-447`).
+
+### Round-2 finding dispositions
+
+1. **High — registered-manifest continuity exploit: CLOSED.** Both the active manifest and continuity table are protected carriers, writable only under the operation-ledger token (`src/storage/write_authority.rs:697-743`). Every registered writer reconstructs the database/file receipts, current stream, manifest, and `continuous` row before the authorizer and purpose token are installed; any gap records a monotonic database break and, for a managed fork, a create-once synced sidecar before refusing (`src/storage.rs:10735-10799`; `src/storage.rs:10821-10869`; `src/storage.rs:10871-11103`). Coverage activation cannot change a `broken` row back to `continuous` (`src/operation_ledger.rs:552-608`), and net-diff verification independently checks the gap sidecar and the exact continuity expectation (`src/instance_fork.rs:3627-3705`).
+
+   The committed negative is substantive, not circular: it first proves a registered writer cannot delete the manifest, then uses an explicitly out-of-class raw connection to simulate the old gap, proves the next registered factory refuses and creates the gap sidecar, performs the former matching app/version/journal forgery, restores the exact manifest, and proves net diff still refuses (`src/instance_fork.rs:8097-8219`). I also ran a temporary stronger variant that deleted the continuity row rather than the manifest. After the registered factory persisted the break, the raw test deleted the new `broken` row and restored the original `continuous` row exactly; the irreversible sidecar still caused `SNAPBACK_FORK_WRITER_COVERAGE_GAP`. Deleting that filesystem evidence through the same raw same-user authority would already be outside the class, just as coordinated page/journal forgery is explicitly outside it.
+
+2. **Medium — scanned-row bytes charged after expansion: CLOSED.** Each borrowed SQLite row is now preflighted and charged before `row_to_document`, text ownership, blob-to-hex conversion, JSON parsing, or vector decoding (`src/instance_fork.rs:4160-4252`). The bounds charge JSON-node overhead, blob expansion, and vector buffer/array expansion before allocation, then verify serialization through a bounded counting writer (`src/instance_fork.rs:4255-4387`; `src/instance_fork.rs:4436-4484`). The negative uses individual text/blob values beyond the global byte budget and a vector whose decoded representation exceeds its smaller budget, and proves refusal in `head-scan` (`src/instance_fork.rs:7640-7734`).
+
+3. **High — armed `fork renew` checkpoint wedge: CLOSED.** The lifecycle writer admits only `wal_checkpoint(FULL)` under its `BranchRegistry` token (`src/storage/write_authority.rs:344-349`), and renewal runs that checkpoint before beginning the lineage transaction (`src/instance_fork.rs:3137-3170`). An ordinary later failure invokes compensation across database lineage, mint receipt, registry, and prior renewal receipt; a failed compensation reports `incomplete-recover-required` while the sentinel preserves fail-closed recovery (`src/instance_fork.rs:2995-3134`; `src/instance_fork.rs:3172-3217`). Crash cuts deliberately retain the intent and are replayed before quarantine clears (`src/instance_fork.rs:4977-5032`).
+
+4. **High — journal maintenance denied on armed forks: CLOSED.** `JournalMaintenance` is a dedicated token whose only special authority is deleting retained `_snapback_changes` rows; it receives neither application DML nor journal-originating authority (`src/storage/write_authority.rs:40-84`; `src/storage/write_authority.rs:340-342`; `src/storage/write_authority.rs:755-775`). `prune_change_journal` holds that token for the retention transaction (`src/storage.rs:3183-3204`), and the armed-fork regression proves rows are removed and the monotonic retention floor advances (`src/instance_fork.rs:7902-7939`).
+
+### New-slice regression review
+
+- **Mint-time application binding:** the public managed mint APIs now require the opaque `ExpectedForkAppV1`, revalidate its canonical root receipt, persist a staging intent before cloning, and write a digest-bound fork receipt before registry intent/publication (`src/instance_fork.rs:93-110`; `src/instance_fork.rs:169-269`; `src/instance_fork.rs:2227-2294`; `src/instance_fork.rs:4487-4619`). A source-app-id mismatch refuses, recovery validates either the final receipt or staging intent, and legacy/unbound managed selection fails closed (`src/instance_fork.rs:1189-1269`; `src/instance_fork.rs:4929-4971`). The never-launched library-mint acceptance case proves immediate owning-root diff and sibling-root refusal (`tests/instance_fork_cli_v1.rs:765-873`). I found no in-boundary forgery or legacy wildcard.
+
+- **Detached-child close-on-exec:** on Unix, the launcher marks every observed non-stdio descriptor close-on-exec and only then creates the new session (`src/cli.rs:3383-3433`). The fork server's only inherited necessities are configured as stdout/stderr, which `Command` maps to descriptors 1 and 2; it opens its database, listener, and readiness file after exec (`src/cli.rs:3591-3630`). The same helper's restart use has null stdio and no non-stdio handoff (`src/cli.rs:6982-6999`). The executable negative passes an unrelated non-CLOEXEC fd 198 through the create CLI and observes EOF while the detached server remains alive (`tests/instance_fork_cli_v1.rs:1894-1980`). I found no legitimate server descriptor that the sweep closes. The Unix implementation matches the initial macOS/Linux surface; it makes no unsupported-platform claim.
+
+- **Bounded admission:** the guard owns the locked file, uses nonblocking `flock` with a monotonic 30-second deadline, returns the stable timeout diagnostic, and releases on every return through ordinary file-drop semantics (`src/instance_fork.rs:3323-3405`). Create keeps the guard from quota observation through registry intent and authoritative publication, then drops it explicitly (`src/cli.rs:3477-3513`). Validation or publication `?` paths also drop it. Polling is not FIFO, but contention cannot become the former TTL-length hang; a starved caller receives a bounded refusal. The zero-deadline regression proves both refusal under a held lock and immediate reuse after release (`src/instance_fork.rs:7110-7154`).
+
+- **Renewal compensation:** the sentinel and durable intent precede mutation; database, mint, registry, and renewal receipt move in one replayable order; quarantine clears only after intent removal and final sync (`src/instance_fork.rs:2969-2993`; `src/instance_fork.rs:3063-3108`). The all-cut matrix proves recovery reaches one deterministic expiry with no residue (`src/instance_fork.rs:6836-6909`), while the executable armed-fork recovery test proves the upgraded coverage class survives an interrupted database update (`tests/instance_fork_cli_v1.rs:2342-2449`). A secondary I/O failure during compensation can still require explicit recovery, as reported, but cannot expose a normal bootable disagreement because the sentinel remains or all forward carriers were already written consistently.
+
+### New findings
+
+None. I found no Critical, High, Medium, or Low defect introduced by the three reviewed slices.
+
+### Scope 1 re-verdict
+
+| Document | Fork-relevant verdict | Round-3 assessment |
+| --- | --- | --- |
+| LLP 0163 | **READY** | The fork receipts continue to state `attribution: "absent-v1"`; the derived fork is expressly outside LLP 0163's attribution-consumer acceptance scope (`llp/0163-operation-identity-and-commit-envelope.spec.md:992-1006`). None of the three slices changes that boundary. |
+| LLP 0164 | **READY** | The retained-base net diff still implements the delegated base-to-head surface and its v3 boundary/digest/absence facts remain accurately reconciled (`llp/0164-fork-and-promotion.spec.md:489-513`). Pre-expansion accounting strengthens, rather than changes, its semantics. |
+| LLP 0165 | **READY** | The implementation now satisfies the narrow registered-connection whole-window rule: protected carriers, pre-authority reconstruction, irreversible gap evidence, no re-arm from `broken`, and journal/oracle verification (`llp/0165-proof-domains-and-checkpoints.spec.md:399-454`). The former manifest-restoration exploit and the independent continuity-restoration variant both fail closed. |
+
+These are review verdicts for the fork-relevant surfaces, not edits to the documents' proposal statuses or claims about their broader acceptance rows.
+
+### Scope 2 verdict
+
+**READY for implementation/security publication of the narrow local `operating.instance-forks` surface reviewed here.** This verdict does not itself publish the capability: the guide correctly still calls the surface partial/unpublished, and the capability index remains target `none` pending its separate qualification, author-acceptance, and publication gates (`guide/operating/instance-forks.md:28-34`; `guide/capabilities.md:90`).
+
+### Verification actually performed
+
+The disposable checkout passed `scripts/bootstrap-ibex-runtime`, including exact-commit build, launch, and restricted no-eval handler-VM qualification. The following committed tests then passed individually at the reviewed SHA:
+
+- `registered_manifest_gap_and_exact_restore_cannot_reearn_completeness`
+- `net_diff_scan_preflights_huge_text_blob_and_vector_before_owned_decode`
+- `armed_derived_fork_maintenance_sweep_prunes_the_change_journal`
+- `root_wide_admission_deadline_is_stable_and_releases_cleanly`
+- `renewal_crash_matrix_recovers_to_one_consistent_expiry`
+- `detached_fork_server_closes_unrelated_inherited_descriptors_on_exec`
+- `concurrent_fork_creates_bind_distinct_ports_and_drop_cleanly`
+- `library_minted_never_launched_fork_diffs_only_for_its_owning_app_root`
+- `executable_fork_renew_extends_a_live_fork_within_the_maximum`
+- `executable_fork_recover_completes_interrupted_renewal_on_an_armed_fork`
+
+The temporary continuity-row delete/break/exact-restore variant also passed with the expected fail-closed diagnostic. I did not run the entire repository test suite or re-review closed round-1 areas.
+
+### Recommended next step
+
+Treat the round-2 implementation blockers as closed and use these READY verdicts as input to the existing author/qualification/publication process. Do not change the `operating.instance-forks` target from `none` merely because this delta review is clean; first complete and verify the remaining named publication gates against the landed commit.

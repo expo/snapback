@@ -10,7 +10,6 @@ status: current
 targets: [local]
 maturity: partial
 since: 0.1.11
-unreleased: true
 reviewed: 2026-08-06
 reviewed-commit: HEAD
 ---
@@ -20,9 +19,6 @@ reviewed-commit: HEAD
 > **Local target only.** This page describes the local dev/test target.
 > Hosted targets make deliberately weaker or different claims — see
 > [auth/targets](../auth/targets.md).
-
-> **Unreleased.** This surface is newer than the newest published Snapback
-> closure, 0.1.10. Use a runtime built from this checkout until 0.1.11 ships.
 
 An **application surface** is one generated, parameterized composition of the
 reads, ordinary mutations, asset-bearing commands, raw asset intents, and

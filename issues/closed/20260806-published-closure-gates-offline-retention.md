@@ -1,6 +1,6 @@
 # Published closure fences out the offline-retention contract the guide teaches
 
-**Status:** Open — Route 2 shipped on main; closes when 0.1.11 publishes
+**Status:** Closed — published in 0.1.11 (2026-08-06)
 **Impact:** 5
 **Urgency:** 4
 **Ease:** 3
@@ -68,3 +68,8 @@ the harness per platform, ships each minted
 publishes, updates `guide/published-closure.json`, and sweeps the three
 banner fences above plus the capability-index row's 0.1.10 caveat. Close
 this ticket in that landing.
+
+
+## Closed — 2026-08-06
+
+Route 2 shipped and PUBLISHED: single_table_v1 admitted from npm 0.1.11 (receipt-backed cold-install verification in LLP 0041 §0.1.11).
