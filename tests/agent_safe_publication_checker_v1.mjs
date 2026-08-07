@@ -18,22 +18,29 @@ import { fileURLToPath } from 'node:url';
 import {
   allowedPublicationChange,
   allowedPublicationPath,
+  assertCoverageTransfers,
   assertQualifiedImplementationDigestAtPublication,
+  DERIVED_FORK_COVERAGE_TRANSFERS,
+  DERIVED_FORK_IMPLEMENTATION_SCOPE,
+  evaluateClaimSnapshot,
   exactCandidate,
   generatedPublicationPathsAt,
   generatedPublicationPathsOnDisk,
   IMPLEMENTATION_DIGEST_VERSION,
   IMPLEMENTATION_ROOTS,
+  IMPLEMENTATION_SCOPE_SCHEMA_VERSION,
   implementationDigestAt,
   expectedLocalStorePublicationTransform,
   LOCAL_STORE_PUBLICATION_TRANSFORM,
   PUBLICATION_CYCLE_ALLOWLIST,
+  SCOPED_IMPLEMENTATION_DIGEST_VERSION,
   validateAbsolutePerformanceArtifact,
   validateAgentSafeCodegenDeclarations,
   validatePairedPerformanceArtifact,
   validatePublicationRecord,
   validateReview,
   validateLocalStorePublicationTransform,
+  validateDerivedForkCoverageTransfers,
 } from '../scripts/check-agent-safe-publication.mjs';
 import {
   ADMIN_GENERATED_ROOTS,
@@ -380,10 +387,17 @@ function qualifiedImplementationScopeFixture() {
     cwd: scratch,
     encoding: 'utf8',
   }).trim();
+  const scoped = {
+    schemaVersion: IMPLEMENTATION_SCOPE_SCHEMA_VERSION,
+    roots: ['src'],
+    files: ['vendor/ibex'],
+  };
   return {
     scratch,
     qualification,
     expectedDigest: implementationDigestAt(scratch, qualification),
+    scoped,
+    scopedDigest: implementationDigestAt(scratch, qualification, scoped),
   };
 }
 
@@ -593,7 +607,12 @@ function publishedDerivedFixture({
     cwd: scratch,
     encoding: 'utf8',
   }).trim();
-  const implementationTree = implementationDigestAt(scratch, commit);
+  const implementationScope = {
+    schemaVersion: IMPLEMENTATION_SCOPE_SCHEMA_VERSION,
+    roots: ['src'],
+    files: ['vendor/ibex'],
+  };
+  const implementationTree = implementationDigestAt(scratch, commit, implementationScope);
 
   const bindings = [];
   const reviewBytes = new Map();
@@ -673,7 +692,7 @@ function publishedDerivedFixture({
     accepted: true,
     authorLine: 'Charlie Cheever — accepted 2026-08-06',
     qualifiedSourceCommit: commit,
-    implementationDigestVersion: IMPLEMENTATION_DIGEST_VERSION,
+    implementationDigestVersion: SCOPED_IMPLEMENTATION_DIGEST_VERSION,
     implementationTreeSha256: implementationTree,
     candidateFactsSha256,
     qualifiedComponents: [...derived.components],
@@ -695,10 +714,11 @@ function publishedDerivedFixture({
   });
 
   const receipt = {
-    schemaVersion: 'snapback.agent-safe-publication-receipt.v2',
+    schemaVersion: 'snapback.agent-safe-publication-receipt.v3',
     capabilityId: derived.id,
     qualifiedSourceCommit: commit,
-    implementationDigestVersion: IMPLEMENTATION_DIGEST_VERSION,
+    implementationDigestVersion: SCOPED_IMPLEMENTATION_DIGEST_VERSION,
+    implementationScope,
     implementationTreeSha256: implementationTree,
     candidateFactsSha256,
     qualifiedTargetProfileId: 'local-dev-sqlite-ibex',
@@ -718,7 +738,7 @@ function publishedDerivedFixture({
     targetProfileId: 'local-dev-sqlite-ibex',
     maturity: 'experimental',
     qualifiedSourceCommit: commit,
-    implementationDigestVersion: IMPLEMENTATION_DIGEST_VERSION,
+    implementationDigestVersion: SCOPED_IMPLEMENTATION_DIGEST_VERSION,
     implementationTreeSha256: implementationTree,
     candidateFactsSha256,
     qualificationReceiptSha256: digest(receiptBytes),
@@ -827,14 +847,33 @@ test('synthetic verdict history length can advance without live-record test edit
   }
 });
 
+test('published oracle reports out-of-scope post-qualification drift as a standing snapshot', () => {
+  const scratch = publishedDerivedFixture();
+  commitFixture(
+    scratch,
+    'publication P with bound evidence',
+    ...derivedEvidence.map(([, path]) => path),
+    derived.receipt,
+    derived.carrier,
+    derived.anchor,
+  );
+  const result = validatePublicationRecord(scratch, derived);
+  assert.equal(result.state, 'published');
+  assert.equal(result.snapshot.state, 'stands');
+  assert.deepEqual(result.snapshot.scopedChanges, []);
+  assert.ok(result.snapshot.outOfScopeChanges.length > 0);
+  assert.ok(result.snapshot.outOfScopeChanges.some(({ path }) => path.startsWith('llp/reviews/')));
+});
+
 test('publication-chain JSON has one canonical parser boundary and no legacy evidence reader', () => {
   const source = readFileSync(join(root, 'scripts/check-agent-safe-publication.mjs'), 'utf8');
   assert.match(source, /no publication-chain JSON is ever read non-canonically/u);
   assert.doesNotMatch(source, /function readEvidenceJson/u);
   const parseSites = source.split('\n').filter((line) => line.includes('JSON.parse('));
-  assert.equal(parseSites.length, 4, `unexpected bare JSON.parse site:\n${parseSites.join('\n')}`);
+  assert.equal(parseSites.length, 5, `unexpected bare JSON.parse site:\n${parseSites.join('\n')}`);
   assert.ok(parseSites.some((line) => line.includes('value = JSON.parse(text)')));
   assert.ok(parseSites.some((line) => line.includes('const schema = JSON.parse(')));
+  assert.ok(parseSites.some((line) => line.includes('const policy = JSON.parse(')));
 });
 
 test('published derived-fork chain accepts final READY after historical NOT READY verdicts', () => {
@@ -1648,6 +1687,138 @@ test('history digest is deterministic for an immutable qualification commit', ()
   const second = implementationDigestAt(root, head);
   assert.match(first, /^sha256:[0-9a-f]{64}$/u);
   assert.equal(first, second);
+});
+
+test('v3 binds the reviewed scope even when two scopes select the same leaves', () => {
+  const { scratch, qualification, scoped, scopedDigest } = qualifiedImplementationScopeFixture();
+  const sameLeavesDifferentDeclaration = {
+    schemaVersion: IMPLEMENTATION_SCOPE_SCHEMA_VERSION,
+    roots: [],
+    files: ['src/qualified.rs', 'src/type-swap', 'vendor/ibex'],
+  };
+  assert.notEqual(
+    scopedDigest,
+    implementationDigestAt(scratch, qualification, sameLeavesDifferentDeclaration),
+  );
+  assert.match(scopedDigest, /^sha256:[0-9a-f]{64}$/u);
+  assert.deepEqual(scoped, {
+    schemaVersion: IMPLEMENTATION_SCOPE_SCHEMA_VERSION,
+    roots: ['src'],
+    files: ['vendor/ibex'],
+  });
+});
+
+test('coverage transfer refuses any departing leaf without a registered frozen-record gate', () => {
+  const policy = JSON.parse(readFileSync(
+    join(root, 'scripts/local-proof-selection-policy.v1.json'),
+    'utf8',
+  ));
+  const departingPaths = DERIVED_FORK_COVERAGE_TRANSFERS.map(({ path }) => path);
+  assert.equal(validateDerivedForkCoverageTransfers(root).length, 9);
+  assert.throws(
+    () => assertCoverageTransfers({
+      scope: DERIVED_FORK_IMPLEMENTATION_SCOPE,
+      departingPaths: [...departingPaths, 'tests/uncovered-wave-record.json'],
+      transfers: DERIVED_FORK_COVERAGE_TRANSFERS,
+      driftProneGates: policy.driftProneGates,
+    }),
+    /coverage moved without a frozen-record gate; missing tests\/uncovered-wave-record\.json/u,
+  );
+});
+
+test('coverage transfer refuses a named gate that does not canonically cover its leaf', () => {
+  const policy = JSON.parse(readFileSync(
+    join(root, 'scripts/local-proof-selection-policy.v1.json'),
+    'utf8',
+  ));
+  const transfers = DERIVED_FORK_COVERAGE_TRANSFERS.map((transfer) => ({ ...transfer }));
+  transfers[0].gate = 'client-bundle-metrology';
+  assert.throws(
+    () => assertCoverageTransfers({
+      scope: DERIVED_FORK_IMPLEMENTATION_SCOPE,
+      departingPaths: DERIVED_FORK_COVERAGE_TRANSFERS.map(({ path }) => path),
+      transfers,
+      driftProneGates: policy.driftProneGates,
+    }),
+    /tests\/agent_safe_publication_checker_v1\.mjs is not covered by registered drift gate client-bundle-metrology/u,
+  );
+});
+
+test('claim snapshot stands when only out-of-scope files change', () => {
+  const { scratch, qualification, scoped, scopedDigest } = qualifiedImplementationScopeFixture();
+  mkdirSync(join(scratch, 'tests'), { recursive: true });
+  writeFileSync(join(scratch, 'tests/wave-shared-proof.mjs'), 'export const wave = 2;\n');
+  const publication = commitFixture(
+    scratch,
+    'change out-of-scope wave proof',
+    'tests/wave-shared-proof.mjs',
+  );
+  const snapshot = evaluateClaimSnapshot(scratch, {
+    qualificationCommit: qualification,
+    publicationCommit: publication,
+    scope: scoped,
+  });
+  assert.deepEqual(snapshot, {
+    state: 'stands',
+    scopedChanges: [],
+    outOfScopeChanges: [{ status: 'A', path: 'tests/wave-shared-proof.mjs' }],
+  });
+  assert.equal(assertQualifiedImplementationDigestAtPublication(scratch, {
+    capabilityId: 'fixture_capability_v1',
+    qualificationCommit: qualification,
+    publicationCommit: publication,
+    expectedDigest: scopedDigest,
+    expectedDigestVersion: SCOPED_IMPLEMENTATION_DIGEST_VERSION,
+    implementationScope: scoped,
+  }), scopedDigest);
+});
+
+test('withdrawal scenario keeps all nine wave leaves out of scope but refuses one runtime byte', () => {
+  const { scratch, qualification, scoped, scopedDigest } = qualifiedImplementationScopeFixture();
+  const ninePaths = DERIVED_FORK_COVERAGE_TRANSFERS.map(({ path }) => path);
+  for (const path of ninePaths) {
+    mkdirSync(dirname(join(scratch, path)), { recursive: true });
+    writeFileSync(join(scratch, path), `wave drift at ${path}\n`);
+  }
+  const waveCommit = commitFixture(scratch, 'reproduce nine wave changes', ...ninePaths);
+  const waveSnapshot = evaluateClaimSnapshot(scratch, {
+    qualificationCommit: qualification,
+    publicationCommit: waveCommit,
+    scope: scoped,
+  });
+  assert.equal(waveSnapshot.state, 'stands');
+  assert.deepEqual(waveSnapshot.scopedChanges, []);
+  assert.deepEqual(waveSnapshot.outOfScopeChanges.map(({ path }) => path), ninePaths);
+  assert.equal(assertQualifiedImplementationDigestAtPublication(scratch, {
+    capabilityId: 'fixture_capability_v1',
+    qualificationCommit: qualification,
+    publicationCommit: waveCommit,
+    expectedDigest: scopedDigest,
+    expectedDigestVersion: SCOPED_IMPLEMENTATION_DIGEST_VERSION,
+    implementationScope: scoped,
+  }), scopedDigest);
+
+  writeFileSync(join(scratch, 'src/qualified.rs'), 'pub const QUALIFIED: bool = falsE;\n');
+  const runtimeCommit = commitFixture(scratch, 'change one runtime byte', 'src/qualified.rs');
+  const runtimeSnapshot = evaluateClaimSnapshot(scratch, {
+    qualificationCommit: qualification,
+    publicationCommit: runtimeCommit,
+    scope: scoped,
+  });
+  assert.equal(runtimeSnapshot.state, 'invalid');
+  assert.deepEqual(runtimeSnapshot.scopedChanges, [{ status: 'M', path: 'src/qualified.rs' }]);
+  assert.deepEqual(runtimeSnapshot.outOfScopeChanges.map(({ path }) => path), ninePaths);
+  assert.throws(
+    () => assertQualifiedImplementationDigestAtPublication(scratch, {
+      capabilityId: 'fixture_capability_v1',
+      qualificationCommit: qualification,
+      publicationCommit: runtimeCommit,
+      expectedDigest: scopedDigest,
+      expectedDigestVersion: SCOPED_IMPLEMENTATION_DIGEST_VERSION,
+      implementationScope: scoped,
+    }),
+    /scoped surface changed without requalification: M:src\/qualified\.rs/u,
+  );
 });
 
 test('publication records and qualification evidence do not move the implementation digest', () => {

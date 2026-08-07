@@ -54,8 +54,65 @@ export const IMPLEMENTATION_ROOTS = [
 
 export const IMPLEMENTATION_DIGEST_VERSION =
   'snapback:agent-safe-implementation-tree:v2';
+export const SCOPED_IMPLEMENTATION_DIGEST_VERSION =
+  'snapback:agent-safe-implementation-tree:v3';
+export const IMPLEMENTATION_SCOPE_SCHEMA_VERSION =
+  'snapback.agent-safe-implementation-scope.v1';
 const LEGACY_IMPLEMENTATION_DIGEST_VERSION =
   'snapback:agent-safe-implementation-tree:v1';
+
+// @ref LLP 0189#decision — D-4 binds only the claim-relevant surface; the
+// derived-fork record binds the native runtime and the checker code that
+// defines publication semantics, rather than every wave-shared proof leaf.
+export const DERIVED_FORK_IMPLEMENTATION_SCOPE = Object.freeze({
+  schemaVersion: IMPLEMENTATION_SCOPE_SCHEMA_VERSION,
+  roots: Object.freeze(['src']),
+  files: Object.freeze([
+    '.gitmodules',
+    'Cargo.lock',
+    'Cargo.toml',
+    'build.rs',
+    'scripts/check-agent-safe-publication.mjs',
+    'scripts/generated-artifact-policy.mjs',
+    'vendor/ibex',
+  ]),
+});
+
+// These are the exact nine leaves that rotated the 2026-08-07 withdrawn
+// publication between 7cada777b and a5465b4a2. Each transfer names the
+// canonical frozen-record gate that assumes custody when v3 narrows scope.
+export const DERIVED_FORK_COVERAGE_TRANSFERS = Object.freeze([
+  Object.freeze({
+    path: 'tests/agent_safe_publication_checker_v1.mjs',
+    gate: 'agent-safe-publication-fixtures',
+  }),
+  Object.freeze({ path: 'tests/ci_workflows_v0.mjs', gate: 'ci-workflow-fixtures' }),
+  Object.freeze({
+    path: 'tests/conformance/run-versioned-seed-v1.mjs',
+    gate: 'local-proof-inventory',
+  }),
+  Object.freeze({
+    path: 'tests/conformance/versioned-seed-v1-suite.mjs',
+    gate: 'local-proof-inventory',
+  }),
+  Object.freeze({
+    path: 'tests/fixtures/client-bundle-metrology/baseline.asset-delivery-selection.v1.json',
+    gate: 'client-bundle-metrology',
+  }),
+  Object.freeze({
+    path: 'tests/fixtures/client-bundle-metrology/baseline.client-bundle-disposition.v1.json',
+    gate: 'client-bundle-metrology',
+  }),
+  Object.freeze({
+    path: 'tests/fixtures/client-bundle-metrology/baseline.client-bundle-disposition.v2.json',
+    gate: 'client-bundle-metrology',
+  }),
+  Object.freeze({
+    path: 'tests/fixtures/client-bundle-metrology/baseline.s2-commands.v1.json',
+    gate: 'client-bundle-metrology',
+  }),
+  Object.freeze({ path: 'tests/local_proof_inventory_v0.mjs', gate: 'local-proof-inventory' }),
+]);
 const REVIEW_HISTORY_SCHEMA_VERSION = 'snapback.review-verdicts.v2';
 const AGENT_SAFE_SCHEMA_PATHS = [
   'schemas/capability.manifest.schema.json',
@@ -394,19 +451,181 @@ export function allowedPublicationChange(change, generatedPaths, publicationEntr
     && published.mode === expected.mode;
 }
 
-export function qualifiedImplementationChangesBetween(root, from, to) {
-  const raw = execFileSync('git', [
-    'diff', '--name-status', '--no-renames', '-z', `${from}..${to}`, '--',
-    ...IMPLEMENTATION_ROOTS, 'vendor/ibex',
-  ], { cwd: root });
-  const fields = raw.toString().split('\0').filter(Boolean);
-  if (fields.length % 2 !== 0) fail('could not decode qualified implementation drift');
+function repositoryRelativePath(path) {
+  return typeof path === 'string'
+    && path.length > 0
+    && !path.startsWith('/')
+    && !path.endsWith('/')
+    && !path.split('/').includes('..')
+    && !path.includes('\\');
+}
+
+function codePointOrder(left, right) {
+  return left < right ? -1 : left > right ? 1 : 0;
+}
+
+export function validateImplementationScope(scope, label = 'implementation scope') {
+  exactKeys(scope, ['schemaVersion', 'roots', 'files'], label);
+  if (scope.schemaVersion !== IMPLEMENTATION_SCOPE_SCHEMA_VERSION) {
+    fail(`${label} schema is stale or unsupported`);
+  }
+  for (const member of ['roots', 'files']) {
+    if (!Array.isArray(scope[member])
+        || scope[member].some((path) => !repositoryRelativePath(path))) {
+      fail(`${label} ${member} are not portable repository-relative paths`);
+    }
+    const ordered = [...scope[member]].sort(codePointOrder);
+    if (JSON.stringify(scope[member]) !== JSON.stringify(ordered)
+        || new Set(scope[member]).size !== scope[member].length) {
+      fail(`${label} ${member} must be sorted and unique`);
+    }
+  }
+  if (scope.roots.length + scope.files.length === 0) fail(`${label} is empty`);
+  for (const rootPath of scope.roots) {
+    if (scope.roots.some((other) => other !== rootPath && rootPath.startsWith(`${other}/`))) {
+      fail(`${label} root ${rootPath} is redundantly nested`);
+    }
+  }
+  for (const path of scope.files) {
+    if (scope.roots.some((rootPath) => path === rootPath || path.startsWith(`${rootPath}/`))) {
+      fail(`${label} file ${path} is already covered by a root`);
+    }
+    if (PUBLICATION_CYCLE_ALLOWLIST.has(path)) {
+      fail(`${label} file ${path} is a publication-cycle leaf`);
+    }
+  }
+  return scope;
+}
+
+function implementationScopePaths(scope) {
+  if (scope === undefined) return [...IMPLEMENTATION_ROOTS, 'vendor/ibex'];
+  validateImplementationScope(scope);
+  return [...scope.roots, ...scope.files];
+}
+
+export function implementationScopeCoversPath(scope, path) {
+  if (scope === undefined) {
+    return [...IMPLEMENTATION_ROOTS, 'vendor/ibex'].some((rootPath) => (
+      path === rootPath || path.startsWith(`${rootPath}/`)
+    ));
+  }
+  validateImplementationScope(scope);
+  return scope.files.includes(path) || scope.roots.some((rootPath) => (
+    path === rootPath || path.startsWith(`${rootPath}/`)
+  ));
+}
+
+function decodeNameStatus(bytes, label) {
+  const fields = bytes.toString().split('\0').filter(Boolean);
+  if (fields.length % 2 !== 0) fail(`could not decode ${label}`);
   const changes = [];
   for (let index = 0; index < fields.length; index += 2) {
-    const change = { status: fields[index], path: fields[index + 1] };
-    if (!PUBLICATION_CYCLE_ALLOWLIST.has(change.path)) changes.push(change);
+    changes.push({ status: fields[index], path: fields[index + 1] });
   }
   return changes;
+}
+
+export function qualifiedImplementationChangesBetween(root, from, to, scope = undefined) {
+  const raw = execFileSync('git', [
+    'diff', '--name-status', '--no-renames', '-z', `${from}..${to}`, '--',
+    ...implementationScopePaths(scope),
+  ], { cwd: root });
+  return decodeNameStatus(raw, 'qualified implementation drift')
+    .filter(({ path }) => !PUBLICATION_CYCLE_ALLOWLIST.has(path));
+}
+
+// @ref LLP 0189#decision — D-3 snapshot evaluation keeps
+// unrelated post-C landings visible without letting them withdraw a claim.
+export function evaluateClaimSnapshot(root, {
+  qualificationCommit,
+  publicationCommit,
+  scope = undefined,
+}) {
+  const raw = execFileSync('git', [
+    'diff', '--name-status', '--no-renames', '-z',
+    `${qualificationCommit}..${publicationCommit}`,
+  ], { cwd: root });
+  const changes = decodeNameStatus(raw, 'claim snapshot drift')
+    .filter(({ path }) => !PUBLICATION_CYCLE_ALLOWLIST.has(path));
+  const scopedChanges = changes.filter(({ path }) => implementationScopeCoversPath(scope, path));
+  const outOfScopeChanges = changes.filter(
+    ({ path }) => !implementationScopeCoversPath(scope, path),
+  );
+  return {
+    state: scopedChanges.length === 0 ? 'stands' : 'invalid',
+    scopedChanges,
+    outOfScopeChanges,
+  };
+}
+
+function gateMatchesPath(metadata, path) {
+  const recordMatch = (metadata.recordPaths ?? []).some((recordPath) => (
+    path === recordPath || path.startsWith(`${recordPath}/`)
+  ));
+  const trigger = metadata.triggerRules ?? {};
+  return recordMatch
+    || (trigger.files ?? []).includes(path)
+    || (trigger.prefixes ?? []).some((prefix) => path.startsWith(prefix))
+    || (trigger.suffixes ?? []).some((suffix) => path.endsWith(suffix));
+}
+
+// The caller supplies the reviewed previous-record departure set. Exact set
+// equality prevents a transfer annotation from covering only the convenient
+// subset, while the registry lookup proves that every named replacement is a
+// real canonical frozen-record gate rather than prose or a stub.
+export function assertCoverageTransfers({
+  scope,
+  departingPaths,
+  transfers,
+  driftProneGates,
+}) {
+  validateImplementationScope(scope);
+  if (!Array.isArray(departingPaths) || !Array.isArray(transfers)) {
+    fail('coverage transfer inputs must be arrays');
+  }
+  const expectedPaths = [...departingPaths].sort(codePointOrder);
+  if (expectedPaths.some((path) => !repositoryRelativePath(path))
+      || new Set(expectedPaths).size !== expectedPaths.length) {
+    fail('departing coverage paths must be portable and unique');
+  }
+  for (const transfer of transfers) exactKeys(transfer, ['path', 'gate'], 'coverage transfer');
+  const transferredPaths = transfers.map(({ path }) => path).sort(codePointOrder);
+  if (JSON.stringify(transferredPaths) !== JSON.stringify(expectedPaths)) {
+    const missing = expectedPaths.filter((path) => !transferredPaths.includes(path));
+    const extra = transferredPaths.filter((path) => !expectedPaths.includes(path));
+    fail(`coverage moved without a frozen-record gate; missing ${missing.join(',') || 'none'}; `
+      + `extra ${extra.join(',') || 'none'}`);
+  }
+  for (const { path, gate } of transfers) {
+    if (implementationScopeCoversPath(scope, path)) {
+      fail(`coverage transfer ${path} did not leave the claim scope`);
+    }
+    const metadata = driftProneGates?.[gate];
+    if (metadata === undefined || !Array.isArray(metadata.records)
+        || metadata.records.length === 0 || !Array.isArray(metadata.recordPaths)
+        || metadata.recordPaths.length === 0
+        || typeof metadata.regenerateCommand !== 'string'
+        || metadata.regenerateCommand.length === 0
+        || !gateMatchesPath(metadata, path)) {
+      fail(`coverage transfer ${path} is not covered by registered drift gate ${gate}`);
+    }
+  }
+  return transfers;
+}
+
+export function validateDerivedForkCoverageTransfers(root) {
+  // This policy is configuration, not a publication-chain artifact. The
+  // anchor/carrier/receipt/evidence boundary below remains canonical-only.
+  const policy = JSON.parse(readFileSync(
+    join(root, 'scripts/local-proof-selection-policy.v1.json'),
+    'utf8',
+  ));
+  return assertCoverageTransfers({
+    scope: DERIVED_FORK_IMPLEMENTATION_SCOPE,
+    departingPaths: DERIVED_FORK_COVERAGE_TRANSFERS.map(({ path }) => path),
+    transfers: DERIVED_FORK_COVERAGE_TRANSFERS,
+    driftProneGates: policy.driftProneGates,
+  });
 }
 
 function sha256(bytes) {
@@ -603,7 +822,32 @@ function committedTreeEntryBytes(root, entry) {
   fail(`implementation tree entry ${entry.path} has unsupported ${entry.mode} ${entry.type}`);
 }
 
-function implementationEntriesAt(root, commit) {
+function assertScopePathsExist(entries, scope, label) {
+  if (scope === undefined) return;
+  for (const path of scope.files) {
+    if (!entries.some((entry) => entry.path === path)) {
+      fail(`${label} does not contain scoped file ${path}`);
+    }
+  }
+  for (const rootPath of scope.roots) {
+    if (!entries.some((entry) => entry.path.startsWith(`${rootPath}/`))) {
+      fail(`${label} does not contain scoped root ${rootPath}`);
+    }
+  }
+}
+
+function implementationEntriesAt(root, commit, scope = undefined) {
+  if (scope !== undefined) {
+    validateImplementationScope(scope);
+    const entries = parseTreeEntries(execFileSync('git', [
+      'ls-tree', '-r', '-z', commit, '--', ...implementationScopePaths(scope),
+    ], { cwd: root }), `implementation tree at ${commit}`)
+      .filter(({ path }) => !PUBLICATION_CYCLE_ALLOWLIST.has(path))
+      .sort((left, right) => codePointOrder(left.path, right.path));
+    assertScopePathsExist(entries, scope, `implementation tree at ${commit}`);
+    if (entries.length === 0) fail(`implementation tree at ${commit} is empty`);
+    return entries;
+  }
   const entries = parseTreeEntries(execFileSync('git', [
     'ls-tree', '-r', '-z', commit, '--', ...IMPLEMENTATION_ROOTS,
   ], { cwd: root }), `implementation tree at ${commit}`)
@@ -622,23 +866,36 @@ function implementationEntriesAt(root, commit) {
   ));
 }
 
-export function implementationDigestAt(root, commit) {
-  const entries = implementationEntriesAt(root, commit);
-  if (entries.length === 1) fail(`implementation tree at ${commit} is empty`);
+function implementationDigestVersionForScope(scope) {
+  return scope === undefined
+    ? IMPLEMENTATION_DIGEST_VERSION
+    : SCOPED_IMPLEMENTATION_DIGEST_VERSION;
+}
+
+function beginImplementationDigest(scope) {
   const hash = createHash('sha256');
-  hash.update(`${IMPLEMENTATION_DIGEST_VERSION}\n`);
+  hash.update(`${implementationDigestVersionForScope(scope)}\n`);
+  if (scope !== undefined) hash.update(`scope:${JSON.stringify(scope)}\n`);
+  return hash;
+}
+
+export function implementationDigestAt(root, commit, scope = undefined) {
+  const entries = implementationEntriesAt(root, commit, scope);
+  if (entries.length === 0) fail(`implementation tree at ${commit} is empty`);
+  const hash = beginImplementationDigest(scope);
   for (const entry of entries) {
     updateTreeDigest(hash, { ...entry, bytes: committedTreeEntryBytes(root, entry) });
   }
   return `sha256:${hash.digest('hex')}`;
 }
 
-function assertImplementationDigestVersion(version, label) {
-  if (version !== IMPLEMENTATION_DIGEST_VERSION) {
+function assertImplementationDigestVersion(version, label, scope = undefined) {
+  const expected = implementationDigestVersionForScope(scope);
+  if (version !== expected) {
     const presented = version ?? 'missing';
     const legacy = presented === LEGACY_IMPLEMENTATION_DIGEST_VERSION ? 'v1-era' : 'unsupported';
     fail(`${label} presents ${legacy} implementation digest version ${presented}; `
-      + `re-qualification with ${IMPLEMENTATION_DIGEST_VERSION} is required`);
+      + `re-qualification with ${expected} is required`);
   }
 }
 
@@ -652,21 +909,27 @@ export function assertQualifiedImplementationDigestAtPublication(root, {
   publicationCommit,
   expectedDigest,
   expectedDigestVersion,
+  implementationScope = undefined,
 }) {
-  assertImplementationDigestVersion(expectedDigestVersion, capabilityId);
-  const qualificationDigest = implementationDigestAt(root, qualificationCommit);
-  const publicationDigest = implementationDigestAt(root, publicationCommit);
+  assertImplementationDigestVersion(expectedDigestVersion, capabilityId, implementationScope);
+  const qualificationDigest = implementationDigestAt(
+    root,
+    qualificationCommit,
+    implementationScope,
+  );
+  const publicationDigest = implementationDigestAt(root, publicationCommit, implementationScope);
+  const snapshot = evaluateClaimSnapshot(root, {
+    qualificationCommit,
+    publicationCommit,
+    scope: implementationScope,
+  });
   if (qualificationDigest !== expectedDigest || publicationDigest !== expectedDigest) {
-    const changes = qualifiedImplementationChangesBetween(
-      root,
-      qualificationCommit,
-      publicationCommit,
-    );
-    const changedPaths = changes.length > 0
-      ? changes.map(({ status, path }) => `${status}:${path}`).join(',')
+    const changedPaths = snapshot.scopedChanges.length > 0
+      ? snapshot.scopedChanges.map(({ status, path }) => `${status}:${path}`).join(',')
       : 'none detected between C and P (receipt or digest scope is inconsistent)';
     fail([
       `${capabilityId} qualified implementation digest mismatch`,
+      `scoped surface changed without requalification: ${changedPaths}`,
       `in-scope paths drifted: ${changedPaths}`,
       `receipt ${expectedDigest}`,
       `qualification C ${qualificationDigest}`,
@@ -691,10 +954,11 @@ function checkedOutImplementationGitlink(root) {
   return actual;
 }
 
-export function implementationDigestWorkingTree(root) {
+export function implementationDigestWorkingTree(root, scope = undefined) {
+  if (scope !== undefined) validateImplementationScope(scope);
   const checkedOutIbex = checkedOutImplementationGitlink(root);
   const entries = execFileSync('git', [
-    'ls-files', '--stage', '-z', '--', ...IMPLEMENTATION_ROOTS,
+    'ls-files', '--stage', '-z', '--', ...implementationScopePaths(scope),
   ], { cwd: root }).toString('utf8').split('\0').filter(Boolean).map((record) => {
     const separator = record.indexOf('\t');
     const match = /^([0-9]{6}) ([0-9a-f]{40,64}) 0$/u.exec(record.slice(0, separator));
@@ -706,16 +970,18 @@ export function implementationDigestWorkingTree(root) {
       oid: match[2],
       path: record.slice(separator + 1),
     };
-  }).filter(({ path }) => !PUBLICATION_CYCLE_ALLOWLIST.has(path));
-  entries.push({
-    mode: '160000',
-    type: 'commit',
-    oid: checkedOutIbex,
-    path: 'vendor/ibex',
-  });
+  }).filter(({ path }) => path !== 'vendor/ibex' && !PUBLICATION_CYCLE_ALLOWLIST.has(path));
+  if (implementationScopeCoversPath(scope, 'vendor/ibex')) {
+    entries.push({
+      mode: '160000',
+      type: 'commit',
+      oid: checkedOutIbex,
+      path: 'vendor/ibex',
+    });
+  }
   entries.sort((left, right) => (left.path < right.path ? -1 : left.path > right.path ? 1 : 0));
-  const hash = createHash('sha256');
-  hash.update(`${IMPLEMENTATION_DIGEST_VERSION}\n`);
+  assertScopePathsExist(entries, scope, 'implementation working tree');
+  const hash = beginImplementationDigest(scope);
   for (const entry of entries) {
     updateTreeDigest(hash, { ...entry, bytes: committedTreeEntryBytes(root, entry) });
   }
@@ -735,15 +1001,28 @@ function validateReceiptShape(receipt, record, published) {
     'negativeBuildDistributions', 'qualifiedComponents', 'evidence',
   ];
   const currentKeys = [...legacyKeys, 'implementationDigestVersion'];
+  const scopedKeys = [...currentKeys, 'implementationScope'];
   if (receipt.schemaVersion === 'snapback.agent-safe-publication-receipt.v1') {
     exactKeys(receipt, legacyKeys, `${record.id} receipt`);
     if (published) {
       fail(`${record.id} receipt uses the stale v1 implementation digest contract; `
-        + `re-qualification with ${IMPLEMENTATION_DIGEST_VERSION} is required`);
+        + `re-qualification with ${SCOPED_IMPLEMENTATION_DIGEST_VERSION} is required`);
     }
   } else if (receipt.schemaVersion === 'snapback.agent-safe-publication-receipt.v2') {
     exactKeys(receipt, currentKeys, `${record.id} receipt`);
     assertImplementationDigestVersion(receipt.implementationDigestVersion, `${record.id} receipt`);
+    if (published) {
+      fail(`${record.id} receipt uses the ambient v2 implementation digest contract; `
+        + `re-qualification with ${SCOPED_IMPLEMENTATION_DIGEST_VERSION} is required`);
+    }
+  } else if (receipt.schemaVersion === 'snapback.agent-safe-publication-receipt.v3') {
+    exactKeys(receipt, scopedKeys, `${record.id} receipt`);
+    validateImplementationScope(receipt.implementationScope, `${record.id} receipt scope`);
+    assertImplementationDigestVersion(
+      receipt.implementationDigestVersion,
+      `${record.id} receipt`,
+      receipt.implementationScope,
+    );
   } else {
     fail(`${record.id} receipt schema is stale or unsupported`);
   }
@@ -765,6 +1044,12 @@ function validateReceiptShape(receipt, record, published) {
       fail(`${record.id} evidence ${index} drifted`);
     }
   });
+}
+
+function implementationScopeForReceipt(receipt) {
+  return receipt.schemaVersion === 'snapback.agent-safe-publication-receipt.v3'
+    ? receipt.implementationScope
+    : undefined;
 }
 
 function requireEvidence(condition, message) {
@@ -1298,7 +1583,6 @@ function validateAuthorAcceptance(root, receipt, commit, implementationTree) {
     && value.author === 'Charlie Cheever'
     && value.accepted === true
     && value.authorizationSource === 'explicit-user-instruction-2026-08-04'
-    && value.implementationDigestVersion === IMPLEMENTATION_DIGEST_VERSION
     && value.implementationDigestVersion === receipt.implementationDigestVersion,
   'named-author acceptance identity or decision drifted');
   requireEvidence(value.qualifiedSourceCommit === commit
@@ -1601,7 +1885,6 @@ function validateDerivedForkAuthorAcceptance(
     && value.accepted === true
     && value.authorLine === 'Charlie Cheever — accepted 2026-08-06'
     && value.qualifiedSourceCommit === commit
-    && value.implementationDigestVersion === IMPLEMENTATION_DIGEST_VERSION
     && value.implementationDigestVersion === receipt.implementationDigestVersion
     && value.implementationTreeSha256 === implementationTree
     && value.implementationTreeSha256 === receipt.implementationTreeSha256
@@ -1695,7 +1978,11 @@ export function validatePublishedDerivedForkEvidenceSemantics(root, record, comm
   for (const review of [specCodex, specFable, implementationCodex, implementationFable]) {
     requireEvidence(review.ready, `${review.verdictPath} authoritative verdict is not READY`);
   }
-  const implementationTree = implementationDigestAt(root, commit);
+  const implementationTree = implementationDigestAt(
+    root,
+    commit,
+    implementationScopeForReceipt(receipt),
+  );
   validateDerivedForkAuthorAcceptance(root, receipt, commit, implementationTree, [
     specCodex,
     specFable,
@@ -1755,6 +2042,7 @@ export function validatePublicationRecord(root, record) {
   }
   const candidateFacts = exactCandidate(record.id);
   const candidateFactsSha256 = sha256(Buffer.from(JSON.stringify(candidateFacts)));
+  const implementationScope = implementationScopeForReceipt(receipt);
   if (carrier.schemaVersion !== 'snapback.local-agent-safe-publication.v2'
       || carrier.capabilityId !== record.id
       || carrier.targetProfileId !== 'local-dev-sqlite-ibex'
@@ -1764,8 +2052,6 @@ export function validatePublicationRecord(root, record) {
       || JSON.stringify(carrier.candidateFacts) !== JSON.stringify(candidateFacts)
       || carrier.candidateFactsSha256 !== candidateFactsSha256
       || receipt.candidateFactsSha256 !== candidateFactsSha256
-      || carrier.implementationDigestVersion !== IMPLEMENTATION_DIGEST_VERSION
-      || receipt.implementationDigestVersion !== IMPLEMENTATION_DIGEST_VERSION
       || receipt.implementationDigestVersion !== carrier.implementationDigestVersion
       || receipt.implementationTreeSha256 !== carrier.implementationTreeSha256
       || receipt.qualifiedSourceCommit !== carrier.qualifiedSourceCommit
@@ -1794,6 +2080,12 @@ export function validatePublicationRecord(root, record) {
     publicationCommit: publication,
     expectedDigest: receipt.implementationTreeSha256,
     expectedDigestVersion: receipt.implementationDigestVersion,
+    implementationScope,
+  });
+  const snapshot = evaluateClaimSnapshot(root, {
+    qualificationCommit: carrier.qualifiedSourceCommit,
+    publicationCommit: publication,
+    scope: implementationScope,
   });
   validatePublishedEvidenceSemantics(root, record, carrier.qualifiedSourceCommit, receipt);
   return {
@@ -1801,6 +2093,9 @@ export function validatePublicationRecord(root, record) {
     state: 'published',
     commit: carrier.qualifiedSourceCommit,
     implementationDigest,
+    implementationDigestVersion: receipt.implementationDigestVersion,
+    implementationScope,
+    snapshot,
   };
 }
 
@@ -1900,10 +2195,11 @@ export function validateAgentSafeCodegenDeclarations(root) {
 
 export function runChecker(root) {
   validateAgentSafeCodegenDeclarations(root);
+  validateDerivedForkCoverageTransfers(root);
   const results = RECORDS.map((record) => validatePublicationRecord(root, record));
   for (const result of results.filter(({ state }) => state === 'published')) {
     validateLocalStorePublicationTransform(root, result.commit);
-    const workingTreeDigest = implementationDigestWorkingTree(root);
+    const workingTreeDigest = implementationDigestWorkingTree(root, result.implementationScope);
     if (result.implementationDigest !== workingTreeDigest) {
       fail(`${result.id} publication HEAD and clean working-tree implementation digests differ; `
         + `expected ${result.implementationDigest}; actual ${workingTreeDigest}`);
@@ -1924,5 +2220,13 @@ if (invoked) {
   } else {
     const results = runChecker(root);
     process.stdout.write(`${results.map(({ id, state }) => `${id}:${state}`).join('\n')}\n`);
+    for (const result of results.filter(({ snapshot }) => (
+      snapshot?.outOfScopeChanges.length > 0
+    ))) {
+      const paths = result.snapshot.outOfScopeChanges
+        .map(({ status, path }) => `${status}:${path}`)
+        .join(',');
+      process.stderr.write(`${result.id}:claim-stands; out-of-scope drift noted: ${paths}\n`);
+    }
   }
 }

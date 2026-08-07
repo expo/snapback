@@ -81,6 +81,29 @@
       },
       "regenerateCommand": "node scripts/update-agent-safe-publication-leaf-set.mjs"
     },
+    "ci-workflow-fixtures": {
+      "records": [
+        "tests/ci_workflows_v0.mjs (reviewed workflow, action, toolchain, and package-engine invariants)"
+      ],
+      "recordPaths": [
+        "tests/ci_workflows_v0.mjs"
+      ],
+      "triggerRules": {
+        "files": [
+          ".node-version",
+          "package.json",
+          "scripts/check-toolchain-authority.mjs",
+          "scripts/cold-clone-check.sh",
+          "scripts/verify-local-proof",
+          "tests/ci_workflows_v0.mjs"
+        ],
+        "prefixes": [
+          ".github/workflows/",
+          "packages/"
+        ]
+      },
+      "regenerateCommand": "node tests/ci_workflows_v0.mjs"
+    },
     "client-bundle-metrology": {
       "records": [
         "tests/fixtures/client-bundle-metrology/current.v1.json and its active profile/baseline ledgers"
@@ -104,6 +127,24 @@
       "requiredModules": [
         "esbuild"
       ]
+    },
+    "local-proof-inventory": {
+      "records": [
+        "tests/local_proof_inventory_v0.mjs (reviewed canonical gate inventory and versioned-seed carrier invariants)"
+      ],
+      "recordPaths": [
+        "tests/local_proof_inventory_v0.mjs"
+      ],
+      "triggerRules": {
+        "files": [
+          "scripts/check-local-proof-gates.mjs",
+          "scripts/verify-local-proof",
+          "tests/conformance/run-versioned-seed-v1.mjs",
+          "tests/conformance/versioned-seed-v1-suite.mjs",
+          "tests/local_proof_inventory_v0.mjs"
+        ]
+      },
+      "regenerateCommand": "node --test tests/local_proof_inventory_v0.mjs"
     },
     "generated-artifacts": {
       "records": [
@@ -759,7 +800,9 @@
     "drift-enforcement": {
       "lane": "fast",
       "gates": [
-        "drift-prone-gate-fixtures"
+        "ci-workflow-fixtures",
+        "drift-prone-gate-fixtures",
+        "local-proof-inventory"
       ]
     },
     "guide": {
