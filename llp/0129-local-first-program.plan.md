@@ -5,6 +5,14 @@
 **Systems:** Sync, Storage, Runtime, Client integration, Auth, Wire Protocol, Realtime, Packaging, Testing, Documentation, Competitive evaluation
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-30
+**Revised:** 2026-08-07 (§Open questions items 8, 10, and 11 stamped
+inline with the 2026-08-06 author sitting #4 rulings, matching item 9's
+convention; question bodies retained. The consolidated author-gate packet
+for the remaining open decisions — OQ7, phase owners/timeboxes, the
+Phase 2a common-path designation, decision-lab scheduling, the LLP 0107
+strand backstop, zerobugs §13 ratification, and the Phase-1 end-to-end
+governing-artifact question — is filed at
+`issues/20260807-local-first-author-gate-packet.md`.)
 **Revised:** 2026-08-06 (Phase-2b pending-work follow-on BUILT, with the
 listener-bound promotion gate still awaiting its outside-sandbox run: the
 sidecar now carries an explicit shared-store handoff, candidate URL + startup
@@ -1966,8 +1974,16 @@ scope; both were adjudicated 2026-07-30 and no longer gate this Plan
    witness remains an explicit open remainder
    (`issues/20260801-guide-gap-js-arm-browser-indexeddb-proof.md`).
    SD-5's self-advancing rule keys off this split reading.
-8. **Is Phase 1's gate sufficient for what Phase 1 promises? — OPEN
-   (v0.4, raised by round 2).** Phase 1's named gate is the
+8. **Is Phase 1's gate sufficient for what Phase 1 promises? — RULED
+   (2026-08-06, author sitting #4, ruling #8; raised OPEN at v0.4 by
+   round 2).** *Ruling:* the gate **splits** into an
+   evaluator/conformance slice and an end-to-end shipping slice; SD-5
+   cannot advance the phase on the LLP 0051 D5 corpus alone
+   (`issues/closed/20260806-author-decision-sitting-4.md`). The tension
+   between this item's pre-ruling body below and the 2026-08-04 Phase-1
+   EXIT note's shipped-claim is routed to the author in
+   `issues/20260807-local-first-author-gate-packet.md` item 7. Original
+   question: Phase 1's named gate is the
    IR-evaluator sizing spike plus the LLP 0051 D5 corpus passing on
    both sides. But the phase promises local optimistic overlays and
    honest `Parity`, and `Parity` needs mechanisms D5 does not
@@ -2010,8 +2026,13 @@ scope; both were adjudicated 2026-07-30 and no longer gate this Plan
    trigger), never a Phase-2a exit requirement — so LLP 0051 §Rejected's
    no-JS-engine-to-browser constraint is preserved. This resolves the
    author-owned half; the missing-artifact half was already closed above.
-10. **What is Candidate B, exactly, and who owns it? — OPEN (v0.7,
-    raised by round 5).** Outcome 3 requires that a fact be
+10. **What is Candidate B, exactly, and who owns it? — RULED
+    (2026-08-06, author sitting #4, ruling #9; raised OPEN at v0.7 by
+    round 5).** *Ruling:* Candidate B is **demand-gated** — the decision
+    lab is limited to Outcomes 0/1 until a concrete candidate arrives
+    with a named adjudicating owner
+    (`issues/closed/20260806-author-decision-sitting-4.md`). Original
+    question: Outcome 3 requires that a fact be
     inexpressible after B, but B is currently an open-ended list of
     *example* extensions, and its coherence ceilings bound counts and
     costs rather than semantics. Two failed B implementations
@@ -2023,8 +2044,13 @@ scope; both were adjudicated 2026-07-30 and no longer gate this Plan
     duplicated mutation semantics, and its adjudicating owner. Until
     that exists, the lab can reach Outcome 0 or 1 but not a sound
     Outcome 3.
-11. **Who owns execution-identity element 5? — OPEN (v0.7, raised by
-    round 5).** Exit criterion 3 asks only for "an activation-carry
+11. **Who owns execution-identity element 5? — RULED (2026-08-06,
+    author sitting #4, ruling #10; raised OPEN at v0.7 by round 5).**
+    *Ruling:* element 5 is **owned by LLP 0166**, and exit criterion 3's
+    element-5 harness upgrades to conformance-on-both-executions plus
+    mismatch-refusal/quarantine/resync tests under that ownership
+    (`issues/closed/20260806-author-decision-sitting-4.md`). Original
+    question: Exit criterion 3 asks only for "an activation-carry
     check in the settlement submission" for element 5 (store semantics
     and schema epoch). Carriage proves neither store-semantic
     compatibility nor safe behavior on mismatch, and LLP 0133 is
