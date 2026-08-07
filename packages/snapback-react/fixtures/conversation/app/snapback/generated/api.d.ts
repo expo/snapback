@@ -207,6 +207,7 @@ export interface GeneratedMutationContext<Auth extends GeneratedAuthContext = Ge
 export interface GeneratedActionContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> { readonly auth: Auth; readonly runtime: GeneratedRuntimeContext; readonly assets: any; readonly secrets: { get(name: string): any; rotating(name: string): any }; readonly run: unknown; readonly cron: unknown; isDirectHuman(): boolean; runMutation(name: string, args: Readonly<Record<string, unknown>>): Promise<unknown>; fetch(request: Readonly<Record<string, unknown>>): Promise<any>; fetchStream(request: Readonly<Record<string, unknown>>): Promise<any>; readonly streamAttempt: any; refuse(code: string, details?: unknown): never }
 export interface GeneratedFunctionContexts {
   addReaction: GeneratedMutationContext<GeneratedAuthenticatedAuthContext>;
+  annotateMessage: GeneratedMutationContext<GeneratedAuthenticatedAuthContext>;
   conversationDetails: GeneratedQueryContext;
   membershipsForConversation: GeneratedQueryContext;
   messagesForConversation: GeneratedQueryContext;
@@ -224,6 +225,7 @@ export interface GeneratedQueryGroups {
 }
 export interface GeneratedApi {
   addReaction: FunctionReference<'addReaction', 'Mutation', { conversationId: Id<'conversations'>; messageId: Id<'messages'>; userId: Id<'users'>; emoji: string }, { "reactionId": Id<"reactions"> }>;
+  annotateMessage: FunctionReference<'annotateMessage', 'Mutation', { conversationId: Id<'conversations'>; messageId: Id<'messages'>; note?: string; details: { kind: string; extra?: string } }, null>;
   conversationDetails: FunctionReference<'conversationDetails', 'LiveQuery', { conversationId: Id<'conversations'> }, ReadonlyArray<GeneratedDataModel["conversations"]>>;
   membershipsForConversation: FunctionReference<'membershipsForConversation', 'LiveQuery', { conversationId: Id<'conversations'> }, ReadonlyArray<GeneratedDataModel["memberships"]>>;
   messagesForConversation: FunctionReference<'messagesForConversation', 'LiveQuery', { conversationId: Id<'conversations'> }, ReadonlyArray<GeneratedDataModel["messages"]>>;
@@ -245,6 +247,6 @@ export interface GeneratedAssetUploadDefaults {
 }
 export declare const defaults: GeneratedAssetUploadDefaults;
 export declare const api: GeneratedApi;
-export { app, addReaction, conversationDetails, membershipsForConversation, messagesForConversation, reactionsForConversation, removeReaction, sendMessage, sendReply, sendText, users } from './app';
+export { app, addReaction, annotateMessage, conversationDetails, membershipsForConversation, messagesForConversation, reactionsForConversation, removeReaction, sendMessage, sendReply, sendText, users } from './app';
 export type { AppDescriptorV1, CapabilityRequirement, CommandDescriptor, GeneratedAppDescriptorV1, SurfaceDescriptor } from './app';
 export default api;

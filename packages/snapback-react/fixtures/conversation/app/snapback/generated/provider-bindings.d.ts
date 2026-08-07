@@ -15,6 +15,8 @@ export type TypingArgs = { "conversationId": string };
 export type TypingResult = ReadonlyArray<{ "expiresAt"?: number; "key": string; "self": boolean; "sourceClientId": string; "updatedAt": number; "value": { "displayName": string } }>;
 export type AddReactionArgs = { "conversationId": string; "emoji": string; "messageId": string; "userId": string };
 export type AddReactionResult = { "reactionId": string };
+export type AnnotateMessageArgs = { "conversationId": string; "details": { "extra"?: string; "kind": string }; "messageId": string; "note"?: string };
+export type AnnotateMessageResult = null;
 export type RemoveReactionArgs = { "reactionId": string };
 export type RemoveReactionResult = { "removed": boolean };
 export type SendMessageArgs = { "body"?: string; "conversationId": string; "image"?: string; "senderId": string };
@@ -34,6 +36,7 @@ export interface ProviderQueryBindings {
 }
 export interface ProviderMutationBindings {
   "addReaction": { args: AddReactionArgs; result: AddReactionResult };
+  "annotateMessage": { args: AnnotateMessageArgs; result: AnnotateMessageResult };
   "removeReaction": { args: RemoveReactionArgs; result: RemoveReactionResult };
   "sendMessage": { args: SendMessageArgs; result: SendMessageResult };
   "sendReply": { args: SendReplyArgs; result: SendReplyResult };

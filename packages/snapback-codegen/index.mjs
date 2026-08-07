@@ -10003,6 +10003,7 @@ function renderAppTypes(functions, assetUploadIntents = [], commands = {}, surfa
     'export interface GeneratedAppCommands {',
     ...Object.entries(commands).map(([name, command]) => `  readonly ${JSON.stringify(name)}: CommandDescriptor<GeneratedApi[${JSON.stringify(command.mutation.name)}], ${command.asset ? JSON.stringify(command.asset.input) : 'never'}, ${command.asset ? JSON.stringify(command.asset.mutationArg) : 'never'}, ${command.asset?.optional === true}, ${command.asset ? `GeneratedApi[${JSON.stringify(command.asset.intent.name)}]` : 'never'}>;`),
     '}',
+    '/** Surface member call payloads follow strict omission semantics: an optional input the caller omits is omitted from the composed operation payload (never sent as undefined); passing undefined explicitly is refused by the client value gate before any network work. */',
     'export interface SurfaceMemberDescriptor<Reference = unknown, Input = Record<string, never>> {',
     "  readonly artifactKind: 'surfaceMemberBinding';",
     '  readonly reference: Reference;',

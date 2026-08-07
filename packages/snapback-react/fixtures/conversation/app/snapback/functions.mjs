@@ -6,6 +6,7 @@ import {
   defineAssetUpload,
   defineCommand,
   defineLiveQuery,
+  defineJsMutation,
   defineMutation,
   defineSurface,
   del,
@@ -159,6 +160,27 @@ export const removeReaction = defineMutation({
   returns: returnExpr(record({ removed: lit(true) })),
 });
 
+export const annotateMessage = defineJsMutation({
+  args: {
+    conversationId: v.id('conversations'),
+    messageId: v.id('messages'),
+    note: v.optional(v.string()),
+    details: v.object({
+      kind: v.string(),
+      extra: v.optional(v.string()),
+    }),
+  },
+  auth: 'authenticated',
+  writes: ['conversations'],
+  result: results.value(v.null()),
+  handler: async (ctx, args) => {
+    await ctx.db.patch('conversations', args.conversationId, {
+      lastPreview: args.note ?? args.details.extra ?? args.details.kind,
+    });
+    return null;
+  },
+});
+
 export const sendMessage = defineMutation({
   args: {
     conversationId: v.id('conversations'),
@@ -201,6 +223,15 @@ export const conversation = defineSurface({
     reactions: bind(reactionsForConversation, { conversationId: param('conversationId') }),
   },
   mutations: {
+    annotate: bind(annotateMessage, {
+      conversationId: param('conversationId'),
+      messageId: input('messageId'),
+      note: input('note'),
+      details: {
+        kind: input('detailsKind'),
+        extra: input('detailsExtra'),
+      },
+    }),
     sendText: bind(sendText, {
       conversationId: param('conversationId'),
       senderId: input('senderId'),

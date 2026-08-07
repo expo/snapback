@@ -221,6 +221,43 @@ assert.deepEqual(client.metrics().mutations.at(-1), {
   name: 'addReaction',
   args: { conversationId: 'conversation-one', messageId: 'message-one', userId: 'user-ada', emoji: '👍' },
 });
+
+await surface.mutations.annotate({ messageId: 'message-one', detailsKind: 'status' });
+const omittedAnnotation = client.metrics().mutations.at(-1);
+assert.equal(omittedAnnotation.name, 'annotateMessage');
+assert.equal(omittedAnnotation.args.conversationId, 'conversation-one');
+assert.equal(omittedAnnotation.args.messageId, 'message-one');
+assert.equal(omittedAnnotation.args.details.kind, 'status');
+assert.equal(Object.hasOwn(omittedAnnotation.args, 'note'), false);
+assert.equal(Object.hasOwn(omittedAnnotation.args.details, 'extra'), false);
+
+await surface.mutations.annotate({
+  messageId: 'message-one',
+  note: 'hi',
+  detailsKind: 'status',
+  detailsExtra: 'y',
+});
+assert.deepEqual(client.metrics().mutations.at(-1), {
+  name: 'annotateMessage',
+  args: {
+    conversationId: 'conversation-one',
+    messageId: 'message-one',
+    note: 'hi',
+    details: { kind: 'status', extra: 'y' },
+  },
+});
+
+const mutationCountBeforeUndefinedNote = client.metrics().mutations.length;
+assert.throws(
+  () => surface.mutations.annotate({
+    messageId: 'message-one',
+    detailsKind: 'status',
+    note: undefined,
+  }),
+  (error) => error?.code === 'SNAPBACK_REACT_ARGS_INVALID',
+);
+assert.equal(client.metrics().mutations.length, mutationCountBeforeUndefinedNote);
+
 assert.throws(
   () => provider.surface(
     app.surfaces.conversation,

@@ -3,6 +3,7 @@
 
 export interface SnapbackContractLinks {
   addReaction(args: { conversationId: string; messageId: string; userId: string; emoji: string }): unknown;
+  annotateMessage(args: { conversationId: string; messageId: string; note?: string; details: { kind: string; extra?: string } }): unknown;
   conversationDetails(args: { conversationId: string }): unknown;
   membershipsForConversation(args: { conversationId: string }): unknown;
   messagesForConversation(args: { conversationId: string }): unknown;

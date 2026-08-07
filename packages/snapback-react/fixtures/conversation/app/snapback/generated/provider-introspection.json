@@ -8,7 +8,7 @@
       "headlessBoot": true,
       "initialSnapshot": true,
       "localReplica": false,
-      "offlineReplay": true,
+      "offlineReplay": false,
       "optimisticMutations": true,
       "rowSyncState": true,
       "serverRunnableQueries": true,
@@ -215,6 +215,74 @@
         "optimistic": {
           "source": "provider-plan",
           "supported": true
+        }
+      },
+      {
+        "arguments": {
+          "fields": {
+            "conversationId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "details": {
+              "fields": {
+                "extra": {
+                  "name": "string",
+                  "optional": true,
+                  "shape": "primitive"
+                },
+                "kind": {
+                  "name": "string",
+                  "shape": "primitive"
+                }
+              },
+              "shape": "object"
+            },
+            "messageId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "note": {
+              "name": "string",
+              "optional": true,
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "conversationId",
+            "messageId",
+            "note",
+            "details"
+          ]
+        },
+        "contract": {
+          "argumentsHash": "sha256:b02b3386c8665a44c548917d96af34087a9223cebfc0fd67ee765ee2c04eb1c3",
+          "implementationHash": "sha256:f0cac0d1e5f676aa8e68b264104ba7ee688aa66cc1af4a6316c92f714078052c",
+          "result": {
+            "kind": "value",
+            "value": {
+              "kind": "null"
+            }
+          },
+          "resultHash": "sha256:6a7271e69c8ea471cb72bf6110a4ba9d9629a1ba88343e49afdb6cc5f4406387",
+          "revision": "snapback.result-contract.v1"
+        },
+        "effects": {
+          "invalidates": [
+            "conversations"
+          ],
+          "writes": [
+            "conversations"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "annotateMessage",
+        "optimistic": {
+          "source": "none",
+          "supported": false
         }
       },
       {
@@ -1514,8 +1582,8 @@
   },
   "schemaVersion": "provider-introspection.v1",
   "source": {
-    "implementationHash": "snapback.v1:sessions:function:sha256:ff837c6666868dc1d402f7a3a2dca3cb8e3ea71e8fed6bcc0a8ebbd2e1765473",
-    "inputsHash": "snapback.v1:sessions:inputs:sha256:4315cf0163bd4fc9c2875909d7309d4330a8c6dfcf6918d2e32d877cf5424829",
+    "implementationHash": "snapback.v1:sessions:function:sha256:95f989dc84210f9cdf5e2fca6ffa9c1de9a1ac39847af88eec17fb219daced43",
+    "inputsHash": "snapback.v1:sessions:inputs:sha256:11fddc43f55e19940f82837343eacbe42a673fca109130e42ca8ea699cd833b5",
     "schemaHash": "snapback.v1:sessions:schema:sha256:617627b17474a6fd437230a51f2aff2d8236d3391945d47dc989a73deacd68f4"
   }
 }

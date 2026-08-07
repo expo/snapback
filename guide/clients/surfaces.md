@@ -191,6 +191,10 @@ Do not ask a caller for a bound parameter again. The complete descriptor
 mapping remains available to inspection and auth review even though the
 surface callable type omits it.
 
+An optional input you omit is omitted from the composed operation payload —
+the binding never materializes `key: undefined`; passing `undefined`
+explicitly is refused before any network work.
+
 ## Run a command and read its truthful outcome
 
 Call a bound command through `surface.commands.<name>(inputs)`, or obtain the

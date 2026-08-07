@@ -122,7 +122,7 @@
       "sha256": "sha256:12b237ce8e8c97c06974442d6d946d78faeab1aaa5e9bef500137390c39778d5"
     },
     {
-      "bytes": 4556,
+      "bytes": 4825,
       "consumer": "client-bundler",
       "custody": "regenerable-cache",
       "logicalKind": "typed-app-descriptor",
@@ -131,7 +131,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:40e34f39e1ff1b723b9a6a2dbe5f1c6219efc04189f2fc042cca1d18deba1368"
+      "sha256": "sha256:d8a2cf50ec858e989384cff1a00acceecea3c21abc771587ced477f72b66361d"
     },
     {
       "bytes": 30253,

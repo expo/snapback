@@ -39,6 +39,23 @@
         "resultType": "{ \"reactionId\": string }"
       },
       {
+        "argumentsType": "{ \"conversationId\": string; \"details\": { \"extra\"?: string; \"kind\": string }; \"messageId\": string; \"note\"?: string }",
+        "effects": {
+          "invalidates": [
+            "conversations"
+          ],
+          "writes": [
+            "conversations"
+          ]
+        },
+        "name": "annotateMessage",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "null"
+      },
+      {
         "argumentsType": "{ \"reactionId\": string }",
         "effects": {
           "invalidates": [
@@ -250,7 +267,7 @@
   },
   "schemaVersion": "provider-binding-metadata.v1",
   "source": {
-    "inputsHash": "snapback.v1:sessions:inputs:sha256:4315cf0163bd4fc9c2875909d7309d4330a8c6dfcf6918d2e32d877cf5424829",
+    "inputsHash": "snapback.v1:sessions:inputs:sha256:11fddc43f55e19940f82837343eacbe42a673fca109130e42ca8ea699cd833b5",
     "introspectionSchemaVersion": "provider-introspection.v1"
   }
 }

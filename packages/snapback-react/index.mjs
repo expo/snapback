@@ -2915,14 +2915,21 @@ function surfaceOptions(surface, options) {
   return Object.freeze({ presence: Object.freeze(normalized) });
 }
 
+const SURFACE_INPUT_OMITTED = Symbol('surface input omitted');
+
 function resolveSurfaceBindingValue(value, params, inputValues) {
   if (value.kind === 'param') return params[value.name];
-  if (value.kind === 'input') return inputValues[value.name];
+  if (value.kind === 'input') {
+    return Object.hasOwn(inputValues, value.name)
+      ? inputValues[value.name]
+      : SURFACE_INPUT_OMITTED;
+  }
   if (value.kind === 'literal') return value.value;
   if (value.kind === 'scope') {
-    return Object.fromEntries(Object.entries(value.fields).map(([name, child]) => (
-      [name, resolveSurfaceBindingValue(child, params, inputValues)]
-    )));
+    return Object.fromEntries(Object.entries(value.fields).flatMap(([name, child]) => {
+      const resolved = resolveSurfaceBindingValue(child, params, inputValues);
+      return resolved === SURFACE_INPUT_OMITTED ? [] : [[name, resolved]];
+    }));
   }
   surfaceRefusal('SNAPBACK_REACT_SURFACE_INVALID', `unsupported generated surface binding ${String(value.kind)}`);
 }
@@ -2947,9 +2954,12 @@ function surfaceMemberArgs(member, params, inputs = {}, { command = false } = {}
     )))
     : inputs;
   canonicalizeClientValueV1(portableInputs);
-  return Object.fromEntries(Object.entries(member.bindings).map(([target, value]) => (
-    [target, resolveSurfaceBindingValue(value, params, inputs)]
-  )));
+  // @ref LLP 0179#closed-grammar — an omitted optional input is omitted from
+  // the composed payload; explicit undefined is refused by the canonical gate above.
+  return Object.fromEntries(Object.entries(member.bindings).flatMap(([target, value]) => {
+    const resolved = resolveSurfaceBindingValue(value, params, inputs);
+    return resolved === SURFACE_INPUT_OMITTED ? [] : [[target, resolved]];
+  }));
 }
 
 function presenceSurfaceView(state) {

@@ -200,6 +200,9 @@ try {
   });
   assert.equal(descriptor.api.queries.listItems.argumentSchema.additionalProperties, false);
   assert.equal(descriptor.api.mutations.createItem.resultContract.kind, 'unknown');
+  const appTypes = readFileSync(join(backend, 'generated', 'app.d.ts'), 'utf8');
+  assert(appTypes.includes('"attachment"?: CommandAssetSource'));
+  assert(appTypes.includes('/** Surface member call payloads follow strict omission semantics:'));
 
   {
     const surfacelessRoot = mkdtempSync(join(tmpdir(), 'snapback-app-descriptor-surfaceless-'));

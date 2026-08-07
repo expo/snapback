@@ -20,6 +20,7 @@ export interface CommandDescriptor<Mutation = unknown, Input extends string | ne
 }
 export interface GeneratedAppCommands {
 }
+/** Surface member call payloads follow strict omission semantics: an optional input the caller omits is omitted from the composed operation payload (never sent as undefined); passing undefined explicitly is refused by the client value gate before any network work. */
 export interface SurfaceMemberDescriptor<Reference = unknown, Input = Record<string, never>> {
   readonly artifactKind: 'surfaceMemberBinding';
   readonly reference: Reference;

@@ -1,6 +1,7 @@
 {
   "acknowledgedExperimentalCapabilities": [
     "args_contract_v1",
+    "inline_handler_v1",
     "result_contract_v1",
     "single_table_v1"
   ],
@@ -50,11 +51,11 @@
       "sourceSpan": {
         "column": 14,
         "file": "functions.mjs",
-        "line": 36
+        "line": 37
       }
     }
   ],
-  "bundleHash": "snapback.v1:sessions:function:sha256:ff837c6666868dc1d402f7a3a2dca3cb8e3ea71e8fed6bcc0a8ebbd2e1765473",
+  "bundleHash": "snapback.v1:sessions:function:sha256:95f989dc84210f9cdf5e2fca6ffa9c1de9a1ac39847af88eec17fb219daced43",
   "config": [],
   "cronJobs": [],
   "functions": [
@@ -196,6 +197,126 @@
         "primaryTable": "reactions",
         "tables": [
           "reactions"
+        ]
+      }
+    },
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "conversationId",
+            "required": true,
+            "value": {
+              "kind": "id",
+              "table": "conversations"
+            }
+          },
+          {
+            "name": "messageId",
+            "required": true,
+            "value": {
+              "kind": "id",
+              "table": "messages"
+            }
+          },
+          {
+            "name": "note",
+            "required": false,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          },
+          {
+            "name": "details",
+            "required": true,
+            "value": {
+              "allowExtra": false,
+              "fields": [
+                {
+                  "name": "kind",
+                  "required": true,
+                  "value": {
+                    "kind": "string",
+                    "maxBytes": 1048576
+                  }
+                },
+                {
+                  "name": "extra",
+                  "required": false,
+                  "value": {
+                    "kind": "string",
+                    "maxBytes": 1048576
+                  }
+                }
+              ],
+              "kind": "object"
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:b02b3386c8665a44c548917d96af34087a9223cebfc0fd67ee765ee2c04eb1c3",
+      "authRequirement": "authenticated",
+      "bundleEntrypoint": "annotateMessage",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "conversations"
+          }
+        ]
+      },
+      "exportedName": "annotateMessage",
+      "handlerForm": "inline",
+      "id": "app:annotateMessage",
+      "implementationHash": "sha256:f0cac0d1e5f676aa8e68b264104ba7ee688aa66cc1af4a6316c92f714078052c",
+      "kind": "Mutation",
+      "name": "annotateMessage",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation",
+        "result_contract_v1",
+        "args_contract_v1",
+        "inline_handler_v1"
+      ],
+      "resultContract": {
+        "kind": "value",
+        "value": {
+          "kind": "null"
+        }
+      },
+      "resultContractHash": "sha256:6a7271e69c8ea471cb72bf6110a4ba9d9629a1ba88343e49afdb6cc5f4406387",
+      "runtime": {
+        "IbexModule": {
+          "export": "annotateMessage",
+          "source": "globalThis.__snapbackHandlers = { \"annotateMessage\": (async (ctx, args) => {\n    await ctx.db.patch('conversations', args.conversationId, {\n      lastPreview: args.note ?? args.details.extra ?? args.details.kind,\n    });\n    return null;\n  }) };\n"
+        }
+      },
+      "sourceSpan": {
+        "column": 12,
+        "file": "functions.mjs",
+        "line": 176
+      },
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "conversations",
+        "tables": [
+          "conversations"
         ]
       }
     },
@@ -1597,7 +1718,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:4315cf0163bd4fc9c2875909d7309d4330a8c6dfcf6918d2e32d877cf5424829",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:11fddc43f55e19940f82837343eacbe42a673fca109130e42ca8ea699cd833b5",
   "schemaVersion": "snapback.v1",
   "unsupportedDependencyDiagnostics": []
 }

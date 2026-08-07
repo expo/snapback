@@ -1,0 +1,38 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/app/annotateMessage.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "conversationId": {
+      "type": "string"
+    },
+    "details": {
+      "additionalProperties": false,
+      "properties": {
+        "extra": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "type": "object"
+    },
+    "messageId": {
+      "type": "string"
+    },
+    "note": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "conversationId",
+    "messageId",
+    "details"
+  ],
+  "title": "app:annotateMessage arguments",
+  "type": "object"
+}

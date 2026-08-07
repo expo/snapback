@@ -233,20 +233,34 @@ assert.throws(
 );
 assert.equal(fixture.mutations.length, mutationCountBeforeInvalidInput);
 assert.equal(fixture.assets.length, assetCountBeforeInvalidInput);
+
+const imageWithoutBody = surface.commands.send({ image: pickerSource });
+assert.equal((await imageWithoutBody.done).kind, 'committed');
+assert.equal(Object.hasOwn(fixture.mutations.at(-1).options.args, 'body'), false);
+
+const mutationCountBeforeUndefinedBody = fixture.mutations.length;
+const assetCountBeforeUndefinedBody = fixture.assets.length;
+assert.throws(
+  () => surface.commands.send({ body: undefined, image: pickerSource }),
+  matchesDiagnosticCode('SNAPBACK_REACT_ARGS_INVALID'),
+);
+assert.equal(fixture.mutations.length, mutationCountBeforeUndefinedBody);
+assert.equal(fixture.assets.length, assetCountBeforeUndefinedBody);
+
 const image = surface.commands.send({ body: 'with image', image: pickerSource });
 assert.equal((await image.done).kind, 'committed');
-assert.equal(fixture.assets.length, 1);
-assert.strictEqual(fixture.assets[0].authorityCapture, fixture.mutations[1].options.authorityCapture);
-assert.equal(fixture.assets[0].declaredFilename, pickerSource.fileName);
-assert.equal(fixture.assets[0].declaredContentType, pickerSource.mimeType);
-assert.equal(fixture.assets[0].previewUrl, pickerSource.uri);
-assert.deepEqual(fixture.mutations[1].options.args, {
+assert.equal(fixture.assets.length, 2);
+assert.strictEqual(fixture.assets.at(-1).authorityCapture, fixture.mutations.at(-1).options.authorityCapture);
+assert.equal(fixture.assets.at(-1).declaredFilename, pickerSource.fileName);
+assert.equal(fixture.assets.at(-1).declaredContentType, pickerSource.mimeType);
+assert.equal(fixture.assets.at(-1).previewUrl, pickerSource.uri);
+assert.deepEqual(fixture.mutations.at(-1).options.args, {
   conversationId: 'conversation-one',
   senderId: 'user-ada',
   body: 'with image',
   image: 'asset-command-1',
 });
-assert.equal(fixture.mutations[1].options.queue, false);
+assert.equal(fixture.mutations.at(-1).options.queue, false);
 
 await surface.dispose();
 act(() => renderer.unmount());
