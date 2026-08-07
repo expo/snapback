@@ -253,6 +253,12 @@ Trying to smuggle identity through the request body is rejected with a
 stable code — assert on it, don't work around it:
 `SNAPBACK_AUTH_BODY_AUTH_UNSUPPORTED`.
 
+> **Coming from Convex/Supabase?** See
+> [Protected live CRUD, end to end](../recipes/coming-from-convex-and-supabase.md#protected-live-crud)
+> for the complete worked slice — including why `authScopeField` is not an
+> injected filter, unlike Convex's automatic `useQuery` reactivity or a
+> Supabase RLS policy.
+
 ## Logout is a barrier, not a suggestion
 
 Logging out blanks that principal's live boundaries immediately; other

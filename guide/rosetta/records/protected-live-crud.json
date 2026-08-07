@@ -1,0 +1,34 @@
+{
+  "id": "protected-live-crud",
+  "title": "Protected live CRUD, end to end",
+  "anchor": "protected-live-crud",
+  "capabilities": ["clients.react", "auth.scoped-queries", "backend.functions"],
+  "aliases": ["Convex useQuery", "Supabase RLS"],
+  "competitor": [
+    {
+      "provider": "Convex",
+      "concept": "useQuery — a reactive React hook that subscribes to a query function and automatically re-renders when the underlying data changes; the query function itself typically calls ctx.auth.getUserIdentity() and filters with .filter()/.withIndex() by the caller's identity to scope results per-user.",
+      "version": "1.24.8",
+      "sourceUrl": "https://docs.convex.dev/client/react",
+      "retrievedAt": "2026-08-07"
+    },
+    {
+      "provider": "Supabase",
+      "concept": "Row Level Security (RLS) policies on a Postgres table, combined with supabase-js's realtime subscription, so a `select` (or a `.on('postgres_changes', ...)` subscription) only ever returns rows the policy predicate (typically `auth.uid() = owner_id`) allows for the current session's JWT.",
+      "version": "2.45.4 (supabase-js)",
+      "sourceUrl": "https://supabase.com/docs/guides/database/postgres/row-level-security",
+      "retrievedAt": "2026-08-07"
+    }
+  ],
+  "snapbackSources": [
+    "demos/card-game/snapback/functions.mjs",
+    "demos/card-game/tests/acceptance/authority-scope.mjs"
+  ],
+  "backlinkPages": [
+    "guide/auth/sessions-and-principals.md",
+    "guide/backend/queries.md",
+    "guide/clients/react.md"
+  ],
+  "lastVerified": "2026-08-07",
+  "reviewBy": "2026-11-07"
+}

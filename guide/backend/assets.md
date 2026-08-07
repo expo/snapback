@@ -253,6 +253,13 @@ upload, restart recovery, offline source custody or settlement, or attempt
 grants. Use the raw `useSnapbackAssetUpload`/`assets.start` seam for workflows
 that do not fit the one-optional-asset command grammar.
 
+> **Coming from Convex/Supabase?** See
+> [Upload and attach an Expo image under session custody](../recipes/coming-from-convex-and-supabase.md#expo-media-upload)
+> for the worked translation of Supabase Storage or Convex
+> `generateUploadUrl` — including why ownership is never anonymous even when
+> attempt creation is public, and why GPS/EXIF stripping happens server-side
+> at trusted finalization rather than client-side.
+
 ## Run lifecycle callbacks
 
 An explicit upload intent may name an ordinary mutation for `ready` and/or

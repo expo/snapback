@@ -49,7 +49,7 @@ host-op registries. Owner: `ccheever`; label gaps `guide-gap`.
 | backend.query-semantics | Read sets, snapshots, commit versions, conflict validation | consistency, transactions, conflicts | local | shipped | route /query/{name} | llp/0003, llp/0004, llp/0007 | backend/queries.md |
 | backend.sequences | Experimental incarnation-scoped dense sequences through handler `ctx.sequence.allocate(counterName, scopeId)` and generated `AllocateSequence`, with abort-disclosure, commit-order/contention, exact replay, incarnation restart, exhaustion, Relay, Campfire, and mutation-atomic lane-Q qualification. Only the exact contributor-source local target publishes `sequence_allocation_v1`; public packages and hosted targets remain structured GAPs | sequence, counter, ticket number, invoice number, monotonic allocation, maxEncodedBytes | local | partial | src/local-sequence-allocation-publication.v1.json + tests/conformance/sequence-allocation-publication-v1.receipt.json | llp/0135, llp/0128, llp/0113, llp/0157 | GAP (public-package attestation and hosted target qualification/publication; owner: Charlie, review: 2026-09-30); backend/sequences.md |
 | backend.actions | Actions with gated outbound fetch: global `fetch` and target-portable host-mediated `ctx.fetch`, in closed-script module handlers or the inline form | action, fetch, ctx.fetch, side effects, notification, webhook | local | shipped | route /action/{name} | llp/0004, llp/0009, llp/0049 | backend/actions-and-fetch.md |
-| backend.assets | Authenticated asset lifecycle plus the media pipeline on the local target — generated upload intents, TUS 1.0.0 resumable transfer, trusted SHA-256 finalization with GPS-strip canonicalization for images (decode/rewrite) and MP4/QuickTime video (in-place location-atom blanking, no transcoding), declared renditions with ThumbHash placeholders, typed `v.assetRef` attachment, private-strict/private-signed/public-immutable delivery with ranges and best-variant selection, opt-in reference GC, lifecycle callbacks (including sessions execution under the per-app `asset-callbacks` service principal), deletion/GC, receipts, logical consistent-cut export with refuse-partial validation, and instance-wide signing-key rotation (`asset_lifecycle_v1`, `asset_image_finalization_v1`, `asset_image_pipeline_v1`, `asset_reference_gc_v1`, `asset_video_finalization_v1`); the paved browser path (stock `@expo/snapback-vite` relay over the `/assets/*` family, sessions custody, typed generated upload references) is CI-verified; byte-level backup, transcoding, and hosted targets remain nonclaims | files, images, video, object storage, media, browser upload, native upload, Expo ImagePicker, expo/fetch, useSnapbackAssetUpload, session mint, vite relay, asset export, logical backup, signing key rotation | local | partial | schemas/capability.manifest.local-dev-sqlite-ibex.json (all five asset ids plus `assets.export.cutExport`/`importValidation`) + src/assets.rs + src/assets_cut.rs + src/assets_image.rs + src/assets_video.rs suites + tests/acceptance/asset-conformance-v1.mjs (native CLI export/refuse-partial/rotation; sessions callback authority) + demos/file-drop/tests/acceptance/browser-relay.mjs (relay + sessions + typed upload reference browser path) | llp/0044 | backend/assets.md |
+| backend.assets | Authenticated asset lifecycle plus the media pipeline on the local target — generated upload intents, TUS 1.0.0 resumable transfer, trusted SHA-256 finalization with GPS-strip canonicalization for images (decode/rewrite) and MP4/QuickTime video (in-place location-atom blanking, no transcoding), declared renditions with ThumbHash placeholders, typed `v.assetRef` attachment, private-strict/private-signed/public-immutable delivery with ranges and best-variant selection, opt-in reference GC, lifecycle callbacks (including sessions execution under the per-app `asset-callbacks` service principal), deletion/GC, receipts, logical consistent-cut export with refuse-partial validation, and instance-wide signing-key rotation (`asset_lifecycle_v1`, `asset_image_finalization_v1`, `asset_image_pipeline_v1`, `asset_reference_gc_v1`, `asset_video_finalization_v1`); the paved browser path (stock `@expo/snapback-vite` relay over the `/assets/*` family, sessions custody, typed generated upload references) is CI-verified; byte-level backup, transcoding, and hosted targets remain nonclaims | files, images, video, object storage, media, browser upload, native upload, Expo ImagePicker, expo/fetch, useSnapbackAssetUpload, session mint, vite relay, asset export, logical backup, signing key rotation, Supabase Storage, Convex generateUploadUrl | local | partial | schemas/capability.manifest.local-dev-sqlite-ibex.json (all five asset ids plus `assets.export.cutExport`/`importValidation`) + src/assets.rs + src/assets_cut.rs + src/assets_image.rs + src/assets_video.rs suites + tests/acceptance/asset-conformance-v1.mjs (native CLI export/refuse-partial/rotation; sessions callback authority) + demos/file-drop/tests/acceptance/browser-relay.mjs (relay + sessions + typed upload reference browser path) | llp/0044 | backend/assets.md |
 | backend.expo-push-seam | Shipped local Expo integration seam: session-bound token custody, atomic rotation and retirement, declaration-checked/host-authorized and paced `ctx.push.send`, crash-safe intent/batch/message ledger, safe pre-transmit recovery, bounded ticket/receipt maintenance, a privacy-bounded generated ledger query, explicit ambiguous redrive risk, structured `notifications.expoPushSeam` facts, and a retained physical-device `ok` receipt witness. The complete hosted conjunction remains a GAP; this is not first-class notification delivery. | device token, expo push token, installation, ctx.push.send, handoff receipt, DeviceNotRegistered | local | shipped | schemas/capability.manifest.local-dev-sqlite-ibex.outbound-actions.json (`expoPushSeam`) + packages/snapback-cli/fake-expo-push.test.mjs + `fake_expo_acceptance_covers_tickets_receipts_dedupe_ambiguity_and_authorization` in src/push.rs + LLP 0143 implementation record (2026-08-03 physical-device witness) | llp/0143, llp/0057, llp/0059, llp/0070 | backend/expo-push.md |
 | backend.notifications | First-class notification and effect delivery; application-authored table ledgers are not this product capability | notifications, push, email, delivery, effects | none | design-only | schemas/capability.manifest.local-dev-sqlite-ibex.json (`notifications: false`; explicit `notifications` gap) | llp/0045 | GAP (owner: Charlie, review: 2026-08-31; issue: issues/20260728-guide-gap-assets-and-notifications-capability-rows.md) |
 | backend.observability-v1 | Shipped local Phase-1 backend telemetry with a generation-bound sibling store, operation-class spans, bounded retention and rollups, typed agent-facing queries, Health/Logs projections, and retained clean-release idle/benchmark evidence; hosted arms and declared product analytics remain later capabilities | telemetry, observability, health, logs, metrics, traces | local | shipped | tests/acceptance/telemetry-phase1-evidence.v1.json | llp/0154 | operating/observability.md |
@@ -393,6 +393,9 @@ you never build around a feature because you didn't know it existed.
   count: atomic two-field projection, replayable capture-and-set reducers,
   complete-receipt matching, and the one-canonical-store rule across query
   surfaces.
+- [Coming from Convex/Supabase?](./recipes/coming-from-convex-and-supabase.md)
+  — worked-example translations of common Convex/Supabase journeys into
+  Snapback, CI-verified against real demo sources (LLP 0186 W2).
 
 ### Meta
 - [Capability index](./capabilities.md) — everything Snapback has, covered
@@ -944,6 +947,23 @@ fixed in the guide, must add a seed case here that would have caught it.
    older supervisor, and restart the supervised loop; it fails if it suggests
    overriding the identity or weakening binding admission.
 
+Cases 10–11 are Rosetta-tier seeds from the LLP 0186 W2 amendment's
+worked-example journeys (`protected-live-crud`, `expo-media-upload`): a
+coding agent arriving with competitor vocabulary must still land on the
+correct Snapback security boundary, not a plausible-sounding guess.
+
+10. **Rosetta — protected reads:** "I'm coming from Supabase — how do I
+    scope a query with row-level security so users only see their own
+    rows?" Expected pages: `auth/sessions-and-principals.md` and
+    `recipes/coming-from-convex-and-supabase.md`. The run fails if the plan
+    claims `authScopeField` alone enforces the filter, or if it never
+    states the `authUserId()` predicate in the query's filter as the
+    actual boundary.
+11. **Rosetta — asset upload:** "I'm used to Supabase Storage — how do I
+    upload and attach a photo from an Expo app securely?" Expected pages:
+    `backend/assets.md` and `recipes/coming-from-convex-and-supabase.md`.
+    The run fails if the plan treats upload authorization as anonymous.
+
 ## Budget
 
 The relevant guide page must be loaded within the first ~15 tool uses.
@@ -1234,6 +1254,12 @@ the same query:
 Trying to smuggle identity through the request body is rejected with a
 stable code — assert on it, don't work around it:
 `SNAPBACK_AUTH_BODY_AUTH_UNSUPPORTED`.
+
+> **Coming from Convex/Supabase?** See
+> [Protected live CRUD, end to end](../recipes/coming-from-convex-and-supabase.md#protected-live-crud)
+> for the complete worked slice — including why `authScopeField` is not an
+> injected filter, unlike Convex's automatic `useQuery` reactivity or a
+> Supabase RLS policy.
 
 ## Logout is a barrier, not a suggestion
 
@@ -2495,6 +2521,11 @@ Put authorization predicates in the query, not in client arguments or UI
 filters. `authUserId()` in declarative plans and `ctx.auth.userId` in JS
 handlers are server-derived. For sessions-mode details, see
 [sessions and principals](../auth/sessions-and-principals.md).
+
+> **Coming from Convex/Supabase?** See
+> [Protected live CRUD, end to end](../recipes/coming-from-convex-and-supabase.md#protected-live-crud)
+> for a complete worked translation of a Supabase RLS policy or a
+> Convex-style ownership check into a Snapback query filter.
 
 ## Make a query live only when needed
 
@@ -4001,6 +4032,13 @@ This adapter is transient live-process custody. It does not prove background
 upload, restart recovery, offline source custody or settlement, or attempt
 grants. Use the raw `useSnapbackAssetUpload`/`assets.start` seam for workflows
 that do not fit the one-optional-asset command grammar.
+
+> **Coming from Convex/Supabase?** See
+> [Upload and attach an Expo image under session custody](../recipes/coming-from-convex-and-supabase.md#expo-media-upload)
+> for the worked translation of Supabase Storage or Convex
+> `generateUploadUrl` — including why ownership is never anonymous even when
+> attempt creation is public, and why GPS/EXIF stripping happens server-side
+> at trusted finalization rather than client-side.
 
 ## Run lifecycle callbacks
 
@@ -7589,6 +7627,13 @@ Same-reference, same-argument siblings under one provider share one store and
 one upstream subscription while retaining independent React consumers.
 Different provider objects, complete generated references, or canonical
 arguments stay isolated.
+
+> **Coming from Convex/Supabase?** Convex's `useQuery` is automatically
+> reactive client-side; Snapback separates the live-query declaration
+> (backend) from the subscribing hook (client) — see
+> [Protected live CRUD, end to end](../recipes/coming-from-convex-and-supabase.md#protected-live-crud)
+> for the complete slice, including the server-side auth scoping `useQuery`
+> alone doesn't give you.
 
 ## Read a query group
 
@@ -14665,6 +14710,300 @@ not.
   confirmed layer stays installed (and keeps its subscription pin) until the
   store tears down. Match rows the query is guaranteed to keep returning,
   and match fields the mutation actually settles.
+
+---
+
+<!-- snapback-guide-source: guide/recipes/coming-from-convex-and-supabase.md -->
+---
+title: "Recipe: coming from Convex and Supabase"
+id: recipes.coming-from-convex-and-supabase
+order: 4
+audience: agent-first
+capabilities: [backend.functions, auth.scoped-queries, clients.react, backend.assets]
+authorities: [llp/0186-agent-authoring-efficiency-program.plan.md, demos/card-game/snapback/functions.mjs, demos/card-game/tests/acceptance/authority-scope.mjs, packages/snapback-codegen/asset-upload-authoring.test.mjs, demos/expo-golden-path-fixture/src/screens/chat-screen.tsx]
+examples: [demos/card-game, demos/expo-golden-path-fixture]
+status: current
+targets: [local]
+maturity: partial
+reviewed: 2026-08-07
+reviewed-commit: HEAD
+---
+
+# Recipe: coming from Convex and Supabase
+
+> **Local target only.** This page describes the local dev/test target.
+> Hosted targets make deliberately weaker or different claims — see
+> [auth/targets](../auth/targets.md).
+
+This page is for an agent that already knows Convex or Supabase and is
+looking for the Snapback shape of a task it already knows how to do
+there — so it can start from a real, CI-verified translation instead of
+composing one from prose. Each journey below is a complete, minimal-but-real
+slice, not a symbol-substitution table.
+
+**Non-goals.** This is not a feature-parity claim and not a marketing
+comparison. Where Snapback has no equivalent for a Convex/Supabase
+primitive that the [capability index](../capabilities.md) already tracks
+as a GAP, this page says so plainly instead of forcing a translation.
+Two examples that come up often: generic multi-way joins beyond the
+bounded two-source shapes in
+[relational queries](../backend/relational-queries.md), and ANN/approximate
+vector search — [vector search](../backend/vector-search.md) ships exact
+k-NN only, and calls out ANN as a nonclaim. Every claim on this page is
+local-target-only, like every other Snapback destination it names; it does
+not imply hosted parity.
+
+## Quick map
+
+Routes that need no code at all — go straight there:
+
+| Convex / Supabase | Snapback |
+| --- | --- |
+| Convex dashboard / Supabase Studio | The `snapback dev`-printed [admin console](../operating/admin-console.md) URL |
+| `convex dev` / Supabase local dev | The generate → dev → verify [authoring loop](../getting-started/the-authoring-loop.md) |
+| Schema and indexes | [`defineSchema`](../getting-started/your-first-backend.md) |
+| Seed functions / SQL seed scripts | [Versioned seed and reset](../backend/versioned-seeds.md) |
+| Offline cache | [Retained-query and outbox guarantees](../sync/offline-and-retention.md) |
+
+## Deep worked journeys
+
+<a id="protected-live-crud"></a>
+### Protected live CRUD, end to end
+
+**Find this page by:** "Convex useQuery", "Supabase RLS", "row level
+security", "per-user query", "scoped query", "hidden data", "row security".
+
+**Use this when** you have a table of per-user rows and need a query that
+returns only the signed-in caller's own rows — live, and rejecting any
+attempt to pass the owner as an argument.
+
+In Convex, a query function calls `ctx.auth.getUserIdentity()` and filters
+by it; the paired React hook is automatically reactive:
+
+```ts fragment reason="illustrative Convex snippet, not CI-run"
+// convex/hands.ts
+export const myHand = query({
+  args: { gameId: v.string() },
+  handler: async (ctx, { gameId }) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Unauthenticated");
+    return await ctx.db
+      .query("hands")
+      .withIndex("by_owner_game", (q) =>
+        q.eq("ownerId", identity.subject).eq("gameId", gameId),
+      )
+      .collect();
+  },
+});
+
+// App.tsx
+const hand = useQuery(api.hands.myHand, { gameId });
+```
+
+In Supabase, the scoping lives in a Postgres Row Level Security policy on
+the table, evaluated against the caller's JWT, and the client just selects:
+
+```ts fragment reason="illustrative Supabase/js snippet, not CI-run"
+-- SQL, once, on the `hands` table
+create policy "own_hand" on hands
+  for select using (auth.uid() = owner_id);
+
+// client
+const { data: hand } = await supabase
+  .from("hands")
+  .select("*")
+  .eq("game_id", gameId);
+```
+
+Snapback's version is a `defineLiveQuery` whose filter is the security
+boundary — no owner argument, no RLS policy, no client-side trust:
+
+```js source=demos/card-game/snapback/functions.mjs
+  filter: [
+    eq('ownerId', authUserId()),
+    eq('gameId', arg('gameId')),
+  ],
+```
+
+The acceptance suite proves it with two real, signed-in principals hitting
+the same query and getting disjoint results:
+
+```js source=demos/card-game/tests/acceptance/authority-scope.mjs
+  const [adaResult, graceResult] = await Promise.all([
+    ada.client.query('myHand', { args: { gameId } }),
+    grace.client.query('myHand', { args: { gameId } }),
+  ]);
+  assert.deepEqual(adaResult.rows.map(({ card }) => card), ['ace-spades', 'queen-hearts']);
+  assert.deepEqual(graceResult.rows.map(({ card }) => card), ['king-clubs', 'ten-diamonds']);
+```
+
+**Structural difference — get this exactly right.** The `eq('ownerId',
+authUserId())` predicate above is the entire security boundary, in the
+same sense the RLS policy is for Supabase. `authScopeField` (used on the
+live-query definition) is a *different* thing: it tells the live matcher
+which result field represents the principal, so it can reason about
+disjoint subscriptions when rows move in or out of the result set live.
+It does not inject a filter and does not scope anything by itself — an
+earlier draft of this page got that wrong. See
+[sessions and principals — "Queries are scoped by the server, not by
+arguments"](../auth/sessions-and-principals.md#queries-are-scoped-by-the-server-not-by-arguments)
+for the full statement.
+
+The other structural difference: Convex's `useQuery` is automatically
+reactive client-side — subscribe and render is one call. Snapback
+separates the two: the backend declares a live query
+(`defineLiveQuery`), and the client subscribes to it with
+[`useSnapbackQuery`](../clients/react.md) — a real seam split, not a
+rename, because it lets a non-React client (headless, Swift, another
+JS runtime) subscribe to the identical live query with no React in the
+picture.
+
+**Not equivalent when** you need a client-supplied identity for
+service-to-service or admin tooling — use the
+[admin-impersonated CLI lane](../operating/admin-console.md) or an
+explicit [agent principal](../auth/agent-principals.md), not a query
+argument; passing identity through the request body is rejected outright.
+
+**Verify it yourself:** `demos/card-game/tests/acceptance/authority-scope.mjs`
+(runs in the local proof) — it asserts the disjoint result sets above and
+that logout blanks only the logged-out principal's live boundary.
+
+**Read next:** [sessions and principals](../auth/sessions-and-principals.md),
+[queries](../backend/queries.md), [React client](../clients/react.md).
+
+<a id="expo-media-upload"></a>
+### Upload and attach an Expo image under session custody
+
+**Find this page by:** "Supabase Storage", "Convex generateUploadUrl",
+"file upload", "image upload", "object storage", "Expo ImagePicker upload".
+
+**Use this when** an app needs to let a signed-in user pick a photo and
+attach it to a row, with the server — not the client — owning
+finalization, GPS/EXIF stripping, and delivery authorization.
+
+Convex mints a short-lived signed upload URL from a mutation-callable
+action; the client POSTs raw bytes to it, gets back a storage ID, then a
+second mutation writes that ID onto a document field:
+
+```ts fragment reason="illustrative Convex snippet, not CI-run"
+// convex/files.ts
+export const generateUploadUrl = mutation(async (ctx) => {
+  return await ctx.storage.generateUploadUrl();
+});
+
+// client
+const postUrl = await generateUploadUrl();
+const result = await fetch(postUrl, {
+  method: "POST",
+  headers: { "Content-Type": file.type },
+  body: file,
+});
+const { storageId } = await result.json();
+await saveAvatar({ avatar: storageId }); // a second mutation
+```
+
+Supabase uploads a file straight to a bucket from the client (authorized
+by Storage RLS policies on `storage.objects`), then stores the returned
+path as a plain string column:
+
+```ts fragment reason="illustrative Supabase/js snippet, not CI-run"
+const { data, error } = await supabase.storage
+  .from("avatars")
+  .upload(`${userId}/${file.name}`, file);
+
+await supabase
+  .from("profiles")
+  .update({ avatar_path: data?.path })
+  .eq("id", userId);
+```
+
+Snapback declares the upload as a typed intent and the attaching field as
+a typed `v.assetRef()`, not a bare string:
+
+```js source=packages/snapback-codegen/asset-upload-authoring.test.mjs
+export default defineSchema({
+  profiles: defineTable({
+    ownerId: v.principal(),
+    avatar: v.optional(v.assetRef({ upload: 'avatarUpload' })),
+    attachment: v.assetRef(),
+  })
+    .assetSharing({ kind: 'owner', field: 'ownerId' })
+    .sync(),
+});
+```
+
+```js source=packages/snapback-codegen/asset-upload-authoring.test.mjs
+export const avatarUpload = defineAssetUpload({
+  args: {},
+  auth: 'authenticated',
+  reads: ['profiles'],
+  accept: { mediaTypes: ['application/pdf', 'application/octet-stream'], maxBytes: 10_000_000 },
+  delivery: { kind: 'private-strict' },
+  access: { read: 'via-references' },
+  authorize: async (ctx) => ({ owner: ctx.auth.userId }),
+});
+```
+
+On the client, application code hands the picker's own asset straight to
+a generated command — no manual `fetch`, no raw upload, no asset id
+threaded by hand:
+
+```tsx source=demos/expo-golden-path-fixture/src/screens/chat-screen.tsx
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.86 });
+    if (result.canceled || !result.assets[0]) {
+      emitG3('picker-cancelled');
+      return;
+    }
+    const picked = result.assets[0];
+    emitG3('picker-image-selected', {
+      source: 'photo-library-picker',
+      uriScheme: picked.uri.slice(0, picked.uri.indexOf(':')).toLowerCase(),
+      fileName: picked.fileName ?? null,
+      mimeType: picked.mimeType ?? null,
+      fileSize: picked.fileSize ?? null,
+    });
+    try {
+      const body = proofEnabled ? G3_IMAGE_BODY : draft.trim() || undefined;
+      const outcome = await observeCommand(
+        conversation.commands.send({ ...(body ? { body } : {}), image: picked }),
+        'picked-image',
+      );
+```
+
+**Structural differences worth naming.** Ownership is never anonymous,
+even when the upload intent's `auth` is `'public'`: every upload attempt
+records a non-optional owner principal from `authorize`, and a dev/test
+server with no real client session cannot complete a multi-step upload
+over the ordinary HTTP surface at all — see
+[assets — "Upload and attach"](../backend/assets.md) for the exact
+refusal (`SNAPBACK_ASSET_OWNER_CUSTODY_UNSATISFIABLE`) and the two paved
+local-dev answers (impersonated CLI, or a real session). GPS/EXIF
+stripping happens server-side, at trusted finalization, on the canonical
+bytes — never client-side and never optional-by-omission. And the
+attaching field is a typed `v.assetRef()` the storage layer verifies at
+commit time, not a bare URL or path string a client could forge.
+
+**Not equivalent when** you need byte-level backup or on-the-fly
+transcoding — the [asset capability](../capabilities.md) is explicit that
+those remain non-claims here; the pipeline strips location metadata and
+produces declared renditions, it does not back up or transcode.
+
+**Verify it yourself:**
+`packages/snapback-codegen/asset-upload-authoring.test.mjs` (schema/intent
+authoring rules) and the G3 image-command flow in
+`demos/expo-golden-path-fixture/src/screens/chat-screen.tsx`, exercised by
+that fixture's acceptance run.
+
+**Read next:** [assets](../backend/assets.md).
+
+## Anti-patterns
+
+- **Do not treat this page as a symbol dictionary.** A renamed function is
+  not the point; each journey above states where the shape actually
+  differs and where it does not translate at all.
+- **Do not skip the "not equivalent when" boundary.** Following a link
+  from here into the authoritative feature page for more depth is
+  succeeding, not failing.
 
 ---
 

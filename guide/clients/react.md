@@ -162,6 +162,13 @@ one upstream subscription while retaining independent React consumers.
 Different provider objects, complete generated references, or canonical
 arguments stay isolated.
 
+> **Coming from Convex/Supabase?** Convex's `useQuery` is automatically
+> reactive client-side; Snapback separates the live-query declaration
+> (backend) from the subscribing hook (client) — see
+> [Protected live CRUD, end to end](../recipes/coming-from-convex-and-supabase.md#protected-live-crud)
+> for the complete slice, including the server-side auth scoping `useQuery`
+> alone doesn't give you.
+
 ## Read a query group
 
 When the group is also a declared route bundle, use its generated reference.

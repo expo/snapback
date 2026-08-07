@@ -228,6 +228,11 @@ filters. `authUserId()` in declarative plans and `ctx.auth.userId` in JS
 handlers are server-derived. For sessions-mode details, see
 [sessions and principals](../auth/sessions-and-principals.md).
 
+> **Coming from Convex/Supabase?** See
+> [Protected live CRUD, end to end](../recipes/coming-from-convex-and-supabase.md#protected-live-crud)
+> for a complete worked translation of a Supabase RLS policy or a
+> Convex-style ownership check into a Snapback query filter.
+
 ## Make a query live only when needed
 
 `defineQuery` is callable but not subscribable. `defineLiveQuery` and

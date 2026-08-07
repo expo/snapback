@@ -270,6 +270,9 @@ you never build around a feature because you didn't know it existed.
   count: atomic two-field projection, replayable capture-and-set reducers,
   complete-receipt matching, and the one-canonical-store rule across query
   surfaces.
+- [Coming from Convex/Supabase?](./recipes/coming-from-convex-and-supabase.md)
+  — worked-example translations of common Convex/Supabase journeys into
+  Snapback, CI-verified against real demo sources (LLP 0186 W2).
 
 ### Meta
 - [Capability index](./capabilities.md) — everything Snapback has, covered
