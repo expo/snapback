@@ -1,6 +1,6 @@
 # Browser TUS uploads blocked by CORS on Expo web: allow-headers omits TUS headers
 
-**Status:** Open
+**Status:** Closed — published in 0.1.11 (2026-08-06)
 **Impact:** 4
 **Urgency:** 3
 **Ease:** 4
@@ -59,3 +59,8 @@ app-authored proxy.
 
 Stays open for closure at the next npm publish (0.1.11): fix is on main
 pending release; npm consumers still see the old allow-list until then.
+
+
+## Closed — 2026-08-06
+
+Fix published in 0.1.11; browser TUS preflight/expose headers live for npm consumers.
