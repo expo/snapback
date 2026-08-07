@@ -16,6 +16,13 @@ import { parseCapabilityIndex, repoRoot } from './guide-lib.mjs';
 
 const ROSETTA_DIR = 'guide/rosetta/records';
 const HUB_PAGE = 'guide/recipes/coming-from-convex-and-supabase.md';
+// The published authoring skill embeds a compact projection of these records
+// (LLP 0186 W2: "the skill should embed the generated compact projection of
+// each record rather than independently drafting its own translations") —
+// checked here so the skill and the guide cannot drift apart.
+const SKILL_PAGE = 'skills/snapback-authoring/SKILL.md';
+const SKILL_BLOCK_BEGIN = '<!-- rosetta:begin -->';
+const SKILL_BLOCK_END = '<!-- rosetta:end -->';
 const REQUIRED_FIELDS = [
   'id', 'title', 'anchor', 'capabilities', 'aliases', 'competitor',
   'snapbackSources', 'backlinkPages', 'lastVerified', 'reviewBy',
@@ -49,6 +56,7 @@ function main() {
   const hubBody = hubExists ? readFileSync(hubPath, 'utf8') : '';
 
   const seenIds = new Set();
+  const records = [];
   for (const file of files) {
     const path = join(dir, file);
     const rel = `${ROSETTA_DIR}/${file}`;
@@ -69,6 +77,7 @@ function main() {
     }
     if (seenIds.has(record.id)) errors.push(`${rel}: duplicate id "${record.id}"`);
     seenIds.add(record.id);
+    records.push(record);
 
     const capabilities = Array.isArray(record.capabilities) ? record.capabilities : [];
     for (const capId of capabilities) {
@@ -142,6 +151,8 @@ function main() {
     }
   }
 
+  checkSkillProjection(root, records, errors);
+
   if (errors.length > 0) {
     console.error(`check-rosetta: ${errors.length} error(s)`);
     for (const error of errors) console.error(`  - ${error}`);
@@ -149,6 +160,79 @@ function main() {
     return;
   }
   console.log(`check-rosetta: ok — ${files.length} record(s), 0 errors`);
+}
+
+// The authoring skill's "Coming from Convex or Supabase" block must be a
+// projection of the records, never an independent drafting: every record
+// appears (id, title, aliases, hub anchor link), and every journey the block
+// names is backed by a record.
+function checkSkillProjection(root, records, errors) {
+  const skillPath = join(root, SKILL_PAGE);
+  if (!existsSync(skillPath)) {
+    errors.push(
+      `${SKILL_PAGE} does not exist but ${records.length} rosetta record(s) expect its embedded projection`,
+    );
+    return;
+  }
+  const body = readFileSync(skillPath, 'utf8');
+  const begin = body.indexOf(SKILL_BLOCK_BEGIN);
+  const end = body.indexOf(SKILL_BLOCK_END);
+  if (begin === -1 || end === -1 || end < begin) {
+    errors.push(
+      `${SKILL_PAGE}: missing \`${SKILL_BLOCK_BEGIN}\` … \`${SKILL_BLOCK_END}\` markers around the embedded rosetta projection`,
+    );
+    return;
+  }
+  const block = body.slice(begin + SKILL_BLOCK_BEGIN.length, end);
+
+  const listedIds = [];
+  for (const line of block.split('\n')) {
+    const match = line.match(/^- `([a-z0-9-]+)`/);
+    if (match) listedIds.push(match[1]);
+  }
+  const recordIds = new Set(records.map((record) => record.id));
+  for (const id of listedIds) {
+    if (!recordIds.has(id)) {
+      errors.push(
+        `${SKILL_PAGE}: rosetta block names journey "${id}" but ${ROSETTA_DIR}/${id}.json does not exist — ` +
+        'the skill is advertising a journey the guide does not carry',
+      );
+    }
+  }
+
+  const listed = new Set(listedIds);
+  for (const record of records) {
+    if (!listed.has(record.id)) {
+      errors.push(
+        `${SKILL_PAGE}: rosetta block is missing journey "${record.id}" — add its \`- \`id\` — …\` line so ` +
+        'the skill projects every record',
+      );
+      continue;
+    }
+    if (record.title && !block.includes(record.title)) {
+      errors.push(
+        `${SKILL_PAGE}: rosetta block does not carry the title of "${record.id}" ("${record.title}") — ` +
+        'the projection drifted from the record',
+      );
+    }
+    if (record.anchor) {
+      const anchorLink = `coming-from-convex-and-supabase.md#${record.anchor}`;
+      if (!block.includes(anchorLink)) {
+        errors.push(
+          `${SKILL_PAGE}: rosetta block does not link "${record.id}" to ${anchorLink} — a skill reader ` +
+          'never reaches the canonical worked journey',
+        );
+      }
+    }
+    for (const alias of Array.isArray(record.aliases) ? record.aliases : []) {
+      if (!block.includes(alias)) {
+        errors.push(
+          `${SKILL_PAGE}: rosetta block for "${record.id}" does not mention alias "${alias}" — the ` +
+          'competitor vocabulary the record routes is missing from the skill projection',
+        );
+      }
+    }
+  }
 }
 
 main();
