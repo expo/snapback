@@ -32,7 +32,7 @@
     },
     {
       "path": "llp/0043-offline-replay-retention.rfc.md",
-      "sha256": "2c417ae856b7a4aff078b07cc587c42ded2dced4441aeb86e8f958a77406a882"
+      "sha256": "2dd8bb8481350914af45ae69abb41ef6fe8bd5a1b60617d53ee3da6975596aab"
     },
     {
       "path": "exact/packages/exact-contract/src/runtime/mutation-projection.ts",
