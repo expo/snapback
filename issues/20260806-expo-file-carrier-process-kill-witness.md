@@ -38,3 +38,21 @@ Room's fresh-client test as the cheaper regression rung.
 
 The equivalent real-Chrome IndexedDB witness (manual repro: `demos/warble`)
 is tracked by the umbrella browser-proof gap ticket above, not this one.
+
+## G4 simulator attempt — 2026-08-06
+
+The external 0.1.11 G4 app registered `expo-file-system` plus `expo-crypto`,
+rendered a current retained-eligible query, then cold-relaunched Expo Go while
+the supervised backend process was paused. The app remained at boot
+`starting`; it emitted `freshness: retained` only after the backend resumed,
+then immediately reconciled current. That is **not** the offline witness this
+ticket requires. Pausing kept the bootstrap/session request pending instead of
+producing a fast connectivity refusal through which persisted-receipt
+preparation could run.
+
+The attempt also found that an app-level marker triggered on any later
+`freshness: retained` transition can mislabel ordinary refresh as cold boot.
+The external fixture now emits that marker only before the process has ever
+rendered current. The acceptance below still needs a real process death plus a
+fast, honest backend-unavailable condition and must inspect
+`binding.source: 'persisted-receipt'`; an event name alone is insufficient.

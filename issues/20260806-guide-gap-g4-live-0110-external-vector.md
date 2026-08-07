@@ -1,6 +1,7 @@
 # guide-gap: live 0.1.10 external Expo vector cannot run its generated app
 
-**Status:** Open — source repairs landed, awaiting a coherent public release
+**Status:** Open — 0.1.11 closes the initial vector; successor fixes and the
+release-leak repair remain unpublished
 **Impact:** 5
 **Urgency:** 5
 **Ease:** 3
@@ -60,6 +61,35 @@ changes still await the user's landing and a later packaged guide. The paved
 registry scaffold/install path and broad generated-source TypeScript boundary
 remain open. The release export must either tree-shake the supervised carrier
 or use a release-only entry that cannot retain its endpoint vocabulary.
+
+## 0.1.11 rerun — 2026-08-06
+
+The byte-verified live 0.1.11 vector closes the original runtime-capability,
+ImagePicker adapter/type, and exact diagnostic-search findings. The external
+Air reached `G4_IOS_PASS`. The mini reached `G4_ANDROID_PASS` only after a
+transparent adb wrapper normalized current adb's selected-device transport
+label; the raw published supervisor rejected its own installed reverse rules.
+The registry path therefore remains a G4 FAIL, not a conditional pass.
+
+The rerun found three additional distribution defects, each split into a
+focused ticket:
+
+- [`20260806-guide-gap-external-residue-portability.md`](./20260806-guide-gap-external-residue-portability.md)
+  — an undocumented host-pinned sibling restore lock crossed hosts and also
+  entered the first EAS stage.
+- [`20260806-expo-adb-reverse-transport-label.md`](./20260806-expo-adb-reverse-transport-label.md)
+  — `adb -s ... reverse --list` reports `host-16`, not the selected serial.
+- [`20260806-expo-config-plugin-eas-root-export.md`](./20260806-expo-config-plugin-eas-root-export.md)
+  — EAS CLI cannot resolve the documented 0.1.11 package-root plugin entry;
+  the public `./app.plugin` subpath works.
+
+The source worktree repairs those three and adds focused tests, but no
+registry byte changed. Both 0.1.11 Hermes exports still contain one bootstrap
+path constant, one supervisor-origin environment symbol, one `localhost`, and
+one `10.0.2.2` host literal per OS, so the existing release-leak item remains
+open. The ruled ceremony reached
+`m1 = 112/7/4` and `m2 = 112/7/4`; the dated 0.1.11 receipts retain the exact
+timing and bakeoff asymmetry.
 
 ## Acceptance
 

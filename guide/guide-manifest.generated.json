@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "f5389f41a5d34641b488c3c8dcf3bc05c78679bd"
+    "commit": "cf47cc3b75172cec3ac6c44428ce40db48d81465"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -1760,12 +1760,20 @@
       ],
       "reviewed": "2026-08-06",
       "reviewedCommit": "4ac8387f080a2659484fc09916ff22a076dc4ca8",
-      "sha256": "0367c72818ab476c328f5539a2355b03cce0fe45dc30dc5295a3665680ca27a6",
+      "sha256": "3e605d8d7f4bc3363d64f7a3b611337638e220329974398628ffc19567cf2521",
       "snippets": [
+        {
+          "lang": "json",
+          "class": "fragment"
+        },
         {
           "lang": "json",
           "class": "transcluded",
           "source": "demos/expo-golden-path-fixture/app.json"
+        },
+        {
+          "lang": "json",
+          "class": "fragment"
         },
         {
           "lang": "tsx",
@@ -3367,5 +3375,5 @@
     "routes": 122,
     "hostOps": 43
   },
-  "contentHash": "71c2c8843c4f72538b4cb5b299af33dcae32d828046db86b3f8878e284378137"
+  "contentHash": "98e66a763f0608265cacfce33716ff457383503800d757dc43950d29255070a1"
 }

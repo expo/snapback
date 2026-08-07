@@ -133,12 +133,20 @@ try {
     mkdirSync(join(app, 'app'), { recursive: true });
     mkdirSync(join(app, 'node_modules', 'react'), { recursive: true });
     mkdirSync(join(app, '.expo'), { recursive: true });
+    mkdirSync(join(app, '.snapback'), { recursive: true });
+    mkdirSync(join(app, 'dist-ios'), { recursive: true });
     mkdirSync(join(app, 'app', 'node_modules'), { recursive: true });
     writeFileSync(join(app, 'app.json'), '{"expo":{}}\n');
     writeFileSync(join(app, 'package.json'), '{}\n');
     writeFileSync(join(app, 'app', 'index.tsx'), 'export default null;\n');
     writeFileSync(join(app, 'node_modules', 'react', 'package.json'), '{}\n');
     writeFileSync(join(app, '.expo', 'settings.json'), '{}\n');
+    writeFileSync(join(app, '.snapback', 'local.sqlite3'), 'local state\n');
+    writeFileSync(join(app, 'dist-ios', 'index.hbc'), 'release output\n');
+    writeFileSync(
+      join(app, '.snapback.snapback.restore.lock'),
+      '{"targetInstance":"host-pinned"}\n',
+    );
     writeFileSync(join(app, 'app', 'node_modules', 'stray.js'), ';\n');
     const staged = stageAppForEas(app);
     try {
@@ -146,6 +154,12 @@ try {
       assert(existsSync(join(staged.stageDir, 'app', 'index.tsx')), 'source staged');
       assert(!existsSync(join(staged.stageDir, 'node_modules')), 'node_modules excluded');
       assert(!existsSync(join(staged.stageDir, '.expo')), '.expo excluded');
+      assert(!existsSync(join(staged.stageDir, '.snapback')), '.snapback excluded');
+      assert(!existsSync(join(staged.stageDir, 'dist-ios')), 'dist-* output excluded');
+      assert(
+        !existsSync(join(staged.stageDir, '.snapback.snapback.restore.lock')),
+        'host-pinned restore lock excluded',
+      );
       assert(!existsSync(join(staged.stageDir, 'app', 'node_modules')), 'nested node_modules excluded');
       assertEqual(staged.fileCount, 3, 'exactly the app files were staged');
       assert(findGitAncestor(staged.stageDir) === null, 'stage escaped every git checkout');
@@ -170,8 +184,15 @@ try {
     return { message: threw.message };
   });
 
-  await suite.check('default exclusions cover install output, caches, and nested .git', () => {
-    for (const segment of ['node_modules', '.expo', '.git', 'dist']) {
+  await suite.check('default exclusions cover installs, caches, nested .git, and local state', () => {
+    for (const segment of [
+      'node_modules',
+      '.expo',
+      '.git',
+      'dist',
+      '.snapback',
+      '.snapback.snapback.restore.lock',
+    ]) {
       assert(DEFAULT_EXCLUDED_SEGMENTS.includes(segment), `${segment} excluded by default`);
     }
     return { DEFAULT_EXCLUDED_SEGMENTS };

@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
+import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 
 import * as packageEntry from './index.mjs';
+
+const require = createRequire(import.meta.url);
 
 const manifest = JSON.parse(readFileSync(new URL('./package.json', import.meta.url)));
 const files = new Set(manifest.files);
@@ -20,6 +23,11 @@ assert.deepEqual(Object.keys(manifest.dependencies).sort(), [
   '@expo/snapback-react',
 ]);
 assert.equal(manifest.publishConfig.access, 'public');
+assert.equal(
+  require('@expo/snapback-expo'),
+  require('./app.plugin.js'),
+  'CommonJS package-root resolution returns the Expo config plugin for EAS',
+);
 assert.equal(typeof packageEntry.SnapbackExpoProvider, 'function');
 assert.equal(typeof packageEntry.createSnapbackExpoBoot, 'function');
 assert.equal(typeof packageEntry.createSupervisedExpoEnvironment, 'function');

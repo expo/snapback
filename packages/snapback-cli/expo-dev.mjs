@@ -581,8 +581,19 @@ export function installAndroidPortForwarding(plan, {
     const reported = String(listed.stdout ?? '').split('\n').map((line) => {
       const fields = line.trim().split(/\s+/u).filter(Boolean);
       if (fields.length < 2) return null;
+      // `adb -s <serial> reverse --list` is already selected-device scoped.
+      // Current adb can label each three-column row with a transport token
+      // such as `host-16` instead of echoing the user-facing device serial.
+      // @ref LLP 0176#g4--external-distribution-proof — public-package Android
+      // proof must verify real reverse rules without confusing transport ids
+      // for the selected emulator/device identity.
       return fields.length >= 3
-        ? { serial: fields[0], device: fields.at(-2), host: fields.at(-1) }
+        ? {
+            serial: plan.androidSerial,
+            transport: fields[0],
+            device: fields.at(-2),
+            host: fields.at(-1),
+          }
         : { serial: plan.androidSerial, device: fields[0], host: fields[1] };
     }).filter(Boolean);
     for (const forward of installed) {

@@ -920,6 +920,67 @@ beyond local `expo export` is claimed. G4 remains open pending a successor
 registry release and rerun; the findings are tracked in
 [`issues/20260806-guide-gap-g4-live-0110-external-vector.md`](../issues/20260806-guide-gap-g4-live-0110-external-vector.md).
 
+**2026-08-06 G4 external 0.1.11 rerun — FAIL; Status remains Accepted.**
+The rerun consumed the byte-verified ten-name 0.1.11 `latest` vector from
+source identity `281eb17c785f5ca82185fd34ad5de8049e852bf5` under LLP 0041's
+already-established fast-path precedent. The same promotion close-out records
+attempt 7's concurrent-publish stop (this lane made no npm mutation), the
+retained ledger
+`~/snapback-release-ledgers/fastpath-ledger-0.1.11-281eb17c78.json`, and the
+four later non-shipping proof-fixture commits. This note cites that disposition
+without reopening it.
+
+The external repository remained a separate Git root with no source edge,
+override, or monorepo dependency. Public 0.1.11 repaired the earlier runtime
+capability and picker closure: the Air's iOS simulator reached
+`G4_IOS_PASS` after settled Sessions boot, a current live query, real Photos
+selection, proved image-send commit, live delivery, and native render. The
+mini's raw public supervisor failed with `SNAPBACK_EXPO_ADB_REVERSE_FAILED`
+because current selected-device adb reports reverse rules under transport
+label `host-16`; a transparent verification-only wrapper then exercised the
+same app chain through conditional `G4_ANDROID_PASS`. Because the public
+entrypoint itself failed, Android remains a distribution failure.
+
+The ruled OQ5 vector reached `m1 = 112/7/4` (`A = 123`) at 17:18:40 PDT and
+`m2 = 112/7/4` at 17:23:58 PDT: 6m54s and 12m12s after the 0.1.11 hands-on
+resume, but 5h05m06s and 5h10m24s after the original empty-directory `t0`.
+The bakeoff diaries have no comparable action vector; Diary 0058's 26m03s
+Snapback/11m15s Convex values are full-app lanes, Diary 0059 supplies line/EAS
+facts without a clock, and Diary 0060 measures orchestration. The receipt
+preserves those asymmetries instead of scoring a false win.
+
+Metro maps prove the entire iOS/Android closure comes from app/generated files,
+Metro virtual modules, and public `node_modules`. The repaired stage-only
+inspection contains 42 app/registry-input files (0.87 MiB) with no state,
+restore lock, export, source edge, or Git ancestor. The author-approved real
+EAS development-client builds both finished: iOS simulator
+`be6971f1-8de1-4796-b1b0-a601aed741bd` and Android
+`c87157f4-2f95-401e-bb34-b956e01f29c9`. The deliberate descriptor mismatch
+now diagnoses in 2 ms and is found by the exact public-guide query within the
+2-second lookup sequence.
+
+Two other required arms fail. Each 0.1.11 release HBC retains one
+`/_snapback/expo/v1/bootstrap` constant and one
+`EXPO_PUBLIC_SNAPBACK_SUPERVISOR_ORIGIN` symbol, plus one `localhost` and one
+`10.0.2.2` host literal (with no complete origin URL or bearer value). A cold
+iOS relaunch stayed at boot `starting` while the backend was paused and
+rendered retained state only after connectivity returned, so retained cold
+boot is not proved. Source-only repairs now cover adb's transport
+label, EAS CommonJS package-root plugin resolution, portable state/stage
+exclusions, and the missing registry/scaffold/typecheck guide; they are not in
+0.1.11 and await landing/release. The export leak remains explicitly unfixed.
+
+The complete verdict is
+[`20260806-g4-external-0111-summary.md`](../demos/expo-golden-path-fixture/receipts/20260806-g4-external-0111-summary.md),
+with separate
+[`iOS`](../demos/expo-golden-path-fixture/receipts/20260806-g4-external-0111-ios-simulator.md),
+[`Android`](../demos/expo-golden-path-fixture/receipts/20260806-g4-external-0111-android-emulator.md),
+and
+[`closure/EAS/diagnosis`](../demos/expo-golden-path-fixture/receipts/20260806-g4-external-0111-closure-diagnosis-eas.md)
+receipts. Simulator/emulator evidence is explicitly **NOT an LLP 0064 claim**;
+the iOS EAS artifact is simulator-only, neither build ran on a physical device,
+and no production/store release artifact is claimed. G4 remains open.
+
 ### G5 — secure physical-device carrier
 
 - Specify and review the physical-device discovery, secure transport, route
@@ -1119,8 +1180,8 @@ to create replacement primitives. Tickets include
 
 ## Status
 
-Accepted (2026-08-06). G0–G3 are complete with receipts; G4 is in flight
-against the live 0.1.10 vector; G5 remains parked behind LLP 0168's own
+Accepted (2026-08-06). G0–G3 are complete with receipts; G4 remains open after
+the dated live-0.1.11 failure above; G5 remains parked behind LLP 0168's own
 gate. This revision resolves the overlap among LLPs 0176–0181 at the document
 level: 0176 is the program, 0179 owns the stable app vocabulary, 0180 adds one
 bounded command kind to it, and 0181 binds it to Expo environments. The first

@@ -591,3 +591,110 @@ explicitly **NOT an LLP 0064 claim**, and there is no physical-device path.
 There is no published-package release-artifact claim beyond local Expo export.
 The runtime and picker repairs are fixed on main but await a coherent public
 release before this external proof can be rerun green.
+
+## 2026-08-06 — G4 external distribution rerun against live 0.1.11
+
+### What changed and what passed
+
+The same external repository moved its public roots to `^0.1.11`; no source
+path, override, or monorepo package entered the lock. This release carried the
+two repairs that stopped 0.1.10. The Air now booted the packaged runtime,
+settled one Sessions provider, rendered the current conversation, selected a
+real Photos image, committed it through the generated command, received it
+through the live query, rendered the public delivery, and emitted
+`G4_IOS_PASS`. The mini completed the equivalent Photo Picker chain and
+emitted `G4_ANDROID_PASS` after a narrow adb inventory-label workaround.
+
+Metro source maps were pleasingly crisp: every module was the app/generated
+surface, a Metro virtual polyfill, or public `node_modules`. The second EAS
+stage was similarly small at 42 files / 0.87 MiB. The author-approved real EAS
+builds both finished—a simulator iOS development client and an Android APK.
+The deliberate identity fault also improved from 0.1.10's guide gap: the 2 ms
+diagnostic now has an exact public-guide hit, and the full lookup took two
+seconds.
+
+### What felt good
+
+- Once the vector was coherent, the product sentence finally held outside the
+  repository: register the Expo file store once, mount the generated app, and
+  call `conversation.commands.send({ body, image })`. No application upload
+  state machine or backend URL appeared.
+- The public runtime's release identity was visible in both platform receipts,
+  which made it easy to distinguish “registry proof” from the later source-only
+  fixes.
+- Snapback's terminal vocabulary paid off under deliberate failure. A
+  committed command said residue `null`; the finalized-then-refused probe said
+  only `inferred`. Neither UI nor receipt had to invent compensating deletion.
+- EAS accepted the exact same 582 KB archive for both operating systems. That
+  is substantially more legible than the early bakeoff behavior where EAS
+  archived a whole monorepo.
+
+### What felt bad, hard, or surprising
+
+- A host-pinned `.snapback.snapback.restore.lock` lives beside, not inside,
+  `.snapback/`. Excluding the obvious directory still transported the lock to
+  a different absolute path on the Air, causing a pre-Metro reservation
+  refusal. Neither the blank Expo ignore file nor the guide named it. The same
+  residue entered the first stage-only archive. The external ignore rules,
+  source staging defaults, test, and guide now cover it.
+- Current adb reports selected reverse rules as `host-16 tcp:... tcp:...`.
+  Public 0.1.11 interprets `host-16` as a device serial, rejects rules it just
+  installed, and rolls them back. A transparent wrapper proved that the app,
+  ports, picker, and cleanup all work when that label is normalized, but a
+  wrapper is not a public-path pass. The CLI parser/test are fixed only in this
+  worktree.
+- The package's documented root config-plugin name works under `expo config`
+  but not EAS CLI's CommonJS resolution. The public `./app.plugin` subpath
+  worked, so the two real builds could proceed without patching
+  `node_modules`; the root conditional export fix still awaits release.
+- A generic `freshness: retained` UI event is not a cold-boot proof. Android
+  produced that transition during ordinary post-command refresh, and the iOS
+  cold relaunch stayed at `starting` until the paused backend resumed. The
+  marker was tightened and the process-kill ticket now requires an actually
+  unavailable backend plus `binding.source: persisted-receipt` evidence.
+- Both 0.1.11 release HBC bundles still contain the bootstrap path and
+  supervisor-origin environment symbol, plus `localhost` and `10.0.2.2` host
+  literals. There is no complete origin URL or bearer value, but G4's bar was
+  vocabulary absence, so the gate stays red.
+
+These were guide-preventable or product distribution defects, so they are not
+left only in this diary. The umbrella 0.1.10 ticket now carries the rerun, with
+focused open tickets for portable residue/staging, adb transport labels, and
+EAS plugin root resolution. The export leak remains on the umbrella; the
+existing file-carrier process-kill ticket carries the failed cold-relaunch
+attempt.
+
+### Ruled measurement and comparison
+
+OQ5 adopted the metric that was frozen before the original external directory
+existed. Continuing that ledger rather than resetting for a favorable
+successor-release number, `m1` landed at `112/7/4` (`A = 123`) 6m54s after the
+0.1.11 hands-on resume and 5h05m06s after `t0`; `m2` kept the same vector,
+12m12s after resume, 5m18s after `m1`, and 5h10m24s after `t0`.
+
+The 12m12s resumed path is tantalizingly close to Relay Room's 11m15s Convex
+full lane and below its 26m03s Snapback full lane, but the resemblance is not a
+comparison result: this rerun inherited an authored app and 75 prior commands,
+while Relay Room includes a different full app/proof/debugging boundary and
+has no action vector. Tandem still provides line counts and two EAS results
+without a clock; Diary 0060 still measures orchestrators. The honest takeaway
+is narrower: after the release was coherent, the north-star screen came alive
+quickly, while packaging and proof ceremony dominate the cumulative cost.
+
+Compared with hosted Convex or Supabase, Snapback's local supervisor and
+port-forward verification remain more operational work. Once connected,
+Snapback owns more of the storage-plus-row sequence and exposes residue more
+honestly. Tonight's experience showed both sides sharply: the final screen API
+was excellent, but three package/tool edges and a release tree-shaking failure
+were enough to keep a polished app-level result from becoming a distribution
+pass.
+
+### Result and boundary
+
+G4 remains **FAIL** on live 0.1.11. iOS app, Metro closure, repaired stage,
+diagnosis, and both EAS builds pass. Raw Android supervision, release leak, and
+retained cold boot do not. All Air/mini evidence is simulator/emulator evidence
+and explicitly **NOT an LLP 0064 claim**. The EAS iOS artifact is
+simulator-only; neither artifact ran on a physical device, and no
+production/store release artifact is claimed. Remote task state was cleaned;
+the external repository and its cumulative evidence remain.
