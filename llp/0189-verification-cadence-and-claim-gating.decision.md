@@ -11,7 +11,11 @@ claim cross-references, and escalation; D-3 mandatory demotion window,
 scope-edit rule, and battery-red triage; D-4 semantic-role scoping, gate
 quality bar, and input closure; D-5 semantic-conflict note; D-6 battery
 containment and freshness; D-7 names the telemetry exact-current carve-out;
-LLP 0175 Acceptance #10 and D2.4 re-scoped in the same landing.)
+LLP 0175 Acceptance #10 and D2.4 re-scoped in the same landing.) 2026-08-07
+(round-2 delta review, dual-READY: convergent minors only — signature-slug
+ticket filenames, pending-marker escalation mirror, D-4 categorical sentence
+qualified by semantic role, D-6 "eligible" wording, derived-fork sequencing
+repair, legacy-digest temporary-scope fallback.)
 **Related:** LLP 0005, LLP 0010, LLP 0061, LLP 0154, LLP 0158, LLP 0162, LLP
 0175, LLP 0185,
 issues/20260807-derived-fork-publication-wave-drift-requalification.md,
@@ -70,8 +74,10 @@ idempotent per still-open ticket, following the
 `scripts/drift-prone-gates.mjs backstop` pattern) that the fleet fixes
 promptly. A battery red does not retroactively invalidate unrelated landings
 or standing claims; it names work. Tickets key on the root-failure signature,
-not just the gate: a new, distinct failure of an already-ticketed gate files
-or updates a ticket rather than silently coalescing. When a red gate is
+not just the gate: each distinct signature gets its own ticket (the filename
+carries a stable signature slug alongside the gate), a re-observation of an
+unchanged signature updates its existing open ticket, and a new distinct
+failure of an already-ticketed gate is never silently coalesced. When a red gate is
 claim-relevant to a standing published claim (its D-4 scoped surface), the
 ticket names that claim and the claim record names the open ticket while it
 stands — "standing, with known red" is a visible state, and it feeds D-3's
@@ -98,17 +104,20 @@ anywhere else never touches the claim. When the publication validator detects
 (a), demotion is mandatory, not discretionary: within one battery period the
 claim's advertised state drops to its prior honest tier or gains an explicit
 requalification-pending marker naming the ticket, and that ticket names an
-owner. Editing a published claim's digest scope is itself a scoped-surface
-change: a re-scope takes effect only with requalification or fresh
-named-author acceptance binding the new scope. Requalification then happens
+owner. A requalification-pending marker outstanding across four consecutive
+scheduled batteries escalates to the author, exactly like a persistent
+battery red (D-1). Editing a published claim's digest scope is itself a
+scoped-surface change: a re-scope takes effect only with requalification or
+fresh named-author acceptance binding the new scope. Requalification then happens
 on the next natural cycle — the claim's normal qualification protocol at the
 next scheduled opportunity — not as an emergency that races the fleet.
 
 **D-4 — Qualification digests are scoped to the claim.** A qualification
 digest covers the claim-relevant surface only: the runtime/implementation of
 the claimed capability plus the checkers that define that claim's semantics.
-Wave-shared proof harnesses, metrology, and fixture files move out of claim
-digests and are protected instead by their own frozen-record drift gates (the
+Wave-shared proof harnesses, metrology, and fixture files that neither define
+nor affect the claim's semantics move out of claim digests and are protected
+instead by their own frozen-record drift gates (the
 LLP 0175 `driftProneGates` registry pattern; the R12-1 per-file gate in
 `issues/20260807-codegen-declaration-has-no-drift-gate.md` is the model).
 Coverage moves; it never vanishes: removing a file from a digest is legal
@@ -133,7 +142,7 @@ because `main` advanced.
 
 **D-6 — Promotion and release preconditions reference the battery, not
 per-commit proofs.** A candidate needs (a) green scoped evidence for exactly
-what it claims, and (b) the most recent scheduled complete battery green on
+what it claims, and (b) the most recent eligible complete battery green on
 its claim-relevant gates, with any unrelated red gates ticketed and named in
 the promotion record rather than blocking it. The referenced battery run must
 have tested a revision containing the qualification commit — wait for the
@@ -157,10 +166,10 @@ decision; extra strictness is opt-in per claim, never ambient.
 
 - The derived-fork requalification
   (`issues/20260807-derived-fork-publication-wave-drift-requalification.md`)
-  proceeds under D-4: select the fresh qualification C once — after the
-  digest re-scope and the two deferred checker-hardening tickets land, per
-  the amended ticket — re-scope the digest with drift gates for the departing
-  wave-shared files, and future wave landings stop rotating it. That ticket's "must not exclude them"
+  proceeds under D-4: first re-scope the digest with drift gates for the
+  departing wave-shared files (landing the two deferred checker-hardening
+  tickets in the same cycle), then select the fresh qualification C once
+  against the re-scoped digest, and future wave landings stop rotating it. That ticket's "must not exclude them"
   constraint is superseded by this ruling — exclusion is permitted exactly
   when the same change installs the replacement drift gate.
 - The two deferred checker-hardening tickets
@@ -180,9 +189,12 @@ decision; extra strictness is opt-in per claim, never ambient.
 - Battery-red ticket filing (D-1) extends the existing backstop pattern from
   drift gates to complete-proof root failures; implementation tracked in
   `issues/20260807-llp-0189-claim-snapshot-implementation.md`.
-- Published claims still carrying legacy unscoped digests keep their
-  pre-0189 semantics until re-scoped under D-4; the derived-fork claim is the
-  first re-scope, not a special case.
+- Published claims still carrying legacy unscoped digests are not stranded:
+  until re-scoped under D-4, the complete legacy digest serves as the claim's
+  temporary scope — for D-1 cross-references, D-6 gate relevance, and D-3's
+  (a) handling alike — so a legacy claim never falls out of battery tracking
+  or promotion gating before migration. The derived-fork claim is the first
+  re-scope, not a special case.
 
 ## Non-goals and preserved honesty
 

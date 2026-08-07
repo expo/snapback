@@ -43,9 +43,11 @@ complete proofs at exact commits. Three mechanical pieces implement it:
 3. **Battery-red ticket automation (D-1).** Extend the
    `scripts/drift-prone-gates.mjs backstop` pattern to the scheduled complete
    proof: each root failure files one idempotent
-   `issues/YYYYMMDD-battery-<gate>.md` ticket, keyed on the root-failure
-   signature (open ticket for the same gate + same signature = update, a new
-   distinct signature files or appends — never silently coalesces). Tickets
+   `issues/YYYYMMDD-battery-<gate>-<signature-slug>.md` ticket, keyed on the
+   root-failure signature (same gate + same signature = update the existing
+   open ticket; a new distinct signature files its own ticket — never
+   silently coalesces, and each ticket carries independent open/closed and
+   consecutive-run escalation state). Tickets
    cross-reference any standing published claim whose D-4 scoped surface the
    failing gate is claim-relevant to, and the claim record names the open
    ticket while it stands. A red persisting across four consecutive scheduled

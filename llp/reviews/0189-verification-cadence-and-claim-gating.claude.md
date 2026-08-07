@@ -110,3 +110,86 @@ Two live normative documents now disagree on whether unrelated battery reds bloc
 The ruling's direction is coherent and the incidents genuinely demand it. But the mechanism, as currently written, has (i) a coverage-equivalence claim at the heart of D-4 that can be satisfied vacuously, (ii) an ungated scope-editing path that defeats D-3, (iii) no post-publication linkage between the authoritative battery and the claims it exists to underwrite, (iv) withdrawal semantics too underspecified to implement honestly, (v) a timing hole in D-6, and (vi) a substrate left contradicting the decision by the same landing. Each fix is small and none touches the ruled cadence philosophy, but M1–M4 in particular are exactly the class of loophole the instructions ask to catch before the implementation ticket encodes them.
 
 VERDICT: NOT READY
+
+## Round 2 — 2026-08-07 (delta round)
+
+- Reviewer: claude-fable-5, fresh-context general-purpose subagent
+  (capsule-only; not the orchestrating/revising session; blind to round 1)
+- Target revision r2 (branch commit `b13a15cb6`) sha256
+  `f3a60433815f80488cab369c9eea3c59fa6ad910fc7cedaa954e58c5e9e8354b`;
+  capsule `1cd5fb7a6fb04efb`; instructions
+  `945f5cd980ca4f849ce4b723ccc29e2a09a40f055e820820d360e4a0139a34d4`
+- Delta-round protocol: every concern classified IN-DELTA vs PRE-EXISTING
+- Runtime 309 s; 8 tool uses; no redaction (capsule-only, no external sends)
+- Body below is verbatim from the reviewer's final message.
+
+---
+
+# Review — LLP 0189 r2 (delta round, independent reviewer)
+
+**Target:** `0189-verification-cadence-and-claim-gating.decision.md`, revision r2
+**Hash binding:** `sha256(target r2) = f3a60433815f80488cab369c9eea3c59fa6ad910fc7cedaa954e58c5e9e8354b` (recomputed from the capsule copy; matches the instructions)
+**Capsule read in full:** target r2 (212 lines), `delta-r1-to-r2.patch` (253 lines, line by line), LLP 0175 (881 lines), both tickets, instructions.
+**Scope honored:** the cadence ruling (scheduled battery as authority, fast/affected landings, claims as snapshots) is treated as ruled; this review examines only whether the mechanism as designed is internally consistent, implementable, and not gameable — with special force on the r2 delta text.
+
+## Delta audit summary
+
+The r1→r2 delta does six things: (1) D-1 gains signature-keyed tickets, claim cross-references, "standing, with known red" as a named state, and a four-run author escalation; (2) D-3 gains the prima-facie-(b) triage rule for claim-relevant battery reds, a mandatory demotion-or-marker window, and the scope-edit-is-a-scoped-surface-change rule; (3) D-4 gains semantic-role scoping, input closure pinned in the claim record, author-accepted scope classification, and the drift-gate admission bar; (4) D-5 gains the semantic-integration clause; (5) D-6 gains revision-containment, on-demand eligibility, newest-run-controls, two-period freshness, and scope-derived gate sets; (6) D-7 names the telemetry exact-current carve-out, matched by the LLP 0175 D2.4/Acceptance-#10 re-scopes and the two ticket amendments.
+
+I cross-checked each delta edit against its surrounding pre-existing text and against the coordinated edits in 0175 and both tickets. The edits are mutually consistent where it matters most:
+
+- D-1's "standing, with known red" reconciles cleanly with D-3's prima-facie-(b) triage rule and with pre-existing "a battery red does not retroactively invalidate … standing claims" — the delta resolves what would otherwise have been a contradiction between those two clauses, rather than creating one.
+- D-3's mandatory demotion for validator-detected (a) does not contradict pre-existing "Withdrawal is warranted only when (a)…or (b)…": withdrawal remains a *permitted* resolution; demotion-or-marker within one battery period is the *mandatory floor*. Coherent.
+- The D-4 admission bar ("a content-hash pin regenerated alongside any edit is presence, not coverage") matches LLP 0175 D2.1's registry admission text and is backed by concrete fixtures in the implementation ticket, including "a semantics-defining checker cannot leave via a generic gate." This closes the most obvious r1-shaped loophole (laundering digest coverage into a rubber-stamp pin).
+- The D-7 carve-out, 0175's D2.4 parenthetical ("preserved as a stricter per-claim protocol under LLP 0189 D-7, not re-scoped by its D-6"), and the re-scoped Acceptance #10 are mutually consistent, and correctly do not claim the telemetry wiring itself (which the capsule notes landed independently) as part of this delta.
+- Defense in depth on scope edits is coherent: the implementation ticket's fixture makes an unauthorized scope-manifest edit *refuse* at the oracle (a same-change drift gate, so it runs at landing per D-2), while D-3's mandatory demotion covers the case where such an edit slips past (bypass, unselected path) and is detected later. These are two layers, not a contradiction.
+
+I found no MATERIAL defect. Concerns follow, each classified.
+
+## Concerns
+
+### C1 — MINOR, IN-DELTA: the requalification-pending marker has no forcing function, and "next scheduled opportunity" is undefined for unscheduled qualification protocols
+
+D-3 (delta text): "within one battery period the claim's advertised state drops to its prior honest tier **or gains an explicit requalification-pending marker** naming the ticket, and that ticket names an owner… Requalification then happens on the next natural cycle — **the claim's normal qualification protocol at the next scheduled opportunity**."
+
+Two observations. First, the OR-branch means the fleet can always choose the marker over demotion, so "demotion is mandatory" in practice means "a visible state change is mandatory" — that is substantive (marker + named ticket + named owner within one battery period), but it is weaker than the word "mandatory demotion" suggests. Second, for claims like the derived fork, the normal qualification protocol (fresh C, lifecycle evidence, review heads, author acceptance) has no schedule, so "next scheduled opportunity" defines nothing, and the pending state has no bound. Note the asymmetry with the delta's own D-1: battery reds get a four-consecutive-run author escalation; requalification-pending markers get none. A pending marker older than N battery periods should escalate the same way. This is a gap, not a vacuity — the state is honest, visible, and owned, which is the ruled philosophy — so I classify it MINOR, but it is the concern I would most want the author or implementer to settle.
+
+### C2 — MINOR, IN-DELTA: the amended derived-fork Consequences sentence is garbled
+
+"proceeds under D-4: select the fresh qualification C once — after the digest re-scope and the two deferred checker-hardening tickets land, per the amended ticket — **re-scope the digest with drift gates** for the departing wave-shared files, and future wave landings stop rotating it."
+
+The r2 insertion says C is selected *after* the re-scope lands, but the retained r1 tail then instructs "re-scope the digest" as a subsequent step, so the sentence reads circularly (select-after-re-scope, then re-scope). The amended requalification ticket is unambiguous ("select the fresh C *after* the digest re-scope and the two deferred checker-hardening tickets land"), so intent is recoverable, but the Decision's own sentence should be repaired to sequence cleanly.
+
+### C3 — MINOR, IN-DELTA: D-6's opening "most recent scheduled complete battery" vs the amendment's on-demand eligibility
+
+The pre-existing opening of D-6(b) says "the most recent **scheduled** complete battery green," while the delta then makes on-demand complete runs eligible and rules "the newest eligible completed run controls." The delta's tiebreak resolves the semantics (and "a newer red is never trumped by an older green" is exactly right), but the word "scheduled" in the opening sentence now conflicts with the amendment two sentences later and should be dropped or qualified.
+
+### C4 — MINOR, IN-DELTA: ticket-keying phrasing diverges between the Decision and the implementation ticket
+
+D-1 says a new distinct failure "files **or updates** a ticket rather than silently coalescing"; the implementation ticket says same gate + same signature = update, "a new distinct signature **files or appends**." Whether a new signature on an already-ticketed gate opens a second ticket or appends to the first is left open in both texts, and they use different verbs. Implementable either way, but the implementer should pick one and the two texts should agree.
+
+### C5 — MINOR, IN-DELTA: legacy-digest transition semantics are ambiguous at the (a) boundary
+
+New Consequences bullet: legacy unscoped claims "keep their pre-0189 semantics until re-scoped under D-4." When wave churn rotates a legacy unscoped digest, does the claim get pre-0189 withdrawal, or D-3's demotion-or-marker (since under the legacy scope, the whole digest *is* the scoped surface, so rotation is a (a) event)? Both readings are honest; the validator implementation will have to pick one. State which.
+
+### C6 — MINOR, IN-DELTA: which existing registry gates qualify as nameable coverage under the admission bar
+
+D-4 permits a departing file to "name the existing" drift gate, and simultaneously requires the named gate to meet the admission bar. Several current LLP 0175 registry entries are described as "source-pinned" carriers; whether their records are genuinely frozen or regenerated-alongside-any-edit determines whether they are "coverage" or "presence" under the new bar. The fixture set in the implementation ticket covers the checker case; the implementer must also adjudicate the existing registry entries when the derived-fork re-scope names them. Not a contradiction — a strict outcome (file stays in digest if no qualifying gate exists) is coherent — but it should be settled before the first re-scope, which is exactly the derived-fork landing.
+
+### C7 — MINOR, IN-DELTA: D-5's lander self-judgment
+
+"the lander judges which it was and records it" makes the person who did the integration the judge of whether it needs fresh scrutiny. Any stricter rule would chase `main` (explicitly out of scope), and the mandatory record makes the judgment auditable after the fact, so this is acceptable as designed; noting it only so the recorded-judgment requirement is not dropped in implementation.
+
+### C8 — MINOR, PRE-EXISTING: deriving the claim-relevant gate set from a file-scoped digest
+
+D-6 (delta) says the gate set "is derived from the claim record's D-4 scope, not enumerated ad hoc" — correct direction (it removes promotion-time discretion) — but the derivation function (scope files → battery gates, presumably via the checked selection policy's path map) lives in unchanged substrate and is unspecified. Straightforward implementation-phase material; flagged so the implementation ticket picks the selector as the single derivation authority rather than inventing a second map.
+
+## Pre-existing text sweep
+
+I re-read the unchanged r1 text against the delta for induced contradictions and found none MATERIAL: D-2's ban on complete-battery-at-exact-commit landing preconditions does not collide with D-7 (whose stricter protocols are claim/promotion-scoped, not landing-scoped, as the telemetry example in 0175 D2.4 confirms — publication/promotion gates, not push gates); D-4's "coverage moves; it never vanishes" is strengthened, not weakened, by the delta; the Non-goals promises ("no gate is weakened without its replacement drift gate landing in the same change," "no BLOCKED/FAIL becomes a silent skip") survive every delta edit — the D-6/Acceptance-#10 re-scope replaces the exact-SHA precondition with a defined battery-referencing form rather than deleting it, and battery reds still terminate in tickets, never skips.
+
+## Verdict rationale
+
+The r2 delta is a genuine tightening: every addition closes a real gap (signature keying vs silent coalescing, escalation bounds, the scope-edit rule, the admission bar, battery freshness and revision containment, the telemetry carve-out), and the coordinated 0175/ticket edits are consistent with the Decision text and with each other. The concerns above are wording repairs, one sequencing garble, and boundary choices an implementer or the author can settle without reopening any decision; none identifies a defective decision, an internal contradiction that breaks the mechanism, or a coverage rule that is vacuous or gameable as written. C1 is the one to watch — mirroring D-1's four-run escalation onto stale requalification-pending markers would close the only unbounded state the design leaves open — but the state it leaves open is visible, ticketed, and owned, which is the ruled posture, not a defect in it.
+
+VERDICT: READY

@@ -90,9 +90,77 @@ or escalated to the author.
   target grew 165 → 212 lines (+28%, over the ~20% advisory growth budget;
   spent closing twelve MATERIAL findings — flagged to the author for
   optional trimming).
-- **Loop state at close (single authorized round): both round-1 verdicts
-  bind to r1 `97261255…`; revision r2 is UNREVIEWED.** No status transition
-  applied (document entered and leaves as author-Accepted). Proposed next
-  step: author reads r2 delta; an optional delta round (one review per
-  family, IN-DELTA vs PRE-EXISTING classification) would close formal
-  convergence if wanted.
+- **Loop state after round 1 (single authorized round): both round-1
+  verdicts bind to r1 `97261255…`; revision r2 was UNREVIEWED at that
+  point.** No status transition applied (document entered and leaves as
+  author-Accepted).
+
+## Round 2 — 2026-08-07 (DELTA round, author-authorized second round)
+
+- Author requested one more round in the orchestrating session. Between
+  rounds, r1 landed on `main` verbatim (hash-identical) via the fleet; the
+  r2 branch was rebased onto `origin/main` (now commit `b13a15cb6`). The
+  only rebase reconciliation was in LLP 0175's D2.4/Revised header, where
+  `main` independently wired the exact-current telemetry gate
+  (`44762547f`): main's now-wired text was kept, r2's D-7 parenthetical
+  grafted in, and r2's now-stale "no caller invokes that mode yet" edit
+  dropped. The 0189 target bytes were unchanged by the rebase (r2 hash
+  identical).
+- Topology: single target, single cluster; two mutually blind fresh
+  reviews; delta-round protocol (every concern classified IN-DELTA vs
+  PRE-EXISTING; convergence if no family reports a MATERIAL concern in
+  pre-existing text).
+- Target revision r2 sha256
+  `f3a60433815f80488cab369c9eea3c59fa6ad910fc7cedaa954e58c5e9e8354b`.
+- Capsule: r2 target + enumerated delta patch (target, 0175, implementation
+  ticket; no review artifacts) + post-rebase 0175 + both tickets + shared
+  instructions. Combined capsule hash `1cd5fb7a6fb04efb`. Structural
+  blindness: capsule contains no round-1 review bodies, run record, or
+  orchestrator notes.
+- Instructions sha256
+  `945f5cd980ca4f849ce4b723ccc29e2a09a40f055e820820d360e4a0139a34d4`
+  (delta enumeration + IN-DELTA/PRE-EXISTING protocol + author scope
+  guidance).
+- Reviewers: Claude family — claude-fable-5 fresh-context subagent; GPT-5
+  family — codex exec gpt-5.6-sol @ xhigh. Reviser (orchestrating session)
+  authored the r2 revision and reviews nothing.
+- Runtimes: recorded on receipt.
+
+### Round 2 results — CONVERGED (dual-READY on r2)
+
+- Claude: **READY** (309 s) — no MATERIAL; eight minors (7 IN-DELTA, 1
+  PRE-EXISTING): pending-marker escalation gap (C1), derived-fork sentence
+  garble (C2), D-6 "scheduled" wording (C3), ticket-keying divergence (C4),
+  legacy-digest boundary (C5), existing-registry-gate adjudication (C6),
+  lander self-judgment noted-acceptable (C7), gate-set derivation function
+  (C8, pre-existing, implementation-phase).
+- GPT-5: **READY** (396 s) — no MATERIAL, no PRE-EXISTING; three IN-DELTA
+  minors: ticket filename/cardinality (≈C4), D-4 categorical sentence vs
+  semantic-role rule, legacy-claim D-1/D-6 compatibility fallback (≈C5).
+- Convergence: dual-READY on one revision (r2
+  `f3a60433815f80488cab369c9eea3c59fa6ad910fc7cedaa954e58c5e9e8354b`), both
+  families, one hash. No MATERIAL concern anywhere, none in pre-existing
+  text.
+
+### Revision r3 (orchestrator, post-convergence, minors only)
+
+- Applied the convergent minors without changing any decision: D-1
+  signature-slug ticket filenames with per-ticket escalation state (C4 /
+  GPT-5 #1, mirrored into the implementation ticket); D-3 pending-marker
+  four-battery escalation (C1); D-4 categorical sentence qualified "that
+  neither define nor affect the claim's semantics" (GPT-5 #2); D-6(b)
+  "scheduled" → "eligible" (C3); derived-fork Consequences sequencing repair
+  (C2); legacy-digest temporary-scope fallback for D-1/D-6/D-3(a) (C5 /
+  GPT-5 #3). Not applied: C6 and C8 stay implementation-phase (adjudicated
+  at the derived-fork re-scope / derivation-authority choice in the
+  implementation ticket); C7 needs no change.
+- r3 sha256
+  `c70edab1b749df2ed48f912e2a3aa6d57a62bdd363fd5c0c7267663d0b747e96`;
+  212 → 224 lines. ref-check green.
+- **Final loop state: dual-READY verdicts bind to r2 `f3a60433…`. r3 is a
+  later, minors-only, UNREVIEWED revision** (wording/boundary repairs both
+  reviewers enumerated; no decision text altered). No status transition
+  applied at any point (document entered and leaves author-Accepted; r1
+  landed on `main` mid-loop by the fleet). Proposed next step: land the r2+r3
+  branch on `main`; per the document's own D-5, the dual-READY survives that
+  landing.

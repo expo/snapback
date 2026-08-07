@@ -146,3 +146,84 @@ These are implementation-phase acceptance details, but adding them would prevent
 Revise D-1 and D-3 through D-6 to define the claim manifest, replacement-coverage standard, withdrawal state transition, battery-record precedence and freshness, lossless ticket lifecycle, and review-content identity. Amend LLP 0175’s conflicting normative clauses in the same revision, then repeat independent review.
 
 VERDICT: NOT READY
+## Round 2 — 2026-08-07 (delta round)
+
+- Reviewer: gpt-5.6-sol @ xhigh via codex exec 0.146.1, fresh session,
+  capsule-only working directory (read-only sandbox), blind to round 1
+- Target revision r2 (branch commit `b13a15cb6`) sha256
+  `f3a60433815f80488cab369c9eea3c59fa6ad910fc7cedaa954e58c5e9e8354b`;
+  capsule `1cd5fb7a6fb04efb`; instructions
+  `945f5cd980ca4f849ce4b723ccc29e2a09a40f055e820820d360e4a0139a34d4`
+- Delta-round protocol: every concern classified IN-DELTA vs PRE-EXISTING
+- Runtime 396 s. External send authorized by the author's explicit request
+  for this round; capsule inventory = the six files hashed in the run record.
+- Body below is verbatim from the reviewer's final message.
+
+---
+
+# Review — LLP 0189 revision r2
+
+**Target:** `0189-verification-cadence-and-claim-gating.decision.md`  
+**Verified SHA-256:** `f3a60433815f80488cab369c9eea3c59fa6ad910fc7cedaa954e58c5e9e8354b`
+
+## Overall assessment
+
+The r2 delta materially strengthens the mechanism without disturbing the author’s cadence ruling. In particular, semantic-role scoping and input closure in D-4, battery containment and freshness in D-6, and the explicit telemetry exception in D-7 align coherently with the coordinated LLP 0175 edits.
+
+I found no MATERIAL concern and no PRE-EXISTING concern. The following IN-DELTA issues are implementation-level ambiguities.
+
+## Strengths
+
+- D-4 now prevents a wave-shared but semantics-defining checker from escaping the claim digest merely because of its file category. The implementation ticket’s fixture that such a checker “cannot leave via a generic gate” makes the intended rule testable.
+- D-6 closes the stale-battery loopholes: the battery must contain the qualification commit, the newest eligible completed run controls, and evidence older than two scheduled periods is ineligible.
+- The LLP 0175 edits correctly preserve exact-current telemetry under D-7 while re-scoping its general release condition to D-6.
+- D-1 and D-3 now give claim-relevant battery failures visible, cross-referenced handling rather than either silently invalidating claims or disappearing into ambient red.
+- The amended derived-fork sequence correctly selects the fresh qualification commit only after digest re-scoping and checker hardening land.
+
+## Concerns
+
+### 1. MINOR — IN-DELTA: ticket identity and ticket cardinality disagree
+
+D-1 says:
+
+> “Tickets key on the root-failure signature, not just the gate”
+
+The implementation ticket nevertheless prescribes:
+
+> `issues/YYYYMMDD-battery-<gate>.md`
+
+and says a distinct signature “files or appends.”
+
+Two distinct failures of the same gate on the same day cannot both receive that filename. Appending them to one file also conflicts with the target’s “one per root failure” model and makes independent closure and four-run escalation harder to represent.
+
+This is implementation-detail territory, but the ticket should choose one model: either include a stable signature identifier in the filename, or explicitly define a multi-signature ticket schema with independent open/closed and consecutive-run state for every signature.
+
+### 2. MINOR — IN-DELTA: D-4 retains a categorical sentence that conflicts with its new semantic-role rule
+
+D-4 first says:
+
+> “Wave-shared proof harnesses, metrology, and fixture files move out of claim digests”
+
+The new delta then says:
+
+> “Scoping is by semantic role, not file category”
+
+and requires semantics-defining checkers and their semantics-affecting inputs to remain pinned.
+
+The latter text and implementation fixtures make the intended ruling clear, so this is not materially ambiguous. Still, an implementer following the earlier categorical sentence could remove a wave-shared semantics-affecting harness or fixture. Qualify the earlier sentence to say that only wave-shared files not defining or affecting the claim’s semantics move out.
+
+### 3. MINOR — IN-DELTA: legacy claims need an explicit D-1/D-6 compatibility rule
+
+The new Consequences clause says:
+
+> “Published claims still carrying legacy unscoped digests keep their pre-0189 semantics until re-scoped under D-4”
+
+But D-1 determines claim relevance from “its D-4 scoped surface,” and D-6 derives the controlling gate set from the claim record’s D-4 scope. A legacy record has no D-4 semantic classification yet.
+
+The conservative resolution appears straightforward: treat the complete legacy digest as its temporary scope for D-1 cross-references and D-6 gate relevance. That fallback should be stated explicitly so legacy claims cannot accidentally fall out of battery-red tracking or promotion gating before migration.
+
+## Recommended next step
+
+The three concerns can be resolved in wording and implementation acceptance criteria without changing the decision. They do not require another design direction or disturb the cadence ruling.
+
+VERDICT: READY
