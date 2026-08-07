@@ -730,3 +730,30 @@ regression that passed ten repeated runs, and the live test uses an atomically
 CLOEXEC flock lease so only the targeted server can retain the probe. The
 sandbox's localhost-bind `EPERM` leaves the complete live-server rerun as the
 same unsandboxed landing-proof obligation noted above.
+
+### F0a fixes on main + unsandboxed landing proof discharged — 2026-08-07
+
+Both branch fixes landed on `main` via rebase (mainline hashes):
+`d97bc81ab3c2da5b67976e2d7abd435b97aa1465` — fix(forks): publish filesystem
+evidence atomically (the app-root identity publication/read race), and
+`d1e52cd71218ba646879d57d955644ac05e8fd4e` — test(forks): remove descriptor
+probe fork race (the recurrence was a fixture `libc::pipe`-then-`FD_CLOEXEC`
+gap, not a production spawn-seam leak).
+
+The unsandboxed landing-proof obligation recorded above is discharged: the
+complete 15-test `instance_fork_cli_v1` live-server suite ran five times at
+clean `main` revision `0984a1e72525f8685a0fa0af2d580d4f1d647ab0` (contains
+both fixes; macOS aarch64, four test threads, ephemeral ports). All five runs
+passed 15/15 — including
+`concurrent_fork_creates_bind_distinct_ports_and_drop_cleanly` and
+`detached_fork_server_closes_unrelated_inherited_descriptors_on_exec`, the
+two previously recurring cases — with per-run suite wall times of
+21.92 s / 20.51 s / 19.24 s / 18.95 s / 20.30 s.
+
+Remaining leg of the LLP 0189 D-6 close condition: reference the most recent
+eligible complete battery green on the claim-relevant gates, where the
+battery run tests a revision containing `d97bc81ab`. The prior complete-proof
+recurrences above all predate the fix; the next scheduled complete battery
+run (or an on-demand complete run) supplies that reference. Battery-red
+ticket automation is still piece 3 of
+`issues/20260807-llp-0189-claim-snapshot-implementation.md`.
