@@ -178,12 +178,14 @@ stored fragments were installed only after server-side completeness-proof
 and lease validation. This is the strongest retained-render path on the
 JS arm and it is receipt-proven end to end by
 [`tests/acceptance/local-store-carrier-exit-v1.mjs`](repo:tests/acceptance/local-store-carrier-exit-v1.mjs)
-(run in the local proof; the retained 2026-08-04 run measured **16 PASS / 1
-GAP / 0 SKIPPED** after consuming Triage's qualified budget freeze; Fleet
-remains the one explicit GAP: its OQ5 direction was ruled 2026-08-05 and the
-`snapshot-batch.v2` profile was registered 2026-08-06 (LLP 0157 v0.11), while
-implementation, the frozen cross-language vectors, and the fresh footprint/
-hydration witness remain absent).
+(run in the local proof; the retained 2026-08-06 refresh measured **17 PASS /
+0 GAP / 0 SKIPPED** — `carrier-exit.2026-08-06.v1.json` — after the
+`snapshot-batch.v2` implementation, the frozen cross-language `sbsb2`
+vectors, and the fresh Fleet Observatory footprint/hydration witness all
+landed 2026-08-06 (LLP 0157 v0.11), closing Move 1 without promoting
+Experimental maturity or adding any hosted or public-package claim; the
+mixed authoring surface itself is taught under
+[snapshot batches](../backend/snapshot-batches.md)).
 
 Evidence scope, stated precisely: local target, Node process, file carrier,
 owner-scoped generated relational queries. It is not a browser-restart
@@ -204,7 +206,8 @@ it is not a hosted claim.
   Ordered or limited results remain whole-result `live_replace`; class
   membership is derived from the public, ambient-free single-table plan and
   cannot be asserted by the author.
-- **Snapshot-batch composites** (`snapshot-batch.v1`) — deliberately
+- **Snapshot-batch composites** (`snapshot-batch.v1` and the mixed
+  `snapshot-batch.v2`) — deliberately
   volatile: retention is `none`. Final release pins that class, so the next
   writer maintenance pass removes payload immediately; the compacted
   instance-bookkeeping stub may remain. A `none` registration never acquires

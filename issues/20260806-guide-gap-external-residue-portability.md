@@ -1,7 +1,7 @@
 # guide-gap: external Snapback state and restore lock are not documented as non-portable
 
-**Status:** Open — source/guide repair in worktree, awaiting landing and a
-published guide
+**Status:** Open — source/guide repair landed on main; only the successor
+published guide (a closure newer than 0.1.11) remains
 **Impact:** 4
 **Urgency:** 4
 **Ease:** 4
@@ -47,3 +47,24 @@ published guide containing it is available.
   without per-run knowledge of their names.
 - The focused staging proof passes and the successor public guide carries the
   rule.
+
+## Note (2026-08-07)
+
+The source repair is fully landed on main (verified at origin/main
+f4d4d8c18): `guide/clients/react-expo.md` gives the two ignore rules
+(`.snapback/`, `*.snapback.restore.lock`) and the host-pinned-reservation
+explanation; `demos/_kit/eas-stage-build.mjs` excludes `.snapback`, the
+sibling restore lock, and `dist-*` by default; and
+`demos/_kit/tests/repo-layout-unit.mjs` pins all three exclusions. The
+0.1.11 rerun receipt (commit a951074e4) records the iOS and EAS arms PASS.
+Absorption addendum this pass: `guide/capabilities.md` `clients.react-expo`
+aliases now include the miss vocabulary (restore lock, .snapback gitignore,
+copy project) so the index reaches the page from either register.
+
+The guide bytes carrying the rule landed after the 0.1.11 closure was built
+(a951074e4 at 18:12 vs the cf47cc3b7 publish close-out at 17:05 on
+2026-08-06), so the *published* (server-embedded) guide at 0.1.11 does not
+contain them. Remaining acceptance is release-lane, not docs: the next
+published closure (> 0.1.11) embeds the current corpus through the ordinary
+promotion lane. Keep open until that publish; close with a pointer to the
+closure version that carries the rule.

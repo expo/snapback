@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "f4d4d8c184a8994b747a8e83b1ee74abfcb8a09b"
+    "commit": "17366d2a489bbd4af58333b5c513b45454a1c937"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -1191,6 +1191,7 @@
         "llp/0135-sequence-allocation-and-snapshot-batch.spec.md",
         "llp/0157-composition-algebra-and-completeness.spec.md",
         "llp/0110-bounded-children-and-activity-patterns.spec.md",
+        "llp/0080-portable-relational-queries-and-projections.rfc.md",
         "llp/0166-local-persistent-store.spec.md",
         "src/manifest.rs",
         "src/local.rs",
@@ -1198,16 +1199,33 @@
         "packages/snapback-codegen/define.mjs"
       ],
       "examples": [
-        "packages/snapback-codegen/relation-activity-authoring.test.mjs"
+        "packages/snapback-codegen/relation-activity-authoring.test.mjs",
+        "packages/snapback-codegen/snapshot-batch-v2-authoring.test.mjs",
+        "demos/fleet-observatory-move1"
       ],
-      "reviewed": "2026-08-04",
-      "reviewedCommit": "30e3d09c7e5063a1233773742c2b69e0b6981e07",
-      "sha256": "746bd7f2e6d13a7fce07dd42bdabedf9983dd3767ba5658bb1a426283e03aa74",
+      "reviewed": "2026-08-07",
+      "reviewedCommit": "f4d4d8c184a8994b747a8e83b1ee74abfcb8a09b",
+      "sha256": "9e4e8aad892cfc7121977a5dc49f66d48f26b85c8d94ca5128f78256653c877a",
       "snippets": [
         {
           "lang": "js",
           "class": "transcluded",
           "source": "packages/snapback-codegen/relation-activity-authoring.test.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "packages/snapback-codegen/snapshot-batch-v2-authoring.test.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/fleet-observatory-move1/snapback/functions.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "packages/snapback-codegen/snapshot-batch-v2-authoring.test.mjs"
         },
         {
           "lang": "ts",
@@ -1499,7 +1517,7 @@
       "examples": [],
       "reviewed": "2026-08-07",
       "reviewedCommit": "f4d4d8c184a8994b747a8e83b1ee74abfcb8a09b",
-      "sha256": "2a08975bf11e0e9a4a21870718587c3be9c6503d5e73de21736073098e0fb24e",
+      "sha256": "5ab09d61d6a8c9382e7a5c64b7410a23a338c8bf69959a84b2d0258207400734",
       "snippets": []
     },
     "clients.app-cli": {
@@ -3259,7 +3277,7 @@
       ],
       "reviewed": "2026-08-07",
       "reviewedCommit": "f4d4d8c184a8994b747a8e83b1ee74abfcb8a09b",
-      "sha256": "248d0a90e6a449d953c235fd997612216aa8e8728da7311bc67f543da8f3cc39",
+      "sha256": "49c59854add43c4e1d6e54f5f7e06462a712f44f3f500964345fde45c9f2822b",
       "snippets": [
         {
           "lang": "js",
@@ -3510,5 +3528,5 @@
     "routes": 122,
     "hostOps": 43
   },
-  "contentHash": "4ae0a2b58b175f116cb0e7dc1320b957ac756a949c8748147548090e2eeb3450"
+  "contentHash": "2bc1abc83d0875939d3205d2450100bd0f5e0ce826a4fc7eeb63c06f6d9bad8f"
 }

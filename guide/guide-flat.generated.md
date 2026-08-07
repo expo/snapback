@@ -37,7 +37,7 @@ Owner: `ccheever`; label gaps `guide-gap`.
 | backend.standard-patterns | Generate owner CRUD, unique lookup, owner/membership keyset pages | CRUD generator, pagination, callable pagination, membership pages, trusted defaults | local | partial | `defineOwnedCrud` in packages/snapback-codegen/standard-patterns.mjs | llp/0051, llp/0065, llp/0100 | backend/standard-patterns.md |
 | backend.relational-queries | Bounded two-source equi-joins with explicit visibility, closed projections, and transactionally maintained projection tables (`defineRelationalQuery`, `defineMaintainedProjection`, stable capability since 2026-07-26) | joins, relational queries, denormalized reads, materialized views, conversation membership, message sender, chat joins, defineRelationalQuery, defineMaintainedProjection, Convex joins, Supabase joins | local | partial | `defineRelationalQuery` in packages/snapback-codegen/define.mjs | llp/0080, llp/0065 | backend/relational-queries.md |
 | backend.bounded-children-v1 | Experimental one-visible-parent/one-index-bounded-child-page profile with protected relation incarnations and `sbbc1` AEAD keysets; only contributor source builds with the exact embedded atomic carrier advertise it, while public runtime packages and hosted targets retain a structured GAP | one-to-many, parent children, relation incarnation, bounded child page | local | partial | src/local-relation-activity-publication.v1.json | llp/0104, llp/0108, llp/0101 | GAP (public-package attestation and hosted publication; owner: Charlie, review: 2026-08-31) |
-| backend.snapshot-batch-v1 | Experimental local composition of 2–8 complete `bounded-children.v1` nodes: one pinned authoritative snapshot per invocation, structural parent-authorization dedup, a sealed all-or-nothing tuple, one LLP 0157 `sbsb1` continuation, and cursor-free-first-page `live_replace`; hosted and public-package publication remain nonclaims | snapshot batch, board view, multiple child lists, one snapshot, sbsb1, composite query | local | shipped | `snapshot_batch_three_node_cursor_sealing_and_live_acceptance` in src/local.rs + schemas/capability.manifest.local-dev-sqlite-ibex.json (`snapshot_batch_v1`) | llp/0135, llp/0157, llp/0113 | backend/snapshot-batches.md |
+| backend.snapshot-batch-v1 | Experimental local composition of 2–8 complete `bounded-children.v1` and (v2, 2026-08-06) `relational-query.v1` join nodes: one pinned authoritative snapshot per invocation, structural parent-authorization dedup, an all-or-nothing tuple sealed only through bounded-child parents, one LLP 0157 `sbsb1`/`sbsb2` continuation, cursor-free-first-page `live_replace`, and `retention:"none"`; hosted and public-package publication remain nonclaims | snapshot batch, mixed snapshot batch, board view, join plus child lists, multiple child lists, one snapshot, composite query, defineSnapshotBatchQuery | local | shipped | `snapshot_batch_three_node_cursor_sealing_and_live_acceptance` in src/local.rs + schemas/capability.manifest.local-dev-sqlite-ibex.json (`snapshot_batch_v1`, `snapshot_batch_v2`) | llp/0135, llp/0157, llp/0080, llp/0113 | backend/snapshot-batches.md |
 | backend.single-table-v1 | Experimental host-derived `single_table_v1@1` for an exact public, authority-independent declarative live query over one table. It is single-node-only, never author-assertable, uses the class-scoped 1,024 examined-entry QMK-establishment refusal, preserves whole-result/no-cursor semantics, delivers ordered/limited results by `live_replace`, and retains through Arm A `rqs-authority-independent-snapshot-v1` with no `AuthorizedLease`. Contributor-source builds advertise it via the store publication carrier; the 2026-08-06 LLP 0110/0166 amendment admits clean-release public-package builds with a packaged-closure qualification receipt, shipped inside the runtime packages since 0.1.11. Remote/hosted remain GAPs. | single table, rqsEligible, qmk1, authority-independent retention, single node | local | shipped | src/local-persistent-store-publication.v1.json + schemas/capability.manifest.local-dev-sqlite-ibex.json (`single_table_v1`) | llp/0157, llp/0166, llp/0110, llp/0113 | sync/offline-and-retention.md |
 | backend.write-activity-v1 | Experimental closed source-write plus one provenance-bearing activity insert with exact source-effect assertion and LLP 0043/0101 settlement; only contributor source builds with the exact embedded atomic carrier advertise it, while public runtime packages and hosted targets retain a structured GAP | audit log, activity feed, transactional activity, write receipt | local | partial | tests/conformance/relation-activity-publication-v1.receipt.json | llp/0104, llp/0108, llp/0043, llp/0101 | GAP (public-package attestation and hosted publication; owner: Charlie, review: 2026-08-31) |
 | backend.text-search | Portable term, phrase, prefix, exclusion, and equality-filter search with deterministic ranking, bounded highlights, public/owner/membership (seat-per-resource) visibility, and AEAD keyset cursors | full text, text index, phrase, prefix, highlights | local | shipped | `defineSearchQuery` in packages/snapback-codegen/define.mjs | llp/0073, llp/0065, llp/0100 | backend/text-search.md |
@@ -49,18 +49,18 @@ Owner: `ccheever`; label gaps `guide-gap`.
 | backend.query-semantics | Read sets, snapshots, commit versions, conflict validation | consistency, transactions, conflicts | local | shipped | route /query/{name} | llp/0003, llp/0004, llp/0007 | backend/queries.md |
 | backend.sequences | Experimental incarnation-scoped dense sequences through handler `ctx.sequence.allocate(counterName, scopeId)` and generated `AllocateSequence`, with abort-disclosure, commit-order/contention, exact replay, incarnation restart, exhaustion, Relay, Campfire, and mutation-atomic lane-Q qualification. Only the exact contributor-source local target publishes `sequence_allocation_v1`; public packages and hosted targets remain structured GAPs | sequence, counter, ticket number, invoice number, monotonic allocation, maxEncodedBytes | local | partial | src/local-sequence-allocation-publication.v1.json + tests/conformance/sequence-allocation-publication-v1.receipt.json | llp/0135, llp/0128, llp/0113, llp/0157 | GAP (public-package attestation and hosted target qualification/publication; owner: Charlie, review: 2026-09-30); backend/sequences.md |
 | backend.actions | Actions with gated outbound fetch: global `fetch` and target-portable host-mediated `ctx.fetch`, in closed-script module handlers or the inline form | action, fetch, ctx.fetch, side effects, notification, webhook | local | shipped | route /action/{name} | llp/0004, llp/0009, llp/0049 | backend/actions-and-fetch.md |
-| backend.assets | Authenticated asset lifecycle plus the media pipeline on the local target — generated upload intents, TUS 1.0.0 resumable transfer, trusted SHA-256 finalization with GPS-strip canonicalization for images (decode/rewrite) and MP4/QuickTime video (in-place location-atom blanking, no transcoding), declared renditions with ThumbHash placeholders, typed `v.assetRef` attachment, private-strict/private-signed/public-immutable delivery with ranges and best-variant selection, opt-in reference GC, lifecycle callbacks (including sessions execution under the per-app `asset-callbacks` service principal), deletion/GC, receipts, logical consistent-cut export with refuse-partial validation, and instance-wide signing-key rotation (`asset_lifecycle_v1`, `asset_image_finalization_v1`, `asset_image_pipeline_v1`, `asset_reference_gc_v1`, `asset_video_finalization_v1`); the paved browser path (stock `@expo/snapback-vite` relay over the `/assets/*` family, sessions custody, typed generated upload references) is CI-verified; byte-level backup, transcoding, and hosted targets remain nonclaims | files, images, video, object storage, media, browser upload, native upload, Expo ImagePicker, expo/fetch, useSnapbackAssetUpload, session mint, vite relay, asset export, logical backup, signing key rotation, Supabase Storage, Convex generateUploadUrl | local | partial | schemas/capability.manifest.local-dev-sqlite-ibex.json (all five asset ids plus `assets.export.cutExport`/`importValidation`) + src/assets.rs + src/assets_cut.rs + src/assets_image.rs + src/assets_video.rs suites + tests/acceptance/asset-conformance-v1.mjs (native CLI export/refuse-partial/rotation; sessions callback authority) + demos/file-drop/tests/acceptance/browser-relay.mjs (relay + sessions + typed upload reference browser path) | llp/0044 | backend/assets.md |
+| backend.assets | Authenticated asset lifecycle plus the media pipeline on the local target — generated upload intents, TUS 1.0.0 resumable transfer, trusted SHA-256 finalization with GPS-strip canonicalization for images (decode/rewrite) and MP4/QuickTime video (in-place location-atom blanking, no transcoding), declared renditions with ThumbHash placeholders, typed `v.assetRef` attachment, private-strict/private-signed/public-immutable delivery with ranges and best-variant selection, opt-in reference GC, lifecycle callbacks (including sessions execution under the per-app `asset-callbacks` service principal), deletion/GC, receipts, logical consistent-cut export with refuse-partial validation, and instance-wide signing-key rotation (`asset_lifecycle_v1`, `asset_image_finalization_v1`, `asset_image_pipeline_v1`, `asset_reference_gc_v1`, `asset_video_finalization_v1`); the paved browser path (stock `@expo/snapback-vite` relay over the `/assets/*` family, sessions custody, typed generated upload references) is CI-verified; byte-level backup, transcoding, and hosted targets remain nonclaims | files, images, video, object storage, media, browser upload, native upload, Expo ImagePicker, expo/fetch, useSnapbackAssetUpload, session mint, vite relay, asset export, logical backup, signing key rotation, Supabase Storage, Convex generateUploadUrl | local | partial | schemas/capability.manifest.local-dev-sqlite-ibex.json (all five asset ids plus `assets.export.cutExport`/`importValidation`) + src/assets.rs + src/assets_cut.rs + src/assets_image.rs + src/assets_video.rs suites + tests/acceptance/asset-conformance-v1.mjs (native CLI export/refuse-partial/rotation; sessions callback authority) + demos/file-drop/tests/acceptance/browser-relay.mjs (browser relay path) | llp/0044 | backend/assets.md |
 | backend.expo-push-seam | Shipped local Expo integration seam: session-bound token custody, atomic rotation and retirement, declaration-checked/host-authorized and paced `ctx.push.send`, crash-safe intent/batch/message ledger, safe pre-transmit recovery, bounded ticket/receipt maintenance, a privacy-bounded generated ledger query, explicit ambiguous redrive risk, structured `notifications.expoPushSeam` facts, and a retained physical-device `ok` receipt witness. The complete hosted conjunction remains a GAP; this is not first-class notification delivery. | device token, expo push token, installation, ctx.push.send, handoff receipt, DeviceNotRegistered | local | shipped | schemas/capability.manifest.local-dev-sqlite-ibex.outbound-actions.json (`expoPushSeam`) + packages/snapback-cli/fake-expo-push.test.mjs + `fake_expo_acceptance_covers_tickets_receipts_dedupe_ambiguity_and_authorization` in src/push.rs + LLP 0143 implementation record (2026-08-03 physical-device witness) | llp/0143, llp/0057, llp/0059, llp/0070 | backend/expo-push.md |
 | backend.notifications | First-class notification and effect delivery; application-authored table ledgers are not this product capability | notifications, push, email, delivery, effects | none | design-only | schemas/capability.manifest.local-dev-sqlite-ibex.json (`notifications: false`; explicit `notifications` gap) | llp/0045 | GAP (owner: Charlie, review: 2026-08-31; issue: issues/20260728-guide-gap-assets-and-notifications-capability-rows.md) |
 | backend.observability-v1 | Shipped local Phase-1 backend telemetry with a generation-bound sibling store, operation-class spans, bounded retention and rollups, typed agent-facing queries, Health/Logs projections, and retained clean-release idle/benchmark evidence; hosted arms and declared product analytics remain later capabilities | telemetry, observability, health, logs, metrics, traces | local | shipped | tests/acceptance/telemetry-phase1-evidence.v1.json | llp/0154 | operating/observability.md |
 | backend.error-tracking-v1 | Local Phase E0/E1 backend failure classification, deterministic grouping (including first-ordered authority plus full raw carrier facts for multiple unhandled rejections), retained raw exemplars, release-aware issue lifecycle, typed CLI/MCP operations, and Errors/Health console projections; hosted grouping, E2 alerts, and E3 client ingest remain unbuilt | error tracking, issues, fingerprints, exceptions, failures | local | partial | route /_snapback/api/errors/issues | llp/0156, llp/0154, llp/0108 | operating/error-tracking.md |
 | backend.vector-search | Experimental bounded exact k-NN over declared fixed-width binary64 vector fields, with pinned `dot`/`l2sq` arithmetic, public/owner visibility partitions, exact equality filters, stored fields, synchronous SQLite maintenance, and digest-recheck quarantine; ANN, embedding computation, live/paginated/offline search, hosted targets, PostgreSQL, and sensitive fields remain nonclaims | vector, embeddings, similarity, semantic search, RAG, exact k-NN | local | shipped | schemas/capability.manifest.local-dev-sqlite-ibex.json (`vector_search_v1` + `vectorSearch`) + `defineVectorQuery` in packages/snapback-codegen/define.mjs | llp/0132, llp/0073 | backend/vector-search.md |
 | backend.cron | Scheduled execution | schedule, cron list, cron status, cron tick, run cron now, force tick | local | shipped | route /_snapback/api/cron | llp/0028 | backend/cron.md |
-| backend.jobs-one-off | Experimental transactional one-off durable work (LLP 0070 first slice): `ctx.jobs.enqueue` inside the mutation transaction, a paved default queue, `availableAt = now + delay`, fenced claims with append-only attempt receipts, producer association on job rows plus bounded `enqueues` facts on confirmed mutation receipts, the generated declared job-status live query (codegen emits the capability requirement and acknowledgment), the injected-clock forced drain (`POST /_snapback/api/jobs/drain`), and the secret-read-leased admin inspection lane (`GET /_snapback/api/jobs`, `/jobs/{id}`). `jobs_one_off_v1` stays experimental and no durable-background-work capability class is claimed while LLP 0070 remains pre-Accepted (in Review since 2026-08-03) | one-off jobs, runAfter, scheduler, durable work, enqueue, background jobs, job status, secret-read lease, job drain, drain jobs | local | partial | route /_snapback/api/jobs/drain | llp/0070, llp/0121, llp/0115 | backend/jobs.md |
+| backend.jobs-one-off | Experimental transactional one-off durable work (LLP 0070 first slice): `ctx.jobs.enqueue` inside the mutation transaction, a paved default queue, `availableAt = now + delay`, fenced claims with append-only attempt receipts, producer association on job rows plus bounded `enqueues` facts on confirmed mutation receipts, the generated declared job-status live query, the injected-clock forced drain (`POST /_snapback/api/jobs/drain`), and the secret-read-leased admin inspection lane (`GET /_snapback/api/jobs`, `/jobs/{id}`). `jobs_one_off_v1` stays experimental and no durable-background-work capability class is claimed while LLP 0070 remains pre-Accepted (in Review since 2026-08-03) | one-off jobs, runAfter, scheduler, durable work, enqueue, background jobs, job status, secret-read lease, job drain, drain jobs | local | partial | route /_snapback/api/jobs/drain | llp/0070, llp/0121, llp/0115 | backend/jobs.md |
 | realtime.live-queries | Subscribe to a query; snapshot + replace/delta updates | subscription, realtime | local | shipped | route /live/{name}/subscribe | llp/0008 | realtime/live-queries.md |
 | realtime.durable-push | Durable WebSocket push lane; connection axis | websocket, stream, push, connection state, connection disconnect, disconnect client, force disconnect | local | shipped | route /live/{connection_id}/stream | llp/0008, llp/0034 | realtime/live-queries.md |
 | realtime.ephemeral | Typed ephemeral rooms plus the scoped React presence hook: presence, typing indicators, cursors, TTL | presence, cursors, rooms, ephemeral, React ephemeral hook, useSnapbackPresence, useSnapbackEphemeral, typing indicator, ephemeral cleanup, cleanup stale entries, expire ephemeral, Supabase Presence, Supabase Broadcast | local | shipped | route /ephemeral/publish + `useSnapbackPresence` in packages/snapback-react/index.d.mts | llp/0013, llp/0107, llp/0114 | realtime/ephemeral-state.md |
-| realtime.snapshot-bundles | Resumable-query snapshot bundles: one request evaluates a served route-manifest entry's queries at one commit with per-query resume tokens; register mode arms the pending-registration owner. The contributor local target additionally ships Experimental `mixed_bundle_boot_v2`: a disjoint LLP 0157 `mixed-route.v2` artifact/wire evaluates live and ordinary children at one pinned snapshot, registers only identity-bound live children, and returns plain children honestly read-only. Qualifying legacy RQS entries enter QMK custody only while connected through prove-or-fresh adoption; legacy bytes stay grandfathered under LLP 0090 until that one-transaction switch. `defineRoutes` + `publicInline` feed the Channel A inlined web boot (`snapbackChannelA` in packages/snapback-vite) with anonymous reads for publicInline-class routes; on the Cloudflare arm the routes manifest compiles into the Worker, the gateway serves Channel A HTML, and the coordinator answers read-mode bundles + token resume (register and mixed mode Cloudflare: deferred) | bundle, preload, resumable snapshots, boot, RQS, mixed route, read-only child, registered live child, inlined HTML, routes manifest | local, cloudflare | partial | route /app/bundle + schemas/capability.manifest.local-dev-sqlite-ibex.json (`mixed_bundle_boot_v2`) | llp/0090, llp/0092, llp/0157, llp/0166 | realtime/snapshot-bundles.md |
+| realtime.snapshot-bundles | Resumable-query snapshot bundles: one request evaluates a served route-manifest entry's queries at one commit with per-query resume tokens; register mode arms the pending-registration owner. The contributor local target additionally ships Experimental `mixed_bundle_boot_v2`: a disjoint LLP 0157 `mixed-route.v2` artifact/wire evaluates live and ordinary children at one pinned snapshot, registers only identity-bound live children, and returns plain children honestly read-only. Legacy RQS entries stay grandfathered under LLP 0090, entering QMK custody only through connected prove-or-fresh adoption. `defineRoutes` + `publicInline` feed the Channel A inlined web boot (`snapbackChannelA` in packages/snapback-vite) with anonymous reads for publicInline-class routes; on the Cloudflare arm the routes manifest compiles into the Worker, the gateway serves Channel A HTML, and the coordinator answers read-mode bundles + token resume (register and mixed mode Cloudflare: deferred) | bundle, preload, resumable snapshots, boot, RQS, mixed route, read-only child, registered live child, inlined HTML, routes manifest | local, cloudflare | partial | route /app/bundle + schemas/capability.manifest.local-dev-sqlite-ibex.json (`mixed_bundle_boot_v2`) | llp/0090, llp/0092, llp/0157, llp/0166 | realtime/snapshot-bundles.md |
 | sync.offline | Retained queries, outbox, replay, optimistic overlays (Contract arm: lease-bounded protected retention, derived overlays, `Parity` under LLP 0043's proof rule) | local-first, outbox | local | shipped | route /outbox/{connection_id} | llp/0043, llp/0052 | sync/offline-and-retention.md |
 | sync.offline-js-arm | Experimental JS/React offline substrate: default IndexedDB + Web Locks in browsers, durable file storage on Node, and in-memory fallback; declared public authority-independent retained queries; durable M2 outbox with exact ordered replay and pending-intent projection. LLP 0090 grandfathers legacy RQS entries: adoption is connected-only prove-or-fresh into QMK custody, one atomic transaction, never relabeling bytes or dropping pending outbox intent. Node/file and React-stub tests pass, and LLP 0155 proves real-Chrome `SIGKILL` persistence plus two-tab lock refusal/takeover. End-to-end browser React/server retained-current, resync/replay, settlement, observer convergence, and protected-refusal proof remain GAPs; no local execution or `Parity` claim | offline browser, cold boot, restart-safe queue, IndexedDB, default persistence, retainability opt-in, pending intent render | local | partial | `resolveDefaultRqsStore` in packages/snapback-client/rqs-store-default.mjs + `demos/public-dashboard/tests/acceptance/offline-local-first.mjs` (Node/file, same-process) + `demos/zero-bakeoff/stage0/browser/run.mjs` (browser substrate only) + packages/snapback-client/rqs-resume.test.mjs (auth-scoped refusal receipt) | llp/0043, llp/0090, llp/0129, llp/0155, llp/0166 | GAP (end-to-end browser product proof; owner: Charlie, review: 2026-08-31; issue: issues/20260801-guide-gap-js-arm-browser-indexeddb-proof.md); sync/offline-and-retention.md |
 | sync.local-persistent-store | LLP 0166 store + hydration bridge: one v3 store domain per clientStoreId, registration-led establishment from the generated trusted activation only, completeness-proof plus applicable lease validation before page commit, public programmatic and manifest-derived preload registrations, and proof-revalidated relaunch answers. Writer maintenance derives custody from registrations: active demand is restart-volatile, durable programmatic demand survives, `none` release compacts immediately, and every retained address exposes one StorePolicyInspectionV1 reason. The D7 result-transform gate is fired on durable IndexedDB and Node/file; memory and Expo report volatile and refuse durable fragments with a structured GAP. Authority-independent `single_table_v1@1` needs no lease but keeps every proof/fence check. The contributor-source local manifest publishes the experimental class from a retained 2026-08-06 carrier exit at 17 PASS / 0 GAP / 0 skipped plus Triage and Fleet at 8/8 each; remote-service and Cloudflare manifests remain nonclaims | retained render, materialization, completeness proof, qmk1, hydration bridge, programmatic registration, preload, maintenance, custody inspection, relaunch, result transform, answer class, carrier honesty | local | partial | src/local-persistent-store-publication.v1.json + tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-06.v1.json + tests/acceptance/fixtures/fleet-observatory/move1-exit.2026-08-06.v1.json + tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-06.v1.json + tests/conformance/result-transform-ship-gate-v1.receipt.json (56/56 Rust/JavaScript, two claiming + two refusing carriers) | llp/0166, llp/0157, llp/0135, llp/0110, llp/0094 | sync/offline-and-retention.md |
@@ -90,9 +90,9 @@ Owner: `ccheever`; label gaps `guide-gap`.
 | clients.optimistic-overlays | Derived optimistic mutations + reconciliation | optimistic, overlays, latency | local | shipped | `deriveOptimisticReducer` in packages/snapback-contract/index.mjs | llp/0052 | clients/contract-adapter.md |
 | clients.react | Prepared React provider over one headless store/transport seam: exact generated single/grouped live queries, capability-gated all-live and mixed-route references with one-commit register-mode adoption, explicit per-child registered-live/read-only boot provenance, honest weakest aggregate connection state, explicit live fallback, attach-deadline recovery, sessions authorization adoption, result-validated optimistic mutation rebase/rollback, local managed connection-keyed presence, per-query `freshness`/`retention` offline facts with the `useSnapbackOutbox` queued-intent projection, Strict Mode/HMR sharing, complete cleanup, and retained Signal Desk receipts | react, hooks, useSyncExternalStore, useSnapbackQuery, Convex useQuery, result inference, typed mutation, optimistic rollback, replay advisory, projectRecordFields, optimistic toggle helper, presence, ephemeral hook, useSnapbackPresence, typing indicator, query groups, mixed route, read-only snapshot, bundle prime, registered bundle, hmr, offline freshness, outbox badge | local | shipped | `useSnapbackPresence` in packages/snapback-react/index.d.mts | llp/0012, llp/0064, llp/0074, llp/0090, llp/0101, llp/0114, llp/0106, llp/0107, llp/0129, llp/0157 | clients/react.md |
 | clients.surfaces | Generated application surfaces bind one screen/resource's reads, ordinary mutations, asset-bearing commands, raw assets, and presence around shared params; React and headless projections share canonical owners. The closed command task composes zero/one asset child with one ordinary mutation and reports truthful failure, ambiguity, and residue provenance. | defineSurface, useSurface, observeSnapbackSurface, application surface, screen surface, one hook for a screen, bind query and mutation, surface presence, conversation surface, useSnapbackSurface, defineCommand, useSnapbackCommand, image send, upload then mutate, command task | local | partial | `useSnapbackCommand` in packages/snapback-react/index.d.mts | llp/0179, llp/0180, llp/0114, llp/0176 | clients/surfaces.md |
-| clients.react-expo | React Expo Online; supervised no-URL simulator/emulator boot. G1 receipts prove those routes. Android USB selection plus exact `adb reverse` ownership is headless-proven with a live Online receipt pending; iOS USB honestly refuses because current `devicectl` has no TCP forward and `iproxy` is the wrong direction. Physical-device capability, LAN/tunnel, and release remain unclaimed. | react native, expo, ios, android, physical device, USB device, snapback dev --expo, SnapbackExpoProvider, adb reverse, TCP/IP adb refused, ios udid, iproxy, 10.0.2.2, authority-required | local | shipped | `runExpoDev` in packages/snapback-cli/expo-dev.mjs + packages/snapback-cli/expo-device-forwarding.test.mjs + simulator/emulator receipts | llp/0012, llp/0064, llp/0176, llp/0181 | clients/react-expo.md |
+| clients.react-expo | React Expo Online; supervised no-URL simulator/emulator boot. G1 receipts prove those routes. Android USB selection plus exact `adb reverse` ownership is headless-proven with a live Online receipt pending; iOS USB honestly refuses because current `devicectl` has no TCP forward and `iproxy` is the wrong direction. Physical-device capability, LAN/tunnel, and release remain unclaimed. | react native, expo, ios, android, physical device, USB device, snapback dev --expo, SnapbackExpoProvider, adb reverse, TCP/IP adb refused, ios udid, iproxy, 10.0.2.2, authority-required, restore lock, .snapback gitignore, copy project | local | shipped | `runExpoDev` in packages/snapback-cli/expo-dev.mjs + packages/snapback-cli/expo-device-forwarding.test.mjs + simulator/emulator receipts | llp/0012, llp/0064, llp/0176, llp/0181 | clients/react-expo.md |
 | operating.server-lifecycle | Start/reuse/stop servers safely; ports; provenance; crash detection | run server, ports, bindPortExactly, lifecycle, watchdog, crash, prebuilt binary, seed reset | local | shipped | `startServer` in demos/_kit/server-process.mjs | llp/0010, llp/0030 | testing/acceptance.md |
-| operating.instance-forks | Experimental source-only finite-TTL derived-instance CLI with expiry enforcement, bounded renewal, resource-limit admission, recovery, bounded inspection, scalar projections, diff, concurrency-safe cleanup, fork-per-worktree and parallel-suite guidance, and exact drop; LLP 0158 is Accepted as the local contract, but the separate derived capability remains unsupported and this source evidence is not a claim | fork, derived instance, fork per worktree, parallel suite, inspect, status, recover, renew, diff, automatic reap, resource limits | none | partial | `ForkCommand` in src/cli.rs + tests/instance_fork_cli_v1.rs + instance_fork unit matrices (parent-write invisibility, renewal crash cuts, concurrency, disk pressure, egress/credential) + tests/acceptance/instance-fork-fleet-dogfood.2026-08-03.v1.json + demos/todo/tests/acceptance/fork-parallel-dispositions.mjs (source proof only; public tuple Missing) | llp/0158, llp/0185 | GAP (derived-capability qualification/publication, exact-diff validation, and hosted-target work remain; owner: Charlie, review: 2026-08-31; see operating/instance-forks.md) |
+| operating.instance-forks | Experimental source-only finite-TTL derived-instance CLI with expiry enforcement, bounded renewal, resource-limit admission, recovery, bounded inspection, scalar projections, diff, concurrency-safe cleanup, fork-per-worktree and parallel-suite guidance, and exact drop; LLP 0158 is Accepted as the local contract, but the separate derived capability remains unsupported and this source evidence is not a claim | fork, derived instance, fork per worktree, parallel suite, inspect, status, recover, renew, diff, automatic reap, resource limits | none | partial | `ForkCommand` in src/cli.rs + tests/instance_fork_cli_v1.rs + instance_fork unit matrices + tests/acceptance/instance-fork-fleet-dogfood.2026-08-03.v1.json + demos/todo/tests/acceptance/fork-parallel-dispositions.mjs (source proof only; public tuple Missing) | llp/0158, llp/0185 | GAP (derived-capability qualification/publication, exact-diff validation, and hosted-target work remain; owner: Charlie, review: 2026-08-31; see operating/instance-forks.md) |
 | operating.agent-safe-storage | Registered Experimental `agent_safe_storage_v1` identity for the `agentSafe.v1` extension/component-fact vocabulary; it is not the `AgentSafeV1` core aggregate and no target currently supports it | operation envelope, explanation, agent-safe storage, capability facts | none | partial | `AgentSafeCapabilityExtensionV1` in src/manifest.rs (Missing-only public projection) | llp/0162 | GAP (acceptance corpus, review, acceptance, and publication gates; all projections remain Missing; owner: Charlie, review: 2026-08-31) |
 | operating.packaged-dev-loop | Install a native runtime; scaffold, generate, doctor, and watch/load through one CLI. The current packed React/Vite starter and inferred sessions startup pass locally, but the expanded React closure is not yet the byte-verified public `0.1.0` closure. | install, new app, react starter, vite, dev, one command, watch, sessions startup, packaged runtime | local | partial | `runDev` in packages/snapback-cli/index.mjs | llp/0041, llp/0058, llp/0114, llp/0103 | getting-started/the-authoring-loop.md |
 | operating.inspect | Health/inspect projections | status, debug | local | shipped | route /inspect | llp/0017, llp/0031 | getting-started/the-authoring-loop.md |
@@ -5243,21 +5243,28 @@ id: backend.snapshot-batches
 order: 27
 audience: agent-first
 capabilities: [backend.snapshot-batch-v1]
-authorities: [llp/0135-sequence-allocation-and-snapshot-batch.spec.md, llp/0157-composition-algebra-and-completeness.spec.md, llp/0110-bounded-children-and-activity-patterns.spec.md, llp/0166-local-persistent-store.spec.md, src/manifest.rs, src/local.rs, src/snapshot_batch_cursor.rs, packages/snapback-codegen/define.mjs]
-examples: [packages/snapback-codegen/relation-activity-authoring.test.mjs]
+authorities: [llp/0135-sequence-allocation-and-snapshot-batch.spec.md, llp/0157-composition-algebra-and-completeness.spec.md, llp/0110-bounded-children-and-activity-patterns.spec.md, llp/0080-portable-relational-queries-and-projections.rfc.md, llp/0166-local-persistent-store.spec.md, src/manifest.rs, src/local.rs, src/snapshot_batch_cursor.rs, packages/snapback-codegen/define.mjs]
+examples: [packages/snapback-codegen/relation-activity-authoring.test.mjs, packages/snapback-codegen/snapshot-batch-v2-authoring.test.mjs, demos/fleet-observatory-move1]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-04
-reviewed-commit: 30e3d09c7e5063a1233773742c2b69e0b6981e07
+reviewed: 2026-08-07
+reviewed-commit: f4d4d8c184a8994b747a8e83b1ee74abfcb8a09b
 ---
 
 # Snapshot batches
 
-> **Experimental local target.** `snapshot_batch_v1` is supported by the
-> contributor local SQLite/Ibex target. Hosted targets and public runtime
-> packages do not claim it. An artifact must acknowledge both
-> `snapshot_batch_v1` and its `bounded_children_v1` dependency.
+> **Experimental local target.** `snapshot_batch_v1` (all-bounded-children
+> tuples, one `sbsb1` continuation) and `snapshot_batch_v2` (tuples that
+> include relational join nodes, one `sbsb2` continuation; registered
+> 2026-08-06, LLP 0157 v0.11) are supported by the contributor local
+> SQLite/Ibex target only. The remote-service manifest records both as
+> explicit capability gaps, and hosted targets and public runtime packages do
+> not claim them. An artifact must acknowledge the profile capability it uses
+> plus every composed experimental class — `bounded_children_v1` whenever a
+> bounded-children node appears; `relational_query_v1` is stable and never
+> needs acknowledgment. Codegen emits these acknowledgments with the
+> generated artifact.
 
 `single_table_v1` is a separate experimental sibling selected automatically
 for qualifying public authority-independent declarative live queries. It is
@@ -5266,8 +5273,11 @@ Arm A retained answer and QMK adoption rules are documented under
 [offline retention](../sync/offline-and-retention.md).
 
 Use `defineSnapshotBatchQuery` when one screen needs several independently
-bounded child lists from one authoritative snapshot. Build each node with
-`defineBoundedChildrenQuery`, then pass a static tuple of 2–8 nodes:
+bounded lists from one authoritative snapshot. Build each node with
+`defineBoundedChildrenQuery` or `defineRelationalQuery`, then pass a static
+tuple of 2–8 nodes. Codegen selects the profile from the node classes, not
+from a flag: an all-bounded-children tuple is `snapshot-batch.v1`; any tuple
+containing at least one relational node is `snapshot-batch.v2`:
 
 ```js source=packages/snapback-codegen/relation-activity-authoring.test.mjs
 export const boardView = defineSnapshotBatchQuery({
@@ -5281,6 +5291,106 @@ typed parent argument, and complete visibility declaration share one parent
 point read and visibility evaluation; equal runtime IDs under different
 bindings do not deduplicate.
 
+## Mix relational joins into the batch (`snapshot-batch.v2`)
+
+A dashboard screen often needs a bounded join — message plus sender, event
+plus vehicle — next to bounded child lists. `snapshot-batch.v2` admits a
+static mixed tuple of complete `defineBoundedChildrenQuery` and
+`defineRelationalQuery` nodes, with **at least one relational node**,
+evaluated at the same single pinned snapshot. Each node keeps its own class's
+complete declaration — visibility, index, order, `take`, projection —
+unchanged:
+
+```js source=packages/snapback-codegen/snapshot-batch-v2-authoring.test.mjs
+export const eventActors = defineRelationalQuery({
+  root: events,
+  joined: actors,
+  join: [{ root: 'actorSlug', joined: 'slug' }],
+  visibility: {
+    root: { kind: 'owner', field: 'ownerId' },
+    joined: { kind: 'public-read' },
+    output: 'owner',
+  },
+  projection: { title: { root: 'title' }, actorName: { joined: 'name' } },
+  take: 3,
+  rootIndex: 'by_owner_sequence',
+  joinedIndex: 'by_slug',
+});
+export const mixedView = defineSnapshotBatchQuery({ nodes: [boardCards, eventActors, boardCards] });
+export const allRelational = defineSnapshotBatchQuery({ nodes: [eventActors, eventActors] });
+```
+
+The Fleet Observatory workload's required route is exactly one such
+composite — a 100-row relational join over 250,000 protected events next to a
+100-row bounded child page, with no JavaScript handler assembling or joining
+result collections
+([retained workload receipt](repo:tests/acceptance/fixtures/fleet-observatory/move1-exit.2026-08-06.v1.json)):
+
+```js source=demos/fleet-observatory-move1/snapback/functions.mjs
+export const fleetObservatory = defineSnapshotBatchQuery({
+  nodes: [latestEventsWithVehicles, vehicleRollupPage],
+});
+```
+
+Generated artifacts acknowledge the composed experimental capabilities
+exactly — `snapshot_batch_v2` always, `bounded_children_v1` only when a
+bounded-children node is present:
+
+```js source=packages/snapback-codegen/snapshot-batch-v2-authoring.test.mjs
+  assert(mixed.requiredCapabilities.includes('snapshot_batch_v2'));
+  assert(mixed.requiredCapabilities.includes('relational_query_v1'));
+  assert(mixed.requiredCapabilities.includes('bounded_children_v1'));
+  assert(allRelational.requiredCapabilities.includes('snapshot_batch_v2'));
+  assert(!allRelational.requiredCapabilities.includes('bounded_children_v1'));
+  assert(manifest.acknowledgedExperimentalCapabilities.includes('snapshot_batch_v2'));
+```
+
+### Sealed parents, visible empty joins
+
+Sealing runs only through bounded-children parents: if any declared parent is
+missing or invisible, the whole mixed tuple is the byte-identical
+`absent` row, disclosing no sealing node, count, or cause. A relational node
+never seals — an authorized join that matches nothing is a **visible empty
+page**, and missing or invisible joined rows keep the node's `inner`/`left`
+semantics. An invocation-level authorization refusal of a relational node
+refuses the whole composite; it is never recoded as parent absence. An
+all-relational tuple has no parent, so its `absent` arm is statically
+unreachable — but the declared result contract keeps the same two-arm
+envelope in every profile, so the envelope shape never leaks the tuple's
+class mix.
+
+### Joined-side work accounting
+
+The composite work ceiling is a static fact of the normalized plan. Each
+bounded-children node examines at most `take + 1` child-range entries plus
+one point read per deduplicated parent. Each relational node examines at most
+`take` root-range entries with no lookahead — a page consuming fewer than
+`take` roots is terminal — plus **exactly one joined-side unique-index lookup
+per consumed root**, including roots an `inner` join later omits, so at most
+`take` joined lookups per relational node per page. Summed node `take` stays
+at most 1,024.
+
+### Budget rule for relational order fields
+
+The `sbsb2` cursor budget is proved before the first storage read, so a v2
+relational node's declared root order fields must come from the closed
+template set: a portable string or a table-scoped id carrying a
+storage-enforced `maxEncodedBytes` declaration, a JavaScript-safe integer, or
+a boolean. Declaring any other order-field type — a float (`v.real()`),
+`principal`, or `assetRef` — refuses composition at establishment with
+`SNAPBACK_SNAPSHOT_BATCH_CURSOR_BUDGET_EXCEEDED`; the node's standalone
+admission is unchanged.
+
+### Not retained, by design
+
+Both profiles classify as `retention:"none"`: cursor-free-first-page
+`live_replace` only, table-granular resnapshot over the union of every node's
+declared dependency set, no `live_delta`, and **no retained composite** — a
+batch never renders offline. If a screen needs offline rendering, retain the
+owner-scoped relational query standalone (that class is retainable) and keep
+the composite for the online view
+([offline retention](../sync/offline-and-retention.md)).
+
 ## Result and continuation
 
 The result is always one row. It is either a sealed absence or the exact
@@ -5292,37 +5402,54 @@ type SnapshotBatchRow<Nodes extends readonly unknown[]> =
   | { kind: "visible"; nodes: Nodes; continuation: string | null };
 ```
 
-If any parent is missing or invisible, the whole result is the same `absent`
-row. No partial tuple or sealing node index is disclosed. Parent visibility is
-checked before the cursor, so a hidden parent with malformed cursor bytes still
-returns the sealed absence.
+If any bounded-children parent is missing or invisible, the whole result is
+the same `absent` row. No partial tuple or sealing node index is disclosed.
+Parent visibility is checked before the cursor, so a hidden parent with
+malformed cursor bytes still returns the sealed absence.
 
 The visible row has no inner node continuations. Its one opaque continuation
-starts with `sbsb1.` and carries every node's terminal or boundary state under
-LLP 0157's exact shared cursor grammar. Pass it back as the `cursor` argument.
+starts with the profile's cursor-family prefix — `sbsb1.` for v1, `sbsb2.`
+for v2 — and carries every node's terminal or boundary state under LLP 0157's
+exact shared cursor grammar. Pass it back as the `cursor` argument.
 A continuation page is a new invocation and therefore a new pinned snapshot;
 the cursor detects parent incarnation/version or stream changes and asks the
-caller to restart rather than pretending the prior snapshot still exists.
+caller to restart (`SNAPBACK_SNAPSHOT_BATCH_RESTART_REQUIRED`) rather than
+pretending the prior snapshot still exists. A relational node has no parent
+point-read on resume: its revalidation is the fail-closed plan, argument,
+authority, epoch, and order-schema check, and its resumed root window keeps
+LLP 0080's no-skip/no-duplicate guarantee for untouched roots. Cross-family
+presentation refuses — `sbsb1` bytes in a v2 composite, `sbsb2` bytes in a
+v1 composite, or any standalone `sbbc1`/relational cursor in either — with
+`SNAPBACK_SNAPSHOT_BATCH_CURSOR_INVALID`; per-node cursor identity does not
+survive composition.
 
 ## Live behavior
 
 Only the cursor-free first page is live. Subscribe normally to receive
-whole-batch `live_replace` frames when any node table changes. A subscribe
-request carrying a cursor refuses before storage access with
+whole-batch `live_replace` frames when any node table changes — in a mixed
+tuple that includes every relational node's root and joined tables. A
+subscribe request carrying a cursor refuses before storage access with
 `SNAPBACK_SNAPSHOT_BATCH_LIVE_CURSOR_UNSUPPORTED`.
 
 ## Closed limits
 
-- Every node is a complete admitted `bounded-children.v1` plan; relational,
-  search, aggregate, imperative, and data-dependent nodes are not v1 nodes.
-- The tuple has 2–8 nodes and the sum of `take` values is at most 1,024.
-- One node still performs at most its bounded parent read and `take + 1` child
-  range. Terminal nodes re-read the parent but do not scan a child range.
-- The `sbsb1` wire cap is 8,192 bytes and its plaintext cap is 6,099 bytes.
-  Establishment computes the declared worst case before parent storage reads;
-  an over-budget plan refuses instead of risking an unmintable page.
-- String order fields need storage-enforced `maxEncodedBytes` declarations so
-  the cursor budget is a proof over stored values, not a hopeful estimate.
+- Every node is a complete admitted plan of its own class:
+  `bounded-children.v1` only in v1; `bounded-children.v1` and/or
+  `relational-query.v1` (at least one relational) in v2. Search, aggregate,
+  imperative, and data-dependent nodes are not admitted in either profile.
+- The tuple has 2–8 nodes and the sum of `take` values is at most 1,024. The
+  tuple is static: no node argument may reference another node's output.
+- One node still performs at most its own bounded work (see
+  [joined-side work accounting](#joined-side-work-accounting)). Terminal
+  bounded-children nodes re-read the parent but do not scan a child range;
+  terminal relational nodes examine zero root entries and perform zero joined
+  lookups.
+- The `sbsb1`/`sbsb2` wire cap is 8,192 bytes and the plaintext cap is 6,099
+  bytes. Establishment computes the declared worst case before parent storage
+  reads; an over-budget plan refuses instead of risking an unmintable page.
+- String and id order fields need storage-enforced `maxEncodedBytes`
+  declarations so the cursor budget is a proof over stored values, not a
+  hopeful estimate.
 - Cross-page snapshot consistency is not claimed. Each invocation has exactly
   one snapshot; the coordinated cursor binds plan, arguments, authority,
   parent versions, and all node boundaries for honest resume behavior.
@@ -5330,6 +5457,20 @@ request carrying a cursor refuses before storage access with
 Codegen emits LLP 0157's normalized node/composite record and `PlanHashV1`.
 The host reconstructs and exact-compares both before execution. Liveness is a
 fact inside that identity record, never inferred from the plan's shape.
+
+## Anti-patterns
+
+- **Hand-assembling a dashboard in a JS handler** by querying and joining
+  several lists imperatively. Declare one snapshot batch instead: the
+  generated composite gives one pinned snapshot, sealing, and a static work
+  ceiling the handler form cannot claim. Fleet Observatory's required route
+  is one v2 tuple with no JS assembly.
+- **Feeding one node's output into another node's arguments.** The tuple is
+  static; data-dependent invocation refuses.
+- **Retaining or replaying a composite offline.** Retention is `"none"` by
+  design; retain the owner-scoped relational query standalone instead.
+- **Subscribing with a cursor.** Only the cursor-free first page is live;
+  paginate with ordinary calls.
 
 ---
 
@@ -15543,12 +15684,14 @@ stored fragments were installed only after server-side completeness-proof
 and lease validation. This is the strongest retained-render path on the
 JS arm and it is receipt-proven end to end by
 [`tests/acceptance/local-store-carrier-exit-v1.mjs`](repo:tests/acceptance/local-store-carrier-exit-v1.mjs)
-(run in the local proof; the retained 2026-08-04 run measured **16 PASS / 1
-GAP / 0 SKIPPED** after consuming Triage's qualified budget freeze; Fleet
-remains the one explicit GAP: its OQ5 direction was ruled 2026-08-05 and the
-`snapshot-batch.v2` profile was registered 2026-08-06 (LLP 0157 v0.11), while
-implementation, the frozen cross-language vectors, and the fresh footprint/
-hydration witness remain absent).
+(run in the local proof; the retained 2026-08-06 refresh measured **17 PASS /
+0 GAP / 0 SKIPPED** — `carrier-exit.2026-08-06.v1.json` — after the
+`snapshot-batch.v2` implementation, the frozen cross-language `sbsb2`
+vectors, and the fresh Fleet Observatory footprint/hydration witness all
+landed 2026-08-06 (LLP 0157 v0.11), closing Move 1 without promoting
+Experimental maturity or adding any hosted or public-package claim; the
+mixed authoring surface itself is taught under
+[snapshot batches](../backend/snapshot-batches.md)).
 
 Evidence scope, stated precisely: local target, Node process, file carrier,
 owner-scoped generated relational queries. It is not a browser-restart
@@ -15569,7 +15712,8 @@ it is not a hosted claim.
   Ordered or limited results remain whole-result `live_replace`; class
   membership is derived from the public, ambient-free single-table plan and
   cannot be asserted by the author.
-- **Snapshot-batch composites** (`snapshot-batch.v1`) — deliberately
+- **Snapshot-batch composites** (`snapshot-batch.v1` and the mixed
+  `snapshot-batch.v2`) — deliberately
   volatile: retention is `none`. Final release pins that class, so the next
   writer maintenance pass removes payload immediately; the compacted
   instance-bookkeeping stub may remain. A `none` registration never acquires
