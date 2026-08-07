@@ -45,6 +45,13 @@ export const PACKAGE_TEST_INVENTORIES = [
     expectedFiles: ['package.test.mjs'],
   },
   {
+    id: 'create-snapback-app',
+    packageDir: 'packages/create-snapback-app',
+    testDir: '.',
+    suffix: '.test.mjs',
+    expectedFiles: ['package.test.mjs'],
+  },
+  {
     id: '@expo/snapback-cli',
     packageDir: 'packages/snapback-cli',
     testDir: '.',
@@ -432,7 +439,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 227,
+  expectedTotal = 228,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -694,6 +701,9 @@ export function checkPackageTestInventories(options = {}) {
 // 226 -> 227 (2026-08-06, LLP 0110/0166 public-package amendment):
 // @expo/snapback-cli gains the packaged-store qualification receipt
 // plumbing suite.
+// 227 -> 228 (2026-08-07, LLP 0186 W2): the new `create-snapback-app`
+// wrapper package gains its scaffold-delegation suite (identical output to
+// `snapback new`, registry-derived help, CLI-owned refusal codes).
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');

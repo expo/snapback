@@ -12,6 +12,7 @@ Error handling, Code generation, Packaging, Client integration, Testing
 **Revised:** 2026-08-07 (h — implementation record: see the dated amendment. All five (g) journeys shipped; `/llms.txt` found already landed by unrelated fleet work with a phasing defect, now corrected.)
 **Revised:** 2026-08-07 (i — implementation record: the W2 published authoring skill shipped as `skills/snapback-authoring/SKILL.md`, with its embedded Rosetta projection checked against the canonical records by `scripts/check-rosetta.mjs`; see the dated amendment. Its paired-lane success test remains gated on the W1 instrument.)
 **Revised:** 2026-08-07 (j — W2 golden-path scaffold shipped v1 as the `expo-chat` template in `snapback new`; see the dated amendment paragraph.)
+**Revised:** 2026-08-07 (k — the `create-snapback-app` ecosystem entry point named by W2 now exists in-repo as a thin wrapper package delegating to the `snapback new` scaffold mechanism; npm publication rides the next promotion. See the dated amendment paragraph.)
 **Related:** LLP 0061 (agent-first guide), LLP 0130 (Convex parity standing
 decisions), LLP 0146 (agentic authoring affordances), LLP 0176 (Expo
 messaging golden-path program), LLP 0178 (generate-time authoring
@@ -763,3 +764,20 @@ verified against a real runtime at landing time. The out-of-repo packaged proof
 follow-on (`issues/20260807-expo-chat-template-cold-install-coverage.md`). With the authoring
 skill shipped the same day (revision (i) above), every W2 lane now has a landed artifact; the
 skill's paired-lane success test remains gated on the W1 instrument.
+
+**Ecosystem scaffold entry point: in-repo (2026-08-07).** The `create-snapback-app` package this
+Plan names (`packages/create-snapback-app/`) now exists, so the ecosystem-standard invocations —
+`npm create snapback-app my-chat`, `npx create-snapback-app my-chat`, and the bun/pnpm
+equivalents — resolve to the same scaffold once published. It is deliberately a thin wrapper,
+not a second scaffolder: one file parses `<target-dir>`/`--template` (default `expo-chat`),
+calls `scaffoldApp` from `@expo/snapback-cli` programmatically, derives `--help`'s template list
+from the CLI's packaged template directory via the new `listTemplates()` export, and prints the
+template's next steps (`cd` / `bun install` / `bun run dev`). Its package suite asserts
+file-list-identical output against `snapback new` for `expo-chat` and `react`, the CLI-owned
+`SNAPBACK_NEW_TEMPLATE_UNKNOWN`/`SNAPBACK_NEW_NAME_REQUIRED` refusals, and registry-derived
+help; it is registered in the canonical package-test inventory, the local-proof rung set, and
+the README funnel. **Not yet published:** the package is outside the qualified ten-package
+closure (`scripts/snapback-publish-core.mjs` `PACKAGE_INVENTORY`); adding it there requires the
+promotion lane's receipts, so publication is ticketed for the next promotion sweep
+(`issues/20260807-create-snapback-app-publication.md`, alongside the expo-chat cold-install
+ticket above).

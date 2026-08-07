@@ -1,6 +1,7 @@
 # Expo supervisor rejects current adb reverse transport labels
 
-**Status:** Open — source repair in worktree, awaiting landing and release
+**Status:** Open — source repair landed on main (`a951074e4`, 2026-08-07); only a
+successor published release (a closure newer than 0.1.11) remains
 **Impact:** 5
 **Urgency:** 5
 **Ease:** 4
@@ -43,3 +44,10 @@ does not turn G4 into a pass.
   labels while still refusing a missing/mismatched rule.
 - A successor public CLI reaches Android readiness on the mini without a
   wrapper and reclaims all three rules.
+
+## 2026-08-07 landing note
+
+The transport-label-tolerant verify repair described above landed on main in
+`a951074e4` (the 0.1.11 G4 rerun landing). No published registry byte has
+changed; this ticket closes when the next promoted closure ships the repair
+and the G4 rerun reclaims the acceptance.

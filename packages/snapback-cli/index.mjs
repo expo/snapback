@@ -1448,6 +1448,35 @@ export async function buildRelease(options = {}) {
   };
 }
 
+// @ref LLP 0186#w2--context-injection-surface-owned-here — the packaged
+// template directory is the single scaffold registry; wrappers such as
+// `create-snapback-app` enumerate it instead of carrying their own copy.
+export function listTemplates() {
+  return readdirSync(join(packageRoot, 'templates'), { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name)
+    .sort();
+}
+
+const scaffoldAuthoringSkillFiles = [
+  '.claude/skills/snapback-authoring/SKILL.md',
+  '.agents/skills/snapback-authoring/SKILL.md',
+  '.cursor/skills/snapback-authoring/SKILL.md',
+  '.opencode/skills/snapback-authoring/SKILL.md',
+];
+
+export function renderScaffoldAuthoringSkill(canonicalContent) {
+  const note = [
+    '> In this scaffolded app the Guide is served, not checked out: with the dev server',
+    '> running, open `/_snapback/guide/<path>` on the server origin printed at startup',
+    '> (default `http://127.0.0.1:4287`), or run `snapback guide <query>`;',
+    '> `guide/index.md` is served at `/_snapback/guide/index.md`.',
+  ].join('\n');
+  return canonicalContent
+    .replaceAll('](../../guide/', '](/_snapback/guide/')
+    .replace('# snapback-authoring\n', `# snapback-authoring\n\n${note}\n`);
+}
+
 export function scaffoldApp(target, options = {}) {
   const template = options.template ?? 'todo-contract';
   const destination = resolve(target);
@@ -1476,7 +1505,26 @@ export function scaffoldApp(target, options = {}) {
     }
   }
   writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
-  return { schemaVersion: 'snapback.scaffold.v1', ok: true, template, target: destination };
+  // @ref LLP 0186#w2--context-injection-surface-owned-here — the packaged
+  // copy is drift-checked against the canonical skill; guide links target the
+  // served corpus because a scaffold has no Snapback repository checkout.
+  const canonicalSkill = readFileSync(
+    join(packageRoot, 'skills', 'snapback-authoring', 'SKILL.md'),
+    'utf8',
+  );
+  const renderedSkill = renderScaffoldAuthoringSkill(canonicalSkill);
+  for (const skillFile of scaffoldAuthoringSkillFiles) {
+    const skillPath = join(destination, skillFile);
+    mkdirSync(dirname(skillPath), { recursive: true });
+    writeFileSync(skillPath, renderedSkill);
+  }
+  return {
+    schemaVersion: 'snapback.scaffold.v1',
+    ok: true,
+    template,
+    target: destination,
+    skillFiles: [...scaffoldAuthoringSkillFiles],
+  };
 }
 
 export async function generateApp(backendDirectory, options = {}) {

@@ -530,6 +530,7 @@ run live-delta-e2e --requires current-binary-readiness -- node demos/_kit/tests/
 run snapback-client-package --requires package-test-inventory -- bun run --cwd packages/snapback-client test
 run snapback-react-package --requires package-test-inventory -- bun run --cwd packages/snapback-react test
 run snapback-app-cli-package --requires package-test-inventory -- bun run --cwd packages/snapback-app-cli test
+run create-snapback-app-package --requires package-test-inventory -- bun run --cwd packages/create-snapback-app test
 run snapback-contract-package --requires package-test-inventory -- bun run --cwd packages/snapback-contract test
 run snapback-codegen-package --requires package-test-inventory -- bun run --cwd packages/snapback-codegen test
 # LLP 0093 P-2: the clean-room Swift client's fixture-conformance tests run

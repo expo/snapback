@@ -11,6 +11,7 @@ import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const packageNames = [
+  'create-snapback-app',
   'snapback-codegen',
   'snapback-contract',
   'snapback-app-cli',

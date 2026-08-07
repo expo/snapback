@@ -1,6 +1,7 @@
 # Published Expo config plugin package root is not resolvable by EAS CLI
 
-**Status:** Open — source repair in worktree, awaiting landing and release
+**Status:** Open — source repair landed on main (`a951074e4`, 2026-08-07); only a
+successor published release (a closure newer than 0.1.11) remains
 **Impact:** 4
 **Urgency:** 4
 **Ease:** 5
@@ -38,3 +39,10 @@ to the same config plugin.
 - Package ESM imports still expose the runtime facade.
 - A successor npm tarball contains the conditional root export and the G4 EAS
   stage/build rerun needs no subpath workaround.
+
+## 2026-08-07 landing note
+
+The root `require` conditional export repair described above landed on main in
+`a951074e4` (the 0.1.11 G4 rerun landing). No published registry byte has
+changed; this ticket closes when the next promoted closure ships the repair
+and the G4 rerun reclaims the acceptance.

@@ -25,6 +25,7 @@ import {
   listBackups,
   packagedRuntimeReadiness,
   queryControlLogs,
+  renderScaffoldAuthoringSkill,
   scaffoldApp,
   sealHostedAdmissionEnvelope,
   showTarget,
@@ -41,6 +42,48 @@ import { __deploymentTest } from './deployment-control.mjs';
 
 const root = realpathSync.native(mkdtempSync(join(tmpdir(), 'snapback-cli-package-')));
 try {
+  const packagedSkillContent = readFileSync(
+    new URL('./skills/snapback-authoring/SKILL.md', import.meta.url),
+    'utf8',
+  );
+  const canonicalSkillContent = readFileSync(
+    new URL('../../skills/snapback-authoring/SKILL.md', import.meta.url),
+    'utf8',
+  );
+  assert.equal(
+    packagedSkillContent,
+    canonicalSkillContent,
+    'refresh the packaged snapback-authoring skill by copying the canonical file over it',
+  );
+  const cliPackageManifest = JSON.parse(readFileSync(
+    new URL('./package.json', import.meta.url),
+    'utf8',
+  ));
+  assert.ok(cliPackageManifest.files.includes('skills'), 'the published CLI package must include skills');
+
+  const expectedSkillFiles = [
+    '.claude/skills/snapback-authoring/SKILL.md',
+    '.agents/skills/snapback-authoring/SKILL.md',
+    '.cursor/skills/snapback-authoring/SKILL.md',
+    '.opencode/skills/snapback-authoring/SKILL.md',
+  ];
+  const assertScaffoldedAuthoringSkill = (projectRoot, scaffoldResult) => {
+    assert.deepEqual(scaffoldResult.skillFiles, expectedSkillFiles);
+    const expectedContent = renderScaffoldAuthoringSkill(packagedSkillContent);
+    const emittedContents = expectedSkillFiles.map((skillFile) => {
+      const skillPath = join(projectRoot, skillFile);
+      assert.equal(existsSync(skillPath), true, `scaffold must emit ${skillFile}`);
+      return readFileSync(skillPath, 'utf8');
+    });
+    for (const emittedContent of emittedContents) {
+      assert.equal(emittedContent, emittedContents[0], 'all emitted authoring skill copies must match');
+      assert.equal(emittedContent, expectedContent, 'emitted authoring skill must match the deterministic transform');
+      assert.doesNotMatch(emittedContent, /\.\.\/\.\.\/guide\//u);
+      assert.match(emittedContent, /\/_snapback\/guide\/capabilities\.md/u);
+      assert.match(emittedContent, /snapback guide/u);
+    }
+  };
+
   const deploymentControlSource = readFileSync(
     new URL('./deployment-control.mjs', import.meta.url),
     'utf8',
@@ -148,6 +191,7 @@ console.log(JSON.stringify({
   const project = join(root, 'todo-contract');
   const scaffold = scaffoldApp(project);
   assert.equal(scaffold.ok, true);
+  assertScaffoldedAuthoringSkill(project, scaffold);
   const manifest = JSON.parse(readFileSync(join(project, 'package.json'), 'utf8'));
   assert.match(manifest.dependencies['@expo/snapback-cli'], /^\^\d+\.\d+\.\d+/);
   assert.equal(manifest.scripts.test, 'node acceptance.mjs');
@@ -167,6 +211,7 @@ console.log(JSON.stringify({
   assert.match(todoAgentInstructions, /capability index first/u);
   assert.match(todoAgentInstructions, /snapback guide <query>/u);
   assert.match(todoAgentInstructions, /snapback mcp/u);
+  assert.match(todoAgentInstructions, /snapback-authoring/u);
   const generated = await generateApp(join(project, 'snapback'));
   assert.equal(generated.ok, true, JSON.stringify(generated.diagnostics));
   const todoStatic = spawnSync(process.execPath, ['acceptance.static.mjs'], {
@@ -191,6 +236,7 @@ console.log(JSON.stringify({
   assert.match(reactAgentInstructions, /capability index first/u);
   assert.match(reactAgentInstructions, /snapback guide <query>/u);
   assert.match(reactAgentInstructions, /snapback mcp/u);
+  assert.match(reactAgentInstructions, /snapback-authoring/u);
   const generatedReact = await generateApp(join(reactProject, 'snapback'));
   assert.equal(generatedReact.ok, true, JSON.stringify(generatedReact.diagnostics));
   assert.equal(
@@ -215,6 +261,7 @@ console.log(JSON.stringify({
   const chatProject = join(root, 'expo-chat');
   const chatScaffold = scaffoldApp(chatProject, { template: 'expo-chat' });
   assert.equal(chatScaffold.ok, true);
+  assertScaffoldedAuthoringSkill(chatProject, chatScaffold);
   const chatManifest = JSON.parse(readFileSync(join(chatProject, 'package.json'), 'utf8'));
   assert.match(chatManifest.dependencies['@expo/snapback-expo'], /^\^\d+\.\d+\.\d+/);
   assert.match(chatManifest.dependencies['@expo/snapback-cli'], /^\^\d+\.\d+\.\d+/);
@@ -225,6 +272,7 @@ console.log(JSON.stringify({
   assert.match(chatAgentInstructions, /capability index first/u);
   assert.match(chatAgentInstructions, /snapback guide <query>/u);
   assert.match(chatAgentInstructions, /snapback mcp/u);
+  assert.match(chatAgentInstructions, /snapback-authoring/u);
   const generatedChat = await generateApp(join(chatProject, 'snapback'));
   assert.equal(generatedChat.ok, true, JSON.stringify(generatedChat.diagnostics));
   assert.equal(
