@@ -6,7 +6,7 @@
 experience, Developer experience, CLI, MCP, Documentation, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-05
-**Revised:** 2026-08-05 (Phase 0 items 2/6 closed by author ruling: LLP
+**Revised:** 2026-08-06 (execution reconciliation — body dated to the landed implementation: Phase 1 automatic expiry and `fork recover`, Phase 3 renewal and resource limits, Phase 4's completeness upgrade, and Phase 5's live asset lifecycle are marked implemented; stale guide-absent/recovery-unwired/asset-refusal claims corrected. Phase 6 outcome recorded: qualification commit 0ee1fadc1, dual-family READY over three review rounds, dual-platform row-13 receipts and executable suites, a digest-bound nine-item witness chain — but NOT published. `operating.instance-forks` stays target `none` and the manifest tuple stays `Missing` on three author-gated items: 0163/0164/0165 acceptance, the author-acceptance artifact, and the claimed platform set. Released-binary/npm parity remains open Phase 6 work, not re-scoped. Phases 7 and 8 remain deferred.); 2026-08-05 (Phase 0 items 2/6 closed by author ruling: LLP
 0158's local design is Accepted after its independent review; the Phase 6
 publication mechanism is the LLP 0061 guide capability-index claim, so
 Phase 6 item 1's gate set binds to the capability-index row rather than an
@@ -549,6 +549,62 @@ Publication is a separate decision from implementation.
 normal installation, rather than a source checkout, can follow the guide and
 pass the same acceptance workflow; capability metadata points to a dated,
 digest-bound publication witness.
+
+#### Phase 6 outcome — 2026-08-06 (not published; author-gated)
+
+Qualification commit `0ee1fadc136e837f430556374a5842ac82069004`.
+`operating.instance-forks` **remains target `none`** and the
+`agent_safe_derived_deployment_fork_v1` manifest tuple remains wholly
+`Missing`. The publication anchor is `withheld`.
+
+Satisfied by this pass:
+
+- **Item 0, partly.** LLP 0158 is Accepted (2026-08-06). LLP 0024/0030
+  fork-field stability was re-verified against the Phase 0 freeze. LLP 0162
+  row 13 is measurement-complete for the narrow claim: the author's
+  2026-08-05 scoping and 2026-08-06 bound ratification are transcribed into
+  LLP 0162 itself (v0.40, its named revision authority), and dated receipts
+  for both supported release platforms bind the qualification commit with
+  every ratified median bound passing. **Not satisfied:** LLPs 0163/0164/
+  0165 remain `Draft`; three rounds of mutually blind dual-family review
+  ended in `READY` from both families for all three Specs, but the status
+  change is the documents' author's decision, not this Plan's.
+- **Item 1.** The gate set binds the LLP 0061 capability-index row per the
+  Phase 0 item 6 ruling. Its digest-bound witness chain is implemented as a
+  closed nine-item fork-specific evidence vocabulary in
+  `scripts/check-agent-safe-publication.mjs` with a published-state semantic
+  validator (and a `deny_unknown_fields` Rust mirror) that re-derives bench
+  bounds, commit ancestry, review provenance and distinct families, and the
+  exact component/fact tuples. Storage evidence cannot substitute for it.
+- **Item 3, for the two measured platforms only.** macOS aarch64 and Linux
+  x86_64 run the executable fork suites green at the qualification commit
+  (48 `instance_fork::`, 37 `fork_promotion::`, 15 live-server CLI, and the
+  Hermes VM egress test on each). No third platform is claimed.
+- **Item 4.** The independent implementation/security review ran to
+  dual-family convergence over three rounds
+  (`llp/reviews/0158-instance-forking.implementation-2026-08-06.{codex,fable}.md`,
+  `…/0163-0165-derived-fork-implementation-2026-08-06.{codex,fable}.md`).
+  Eight material defects were found and fixed, including a reviewer-
+  reproduced exploit that re-earned the completeness class across a
+  coverage disarm/rearm gap, an armed-fork `fork renew` wedge, and an
+  intermittent (1-in-8) concurrent-create hang traced to inherited
+  capture-pipe descriptors surviving into the detached server. Round 3
+  found no new material findings.
+
+Open at this Plan's Phase 6 exit, all author-gated:
+
+1. Acceptance of LLPs 0163/0164/0165.
+2. The author-acceptance evidence artifact (the ninth witness slot; its
+   digest is the only one still zeroed).
+3. Confirmation that macOS aarch64 + Linux x86_64 is the complete claimed
+   platform set.
+
+Item 2 (released-binary/npm parity) and the exit's "normal installation
+rather than a source checkout" clause are **not** met: the guide still
+teaches a source-checkout workflow. They are not re-scoped — they remain
+Phase 6 work for whoever resumes after the author gate.
+The ordered remaining procedure is recorded in
+[`issues/20260806-derived-fork-publication-author-gate.md`](../issues/20260806-derived-fork-publication-author-gate.md).
 
 ### Phase 7 — Expose bounded agent-control operations
 
