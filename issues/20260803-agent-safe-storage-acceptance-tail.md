@@ -640,3 +640,29 @@ SQLite write authority, and crash recovery be executed rather than read:
 | row-13 release bench | pass | pass |
 
 No platform beyond these two is claimed or measured.
+
+### Wave-drift complete-proof recurrence — 2026-08-06
+
+The exact complete KEEP-GOING proof at clean, coded-bootstrap-qualified
+revision `f4438b8da0eba7203b97eaaf70fff779427a89b1` retained one root failure:
+`rust-tests` failed in
+`instance_fork_cli_v1::concurrent_fork_creates_bind_distinct_ports_and_drop_cleanly`.
+One of the three simultaneous `fork create` calls observed
+`.snapback/instance-fork-app-identity.v1.json` as an empty file and refused:
+
+```text
+SNAPBACK_FORK_APP_BINDING_REQUIRED: invoking app-root identity is malformed:
+EOF while parsing a value at line 1 column 0
+```
+
+The test was introduced by F0a landing `9b0acaf3a`; the latest concurrency
+repair `0ee1fadc1` is present in the failing candidate. The result is an
+app-root identity publication/read race in actively owned fork correctness,
+not carrier drift or machine load. The wave-drift pass makes no implementation
+change at this seam. Full retained proof:
+`/tmp/snapback-complete-proof-green.yrVv9v/local-proof.log` — 131 PASS,
+1 FAIL, 1 dependent BLOCKED (`auth-invalidation-report`), and one CI-only
+not-selected gate. Every independent gate completed.
+
+Owner close condition: make concurrent app-root identity publication atomic
+and rerun the exact 15-test live-server suite plus the complete local proof.
