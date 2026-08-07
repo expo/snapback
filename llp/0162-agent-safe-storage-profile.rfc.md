@@ -5,6 +5,7 @@
 **Systems:** Storage, Runtime, Sync, Auth, Effects, Migrations, Agent experience, Diagnostics, Testing, Performance
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-03
+**Revised:** 2026-08-07 (v0.49 — R9-2 publication-history hardening: the twelve pre-change rounds remain honestly identified as current-artifact-only legacy entries without fabricated historical digests; every later round carries a strictly increasing frozen artifact-prefix byte length and SHA-256, so later prose appends preserve old attestations while any rewrite inside a frozen prefix refuses. The current-complete-artifact digest and all existing custody rules remain in force.)
 **Revised:** 2026-08-07 (v0.48 — the derived-fork publication attempt staged at `75b0ec0b4` for qualification commit `fac516e9a` surfaced a second implementation-digest self-cycle: the Rust structural test asserted that the live derived anchor was `withheld`, its carrier digest was null, and its receipt schema was v1, so an otherwise valid publication necessarily failed the digest-covered test and repairing the test necessarily moved C. The mirror now inspects the live chain without selecting a lifecycle state, exercises legacy-withheld and current-v2-published branches from synthetic fixtures, parses the anchor/carrier/receipt through closed `deny_unknown_fields` structs, and checks lifecycle-appropriate digest/schema bindings. The exact positive fork-axis serde spellings now match the lower-camel publication tuple. Independently, the test pins the LLP 0113 target-manifest tuple wholly `Missing`, retains the capability GAP, and proves the compiled derived-publication predicate false for contributor-source and public-package distributions even when a synthetic published chain qualifies structurally. Both checked-in anchors remain withheld; this implementation change requires a new qualification C and regenerated publication bindings.)
 **Revised:** 2026-08-07 (v0.47 — author-directed convergence repair. The governing self-certification invariant is now explicit: an artifact may not be inside the implementation digest that certifies it, and the validator's own fixtures may not depend on live mutable records. `tests` remains covered, while both platform lifecycle receipts and the bounds-ratification record join the closed publication-cycle allowlist and remain canonical-byte- and receipt-digest-bound. The bench emitter now writes the checker's canonical JSON form. The checker attack corpus constructs synthetic review/evidence chains instead of pinning the live round list or commit. The Fable round-6 final paragraph is restored from the transcript's last write; the preserved round-7 and round-8 artifacts are reconciled without changing any verdict into four contiguous v2 histories through round 8. Rounds 4, 7, and 8 were each lost when orchestration reset review worktrees before commit and were recovered from surviving transcripts or `/tmp/review-preserve` copies. Both families record Scope 1 `READY` and Scope 2 `NOT_READY` in rounds 7 and 8. Both anchors remain withheld pending a fresh round from each family against the new qualification C, rebound platform evidence, and new named-author acceptance of the exact heads and implementation digest.)
 **Revised:** 2026-08-06 (v0.46 — round-7 Fable found canonical JSON enforcement applied only to verdict sidecars, leaving every other publication-chain object exposed to duplicate-member last-wins parsing; the derived named-author acceptance could therefore visibly deny acceptance or visibly retain a six-round history while the oracle parsed approval or a fabricated round-1 restart. One closed parser boundary now enforces the invariant that no publication-chain JSON is ever read non-canonically across anchors, carriers, receipts, author acceptances, evidence fixtures, benchmark receipts, and verdict sidecars, with A4/A5 and per-artifact duplicate-member negatives. The transcript-recoverable Codex and Fable round-6 prose is restored verbatim to all four artifacts; all four sidecars are consistently chained v2 histories with rounds 1–6 and the recorded Scope-1 READY / Scope-2 NOT_READY values at `bdc682964`. `reviewArtifactSha256` is stated plainly as a current-state binding with no append-only strength of its own; the author-accepted `(roundCount, headEntrySha256)` is the sole review-history root of trust. Both anchors remain withheld pending fresh round-7 verdicts against the new qualification commit and new named-author acceptance of their exact heads.)
@@ -2452,7 +2453,10 @@ evidence and remains digest-bound in the receipt, but **nothing in its body is
 authoritative or parsed for a verdict**. Its sidecar has exact top-level keys
 `schemaVersion` and `verdicts`; every verdict entry has exactly
 `reviewArtifact`, `reviewArtifactSha256`, `family`, `round`,
-`reviewedCommit`, `previousEntrySha256`, and `verdict`. The typed verdict is either the closed
+`reviewedCommit`, `previousEntrySha256`, and `verdict`. Entries recorded after
+the 2026-08-07 R9-2 hardening additionally require
+`proseHistoryBinding: "frozen-per-round"`,
+`reviewArtifactByteLengthAtRound`, and `reviewArtifactSha256AtRound`. The typed verdict is either the closed
 Scope-1 map for LLPs 0163/0164/0165 or the closed Scope-2 publication status,
 and its only values are `READY` and `NOT_READY`.
 
@@ -2464,18 +2468,25 @@ or predecessor-mismatched round refuses; the highest numbered entry is
 therefore unambiguously authoritative. Every entry binds the same fixed prose
 path and the exact SHA-256 of the **current complete prose artifact**, retains
 one recognized family throughout the history, and names a 40-hex reviewed
-commit whose history is ancestry-monotonic.
-`reviewArtifactSha256` is deliberately a current-state tamper binding, not a
-claim about the artifact bytes as they existed when that historical round was
-recorded. Consequently appending or restoring prose requires rewriting that
-field in all earlier entries, recomputing their predecessor chain, and rotating
-the enclosing receipt chain; the JSON history is logically ordered but not
-physically append-only. It has **no append-only property of its own**: anyone
-able to rewrite all entries can recompute this field and the predecessor chain.
-All review-history strength therefore rests on the named-author accepted
-`(roundCount, headEntrySha256)` pair; that acceptance is the sole root of trust
-against deletion, restart, or replacement of an otherwise internally valid
-history. The authoritative entry must name the exact
+commit whose history is ancestry-monotonic. The twelve rounds that predate
+R9-2 are admitted without a frozen prefix only when their stable path, family,
+round, reviewed commit, and typed verdict exactly match the closed legacy
+inventory; they cannot retroactively claim bytes that were not retained. Every
+later round binds the artifact's exact byte length and SHA-256 as of that
+round. Frozen lengths are strictly increasing, every digest must match the
+current artifact prefix of that length, and the authoritative frozen round
+must cover the complete current artifact. Appending prose therefore preserves
+every older frozen digest, while rewriting any byte in a frozen prefix refuses
+even if an actor recomputes the current-artifact digest, verdict predecessor
+chain, receipt, carrier, and anchor.
+
+`reviewArtifactSha256` remains the current-state binding for every round, so
+appending prose still requires rewriting that field in all earlier entries,
+recomputing their predecessor chain, and rotating the enclosing receipt chain.
+The named-author accepted `(roundCount, headEntrySha256)` pair remains the root
+of trust against deletion, restart, or replacement of an otherwise internally
+valid history; frozen prefixes add byte-history integrity without weakening
+that custody. The authoritative entry must name the exact
 qualification commit C. The two fixed review pairs must contain distinct Codex
 and Fable families, and the family must match the fixed prose artifact.
 

@@ -58,6 +58,32 @@ const LEGACY_IMPLEMENTATION_DIGEST_VERSION =
   'snapback:agent-safe-implementation-tree:v1';
 const REVIEW_HISTORY_SCHEMA_VERSION = 'snapback.review-verdicts.v2';
 
+// Rounds 1-12 predate frozen prose-prefix bindings. Their stable review
+// identity is enumerated here so an unbound round cannot be introduced after
+// the cutoff by merely omitting the new fields. The current-artifact digest
+// remains mandatory for these legacy entries; only the historical prefix
+// digest is unavailable.
+const LEGACY_REVIEW_COMMITS = [
+  '7c2a27e0e90cf1d19b57825a187cb3be041ab92f',
+  '96fd0ad1c38109aa524e4cbc39439c8982e18766',
+  'cdc0fe03e8d75c4a1d1d25f79fe820f20b772ef7',
+  '0b8b0ff71bfc3eaa968b53a694a61f8a472ee295',
+  'b08e835f112517cf1629a842f5bcae12841ddcf0',
+  'bdc68296499298f634d9aa461e90fb8d1a7d4ab0',
+  '2a5a6291a137ca3df41cfc826017e4de324b65a5',
+  '0e778b9a85f26c45df8af0068979e355893baaa3',
+  '42f699749699f416b0015781a6bb729414db4464',
+  'fac516e9aaa83fda398ca684285f45a57192e826',
+  'a127e9b474dd5bedb31c73afa57022f4d8b82aed',
+  'ad0ad58748981010204b61eb5002e35b887a5093',
+];
+const LEGACY_REVIEW_VERDICT_CODES = new Map([
+  [DERIVED_FORK_EVIDENCE[5][1], ['NNN', 'RRN', 'RRR', 'RRR', 'RRR', 'RRR', 'RRR', 'RRR', 'RRR', 'RRR', 'RNR', 'RRR']],
+  [DERIVED_FORK_EVIDENCE[7][1], ['RNR', 'RRR', 'RRR', 'RRR', 'RRR', 'RRR', 'RRR', 'RRR', 'RRR', 'RRR', 'RRR', 'RRR']],
+  [DERIVED_FORK_EVIDENCE[9][1], ['N', 'N', 'R', 'N', 'N', 'N', 'N', 'N', 'R', 'R', 'N', 'R']],
+  [DERIVED_FORK_EVIDENCE[11][1], ['R', 'N', 'R', 'N', 'N', 'N', 'N', 'N', 'R', 'R', 'N', 'R']],
+]);
+
 export const PUBLICATION_CYCLE_ALLOWLIST = new Set([
   'src/local-agent-safe-storage-publication.anchor.json',
   'src/local-agent-safe-storage-publication.carrier.json',
@@ -1398,6 +1424,27 @@ function validateDerivedForkBoundsRatification(root, commit) {
 // @ref LLP 0162#source-owned-publication-carrier-amendment--2026-08-04 — review authority is a closed,
 // digest-bound JSON history. The adjacent Markdown remains required evidence,
 // but no heading, table, quotation, or verdict-shaped prose is authoritative.
+function legacyReviewEntryCode(entry) {
+  if (entry.verdict?.kind === 'forkSpecConformance') {
+    return ['llp0163', 'llp0164', 'llp0165']
+      .map((key) => entry.verdict[key]?.slice(0, 1))
+      .join('');
+  }
+  if (entry.verdict?.kind === 'derivedForkPublication') {
+    return entry.verdict.status?.slice(0, 1);
+  }
+  return undefined;
+}
+
+function isKnownLegacyReviewEntry(verdictPath, entry) {
+  const expectedCodes = LEGACY_REVIEW_VERDICT_CODES.get(verdictPath);
+  const index = entry.round - 1;
+  return entry.proseHistoryBinding === undefined
+    && expectedCodes !== undefined
+    && entry.reviewedCommit === LEGACY_REVIEW_COMMITS[index]
+    && legacyReviewEntryCode(entry) === expectedCodes[index];
+}
+
 export function validateDerivedForkReview(root, {
   reviewIndex,
   verdictIndex,
@@ -1428,16 +1475,34 @@ export function validateDerivedForkReview(root, {
   let previousCommit;
   let previousEntrySha256 = null;
   let declaredFamily;
+  let previousFrozenByteLength = 0;
   for (const [index, entry] of value.verdicts.entries()) {
-    exactKeys(entry, [
+    const legacyCurrentArtifact = isKnownLegacyReviewEntry(verdictPath, entry);
+    const entryKeys = [
       'reviewArtifact', 'reviewArtifactSha256', 'family', 'round', 'reviewedCommit',
       'previousEntrySha256', 'verdict',
-    ], `${verdictPath} round ${index + 1}`);
-    // This is deliberately a current-state binding, not a claim about the
-    // prose bytes as they existed when a historical verdict was recorded.
+    ];
+    if (!legacyCurrentArtifact) entryKeys.push(
+      'proseHistoryBinding',
+      'reviewArtifactByteLengthAtRound',
+      'reviewArtifactSha256AtRound',
+    );
+    exactKeys(entry, entryKeys, `${verdictPath} round ${index + 1}`);
     requireEvidence(entry.reviewArtifact === reviewPath
       && entry.reviewArtifactSha256 === currentReviewSha256,
     `${verdictPath} round ${index + 1} does not bind its exact prose artifact`);
+    if (!legacyCurrentArtifact) {
+      requireEvidence(entry.proseHistoryBinding === 'frozen-per-round',
+        `${verdictPath} round ${index + 1} must use frozen-per-round prose history binding`);
+      requireEvidence(Number.isSafeInteger(entry.reviewArtifactByteLengthAtRound)
+        && entry.reviewArtifactByteLengthAtRound > previousFrozenByteLength
+        && entry.reviewArtifactByteLengthAtRound <= reviewBytes.length,
+      `${verdictPath} round ${index + 1} frozen prose byte length is invalid or non-monotonic`);
+      const frozenBytes = reviewBytes.subarray(0, entry.reviewArtifactByteLengthAtRound);
+      requireEvidence(entry.reviewArtifactSha256AtRound === sha256(frozenBytes),
+        `${verdictPath} round ${index + 1} frozen prose history digest no longer matches`);
+      previousFrozenByteLength = entry.reviewArtifactByteLengthAtRound;
+    }
     requireEvidence(entry.family === 'codex' || entry.family === 'fable',
       `${verdictPath} round ${index + 1} reviewer family is unrecognized`);
     declaredFamily ??= entry.family;
@@ -1482,6 +1547,10 @@ export function validateDerivedForkReview(root, {
   }
 
   const authoritative = value.verdicts.at(-1);
+  if (authoritative.proseHistoryBinding === 'frozen-per-round') {
+    requireEvidence(authoritative.reviewArtifactByteLengthAtRound === reviewBytes.length,
+      `${verdictPath} authoritative frozen prose binding does not cover the complete artifact`);
+  }
   const ready = expectedKind === 'forkSpecConformance'
     ? ['llp0163', 'llp0164', 'llp0165'].every((key) => (
       authoritative.verdict[key] === 'READY'

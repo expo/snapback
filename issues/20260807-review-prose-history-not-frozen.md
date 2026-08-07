@@ -41,3 +41,15 @@ than spending a cycle on it alone.
 
 Also worth folding in at that time: the `build.rs` allowlist mirror test is
 one-directional (it fails closed, so this is a robustness nit, not a hole).
+
+## Implementation note — 2026-08-07
+
+Implemented on branch `codex/pub-chain-hardening-20260807`; lands with the
+fresh derived-fork requalification cycle. New verdict rounds bind a frozen
+artifact-prefix byte length and SHA-256, while the exact twelve pre-change
+rounds remain honestly recognized as current-artifact-only legacy history.
+The negative corpus rebinds the outer chain after replacing earlier prose with
+“All rounds were READY” and now fails on the named frozen-history digest. The
+`build.rs` publication-cycle allowlist mirror assertion is also bidirectional;
+its prior one-way form already failed closed, so this is robustness hardening,
+not closure of a publication hole.

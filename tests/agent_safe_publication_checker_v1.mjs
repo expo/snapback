@@ -414,7 +414,7 @@ function duplicateTopLevelMember(canonicalBytes, key, visibleValue) {
 // records. Every review, verdict, bench, and acceptance byte used below is
 // synthesized in the scratch repository; appending a real review round never
 // requires editing this implementation-digest-covered self-test.
-function derivedReviewBytes(kind, family) {
+function derivedReviewBytes(kind, family, roundCount) {
   return Buffer.from([
     `# ${kind}`,
     `**Family:** ${family}`,
@@ -422,9 +422,12 @@ function derivedReviewBytes(kind, family) {
     '**Date:** 2026-08-06',
     '**Redacted:** no',
     '**Method:** generated-fixture',
-    '',
-    'The prose is opaque, digest-bound evidence. Structured synthetic sidecars carry authority.',
-    '',
+    ...Array.from({ length: roundCount }, (_, index) => [
+      `## Round ${index + 1}`,
+      '',
+      `Synthetic prose for round ${index + 1}; the structured sidecar carries authority.`,
+      '',
+    ]).flat(),
   ].join('\n'));
 }
 
@@ -443,9 +446,15 @@ function derivedVerdictContract(
     schemaVersion: 'snapback.review-verdicts.v2',
     verdicts: Array.from({ length: roundCount }, (_, index) => index + 1).map((round) => {
       const authoritative = round === roundCount;
+      const reviewBytesAtRound = authoritative
+        ? reviewBytes
+        : derivedReviewBytes(kind, family, round);
       const entry = {
         reviewArtifact: reviewPath,
         reviewArtifactSha256: digest(reviewBytes),
+        proseHistoryBinding: 'frozen-per-round',
+        reviewArtifactByteLengthAtRound: reviewBytesAtRound.length,
+        reviewArtifactSha256AtRound: digest(reviewBytesAtRound),
         family,
         round,
         reviewedCommit: commit,
@@ -639,8 +648,8 @@ function publishedDerivedFixture({
         writeFileSync(join(scratch, path), bytes);
       }
     } else {
-      const family = kind.endsWith('Codex') ? 'OpenAI Codex' : 'Claude Fable';
-      bytes = derivedReviewBytes(kind, family);
+      const family = kind.endsWith('Codex') ? 'codex' : 'fable';
+      bytes = derivedReviewBytes(kind, family, reviewRoundCount);
       bytes = mutateReview?.(kind, bytes) ?? bytes;
       reviewBytes.set(kind, bytes);
       if (path !== omitReview) {
@@ -1055,9 +1064,7 @@ test('A5 refuses a restarted READY history hidden behind duplicate accepted hist
       if (kind !== 'implementationReviewFableVerdicts') return;
       const final = value.verdicts.at(-1);
       value.verdicts = [{
-        reviewArtifact: final.reviewArtifact,
-        reviewArtifactSha256: final.reviewArtifactSha256,
-        family: final.family,
+        ...final,
         round: 1,
         reviewedCommit: final.reviewedCommit,
         previousEntrySha256: null,
@@ -1218,6 +1225,55 @@ test('published derived-fork chain refuses a verdict detached from its prose art
   }
 });
 
+test('published derived-fork chain refuses rewritten prose from an earlier frozen round', () => {
+  const scratch = publishedDerivedFixture();
+  const reviewKind = 'implementationReviewFable';
+  const verdictKind = `${reviewKind}Verdicts`;
+  const reviewPath = derivedEvidence.find(([kind]) => kind === reviewKind)[1];
+  const verdictPath = derivedEvidence.find(([kind]) => kind === verdictKind)[1];
+  const reviewBytes = Buffer.from(readFileSync(join(scratch, reviewPath), 'utf8').replace(
+    'Synthetic prose for round 1; the structured sidecar carries authority.',
+    'All rounds were READY; the structured sidecar carries authority.',
+  ));
+  writeFileSync(join(scratch, reviewPath), reviewBytes);
+
+  const verdicts = JSON.parse(readFileSync(join(scratch, verdictPath)));
+  verdicts.verdicts.forEach((entry) => {
+    entry.reviewArtifactSha256 = digest(reviewBytes);
+  });
+  rechainVerdicts(verdicts.verdicts);
+  const verdictBytes = writeJson(scratch, verdictPath, verdicts);
+
+  const [authorKind, authorPath] = derivedEvidence.at(-1);
+  const acceptance = JSON.parse(readFileSync(join(scratch, authorPath)));
+  acceptance.evidenceSha256[reviewKind] = digest(reviewBytes);
+  acceptance.evidenceSha256[verdictKind] = digest(verdictBytes);
+  acceptance.reviewHistoryHeads[verdictKind] = reviewHistoryHead(verdicts);
+  const authorBytes = writeJson(scratch, authorPath, acceptance);
+
+  const receipt = JSON.parse(readFileSync(join(scratch, derived.receipt)));
+  const rebound = new Map([
+    [reviewKind, digest(reviewBytes)],
+    [verdictKind, digest(verdictBytes)],
+    [authorKind, digest(authorBytes)],
+  ]);
+  receipt.evidence.forEach((binding) => {
+    if (rebound.has(binding.kind)) binding.sha256 = rebound.get(binding.kind);
+  });
+  const receiptBytes = writeJson(scratch, derived.receipt, receipt);
+  const carrier = JSON.parse(readFileSync(join(scratch, derived.carrier)));
+  carrier.qualificationReceiptSha256 = digest(receiptBytes);
+  const carrierBytes = writeJson(scratch, derived.carrier, carrier);
+  const anchor = JSON.parse(readFileSync(join(scratch, derived.anchor)));
+  anchor.carrierSha256 = digest(carrierBytes);
+  writeJson(scratch, derived.anchor, anchor);
+
+  assert.throws(
+    () => validatePublicationRecord(scratch, derived),
+    /round 1 frozen prose history digest no longer matches/u,
+  );
+});
+
 test('published derived-fork chain refuses verdict files assigned to the wrong families', () => {
   const scratch = publishedDerivedFixture({
     mutateVerdict: (kind, value) => {
@@ -1260,9 +1316,7 @@ test('published derived-fork chain refuses a deleted-and-restarted verdict histo
       if (kind !== 'implementationReviewCodexVerdicts') return;
       const final = value.verdicts.at(-1);
       value.verdicts = [{
-        reviewArtifact: final.reviewArtifact,
-        reviewArtifactSha256: final.reviewArtifactSha256,
-        family: final.family,
+        ...final,
         round: 1,
         reviewedCommit: final.reviewedCommit,
         previousEntrySha256: null,
@@ -1807,6 +1861,18 @@ test('build and checker bind the shared generated-artifact policy', () => {
     ))) continue;
     assert.ok(build.includes(`"${path}"`), `build cycle exclusions omit ${path}`);
   }
+  const buildCycleMirror = build.match(
+    /fn agent_safe_publication_cycle_path\(path: &str\) -> bool \{([\s\S]*?)\n\}/u,
+  );
+  assert.ok(buildCycleMirror, 'build cycle-exclusion mirror is missing');
+  const buildCyclePaths = [...buildCycleMirror[1].matchAll(/"([^"]+)"/gu)]
+    .map((match) => match[1])
+    .sort();
+  assert.deepEqual(
+    buildCyclePaths,
+    [...PUBLICATION_CYCLE_ALLOWLIST].sort(),
+    'build/checker publication-cycle allowlists drifted in either direction',
+  );
   assert.ok(build.includes(
     'cargo:rerun-if-changed=scripts/generated-artifact-policy.mjs',
   ));
