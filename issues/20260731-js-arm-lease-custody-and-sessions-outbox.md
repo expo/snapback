@@ -114,7 +114,7 @@ Both are LLP 0053/0043-governed custody protocol work, not composition chores:
   is closed complete. **Leg 2 implementation is now an available lane**
   — implement per the ratified LLP 0043 §Auth posture subsection; at that
   date the `SNAPBACK_OFFLINE_QUEUE_CUSTODY_UNSUPPORTED` fence still stood.
-  **2026-08-06 — IMPLEMENTED.** The fence is replaced by capture-at-enqueue
+  **2026-08-06 — IMPLEMENTED** (commit 55564b1018eb). The fence is replaced by capture-at-enqueue
   descriptor/principal/fence custody; all RQS store arms carry `stranded`
   plus atomic reconciliation/discard transitions; the client runs the
   strand/delete matrix before successor observation and each drain; explicit

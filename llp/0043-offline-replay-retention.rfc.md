@@ -5,7 +5,7 @@
 **Systems:** Sync, Storage, Client integration, Auth, API, Realtime, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-08-06 (JS-arm sessions-custody queue implemented: per-record descriptor/principal/fence capture, strand/delete reconciliation, explicit recovery affordances, and card-game acceptance witness; commit noted below); 2026-08-05 (C28 lifecycle reconciliation — two-digest tombstones, contiguous closed-prefix floors, and four-range/1,024-identity client epoch capacity); 2026-08-04 (author decision sitting #3
+**Revised:** 2026-08-06 (JS-arm sessions-custody queue implemented: per-record descriptor/principal/fence capture, strand/delete reconciliation, explicit recovery affordances, and card-game acceptance witness; commit 55564b1018eb); 2026-08-05 (C28 lifecycle reconciliation — two-digest tombstones, contiguous closed-prefix floors, and four-range/1,024-identity client epoch capacity); 2026-08-04 (author decision sitting #3
 (`issues/closed/20260804-author-decision-sitting-3.md`): the JS-arm
 sessions-custody queue recorded design is **RATIFIED** — all four open
 points ruled: (1) v1 stays server-refusal-only, no LLP 0053
@@ -487,7 +487,7 @@ format-6 epoch machinery wholesale. **The author ratified this recording on
 2026-08-04 at author decision sitting #3
 (`issues/closed/20260804-author-decision-sitting-3.md`), ruling all four
 open points below; implementation is now authorized as a lane.** **Implemented
-2026-08-06 by the JS-arm sessions-custody lane (commit noted below):** the
+2026-08-06 by the JS-arm sessions-custody lane (commit 55564b1018eb):** the
 refusal above is removed, the per-record custody matrix and recovery surfaces
 ship across every RQS store arm, and the card-game acceptance suite witnesses
 the sessions-mode rows. One implementation consequence recorded for
