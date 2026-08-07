@@ -134,6 +134,14 @@ silent wedge trap (ENG-22659).
   against the landed commit, keeping any capability claim gated on the
   post-landing result. Expect to `git fetch` + rebase right before every
   push, and to retry.
+- **Verification cadence and claim gating follow LLP 0189.** Landings run
+  fast/affected checks only; the complete battery runs on schedule (at least
+  twice daily) and its reds become fix-forward tickets, not retroactive
+  invalidation of unrelated work. Capability claims and publications are
+  snapshots bound to a scoped, claim-relevant qualification digest —
+  wave-shared proof/metrology files carry their own drift gates instead of
+  living inside claim digests — and reviews bind content, not HEAD. Do not
+  design new gates that require a complete proof at an exact commit.
 - Agents may use the machine fleet documented in
   `~/Dropbox/APIKeys/MACHINE_FLEET.md` to speed up development. Read that file
   for current availability, capabilities, and SSH commands. Prefer an

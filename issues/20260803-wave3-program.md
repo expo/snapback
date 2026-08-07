@@ -167,3 +167,12 @@ deliberately unscheduled. Follow-on Track-A threads live in their own
 tickets (browser proof pair, 0146 live-target gaps, capability
 publication parked on Charlie). Track B (agent-safe storage / forking)
 continues per its own tickets.
+
+## Close-condition re-scope under LLP 0189 (2026-08-07)
+
+Author ruling: the "green named commit" close condition is re-scoped to the
+LLP 0189 D-6 form. The wave 3 close requires (a) green evidence for the
+specific claims the wave makes and (b) the most recent scheduled complete
+battery green on the claim-relevant gates, with unrelated red gates ticketed
+and named in the closing record rather than blocking it. No single exact
+`main` commit needs to be wholly green.

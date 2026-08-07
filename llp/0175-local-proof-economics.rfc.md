@@ -47,7 +47,11 @@ its detached checkout, not against the caller's index and HEAD.) 2026-08-06
 (dependency isolation economics: a lock/manifests-keyed, atomically published
 link-scaffold cache uses APFS clonefile with a portable fallback; workspace
 links remain revision-relative, and only gates declaring a submodule pay its
-initialization cost.)
+initialization cost.) 2026-08-07 (LLP 0189 extends this document's cadence
+design from CI to claim/publication gating: the scheduled complete battery is
+the authoritative verdict, landing gates stay fast/affected, claims are
+snapshots with scoped qualification digests, and reviews bind content rather
+than HEAD.)
 **Related:** LLP 0010, LLP 0032, LLP 0109, LLP 0115, LLP 0145, LLP 0154,
 issues/closed/20260802-local-proof-is-cancelled-before-it-can-finish-on-main.md,
 issues/closed/20260802-verify-local-proof-stops-at-the-first-failure.md,

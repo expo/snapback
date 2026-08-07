@@ -42,3 +42,17 @@ platform measurements as evidence for new bytes.
    capability-index row to `local` only after
    `node scripts/check-agent-safe-publication.mjs` reports the derived-fork
    record `published` on a clean tree.
+
+## Author ruling — digest scoping under LLP 0189 (2026-08-07)
+
+LLP 0189 D-3/D-4 supersede this ticket's "must not exclude them" constraint,
+by the named author's own ruling: the fresh qualification digest is scoped to
+the claim-relevant surface (fork runtime/CLI plus the checkers defining the
+claim's semantics). Wave-shared proof/checker/metrology files may leave the
+digest **only** in the same change that installs (or names the existing)
+frozen-record drift gate covering each departing file — coverage moves, it
+never vanishes. Custody rules, review-history integrity, and the prohibition
+on rewriting old records are unchanged. The exit sequence stands, with step 1
+amended: select the fresh C *after* the digest re-scope and the two deferred
+checker-hardening tickets land, so this is the last wave-drift
+requalification of this class.
