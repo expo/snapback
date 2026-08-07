@@ -144,9 +144,11 @@ const PUBLICATION_ONLY_PATHS = new Set([
   'issues/20260803-agent-safe-storage-acceptance-tail.md',
   'issues/20260803-0163-public-operation-identity-carrier.md',
   'issues/20260803-guide-gap-instance-forks.md',
+  'issues/20260806-derived-fork-publication-author-gate.md',
   'issues/closed/20260803-agent-safe-storage-acceptance-tail.md',
   'issues/closed/20260803-0163-public-operation-identity-carrier.md',
   'issues/closed/20260803-guide-gap-instance-forks.md',
+  'issues/closed/20260806-derived-fork-publication-author-gate.md',
   'issues/20260803-wave3-program.md',
   'guide/capabilities.md',
   'guide/guide-flat.generated.md',
@@ -1228,12 +1230,30 @@ function validateDerivedForkBoundsRatification(root, commit) {
   }
 }
 
+function finalReviewRound(text) {
+  const rounds = [...text.matchAll(/^## Round [0-9]+[^\n]*$/gmu)];
+  return rounds.length === 0 ? text : text.slice(rounds.at(-1).index);
+}
+
+function reviewField(text, ...labels) {
+  for (const label of labels) {
+    const escaped = label.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
+    const match = text.match(new RegExp(
+      `^(?:-\\s+)?\\*\\*${escaped}:\\*\\*\\s+(.+)$`,
+      'mu',
+    ));
+    if (match) return match[1].replaceAll('`', '').trim();
+  }
+  return undefined;
+}
+
 function reviewFamily(text, path) {
-  const family = markdownField(text, 'Reviewer family');
-  const provider = markdownField(text, 'Provider / runtime');
-  const date = markdownField(text, 'Date');
-  const redacted = markdownField(text, 'Redacted');
-  const method = markdownField(text, 'Method');
+  const finalRound = finalReviewRound(text);
+  const family = reviewField(finalRound, 'Reviewer family', 'Family');
+  const provider = reviewField(finalRound, 'Provider / runtime', 'Provider/runtime');
+  const date = reviewField(finalRound, 'Date');
+  const redacted = reviewField(finalRound, 'Redacted');
+  const method = reviewField(finalRound, 'Method');
   requireEvidence(Boolean(family && provider && method)
     && date === '2026-08-06'
     && /^(?:yes|no)(?:\b|\s*[—-])/iu.test(redacted ?? ''),
@@ -1242,6 +1262,26 @@ function reviewFamily(text, path) {
   const fable = /(?:fable|claude|anthropic)/iu.test(family);
   requireEvidence(codex !== fable, `${path} reviewer family is ambiguous or unrecognized`);
   return codex ? 'codex' : 'fable';
+}
+
+function finalReviewVerdictIsReady(text) {
+  const finalRound = finalReviewRound(text);
+  if (reviewField(finalRound, 'Verdict') === 'READY') return true;
+  const normalized = finalRound.replace(/\s+/gu, ' ');
+  return normalized.includes(
+    '**READY for publication of the narrow local `operating.instance-forks`',
+  ) || normalized.includes(
+    '**READY for implementation/security publication of the narrow local `operating.instance-forks`',
+  );
+}
+
+function finalSpecReviewVerdictsAreReady(text) {
+  const finalRound = finalReviewRound(text);
+  if (reviewField(finalRound, 'Verdict') === 'READY') return true;
+  return ['0163', '0164', '0165'].every((number) => new RegExp(
+    `^\\| LLP ${number} \\|[^\\n]*\\bREADY\\b[^\\n]*\\|$`,
+    'mu',
+  ).test(finalRound));
 }
 
 function validateDerivedForkReview(root, index, expectedFamily, implementation) {
@@ -1254,10 +1294,12 @@ function validateDerivedForkReview(root, index, expectedFamily, implementation) 
   }
   const family = reviewFamily(text, path);
   requireEvidence(family === expectedFamily, `${path} came from the wrong reviewer family`);
-  if (implementation) {
-    requireEvidence(markdownField(text, 'Verdict') === 'READY',
-      `${path} implementation verdict is not READY`);
-  }
+  requireEvidence(
+    implementation
+      ? finalReviewVerdictIsReady(text)
+      : finalSpecReviewVerdictsAreReady(text),
+    `${path} final review verdict is not READY`,
+  );
   return family;
 }
 

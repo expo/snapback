@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import nodeTest from 'node:test';
@@ -307,7 +307,12 @@ function writeJson(rootPath, path, value) {
   return bytes;
 }
 
-function publishedDerivedFixture({ omitReview, mutateMacos } = {}) {
+function publishedDerivedFixture({
+  omitReview,
+  omitAuthor = false,
+  zeroAuthorDigest = false,
+  mutateMacos,
+} = {}) {
   const scratch = mkdtempSync(join(tmpdir(), 'snapback-derived-fork-publication-'));
   execFileSync('git', ['init', '--quiet'], { cwd: scratch });
   execFileSync('git', ['config', 'user.name', 'Snapback Test'], { cwd: scratch });
@@ -344,7 +349,6 @@ function publishedDerivedFixture({ omitReview, mutateMacos } = {}) {
       writeFileSync(join(scratch, path), bytes);
     } else {
       const family = kind.endsWith('Codex') ? 'OpenAI Codex' : 'Claude Fable';
-      const implementation = kind.startsWith('implementationReview');
       bytes = Buffer.from([
         `# ${kind}`,
         `**Reviewer family:** ${family}`,
@@ -352,7 +356,7 @@ function publishedDerivedFixture({ omitReview, mutateMacos } = {}) {
         '**Date:** 2026-08-06',
         '**Redacted:** no',
         '**Method:** cli-runner',
-        ...(implementation ? ['**Verdict:** READY'] : []),
+        '**Verdict:** READY',
         '',
       ].join('\n'));
       if (path !== omitReview) {
@@ -382,7 +386,12 @@ function publishedDerivedFixture({ omitReview, mutateMacos } = {}) {
   };
   const [authorKind, authorPath] = derivedEvidence.at(-1);
   const authorBytes = writeJson(scratch, authorPath, acceptance);
-  bindings.push({ kind: authorKind, path: authorPath, sha256: digest(authorBytes) });
+  if (omitAuthor) unlinkSync(join(scratch, authorPath));
+  bindings.push({
+    kind: authorKind,
+    path: authorPath,
+    sha256: zeroAuthorDigest ? `sha256:${'0'.repeat(64)}` : digest(authorBytes),
+  });
 
   const receipt = {
     schemaVersion: 'snapback.agent-safe-publication-receipt.v1',
@@ -514,6 +523,17 @@ test('published derived-fork chain refuses a missing review', () => {
   assert.throws(
     () => validatePublicationRecord(scratch, derived),
     /evidence bytes drifted.*implementation-2026-08-06\.fable\.md/u,
+  );
+});
+
+test('published derived-fork chain refuses zero or missing author acceptance', () => {
+  assert.throws(
+    () => validatePublicationRecord(publishedDerivedFixture({ zeroAuthorDigest: true }), derived),
+    /evidence 8 drifted/u,
+  );
+  assert.throws(
+    () => validatePublicationRecord(publishedDerivedFixture({ omitAuthor: true }), derived),
+    /evidence bytes drifted.*author-acceptance\.2026-08-06\.v1\.json/u,
   );
 });
 
