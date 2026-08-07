@@ -582,6 +582,7 @@ function publishedDerivedFixture({
   mutateAcceptance,
   notReadyReview,
   malformedVerdict,
+  mutateReceipt,
   mutateReview,
   mutateVerdict,
   serializeJson,
@@ -594,7 +595,15 @@ function publishedDerivedFixture({
   execFileSync('git', ['config', 'user.email', 'snapback-test@example.invalid'], { cwd: scratch });
   mkdirSync(join(scratch, 'src'), { recursive: true });
   writeFileSync(join(scratch, 'src/qualification-marker.txt'), 'derived-fork qualification C\n');
-  execFileSync('git', ['add', 'src/qualification-marker.txt'], { cwd: scratch });
+  for (const path of DERIVED_FORK_IMPLEMENTATION_SCOPE.files) {
+    if (path === 'vendor/ibex') continue;
+    mkdirSync(dirname(join(scratch, path)), { recursive: true });
+    writeFileSync(join(scratch, path), readFileSync(join(root, path)));
+  }
+  execFileSync('git', [
+    'add', 'src/qualification-marker.txt',
+    ...DERIVED_FORK_IMPLEMENTATION_SCOPE.files.filter((path) => path !== 'vendor/ibex'),
+  ], { cwd: scratch });
   const ibexGitlink = execFileSync('git', ['rev-parse', 'HEAD:vendor/ibex'], {
     cwd: root,
     encoding: 'utf8',
@@ -607,11 +616,7 @@ function publishedDerivedFixture({
     cwd: scratch,
     encoding: 'utf8',
   }).trim();
-  const implementationScope = {
-    schemaVersion: IMPLEMENTATION_SCOPE_SCHEMA_VERSION,
-    roots: ['src'],
-    files: ['vendor/ibex'],
-  };
+  const implementationScope = structuredClone(DERIVED_FORK_IMPLEMENTATION_SCOPE);
   const implementationTree = implementationDigestAt(scratch, commit, implementationScope);
 
   const bindings = [];
@@ -687,7 +692,7 @@ function publishedDerivedFixture({
   const candidateFacts = exactCandidate(derived.id);
   const candidateFactsSha256 = digest(Buffer.from(JSON.stringify(candidateFacts)));
   const acceptance = {
-    schemaVersion: 'snapback.derived-fork-author-acceptance.v2',
+    schemaVersion: 'snapback.derived-fork-author-acceptance.v3',
     capabilityId: derived.id,
     accepted: true,
     authorLine: 'Charlie Cheever — accepted 2026-08-06',
@@ -695,6 +700,18 @@ function publishedDerivedFixture({
     implementationDigestVersion: SCOPED_IMPLEMENTATION_DIGEST_VERSION,
     implementationTreeSha256: implementationTree,
     candidateFactsSha256,
+    implementationScope: structuredClone(implementationScope),
+    residualV2DepartingClass: {
+      schemaVersion: 'snapback.derived-fork-residual-v2-departing-class.v1',
+      departingRoots: [
+        'packages/snapback-codegen',
+        'packages/snapback-contract',
+        'tests',
+      ],
+      separatelyLedgeredPaths: DERIVED_FORK_COVERAGE_TRANSFERS.map(({ path }) => path),
+      disposition:
+        'qualification-time evidence and non-claim-semantics support; re-inspected at each fresh qualification',
+    },
     qualifiedComponents: [...derived.components],
     evidenceSha256: Object.fromEntries(bindings.map(({ kind, sha256 }) => [kind, sha256])),
     reviewHistoryHeads: Object.fromEntries(acceptedReviewHistoryHeads),
@@ -727,6 +744,7 @@ function publishedDerivedFixture({
     qualifiedComponents: [...derived.components],
     evidence: bindings,
   };
+  mutateReceipt?.(receipt);
   const canonicalReceiptBytes = Buffer.from(`${JSON.stringify(receipt, null, 2)}\n`);
   const receiptBytes = serializeJson?.('receipt', receipt, canonicalReceiptBytes)
     ?? canonicalReceiptBytes;
@@ -845,6 +863,63 @@ test('synthetic verdict history length can advance without live-record test edit
     const scratch = publishedDerivedFixture({ reviewRoundCount });
     assert.equal(validatePublicationRecord(scratch, derived).state, 'published');
   }
+});
+
+const derivedScopeOmissionCases = [
+  ['src root', (scope) => { scope.roots = []; }],
+  ...DERIVED_FORK_IMPLEMENTATION_SCOPE.files.map((path) => [
+    path,
+    (scope) => { scope.files = scope.files.filter((candidate) => candidate !== path); },
+  ]),
+  [
+    'otherwise valid nonempty substitute',
+    (scope) => {
+      scope.roots = [];
+      scope.files = ['scripts/check-agent-safe-publication.mjs'];
+    },
+  ],
+];
+
+for (const [label, mutateScope] of derivedScopeOmissionCases) {
+  test(`published derived-fork receipt refuses noncanonical scope: ${label}`, () => {
+    const scratch = publishedDerivedFixture({
+      notReadyReview: 'implementationReviewCodex',
+      mutateReceipt: (receipt) => {
+        mutateScope(receipt.implementationScope);
+        receipt.evidence[0].sha256 = `sha256:${'0'.repeat(64)}`;
+      },
+    });
+    assert.throws(
+      () => validatePublicationRecord(scratch, derived),
+      /receipt scope does not equal the canonical derived-fork scope/u,
+    );
+  });
+}
+
+test('named-author acceptance binds the exact canonical derived-fork scope', () => {
+  const scratch = publishedDerivedFixture({
+    mutateAcceptance: (acceptance) => {
+      acceptance.implementationScope.files = acceptance.implementationScope.files.filter(
+        (path) => path !== 'vendor/ibex',
+      );
+    },
+  });
+  assert.throws(
+    () => validatePublicationRecord(scratch, derived),
+    /named-author\/source\/component acceptance drifted/u,
+  );
+});
+
+test('named-author acceptance names the residual v2-to-v3 departing class', () => {
+  const scratch = publishedDerivedFixture({
+    mutateAcceptance: (acceptance) => {
+      acceptance.residualV2DepartingClass.departingRoots.pop();
+    },
+  });
+  assert.throws(
+    () => validatePublicationRecord(scratch, derived),
+    /named-author\/source\/component acceptance drifted/u,
+  );
 });
 
 test('published oracle reports out-of-scope post-qualification drift as a standing snapshot', () => {
@@ -1717,6 +1792,7 @@ test('coverage transfer refuses any departing leaf without a registered frozen-r
   assert.equal(validateDerivedForkCoverageTransfers(root).length, 9);
   assert.throws(
     () => assertCoverageTransfers({
+      root,
       scope: DERIVED_FORK_IMPLEMENTATION_SCOPE,
       departingPaths: [...departingPaths, 'tests/uncovered-wave-record.json'],
       transfers: DERIVED_FORK_COVERAGE_TRANSFERS,
@@ -1735,6 +1811,7 @@ test('coverage transfer refuses a named gate that does not canonically cover its
   transfers[0].gate = 'client-bundle-metrology';
   assert.throws(
     () => assertCoverageTransfers({
+      root,
       scope: DERIVED_FORK_IMPLEMENTATION_SCOPE,
       departingPaths: DERIVED_FORK_COVERAGE_TRANSFERS.map(({ path }) => path),
       transfers,
@@ -1742,6 +1819,74 @@ test('coverage transfer refuses a named gate that does not canonically cover its
     }),
     /tests\/agent_safe_publication_checker_v1\.mjs is not covered by registered drift gate client-bundle-metrology/u,
   );
+});
+
+test('coverage transfers require the exact admitted records, triggers, and regeneration command', () => {
+  const source = JSON.parse(readFileSync(
+    join(root, 'scripts/local-proof-selection-policy.v1.json'),
+    'utf8',
+  ));
+  const mutations = [
+    (policy) => { delete policy.driftProneGates['local-proof-inventory']; },
+    (policy) => {
+      policy.driftProneGates['local-proof-inventory'].recordPaths = ['tests/ci_workflows_v0.mjs'];
+      policy.driftProneGates['local-proof-inventory'].triggerRules.files = [
+        'tests/ci_workflows_v0.mjs',
+      ];
+    },
+    (policy) => {
+      policy.driftProneGates['local-proof-inventory'].regenerateCommand = 'true';
+    },
+  ];
+  for (const mutate of mutations) {
+    const policy = structuredClone(source);
+    mutate(policy);
+    assert.throws(
+      () => assertCoverageTransfers({
+        root,
+        scope: DERIVED_FORK_IMPLEMENTATION_SCOPE,
+        departingPaths: DERIVED_FORK_COVERAGE_TRANSFERS.map(({ path }) => path),
+        transfers: DERIVED_FORK_COVERAGE_TRANSFERS,
+        driftProneGates: policy.driftProneGates,
+      }),
+      /is not covered by registered drift gate/u,
+    );
+  }
+});
+
+test('post-C transfer-policy tampering invalidates the published claim', () => {
+  const mutations = [
+    (policy) => { delete policy.driftProneGates['local-proof-inventory']; },
+    (policy) => {
+      policy.driftProneGates['local-proof-inventory'].recordPaths = ['tests/ci_workflows_v0.mjs'];
+      policy.driftProneGates['local-proof-inventory'].triggerRules.files = [
+        'tests/ci_workflows_v0.mjs',
+      ];
+    },
+    (policy) => {
+      policy.driftProneGates['local-proof-inventory'].regenerateCommand = 'true';
+    },
+  ];
+  for (const mutate of mutations) {
+    const scratch = publishedDerivedFixture();
+    const policyPath = 'scripts/local-proof-selection-policy.v1.json';
+    const policy = JSON.parse(readFileSync(join(scratch, policyPath), 'utf8'));
+    mutate(policy);
+    writeJson(scratch, policyPath, policy);
+    commitFixture(
+      scratch,
+      'publication P with tampered transfer policy',
+      ...derivedEvidence.map(([, path]) => path),
+      derived.receipt,
+      derived.carrier,
+      derived.anchor,
+      policyPath,
+    );
+    assert.throws(
+      () => validatePublicationRecord(scratch, derived),
+      /scoped surface changed without requalification: M:scripts\/local-proof-selection-policy\.v1\.json/u,
+    );
+  }
 });
 
 test('claim snapshot stands when only out-of-scope files change', () => {

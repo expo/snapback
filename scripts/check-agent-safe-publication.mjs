@@ -74,8 +74,89 @@ export const DERIVED_FORK_IMPLEMENTATION_SCOPE = Object.freeze({
     'build.rs',
     'scripts/check-agent-safe-publication.mjs',
     'scripts/generated-artifact-policy.mjs',
+    'scripts/local-proof-selection-policy.v1.json',
     'vendor/ibex',
   ]),
+});
+
+// D-4 transfer custody is admitted against these exact registry entries. The
+// policy file itself is in the derived-fork digest, and this in-checker mirror
+// keeps a shape-valid prose stub from impersonating a recomputed frozen-record
+// gate without rotating both authorities through requalification.
+const DERIVED_FORK_ADMITTED_COVERAGE_GATES = Object.freeze({
+  'agent-safe-publication-fixtures': Object.freeze({
+    records: Object.freeze([
+      'tests/agent_safe_publication_checker_v1.mjs (reviewed generated-publication leaf set)',
+    ]),
+    recordPaths: Object.freeze(['tests/agent_safe_publication_checker_v1.mjs']),
+    triggerRules: Object.freeze({
+      files: Object.freeze([
+        'scripts/generated-artifact-policy.mjs',
+        'tests/agent_safe_publication_checker_v1.mjs',
+      ]),
+      prefixes: Object.freeze([
+        'admin-ui/generated/',
+        'demos/',
+        'packages/snapback-cli/fixtures/',
+        'packages/snapback-codegen/',
+        'packages/snapback-react/fixtures/',
+      ]),
+    }),
+    regenerateCommand: 'node scripts/update-agent-safe-publication-leaf-set.mjs',
+  }),
+  'ci-workflow-fixtures': Object.freeze({
+    records: Object.freeze([
+      'tests/ci_workflows_v0.mjs (reviewed workflow, action, toolchain, and package-engine invariants)',
+    ]),
+    recordPaths: Object.freeze(['tests/ci_workflows_v0.mjs']),
+    triggerRules: Object.freeze({
+      files: Object.freeze([
+        '.node-version',
+        'package.json',
+        'scripts/check-toolchain-authority.mjs',
+        'scripts/cold-clone-check.sh',
+        'scripts/verify-local-proof',
+        'tests/ci_workflows_v0.mjs',
+      ]),
+      prefixes: Object.freeze(['.github/workflows/', 'packages/']),
+    }),
+    regenerateCommand: 'node tests/ci_workflows_v0.mjs',
+  }),
+  'client-bundle-metrology': Object.freeze({
+    records: Object.freeze([
+      'tests/fixtures/client-bundle-metrology/current.v1.json and its active profile/baseline ledgers',
+    ]),
+    recordPaths: Object.freeze(['tests/fixtures/client-bundle-metrology']),
+    triggerRules: Object.freeze({
+      files: Object.freeze(['scripts/client-bundle-metrology.mjs']),
+      prefixes: Object.freeze([
+        'packages/snapback-client/',
+        'packages/snapback-contract/',
+        'packages/snapback-react/',
+        'tests/fixtures/client-bundle-metrology/',
+      ]),
+    }),
+    regenerateCommand: 'node scripts/client-bundle-metrology.mjs --write-current',
+    blessedRegenerateCommand:
+      'node scripts/client-bundle-metrology.mjs --write-rollover-baseline',
+    requiredModules: Object.freeze(['esbuild']),
+  }),
+  'local-proof-inventory': Object.freeze({
+    records: Object.freeze([
+      'tests/local_proof_inventory_v0.mjs (reviewed canonical gate inventory and versioned-seed carrier invariants)',
+    ]),
+    recordPaths: Object.freeze(['tests/local_proof_inventory_v0.mjs']),
+    triggerRules: Object.freeze({
+      files: Object.freeze([
+        'scripts/check-local-proof-gates.mjs',
+        'scripts/verify-local-proof',
+        'tests/conformance/run-versioned-seed-v1.mjs',
+        'tests/conformance/versioned-seed-v1-suite.mjs',
+        'tests/local_proof_inventory_v0.mjs',
+      ]),
+    }),
+    regenerateCommand: 'node --test tests/local_proof_inventory_v0.mjs',
+  }),
 });
 
 // These are the exact nine leaves that rotated the 2026-08-07 withdrawn
@@ -113,6 +194,24 @@ export const DERIVED_FORK_COVERAGE_TRANSFERS = Object.freeze([
   }),
   Object.freeze({ path: 'tests/local_proof_inventory_v0.mjs', gate: 'local-proof-inventory' }),
 ]);
+
+// Fable round-1 F3: the named author must acknowledge the residual v2 -> v3
+// departing class, not only the nine drift-prone leaves with explicit transfer
+// rows. The retained scope remains the authority; this makes the corresponding
+// exclusion classification legible in the accepted record.
+const DERIVED_FORK_RESIDUAL_V2_DEPARTING_CLASS = Object.freeze({
+  schemaVersion: 'snapback.derived-fork-residual-v2-departing-class.v1',
+  departingRoots: Object.freeze([
+    'packages/snapback-codegen',
+    'packages/snapback-contract',
+    'tests',
+  ]),
+  separatelyLedgeredPaths: Object.freeze(
+    DERIVED_FORK_COVERAGE_TRANSFERS.map(({ path }) => path),
+  ),
+  disposition:
+    'qualification-time evidence and non-claim-semantics support; re-inspected at each fresh qualification',
+});
 const REVIEW_HISTORY_SCHEMA_VERSION = 'snapback.review-verdicts.v2';
 const AGENT_SAFE_SCHEMA_PATHS = [
   'schemas/capability.manifest.schema.json',
@@ -469,6 +568,18 @@ function codePointOrder(left, right) {
   return left < right ? -1 : left > right ? 1 : 0;
 }
 
+function canonicalValue(value) {
+  if (Array.isArray(value)) return value.map(canonicalValue);
+  if (value === null || typeof value !== 'object') return value;
+  return Object.fromEntries(Object.entries(value)
+    .sort(([left], [right]) => codePointOrder(left, right))
+    .map(([key, member]) => [key, canonicalValue(member)]));
+}
+
+function canonicallyEqual(left, right) {
+  return JSON.stringify(canonicalValue(left)) === JSON.stringify(canonicalValue(right));
+}
+
 export function validateImplementationScope(scope, label = 'implementation scope') {
   exactKeys(scope, ['schemaVersion', 'roots', 'files'], label);
   if (scope.schemaVersion !== IMPLEMENTATION_SCOPE_SCHEMA_VERSION) {
@@ -563,15 +674,20 @@ export function evaluateClaimSnapshot(root, {
   };
 }
 
-function gateMatchesPath(metadata, path) {
-  const recordMatch = (metadata.recordPaths ?? []).some((recordPath) => (
-    path === recordPath || path.startsWith(`${recordPath}/`)
-  ));
+function gateTriggerMatchesPath(metadata, path) {
   const trigger = metadata.triggerRules ?? {};
-  return recordMatch
-    || (trigger.files ?? []).includes(path)
+  return (trigger.files ?? []).includes(path)
     || (trigger.prefixes ?? []).some((prefix) => path.startsWith(prefix))
     || (trigger.suffixes ?? []).some((suffix) => path.endsWith(suffix));
+}
+
+function gateRecordsExistAtHead(root, metadata) {
+  const entries = treeEntriesAt(root, 'HEAD', metadata.recordPaths);
+  return metadata.recordPaths.every((recordPath) => [...entries].some(([path, entry]) => (
+    entry.type === 'blob'
+      && entry.mode.startsWith('100')
+      && (path === recordPath || path.startsWith(`${recordPath}/`))
+  )));
 }
 
 // The caller supplies the reviewed previous-record departure set. Exact set
@@ -579,13 +695,15 @@ function gateMatchesPath(metadata, path) {
 // subset, while the registry lookup proves that every named replacement is a
 // real canonical frozen-record gate rather than prose or a stub.
 export function assertCoverageTransfers({
+  root,
   scope,
   departingPaths,
   transfers,
   driftProneGates,
 }) {
   validateImplementationScope(scope);
-  if (!Array.isArray(departingPaths) || !Array.isArray(transfers)) {
+  if (typeof root !== 'string' || root.length === 0
+      || !Array.isArray(departingPaths) || !Array.isArray(transfers)) {
     fail('coverage transfer inputs must be arrays');
   }
   const expectedPaths = [...departingPaths].sort(codePointOrder);
@@ -606,12 +724,11 @@ export function assertCoverageTransfers({
       fail(`coverage transfer ${path} did not leave the claim scope`);
     }
     const metadata = driftProneGates?.[gate];
-    if (metadata === undefined || !Array.isArray(metadata.records)
-        || metadata.records.length === 0 || !Array.isArray(metadata.recordPaths)
-        || metadata.recordPaths.length === 0
-        || typeof metadata.regenerateCommand !== 'string'
-        || metadata.regenerateCommand.length === 0
-        || !gateMatchesPath(metadata, path)) {
+    const admitted = DERIVED_FORK_ADMITTED_COVERAGE_GATES[gate];
+    if (metadata === undefined || admitted === undefined
+        || !canonicallyEqual(metadata, admitted)
+        || !gateRecordsExistAtHead(root, metadata)
+        || !gateTriggerMatchesPath(metadata, path)) {
       fail(`coverage transfer ${path} is not covered by registered drift gate ${gate}`);
     }
   }
@@ -619,13 +736,15 @@ export function assertCoverageTransfers({
 }
 
 export function validateDerivedForkCoverageTransfers(root) {
-  // This policy is configuration, not a publication-chain artifact. The
-  // anchor/carrier/receipt/evidence boundary below remains canonical-only.
+  // @ref LLP 0189#decision — this semantics-affecting policy input is inside
+  // the v3 scope, and its admitted gate entries must match the in-checker
+  // authority exactly before any transfer can carry claim custody.
   const policy = JSON.parse(readFileSync(
     join(root, 'scripts/local-proof-selection-policy.v1.json'),
     'utf8',
   ));
   return assertCoverageTransfers({
+    root,
     scope: DERIVED_FORK_IMPLEMENTATION_SCOPE,
     departingPaths: DERIVED_FORK_COVERAGE_TRANSFERS.map(({ path }) => path),
     transfers: DERIVED_FORK_COVERAGE_TRANSFERS,
@@ -1023,6 +1142,10 @@ function validateReceiptShape(receipt, record, published) {
   } else if (receipt.schemaVersion === 'snapback.agent-safe-publication-receipt.v3') {
     exactKeys(receipt, scopedKeys, `${record.id} receipt`);
     validateImplementationScope(receipt.implementationScope, `${record.id} receipt scope`);
+    if (record.id === 'agent_safe_derived_deployment_fork_v1'
+        && !canonicallyEqual(receipt.implementationScope, DERIVED_FORK_IMPLEMENTATION_SCOPE)) {
+      fail(`${record.id} receipt scope does not equal the canonical derived-fork scope`);
+    }
     assertImplementationDigestVersion(
       receipt.implementationDigestVersion,
       `${record.id} receipt`,
@@ -1883,9 +2006,10 @@ function validateDerivedForkAuthorAcceptance(
   exactKeys(value, [
     'schemaVersion', 'capabilityId', 'accepted', 'authorLine', 'qualifiedSourceCommit',
     'implementationDigestVersion', 'implementationTreeSha256', 'candidateFactsSha256',
-    'qualifiedComponents', 'evidenceSha256', 'reviewHistoryHeads',
+    'implementationScope', 'residualV2DepartingClass', 'qualifiedComponents', 'evidenceSha256',
+    'reviewHistoryHeads',
   ], 'derived-fork author acceptance');
-  requireEvidence(value.schemaVersion === 'snapback.derived-fork-author-acceptance.v2'
+  requireEvidence(value.schemaVersion === 'snapback.derived-fork-author-acceptance.v3'
     && value.capabilityId === 'agent_safe_derived_deployment_fork_v1'
     && value.accepted === true
     && value.authorLine === 'Charlie Cheever — accepted 2026-08-06'
@@ -1894,6 +2018,12 @@ function validateDerivedForkAuthorAcceptance(
     && value.implementationTreeSha256 === implementationTree
     && value.implementationTreeSha256 === receipt.implementationTreeSha256
     && value.candidateFactsSha256 === receipt.candidateFactsSha256
+    && canonicallyEqual(value.implementationScope, receipt.implementationScope)
+    && canonicallyEqual(value.implementationScope, DERIVED_FORK_IMPLEMENTATION_SCOPE)
+    && canonicallyEqual(
+      value.residualV2DepartingClass,
+      DERIVED_FORK_RESIDUAL_V2_DEPARTING_CLASS,
+    )
     && JSON.stringify(value.qualifiedComponents) === JSON.stringify(DERIVED_COMPONENTS),
   'derived-fork named-author/source/component acceptance drifted');
   const nonselfBindings = receipt.evidence.slice(0, -1);

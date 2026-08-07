@@ -99,3 +99,38 @@ Piece 3 (battery-red ticket automation) remains open. The live storage and
 derived-fork anchors remain `withheld`; the upcoming requalification must mint
 a fresh C, v3 receipt, evidence, reviews, and named-author acceptance before
 any publication state changes.
+
+## 2026-08-07 requalification round-1 checker findings
+
+The Codex round-1 implementation review returned `NOT READY` on two D-4
+custody defects in the v3 checker; Fable independently identified the same
+scope and input-closure gaps as F2/F1. Both checker findings are closed in the
+round-1 fix branch:
+
+- A derived-fork v3 receipt must now carry the exact canonical
+  `DERIVED_FORK_IMPLEMENTATION_SCOPE` before the receipt can select digest,
+  snapshot, review, or evidence behavior. The v3 named-author acceptance
+  contract carries and exactly matches that scope too.
+- `scripts/local-proof-selection-policy.v1.json` is now part of the canonical
+  scope. Transfer validation accepts only the four exact reviewed registry
+  entries, verifies their committed record paths exist, requires trigger rules
+  (not record prose) to cover each transferred leaf, and pins each registered
+  regeneration command. Post-C deletion/remapping/command-tamper fixtures all
+  invalidate the claim.
+
+The fresh named-author acceptance must also state Fable F3's residual v2→v3
+departing class: `packages/snapback-codegen/`,
+`packages/snapback-contract/`, and the rest of `tests/` beyond the nine
+separately ledgered transfer paths. The exact accepted record classifies those
+as qualification-time evidence/non-claim-semantics support that is re-inspected
+at each fresh qualification; it may not silently imply that the nine explicit
+transfer rows exhaust every path that left the ambient v2 digest.
+
+Codex finding 3 is closed in the same dated round. App-root identity is now an
+install-once authority: each first writer syncs a same-directory temporary,
+uses a hard link as the atomic no-replace publication step, unlinks its
+temporary, and fsyncs the directory. A losing writer reads and compares the
+winner; the same identity succeeds idempotently, while a different identity
+returns `SNAPBACK_FORK_APP_BINDING_MISMATCH` before mint or launch. Deterministic
+two-party barrier tests cover both outcomes, the original 32-writer regression
+still passes, and the complete `instance_fork::` library filter passes 52/52.
