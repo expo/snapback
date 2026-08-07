@@ -6792,11 +6792,19 @@ export class SnapbackClient {
     const name = functionName(ref);
     validateGeneratedArguments(ref, args, name);
     const generation = expectedGeneration(ref);
+    if (queue !== 'auto' && queue !== false && queue !== true) {
+      throw new TypeError("mutate queue option must be 'auto', true, or false");
+    }
     let generatedMutation = null;
+    let generatedComposedStore = null;
     if (ref?.mutationIr?.format === 'snapback.generated-mutation-ir.v1') {
+      generatedComposedStore = queue === true
+        ? this.#offlineQueueStore(true)
+        : queue === 'auto' ? this.#offlineQueueStore(false) : null;
       const prepared = await this.__storeRuntimeInvoke('prepareGeneratedMutation', {
         ref, args, userId, clientMutationId, optimisticOperation, ctxLedger,
-        settlementLane, settlementIdentity, settlementClaims, boundedSkew, queue,
+        settlementLane, settlementIdentity, settlementClaims, boundedSkew,
+        composeLocalExecution: generatedComposedStore !== null,
       });
       ({
         generatedMutation,
@@ -6808,9 +6816,6 @@ export class SnapbackClient {
         settlementClaims,
         boundedSkew,
       } = prepared);
-    }
-    if (queue !== 'auto' && queue !== false && queue !== true) {
-      throw new TypeError("mutate queue option must be 'auto', true, or false");
     }
     if (
       settlementLane !== null
@@ -6825,8 +6830,8 @@ export class SnapbackClient {
     if (optimisticOperation !== null && clientMutationId === null) {
       clientMutationId = createClientMutationId();
     }
-    const queueStore = generatedMutation !== null
-      ? this.#offlineQueueStore(true)
+    let queueStore = generatedMutation !== null
+      ? generatedComposedStore
       : queue === false ? null : this.#offlineQueueStore(queue === true);
     const operationIdentityEnabled = this.__operationIdentityProtocol === 1 && queueStore !== null;
     if (operationIdentityEnabled) {
@@ -6927,7 +6932,7 @@ export class SnapbackClient {
     if (settlementIdentity !== null) body.settlementIdentity = settlementIdentity;
     if (settlementClaims !== null) body.settlementClaims = settlementClaims;
     if (boundedSkew !== null) body.boundedSkew = boundedSkew;
-    const durableMutationRecord = clientMutationId ? {
+    let durableMutationRecord = clientMutationId ? {
       id: clientMutationId,
       function: name,
       args,
@@ -6949,85 +6954,107 @@ export class SnapbackClient {
     } : null;
     let durableOnlineRecord = false;
     if (queueStore && durableMutationRecord) {
-      if (operationIdentityEnabled) {
-        const clientAudienceId = (await queueStore.readStoreMeta())?.clientStoreId;
-        if (typeof clientAudienceId !== 'string' || !SNAPBACK_OPAQUE_ID.test(clientAudienceId)) {
-          const error = new Error(
-            'SNAPBACK_OPERATION_RANGE_AUDIENCE_INVALID: durable store has no valid client identity',
-          );
-          error.code = 'SNAPBACK_OPERATION_RANGE_AUDIENCE_INVALID';
-          throw error;
-        }
-        const authorityCohortKey = this.#operationIdentityCohortKey(
-          clientAudienceId,
-          userId,
-          body.authorityDescriptor,
-        );
-        let stored = await queueStore.outboxEnqueueWithOperationIdentity(
-          durableMutationRecord,
-          authorityCohortKey,
-        );
-        if (stored.operationIssuance === null) {
-          let range;
-          try {
-            range = await this.#refreshOperationIdentityRange(
-              queueStore,
-              authorityCohortKey,
-              clientAudienceId,
-              userId,
-              body.authorityDescriptor,
-              authorityCapture,
+      try {
+        if (operationIdentityEnabled) {
+          const clientAudienceId = (await queueStore.readStoreMeta())?.clientStoreId;
+          if (typeof clientAudienceId !== 'string' || !SNAPBACK_OPAQUE_ID.test(clientAudienceId)) {
+            const error = new Error(
+              'SNAPBACK_OPERATION_RANGE_AUDIENCE_INVALID: durable store has no valid client identity',
             );
-            stored = await queueStore.outboxAssignOperationIdentity(
-              stored.id,
-              authorityCohortKey,
-              range,
-              body.authorityDescriptor ?? undefined,
-              operationAuthorityPrincipalId ?? undefined,
-            );
-          } catch (error) {
-            if (isConnectivityFailureError(error) || isOperationRangeCapacityError(error)) {
-              this.#recordOutboxDiagnostic({
-                code: 'SNAPBACK_OPERATION_RANGE_UNCOVERED_QUEUED',
-                mutation: name,
-                clientMutationId: stored.id,
-                disposition: 'uncovered-range-exhausted',
-                reason: isOperationRangeCapacityError(error)
-                  ? 'authenticated-epoch-capacity'
-                  : 'connectivity',
-              });
-              return {
-                queued: true,
-                clientMutationId: stored.id,
-                sequence: stored.sequence,
-                operationCoverageDisposition: 'uncovered-range-exhausted',
-              };
-            }
-            await queueStore.outboxMarkFailed(stored.id, {
-              code: error?.diagnostic?.code ?? error?.code
-                ?? 'SNAPBACK_OPERATION_RANGE_REFRESH_FAILED',
-              message: error?.message ?? String(error),
-            });
+            error.code = 'SNAPBACK_OPERATION_RANGE_AUDIENCE_INVALID';
             throw error;
           }
-        }
-        if (!stored?.operationIssuance) {
-          const error = new Error(
-            'SNAPBACK_OPERATION_RANGE_EXHAUSTED: refreshed range supplied no operation identity',
+          const authorityCohortKey = this.#operationIdentityCohortKey(
+            clientAudienceId,
+            userId,
+            body.authorityDescriptor,
           );
-          error.code = 'SNAPBACK_OPERATION_RANGE_EXHAUSTED';
-          throw error;
+          let stored = await queueStore.outboxEnqueueWithOperationIdentity(
+            durableMutationRecord,
+            authorityCohortKey,
+          );
+          if (stored.operationIssuance === null) {
+            let range;
+            try {
+              range = await this.#refreshOperationIdentityRange(
+                queueStore,
+                authorityCohortKey,
+                clientAudienceId,
+                userId,
+                body.authorityDescriptor,
+                authorityCapture,
+              );
+              stored = await queueStore.outboxAssignOperationIdentity(
+                stored.id,
+                authorityCohortKey,
+                range,
+                body.authorityDescriptor ?? undefined,
+                operationAuthorityPrincipalId ?? undefined,
+              );
+            } catch (error) {
+              if (isConnectivityFailureError(error) || isOperationRangeCapacityError(error)) {
+                this.#recordOutboxDiagnostic({
+                  code: 'SNAPBACK_OPERATION_RANGE_UNCOVERED_QUEUED',
+                  mutation: name,
+                  clientMutationId: stored.id,
+                  disposition: 'uncovered-range-exhausted',
+                  reason: isOperationRangeCapacityError(error)
+                    ? 'authenticated-epoch-capacity'
+                    : 'connectivity',
+                });
+                return {
+                  queued: true,
+                  clientMutationId: stored.id,
+                  sequence: stored.sequence,
+                  operationCoverageDisposition: 'uncovered-range-exhausted',
+                };
+              }
+              await queueStore.outboxMarkFailed(stored.id, {
+                code: error?.diagnostic?.code ?? error?.code
+                  ?? 'SNAPBACK_OPERATION_RANGE_REFRESH_FAILED',
+                message: error?.message ?? String(error),
+              });
+              throw error;
+            }
+          }
+          if (!stored?.operationIssuance) {
+            const error = new Error(
+              'SNAPBACK_OPERATION_RANGE_EXHAUSTED: refreshed range supplied no operation identity',
+            );
+            error.code = 'SNAPBACK_OPERATION_RANGE_EXHAUSTED';
+            throw error;
+          }
+          body.operationIssuance = stored.operationIssuance;
+          durableMutationRecord.operationIssuance = stored.operationIssuance;
+          durableMutationRecord.operationCoverageDisposition = stored.operationCoverageDisposition;
+        } else {
+          await queueStore.outboxEnqueue(durableMutationRecord);
         }
-        body.operationIssuance = stored.operationIssuance;
-        durableMutationRecord.operationIssuance = stored.operationIssuance;
-        durableMutationRecord.operationCoverageDisposition = stored.operationCoverageDisposition;
-      } else {
-        await queueStore.outboxEnqueue(durableMutationRecord);
-      }
-      durableOnlineRecord = true;
-      this.#notifyOutboxListeners();
-      if (optimisticOperation !== null) {
-        await this.#refreshOptimisticMutationViews('generated-ir-enqueued');
+        durableOnlineRecord = true;
+        this.#notifyOutboxListeners();
+        if (optimisticOperation !== null) {
+          await this.#refreshOptimisticMutationViews('generated-ir-enqueued');
+        }
+      } catch (error) {
+        const code = error?.diagnostic?.code ?? error?.code;
+        if (
+          generatedMutation === null
+          || queue !== 'auto'
+          || code !== 'SNAPBACK_OUTBOX_NOT_WRITER'
+        ) throw error;
+        // @ref LLP 0155#local-read-admission — server-only is a valid
+        //   degradation: a client without durable outbox custody dispatches
+        //   the generated plan server-delegated instead of refusing.
+        generatedMutation = null;
+        optimisticOperation = null;
+        durableMutationRecord = null;
+        queueStore = null;
+        delete body.settlementLane;
+        delete body.settlementIdentity;
+        delete body.settlementClaims;
+        delete body.boundedSkew;
+        delete body.ctx_ledger;
+        delete body.operationIssuance;
       }
     }
     let reservationRetryAuthorityCapture = authorityCapture;

@@ -777,6 +777,9 @@ export interface SnapbackClientOptions {
    * LLP 0043 M2 queued-intent outbox (LLP 0129 Phase 0). 'auto' (default)
    * queues connectivity-refused mutations durably when the resolved store
    * carries the outbox contract; false disables; true requires support.
+   * A generated local-executable mutation composes with the durable outbox when
+   * available and otherwise degrades to server-delegated online dispatch (LLP
+   * 0155 local-read admission); explicit `queue: true` still requires the outbox.
    * A queued delivery resolves `{ queued: true, clientMutationId, sequence }`
    * instead of a settlement; it settles by ordered replay after reconnect.
    */

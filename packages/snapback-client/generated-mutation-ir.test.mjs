@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 
 import { SnapbackClient } from './index.mjs';
+import { outboxNotWriterError } from './outbox-shared.mjs';
 import { createFileRqsResumeStore } from './rqs-store-file.mjs';
 
 const digest = (character) => `sha256:${character.repeat(64)}`;
@@ -162,4 +163,121 @@ test('generated mutate owns IR preparation, paints before settlement, and replay
   assert.equal(relaunchedView.getSnapshot().layers[0].clientMutationId, queued.clientMutationId);
   relaunchedView.close();
   await relaunchedStore.close();
+});
+
+test('generated mutate degrades to server dispatch without durable outbox composition', async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const args = { title: 'Server delegated', position: 11 };
+  const mockedSettlement = { result: 'card_authoritative', version: 1 };
+  const assertPlainBody = (body) => {
+    assert.deepEqual(body.args, args);
+    assert.deepEqual(body.expectedGeneration, activation);
+    for (const field of [
+      'settlementLane',
+      'settlementIdentity',
+      'settlementClaims',
+      'boundedSkew',
+      'ctx_ledger',
+      'operationIssuance',
+      'optimisticOperation',
+    ]) {
+      assert.equal(Object.hasOwn(body, field), false, `${field} is absent`);
+    }
+  };
+
+  let calls = 0;
+  let requestBody = null;
+  globalThis.fetch = async (_url, init) => {
+    calls += 1;
+    requestBody = JSON.parse(init.body);
+    return Response.json(mockedSettlement);
+  };
+  const previousStoreSwitch = process.env.SNAPBACK_CLIENT_RQS_STORE;
+  process.env.SNAPBACK_CLIENT_RQS_STORE = 'off';
+  const storelessClient = new SnapbackClient('http://generated-ir.invalid', {
+    offlineQueue: false,
+  });
+  if (previousStoreSwitch === undefined) delete process.env.SNAPBACK_CLIENT_RQS_STORE;
+  else process.env.SNAPBACK_CLIENT_RQS_STORE = previousStoreSwitch;
+  const settlement = await storelessClient.mutate(reference, { args });
+  assert.equal(calls, 1, 'store-less generated mutation dispatches');
+  assertPlainBody(requestBody);
+  assert.deepEqual(settlement, mockedSettlement);
+  assert.equal(Object.hasOwn(settlement, 'optimistic'), false);
+
+  calls = 0;
+  await assert.rejects(
+    () => storelessClient.mutate(reference, { args, queue: true }),
+    (error) => error.code === 'SNAPBACK_OFFLINE_QUEUE_DISABLED',
+  );
+  assert.equal(calls, 0, 'explicit queue requirement refuses before dispatch');
+
+  const directory = await mkdtemp(join(tmpdir(), 'snapback-generated-ir-server-only-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const durableStore = createFileRqsResumeStore({
+    directory,
+    clientStoreId: 'generated-ir-server-only-store',
+  });
+  await durableStore.whenLockSettled();
+  const durableClient = new SnapbackClient('http://generated-ir.invalid', {
+    rqsStore: durableStore,
+  });
+  requestBody = null;
+  globalThis.fetch = async (_url, init) => {
+    requestBody = JSON.parse(init.body);
+    return Response.json(mockedSettlement);
+  };
+  assert.deepEqual(
+    await durableClient.mutate(reference, { args, queue: false }),
+    mockedSettlement,
+  );
+  assertPlainBody(requestBody);
+  assert.deepEqual(await durableStore.outboxRecords(), []);
+  await durableStore.close();
+
+  const custodyStore = {
+    outboxEnqueue: async () => { throw outboxNotWriterError(); },
+    outboxEnqueueWithOperationIdentity: async () => { throw outboxNotWriterError(); },
+    outboxPending: async () => [],
+    outboxPrepareSubmission: async () => ({ status: 'ready', record: null }),
+    outboxRecords: async () => [],
+    outboxMarkAcknowledgementsReady: async () => {},
+    outboxDurablyConsume: async () => null,
+    outboxMarkResultGone: async () => null,
+    outboxPendingAcknowledgements: async () => [],
+    durability: () => ({ durable: true, implementation: 'fake' }),
+  };
+  const custodyClient = new SnapbackClient('http://generated-ir.invalid', {
+    rqsStore: custodyStore,
+  });
+  requestBody = null;
+  globalThis.fetch = async (_url, init) => {
+    requestBody = JSON.parse(init.body);
+    return Response.json(mockedSettlement);
+  };
+  const custodySettlement = await custodyClient.mutate(reference, { args });
+  assertPlainBody(requestBody);
+  assert.deepEqual(custodySettlement, mockedSettlement);
+  assert.equal(Object.hasOwn(custodySettlement, 'optimistic'), false);
+
+  globalThis.fetch = async () => { throw new TypeError('fetch failed'); };
+  await assert.rejects(
+    () => storelessClient.mutate(reference, { args }),
+    /fetch failed/,
+  );
+
+  calls = 0;
+  globalThis.fetch = async () => {
+    calls += 1;
+    return Response.json(mockedSettlement);
+  };
+  await assert.rejects(
+    () => storelessClient.mutate(reference, {
+      args,
+      optimisticOperation: { appReducer: true },
+    }),
+    (error) => error.code === 'SNAPBACK_GENERATED_IR_DUPLICATE_TRANSFORM',
+  );
+  assert.equal(calls, 0, 'duplicate transform refuses before dispatch');
 });

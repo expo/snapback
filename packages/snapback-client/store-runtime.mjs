@@ -1501,7 +1501,7 @@ export const storeRuntimeMethods = {
     settlementIdentity,
     settlementClaims,
     boundedSkew,
-    queue,
+    composeLocalExecution = true,
   }) {
     const capability = generatedMutationIrCapability(ref);
     if (capability.generated && optimisticOperation !== null) {
@@ -1526,25 +1526,20 @@ export const storeRuntimeMethods = {
         error.code = 'SNAPBACK_GENERATED_IR_DERIVED_OPTIONS_ONLY';
         throw error;
       }
-      if (queue === false) {
-        const error = new Error(
-          'SNAPBACK_GENERATED_IR_DURABLE_OUTBOX_REQUIRED: generated local mutations require the durable outbox',
-        );
-        error.code = 'SNAPBACK_GENERATED_IR_DURABLE_OUTBOX_REQUIRED';
-        throw error;
+      if (composeLocalExecution) {
+        clientMutationId ??= createClientMutationId();
+        generatedMutation = prepareGeneratedMutationIrV1({
+          reference: ref,
+          args,
+          clientMutationId,
+          authUserId: typeof userId === 'string' ? userId : null,
+        });
+        settlementLane = generatedMutation.settlementLane;
+        settlementIdentity = generatedMutation.settlementIdentity;
+        settlementClaims = generatedMutation.settlementClaims;
+        boundedSkew = generatedMutation.boundedSkew;
+        optimisticOperation = generatedMutation.optimisticOperation;
       }
-      clientMutationId ??= createClientMutationId();
-      generatedMutation = prepareGeneratedMutationIrV1({
-        reference: ref,
-        args,
-        clientMutationId,
-        authUserId: typeof userId === 'string' ? userId : null,
-      });
-      settlementLane = generatedMutation.settlementLane;
-      settlementIdentity = generatedMutation.settlementIdentity;
-      settlementClaims = generatedMutation.settlementClaims;
-      boundedSkew = generatedMutation.boundedSkew;
-      optimisticOperation = generatedMutation.optimisticOperation;
     }
     return {
       generatedMutation,

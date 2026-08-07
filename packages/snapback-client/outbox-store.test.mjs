@@ -21,6 +21,8 @@ import { resolveDefaultRqsStore } from './rqs-store-default.mjs';
 import {
   OUTBOX_MAX_PENDING_ACKS,
   emptyOutboxState,
+  isConnectivityFailureError,
+  outboxNotWriterError,
   outboxOps,
 } from './outbox-shared.mjs';
 
@@ -2183,6 +2185,28 @@ test('caller aborts and server answers are never classified as connectivity', as
     /SNAPBACK_VALIDATION/,
   );
   assert.equal((await store.outboxPending()).length, 0, 'refusal did not enqueue');
+});
+
+test('connectivity classification excludes custody and answered refusals', () => {
+  const offlineQueueRefusal = new Error('offline queue disabled');
+  offlineQueueRefusal.code = 'SNAPBACK_OFFLINE_QUEUE_DISABLED';
+  offlineQueueRefusal.diagnostic = {
+    code: 'SNAPBACK_OFFLINE_QUEUE_DISABLED',
+    message: 'offline queue disabled',
+  };
+  const serverRefusal = new Error('server refused mutation');
+  serverRefusal.status = 409;
+  serverRefusal.diagnostic = {
+    code: 'SNAPBACK_MUTATION_CONFLICT',
+    message: 'conflict',
+  };
+  const dispatchFailure = new Error('fetch failed');
+  dispatchFailure.fetchDispatchFailed = true;
+
+  assert.equal(isConnectivityFailureError(outboxNotWriterError()), false);
+  assert.equal(isConnectivityFailureError(offlineQueueRefusal), false);
+  assert.equal(isConnectivityFailureError(serverRefusal), false);
+  assert.equal(isConnectivityFailureError(dispatchFailure), true);
 });
 
 test('outboxStatus and subscribeOutbox project the queue facts (LLP 0114 React-arm seam)', async (t) => {

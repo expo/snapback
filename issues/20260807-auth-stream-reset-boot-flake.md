@@ -16,3 +16,14 @@ roughly half the time; bounded retries mask it. A boot-ordering race
 connections?). Cold agents read it as their own bug first — expensive.
 Fix shape: gate readiness (the ready-file) on the auth stream being
 admittable, or classify the refusal as retryable-with-hint.
+
+2026-08-07 additional evidence (declarative-mutation-misroute lane): the
+same boot window also surfaces as `SNAPBACK_AUTH_MODE_PENDING` (503) on
+`authRequestCode` and on mutations, `SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID`
+/ `SNAPBACK_AUTH_TRANSITION_FAILED` /
+`SNAPBACK_AUTH_HANDSHAKE_AUTHORITY_MISMATCH` on the mint-and-exchange
+sequence, and transient `SNAPBACK_AUTH_REQUIRED` (401) on mutations for
+several seconds after the ready-file reports ready in sessions mode. All
+are order-independent and hit JS and declarative mutations equally
+(swapped-order probe runs). Strengthens the ready-file-gating fix shape:
+readiness should cover auth-mode settlement, not just the listener.
