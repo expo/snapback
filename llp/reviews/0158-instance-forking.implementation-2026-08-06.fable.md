@@ -844,3 +844,325 @@ spawning, SQLite authority, and crash recovery, which are the three areas
 where reading is least sufficient. File one `issues/` ticket carrying R3-3
 through R3-6 plus the two suggestions; none of them blocks the narrow claim as
 scoped.
+
+## Round 5 — 2026-08-06, oracle-defect closure at b08e835f1
+
+**Family:** fable
+**Provider/runtime:** Anthropic / Claude (Fable 5), Claude Code agent session
+**Date:** 2026-08-06
+**Redacted:** no
+**Method:** fresh clean-context session; read-only worktree pinned at
+`b08e835f1`. Declared **delta round**, bounded to the publication oracle: I did
+not re-review the fork implementation surface, which round 4 found inert. I read
+the committed rounds 1–3 of both families under `llp/reviews/` and remained
+blind to the codex family's round-5 work (I did not open its worktree). Round 4
+is not committed anywhere in this worktree, so for the round-4 defect statement
+I worked from my brief plus the v0.42 `Revised` entry in
+`llp/0162-agent-safe-storage-profile.rfc.md`. I read all four files of
+`b08e835f1` in full, then executed against it: `node --test
+tests/agent_safe_publication_checker_v1.mjs` (36 pass, 0 fail, 22.1 s);
+`implementationDigestAt` at five commits through the module's own export; and a
+23-case adversarial harness built by lifting
+`scripts/check-agent-safe-publication.mjs:1271-1400` verbatim into a scratch
+module. Cargo was not run — `vendor/ibex` is uninitialized here (gitlink
+`4c34c831a` absent), which is also why `implementationDigestWorkingTree` refuses
+in this worktree. This same section is appended to both of my dated fork
+artifacts; the findings are identical.
+
+### Summary
+
+Two of the three round-4 oracle defects are genuinely closed, and I could not
+reopen either. The verdict parser is not closed: I reproduced the round-4 attack
+— quoting the needle inside a blocking review — against the new parser, and
+found two further ways to make a blocking round parse as approving. Separately I
+found that the derived-fork review chain binds no commit and no implementation
+digest, and that the shipped evidence already exhibits that mismatch. Scope 2
+stays blocked. Scope 1 is unchanged and clear.
+
+### Defect 1 (receipt rotation) — CLOSED
+
+`assertQualifiedImplementationDigestAtPublication` now recomputes the digest
+from committed bytes at both ends and requires `digest(C) ==
+receipt.implementationTreeSha256 == digest(P)`
+(`scripts/check-agent-safe-publication.mjs:544-570`), and the gate moved out of
+`runChecker` into `validatePublicationRecord:1568-1573`, so every caller —
+including the tests that drive the record path directly — now gets it. Three
+attempts to reopen it:
+
+- **Rotate the receipt to P.** Refused. Their new test covers exactly this and I
+  re-ran it (`C-to-P custody refuses a receipt rotated to P that does not match
+  C`), along with the converse.
+- **Widen `PUBLICATION_CYCLE_ALLOWLIST` at P so the drifted path stops
+  counting.** Cannot work, and pleasingly so: the allowlist lives in
+  `scripts/check-agent-safe-publication.mjs`, which is itself inside
+  `IMPLEMENTATION_ROOTS` and is not allowlisted, so any edit to it moves
+  `digest(P)` away from `digest(C)` and the three-way equality fails first. The
+  allowlist is self-protecting. That is currently an accident of the roots list
+  rather than a stated invariant, and it is worth writing down in LLP 0162 so a
+  later refactor does not silently give it away.
+- **Introduce a new in-scope file only at P.** Moves `digest(P)`; refused.
+
+Byte custody is sound. What the three-way equality does *not* do is pin *which*
+ancestor is allowed to be C — any digest-equal ancestor satisfies it — and that
+is where R5-5 bites.
+
+### Defect 3 (self-referential digest cycle) — CLOSED, and a receipt can now honestly name its own C
+
+Verified concretely rather than from the changelog:
+
+- `git grep` for the qualification commit and for the four digest literals,
+  restricted to the exact `IMPLEMENTATION_ROOTS` path list, returns hits only in
+  `src/local-agent-safe-derived-deployment-fork-publication.carrier.json`,
+  `tests/acceptance/receipts/agent-safe-derived-deployment-fork-publication.2026-08-04.v1.json`,
+  `tests/acceptance/fixtures/instance-forks/author-acceptance.2026-08-06.v1.json`,
+  and the two dated lifecycle benches — every one of which is in
+  `PUBLICATION_CYCLE_ALLOWLIST`. No cycle-dependent literal survives in a
+  digested path. The Rust mirror's remaining assertions
+  (`src/agent_safe_publication.rs:486-530`) are shape-only: schema version,
+  capability, source-commit shape, non-zero digests, exact target and negative
+  profiles, component list, ordered evidence kinds and paths.
+- `implementationDigestAt(root, 0ee1fadc136e837f430556374a5842ac82069004)`
+  returns `sha256:2cad36279fbb319c4b828026c1fc0c2ed2d8ac38bffc14bd2ba39b3849eedf33`
+  — exactly the receipt's `implementationTreeSha256`. The receipt exists in the
+  tree at C and does not participate in its own digest, so the arithmetic is now
+  satisfiable in the obvious honest order: mint C, compute `digest(C)`, then
+  write the receipt, carrier, anchor, author acceptance and bench records — all
+  allowlisted — at any descendant P. Their new test (`receipt, carrier, and
+  anchor publication updates do not move the implementation digest`) is the right
+  test and it passes.
+- One consequence worth stating in LLP 0162: the two family reviews are also
+  outside the digest (nothing under `llp/` is in `IMPLEMENTATION_ROOTS`), so
+  appending a review round does not move the digest — but it *does* break the
+  receipt's `evidence[].sha256` binding for that path. A re-qualification must
+  therefore mint the receipt *after* the reviews land, in that order. Appending
+  this very section invalidates the current receipt's `specReviewFable` and
+  `implementationReviewFable` digests; that is correct behaviour, not a defect.
+
+So the answer to the round-4 question is yes: a receipt can now honestly name the
+commit that qualified it.
+
+### Defect 2 (verdict parser) — NOT CLOSED
+
+I lifted `scripts/check-agent-safe-publication.mjs:1271-1400` verbatim into a
+scratch module and ran 23 cases. The narrowing is real: a `NOT READY` in the
+authoritative cell or statement is refused; a stale `Round 3` column is refused
+because verdict-column resolution fails; a needle quoted *after* the verdict
+statement is refused — which is the case their new test covers. But the class is
+not closed. Fence contents below are indented by two spaces so that this artifact
+does not trip the parser it is describing; the real exploits have them at column
+zero.
+
+**R5-1 (High) — the round-4 attack still works when the quotation comes first.**
+`finalReviewVerdictIsReady` takes the verdict section's first bold run and tests
+only an *anchored prefix* of it. The remainder of that bold run, and everything
+after it, is unconstrained. Both of these parse as approving:
+
+```
+  ### Scope 2 verdict
+
+  **READY for publication of the narrow local `operating.instance-forks`
+  surface was the round-3 verdict; I withdraw it and return NOT READY.**
+```
+
+```
+  ### Scope 2 verdict
+
+  **READY for publication of the narrow local `operating.instance-forks`
+  surface** is what round 3 said. I now block it: NOT READY.
+```
+
+Opening a delta round by quoting the previous round's verdict and then
+withdrawing it is an ordinary review idiom — it is close to how my own round-3
+section opens. This is the round-4 defect relocated, not removed. Closure is
+cheap: require the authoritative bold run to *end* at the statement (anchor the
+tail, not just the head), and refuse the section outright if the token
+`NOT READY` appears anywhere inside it.
+
+**R5-2 (High) — in Scope 1 the *first* `Document` table wins, so a quoted
+historical table overrides the current one.** `finalSpecReviewVerdictsAreReady`
+scans the section for the first table whose header cell 0 is `Document` and
+`return`s on it; it never checks that the table is unique or current. A round-5
+section that reproduces a prior round's table above its own is read from the
+reproduction:
+
+```
+  ### Scope 1 re-verdict
+
+  For reference, my round-3 table said:
+
+  | Document | Fork-relevant verdict | Round-3 assessment |
+  | --- | --- | --- |
+  | LLP 0163 | **READY** | … |
+  | LLP 0164 | **READY** | … |
+  | LLP 0165 | **READY** | … |
+
+  At round 5 I now find:
+
+  | Document | Round 5 | Notes |
+  | --- | --- | --- |
+  | LLP 0163 | **NOT READY** | blocked |
+  | LLP 0164 | **NOT READY** | blocked |
+  | LLP 0165 | **NOT READY** | blocked |
+```
+
+That parses as approving. It is not a contrived shape: the codex family's
+committed round-3 section uses precisely the header `| Document |
+Fork-relevant verdict | Round-3 assessment |`
+(`llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.codex.md:196`),
+so quoting it verbatim is the natural thing for a later delta round to do. Note
+the asymmetry that makes this specifically dangerous: a stale `Round N` header
+column *is* refused, because column resolution against the current round number
+fails; but the `Fork-relevant verdict` header carries no round binding at all, so
+a historical table in that shape is indistinguishable from a current one.
+Closure: require exactly one `Document` table in the section, or require every
+`Document` table in it to agree.
+
+**R5-3 (High) — any line shaped like a round heading, later in the round,
+re-anchors the authoritative window.** `finalReviewRound` slices from the *last*
+line matching `^## Round [0-9]+`, wherever it occurs and whatever follows it, and
+markdown fences are not excluded. A subsection titled `## Round 3 comparison`
+inside round 5 therefore discards everything above it — including the actual
+current verdict — and makes whatever is quoted below it authoritative. I
+confirmed both halves: with a blocking current verdict above such a heading and a
+quoted round-3 verdict below it, both `finalReviewVerdictIsReady` and
+`finalSpecReviewVerdictsAreReady` return true, and `finalReviewRoundNumber`
+returns 3 rather than 5, so the `Round N` column fallback also resolves to the
+wrong round. This falsifies LLP 0162 v0.42's "Only the last `## Round N` section
+is current": it is the last matching *line*, which is not the same thing.
+Closure: validate the round-heading sequence (strictly increasing, each followed
+by a provenance block) instead of taking the last match, and ignore fenced
+regions.
+
+**R5-4 (Medium) — duplicate document rows resolve last-wins.** `verdicts.set`
+overwrites, so a table carrying `| LLP 0163 | **NOT READY** |` and later
+`| LLP 0163 | **READY** |` reads as approving. A repeated summary row at the foot
+of a table is enough to do it. Closure: refuse duplicate document rows.
+
+**R5-6 (Low) — several honest verdict shapes fail closed, silently.** A Scope 2
+verdict written as a list item, as a blockquote, as `***READY …***`, or preceded
+by any non-whitespace character; a Scope 1 table with bolded document cells
+(`| **LLP 0163** | … |`); and a cell reading `**READY**, with caveats` are all
+read as not-READY. The direction is safe, but the reviewer gets no diagnostic and
+the required shape is documented only as prose in an RFC they may never open.
+Whoever fixes R5-1 through R5-4 should make the parser say *why* it refused, and
+the shape contract should live where reviewers will actually meet it.
+
+### New findings outside the three round-4 defects
+
+**R5-5 (High; pre-existing, not introduced by `b08e835f1`, and not raised in
+rounds 1–3) — the derived-fork review chain binds no commit and no
+implementation digest, and the shipped evidence already shows the mismatch.**
+The storage chain's `validateReview` requires `Reviewed commit === C` and
+`Implementation tree SHA-256 === digest(C)`
+(`scripts/check-agent-safe-publication.mjs:1109-1120`). The fork chain's
+`validateDerivedForkReview` (`:1402-1420`) requires only a recognizable family, a
+`Date` of `2026-08-06`, and a final-round verdict — it is never even passed the
+commit. Nothing in the oracle asserts that the two independent reviews it binds
+are reviews *of the qualified tree*. Concretely, at this commit:
+
+- the receipt qualifies `C = 0ee1fadc136e837f430556374a5842ac82069004`, whose
+  `implementationDigestAt` is `sha256:2cad36279fbb…eedf33`;
+- all four bound fork reviews are headed `commit cdc0fe03e`, whose
+  `implementationDigestAt` is `sha256:3aec87741a27…0798f`;
+- `git diff --name-status 0ee1fadc1 cdc0fe03e` restricted to
+  `IMPLEMENTATION_ROOTS` shows `src/instance_fork.rs`, `src/storage.rs`,
+  `src/proof_checkpoint.rs`, `src/server.rs`, `src/local.rs`, `src/manifest.rs`
+  and `src/storage/migration_executor.rs` among the modified paths, via
+  `d2bd5fbbd` ("fix(proof): green the seven remaining keep-going reds — all real
+  defects").
+
+So the reviews the receipt binds read a later, more-fixed fork implementation
+than the tree the receipt qualifies, and the oracle cannot see it. Today the
+consequence is masked — the anchor is withheld and the C-to-P gate already
+refuses at HEAD — but this is precisely the custody hole the three-way equality
+was meant to close, displaced from bytes to evidence: the equality pins the tree
+at C and at P without pinning which ancestor is named C or what the reviewers
+actually read. Closure is one conjunct each: pass the commit and the digest into
+`validateDerivedForkReview` and require the review to name them, as the storage
+chain already does.
+
+**R5-7 (Low) — LLP 0162 v0.42 overstates the code in two places.** "`NOT READY`,
+quoted READY prose elsewhere, and READY text in historical rounds or non-current
+table columns never satisfy either gate" is falsified by R5-1 and R5-2; "Only the
+last `## Round N` section is current" is falsified by R5-3. Since that paragraph
+is the specification a future reviewer will trust, I would raise the parser to
+the prose rather than weaken the prose to the parser.
+
+### Regression check on the fixes themselves
+
+No new defect in what `b08e835f1` changed, and nothing weakened:
+
+- `validateAuthorAcceptance` and `validateDerivedForkAuthorAcceptance` each
+  gained `value.implementationTreeSha256 === receipt.implementationTreeSha256`
+  (`:1148`, `:1443`) — strictly additional conjuncts on an existing chain.
+- The candidate-facts check is genuinely de-self-referenced: `exactCandidate` is
+  reconstructed from code inside the digest scope and hashed once, then required
+  of the carrier *and* the receipt (`:1536-1548`), replacing the previously
+  self-consistent `sha256(JSON.stringify(carrier.candidateFacts))`.
+- Moving the ancestry and digest gates from `runChecker` into
+  `validatePublicationRecord` only widens their reach; `runChecker` still runs the
+  local-store transform check and the clean-working-tree comparison, now against
+  the digest the record path returns.
+- The Rust mirror lost only qualification-specific literals. The structural
+  assertions it gained are a fair trade and cannot re-enter the digest cycle,
+  because every value they check is either a constant or a shape.
+- `node --test tests/agent_safe_publication_checker_v1.mjs` — 36 pass, 0 fail.
+
+### Scope 1 re-verdict
+
+| Document | Fork-relevant verdict | Round-5 assessment |
+| --- | --- | --- |
+| LLP 0163 | **READY** | Unchanged from round 3 and from round 4. `b08e835f1` does not touch operation identity or the commit envelope, and the fork's `attribution: "absent-v1"` boundary is untouched. |
+| LLP 0164 | **READY** | Unchanged from round 3 and from round 4. Untouched by this commit; the delegated base-to-head diff surface is unaffected. |
+| LLP 0165 | **READY** | Unchanged from round 3 and from round 4. Untouched by this commit; the round-3 continuity closure still holds. |
+
+These are review verdicts on the fork-relevant surfaces of the three Specs, not
+edits to their Status headers. Every finding above is in the publication oracle,
+which is LLP 0162's surface, not these documents'.
+
+### Scope 2 verdict
+
+**NOT READY for publication of the narrow local `operating.instance-forks`
+capability at `b08e835f1`.** Two of the three round-4 oracle defects are closed
+and I could not reopen either. The verdict parser is not: R5-1 reproduces the
+round-4 attack against the new parser, R5-2 and R5-3 add two further ways for a
+blocking round to be read as approving, and R5-5 shows the fork review chain
+binding reviews of a tree that is not the qualified one. The gate whose entire
+purpose is to prove that two independent families said the surface was ready can
+still be satisfied by a review that says the opposite, so a publication it
+permits would not mean what it claims. This is a defect in the oracle, not in the
+fork implementation, which round 4 found inert and which I did not re-review.
+
+### Verification actually performed
+
+- Read `b08e835f1` in full across `scripts/check-agent-safe-publication.mjs`,
+  `src/agent_safe_publication.rs`, `tests/agent_safe_publication_checker_v1.mjs`
+  and `llp/0162-agent-safe-storage-profile.rfc.md`, then read the resulting
+  checker directly.
+- `node --test tests/agent_safe_publication_checker_v1.mjs` — 36 pass, 0 fail.
+- `implementationDigestAt` via the module export at `0ee1fadc1`
+  (`sha256:2cad3627…`), `cdc0fe03e` (`sha256:3aec8774…`), `96fd0ad1c`
+  (`sha256:93e0bc67…`), `0b8b0ff71` (`sha256:332db79e…`) and `b08e835f1`
+  (`sha256:0ef65e5b…`), confirming both that the receipt is honest at C and that
+  HEAD has drifted in scope.
+- 23 adversarial cases against the lifted parser
+  (`scripts/check-agent-safe-publication.mjs:1271-1400`), covering quote-first
+  and quote-after needles, duplicate and historical tables, stale round columns,
+  bulleted, blockquoted, escaped and bold-italic verdicts, non-breaking space and
+  trailing-whitespace headings, h4 nesting, unpadded pipes, duplicate rows, and
+  round-heading re-anchoring inside and outside fences.
+- `git grep` for the qualification commit and all four digest literals restricted
+  to `IMPLEMENTATION_ROOTS`, and `git diff --name-status 0ee1fadc1 cdc0fe03e`
+  over the same paths.
+- Not done: cargo build or test (`vendor/ibex` uninitialized), the working-tree
+  digest comparison (same cause), and any re-review of the fork implementation
+  surface.
+
+### Recommended next step
+
+Fix R5-1 through R5-4 in the parser and R5-5 in `validateDerivedForkReview` —
+five bounded changes, each with a test that fails first — reconcile LLP 0162's
+verdict-authority paragraph with the code (R5-7), and add a diagnostic for R5-6.
+Then re-verdict Scope 2 against the resulting commit. The receipt will have to be
+re-minted after that work in any case, because this section changes the bytes of
+two artifacts the current receipt binds.
