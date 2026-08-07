@@ -75,3 +75,16 @@ R12-1 nested-shape drifts and prove each is rejected. The tampering probes now
 use current lower-camel spellings, and the artifact-local
 `EffectSettlementCapabilityV1` name collision is documented at the DK-7
 comparison boundary and in LLP 0037 rather than renamed invasively.
+
+## Resolution (2026-08-07)
+
+Implemented and landed on main in `ff015ee6d` ("fix(codegen): gate AgentSafe
+declarations against schemas"): both drifted members corrected to the Rust
+shapes, and a Node-only drift gate now compares all 33 `AgentSafe*`
+declarations against all four committed schema projections, wired into the
+live publication oracle and `dk7_committed_schemas_match_rust_types`.
+Negative fixtures prove it catches R11-1 and both R12-1 drifts. Tampering
+probes use current spellings; the `EffectSettlementCapabilityV1` double-naming
+is documented as artifact-local at the comparison site. Landed ahead of the
+requalification cycle per LLP 0189 (the withdrawal already requires a fresh
+qualification C).

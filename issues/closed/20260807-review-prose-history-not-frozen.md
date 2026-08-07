@@ -53,3 +53,16 @@ The negative corpus rebinds the outer chain after replacing earlier prose with
 `build.rs` publication-cycle allowlist mirror assertion is also bidirectional;
 its prior one-way form already failed closed, so this is robustness hardening,
 not closure of a publication hole.
+
+## Resolution (2026-08-07)
+
+Implemented and landed on main in `0a60693cc` ("fix(publication): freeze
+per-round review prose history"): new rounds carry frozen per-round prose
+digests (increasing frozen lengths, prefix digests re-verified), the twelve
+pre-hardening rounds are admitted only as an exact known legacy inventory with
+no fabricated digests, and the demonstrated "All rounds were READY" rewrite is
+refused by a negative fixture. The build.rs allowlist mirror test is now
+bidirectional. The deferral condition ("next cycle that needs a new C") was
+met by the 2026-08-07 withdrawal — the requalification cycle
+(`issues/20260807-derived-fork-publication-wave-drift-requalification.md`)
+qualifies a tree that already contains this fix.

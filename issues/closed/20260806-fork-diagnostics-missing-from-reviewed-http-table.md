@@ -30,3 +30,11 @@ Classify the three `SNAPBACK_FORK_*` codes in the reviewed table (owner:
 whoever landed the fork boot/binding diagnostics — see `git log` for
 `SNAPBACK_FORK_APP_BINDING_REQUIRED`), or record why they are not
 production-HTTP-reachable.
+
+## Resolution (2026-08-07)
+
+Duplicate of the ticket resolved by `d2bd5fbbd` ("green the seven remaining
+keep-going reds"), which registered the three `SNAPBACK_FORK_*` codes in the
+production diagnostic inventory (its message records 2234 passed / 0 failed
+including this gate, and the codes now appear in the reviewed table in
+`src/server.rs`). Closing as fixed-on-main; no separate work remained.
