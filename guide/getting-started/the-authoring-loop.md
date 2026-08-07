@@ -35,11 +35,7 @@ bun install
 bun run dev
 ```
 
-<!-- since: 0.1.12 unreleased -->
-
-> **Unreleased.** The `expo-chat` template is newer than the newest
-> published closure (0.1.11); in a packaged consumer it arrives with the
-> next release. `todo-contract` and `react` are published.
+<!-- since: 0.1.12 -->
 
 Three templates ship in the packaged CLI: `todo-contract` (headless
 backend + generated client references), `react` (the React/Vite web

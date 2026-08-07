@@ -1,6 +1,6 @@
 # useSnapbackAssetImage.src defaults to a strict-delivery URL a plain <img> cannot fetch
 
-**Status:** Open
+**Status:** Closed — published in 0.1.12 (2026-08-07)
 **Impact:** 2
 **Urgency:** 2
 **Ease:** 4
@@ -67,3 +67,8 @@ Both halves of the fix shape landed in `@expo/snapback-react`
 The published 0.1.11 closure still has the old behavior (the bakeoff's
 evidence); keep this ticket open until the 0.1.12 publish, then move to
 `issues/closed/`.
+
+
+## Closed — 2026-08-07
+
+Fix published in 0.1.12; `src` selects the most-permissive granted delivery, the rendition race holds a typed `delivery: 'pending'` fact, and sessions-mode strict-only delivery warns `SNAPBACK_REACT_ASSET_STRICT_DELIVERY_SESSIONS`.

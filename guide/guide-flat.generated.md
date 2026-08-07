@@ -4191,14 +4191,7 @@ function NativeAssetImage({ assetId, userId, onRendered }: Readonly<{
   );
 ```
 
-<!-- since: 0.1.12 unreleased -->
-
-> **Unreleased.** The `src` selection rule, the `delivery`/`strictSrc`
-> facts, and the `SNAPBACK_REACT_ASSET_STRICT_DELIVERY_SESSIONS` diagnostic
-> below are newer than the newest published closure (0.1.11). The 0.1.11
-> hook returns the strict-delivery route as `src` whenever it cannot pick a
-> ready public rendition, so on that closure a sessions-mode `<Image>` can
-> render an empty image; render the public-immutable URL yourself there.
+<!-- since: 0.1.12 -->
 
 Three facts make this the whole recipe — there is no workaround to learn:
 
@@ -10894,11 +10887,7 @@ bun install
 bun run dev
 ```
 
-<!-- since: 0.1.12 unreleased -->
-
-> **Unreleased.** The `expo-chat` template is newer than the newest
-> published closure (0.1.11); in a packaged consumer it arrives with the
-> next release. `todo-contract` and `react` are published.
+<!-- since: 0.1.12 -->
 
 Three templates ship in the packaged CLI: `todo-contract` (headless
 backend + generated client references), `react` (the React/Vite web
