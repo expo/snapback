@@ -40,6 +40,18 @@ assert(
   'deployment-identity CI must materialize ignored All Aboard inputs and refuse review drift before checking identity',
 );
 
+const coldCloneCheck = readFileSync(join(ROOT, 'scripts', 'cold-clone-check.sh'), 'utf8');
+assert.match(
+  coldCloneCheck,
+  /run "\$ROOT\/scripts\/bootstrap-ibex-runtime"/u,
+  'cold-clone CI must enter native readiness through the coded bootstrap',
+);
+assert.doesNotMatch(
+  coldCloneCheck,
+  /SNAPBACK_BOOTSTRAP_CHECK/u,
+  'cold-clone CI must not disable the bootstrap link, launch, VM, or readiness checks',
+);
+
 const activeCheckoutUse = /^\s*(?:-\s+)?uses:\s+actions\/checkout@[^\s#]+(?:\s+#.*)?$/;
 const activeCredentialCheck = /^\s*run:\s*scripts\/check-checkout-credentials\s*(?:#.*)?$/m;
 const activePersistCredentialsFalse = /^\s+persist-credentials:\s*false\s*(?:#.*)?$/m;

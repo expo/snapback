@@ -112,7 +112,13 @@ banner "Snapback engine prerequisites"
 if [ ! -f "$ROOT/vendor/ibex/Cargo.toml" ]; then
     run git -C "$ROOT" submodule update --init --recursive
 fi
-run env SNAPBACK_BOOTSTRAP_CHECK="${SNAPBACK_BOOTSTRAP_CHECK:-0}" "$ROOT/scripts/bootstrap-ibex-runtime"
+# The cold-clone acceptance serves this exact checkout binary. Let the coded
+# bootstrap perform its default link, loader-closure staging, launch, handler-VM
+# qualification, and digest-bound readiness issuance before the harness trusts
+# that binary. Disabling the check leaves Linux target/lib/libhermesvm.so
+# unstaged even though the binary deliberately carries an $ORIGIN/../lib
+# RUNPATH.
+run "$ROOT/scripts/bootstrap-ibex-runtime"
 
 # Pre-build the engine so the acceptance's 90 s /health deadline is spent on
 # startup, not on a cold compile (the Diary 0008 "PASS — 0/0" scenario).
