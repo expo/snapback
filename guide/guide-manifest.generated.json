@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "5ae7cc675d67c8e40b125e9c275657f1d5e98a7f"
+    "commit": "f4d4d8c184a8994b747a8e83b1ee74abfcb8a09b"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -1497,9 +1497,9 @@
         "packages/snapback-react/index.mjs"
       ],
       "examples": [],
-      "reviewed": "2026-08-06",
-      "reviewedCommit": "850427c31b9a668d55b46995e08389cd13a2c9b6",
-      "sha256": "7e3fcc10c2bf91769ddbefea5175bcaff2cf5ac9a06080cb8f38d5f6f99fa590",
+      "reviewed": "2026-08-07",
+      "reviewedCommit": "f4d4d8c184a8994b747a8e83b1ee74abfcb8a09b",
+      "sha256": "2a08975bf11e0e9a4a21870718587c3be9c6503d5e73de21736073098e0fb24e",
       "snippets": []
     },
     "clients.app-cli": {
@@ -1763,9 +1763,9 @@
         "demos/tandem-expo-bakeoff/scripts/build-ios-dev-client",
         "demos/_kit/tests/repo-layout-unit.mjs"
       ],
-      "reviewed": "2026-08-06",
-      "reviewedCommit": "4ac8387f080a2659484fc09916ff22a076dc4ca8",
-      "sha256": "3e605d8d7f4bc3363d64f7a3b611337638e220329974398628ffc19567cf2521",
+      "reviewed": "2026-08-07",
+      "reviewedCommit": "f4d4d8c184a8994b747a8e83b1ee74abfcb8a09b",
+      "sha256": "62bd5615cad3f71e1d883f82de6db62014046d34bd59407883c89397a5c83b2c",
       "snippets": [
         {
           "lang": "json",
@@ -3254,11 +3254,12 @@
         "demos/warble",
         "packages/snapback-contract/agent-authority-contract.test.mjs",
         "packages/snapback-react/offline.test.mjs",
+        "packages/snapback-client/rqs-resume.test.mjs",
         "tests/acceptance/desktop-sidecar-v1.mjs"
       ],
-      "reviewed": "2026-08-06",
-      "reviewedCommit": "711e4d763d87cadf0c638bd15ed33a85427e4f11",
-      "sha256": "36a9efc9968eba5ffecad0d544e9527d7c5db0af40f4780ebfc06bc0d1adf8b3",
+      "reviewed": "2026-08-07",
+      "reviewedCommit": "f4d4d8c184a8994b747a8e83b1ee74abfcb8a09b",
+      "sha256": "248d0a90e6a449d953c235fd997612216aa8e8728da7311bc67f543da8f3cc39",
       "snippets": [
         {
           "lang": "js",
@@ -3304,6 +3305,11 @@
           "lang": "js",
           "class": "transcluded",
           "source": "demos/public-dashboard/tests/acceptance/offline-local-first.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "packages/snapback-client/rqs-resume.test.mjs"
         },
         {
           "lang": "js",
@@ -3504,5 +3510,5 @@
     "routes": 122,
     "hostOps": 43
   },
-  "contentHash": "20ef505cf802e9f7a3e9247450554114d9c73535bd74e68a9510d5d927dff38d"
+  "contentHash": "4ae0a2b58b175f116cb0e7dc1320b957ac756a949c8748147548090e2eeb3450"
 }

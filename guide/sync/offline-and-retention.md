@@ -5,12 +5,12 @@ order: 1
 audience: agent-first
 capabilities: [backend.single-table-v1, sync.offline, sync.offline-js-arm, sync.local-persistent-store]
 authorities: [llp/0043-offline-replay-retention.rfc.md, llp/0052-contract-update-economy-and-host-state.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0090-resumable-query-snapshots.rfc.md, llp/0110-bounded-children-and-activity-patterns.spec.md, llp/0129-local-first-program.plan.md, llp/0133-local-settlement.spec.md, llp/0135-sequence-allocation-and-snapshot-batch.spec.md, llp/0157-composition-algebra-and-completeness.spec.md, llp/0166-local-persistent-store.spec.md, src/local-persistent-store-publication.v1.json, packages/snapback-codegen/index.mjs, packages/snapback-client/local-read-admission.mjs, packages/snapback-client/materialization-bridge.mjs, tests/acceptance/local-store-carrier-exit-v1.mjs, packages/snapback-contract/index.mjs, packages/snapback-contract/offline-replay.test.mjs, packages/snapback-client/index.mjs, packages/snapback-client/external-store.mjs, packages/snapback-client/external-store.test.mjs, packages/snapback-client/outbox-store.test.mjs, packages/snapback-react/index.mjs, demos/warble/snapback/functions.mjs, demos/warble/tests/acceptance/offline-local-first.mjs]
-examples: [demos/triage-graph, demos/card-game, demos/todo-v2/surfaces/contract, demos/public-dashboard, demos/warble, packages/snapback-contract/agent-authority-contract.test.mjs, packages/snapback-react/offline.test.mjs, tests/acceptance/desktop-sidecar-v1.mjs]
+examples: [demos/triage-graph, demos/card-game, demos/todo-v2/surfaces/contract, demos/public-dashboard, demos/warble, packages/snapback-contract/agent-authority-contract.test.mjs, packages/snapback-react/offline.test.mjs, packages/snapback-client/rqs-resume.test.mjs, tests/acceptance/desktop-sidecar-v1.mjs]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-06
-reviewed-commit: 711e4d763d87cadf0c638bd15ed33a85427e4f11
+reviewed: 2026-08-07
+reviewed-commit: f4d4d8c184a8994b747a8e83b1ee74abfcb8a09b
 ---
 
 # Offline retention and mutation replay
@@ -70,11 +70,14 @@ witness proves:
   handle's `retention` fact names the refusal
   (`SNAPBACK_RETENTION_NOT_RQS_ELIGIBLE`) instead of silently acting
   local-first. **Not proven by this witness:** the protected/auth-scoped
-  and opaque refusal (`SNAPBACK_RETENTION_NOT_RETAINABLE`) is implemented
-  but asserted by no test on any carrier — LLP 0053's retainability
-  invariant is the intended boundary, and the evidence for it is a GAP
-  under the ticket above. Lease-bounded protected retention remains the
-  Contract arm's.
+  and opaque refusal (`SNAPBACK_RETENTION_NOT_RETAINABLE`) is pinned by an
+  interim Node-carrier receipt in
+  `packages/snapback-client/rqs-resume.test.mjs` — an auth-scoped
+  subscription over the real client names the refusal code and a
+  lease-naming reason and persists zero entries — but no browser-carrier
+  test asserts it, so that half of LLP 0053's retainability boundary stays
+  a GAP under the ticket above. Lease-bounded protected retention remains
+  the Contract arm's.
 - **A durable LLP 0043 M2 outbox.** A mutation refused by connectivity is
   queued durably under a client-minted `clientMutationId` (protocol-lane
   identity) with a monotonic local sequence, and returns
@@ -445,6 +448,21 @@ protected retention is the lease machinery's, below),
 authority-independent closed-inputs declarative query), and
 `SNAPBACK_RETENTION_STORE_DISABLED` (eligible, but this client opted out of
 persistence).
+
+The authority-scoped refusal is receipt-pinned on the Node carrier — the
+handle names the LLP 0053 boundary and the store stays empty:
+
+```js source=packages/snapback-client/rqs-resume.test.mjs
+  assert.equal(handle.retention?.retainable, false, 'auth-scoped rows are never retainable on this arm');
+  assert.equal(
+    handle.retention?.code,
+    'SNAPBACK_RETENTION_NOT_RETAINABLE',
+    'the refusal names the LLP 0053 retainability invariant, not a generic ineligibility',
+  );
+```
+
+No browser-carrier test asserts the same refusal; that remains part of the
+evidence GAP tracked in the JS-arm section above.
 
 Two neighbors that are **not** this opt-in:
 

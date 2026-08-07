@@ -9,8 +9,8 @@ examples: [demos/expo-golden-path-fixture, demos/expo-golden-path-fixture/receip
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-06
-reviewed-commit: 4ac8387f080a2659484fc09916ff22a076dc4ca8
+reviewed: 2026-08-07
+reviewed-commit: f4d4d8c184a8994b747a8e83b1ee74abfcb8a09b
 ---
 
 # React Expo Online clients
@@ -75,8 +75,10 @@ extra sibling ceremony is a known scaffold limitation rather than a hidden
 
 A blank Expo TypeScript scaffold includes the whole tree. Snapback's generated
 directory also carries provider-neutral Contract source projections that are
-not Expo runtime inputs, so keep the app check on entrypoints plus generated
-declarations:
+not Expo runtime inputs — a broad `include` pulls them into the app typecheck,
+where their `@exact/contract/exports` imports fail as an unresolvable module
+(that specifier is a generated-projection edge, not a package to install) —
+so keep the app check on entrypoints plus generated declarations:
 
 ```json fragment reason="external Expo typecheck boundary proved by the G4 receipt"
 {
