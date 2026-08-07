@@ -6,6 +6,10 @@
 Auth, Assets, Offline, Testing, Hosted environments, Code generation
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-05
+**Revised:** 2026-08-07 (k) — The supervised carrier's endpoint vocabulary is
+now confined to literal development-only branches so production Metro/Hermes
+exports prune it, making the carrier inert under the release build condition
+and repairing LLP 0176 G4's release-shape finding.
 **Revised:** 2026-08-06 (j) — OQ4 USB implementation probe: Android physical
 devices now use the E1 supervisor's exact per-serial `adb reverse` ownership,
 with emulator/USB/TCP-IP inventory classes, TCP/IP refusal, exact verification,
@@ -324,6 +328,16 @@ prepares any application stores.
 It depends only on public client packages. The production graph excludes the
 Snapback server, local handler executor, admin/host-ops clients, development
 impersonation material, and contributor-source paths.
+
+**Release-export vocabulary — 2026-08-07.** The supervised carrier's endpoint
+vocabulary — its exchange path constant, supervisor-origin runtime lookup,
+and device-local host literals in both the environment and the `AppBinding`
+supervised-development host checks — is gated behind literal
+`process.env.NODE_ENV !== 'production'` branches. Production Metro/Hermes
+exports therefore prune that vocabulary and leave the supervised environment
+inert, matching the provider's refusal of supervised-development bindings
+under the production condition. This is verified by
+`packages/snapback-expo/release-export-vocabulary.test.mjs`.
 
 Web-only React consumers continue using `@expo/snapback-react`; they do not
 acquire Expo peer dependencies.

@@ -3480,6 +3480,7 @@ function assetRegistryFor(provider) {
   registry = {
     assets,
     stores,
+    warnedStrictDeliveryAssetIds: new Set(),
     get generation() { return generation; },
     dispose: unregister,
   };
@@ -3584,24 +3585,44 @@ export function useSnapbackAssetUpload(options) {
 const ASSET_IMAGE_IDLE = Object.freeze({
   phase: 'empty',
   src: null,
+  strictSrc: null,
+  delivery: null,
   aspectRatio: null,
+  placeholderSrc: null,
   record: null,
 });
 
 function bestReadyRenditionVariant(record, maxWidth) {
-  const sized = Array.isArray(record?.renditions)
+  const ready = Array.isArray(record?.renditions)
     ? record.renditions
       .filter((rendition) => (
         rendition?.ready === true
         && typeof rendition.variant === 'string'
-        && Number.isFinite(rendition.width)
       ))
-      .map((rendition) => ({ variant: rendition.variant, width: rendition.width }))
-      .sort((left, right) => left.width - right.width)
     : [];
+  const sized = ready
+    .filter((rendition) => Number.isFinite(rendition.width))
+    .map((rendition) => ({ variant: rendition.variant, width: rendition.width }))
+    .sort((left, right) => left.width - right.width);
   return sized.slice().reverse().find((rendition) => rendition.width <= maxWidth)?.variant
     ?? sized[0]?.variant
+    ?? ready[0]?.variant
     ?? null;
+}
+
+function warnAssetStrictDeliverySessions(registry, provider, assetId) {
+  if (
+    provider.binding.authMode !== 'sessions'
+    || registry.warnedStrictDeliveryAssetIds.has(assetId)
+  ) return;
+  registry.warnedStrictDeliveryAssetIds.add(assetId);
+  try {
+    globalThis.console?.warn?.(
+      `SNAPBACK_REACT_ASSET_STRICT_DELIVERY_SESSIONS: asset ${assetId}'s policy grants only strict delivery, but this server runs sessions auth; a plain <img>/<Image> cannot send the required x-snapback-auth-client-protocol header, so rendering src directly shows empty pixels. Declare delivery: { kind: 'public-immutable' } on the upload intent for a pasteable URL, or fetch the bytes with the authenticated client using strictSrc. See guide/backend/assets.md#deliver.`,
+    );
+  } catch {
+    // A missing or throwing console must never affect asset rendering.
+  }
 }
 
 /**
@@ -3672,14 +3693,63 @@ export function useSnapbackAssetImage({
       const underlay = effectivePlaceholder !== null
         ? placeholderState(record.record)
         : null;
-      const publicVariant = record.record?.deliveryProfile === 'public-immutable'
-        ? bestReadyRenditionVariant(record.record, maxWidth)
-        : null;
+      const profile = record.record?.deliveryProfile ?? null;
+      const strictSrc = registry.assets.deliveryUrl(assetId, { maxWidth });
+      // @ref LLP 0044#delivery-profiles — choose the most-permissive URL the
+      // policy grants; URL selection does not change server authorization.
+      // A public asset can be ready before an optional rendition publishes,
+      // so that race stays on the existing underlay ladder.
+      if (profile === 'public-immutable') {
+        const publicVariant = bestReadyRenditionVariant(record.record, maxWidth);
+        if (publicVariant !== null) {
+          return Object.freeze({
+            phase: 'rendition',
+            src: registry.assets.publicDeliveryUrl(assetId, { variant: publicVariant }),
+            strictSrc,
+            delivery: 'public',
+            aspectRatio: underlay?.aspectRatio ?? null,
+            placeholderSrc: underlay?.src ?? null,
+            record: record.record,
+          });
+        }
+        if (previewUrl !== null) {
+          return Object.freeze({
+            phase: 'preview',
+            src: previewUrl,
+            strictSrc,
+            delivery: 'pending',
+            aspectRatio: null,
+            placeholderSrc: underlay?.src ?? null,
+            record: record.record,
+          });
+        }
+        if (underlay !== null) {
+          return Object.freeze({
+            phase: 'placeholder',
+            src: underlay.src,
+            strictSrc,
+            delivery: 'pending',
+            aspectRatio: underlay.aspectRatio,
+            placeholderSrc: underlay.src,
+            record: record.record,
+          });
+        }
+        return Object.freeze({
+          phase: 'empty',
+          src: null,
+          strictSrc,
+          delivery: 'pending',
+          aspectRatio: null,
+          placeholderSrc: null,
+          record: record.record,
+        });
+      }
+      warnAssetStrictDeliverySessions(registry, provider, assetId);
       return Object.freeze({
         phase: 'rendition',
-        src: publicVariant === null
-          ? registry.assets.deliveryUrl(assetId, { maxWidth })
-          : registry.assets.publicDeliveryUrl(assetId, { variant: publicVariant }),
+        src: strictSrc,
+        strictSrc,
+        delivery: 'strict',
         aspectRatio: underlay?.aspectRatio ?? null,
         placeholderSrc: underlay?.src ?? null,
         record: record.record,
@@ -3688,16 +3758,30 @@ export function useSnapbackAssetImage({
     if (blanked) return ASSET_IMAGE_IDLE;
     if (previewUrl !== null) {
       return Object.freeze({
-        phase: 'preview', src: previewUrl, aspectRatio: null, record: null,
+        phase: 'preview',
+        src: previewUrl,
+        strictSrc: null,
+        delivery: null,
+        aspectRatio: null,
+        placeholderSrc: null,
+        record: null,
       });
     }
     if (effectivePlaceholder !== null) {
       const state = placeholderState(null);
       if (state === null) return ASSET_IMAGE_IDLE;
-      return Object.freeze({ phase: 'placeholder', ...state });
+      return Object.freeze({
+        phase: 'placeholder',
+        src: state.src,
+        strictSrc: null,
+        delivery: null,
+        aspectRatio: state.aspectRatio,
+        placeholderSrc: state.src,
+        record: state.record,
+      });
     }
     return ASSET_IMAGE_IDLE;
-  }, [registry, assetId, placeholder, previewUrl, maxWidth, watchTick]);
+  }, [provider, registry, assetId, placeholder, previewUrl, maxWidth, watchTick]);
 }
 
 /**

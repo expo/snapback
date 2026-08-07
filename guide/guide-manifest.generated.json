@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "15b97f358d112c72d475049cc6757648a91b505f"
+    "commit": "fac516e9aaa83fda398ca684285f45a57192e826"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -770,7 +770,7 @@
       ],
       "reviewed": "2026-08-06",
       "reviewedCommit": "3d7f6eb4075c9aeebda35640a574e2667195972a",
-      "sha256": "28472bb90afc72c774f0af523a2f3e5ac2c3c73c53d33922befdee6d0502a4f5",
+      "sha256": "3527eb14d15faccb484d621b6e09f5fd44c7d2413d144abedd432537bcbffd4d",
       "snippets": [
         {
           "lang": "js",
@@ -803,6 +803,11 @@
           "lang": "js",
           "class": "transcluded",
           "source": "tests/acceptance/fixtures/asset-conformance/handlers.mjs"
+        },
+        {
+          "lang": "tsx",
+          "class": "transcluded",
+          "source": "demos/expo-golden-path-fixture/src/screens/chat-screen.tsx"
         },
         {
           "lang": "tsx",
@@ -1522,7 +1527,7 @@
       "examples": [],
       "reviewed": "2026-08-07",
       "reviewedCommit": "cca0db7d8e94c8d4943eb808d4e10238a506c70c",
-      "sha256": "807c85aad86239d079da350b4f2e4d361e440b095b05150959d793768038a6ce",
+      "sha256": "702fe38c666bdc0ccbe515be8d18f0c4bec3e30de7f7c4ffabaa9c741fa37ca5",
       "snippets": []
     },
     "clients.app-cli": {
@@ -1788,7 +1793,7 @@
       ],
       "reviewed": "2026-08-07",
       "reviewedCommit": "f4d4d8c184a8994b747a8e83b1ee74abfcb8a09b",
-      "sha256": "62bd5615cad3f71e1d883f82de6db62014046d34bd59407883c89397a5c83b2c",
+      "sha256": "b3808e80d06297a01a865caae42403d040ca1d93d6a3932fcf26df905dae5a18",
       "snippets": [
         {
           "lang": "json",
@@ -3211,7 +3216,7 @@
       "examples": [],
       "reviewed": "2026-08-07",
       "reviewedCommit": "30001b8d2902e6c83f74ccda7eb2c19de707f528",
-      "sha256": "e131f1075e3720899cf415920e3c874e4c54fda9a5bff25d0900d8174f834c0a",
+      "sha256": "96e3bfe144eec0ee2db02916cebdc7493e13bc7bf9baa2c9cc6ed9f11ac76bbf",
       "snippets": []
     },
     "meta.surface-map": {
@@ -3601,5 +3606,5 @@
     "routes": 122,
     "hostOps": 43
   },
-  "contentHash": "1740ffd6436d9bf2b999a1ca20d4bc12d8abc70c67024bb127c7003bb05c8728"
+  "contentHash": "1e7751e2f4a02fcc98078773019df0ad457f3826240347e782a4fb857ccf783d"
 }

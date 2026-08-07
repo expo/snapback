@@ -49,7 +49,7 @@ Owner: `ccheever`; label gaps `guide-gap`.
 | backend.query-semantics | Read sets, snapshots, commit versions, conflict validation | consistency, transactions, conflicts | local | shipped | route /query/{name} | llp/0003, llp/0004, llp/0007 | backend/queries.md |
 | backend.sequences | Experimental incarnation-scoped dense sequences through handler `ctx.sequence.allocate(counterName, scopeId)` and generated `AllocateSequence`, with abort-disclosure, commit-order/contention, exact replay, incarnation restart, exhaustion, Relay, Campfire, and mutation-atomic lane-Q qualification. Only the exact contributor-source local target publishes `sequence_allocation_v1`; public packages and hosted targets remain structured GAPs | sequence, counter, ticket number, invoice number, monotonic allocation, maxEncodedBytes | local | partial | src/local-sequence-allocation-publication.v1.json + tests/conformance/sequence-allocation-publication-v1.receipt.json | llp/0135, llp/0128, llp/0113, llp/0157 | GAP (public-package attestation and hosted target qualification/publication; owner: Charlie, review: 2026-09-30); backend/sequences.md |
 | backend.actions | Actions with gated outbound fetch: global `fetch` and target-portable host-mediated `ctx.fetch`, in closed-script module handlers or the inline form | action, fetch, ctx.fetch, side effects, notification, webhook | local | shipped | route /action/{name} | llp/0004, llp/0009, llp/0049 | backend/actions-and-fetch.md |
-| backend.assets | Authenticated asset lifecycle plus the media pipeline on the local target — generated upload intents, TUS 1.0.0 resumable transfer, trusted SHA-256 finalization with GPS-strip canonicalization for images (decode/rewrite) and MP4/QuickTime video (in-place location-atom blanking, no transcoding), declared renditions with ThumbHash placeholders, typed `v.assetRef` attachment, private-strict/private-signed/public-immutable delivery with ranges and best-variant selection, opt-in reference GC, lifecycle callbacks (including sessions execution under the per-app `asset-callbacks` service principal), deletion/GC, receipts, logical consistent-cut export with refuse-partial validation, and instance-wide signing-key rotation (`asset_lifecycle_v1`, `asset_image_finalization_v1`, `asset_image_pipeline_v1`, `asset_reference_gc_v1`, `asset_video_finalization_v1`); the paved browser path (stock `@expo/snapback-vite` relay over the `/assets/*` family, sessions custody, typed generated upload references) is CI-verified; byte-level backup, transcoding, and hosted targets remain nonclaims | files, images, video, object storage, media, browser upload, native upload, Expo ImagePicker, expo/fetch, useSnapbackAssetUpload, session mint, vite relay, asset export, logical backup, signing key rotation, Supabase Storage, Convex generateUploadUrl | local | partial | schemas/capability.manifest.local-dev-sqlite-ibex.json (all five asset ids plus `assets.export.cutExport`/`importValidation`) + src/assets.rs + src/assets_cut.rs + src/assets_image.rs + src/assets_video.rs suites + tests/acceptance/asset-conformance-v1.mjs (native CLI export/refuse-partial/rotation; sessions callback authority) + demos/file-drop/tests/acceptance/browser-relay.mjs (browser relay path) | llp/0044 | backend/assets.md |
+| backend.assets | Authenticated asset lifecycle plus the media pipeline on the local target — generated upload intents, TUS 1.0.0 resumable transfer, trusted SHA-256 finalization with GPS-strip canonicalization for images (decode/rewrite) and MP4/QuickTime video (in-place location-atom blanking, no transcoding), declared renditions with ThumbHash placeholders, typed `v.assetRef` attachment, private-strict/private-signed/public-immutable delivery with ranges and best-variant selection, opt-in reference GC, lifecycle callbacks (including sessions execution under the per-app `asset-callbacks` service principal), deletion/GC, receipts, logical consistent-cut export with refuse-partial validation, and instance-wide signing-key rotation (`asset_lifecycle_v1`, `asset_image_finalization_v1`, `asset_image_pipeline_v1`, `asset_reference_gc_v1`, `asset_video_finalization_v1`); the paved browser path (stock `@expo/snapback-vite` relay over the `/assets/*` family, sessions custody, typed generated upload references) is CI-verified; byte-level backup, transcoding, and hosted targets remain nonclaims | files, images, video, object storage, media, browser upload, native upload, Expo ImagePicker, expo/fetch, useSnapbackAssetUpload, useSnapbackAssetImage, render image, strict delivery URL, empty image, session mint, vite relay, asset export, logical backup, signing key rotation, Supabase Storage, Convex generateUploadUrl | local | partial | schemas/capability.manifest.local-dev-sqlite-ibex.json (all five asset ids plus `assets.export.cutExport`/`importValidation`) + src/assets.rs + src/assets_cut.rs + src/assets_image.rs + src/assets_video.rs suites + tests/acceptance/asset-conformance-v1.mjs (native CLI export/refuse-partial/rotation; sessions callback authority) + demos/file-drop/tests/acceptance/browser-relay.mjs (browser relay path) | llp/0044 | backend/assets.md |
 | backend.expo-push-seam | Shipped local Expo integration seam: session-bound token custody, atomic rotation and retirement, declaration-checked/host-authorized and paced `ctx.push.send`, crash-safe intent/batch/message ledger, safe pre-transmit recovery, bounded ticket/receipt maintenance, a privacy-bounded generated ledger query, explicit ambiguous redrive risk, structured `notifications.expoPushSeam` facts, and a retained physical-device `ok` receipt witness. The complete hosted conjunction remains a GAP; this is not first-class notification delivery. | device token, expo push token, installation, ctx.push.send, handoff receipt, DeviceNotRegistered | local | shipped | schemas/capability.manifest.local-dev-sqlite-ibex.outbound-actions.json (`expoPushSeam`) + packages/snapback-cli/fake-expo-push.test.mjs + `fake_expo_acceptance_covers_tickets_receipts_dedupe_ambiguity_and_authorization` in src/push.rs + LLP 0143 implementation record (2026-08-03 physical-device witness) | llp/0143, llp/0057, llp/0059, llp/0070 | backend/expo-push.md |
 | backend.notifications | First-class notification and effect delivery; application-authored table ledgers are not this product capability | notifications, push, email, delivery, effects | none | design-only | schemas/capability.manifest.local-dev-sqlite-ibex.json (`notifications: false`; explicit `notifications` gap) | llp/0045 | GAP (owner: Charlie, review: 2026-08-31; issue: issues/20260728-guide-gap-assets-and-notifications-capability-rows.md) |
 | backend.observability-v1 | Shipped local Phase-1 backend telemetry with a generation-bound sibling store, operation-class spans, bounded retention and rollups, typed agent-facing queries, Health/Logs projections, and retained clean-release idle/benchmark evidence; hosted arms and declared product analytics remain later capabilities | telemetry, observability, health, logs, metrics, traces | local | shipped | tests/acceptance/telemetry-phase1-evidence.v1.json | llp/0154 | operating/observability.md |
@@ -978,6 +978,16 @@ fixed in the guide, must add a seed case here that would have caught it.
    admission.
    Expected pages: `clients/react-expo.md`.
    Route terms: "SNAPBACK_APP_BINDING_IDENTITY_MISMATCH", "expo".
+
+9. **Asset rendering:** "My uploaded image renders as an empty `<Image>` on
+   a sessions-mode server." (The replicated 2026-08-06 rematch-bakeoff miss:
+   the working pattern — the public-immutable URL plus handling the
+   rendition-publication race — was found only by reading package source.)
+   The plan must hand `useSnapbackAssetImage`'s `src` to the image tag, not
+   hand-build a delivery route or add an `onError` retry loop.
+   Expected pages: `backend/assets.md`.
+   Route terms: "empty image", "render image", "useSnapbackAssetImage",
+   "strict delivery URL".
 
 Cases 10–14 are Rosetta-tier seeds from the LLP 0186 W2 amendment's
 worked-example journeys (`protected-live-crud`, `expo-media-upload`,
@@ -4149,6 +4159,69 @@ that do not fit the one-optional-asset command grammar.
 > `generateUploadUrl` — including why ownership is never anonymous even when
 > attempt creation is public, and why GPS/EXIF stripping happens server-side
 > at trusted finalization rather than client-side.
+
+## Render the uploaded image in a plain `<Image>`
+
+`useSnapbackAssetImage` (from `@expo/snapback-react`) is the renderer
+ladder — local preview → ThumbHash placeholder → delivered rendition — and
+its `src` goes straight into a plain `<img>` or React Native `<Image>`. Do
+not build delivery URLs by hand and do not read package source to pick a
+route:
+
+```tsx source=demos/expo-golden-path-fixture/src/screens/chat-screen.tsx
+function NativeAssetImage({ assetId, userId, onRendered }: Readonly<{
+  assetId: string;
+  userId: Id<'users'>;
+  onRendered(src: string): void;
+}>) {
+  // The shared convenience component is intentionally DOM-only. Expo uses
+  // the same canonical delivery ladder through its hook, then hands the URL
+  // to React Native's image loader.
+  const image = useSnapbackAssetImage({ assetId, maxWidth: 760, userId });
+  if (!image.src) return <ActivityIndicator color={palette.accent} style={styles.imageLoader} />;
+  return (
+    <Image
+      accessibilityLabel="Shared photo"
+      onLoad={() => { if (image.phase === 'rendition' && image.src) onRendered(image.src); }}
+      resizeMode="cover"
+      source={{ uri: image.src }}
+      style={[styles.image, image.aspectRatio ? { aspectRatio: image.aspectRatio } : null]}
+      testID={`asset-image-${assetId}`}
+    />
+  );
+```
+
+<!-- since: 0.1.12 unreleased -->
+
+> **Unreleased.** The `src` selection rule, the `delivery`/`strictSrc`
+> facts, and the `SNAPBACK_REACT_ASSET_STRICT_DELIVERY_SESSIONS` diagnostic
+> below are newer than the newest published closure (0.1.11). The 0.1.11
+> hook returns the strict-delivery route as `src` whenever it cannot pick a
+> ready public rendition, so on that closure a sessions-mode `<Image>` can
+> render an empty image; render the public-immutable URL yourself there.
+
+Three facts make this the whole recipe — there is no workaround to learn:
+
+- **`src` is the most-permissive delivery URL the asset's declared policy
+  actually grants.** An intent with `delivery: { kind: 'public-immutable' }`
+  gets the pasteable public rendition URL (`/assets/public/{id}/{variant}`);
+  the strict route becomes `src` only when nothing more permissive exists.
+  This is URL selection, not authorization — the server still decides every
+  request under Deliver's rules below.
+- **The rendition-publication race is held for you.** Optional renditions
+  publish asynchronously after `ready`. While a public-immutable asset has
+  no ready rendition yet, `delivery` reports `'pending'` and the hook keeps
+  the preview/placeholder underlay instead of emitting a URL that would 404
+  or render an empty image. The live record projection flips the hook to the
+  rendition on its own — no `onError` retry loop.
+- **`strictSrc` always carries the header-authorized strict route**, for
+  consumers that fetch bytes with the authenticated client. On a
+  sessions-mode server a plain `<img>`/`<Image>` cannot send the required
+  `x-snapback-auth-client-protocol` header (see Deliver below), so when only
+  strict delivery exists there the hook warns once per asset with
+  `SNAPBACK_REACT_ASSET_STRICT_DELIVERY_SESSIONS` instead of leaving empty
+  image bubbles undiagnosed. Declare public-immutable delivery on the
+  upload intent when the image must render in a plain image tag.
 
 ## Run lifecycle callbacks
 
@@ -9026,6 +9099,14 @@ It passes the picker asset directly to the typed command and keeps the native
 source adapter, upload task, asset id, and attachment sequence behind the
 provider-owned client. A client with no real session cannot finish the
 multi-request upload under any intent auth mode.
+
+To render the uploaded image, hand `useSnapbackAssetImage`'s `src` straight
+to a plain `<Image>` — see
+[Render the uploaded image in a plain `<Image>`](../backend/assets.md#render-the-uploaded-image-in-a-plain-image).
+Do not build delivery URLs by hand: that section states the URL-selection
+rule (most-permissive delivery the asset's policy grants), how the hook
+holds the rendition-publication race, and the sessions-mode strict-delivery
+diagnostic for images that would otherwise render empty.
 
 ## Debug the backend before writing another probe
 

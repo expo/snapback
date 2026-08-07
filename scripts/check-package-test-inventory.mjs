@@ -215,6 +215,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'package-closure.test.mjs',
       'package.test.mjs',
       'provider.test.mjs',
+      'release-export-vocabulary.test.mjs',
       'supervised-environment.test.mjs',
     ],
   },
@@ -439,7 +440,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 228,
+  expectedTotal = 229,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -704,6 +705,8 @@ export function checkPackageTestInventories(options = {}) {
 // 227 -> 228 (2026-08-07, LLP 0186 W2): the new `create-snapback-app`
 // wrapper package gains its scaffold-delegation suite (identical output to
 // `snapback new`, registry-derived help, CLI-owned refusal codes).
+// 228 -> 229 (2026-08-07, LLP 0176 G4): @expo/snapback-expo gains the
+// release-vocabulary repair suite for production export bundles.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');
