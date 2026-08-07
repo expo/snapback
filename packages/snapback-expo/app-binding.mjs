@@ -94,15 +94,25 @@ function parseOrigin(value) {
 }
 
 function isLoopbackHostname(hostname) {
-  return hostname === 'localhost'
-    || hostname === '[::1]'
-    || hostname === '::1'
-    || /^127(?:\.[0-9]{1,3}){3}$/u.test(hostname);
+  // @ref LLP 0181#package-contract — release exports must not retain the supervised
+  // endpoint vocabulary; production builds prune this branch (LLP 0176 G4).
+  if (process.env.NODE_ENV !== 'production') {
+    return hostname === 'localhost'
+      || hostname === '[::1]'
+      || hostname === '::1'
+      || /^127(?:\.[0-9]{1,3}){3}$/u.test(hostname);
+  }
+  return false;
 }
 
 function isSupervisedDeviceLocalHostname(hostname, routing) {
-  return isLoopbackHostname(hostname)
-    || (routing === 'port-forward' && hostname === '10.0.2.2');
+  // @ref LLP 0181#package-contract — release exports must not retain the supervised
+  // endpoint vocabulary; production builds prune this branch (LLP 0176 G4).
+  if (process.env.NODE_ENV !== 'production') {
+    return isLoopbackHostname(hostname)
+      || (routing === 'port-forward' && hostname === '10.0.2.2');
+  }
+  return false;
 }
 
 function validTimestamp(value) {

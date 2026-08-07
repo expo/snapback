@@ -1,7 +1,16 @@
 import { createExternalSessionClient } from '@expo/snapback-client';
 
 export const SUPERVISED_EXCHANGE_FORMAT = 'snapback.expo-supervised-exchange.v1';
-export const SUPERVISED_EXCHANGE_PATH = '/_snapback/expo/v1/bootstrap';
+export const SUPERVISED_EXCHANGE_PATH = supervisedExchangePath();
+
+function supervisedExchangePath() {
+  // @ref LLP 0181#package-contract — release exports must not retain the supervised
+  // endpoint vocabulary; production builds prune this branch (LLP 0176 G4).
+  if (process.env.NODE_ENV !== 'production') {
+    return '/_snapback/expo/v1/bootstrap';
+  }
+  return '';
+}
 
 function freezeRecord(value) {
   return Object.freeze({ ...value });
@@ -46,20 +55,29 @@ function nonEmptyString(value) {
 }
 
 function deviceLocalHostname(hostname) {
-  return hostname === 'localhost'
-    || hostname === '[::1]'
-    || hostname === '::1'
-    || hostname === '10.0.2.2'
-    || /^127(?:\.[0-9]{1,3}){3}$/u.test(hostname);
+  // @ref LLP 0181#package-contract — release exports must not retain the supervised
+  // endpoint vocabulary; production builds prune this branch (LLP 0176 G4).
+  if (process.env.NODE_ENV !== 'production') {
+    return hostname === 'localhost'
+      || hostname === '[::1]'
+      || hostname === '::1'
+      || hostname === '10.0.2.2'
+      || /^127(?:\.[0-9]{1,3}){3}$/u.test(hostname);
+  }
+  return false;
 }
 
 function exchangeOriginFromRuntime() {
-  const installed = globalThis.__SNAPBACK_EXPO_SUPERVISOR_ORIGIN__;
-  if (nonEmptyString(installed)) return installed;
-  if (
-    typeof process !== 'undefined'
-    && nonEmptyString(process.env?.EXPO_PUBLIC_SNAPBACK_SUPERVISOR_ORIGIN)
-  ) return process.env.EXPO_PUBLIC_SNAPBACK_SUPERVISOR_ORIGIN;
+  // @ref LLP 0181#package-contract — release exports must not retain the supervised
+  // endpoint vocabulary; production builds prune this branch (LLP 0176 G4).
+  if (process.env.NODE_ENV !== 'production') {
+    const installed = globalThis.__SNAPBACK_EXPO_SUPERVISOR_ORIGIN__;
+    if (nonEmptyString(installed)) return installed;
+    if (
+      typeof process !== 'undefined'
+      && nonEmptyString(process.env?.EXPO_PUBLIC_SNAPBACK_SUPERVISOR_ORIGIN)
+    ) return process.env.EXPO_PUBLIC_SNAPBACK_SUPERVISOR_ORIGIN;
+  }
   return null;
 }
 

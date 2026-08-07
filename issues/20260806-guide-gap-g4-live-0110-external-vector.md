@@ -113,10 +113,62 @@ ticket stays open. What the guide now covers:
   search so the discoverability fix cannot silently regress.
 
 Still open here (not docs): publish one successor package vector carrying
-the adb transport-label repair and the CommonJS config-plugin root, make
-release exports free of supervisor origin/bootstrap symbols, rerun the
+the adb transport-label repair and the CommonJS config-plugin root, rerun the
 frozen ceremony, then close with the successor G4 receipts. The three split
-tickets track their own repairs.
+tickets track their own repairs. The release-export vocabulary source repair
+landed 2026-08-07 (below); its registry bytes ship with the successor
+publication.
+
+## Release-export vocabulary repair — 2026-08-07
+
+The source repair for the release-leak arm is on main. Mechanism: every
+vocabulary-bearing branch of the supervised carrier is now gated behind a
+literal inline `process.env.NODE_ENV !== 'production'` test — the canonical
+shape Metro's production transform (inline plugin + constant-folding plugin,
+applied to every module when `dev === false`, before dependency collection
+and Hermes compilation) prunes, the same mechanism that strips React's
+development code from release bundles. Gated sites:
+
+- `packages/snapback-expo/supervised-environment.mjs`: the
+  `SUPERVISED_EXCHANGE_PATH` literal, the supervisor-origin runtime lookup
+  (`globalThis.__SNAPBACK_EXPO_SUPERVISOR_ORIGIN__` and
+  `EXPO_PUBLIC_SNAPBACK_SUPERVISOR_ORIGIN`), and the device-local host check
+  (`localhost`/`[::1]`/`10.0.2.2`/127.x).
+- `packages/snapback-expo/app-binding.mjs`: the loopback/emulator host
+  helpers feeding only the supervised-dev validation arm.
+
+Production semantics: the supervised environment is inert in release bundles
+— `resolveBinding` fails with the existing coded
+`SNAPBACK_APP_BINDING_UNAVAILABLE`, and an explicit `exchangeOrigin` fails
+with `SNAPBACK_EXPO_BOOTSTRAP_ORIGIN_INVALID` — matching LLP 0181's rule that
+the provider refuses supervised-dev bindings under the production condition
+(dated amendment added to LLP 0181 §Package contract). Development behavior
+is byte-for-byte unchanged (`NODE_ENV` is unset/`development` there).
+
+Verification (all executed 2026-08-07):
+
+- Committed executable proof
+  `packages/snapback-expo/release-export-vocabulary.test.mjs` (wired into the
+  package test chain and the test inventory): esbuild-bundles the package
+  entry (`packages: 'external'`, exactly the package's own release graph) and
+  asserts the four G4 symbols plus `__SNAPBACK_EXPO_SUPERVISOR_ORIGIN__`,
+  `[::1]`, and the 127.x regex are absent under production defines (minified
+  and constant-folded-only profiles) and that all four G4 symbols are present
+  under development defines.
+- One-off Metro-mechanism evidence run against the real plugins
+  (`metro-transform-plugins@0.84.4`, the Expo 57 / RN 0.86 family): applying
+  `inlinePlugin` + `constantFoldingPlugin` with `dev: false` to both gated
+  files leaves all five symbols absent; the same transform over the pre-fix
+  `HEAD` source retains all four G4 symbols, and the fixed source under a dev
+  transform retains them — the measurement discriminates in both directions.
+  Recipe: babel `transformSync` with
+  `[[inlinePlugin, {dev:false, platform:'ios', inlinePlatform:true}], [constantFoldingPlugin, …]]`.
+- Caveat recorded honestly: a bundler that performs no constant folding at
+  all retains the branches (verified: esbuild with no minify flags). Metro's
+  production pipeline always applies these plugins, but the byte-level
+  confirmation on real `expo export` HBC output — the receipts' original
+  strings-scan measurement — remains for the successor-release G4 rerun,
+  which this arm's acceptance already awaits.
 
 ## Acceptance
 
