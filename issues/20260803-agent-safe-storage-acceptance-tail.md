@@ -694,6 +694,16 @@ versioned-seed, asset, app-CLI, todo, and workout chain. Structured results:
 lane makes no fork-code correctness change. Owner close condition remains
 unchanged.
 
+**Fix landed on branch — 2026-08-07.** Branch
+`codex/fork-solidity-20260807` commit `25f318f4b` routes every fork-owned JSON
+filesystem carrier through a unique same-directory temporary file, file fsync,
+atomic rename, and directory fsync. The first-publication seam test proves the
+final identity name stays absent until the complete temporary JSON is ready,
+and 32 simultaneous `ensure_expected_app` writers passed ten repeated runs.
+The complete `instance_fork::` library filter passed 50/50. This sandbox
+refuses localhost binds with `EPERM`, so the required five successful
+live-server-suite reruns remain an unsandboxed landing-proof obligation.
+
 ### Exact-head live-server rerun recurrence — 2026-08-07 UTC
 
 After recording the merge-proof recurrence, the complete 15-test
@@ -705,3 +715,14 @@ because the detached server retained an unrelated caller descriptor after the
 create CLI exited. The other 14 live-server cases passed. This is another
 actively owned F0a fork-correctness recurrence, not wave drift; this lane makes
 no fork-code change. Owner close condition remains unchanged.
+
+**Fix landed on branch — 2026-08-07.** Branch
+`codex/fork-solidity-20260807` commit `34b6fad87` determined this recurrence was
+a test artifact, not a production spawn-seam leak: the fixture used
+`libc::pipe` and only then applied `FD_CLOEXEC`, so a parallel test spawn could
+inherit the writer during that gap and make the target server appear to retain
+it. The existing detached-child close-on-exec sweep now has an isolated direct
+regression that passed ten repeated runs, and the live test uses an atomically
+CLOEXEC flock lease so only the targeted server can retain the probe. The
+sandbox's localhost-bind `EPERM` leaves the complete live-server rerun as the
+same unsandboxed landing-proof obligation noted above.
