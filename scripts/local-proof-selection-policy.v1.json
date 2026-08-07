@@ -571,6 +571,7 @@
         "demos"
       ],
       "prefixes": [
+        "packages/create-snapback-app/",
         "packages/snapback-app-cli/",
         "packages/snapback-cli/",
         "packages/snapback-runtime-",
@@ -874,6 +875,7 @@
       "gates": [
         "current-binary-build",
         "current-binary-readiness",
+        "create-snapback-app-package",
         "github-latest-proof-fixtures",
         "local-source-package-closure",
         "package-cold-install-fixtures",

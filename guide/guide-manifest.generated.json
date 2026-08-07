@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "c5baeea3326369ab24b8068324b3930c25cdcdfa"
+    "commit": "15b97f358d112c72d475049cc6757648a91b505f"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -2195,6 +2195,7 @@
       "authorities": [
         "llp/0010-agent-dx-and-acceptance.spec.md",
         "llp/0041-packaged-dev-loop.rfc.md",
+        "packages/create-snapback-app/cli.mjs",
         "packages/snapback-cli/index.mjs",
         "packages/snapback-codegen/index.mjs",
         "scripts/snapback-package-cold-install.mjs",
@@ -2208,9 +2209,9 @@
         "demos/todo/tests/acceptance/headless.mjs",
         "demos/todo/surfaces/headless/run.mjs"
       ],
-      "reviewed": "2026-08-05",
-      "reviewedCommit": "4a6000ac6f17a8c94bc2aecf573c0654e850b758",
-      "sha256": "a6867a93767b3f55740f0ab288f023182b2ea83e7670b266ba282acd88c5aff4",
+      "reviewed": "2026-08-07",
+      "reviewedCommit": "15b97f358d112c72d475049cc6757648a91b505f",
+      "sha256": "fbca6077907f1b7adcd89c0c019d4058887c0b8eb37fc1e7958ce5883fd0e6c5",
       "snippets": []
     },
     "getting-started.your-first-backend": {
@@ -3600,5 +3601,5 @@
     "routes": 122,
     "hostOps": 43
   },
-  "contentHash": "ff34f69d4dd640419ca33a43f19946646081f4b833a5161e1596b4d87a9e45a0"
+  "contentHash": "1740ffd6436d9bf2b999a1ca20d4bc12d8abc70c67024bb127c7003bb05c8728"
 }

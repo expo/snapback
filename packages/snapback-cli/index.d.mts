@@ -279,6 +279,8 @@ export interface ScaffoldResult {
   target: string;
 }
 
+export function listTemplates(): string[];
+
 export function scaffoldApp(target: string, options?: {
   readonly template?: string;
 }): ScaffoldResult;

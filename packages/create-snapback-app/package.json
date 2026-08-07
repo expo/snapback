@@ -1,0 +1,27 @@
+{
+  "name": "create-snapback-app",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Ecosystem-standard scaffold entry point for Snapback applications: `npm create snapback-app` delegating to the @expo/snapback-cli template mechanism.",
+  "files": [
+    "cli.mjs"
+  ],
+  "bin": {
+    "create-snapback-app": "./cli.mjs"
+  },
+  "exports": {
+    "./package.json": "./package.json"
+  },
+  "dependencies": {
+    "@expo/snapback-cli": "workspace:*"
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "test": "node package.test.mjs"
+  }
+}

@@ -1446,6 +1446,16 @@ export async function buildRelease(options = {}) {
   };
 }
 
+// @ref LLP 0186#w2--context-injection-surface-owned-here — the packaged
+// template directory is the single scaffold registry; wrappers such as
+// `create-snapback-app` enumerate it instead of carrying their own copy.
+export function listTemplates() {
+  return readdirSync(join(packageRoot, 'templates'), { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name)
+    .sort();
+}
+
 export function scaffoldApp(target, options = {}) {
   const template = options.template ?? 'todo-contract';
   const destination = resolve(target);
