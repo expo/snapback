@@ -412,3 +412,286 @@ These are fork-relevant review verdicts, not document status changes.
 ### Recommended next step
 
 Keep the derived anchor withheld. Reject duplicate object members before semantic JSON decoding; bind each new history to its predecessor or compare immutable prior entries with C so deletion/renumbering cannot pass; and hash Git mode/type (or a canonical `ls-tree` identity) alongside path and blob bytes in both committed and working-tree digests. Add the three exploit fixtures as permanent negatives, then cut a new qualification commit and obtain a fresh round from each family.
+
+## Round 7 — 2026-08-06, qualification commit 2a5a6291a
+
+### Provenance
+
+- **Family:** codex
+- **Provider/runtime:** OpenAI Codex, GPT-5 family runtime
+- **Date:** 2026-08-06
+- **Commit:** `2a5a6291a137ca3df41cfc826017e4de324b65a5`
+- **Redacted:** no
+- **Method:** Independent adversarial review in the exact detached qualification worktree. I read the governing LLP 0162 publication contract, LLP 0158 and the fork-relevant LLP 0163/0164/0165 sections, the production checker/build/Rust mirrors, all four prose/sidecar pairs, the receipt/carrier/acceptance records, and the round-4/5 artifacts. I ran the committed publication-checker suite and additional disposable schema/history/commit attacks, independently recomputed the v2 implementation digest, bootstrapped an exact-C disposable checkout, and ran the focused Rust fork/storage regressions listed below. I did not run the full repository proof or full Rust suite. The pinned worktree was changed only by the two required prose appends and two corresponding sidecar updates.
+- **Verdict:** NOT READY
+
+### Overall assessment
+
+The fork-relevant contracts remain **READY** at C. The v2 checker also closes
+the attacked prose-parser, structured-schema, history-head, commit-binding, and
+mode/type digest defects in isolation. Publication remains **NOT READY** for
+two frozen-tree defects: the canonical proof asserts that the required v2
+histories must remain v1, and the actual review artifacts contain no round 6
+from which an honest contiguous round 7 can be appended.
+
+### Verdict-contract attacks
+
+The derived checker reads the Markdown only as bytes, hashes those bytes, and
+never interprets a heading, table, quotation, or verdict-shaped sentence
+(`scripts/check-agent-safe-publication.mjs:1382-1424`). The typed JSON path
+requires canonical bytes before exact top-level, entry, and verdict shapes;
+requires recognized, stable families; contiguous rounds; predecessor hashes;
+ancestry-monotonic 40-hex commits; and exact C at the authoritative head
+(`scripts/check-agent-safe-publication.mjs:1404-1465`). The fixed review pairs
+then require Codex/Fable separation and fixed-locator family identity
+(`scripts/check-agent-safe-publication.mjs:1562-1597`). Named-author acceptance
+binds each complete history's count and canonical head-entry digest in addition
+to the prose and sidecar evidence digests (`scripts/check-agent-safe-publication.mjs:1494-1535`).
+
+I exercised the round-4/5 shapes again (fenced quotation, appended lower round,
+tab-delimited headings, and conflicting duplicate tables), plus duplicate JSON
+members, non-canonical bytes, missing/malformed files, unknown top/entry/verdict
+fields, wrong schema, prose/path/digest detachment, family swaps and same-family
+pairs, missing/duplicate/gapped/reordered rounds, predecessor breaks, wrong C,
+non-ancestral commit order, deleted-and-restarted histories, and truncated then
+renumbered/rechained histories. The valid structured control passed despite
+deliberately contradictory prose. Every mutation refused at the expected layer.
+The isolated history parser necessarily accepts a freshly rechained shorter
+history; the end-to-end author-accepted count/head comparison refused it, which
+is the documented composition rather than a parser-local guarantee.
+
+### Blocking findings
+
+#### 1. High — any required v2 history invalidates C's own canonical proof
+
+The test frozen inside C asserts that all four checked-in sidecars have
+`schemaVersion: snapback.review-verdicts.v1`, exactly rounds 1–5, and final
+commit `b08e835f1`; it further requires the v2 validator to reject them
+(`tests/agent_safe_publication_checker_v1.mjs:709-730`). But the canonical
+local proof always runs that test immediately before the live publication
+checker (`scripts/verify-local-proof:181-186`), while `tests` itself is part of
+the v2 implementation digest (`scripts/check-agent-safe-publication.mjs:42-52`).
+
+I reproduced the cycle in an exact-C disposable checkout: changing one sidecar
+from v1 to v2 made the named test fail at line 719. Publication requires all
+four histories to become v2, so any honest reviewer update makes C's canonical
+proof red. Updating the test after review is not available: that test edit
+changes the qualified implementation digest, advances C, and makes the just-
+written head verdicts name the wrong commit.
+
+**Required resolution:** before the next qualification C, replace the
+checked-in-transitional-state assertion with stable synthetic v1-rejection and
+v2-acceptance fixtures that do not depend on the live review artifacts'
+current version or round count. Then choose a fresh C and re-review it.
+
+#### 2. High — the claimed round-6/v2 history is not in the frozen tree
+
+This artifact proceeds from Round 5 directly to Round 7
+(`llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.codex.md:285`;
+`llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.codex.md:344`).
+Before this append, both Codex sidecars were v1 histories ending at round 5;
+the Fable pair is in the same state. LLP 0162 confirms that all four sidecars
+are deliberately unmodified v1 historical records and still require fresh v2
+histories (`llp/0162-agent-safe-storage-profile.rfc.md:2471-2485`).
+
+The instruction to append a contiguous v2 round 7 to an already-v2 round-6
+history is therefore not satisfiable from C. The checker requires `round ===
+index + 1` and the correct predecessor digest (`scripts/check-agent-safe-publication.mjs:1430-1434`).
+I recorded the actual round-7 verdict with a visible 5→7 gap and predecessor
+binding to the last real entry; the validator correctly refuses it. I did not
+invent round-6 prose or verdicts from a summary.
+
+**Required resolution:** recover the actual round-6 prose and typed entries
+from genuine reviewer transcripts for both families, or obtain an explicit
+author decision to restart/renumber the review with fresh independent inputs.
+
+### Commit and implementation-digest binding
+
+The digest hashes each in-scope Git entry's mode, object type, path, byte
+length, and bytes, with `vendor/ibex` required as a `160000 commit` gitlink
+(`scripts/check-agent-safe-publication.mjs:540-592`). C/receipt/P must all
+equal the same recomputed digest (`scripts/check-agent-safe-publication.mjs:604-635`),
+and the build mirror uses the same tree/framing independently (`build.rs:414-483`).
+
+Two independent arithmetic implementations and the exact-C build produced
+`sha256:017bbd2675f31b68f0fd959b555588a1b6ccaf5ea4d89f68f2dc7d1ea86177a6`
+over 801 entries: 797 regular non-executable blobs, three executable blobs,
+and `vendor/ibex` as `160000 commit 4c34c831aa087d6783b0d68f281cdb374ed7fc89`.
+The receipt-cycle records and reviews remain outside the digest, so a receipt
+can arithmetically name C. The blocking cycle is the canonical test, not digest
+rotation.
+
+### Fork surface and regression evidence
+
+The exact `IMPLEMENTATION_ROOTS` diff from the round-5 baseline `b08e835f1` to
+C changes only publication machinery: `build.rs`, the JS checker, its Rust
+mirror, three publication records, and checker tests. No diff exists in
+`src/instance_fork.rs`, `src/storage.rs`, `src/storage/auth_invalidation.rs`,
+`src/operation_ledger.rs`, `src/local.rs`, `src/server.rs`, or `vendor/ibex`.
+
+The exact-C bootstrap passed native link/load, launch, and restricted no-eval
+handler-VM qualification. The five focused library regressions at
+`src/instance_fork.rs:6837`, `src/instance_fork.rs:7112`,
+`src/instance_fork.rs:7640`, `src/instance_fork.rs:7903`, and
+`src/instance_fork.rs:8098` passed. The five focused executable lifecycle
+regressions at `tests/instance_fork_cli_v1.rs:769`,
+`tests/instance_fork_cli_v1.rs:1896`, `tests/instance_fork_cli_v1.rs:1987`,
+`tests/instance_fork_cli_v1.rs:2207`, and
+`tests/instance_fork_cli_v1.rs:2342` passed. All three Rust publication-chain
+tests passed. The full JS checker suite passed before artifact mutation,
+including the storage duplicate-field negative; the storage parser now
+requires exactly one declared field occurrence
+(`scripts/check-agent-safe-publication.mjs:1211-1246`).
+
+### Scope 1 re-verdict
+
+| Document | Fork-relevant verdict | Round-7 basis |
+| --- | --- | --- |
+| LLP 0163 | **READY** | No relevant implementation delta; operation-identity and receipt boundaries remain as reviewed. |
+| LLP 0164 | **READY** | No lifecycle, custody, egress, isolation, private-base, or promotion-boundary delta. |
+| LLP 0165 | **READY** | No completeness/authorizer/journal/net-diff delta; focused gap, preflight, and pruning tests pass. |
+
+### Scope 2 verdict
+
+**NOT READY for implementation/security publication of the narrow local
+`operating.instance-forks` surface at qualification commit `2a5a6291a`.**
+
+### Verification actually performed
+
+- Full committed JS publication-checker suite: pass before review-artifact
+  mutation; 17 focused history/parser/digest attacks passed separately.
+- Additional disposable schema/history/prose/commit attacks: expected
+  pass/refusal results, including named-author rejection of rechained deletion.
+- Exact-C bootstrap plus ten focused fork tests and three Rust publication
+  tests: pass.
+- Independent implementation-digest arithmetic and exact-C embedded digest:
+  equal.
+- I did not run the full Rust suite or the complete local proof.
+
+### Recommended next step
+
+Keep both anchors withheld. Fix the live-artifact assertion before choosing a
+fresh qualification commit, restore only genuine missing review provenance (or
+author-reset the numbering), and commission another cross-family review. Do
+not publish from `2a5a6291a`.
+
+## Round 8 — 2026-08-06, qualification commit 0e778b9a8
+
+### Provenance
+
+- **Family:** codex
+- **Provider/runtime:** OpenAI Codex, GPT-5 family runtime
+- **Date:** 2026-08-06
+- **Commit:** `0e778b9a85f26c45df8af0068979e355893baaa3`
+- **Redacted:** no
+- **Method:** Independent adversarial review in the exact detached qualification worktree. I read LLP 0005, the root LLP, LLP 0162's publication amendment, LLP 0158, the fork-relevant LLP 0163/0164/0165 sections, the production checker/tests and publication records, all four prose/sidecar pairs, and the preserved Round-6/Round-7 provenance. I ran the full committed JS checker suite before artifact mutation, audited and exercised the parser/history/digest boundaries, independently recomputed C's v2 implementation digest, bootstrapped an exact-C disposable checkout, and ran the focused Rust fork/storage regressions below. I did not run the full Rust suite or complete local proof. The pinned worktree was changed only in the two Codex prose artifacts and their two sidecars.
+- **Verdict:** NOT READY
+
+### Overall assessment
+
+The fork-relevant LLP 0163/0164/0165 contracts remain **READY** at C. The
+canonical-reader repair closes F7-1 and the genuine transcript restoration
+closes F7-2. The structured history, named-author head binding, ancestry,
+family separation, prose detachment, and mode/type-aware digest withstood the
+requested attacks.
+
+Scope 2 remains **NOT READY** because the frozen canonical proof still asserts
+that the mutable live histories end at round 6. Appending genuine rounds 7 and
+8 necessarily fails that in-scope test; repairing it changes the qualified
+tree and requires a fresh C.
+
+### Round-7 closure and adversarial audit
+
+Every publication-chain JSON reaches the canonical boundary at
+`scripts/check-agent-safe-publication.mjs:737-756`. Review histories use it
+before exact schema, entry, family, round, predecessor, ancestry, head-C, and
+typed-verdict checks (`scripts/check-agent-safe-publication.mjs:1393-1494`);
+acceptance binds all four counts and heads at
+`scripts/check-agent-safe-publication.mjs:1505-1547`; anchor, carrier, and
+receipt use the same boundary at
+`scripts/check-agent-safe-publication.mjs:1649-1718`. I found no chain bypass.
+
+A4 and A5 both refused as non-canonical, as did duplicate members in every
+distinct chain JSON kind. Non-canonical bytes, missing/malformed inputs,
+unknown fields, wrong schemas/types, prose/path/digest detachment, family
+spoof/change or same-family pairs, round gaps/reordering, predecessor breaks,
+wrong C, non-ancestral commits, deletion/restart, and rechained truncation all
+refused. Earlier prose-parser shapes are inert: a structured control with
+contradictory prose published, proving prose is not authority.
+
+Both Codex Round-6 sections are byte-identical to the complete streaming
+transcript, and both Fable sections are byte-identical to the original session
+`Write` payload. All four histories preserve rounds 1–5's semantic entries and
+add the real round-6 values at
+`bdc68296499298f634d9aa461e90fb8d1a7d4ab0`: LLPs 0163/0164/0165 READY and
+publication NOT_READY in both families. No verdict was altered, invented, or
+renumbered. The Codex Round 7 above is verbatim from its preserved artifact.
+
+### Blocking finding
+
+#### High — C's proof pins live review state to round 6
+
+`tests/agent_safe_publication_checker_v1.mjs:746-768` requires each live
+sidecar to contain exactly rounds 1–6 headed at `bdc682964...`, with validated
+round/count 6. The local proof runs it (`scripts/verify-local-proof:185`) and
+`tests` belongs to `IMPLEMENTATION_ROOTS`
+(`scripts/check-agent-safe-publication.mjs:42-52`). The required post-C append
+makes the proof fail. Changing the test changes C's digest and invalidates the
+new heads' commit binding. I reproduced that failure after this append.
+
+**Required resolution:** replace the live snapshot with immutable synthetic
+v1/v2 fixtures, cut a fresh C, and obtain new authoritative heads.
+
+### Commit, digest, and delta verification
+
+The v2 digest hashes Git mode, type, path, byte length, and bytes, with
+`vendor/ibex` as a `160000 commit` gitlink
+(`scripts/check-agent-safe-publication.mjs:529-596`). The checker requires
+`digest(C) == receipt == digest(P)` (`scripts/check-agent-safe-publication.mjs:608-639`).
+Independent arithmetic and the exact-C build agree on
+`sha256:b77879fa08cb71a943b7f17aecdd03b290da7bd429e68426859161faab09a725`
+with Ibex at `4c34c831aa087d6783b0d68f281cdb374ed7fc89`. Review append and closed-cycle
+record rotation do not change it; v1 values fail closed.
+
+The exact in-scope diff from Round-7 C `2a5a6291a` to `0e778b9a8` contains
+only publication machinery/tests/withheld records. There is no fork behavior,
+fork suite, or Ibex-gitlink delta. This verifies the rounds 1–3 carry-forward.
+
+### Fork and storage regression evidence
+
+The exact-C native bootstrap passed, including restricted handler-VM
+qualification. The exact-C tests passed: 48/48 `instance_fork::tests`, 15/15
+CLI, 1/1 VM egress, 1/1 disk pressure, and 3/3 Rust publication tests. The full
+unmodified JS checker suite passed 64/64 before artifact mutation, including
+the storage duplicate-field negative and a rebound final-READY control. Both
+anchors remain withheld.
+
+### Scope 1 re-verdict
+
+| Document | Fork-relevant verdict | Round-8 basis |
+| --- | --- | --- |
+| LLP 0163 | **READY** | No fork-relevant delta; operation-identity and commit-envelope boundaries remain aligned. |
+| LLP 0164 | **READY** | No lifecycle, custody, isolation, egress, retained-base, or promotion-boundary delta. |
+| LLP 0165 | **READY** | No completeness, authorizer, journal, coverage-gap, or net-diff delta; regressions pass. |
+
+### Scope 2 verdict
+
+**NOT READY for implementation/security publication of the narrow local
+`operating.instance-forks` surface at qualification commit `0e778b9a8`.**
+
+### Verification actually performed
+
+- Full 64-test JS checker suite before artifact mutation and all JSON read paths.
+- A4/A5 and the schema/history/prose/family/commit/digest attacks above.
+- Byte-exact Round-6 provenance and semantic rounds 1–5 comparison.
+- Independent v2 digest computation and exact-C build/bootstrap.
+- Exact-C 48 library fork tests, 17 executable fork tests, and three Rust
+  publication tests.
+- Exact in-scope delta and post-append frozen-test failure reproduction.
+- I did not run the full Rust suite, lifecycle benchmark, or complete local proof.
+
+### Recommended next step
+
+Keep both anchors withheld. Replace the live-history assertion with synthetic
+fixtures, cut a fresh C, and obtain new independent highest-round verdicts. Do
+not publish from `0e778b9a8`.

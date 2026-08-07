@@ -3,7 +3,7 @@
   "verdicts": [
     {
       "reviewArtifact": "llp/reviews/0158-instance-forking.implementation-2026-08-06.fable.md",
-      "reviewArtifactSha256": "sha256:537b852a0234033d9b9323b6c9fc1a448298a8dbfcb5ae4bc32e18346e54c0e4",
+      "reviewArtifactSha256": "sha256:d5735521be5c08b68f35554449b83565461bc3c9f7293f89365c1936000c0080",
       "family": "fable",
       "round": 1,
       "reviewedCommit": "7c2a27e0e90cf1d19b57825a187cb3be041ab92f",
@@ -15,11 +15,11 @@
     },
     {
       "reviewArtifact": "llp/reviews/0158-instance-forking.implementation-2026-08-06.fable.md",
-      "reviewArtifactSha256": "sha256:537b852a0234033d9b9323b6c9fc1a448298a8dbfcb5ae4bc32e18346e54c0e4",
+      "reviewArtifactSha256": "sha256:d5735521be5c08b68f35554449b83565461bc3c9f7293f89365c1936000c0080",
       "family": "fable",
       "round": 2,
       "reviewedCommit": "96fd0ad1c38109aa524e4cbc39439c8982e18766",
-      "previousEntrySha256": "sha256:82f8e80abde071fe065b41b5fe4a9480fb57f98b45a14dd65ca3bdbc207009fc",
+      "previousEntrySha256": "sha256:c5cf06c65a289613d2d685471ae6bb31c52bec729d980232dd437243bd0a4595",
       "verdict": {
         "kind": "derivedForkPublication",
         "status": "NOT_READY"
@@ -27,11 +27,11 @@
     },
     {
       "reviewArtifact": "llp/reviews/0158-instance-forking.implementation-2026-08-06.fable.md",
-      "reviewArtifactSha256": "sha256:537b852a0234033d9b9323b6c9fc1a448298a8dbfcb5ae4bc32e18346e54c0e4",
+      "reviewArtifactSha256": "sha256:d5735521be5c08b68f35554449b83565461bc3c9f7293f89365c1936000c0080",
       "family": "fable",
       "round": 3,
       "reviewedCommit": "cdc0fe03e8d75c4a1d1d25f79fe820f20b772ef7",
-      "previousEntrySha256": "sha256:20becda47991db5280057d7a6d5718fd3b2323431b49f55cd4db6f2d70dcec76",
+      "previousEntrySha256": "sha256:e4352850f4b16b051adac982da57bfabcfe3b4afd5b27fbd1569768860d09e18",
       "verdict": {
         "kind": "derivedForkPublication",
         "status": "READY"
@@ -39,11 +39,11 @@
     },
     {
       "reviewArtifact": "llp/reviews/0158-instance-forking.implementation-2026-08-06.fable.md",
-      "reviewArtifactSha256": "sha256:537b852a0234033d9b9323b6c9fc1a448298a8dbfcb5ae4bc32e18346e54c0e4",
+      "reviewArtifactSha256": "sha256:d5735521be5c08b68f35554449b83565461bc3c9f7293f89365c1936000c0080",
       "family": "fable",
       "round": 4,
       "reviewedCommit": "0b8b0ff71bfc3eaa968b53a694a61f8a472ee295",
-      "previousEntrySha256": "sha256:fa836488ba6cde9f903ae0abd4d8bf93549b865643f8361785cee7c760ce6bed",
+      "previousEntrySha256": "sha256:47d881e19cbfc9d1081ea89401e071651cea704a273082cf041fa06700455648",
       "verdict": {
         "kind": "derivedForkPublication",
         "status": "NOT_READY"
@@ -51,11 +51,11 @@
     },
     {
       "reviewArtifact": "llp/reviews/0158-instance-forking.implementation-2026-08-06.fable.md",
-      "reviewArtifactSha256": "sha256:537b852a0234033d9b9323b6c9fc1a448298a8dbfcb5ae4bc32e18346e54c0e4",
+      "reviewArtifactSha256": "sha256:d5735521be5c08b68f35554449b83565461bc3c9f7293f89365c1936000c0080",
       "family": "fable",
       "round": 5,
       "reviewedCommit": "b08e835f112517cf1629a842f5bcae12841ddcf0",
-      "previousEntrySha256": "sha256:62294f1e68a427f50883341f7980d275af518eb50e2fc5c462606f05d0745da4",
+      "previousEntrySha256": "sha256:0e4bdb85a460ea0084f2aad7f0f3227186ece246c0234243cdb22413dde3e2b9",
       "verdict": {
         "kind": "derivedForkPublication",
         "status": "NOT_READY"
@@ -63,11 +63,35 @@
     },
     {
       "reviewArtifact": "llp/reviews/0158-instance-forking.implementation-2026-08-06.fable.md",
-      "reviewArtifactSha256": "sha256:537b852a0234033d9b9323b6c9fc1a448298a8dbfcb5ae4bc32e18346e54c0e4",
+      "reviewArtifactSha256": "sha256:d5735521be5c08b68f35554449b83565461bc3c9f7293f89365c1936000c0080",
       "family": "fable",
       "round": 6,
       "reviewedCommit": "bdc68296499298f634d9aa461e90fb8d1a7d4ab0",
-      "previousEntrySha256": "sha256:a560feeca8f91e3ce6d595f36c095879d0f9c6423f9d0230e79edbdbab96ca41",
+      "previousEntrySha256": "sha256:0a9a8fd2ca0ea7f51f65932f7c2be8ab96f85389a4591c7ee9038adda682721a",
+      "verdict": {
+        "kind": "derivedForkPublication",
+        "status": "NOT_READY"
+      }
+    },
+    {
+      "reviewArtifact": "llp/reviews/0158-instance-forking.implementation-2026-08-06.fable.md",
+      "reviewArtifactSha256": "sha256:d5735521be5c08b68f35554449b83565461bc3c9f7293f89365c1936000c0080",
+      "family": "fable",
+      "round": 7,
+      "reviewedCommit": "2a5a6291a137ca3df41cfc826017e4de324b65a5",
+      "previousEntrySha256": "sha256:ddf84ec985788dbe114438bdf14932521f027e0f3209b03b85c5397b9a8b2fee",
+      "verdict": {
+        "kind": "derivedForkPublication",
+        "status": "NOT_READY"
+      }
+    },
+    {
+      "reviewArtifact": "llp/reviews/0158-instance-forking.implementation-2026-08-06.fable.md",
+      "reviewArtifactSha256": "sha256:d5735521be5c08b68f35554449b83565461bc3c9f7293f89365c1936000c0080",
+      "family": "fable",
+      "round": 8,
+      "reviewedCommit": "0e778b9a85f26c45df8af0068979e355893baaa3",
+      "previousEntrySha256": "sha256:aa0cceb8586c941952223e95073066bec36e4aa37039f8eb05f2f1c1459fce8c",
       "verdict": {
         "kind": "derivedForkPublication",
         "status": "NOT_READY"

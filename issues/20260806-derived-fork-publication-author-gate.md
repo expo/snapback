@@ -264,3 +264,68 @@ Codex bodies from the most complete `+`-prefixed unified-diff hunks in
 `codex-review-r4-stream.log`. No recorded verdict was changed and no new
 review verdict was added; the structured histories' current-prose digests were
 rotated only to bind the restored complete artifacts.
+
+## Qualification self-cycle repair and review-record recovery — 2026-08-07
+
+Charlie chose a structural simplification after rounds 7 and 8 independently
+confirmed that the publication gate and its own evidence could not converge.
+The governing invariant is: **an artifact may not be inside the implementation
+digest that certifies it, and the validator's own fixtures may not depend on
+live mutable records.**
+
+The failure had two coupled forms. `tests` correctly belongs in
+`IMPLEMENTATION_ROOTS`, but the checker self-test hardcoded the live six-round
+review histories and `bdc682964`; an honest append required a test edit, which
+rotated the implementation digest and invalidated the commit just reviewed.
+The two platform lifecycle receipts and the bounds-ratification record also
+sat under `tests`, so rebinding qualification evidence changed the digest that
+was supposed to certify it.
+
+The repair keeps all of `tests` covered and excludes only the three exact
+lifecycle evidence paths through `PUBLICATION_CYCLE_ALLOWLIST`. They remain
+tamper-evident through canonical-byte parsing and the author-acceptance →
+receipt → carrier → anchor digest chain. The checker self-test now constructs
+all review, verdict-history, benchmark, acceptance, receipt, carrier, and
+anchor fixtures synthetically; it reads no live `llp/reviews/*` history and
+pins no live round list or commit. Every prior attack regression remains,
+including A4/A5, duplicate members for every JSON artifact kind, history
+deletion/restart/truncation/renumbering, non-canonical byte forms, family and
+commit spoofing, ancestry spoofing, and Git mode/type drift. The lifecycle
+emitter now produces the same two-space, integral-number, one-final-newline
+canonical JSON the checker requires.
+
+The rest of the evidence chain was audited for the same cycle. Receipt,
+carrier, anchor, author acceptance, and storage qualification outputs were
+already exact cycle exclusions; review prose and sidecars live under `llp/`,
+outside `IMPLEMENTATION_ROOTS`. The LLP 0044 asset-lifecycle evidence stays
+inside the digest deliberately: it predates qualification and neither names
+nor accepts C. No directory-wide exclusion was added.
+
+The provenance history is also repaired honestly. A repeated orchestration
+error reset review worktrees before their appends were committed, losing the
+in-worktree artifacts for three rounds:
+
+- Round 4 was recovered verbatim from the surviving session transcripts and
+  unified-diff stream, as recorded above.
+- Round 7 was recovered verbatim from `/tmp/review-preserve/r7-codex/` and
+  `/tmp/review-preserve/r7-fable/`.
+- Round 8 was recovered verbatim from `/tmp/review-preserve/r8-codex/` and
+  `/tmp/review-preserve/r8-fable/`.
+
+The Fable round-6 paragraph had an additional provenance error: the landed
+text was the pre-edit draft. The session transcript
+`tasks/a1fb2c13d8caa32fa.output` records an `Edit` at
+`2026-08-07T05:38:08.223Z`, followed by the append. Its last wording says the
+tail-deletion attack published and that no oracle without an external
+signature can prevent it. That final wording is restored in both Fable prose
+artifacts. The four sidecars now contain contiguous rounds 1–8; only their
+current-prose and predecessor digests were recomputed. No typed verdict was
+altered, invented, or renumbered. Rounds 7 and 8 remain Scope 1 `READY` and
+Scope 2 `NOT_READY` from both families.
+
+Publication remains withheld. This repair creates a new qualification C; the
+next required evidence is one fresh round from each family naming that exact C,
+fresh canonical macOS/aarch64 and Linux/x86_64 lifecycle receipts bound to C,
+and Charlie's new v2 acceptance of the resulting four history heads and
+implementation digest. Only after those records bind may the receipt, carrier,
+and published anchor be constructed.
