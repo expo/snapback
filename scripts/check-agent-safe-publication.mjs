@@ -52,6 +52,12 @@ export const IMPLEMENTATION_ROOTS = [
   'scripts/generated-artifact-policy.mjs',
 ];
 
+export const IMPLEMENTATION_DIGEST_VERSION =
+  'snapback:agent-safe-implementation-tree:v2';
+const LEGACY_IMPLEMENTATION_DIGEST_VERSION =
+  'snapback:agent-safe-implementation-tree:v1';
+const REVIEW_HISTORY_SCHEMA_VERSION = 'snapback.review-verdicts.v2';
+
 export const PUBLICATION_CYCLE_ALLOWLIST = new Set([
   'src/local-agent-safe-storage-publication.anchor.json',
   'src/local-agent-safe-storage-publication.carrier.json',
@@ -516,33 +522,83 @@ export function exactCandidate(id) {
   fail(`unknown candidate id ${id}`);
 }
 
-function updateTreeDigest(hash, path, bytes) {
+function updateTreeDigest(hash, { mode, type, path, bytes }) {
   const length = Buffer.alloc(8);
   length.writeBigUInt64BE(BigInt(bytes.length));
+  hash.update(mode);
+  hash.update(Buffer.from([0]));
+  hash.update(type);
+  hash.update(Buffer.from([0]));
   hash.update(path);
   hash.update(Buffer.from([0]));
   hash.update(length);
   hash.update(bytes);
 }
 
-export function implementationDigestAt(root, commit) {
-  const names = git(root, ['ls-tree', '-r', '--name-only', commit, '--', ...IMPLEMENTATION_ROOTS])
-    .split('\n')
-    .filter(Boolean)
-    .filter((path) => !PUBLICATION_CYCLE_ALLOWLIST.has(path))
-    .sort();
-  if (names.length === 0) fail(`implementation tree at ${commit} is empty`);
-  const hash = createHash('sha256');
-  hash.update('snapback:agent-safe-implementation-tree:v1\n');
-  for (const path of names) {
-    updateTreeDigest(hash, path, execFileSync('git', ['show', `${commit}:${path}`], {
+function parseTreeEntries(bytes, label) {
+  return bytes.toString('utf8').split('\0').filter(Boolean).map((record) => {
+    const separator = record.indexOf('\t');
+    const match = /^([0-9]{6}) (blob|commit) ([0-9a-f]{40,64})$/u.exec(
+      record.slice(0, separator),
+    );
+    if (separator < 0 || match === null) fail(`${label} emitted an invalid Git tree entry`);
+    return {
+      mode: match[1],
+      type: match[2],
+      oid: match[3],
+      path: record.slice(separator + 1),
+    };
+  });
+}
+
+function committedTreeEntryBytes(root, entry) {
+  if (entry.type === 'blob') {
+    return execFileSync('git', ['cat-file', 'blob', entry.oid], {
       cwd: root,
       maxBuffer: 32 * 1024 * 1024,
-    }));
+    });
   }
-  const gitlink = git(root, ['rev-parse', `${commit}:vendor/ibex`]);
-  updateTreeDigest(hash, 'vendor/ibex', Buffer.from(gitlink));
+  if (entry.type === 'commit' && entry.mode === '160000') return Buffer.from(entry.oid);
+  fail(`implementation tree entry ${entry.path} has unsupported ${entry.mode} ${entry.type}`);
+}
+
+function implementationEntriesAt(root, commit) {
+  const entries = parseTreeEntries(execFileSync('git', [
+    'ls-tree', '-r', '-z', commit, '--', ...IMPLEMENTATION_ROOTS,
+  ], { cwd: root }), `implementation tree at ${commit}`)
+    .filter(({ path }) => !PUBLICATION_CYCLE_ALLOWLIST.has(path));
+  const ibexEntries = parseTreeEntries(execFileSync('git', [
+    'ls-tree', '-z', commit, '--', 'vendor/ibex',
+  ], { cwd: root }), `vendor/ibex tree at ${commit}`);
+  if (ibexEntries.length !== 1
+      || ibexEntries[0].path !== 'vendor/ibex'
+      || ibexEntries[0].mode !== '160000'
+      || ibexEntries[0].type !== 'commit') {
+    fail(`implementation tree at ${commit} does not contain vendor/ibex as a gitlink`);
+  }
+  return [...entries, ibexEntries[0]].sort((left, right) => (
+    left.path < right.path ? -1 : left.path > right.path ? 1 : 0
+  ));
+}
+
+export function implementationDigestAt(root, commit) {
+  const entries = implementationEntriesAt(root, commit);
+  if (entries.length === 1) fail(`implementation tree at ${commit} is empty`);
+  const hash = createHash('sha256');
+  hash.update(`${IMPLEMENTATION_DIGEST_VERSION}\n`);
+  for (const entry of entries) {
+    updateTreeDigest(hash, { ...entry, bytes: committedTreeEntryBytes(root, entry) });
+  }
   return `sha256:${hash.digest('hex')}`;
+}
+
+function assertImplementationDigestVersion(version, label) {
+  if (version !== IMPLEMENTATION_DIGEST_VERSION) {
+    const presented = version ?? 'missing';
+    const legacy = presented === LEGACY_IMPLEMENTATION_DIGEST_VERSION ? 'v1-era' : 'unsupported';
+    fail(`${label} presents ${legacy} implementation digest version ${presented}; `
+      + `re-qualification with ${IMPLEMENTATION_DIGEST_VERSION} is required`);
+  }
 }
 
 // @ref LLP 0162#source-owned-publication-carrier-amendment--2026-08-04
@@ -554,7 +610,9 @@ export function assertQualifiedImplementationDigestAtPublication(root, {
   qualificationCommit,
   publicationCommit,
   expectedDigest,
+  expectedDigestVersion,
 }) {
+  assertImplementationDigestVersion(expectedDigestVersion, capabilityId);
   const qualificationDigest = implementationDigestAt(root, qualificationCommit);
   const publicationDigest = implementationDigestAt(root, publicationCommit);
   if (qualificationDigest !== expectedDigest || publicationDigest !== expectedDigest) {
@@ -594,16 +652,32 @@ function checkedOutImplementationGitlink(root) {
 
 export function implementationDigestWorkingTree(root) {
   const checkedOutIbex = checkedOutImplementationGitlink(root);
-  const names = execFileSync('git', ['ls-files', '-z', '--', ...IMPLEMENTATION_ROOTS], { cwd: root })
-    .toString()
-    .split('\0')
-    .filter(Boolean)
-    .filter((path) => !PUBLICATION_CYCLE_ALLOWLIST.has(path))
-    .sort();
+  const entries = execFileSync('git', [
+    'ls-files', '--stage', '-z', '--', ...IMPLEMENTATION_ROOTS,
+  ], { cwd: root }).toString('utf8').split('\0').filter(Boolean).map((record) => {
+    const separator = record.indexOf('\t');
+    const match = /^([0-9]{6}) ([0-9a-f]{40,64}) 0$/u.exec(record.slice(0, separator));
+    if (separator < 0 || match === null) fail('implementation index emitted an invalid entry');
+    const mode = match[1];
+    return {
+      mode,
+      type: mode === '160000' ? 'commit' : 'blob',
+      oid: match[2],
+      path: record.slice(separator + 1),
+    };
+  }).filter(({ path }) => !PUBLICATION_CYCLE_ALLOWLIST.has(path));
+  entries.push({
+    mode: '160000',
+    type: 'commit',
+    oid: checkedOutIbex,
+    path: 'vendor/ibex',
+  });
+  entries.sort((left, right) => (left.path < right.path ? -1 : left.path > right.path ? 1 : 0));
   const hash = createHash('sha256');
-  hash.update('snapback:agent-safe-implementation-tree:v1\n');
-  for (const path of names) updateTreeDigest(hash, path, readFileSync(join(root, path)));
-  updateTreeDigest(hash, 'vendor/ibex', Buffer.from(checkedOutIbex));
+  hash.update(`${IMPLEMENTATION_DIGEST_VERSION}\n`);
+  for (const entry of entries) {
+    updateTreeDigest(hash, { ...entry, bytes: committedTreeEntryBytes(root, entry) });
+  }
   return `sha256:${hash.digest('hex')}`;
 }
 
@@ -614,13 +688,25 @@ function evidenceLocatorsFor(record) {
 }
 
 function validateReceiptShape(receipt, record, published) {
-  exactKeys(receipt, [
+  const legacyKeys = [
     'schemaVersion', 'capabilityId', 'qualifiedSourceCommit', 'implementationTreeSha256',
     'candidateFactsSha256', 'qualifiedTargetProfileId', 'negativeTargetProfileIds',
     'negativeBuildDistributions', 'qualifiedComponents', 'evidence',
-  ], `${record.id} receipt`);
-  if (receipt.schemaVersion !== 'snapback.agent-safe-publication-receipt.v1'
-      || receipt.capabilityId !== record.id
+  ];
+  const currentKeys = [...legacyKeys, 'implementationDigestVersion'];
+  if (receipt.schemaVersion === 'snapback.agent-safe-publication-receipt.v1') {
+    exactKeys(receipt, legacyKeys, `${record.id} receipt`);
+    if (published) {
+      fail(`${record.id} receipt uses the stale v1 implementation digest contract; `
+        + `re-qualification with ${IMPLEMENTATION_DIGEST_VERSION} is required`);
+    }
+  } else if (receipt.schemaVersion === 'snapback.agent-safe-publication-receipt.v2') {
+    exactKeys(receipt, currentKeys, `${record.id} receipt`);
+    assertImplementationDigestVersion(receipt.implementationDigestVersion, `${record.id} receipt`);
+  } else {
+    fail(`${record.id} receipt schema is stale or unsupported`);
+  }
+  if (receipt.capabilityId !== record.id
       || receipt.qualifiedTargetProfileId !== 'local-dev-sqlite-ibex'
       || JSON.stringify(receipt.negativeTargetProfileIds)
         !== JSON.stringify(['cloudflare-do-sqlite-v8', 'remote-service-sqlite-ibex'])
@@ -1163,11 +1249,13 @@ export function validateReview(root, path, family, commit, implementationTree) {
 function validateAuthorAcceptance(root, receipt, commit, implementationTree) {
   const path = STORAGE_EVIDENCE[5][1];
   const value = readEvidenceJson(root, path, 'author acceptance');
-  requireEvidence(value.schemaVersion === 'snapback.agent-safe-storage-author-acceptance.v1'
+  requireEvidence(value.schemaVersion === 'snapback.agent-safe-storage-author-acceptance.v2'
     && value.date === '2026-08-04'
     && value.author === 'Charlie Cheever'
     && value.accepted === true
-    && value.authorizationSource === 'explicit-user-instruction-2026-08-04',
+    && value.authorizationSource === 'explicit-user-instruction-2026-08-04'
+    && value.implementationDigestVersion === IMPLEMENTATION_DIGEST_VERSION
+    && value.implementationDigestVersion === receipt.implementationDigestVersion,
   'named-author acceptance identity or decision drifted');
   requireEvidence(value.qualifiedSourceCommit === commit
     && value.implementationTreeSha256 === implementationTree
@@ -1315,18 +1403,19 @@ export function validateDerivedForkReview(root, {
   }
   const value = readCanonicalEvidenceJson(root, verdictPath, `${reviewPath} verdict contract`);
   exactKeys(value, ['schemaVersion', 'verdicts'], `${verdictPath} contract`);
-  requireEvidence(value.schemaVersion === 'snapback.review-verdicts.v1'
+  requireEvidence(value.schemaVersion === REVIEW_HISTORY_SCHEMA_VERSION
     && Array.isArray(value.verdicts)
     && value.verdicts.length > 0,
-  `${verdictPath} contract identity or verdict population drifted`);
+  `${verdictPath} contract identity or verdict population drifted; a complete v2 history is required`);
 
   const currentReviewSha256 = sha256(reviewBytes);
   let previousCommit;
+  let previousEntrySha256 = null;
   let declaredFamily;
   for (const [index, entry] of value.verdicts.entries()) {
     exactKeys(entry, [
       'reviewArtifact', 'reviewArtifactSha256', 'family', 'round', 'reviewedCommit',
-      'verdict',
+      'previousEntrySha256', 'verdict',
     ], `${verdictPath} round ${index + 1}`);
     // This is deliberately a current-state binding, not a claim about the
     // prose bytes as they existed when a historical verdict was recorded.
@@ -1341,6 +1430,8 @@ export function validateDerivedForkReview(root, {
     requireEvidence(Number.isSafeInteger(entry.round)
       && entry.round === index + 1,
     `${verdictPath} rounds are missing, duplicated, or non-monotonic`);
+    requireEvidence(entry.previousEntrySha256 === previousEntrySha256,
+      `${verdictPath} round ${entry.round} predecessor digest broke; history was truncated, restarted, or replaced`);
     requireEvidence(/^[0-9a-f]{40}$/u.test(entry.reviewedCommit ?? ''),
       `${verdictPath} round ${entry.round} reviewed commit is invalid`);
     if (index === value.verdicts.length - 1) {
@@ -1371,6 +1462,7 @@ export function validateDerivedForkReview(root, {
         && ['READY', 'NOT_READY'].includes(entry.verdict.status),
       `${verdictPath} round ${entry.round} publication verdict is invalid`);
     }
+    previousEntrySha256 = sha256(Buffer.from(`${JSON.stringify(entry, null, 2)}\n`));
   }
 
   const authoritative = value.verdicts.at(-1);
@@ -1381,8 +1473,11 @@ export function validateDerivedForkReview(root, {
     : authoritative.verdict.status === 'READY';
   return {
     family: authoritative.family,
+    headEntrySha256: previousEntrySha256,
+    historyKind: DERIVED_FORK_EVIDENCE[verdictIndex][0],
     ready,
     round: authoritative.round,
+    roundCount: value.verdicts.length,
     reviewPath,
     verdictPath,
   };
@@ -1396,19 +1491,27 @@ function validateDerivedForkAssetEvidence(root) {
   'asset lifecycle evidence identity drifted');
 }
 
-function validateDerivedForkAuthorAcceptance(root, receipt, commit, implementationTree) {
+function validateDerivedForkAuthorAcceptance(
+  root,
+  receipt,
+  commit,
+  implementationTree,
+  reviewHistories,
+) {
   const path = DERIVED_FORK_EVIDENCE.at(-1)[1];
   const value = readEvidenceJson(root, path, 'derived-fork author acceptance');
   exactKeys(value, [
     'schemaVersion', 'capabilityId', 'accepted', 'authorLine', 'qualifiedSourceCommit',
-    'implementationTreeSha256', 'candidateFactsSha256', 'qualifiedComponents',
-    'evidenceSha256',
+    'implementationDigestVersion', 'implementationTreeSha256', 'candidateFactsSha256',
+    'qualifiedComponents', 'evidenceSha256', 'reviewHistoryHeads',
   ], 'derived-fork author acceptance');
-  requireEvidence(value.schemaVersion === 'snapback.derived-fork-author-acceptance.v1'
+  requireEvidence(value.schemaVersion === 'snapback.derived-fork-author-acceptance.v2'
     && value.capabilityId === 'agent_safe_derived_deployment_fork_v1'
     && value.accepted === true
     && value.authorLine === 'Charlie Cheever — accepted 2026-08-06'
     && value.qualifiedSourceCommit === commit
+    && value.implementationDigestVersion === IMPLEMENTATION_DIGEST_VERSION
+    && value.implementationDigestVersion === receipt.implementationDigestVersion
     && value.implementationTreeSha256 === implementationTree
     && value.implementationTreeSha256 === receipt.implementationTreeSha256
     && value.candidateFactsSha256 === receipt.candidateFactsSha256
@@ -1420,6 +1523,17 @@ function validateDerivedForkAuthorAcceptance(root, receipt, commit, implementati
   requireEvidence(nonselfBindings.every(({ kind, sha256: digest }) => (
     value.evidenceSha256[kind] === digest
   )), 'derived-fork author acceptance did not bind the exact non-self receipt digest set');
+  const expectedHistoryKinds = reviewHistories.map(({ historyKind }) => historyKind);
+  exactKeys(value.reviewHistoryHeads, expectedHistoryKinds,
+    'derived-fork author-accepted review histories');
+  for (const review of reviewHistories) {
+    const acceptedHead = value.reviewHistoryHeads[review.historyKind];
+    exactKeys(acceptedHead, ['roundCount', 'headEntrySha256'],
+      `derived-fork accepted ${review.historyKind} history head`);
+    requireEvidence(acceptedHead.roundCount === review.roundCount
+      && acceptedHead.headEntrySha256 === review.headEntrySha256,
+    `${review.historyKind} history does not match the named-author accepted complete history`);
+  }
 }
 
 export function validatePublishedDerivedForkEvidenceSemantics(root, record, commit, receipt) {
@@ -1483,7 +1597,12 @@ export function validatePublishedDerivedForkEvidenceSemantics(root, record, comm
     requireEvidence(review.ready, `${review.verdictPath} authoritative verdict is not READY`);
   }
   const implementationTree = implementationDigestAt(root, commit);
-  validateDerivedForkAuthorAcceptance(root, receipt, commit, implementationTree);
+  validateDerivedForkAuthorAcceptance(root, receipt, commit, implementationTree, [
+    specCodex,
+    specFable,
+    implementationCodex,
+    implementationFable,
+  ]);
 }
 
 export function validatePublishedEvidenceSemantics(root, record, commit, receipt = undefined) {
@@ -1512,11 +1631,6 @@ export function validatePublicationRecord(root, record) {
   const carrier = JSON.parse(carrierBytes);
   const receipt = JSON.parse(receiptBytes);
   exactKeys(anchor, ['schemaVersion', 'capabilityId', 'state', 'carrierSha256'], `${record.id} anchor`);
-  exactKeys(carrier, [
-    'schemaVersion', 'capabilityId', 'targetProfileId', 'maturity', 'qualifiedSourceCommit',
-    'implementationTreeSha256', 'candidateFactsSha256', 'qualificationReceiptSha256',
-    'buildProvenanceRequirement', 'candidateFacts',
-  ], `${record.id} carrier`);
   if (anchor.schemaVersion !== 'snapback.local-capability-publication-anchor.v1'
       || anchor.capabilityId !== record.id
       || !['withheld', 'published'].includes(anchor.state)) {
@@ -1528,12 +1642,17 @@ export function validatePublicationRecord(root, record) {
     if (anchor.carrierSha256 !== null) fail(`${record.id} withheld anchor carries authority`);
     return { id: record.id, state: 'withheld' };
   }
+  exactKeys(carrier, [
+    'schemaVersion', 'capabilityId', 'targetProfileId', 'maturity', 'qualifiedSourceCommit',
+    'implementationDigestVersion', 'implementationTreeSha256', 'candidateFactsSha256',
+    'qualificationReceiptSha256', 'buildProvenanceRequirement', 'candidateFacts',
+  ], `${record.id} carrier`);
   if (!isSha256(anchor.carrierSha256, true) || anchor.carrierSha256 !== sha256(carrierBytes)) {
     fail(`${record.id} anchor/carrier digest mismatch`);
   }
   const candidateFacts = exactCandidate(record.id);
   const candidateFactsSha256 = sha256(Buffer.from(JSON.stringify(candidateFacts)));
-  if (carrier.schemaVersion !== 'snapback.local-agent-safe-publication.v1'
+  if (carrier.schemaVersion !== 'snapback.local-agent-safe-publication.v2'
       || carrier.capabilityId !== record.id
       || carrier.targetProfileId !== 'local-dev-sqlite-ibex'
       || carrier.maturity !== 'experimental'
@@ -1542,6 +1661,9 @@ export function validatePublicationRecord(root, record) {
       || JSON.stringify(carrier.candidateFacts) !== JSON.stringify(candidateFacts)
       || carrier.candidateFactsSha256 !== candidateFactsSha256
       || receipt.candidateFactsSha256 !== candidateFactsSha256
+      || carrier.implementationDigestVersion !== IMPLEMENTATION_DIGEST_VERSION
+      || receipt.implementationDigestVersion !== IMPLEMENTATION_DIGEST_VERSION
+      || receipt.implementationDigestVersion !== carrier.implementationDigestVersion
       || receipt.implementationTreeSha256 !== carrier.implementationTreeSha256
       || receipt.qualifiedSourceCommit !== carrier.qualifiedSourceCommit
       || JSON.stringify(receipt.qualifiedComponents) !== JSON.stringify(record.components)) {
@@ -1568,6 +1690,7 @@ export function validatePublicationRecord(root, record) {
     qualificationCommit: carrier.qualifiedSourceCommit,
     publicationCommit: publication,
     expectedDigest: receipt.implementationTreeSha256,
+    expectedDigestVersion: receipt.implementationDigestVersion,
   });
   validatePublishedEvidenceSemantics(root, record, carrier.qualifiedSourceCommit, receipt);
   return {

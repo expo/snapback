@@ -153,6 +153,7 @@ struct LocalAgentSafePublicationCarrierV1 {
     target_profile_id: String,
     maturity: String,
     qualified_source_commit: String,
+    implementation_digest_version: Option<String>,
     implementation_tree_sha256: String,
     candidate_facts_sha256: String,
     qualification_receipt_sha256: String,
@@ -166,6 +167,7 @@ struct AgentSafePublicationReceiptV1 {
     schema_version: String,
     capability_id: String,
     qualified_source_commit: String,
+    implementation_digest_version: Option<String>,
     implementation_tree_sha256: String,
     candidate_facts_sha256: String,
     qualified_target_profile_id: String,
@@ -364,18 +366,21 @@ fn publication_verified_for(
             .all(|(binding, (kind, path))| {
                 binding.kind == *kind && binding.path == *path && is_nonzero_sha256(&binding.sha256)
             });
-    carrier.schema_version == "snapback.local-agent-safe-publication.v1"
+    carrier.schema_version == "snapback.local-agent-safe-publication.v2"
         && carrier.capability_id == capability_id
         && carrier.target_profile_id == TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX
         && carrier.maturity == "experimental"
         && carrier.build_provenance_requirement == "known-clean-contributor-source"
+        && carrier.implementation_digest_version.as_deref()
+            == Some("snapback:agent-safe-implementation-tree:v2")
         && is_source_commit(&carrier.qualified_source_commit)
         && carrier.implementation_tree_sha256 == build_implementation_tree_sha256
         && carrier.candidate_facts_sha256 == sha256_prefixed(&candidate_bytes)
         && carrier.qualification_receipt_sha256 == sha256_prefixed(receipt_bytes)
         && candidate == exact_candidate
-        && receipt.schema_version == "snapback.agent-safe-publication-receipt.v1"
+        && receipt.schema_version == "snapback.agent-safe-publication-receipt.v2"
         && receipt.capability_id == capability_id
+        && receipt.implementation_digest_version == carrier.implementation_digest_version
         && receipt.qualified_source_commit == carrier.qualified_source_commit
         && receipt.implementation_tree_sha256 == carrier.implementation_tree_sha256
         && receipt.candidate_facts_sha256 == carrier.candidate_facts_sha256
@@ -422,9 +427,12 @@ mod tests {
         let commit = "b".repeat(40);
         let candidate_sha256 = sha256_prefixed(&serde_json::to_vec(&candidate).unwrap());
         let receipt = AgentSafePublicationReceiptV1 {
-            schema_version: "snapback.agent-safe-publication-receipt.v1".to_owned(),
+            schema_version: "snapback.agent-safe-publication-receipt.v2".to_owned(),
             capability_id: capability_id.to_owned(),
             qualified_source_commit: commit.clone(),
+            implementation_digest_version: Some(
+                "snapback:agent-safe-implementation-tree:v2".to_owned(),
+            ),
             implementation_tree_sha256: tree.clone(),
             candidate_facts_sha256: candidate_sha256.clone(),
             qualified_target_profile_id: TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX.to_owned(),
@@ -433,7 +441,7 @@ mod tests {
                 TARGET_PROFILE_REMOTE_SERVICE_SQLITE_IBEX.to_owned(),
             ],
             negative_build_distributions: vec![
-                crate::identity::BUILD_DISTRIBUTION_PUBLIC_PACKAGE.to_owned()
+                crate::identity::BUILD_DISTRIBUTION_PUBLIC_PACKAGE.to_owned(),
             ],
             qualified_components: components.iter().map(|value| (*value).to_owned()).collect(),
             evidence: STORAGE_EVIDENCE_LOCATORS
@@ -447,11 +455,14 @@ mod tests {
         };
         let receipt_bytes = serde_json::to_vec(&receipt).unwrap();
         let carrier = LocalAgentSafePublicationCarrierV1 {
-            schema_version: "snapback.local-agent-safe-publication.v1".to_owned(),
+            schema_version: "snapback.local-agent-safe-publication.v2".to_owned(),
             capability_id: capability_id.to_owned(),
             target_profile_id: TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX.to_owned(),
             maturity: "experimental".to_owned(),
             qualified_source_commit: commit,
+            implementation_digest_version: Some(
+                "snapback:agent-safe-implementation-tree:v2".to_owned(),
+            ),
             implementation_tree_sha256: tree.clone(),
             candidate_facts_sha256: candidate_sha256,
             qualification_receipt_sha256: sha256_prefixed(&receipt_bytes),

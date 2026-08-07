@@ -1,7 +1,15 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdtempSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  mkdtempSync,
+  mkdirSync,
+  readFileSync,
+  symlinkSync,
+  unlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import nodeTest from 'node:test';
@@ -14,6 +22,7 @@ import {
   exactCandidate,
   generatedPublicationPathsAt,
   generatedPublicationPathsOnDisk,
+  IMPLEMENTATION_DIGEST_VERSION,
   IMPLEMENTATION_ROOTS,
   implementationDigestAt,
   expectedLocalStorePublicationTransform,
@@ -307,14 +316,40 @@ function digest(bytes) {
   return `sha256:${createHash('sha256').update(bytes).digest('hex')}`;
 }
 
+function legacyImplementationDigestV1At(rootPath, commit) {
+  const names = execFileSync('git', [
+    'ls-tree', '-r', '--name-only', commit, '--', ...IMPLEMENTATION_ROOTS,
+  ], { cwd: rootPath, encoding: 'utf8' }).split('\n').filter(Boolean)
+    .filter((path) => !PUBLICATION_CYCLE_ALLOWLIST.has(path)).sort();
+  const hash = createHash('sha256');
+  hash.update('snapback:agent-safe-implementation-tree:v1\n');
+  const update = (path, bytes) => {
+    const length = Buffer.alloc(8);
+    length.writeBigUInt64BE(BigInt(bytes.length));
+    hash.update(path);
+    hash.update(Buffer.from([0]));
+    hash.update(length);
+    hash.update(bytes);
+  };
+  for (const path of names) {
+    update(path, execFileSync('git', ['show', `${commit}:${path}`], { cwd: rootPath }));
+  }
+  update('vendor/ibex', Buffer.from(execFileSync('git', [
+    'rev-parse', `${commit}:vendor/ibex`,
+  ], { cwd: rootPath, encoding: 'utf8' }).trim()));
+  return `sha256:${hash.digest('hex')}`;
+}
+
 function qualifiedImplementationScopeFixture() {
   const scratch = mkdtempSync(join(tmpdir(), 'snapback-qualified-implementation-scope-'));
   execFileSync('git', ['init', '--quiet'], { cwd: scratch });
   execFileSync('git', ['config', 'user.name', 'Snapback Test'], { cwd: scratch });
   execFileSync('git', ['config', 'user.email', 'snapback-test@example.invalid'], { cwd: scratch });
+  execFileSync('git', ['config', 'core.filemode', 'true'], { cwd: scratch });
   mkdirSync(join(scratch, 'src'), { recursive: true });
   writeFileSync(join(scratch, 'src/qualified.rs'), 'pub const QUALIFIED: bool = true;\n');
-  execFileSync('git', ['add', 'src/qualified.rs'], { cwd: scratch });
+  writeFileSync(join(scratch, 'src/type-swap'), 'qualified-target.rs');
+  execFileSync('git', ['add', 'src/qualified.rs', 'src/type-swap'], { cwd: scratch });
   const ibexGitlink = execFileSync('git', ['rev-parse', 'HEAD:vendor/ibex'], {
     cwd: root,
     encoding: 'utf8',
@@ -379,27 +414,49 @@ function derivedReviewBytes(kind, family) {
 
 function derivedVerdictContract(kind, family, commit, reviewPath, reviewBytes, ready) {
   const spec = kind.startsWith('specReview');
+  let previousEntrySha256 = null;
   return {
-    schemaVersion: 'snapback.review-verdicts.v1',
-    verdicts: [1, 2, 3].map((round) => ({
-      reviewArtifact: reviewPath,
-      reviewArtifactSha256: digest(reviewBytes),
-      family,
-      round,
-      reviewedCommit: commit,
-      verdict: spec
-        ? {
-          kind: 'forkSpecConformance',
-          llp0163: round === 1 ? 'NOT_READY' : 'READY',
-          llp0164: round === 1 ? 'NOT_READY' : 'READY',
-          llp0165: round === 3 && ready ? 'READY' : 'NOT_READY',
-        }
-        : {
-          kind: 'derivedForkPublication',
-          status: round === 3 && ready ? 'READY' : 'NOT_READY',
-        },
-    })),
+    schemaVersion: 'snapback.review-verdicts.v2',
+    verdicts: [1, 2, 3].map((round) => {
+      const entry = {
+        reviewArtifact: reviewPath,
+        reviewArtifactSha256: digest(reviewBytes),
+        family,
+        round,
+        reviewedCommit: commit,
+        previousEntrySha256,
+        verdict: spec
+          ? {
+            kind: 'forkSpecConformance',
+            llp0163: round === 1 ? 'NOT_READY' : 'READY',
+            llp0164: round === 1 ? 'NOT_READY' : 'READY',
+            llp0165: round === 3 && ready ? 'READY' : 'NOT_READY',
+          }
+          : {
+            kind: 'derivedForkPublication',
+            status: round === 3 && ready ? 'READY' : 'NOT_READY',
+          },
+      };
+      previousEntrySha256 = digest(Buffer.from(`${JSON.stringify(entry, null, 2)}\n`));
+      return entry;
+    }),
   };
+}
+
+function reviewHistoryHead(value) {
+  return {
+    roundCount: value.verdicts.length,
+    headEntrySha256: digest(Buffer.from(`${JSON.stringify(value.verdicts.at(-1), null, 2)}\n`)),
+  };
+}
+
+function rechainVerdicts(entries) {
+  let previousEntrySha256 = null;
+  entries.forEach((entry, index) => {
+    entry.round = index + 1;
+    entry.previousEntrySha256 = previousEntrySha256;
+    previousEntrySha256 = digest(Buffer.from(`${JSON.stringify(entry, null, 2)}\n`));
+  });
 }
 
 function storageReviewBytes(family, commit, implementationTree) {
@@ -453,6 +510,7 @@ function publishedDerivedFixture({
 
   const bindings = [];
   const reviewBytes = new Map();
+  const acceptedReviewHistoryHeads = new Map();
   for (const [kind, path] of derivedEvidence.slice(0, -1)) {
     let bytes;
     if (kind === 'lifecycleBenchMacos' || kind === 'lifecycleBenchLinux'
@@ -477,6 +535,7 @@ function publishedDerivedFixture({
         reviewBytes.get(reviewKind),
         reviewKind !== notReadyReview,
       );
+      acceptedReviewHistoryHeads.set(kind, reviewHistoryHead(value));
       mutateVerdict?.(kind, value);
       const canonicalBytes = Buffer.from(`${JSON.stringify(value, null, 2)}\n`);
       bytes = kind === malformedVerdict
@@ -506,15 +565,17 @@ function publishedDerivedFixture({
   const candidateFacts = exactCandidate(derived.id);
   const candidateFactsSha256 = digest(Buffer.from(JSON.stringify(candidateFacts)));
   const acceptance = {
-    schemaVersion: 'snapback.derived-fork-author-acceptance.v1',
+    schemaVersion: 'snapback.derived-fork-author-acceptance.v2',
     capabilityId: derived.id,
     accepted: true,
     authorLine: 'Charlie Cheever — accepted 2026-08-06',
     qualifiedSourceCommit: commit,
+    implementationDigestVersion: IMPLEMENTATION_DIGEST_VERSION,
     implementationTreeSha256: implementationTree,
     candidateFactsSha256,
     qualifiedComponents: [...derived.components],
     evidenceSha256: Object.fromEntries(bindings.map(({ kind, sha256 }) => [kind, sha256])),
+    reviewHistoryHeads: Object.fromEntries(acceptedReviewHistoryHeads),
   };
   const [authorKind, authorPath] = derivedEvidence.at(-1);
   const authorBytes = writeJson(scratch, authorPath, acceptance);
@@ -526,9 +587,10 @@ function publishedDerivedFixture({
   });
 
   const receipt = {
-    schemaVersion: 'snapback.agent-safe-publication-receipt.v1',
+    schemaVersion: 'snapback.agent-safe-publication-receipt.v2',
     capabilityId: derived.id,
     qualifiedSourceCommit: commit,
+    implementationDigestVersion: IMPLEMENTATION_DIGEST_VERSION,
     implementationTreeSha256: implementationTree,
     candidateFactsSha256,
     qualifiedTargetProfileId: 'local-dev-sqlite-ibex',
@@ -539,11 +601,12 @@ function publishedDerivedFixture({
   };
   const receiptBytes = writeJson(scratch, derived.receipt, receipt);
   const carrier = {
-    schemaVersion: 'snapback.local-agent-safe-publication.v1',
+    schemaVersion: 'snapback.local-agent-safe-publication.v2',
     capabilityId: derived.id,
     targetProfileId: 'local-dev-sqlite-ibex',
     maturity: 'experimental',
     qualifiedSourceCommit: commit,
+    implementationDigestVersion: IMPLEMENTATION_DIGEST_VERSION,
     implementationTreeSha256: implementationTree,
     candidateFactsSha256,
     qualificationReceiptSha256: digest(receiptBytes),
@@ -643,43 +706,29 @@ test('derived receipt rejects storage-evidence substitution while withheld', () 
   assert.throws(() => validatePublicationRecord(scratch, derived), /evidence 0 drifted/u);
 });
 
-test('checked-in verdict histories transcribe rounds 1-5 and remain blocked at b08e835f1', () => {
+test('checked-in v1 verdict histories remain preserved but cannot qualify v2 publication', () => {
   const qualificationCommit = 'b08e835f112517cf1629a842f5bcae12841ddcf0';
-  const reviews = [
-    validateDerivedForkReview(root, {
-      reviewIndex: 4,
-      verdictIndex: 5,
-      expectedKind: 'forkSpecConformance',
-      qualificationCommit,
-    }),
-    validateDerivedForkReview(root, {
-      reviewIndex: 6,
-      verdictIndex: 7,
-      expectedKind: 'forkSpecConformance',
-      qualificationCommit,
-    }),
-    validateDerivedForkReview(root, {
-      reviewIndex: 8,
-      verdictIndex: 9,
-      expectedKind: 'derivedForkPublication',
-      qualificationCommit,
-    }),
-    validateDerivedForkReview(root, {
-      reviewIndex: 10,
-      verdictIndex: 11,
-      expectedKind: 'derivedForkPublication',
-      qualificationCommit,
-    }),
+  const contracts = [
+    [5, 'forkSpecConformance'],
+    [7, 'forkSpecConformance'],
+    [9, 'derivedForkPublication'],
+    [11, 'derivedForkPublication'],
   ];
-  assert.deepEqual(
-    reviews.map(({ family, ready, round }) => ({ family, ready, round })),
-    [
-      { family: 'codex', ready: true, round: 5 },
-      { family: 'fable', ready: true, round: 5 },
-      { family: 'codex', ready: false, round: 5 },
-      { family: 'fable', ready: false, round: 5 },
-    ],
-  );
+  for (const [verdictIndex, expectedKind] of contracts) {
+    const value = JSON.parse(readFileSync(join(root, derivedEvidence[verdictIndex][1])));
+    assert.equal(value.schemaVersion, 'snapback.review-verdicts.v1');
+    assert.deepEqual(value.verdicts.map(({ round }) => round), [1, 2, 3, 4, 5]);
+    assert.equal(value.verdicts.at(-1).reviewedCommit, qualificationCommit);
+    assert.throws(
+      () => validateDerivedForkReview(root, {
+        reviewIndex: verdictIndex - 1,
+        verdictIndex,
+        expectedKind,
+        qualificationCommit,
+      }),
+      /complete v2 history is required/u,
+    );
+  }
 });
 
 test('published derived-fork chain accepts final READY after historical NOT READY verdicts', () => {
@@ -965,9 +1014,11 @@ test('published derived-fork chain refuses verdict files assigned to the wrong f
     mutateVerdict: (kind, value) => {
       if (kind === 'specReviewCodexVerdicts') {
         value.verdicts.forEach((entry) => { entry.family = 'fable'; });
+        rechainVerdicts(value.verdicts);
       }
       if (kind === 'specReviewFableVerdicts') {
         value.verdicts.forEach((entry) => { entry.family = 'codex'; });
+        rechainVerdicts(value.verdicts);
       }
     },
   });
@@ -992,6 +1043,45 @@ test('published derived-fork chain refuses duplicate or missing rounds', () => {
       /rounds are missing, duplicated, or non-monotonic/u,
     );
   }
+});
+
+test('published derived-fork chain refuses a deleted-and-restarted verdict history', () => {
+  const scratch = publishedDerivedFixture({
+    mutateVerdict: (kind, value) => {
+      if (kind !== 'implementationReviewCodexVerdicts') return;
+      const final = value.verdicts.at(-1);
+      value.verdicts = [{
+        reviewArtifact: final.reviewArtifact,
+        reviewArtifactSha256: final.reviewArtifactSha256,
+        family: final.family,
+        round: 1,
+        reviewedCommit: final.reviewedCommit,
+        previousEntrySha256: null,
+        verdict: {
+          kind: 'derivedForkPublication',
+          status: 'READY',
+        },
+      }];
+    },
+  });
+  assert.throws(
+    () => validatePublicationRecord(scratch, derived),
+    /does not match the named-author accepted complete history/u,
+  );
+});
+
+test('published derived-fork chain refuses a truncated and rechained verdict history', () => {
+  const scratch = publishedDerivedFixture({
+    mutateVerdict: (kind, value) => {
+      if (kind !== 'implementationReviewFableVerdicts') return;
+      value.verdicts = value.verdicts.slice(1);
+      rechainVerdicts(value.verdicts);
+    },
+  });
+  assert.throws(
+    () => validatePublicationRecord(scratch, derived),
+    /does not match the named-author accepted complete history/u,
+  );
 });
 
 test('published derived-fork chain refuses non-monotonic rounds', () => {
@@ -1027,6 +1117,7 @@ test('published derived-fork chain refuses a same-family review pair', () => {
     mutateVerdict: (kind, value) => {
       if (kind === 'implementationReviewFableVerdicts') {
         value.verdicts.forEach((entry) => { entry.family = 'codex'; });
+        rechainVerdicts(value.verdicts);
       }
     },
   });
@@ -1338,6 +1429,7 @@ test('C-to-P custody permits unrelated demo and LLP churn outside the qualified 
     qualificationCommit: qualification,
     publicationCommit: publication,
     expectedDigest,
+    expectedDigestVersion: IMPLEMENTATION_DIGEST_VERSION,
   }), expectedDigest);
 });
 
@@ -1354,6 +1446,7 @@ test('C-to-P custody refuses a receipt rotated to P that does not match C', () =
       qualificationCommit: qualification,
       publicationCommit: publication,
       expectedDigest: receiptDigest,
+      expectedDigestVersion: IMPLEMENTATION_DIGEST_VERSION,
     }),
     (error) => {
       assert.match(error.message, /in-scope paths drifted: M:src\/qualified\.rs/u);
@@ -1377,6 +1470,7 @@ test('C-to-P custody refuses a receipt matching C when P drifted in scope', () =
       qualificationCommit: qualification,
       publicationCommit: publication,
       expectedDigest,
+      expectedDigestVersion: IMPLEMENTATION_DIGEST_VERSION,
     }),
     (error) => {
       assert.match(error.message, /in-scope paths drifted: M:src\/qualified\.rs/u);
@@ -1406,6 +1500,7 @@ test('C-to-P custody refuses a vendor/ibex gitlink change', () => {
       qualificationCommit: qualification,
       publicationCommit: publication,
       expectedDigest,
+      expectedDigestVersion: IMPLEMENTATION_DIGEST_VERSION,
     }),
     (error) => {
       assert.match(error.message, /in-scope paths drifted: M:vendor\/ibex/u);
@@ -1414,6 +1509,59 @@ test('C-to-P custody refuses a vendor/ibex gitlink change', () => {
       assert.ok(error.message.includes(`publication P ${actualDigest}`));
       return true;
     },
+  );
+});
+
+test('C-to-P custody refuses an in-scope executable-mode-only change', () => {
+  const { scratch, qualification, expectedDigest } = qualifiedImplementationScopeFixture();
+  chmodSync(join(scratch, 'src/qualified.rs'), 0o755);
+  const publication = commitFixture(scratch, 'make qualified source executable', 'src/qualified.rs');
+  const actualDigest = implementationDigestAt(scratch, publication);
+  assert.notEqual(actualDigest, expectedDigest);
+  assert.throws(
+    () => assertQualifiedImplementationDigestAtPublication(scratch, {
+      capabilityId: 'fixture_capability_v1',
+      qualificationCommit: qualification,
+      publicationCommit: publication,
+      expectedDigest,
+      expectedDigestVersion: IMPLEMENTATION_DIGEST_VERSION,
+    }),
+    /in-scope paths drifted: M:src\/qualified\.rs/u,
+  );
+});
+
+test('C-to-P custody refuses an in-scope file-to-symlink type swap', () => {
+  const { scratch, qualification, expectedDigest } = qualifiedImplementationScopeFixture();
+  unlinkSync(join(scratch, 'src/type-swap'));
+  symlinkSync('qualified-target.rs', join(scratch, 'src/type-swap'));
+  const publication = commitFixture(scratch, 'swap qualified file for symlink', 'src/type-swap');
+  const actualDigest = implementationDigestAt(scratch, publication);
+  assert.notEqual(actualDigest, expectedDigest);
+  assert.throws(
+    () => assertQualifiedImplementationDigestAtPublication(scratch, {
+      capabilityId: 'fixture_capability_v1',
+      qualificationCommit: qualification,
+      publicationCommit: publication,
+      expectedDigest,
+      expectedDigestVersion: IMPLEMENTATION_DIGEST_VERSION,
+    }),
+    /in-scope paths drifted: T:src\/type-swap/u,
+  );
+});
+
+test('v1-era implementation digests refuse explicitly under the v2 algorithm', () => {
+  const { scratch, qualification } = qualifiedImplementationScopeFixture();
+  const v1EraDigest = legacyImplementationDigestV1At(scratch, qualification);
+  assert.notEqual(v1EraDigest, implementationDigestAt(scratch, qualification));
+  assert.throws(
+    () => assertQualifiedImplementationDigestAtPublication(scratch, {
+      capabilityId: 'fixture_capability_v1',
+      qualificationCommit: qualification,
+      publicationCommit: qualification,
+      expectedDigest: v1EraDigest,
+      expectedDigestVersion: 'snapback:agent-safe-implementation-tree:v1',
+    }),
+    /presents v1-era implementation digest version.*re-qualification.*v2/u,
   );
 });
 
