@@ -23,6 +23,7 @@ import {
   boundedSerializeBrowserValue,
   browserAssetsContainSecretCanary,
   browserForbiddenMarkerVariants,
+  computePublicationReceiptProvenance,
   createBoundedAsyncTaskPool,
   createBoundedByteAccumulator,
   createBoundedBrowserSurfaceCollector,
@@ -59,6 +60,7 @@ import {
   sourceNamesForScopePreset,
   validateColdInstallBrowserEvidence,
   validateInternalDependencyClosure,
+  validatePublicationReceiptProvenance,
   validateQualifiedPlatformReceipts,
   validateQualifiedStagingLedger,
   validateQualifiedTarballs,
@@ -1007,6 +1009,7 @@ function githubReceiptProvenance({
   return {
     sourceCheckout: { headSha: revision, dirty: false },
     proofHarnessCheckout: { headSha: runHeadSha, dirty: false },
+    easProof: null,
     githubProof: {
       repository: 'expo/snapback',
       workflowRef: `expo/snapback/.github/workflows/${workflow}@${ref}`,
@@ -1026,10 +1029,144 @@ function githubReceiptProvenance({
       githubRunAttempt: runAttempt,
       githubRepository: 'expo/snapback',
       githubWorkflowSha: runHeadSha,
+      easBuildId: null,
+      easGitCommitHash: null,
+      easOperationId: null,
+      easProjectId: null,
+      easRunner: null,
+      easWorkflowFilename: null,
+      easWorkflowRef: null,
+      easWorkflowRunId: null,
       proofHarnessRevision: runHeadSha,
     },
   };
 }
+
+function easReceiptProvenance({
+  revision,
+  workflow,
+  operationId = null,
+  buildId = 'f51831f0-ea30-406a-8c5f-f8e1cc57d39c',
+  projectId = '4ce68822-5695-4658-8b2c-fd1a3c48086d',
+  workflowRunId = '019fbd18-6ad1-744b-98cd-684945ae0ad7',
+  gitCommitHash = revision,
+}) {
+  const workflowRef = `.eas/workflows/${workflow}@${gitCommitHash}`;
+  return {
+    sourceCheckout: { headSha: revision, dirty: false },
+    proofHarnessCheckout: { headSha: gitCommitHash, dirty: false },
+    easProof: {
+      buildId,
+      gitCommitHash,
+      operationId,
+      projectId,
+      runner: 'eas-build',
+      workflowFilename: workflow,
+      workflowRef,
+      workflowRunId,
+    },
+    githubProof: null,
+    machine: {
+      runnerEnvironment: 'eas-hosted',
+      separatelyProvisionedCleanMachine: true,
+      githubRunId: null,
+      githubRunAttempt: null,
+      githubRepository: null,
+      githubWorkflowSha: null,
+      easBuildId: buildId,
+      easGitCommitHash: gitCommitHash,
+      easOperationId: operationId,
+      easProjectId: projectId,
+      easRunner: 'eas-build',
+      easWorkflowFilename: workflow,
+      easWorkflowRef: workflowRef,
+      easWorkflowRunId: workflowRunId,
+      proofHarnessRevision: gitCommitHash,
+    },
+  };
+}
+
+test('computes GitHub, EAS, incomplete EAS, and local receipt provenance', () => {
+  const githubEnvironment = {
+    GITHUB_ACTIONS: 'true',
+    GITHUB_EVENT_NAME: 'workflow_dispatch',
+    GITHUB_REF: 'refs/heads/main',
+    GITHUB_REPOSITORY: 'expo/snapback',
+    GITHUB_RUN_ATTEMPT: '2',
+    GITHUB_RUN_ID: '123456789',
+    GITHUB_SHA: 'a'.repeat(40),
+    GITHUB_WORKFLOW_REF:
+      'expo/snapback/.github/workflows/public-package-proof.yml@refs/heads/main',
+    RUNNER_ENVIRONMENT: 'github-hosted',
+    SNAPBACK_PROOF_OPERATION_ID: 'proof-operation',
+  };
+  const github = computePublicationReceiptProvenance(githubEnvironment);
+  assert.equal(github.cleanMachine, true);
+  assert.equal(github.easProof, null);
+  assert.deepEqual(github.githubProof, {
+    repository: 'expo/snapback',
+    workflowRef:
+      'expo/snapback/.github/workflows/public-package-proof.yml@refs/heads/main',
+    ref: 'refs/heads/main',
+    eventName: 'workflow_dispatch',
+    runId: '123456789',
+    runAttempt: '2',
+    runHeadSha: 'a'.repeat(40),
+    operationId: 'proof-operation',
+  });
+  assert.equal(github.machine.runnerEnvironment, 'github-hosted');
+  assert.equal(github.machine.separatelyProvisionedCleanMachine, true);
+  assert.equal(github.machine.githubRunId, '123456789');
+  assert.equal(github.machine.easBuildId, null);
+
+  const easEnvironment = {
+    EAS_BUILD: 'true',
+    EAS_BUILD_GIT_COMMIT_HASH: 'b'.repeat(40),
+    EAS_BUILD_ID: 'f51831f0-ea30-406a-8c5f-f8e1cc57d39c',
+    EAS_BUILD_PROJECT_ID: '4ce68822-5695-4658-8b2c-fd1a3c48086d',
+    EAS_BUILD_RUNNER: 'eas-build',
+    RUNNER_ENVIRONMENT: 'eas-hosted',
+    SNAPBACK_EAS_WORKFLOW_FILENAME: 'qualified-package-staging.yml',
+    SNAPBACK_EAS_WORKFLOW_RUN_ID: '019fbd18-6ad1-744b-98cd-684945ae0ad7',
+    SNAPBACK_PROOF_OPERATION_ID: 'proof-operation',
+  };
+  const eas = computePublicationReceiptProvenance(easEnvironment);
+  assert.equal(eas.cleanMachine, true);
+  assert.equal(eas.githubProof, null);
+  assert.deepEqual(eas.easProof, {
+    buildId: 'f51831f0-ea30-406a-8c5f-f8e1cc57d39c',
+    gitCommitHash: 'b'.repeat(40),
+    operationId: 'proof-operation',
+    projectId: '4ce68822-5695-4658-8b2c-fd1a3c48086d',
+    runner: 'eas-build',
+    workflowFilename: 'qualified-package-staging.yml',
+    workflowRef: `.eas/workflows/qualified-package-staging.yml@${'b'.repeat(40)}`,
+    workflowRunId: '019fbd18-6ad1-744b-98cd-684945ae0ad7',
+  });
+  assert.equal(eas.machine.runnerEnvironment, 'eas-hosted');
+  assert.equal(eas.machine.separatelyProvisionedCleanMachine, true);
+  assert.equal(eas.machine.githubRunId, null);
+  assert.equal(eas.machine.easBuildId, eas.easProof.buildId);
+  assert.equal(eas.machine.easWorkflowRef, eas.easProof.workflowRef);
+
+  const incompleteEasEnvironment = { ...easEnvironment };
+  delete incompleteEasEnvironment.EAS_BUILD_ID;
+  const incompleteEas = computePublicationReceiptProvenance(incompleteEasEnvironment);
+  assert.equal(incompleteEas.cleanMachine, false);
+  assert.equal(incompleteEas.githubProof, null);
+  assert.equal(incompleteEas.easProof, null);
+  assert.equal(incompleteEas.machine.separatelyProvisionedCleanMachine, false);
+  assert.equal(incompleteEas.machine.easBuildId, null);
+
+  const local = computePublicationReceiptProvenance({});
+  assert.equal(local.cleanMachine, false);
+  assert.equal(local.githubProof, null);
+  assert.equal(local.easProof, null);
+  assert.equal(local.machine.runnerEnvironment, 'local');
+  assert.equal(local.machine.separatelyProvisionedCleanMachine, false);
+  assert.equal(local.machine.easBuildId, null);
+  assert.equal(local.machine.githubRunId, null);
+});
 
 test('browser secret proof allows API field names but refuses an injected canary', () => {
   const canary = `snapback-cold-canary-${'a'.repeat(48)}`;
@@ -1601,67 +1738,71 @@ test('qualified staging bytes require clean proofs from both platforms', () => {
   };
   qualified.stagedLedgerSha256 = sha256Hex(canonicalJcs(qualified));
   assert.equal(validateQualifiedStagingLedger(qualified), qualified);
-  const record = (platform, architecture, sha256) => ({
-    sha256,
-    receipt: {
-      ...githubReceiptProvenance({
+  const record = (platform, architecture, sha256, family = 'github') => {
+    const provenance = family === 'eas'
+      ? easReceiptProvenance({
+        revision: qualified.revision,
+        workflow: 'qualified-package-staging.yml',
+      })
+      : githubReceiptProvenance({
         revision: qualified.revision,
         workflow: 'qualified-package-staging.yml',
         ref: 'refs/tags/qualified-package-staging-test',
-      }),
-      schemaVersion: 'snapback.package-cold-install.v1',
-      ok: true,
-      installSource: 'staged',
-      rootSelector: 'exact',
-      publicationLedgerSchema: qualified.schemaVersion,
-      sourceRevision: qualified.revision,
-      sourceDirty: false,
-      version: qualified.version,
-      scopePreset: qualified.scopePreset,
-      machine: {
-        ...githubReceiptProvenance({
-          revision: qualified.revision,
-          workflow: 'qualified-package-staging.yml',
-          ref: 'refs/tags/qualified-package-staging-test',
-        }).machine,
-        platform,
-        architecture,
-      },
-      packages: qualified.packages.map((row) => ({
-        sourceName: row.sourceName,
-        publishedName: row.name,
-        version: row.version,
-        sha256: row.sha256,
-      })),
-      ...retainedComparatorReceiptFixture({
+      });
+    return {
+      sha256,
+      receipt: {
+        ...provenance,
+        schemaVersion: 'snapback.package-cold-install.v1',
+        ok: true,
+        installSource: 'staged',
+        rootSelector: 'exact',
+        publicationLedgerSchema: qualified.schemaVersion,
         sourceRevision: qualified.revision,
+        sourceDirty: false,
         version: qualified.version,
-        executorPackageNames: {
-          cli: qualified.packages.find(
-            (row) => row.sourceName === '@expo/snapback-cli',
-          ).name,
-          client: qualified.packages.find(
-            (row) => row.sourceName === '@expo/snapback-client',
-          ).name,
+        scopePreset: qualified.scopePreset,
+        machine: {
+          ...provenance.machine,
+          platform,
+          architecture,
         },
-        runtimeBinarySha256: qualified.packages.find((row) => (
-          row.sourceName === (
-            platform === 'darwin'
-              ? '@expo/snapback-runtime-darwin-arm64'
-              : '@expo/snapback-runtime-linux-x64'
-          )
-        )).runtimeBinarySha256,
-      }),
-      checks: {
-        stagedRegistryAliasResolution: true,
-        noSiblingSourceCheckout: true,
-        packedExpoChatScaffoldTypecheckStaticAndLiveAcceptance: true,
-        packedCreateSnapbackAppScaffoldFromCleanDirectory: true,
-        ...browserReceiptEvidence(qualified.revision).checks,
+        packages: qualified.packages.map((row) => ({
+          sourceName: row.sourceName,
+          publishedName: row.name,
+          version: row.version,
+          sha256: row.sha256,
+        })),
+        ...retainedComparatorReceiptFixture({
+          sourceRevision: qualified.revision,
+          version: qualified.version,
+          executorPackageNames: {
+            cli: qualified.packages.find(
+              (row) => row.sourceName === '@expo/snapback-cli',
+            ).name,
+            client: qualified.packages.find(
+              (row) => row.sourceName === '@expo/snapback-client',
+            ).name,
+          },
+          runtimeBinarySha256: qualified.packages.find((row) => (
+            row.sourceName === (
+              platform === 'darwin'
+                ? '@expo/snapback-runtime-darwin-arm64'
+                : '@expo/snapback-runtime-linux-x64'
+            )
+          )).runtimeBinarySha256,
+        }),
+        checks: {
+          stagedRegistryAliasResolution: true,
+          noSiblingSourceCheckout: true,
+          packedExpoChatScaffoldTypecheckStaticAndLiveAcceptance: true,
+          packedCreateSnapbackAppScaffoldFromCleanDirectory: true,
+          ...browserReceiptEvidence(qualified.revision).checks,
+        },
+        browserJourney: browserJourneyFixture({ sourceRevision: qualified.revision }),
       },
-      browserJourney: browserJourneyFixture({ sourceRevision: qualified.revision }),
-    },
-  });
+    };
+  };
   const records = [
     record('darwin', 'arm64', '5'.repeat(64)),
     record('linux', 'x64', '6'.repeat(64)),
@@ -1673,6 +1814,143 @@ test('qualified staging bytes require clean proofs from both platforms', () => {
       { platform: 'linux-x64', sha256: '6'.repeat(64) },
     ],
   );
+  const easRecords = [
+    record('darwin', 'arm64', '5'.repeat(64), 'eas'),
+    record('linux', 'x64', '6'.repeat(64), 'eas'),
+  ];
+  assert.deepEqual(
+    validateQualifiedPlatformReceipts({ ledger: qualified, records: easRecords }),
+    [
+      { platform: 'darwin-arm64', sha256: '5'.repeat(64) },
+      { platform: 'linux-x64', sha256: '6'.repeat(64) },
+    ],
+  );
+  assert.throws(
+    () => validatePublicationReceiptProvenance(easRecords[0].receipt, {
+      expectedRevision: qualified.revision,
+      expectedWorkflow: 'qualified-package-staging.yml',
+      expectedOperationId: null,
+    }),
+    /EAS-hosted provenance is not allowed/u,
+  );
+
+  const refusalCases = [
+    {
+      name: 'missing proof',
+      mutate(receipt) {
+        receipt.easProof = null;
+        receipt.githubProof = null;
+      },
+    },
+    {
+      name: 'both proofs',
+      mutate(receipt, family) {
+        if (family === 'github') {
+          receipt.easProof = easReceiptProvenance({
+            revision: qualified.revision,
+            workflow: 'qualified-package-staging.yml',
+          }).easProof;
+        } else {
+          receipt.githubProof = githubReceiptProvenance({
+            revision: qualified.revision,
+            workflow: 'qualified-package-staging.yml',
+          }).githubProof;
+        }
+      },
+    },
+    {
+      name: 'machine proof binding mismatch',
+      mutate(receipt, family) {
+        if (family === 'github') receipt.machine.githubRunId = '999';
+        else receipt.machine.easBuildId = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
+      },
+    },
+    {
+      name: 'proof shape drift',
+      mutate(receipt, family) {
+        const proof = family === 'github' ? receipt.githubProof : receipt.easProof;
+        proof.unexpected = true;
+      },
+    },
+    {
+      name: 'wrong workflow binding',
+      mutate(receipt, family) {
+        if (family === 'github') {
+          receipt.githubProof.workflowRef =
+            `expo/snapback/.github/workflows/evil.yml@${receipt.githubProof.ref}`;
+        } else {
+          receipt.easProof.workflowFilename = 'evil.yml';
+          receipt.easProof.workflowRef =
+            `.eas/workflows/evil.yml@${receipt.easProof.gitCommitHash}`;
+          receipt.machine.easWorkflowFilename = receipt.easProof.workflowFilename;
+          receipt.machine.easWorkflowRef = receipt.easProof.workflowRef;
+        }
+      },
+    },
+    {
+      name: 'wrong runner environment',
+      mutate(receipt) {
+        receipt.machine.runnerEnvironment = 'local';
+      },
+    },
+    {
+      name: 'not separately provisioned',
+      mutate(receipt) {
+        receipt.machine.separatelyProvisionedCleanMachine = false;
+      },
+    },
+    {
+      name: 'proof harness commit mismatch',
+      mutate(receipt) {
+        receipt.proofHarnessCheckout.headSha = 'c'.repeat(40);
+      },
+    },
+  ];
+  for (const [family, validRecords] of [
+    ['github', records],
+    ['eas', easRecords],
+  ]) {
+    for (const refusal of refusalCases) {
+      const invalidRecords = structuredClone(validRecords);
+      refusal.mutate(invalidRecords[0].receipt, family);
+      assert.throws(
+        () => validateQualifiedPlatformReceipts({
+          ledger: qualified,
+          records: invalidRecords,
+        }),
+        /both|neither|unknown or missing|GitHub-hosted|EAS-hosted|proof harness/u,
+        `${family} provenance accepted ${refusal.name}`,
+      );
+    }
+  }
+  for (const mutate of [
+    (receipt) => {
+      receipt.easProof.buildId = 'not-a-uuid';
+      receipt.machine.easBuildId = receipt.easProof.buildId;
+    },
+    (receipt) => {
+      receipt.easProof.projectId = 'not-a-uuid';
+      receipt.machine.easProjectId = receipt.easProof.projectId;
+    },
+    (receipt) => {
+      receipt.easProof.runner = 'local-build-plugin';
+      receipt.machine.easRunner = receipt.easProof.runner;
+    },
+    (receipt) => {
+      receipt.easProof.operationId = 'unexpected-operation';
+      receipt.machine.easOperationId = receipt.easProof.operationId;
+    },
+  ]) {
+    const invalidRecords = structuredClone(easRecords);
+    mutate(invalidRecords[0].receipt);
+    assert.throws(
+      () => validateQualifiedPlatformReceipts({
+        ledger: qualified,
+        records: invalidRecords,
+      }),
+      /EAS-hosted|operation correlation/u,
+    );
+  }
   records[1].receipt.packages[0].sha256 = '7'.repeat(64);
   assert.throws(
     () => validateQualifiedPlatformReceipts({ ledger: qualified, records }),

@@ -43,6 +43,86 @@ export {
   validateRetainedComparatorReceipt,
 };
 
+function hasProvenanceIdentity(value) {
+  return typeof value === 'string' && value.length > 0;
+}
+
+// @ref LLP 0041#nine-package-candidate-promotion--2026-07-28 — qualified
+// staged receipts bind one hosted runner family and its exact workflow/source
+// identity before they can become publication evidence.
+export function computePublicationReceiptProvenance(environment) {
+  const githubHosted = environment.GITHUB_ACTIONS === 'true'
+    && environment.RUNNER_ENVIRONMENT === 'github-hosted';
+  const easHosted = environment.EAS_BUILD === 'true'
+    && environment.EAS_BUILD_RUNNER === 'eas-build'
+    && environment.RUNNER_ENVIRONMENT === 'eas-hosted'
+    && [
+      environment.EAS_BUILD_GIT_COMMIT_HASH,
+      environment.EAS_BUILD_ID,
+      environment.EAS_BUILD_PROJECT_ID,
+      environment.SNAPBACK_EAS_WORKFLOW_FILENAME,
+      environment.SNAPBACK_EAS_WORKFLOW_RUN_ID,
+    ].every(hasProvenanceIdentity);
+  const githubCleanMachine = githubHosted && !easHosted;
+  const easCleanMachine = easHosted && !githubHosted;
+  const cleanMachine = githubCleanMachine || easCleanMachine;
+  const githubProof = githubCleanMachine ? {
+    repository: environment.GITHUB_REPOSITORY ?? null,
+    workflowRef: environment.GITHUB_WORKFLOW_REF ?? null,
+    ref: environment.GITHUB_REF ?? null,
+    eventName: environment.GITHUB_EVENT_NAME ?? null,
+    runId: environment.GITHUB_RUN_ID ?? null,
+    runAttempt: environment.GITHUB_RUN_ATTEMPT ?? null,
+    runHeadSha: environment.GITHUB_SHA ?? null,
+    operationId: environment.SNAPBACK_PROOF_OPERATION_ID ?? null,
+  } : null;
+  const easWorkflowRef = easCleanMachine
+    ? `.eas/workflows/${environment.SNAPBACK_EAS_WORKFLOW_FILENAME}`
+      + `@${environment.EAS_BUILD_GIT_COMMIT_HASH}`
+    : null;
+  const easProof = easCleanMachine ? {
+    buildId: environment.EAS_BUILD_ID,
+    gitCommitHash: environment.EAS_BUILD_GIT_COMMIT_HASH,
+    operationId: environment.SNAPBACK_PROOF_OPERATION_ID ?? null,
+    projectId: environment.EAS_BUILD_PROJECT_ID,
+    runner: environment.EAS_BUILD_RUNNER,
+    workflowFilename: environment.SNAPBACK_EAS_WORKFLOW_FILENAME,
+    workflowRef: easWorkflowRef,
+    workflowRunId: environment.SNAPBACK_EAS_WORKFLOW_RUN_ID,
+  } : null;
+  return {
+    cleanMachine,
+    easProof,
+    githubProof,
+    machine: {
+      runnerEnvironment: environment.RUNNER_ENVIRONMENT ?? 'local',
+      separatelyProvisionedCleanMachine: cleanMachine,
+      githubRunId: githubCleanMachine ? environment.GITHUB_RUN_ID ?? null : null,
+      githubRunAttempt: githubCleanMachine
+        ? environment.GITHUB_RUN_ATTEMPT ?? null
+        : null,
+      githubRepository: githubCleanMachine
+        ? environment.GITHUB_REPOSITORY ?? null
+        : null,
+      githubWorkflowSha: githubCleanMachine ? environment.GITHUB_SHA ?? null : null,
+      easBuildId: easCleanMachine ? environment.EAS_BUILD_ID : null,
+      easGitCommitHash: easCleanMachine ? environment.EAS_BUILD_GIT_COMMIT_HASH : null,
+      easOperationId: easCleanMachine
+        ? environment.SNAPBACK_PROOF_OPERATION_ID ?? null
+        : null,
+      easProjectId: easCleanMachine ? environment.EAS_BUILD_PROJECT_ID : null,
+      easRunner: easCleanMachine ? environment.EAS_BUILD_RUNNER : null,
+      easWorkflowFilename: easCleanMachine
+        ? environment.SNAPBACK_EAS_WORKFLOW_FILENAME
+        : null,
+      easWorkflowRef,
+      easWorkflowRunId: easCleanMachine
+        ? environment.SNAPBACK_EAS_WORKFLOW_RUN_ID
+        : null,
+    },
+  };
+}
+
 // @ref LLP 0146#d3-agent-digest — packaged introspection is the budgeted
 // agent digest; app and operation identity live in its static item section.
 // @ref LLP 0041#acceptance — the cold-install proof must validate that shape

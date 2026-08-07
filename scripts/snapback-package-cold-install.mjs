@@ -32,6 +32,7 @@ import {
   boundedSerializeBrowserValue,
   browserAssetsContainSecretCanary,
   comparatorExecutorPackageNames,
+  computePublicationReceiptProvenance,
   createBoundedAsyncTaskPool,
   createBoundedByteAccumulator,
   createBoundedBrowserSurfaceCollector,
@@ -3014,8 +3015,12 @@ await build({
   }
 
   const tree = JSON.parse(run('npm', ['ls', '--all', '--json'], { cwd: appRoot }));
-  const cleanMachine = process.env.GITHUB_ACTIONS === 'true'
-    && process.env.RUNNER_ENVIRONMENT === 'github-hosted';
+  const {
+    cleanMachine,
+    easProof,
+    githubProof,
+    machine: provenanceMachine,
+  } = computePublicationReceiptProvenance(process.env);
   const sourceCheckout = {
     headSha: sourceIdentity.revision,
     dirty: sourceIdentity.dirty,
@@ -3024,16 +3029,6 @@ await build({
     headSha: proofHarnessIdentity.revision,
     dirty: proofHarnessIdentity.dirty,
   };
-  const githubProof = cleanMachine ? {
-    repository: process.env.GITHUB_REPOSITORY ?? null,
-    workflowRef: process.env.GITHUB_WORKFLOW_REF ?? null,
-    ref: process.env.GITHUB_REF ?? null,
-    eventName: process.env.GITHUB_EVENT_NAME ?? null,
-    runId: process.env.GITHUB_RUN_ID ?? null,
-    runAttempt: process.env.GITHUB_RUN_ATTEMPT ?? null,
-    runHeadSha: process.env.GITHUB_SHA ?? null,
-    operationId: process.env.SNAPBACK_PROOF_OPERATION_ID ?? null,
-  } : null;
   const receipt = {
     schemaVersion: rootSelector === 'latest'
       ? 'snapback.package-cold-install.v2'
@@ -3046,6 +3041,7 @@ await build({
     sourceDirty: sourceIdentity.dirty,
     sourceCheckout,
     proofHarnessCheckout,
+    easProof,
     githubProof,
     publicationMode: ledger.mode,
     publicationLedgerSchema: ledger.schemaVersion,
@@ -3064,12 +3060,7 @@ await build({
       osRelease: osRelease(),
       nodeVersion: process.version,
       runtimePackage: hostRuntime,
-      runnerEnvironment: process.env.RUNNER_ENVIRONMENT ?? 'local',
-      separatelyProvisionedCleanMachine: cleanMachine,
-      githubRunId: process.env.GITHUB_RUN_ID ?? null,
-      githubRunAttempt: process.env.GITHUB_RUN_ATTEMPT ?? null,
-      githubRepository: process.env.GITHUB_REPOSITORY ?? null,
-      githubWorkflowSha: process.env.GITHUB_SHA ?? null,
+      ...provenanceMachine,
       proofHarnessRevision: proofHarnessIdentity.revision,
     },
     packages: ledger.packages.map((entry) => ({

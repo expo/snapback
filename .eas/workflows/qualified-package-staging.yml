@@ -250,6 +250,8 @@ jobs:
     runs_on: macos-medium
     env:
       RUNNER_ENVIRONMENT: eas-hosted
+      SNAPBACK_EAS_WORKFLOW_FILENAME: ${{ workflow.filename }}
+      SNAPBACK_EAS_WORKFLOW_RUN_ID: ${{ workflow.id }}
     steps:
       - uses: eas/checkout
 
@@ -263,14 +265,11 @@ jobs:
         with:
           name: snapback-qualified-tarballs
 
-      - name: Cold-install the exact macOS tarballs
-        run: |
+      - run: |
           qualified_root="$HOME/snapback-qualified"
           receipt=".eas-artifacts/snapback-darwin-arm64-staged-receipt.json"
-          mkdir -p .eas-artifacts
-          mkdir -p "$qualified_root"
+          mkdir -p .eas-artifacts "$qualified_root"
           qualified_artifact=${{ steps.qualified_artifact.outputs.artifact_path }}
-          test -d "$qualified_artifact"
           cp -R "$qualified_artifact/." "$qualified_root/"
           node scripts/snapback-package-cold-install.mjs \
             --ledger "$qualified_root/publish-ledger.json" \
@@ -290,6 +289,8 @@ jobs:
     runs_on: linux-medium
     env:
       RUNNER_ENVIRONMENT: eas-hosted
+      SNAPBACK_EAS_WORKFLOW_FILENAME: ${{ workflow.filename }}
+      SNAPBACK_EAS_WORKFLOW_RUN_ID: ${{ workflow.id }}
     steps:
       - uses: eas/checkout
 
@@ -303,17 +304,13 @@ jobs:
         with:
           name: snapback-qualified-tarballs
 
-      - name: Install browser system dependencies
-        run: npx --yes playwright@1.62.0 install-deps chromium
+      - run: npx --yes playwright@1.62.0 install-deps chromium
 
-      - name: Cold-install the exact Linux tarballs
-        run: |
+      - run: |
           qualified_root="$HOME/snapback-qualified"
           receipt=".eas-artifacts/snapback-linux-x64-staged-receipt.json"
-          mkdir -p .eas-artifacts
-          mkdir -p "$qualified_root"
+          mkdir -p .eas-artifacts "$qualified_root"
           qualified_artifact=${{ steps.qualified_artifact.outputs.artifact_path }}
-          test -d "$qualified_artifact"
           cp -R "$qualified_artifact/." "$qualified_root/"
           node scripts/snapback-package-cold-install.mjs \
             --ledger "$qualified_root/publish-ledger.json" \

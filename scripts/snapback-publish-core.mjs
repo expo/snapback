@@ -228,6 +228,16 @@ const GITHUB_PROOF_KEYS = [
   'runId',
   'workflowRef',
 ];
+const EAS_PROOF_KEYS = [
+  'buildId',
+  'gitCommitHash',
+  'operationId',
+  'projectId',
+  'runner',
+  'workflowFilename',
+  'workflowRef',
+  'workflowRunId',
+];
 const BROWSER_JOURNEY_KEYS = [
   'browserPackage',
   'browserPackageVersion',
@@ -557,6 +567,7 @@ export function readBoundedJsonFile(
 export function validatePublicationReceiptProvenance(
   receipt,
   {
+    allowedRunners = ['github-hosted'],
     expectedRevision,
     expectedWorkflow,
     expectedOperationId = undefined,
@@ -567,6 +578,15 @@ export function validatePublicationReceiptProvenance(
     expectedRepository = 'expo/snapback',
   },
 ) {
+  if (
+    !Array.isArray(allowedRunners)
+    || allowedRunners.length === 0
+    || allowedRunners.some((runner) => (
+      !['eas-hosted', 'github-hosted'].includes(runner)
+    ))
+  ) {
+    throw new TypeError('publication provenance allowed runners are invalid');
+  }
   requireExactKeys(receipt?.sourceCheckout, SOURCE_CHECKOUT_KEYS, 'receipt source checkout');
   if (
     receipt.sourceCheckout.headSha !== expectedRevision
@@ -579,30 +599,85 @@ export function validatePublicationReceiptProvenance(
     SOURCE_CHECKOUT_KEYS,
     'receipt proof harness checkout',
   );
-  requireExactKeys(receipt?.githubProof, GITHUB_PROOF_KEYS, 'receipt GitHub proof');
-  const proof = receipt.githubProof;
+  const hasGithubProof = receipt?.githubProof !== null
+    && receipt?.githubProof !== undefined;
+  const hasEasProof = receipt?.easProof !== null
+    && receipt?.easProof !== undefined;
+  if (hasGithubProof && hasEasProof) {
+    throw new TypeError(
+      'publication receipt carries both GitHub-hosted and EAS-hosted provenance',
+    );
+  }
+  if (!hasGithubProof && !hasEasProof) {
+    throw new TypeError(
+      'publication receipt carries neither GitHub-hosted nor EAS-hosted provenance',
+    );
+  }
+  const runnerFamily = hasGithubProof ? 'github-hosted' : 'eas-hosted';
+  if (!allowedRunners.includes(runnerFamily)) {
+    const runnerFamilyLabel = hasGithubProof ? 'GitHub-hosted' : 'EAS-hosted';
+    throw new TypeError(
+      `publication receipt ${runnerFamilyLabel} provenance is not allowed for this proof`,
+    );
+  }
   const proofHarness = receipt.proofHarnessCheckout;
-  if (
-    proof.repository !== expectedRepository
-    || !/^[0-9]+$/u.test(proof.runId ?? '')
-    || !/^[1-9][0-9]*$/u.test(proof.runAttempt ?? '')
-    || !/^[0-9a-f]{40}$/u.test(proof.runHeadSha ?? '')
-    || proof.workflowRef
-      !== `${expectedRepository}/.github/workflows/${expectedWorkflow}@${proof.ref}`
-    || !/^refs\/(?:heads|tags)\/[A-Za-z0-9._/-]+$/u.test(proof.ref ?? '')
-    || !['push', 'workflow_dispatch'].includes(proof.eventName)
-    || receipt.machine?.runnerEnvironment !== 'github-hosted'
-    || receipt.machine?.separatelyProvisionedCleanMachine !== true
-    || String(receipt.machine?.githubRunId) !== proof.runId
-    || String(receipt.machine?.githubRunAttempt) !== proof.runAttempt
-    || receipt.machine?.githubRepository !== proof.repository
-    || receipt.machine?.githubWorkflowSha !== proof.runHeadSha
-  ) {
-    throw new TypeError('publication receipt lacks exact GitHub-hosted provenance');
+  let proof;
+  let proofHarnessHead;
+  if (hasGithubProof) {
+    requireExactKeys(receipt.githubProof, GITHUB_PROOF_KEYS, 'receipt GitHub proof');
+    proof = receipt.githubProof;
+    proofHarnessHead = proof.runHeadSha;
+    if (
+      proof.repository !== expectedRepository
+      || !/^[0-9]+$/u.test(proof.runId ?? '')
+      || !/^[1-9][0-9]*$/u.test(proof.runAttempt ?? '')
+      || !/^[0-9a-f]{40}$/u.test(proof.runHeadSha ?? '')
+      || proof.workflowRef
+        !== `${expectedRepository}/.github/workflows/${expectedWorkflow}@${proof.ref}`
+      || !/^refs\/(?:heads|tags)\/[A-Za-z0-9._/-]+$/u.test(proof.ref ?? '')
+      || !['push', 'workflow_dispatch'].includes(proof.eventName)
+      || receipt.machine?.runnerEnvironment !== 'github-hosted'
+      || receipt.machine?.separatelyProvisionedCleanMachine !== true
+      || String(receipt.machine?.githubRunId) !== proof.runId
+      || String(receipt.machine?.githubRunAttempt) !== proof.runAttempt
+      || receipt.machine?.githubRepository !== proof.repository
+      || receipt.machine?.githubWorkflowSha !== proof.runHeadSha
+    ) {
+      throw new TypeError('publication receipt lacks exact GitHub-hosted provenance');
+    }
+  } else {
+    requireExactKeys(receipt.easProof, EAS_PROOF_KEYS, 'receipt EAS proof');
+    proof = receipt.easProof;
+    proofHarnessHead = proof.gitCommitHash;
+    const uuidPattern = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/iu;
+    if (
+      !uuidPattern.test(proof.buildId ?? '')
+      || !uuidPattern.test(proof.projectId ?? '')
+      || proof.runner !== 'eas-build'
+      || !/^[0-9a-f]{40}$/u.test(proof.gitCommitHash ?? '')
+      || typeof proof.workflowRunId !== 'string'
+      || proof.workflowRunId.length === 0
+      || proof.workflowFilename !== expectedWorkflow
+      || proof.workflowRef
+        !== `.eas/workflows/${expectedWorkflow}@${proof.gitCommitHash}`
+      || proof.gitCommitHash !== expectedRevision
+      || receipt.machine?.runnerEnvironment !== 'eas-hosted'
+      || receipt.machine?.separatelyProvisionedCleanMachine !== true
+      || receipt.machine?.easBuildId !== proof.buildId
+      || receipt.machine?.easGitCommitHash !== proof.gitCommitHash
+      || receipt.machine?.easOperationId !== proof.operationId
+      || receipt.machine?.easProjectId !== proof.projectId
+      || receipt.machine?.easRunner !== proof.runner
+      || receipt.machine?.easWorkflowFilename !== proof.workflowFilename
+      || receipt.machine?.easWorkflowRef !== proof.workflowRef
+      || receipt.machine?.easWorkflowRunId !== proof.workflowRunId
+    ) {
+      throw new TypeError('publication receipt lacks exact EAS-hosted provenance');
+    }
   }
   if (
     proofHarness.dirty !== false
-    || proofHarness.headSha !== proof.runHeadSha
+    || proofHarness.headSha !== proofHarnessHead
     || receipt.machine?.proofHarnessRevision !== proofHarness.headSha
     || (
       expectedWorkflowHead !== undefined
@@ -1458,6 +1533,7 @@ export function validateQualifiedPlatformReceipts({ ledger, records }) {
   for (const record of records) {
     const receipt = record.receipt;
     validatePublicationReceiptProvenance(receipt, {
+      allowedRunners: ['eas-hosted', 'github-hosted'],
       expectedRevision: ledger.revision,
       expectedWorkflow: 'qualified-package-staging.yml',
       expectedOperationId: null,
