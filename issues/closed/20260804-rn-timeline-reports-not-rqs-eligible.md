@@ -78,3 +78,46 @@ The shared memory and Expo file-carrier suite now covers:
 The exact candidate is additionally gated by the full `snapback-client` test
 suite, package-test inventory, `./ref-check --verbose`, a clean-checkout
 verification pass, and a fresh same-family review before delivery.
+
+## 2026-08-07 — duplicate open copy removed; acceptance re-audit at HEAD
+
+The fix commit (41c2db880, 2026-08-04, "fix(client): preserve rowless RQS
+resume completion") added this resolved summary but left the original ticket in
+place at `issues/20260804-rn-timeline-reports-not-rqs-eligible.md` with
+"Status: Open — implementation and regressions pending", so the bug kept
+presenting as unfixed. That stale duplicate is removed in this commit. The full
+investigation narrative (UPDATEs 2–6: device captures, wire-tee comparison,
+disproof table) remains in git history of the removed file (created at
+c0089e7cd).
+
+Re-audit of the open copy's acceptance criteria against current `main`:
+
+- Pre-HTTP `current_as_of` not lost; handle settles retained/refreshing →
+  current/ready — covered by the suite's "stream CurrentAsOf may overtake the
+  rowless subscribe acknowledgement" test, which injects the durable envelope
+  into the registered consumers **before** resolving the pending HTTP subscribe
+  promise (true stream ordering, not the poll-drain fake the ticket called
+  insufficient).
+- Valid rowless rung-1/rung-2 resume stays `retainable: true` before and after
+  durable completion — asserted in both the rung-1 CurrentAsOf and rung-2
+  replay-delta tests.
+- Overflow bound: `RQS_PRE_SUBSCRIBE_DURABLE_BUFFER_CAP = 1024` envelopes per
+  subscribe attempt; overflow drops the unproved prefix, clears the token, and
+  forces one serialized tokenless resubscribe (`pre_subscribe_durable_overflow`)
+  with no transient current publication — covered by the overflow test.
+- Existing memory and Expo RQS resume suites pass — full `snapback-client`
+  suite re-run green at HEAD on 2026-08-07; the stream-ordered overtake and
+  overflow tests execute on all four carrier arms (web/indexeddb, native/file,
+  memory, native/expo-file-system). Neither 5fb86ebd7 (arg-filtered retention
+  routing) nor 25e9674b0 (outbox-less mutation dispatch) is the fix for this
+  defect; 41c2db880 carries all three mechanisms.
+- `scratchpad/rn-carrier-probe.mjs` no longer exists; promotion into
+  `packages/snapback-client/` is moot — the stream-ordered suite tests cover
+  the concern it probed.
+
+Honest caveat: the final criterion — the Warble RN fact line no longer showing
+`NOT_RQS_ELIGIBLE` on a physical device after reload/reconnect — has not been
+re-verified on a real device. The landed evidence is the stream-ordered
+regression suite across the memory/native/Expo carriers. If a device session
+reproduces the symptom at or after 41c2db880, file a fresh ticket rather than
+reopening this one.
