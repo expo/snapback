@@ -550,7 +550,17 @@ normal installation, rather than a source checkout, can follow the guide and
 pass the same acceptance workflow; capability metadata points to a dated,
 digest-bound publication witness.
 
-#### Phase 6 outcome — 2026-08-06 (not published; author-gated)
+#### Phase 6 outcome — PUBLISHED 2026-08-07
+
+**Superseded by the record below.** `operating.instance-forks` published at
+qualification commit `ad0ad58748981010204b61eb5002e35b887a5093`, landed as
+`7cada777b`; the anchor reads `published` and the oracle reports
+`agent_safe_derived_deployment_fork_v1:published`. See "Phase 6 publication
+— 2026-08-07" at the end of this section for the final state. The
+intermediate record that follows is retained as the honest history of why
+publication was withheld through 2026-08-06.
+
+#### Phase 6 interim state — 2026-08-06 (not published; author-gated)
 
 Qualification commit `0ee1fadc136e837f430556374a5842ac82069004`.
 `operating.instance-forks` **remains target `none`** and the
@@ -655,6 +665,68 @@ unsigned and not transparency-logged; a commit-capable actor fabricating both
 reviewer histories and the named-author acceptance is outside the guarantee.
 The per-round prose-freezing weakness remains filed as
 `issues/20260807-review-prose-history-not-frozen.md`.
+
+#### Phase 6 publication — 2026-08-07 (final)
+
+Qualification commit C = `ad0ad58748981010204b61eb5002e35b887a5093`,
+implementation digest
+`sha256:fc6e3e58453b4700ce06c647aaef87132879e0da336e560eca834d1d42c5459a`;
+published in `7cada777b`. The oracle
+(`node scripts/check-agent-safe-publication.mjs`) reports
+`agent_safe_derived_deployment_fork_v1:published`, with
+`agent_safe_storage_v1` still `withheld` and unweakened.
+
+Gate disposition:
+
+- **Item 0 — satisfied.** LLP 0158 Accepted; LLPs 0163/0164/0165 Accepted by
+  the author 2026-08-06; LLP 0024/0030 fork fields re-verified stable; LLP
+  0162 row 13 measurement-complete with the author's scoping and bound
+  ratification transcribed into 0162 itself (v0.40) and dated dual-platform
+  receipts bound to C.
+- **Item 1 — satisfied.** The LLP 0061 capability-index row is the claim
+  carrier per the Phase 0 ruling, behind a closed nine-item digest-bound
+  evidence chain with a published-state semantic validator and a Rust mirror.
+- **Item 3 — satisfied for exactly two platforms.** `macos/aarch64` and
+  `linux/x86_64` each run the executable fork suites and the release
+  row-13 bench green at C. No third platform is claimed or implied.
+- **Item 4 — satisfied.** Twelve rounds of mutually blind dual-family review
+  ended `READY` on Scope 1 (LLP 0163/0164/0165) and Scope 2 (publication)
+  from both families, recorded in contiguous v2 hash-chained histories whose
+  heads the author acceptance binds.
+- **Item 5 — satisfied.** ref-check, guide validation, capability maturity,
+  inventories, generated-artifact drift, the publication checker (66/66),
+  and the fork suites (48 unit, 37 promotion, 15 live-server CLI) pass.
+- **Item 6 — done.** The capability row moved from target `none` to `local`,
+  naming the two proved platforms and pointing at the dated digest-bound
+  receipt.
+
+**Item 2 and the "normal installation rather than a source checkout" exit
+clause remain OPEN and are not re-scoped.** The published row and the
+operating guide both say so: released-binary and npm parity are unclaimed,
+and the workflow is contributor-source.
+
+Explicit nonclaims carried into the published row: no process or OS
+containment, no hosted/Cloudflare/remote target, no promotion or merge-back,
+no public package, no third platform, and no broader agent-safe-storage
+facts. The `agent_safe_derived_deployment_fork_v1` target-manifest tuple
+remains wholly `Missing` — the guide row is the carrier, by the author's
+Phase 0 ruling.
+
+Disclosed residuals: repository evidence is unsigned and not
+transparency-logged, so an actor with commit access who fabricates both
+reviewer histories and the named-author acceptance is outside the guarantee;
+and the review prose history is a current-state binding rather than a frozen
+per-round record
+([`issues/20260807-review-prose-history-not-frozen.md`](../issues/20260807-review-prose-history-not-frozen.md)),
+alongside the ungated codegen declaration
+([`issues/20260807-codegen-declaration-has-no-drift-gate.md`](../issues/20260807-codegen-declaration-has-no-drift-gate.md)).
+
+Process note for the next program of this shape: three review rounds' worth
+of artifacts (4, 7, 9, and 11) were lost during this program by resetting
+review worktrees before committing, and one "verbatim" restoration silently
+reinstated a defence its reviewer had retracted. All were recovered and the
+losses are recorded rather than papered over, but the lesson is mechanical —
+commit review artifacts the moment a round returns.
 
 ### Phase 7 — Expose bounded agent-control operations
 
