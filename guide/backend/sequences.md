@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-04
-reviewed-commit: HEAD
+reviewed-commit: eb3f78a64db88ef1368b57ca17f56dbad77205ce
 ---
 
 # Scoped sequences

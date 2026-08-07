@@ -10,7 +10,7 @@ status: current
 targets: [local, cloudflare]
 maturity: partial
 reviewed: 2026-08-04
-reviewed-commit: HEAD
+reviewed-commit: cf47cc3b75172cec3ac6c44428ce40db48d81465
 ---
 
 # Route snapshot bundles

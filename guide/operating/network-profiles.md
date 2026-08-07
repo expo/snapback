@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-05
-reviewed-commit: HEAD
+reviewed-commit: f40e52b86ec10b75ff5c958f3500e213f2a4ae98
 ---
 
 # Network condition profiles

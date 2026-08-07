@@ -3810,7 +3810,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-06
-reviewed-commit: HEAD
+reviewed-commit: 3d7f6eb4075c9aeebda35640a574e2667195972a
 ---
 
 # Assets
@@ -4622,7 +4622,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-04
-reviewed-commit: HEAD
+reviewed-commit: 30e3d09c7e5063a1233773742c2b69e0b6981e07
 ---
 
 # Safe standard data patterns
@@ -5249,7 +5249,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-04
-reviewed-commit: HEAD
+reviewed-commit: 30e3d09c7e5063a1233773742c2b69e0b6981e07
 ---
 
 # Snapshot batches
@@ -5518,7 +5518,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-04
-reviewed-commit: HEAD
+reviewed-commit: eb3f78a64db88ef1368b57ca17f56dbad77205ce
 ---
 
 # Scoped sequences
@@ -7944,7 +7944,7 @@ targets: [local]
 maturity: partial
 since: 0.1.11
 reviewed: 2026-08-06
-reviewed-commit: HEAD
+reviewed-commit: cf47cc3b75172cec3ac6c44428ce40db48d81465
 ---
 
 # Application surfaces
@@ -11665,7 +11665,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-05
-reviewed-commit: HEAD
+reviewed-commit: f40e52b86ec10b75ff5c958f3500e213f2a4ae98
 ---
 
 # Network condition profiles
@@ -12610,7 +12610,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-04
-reviewed-commit: HEAD
+reviewed-commit: eed1203d844d59ce98f10d80f8d166b46462b3b5
 ---
 
 # Backend error tracking
@@ -12770,7 +12770,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-06
-reviewed-commit: HEAD
+reviewed-commit: 0ee1fadc136e837f430556374a5842ac82069004
 ---
 
 # Local instance forks
@@ -13222,7 +13222,7 @@ targets: [local]
 maturity: shipped
 since: 0.1.10
 reviewed: 2026-08-06
-reviewed-commit: HEAD
+reviewed-commit: d6222e7f24a0ac0009c68fd1b8f7df17a17ca480
 ---
 
 # Patch one existing row safely
@@ -14056,7 +14056,7 @@ status: current
 targets: [local, cloudflare]
 maturity: partial
 reviewed: 2026-08-04
-reviewed-commit: HEAD
+reviewed-commit: cf47cc3b75172cec3ac6c44428ce40db48d81465
 ---
 
 # Route snapshot bundles
@@ -14450,7 +14450,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-05
-reviewed-commit: HEAD
+reviewed-commit: 702f82f5bd6b250b24e068f650fa6fca63f7aac7
 ---
 
 # Recipe: optimistic toggle
@@ -16094,7 +16094,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-05
-reviewed-commit: HEAD
+reviewed-commit: 6f7cfdfa1c1ab675b5a3fe8d193328e8a4d7e870
 ---
 
 # Acceptance testing
