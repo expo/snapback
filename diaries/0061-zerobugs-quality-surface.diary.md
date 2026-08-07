@@ -326,3 +326,29 @@ million rows. Filed as P1
 large/hot receipts stay honestly GAP'd on it. A control app existing to
 find scale-shaped truths found one in the storage engine on its first real
 day at scale — that is the program working as designed.
+
+## 2026-08-07 — ZB2's browser rows absorbed; the settlement-proof trap again
+
+The two ZB2 rows that existed only because ZB2 ran headless —
+`browser-restart-retained-render` and `two-tab-writer-handoff` — now run as
+real-Chrome custody legs on the shared Lane 6b/Stage C machinery and PASS
+(`snapback-control.zb2.v3.json`, 5 PASS / 37 GAP / 0 FAIL). One auth
+exchange total across UI login, a full Chrome process-tree SIGKILL restart,
+a second tab, Web Locks writer handoff, a pinned-UI comment, and the
+permalink paint proof. The render carrier is labeled online server-backed
+throughout; every retained/queued row stays an honest GAP, so the receipt
+absorbs browser truth without widening any retention claim.
+
+The preserved `v2` FAIL repeats the program's most common authoring defect
+shape, now for the fourth time: a check that was right about the product
+and wrong about observation mechanics. The settlement wait polled the live
+presentation ledger for `confirmed`, but the ledger correctly drops a
+confirmed attempt the moment the authoritative graph is adopted — a
+transient state must be read from an installed trace, not polled. And the
+paint assertion assumed the settled comment row would be in the virtualized
+window at the submit position; the honest proof was the same
+comment-permalink hydration with a visible-rect check Lane 6b already
+qualified. Codex's headless build got every custody probe right on the
+first live run; the two observation-mechanics defects were only findable in
+real Chrome — the codex-builds/supervisor-runs split keeps paying exactly
+there.
