@@ -961,6 +961,41 @@ const ROLLOVER_LEDGER_SPECS = Object.freeze([
       ['node', ['packages/snapback-react/assets.test.mjs']],
     ]),
   }),
+  Object.freeze({
+    filename: 'baseline.dispatch-degrade-and-omission.v1.json',
+    profileFilename: 'client-bundle-disposition-profiles.v1.json',
+    workloadVersion: 'dispatch-degrade-and-omission.2026-08-07.v1',
+    profileIds: Object.freeze(['react-external', 'external-react-application']),
+    predecessors: Object.freeze([
+      Object.freeze({
+        filename: 'baseline.asset-delivery-selection.v1.json',
+        profileIds: Object.freeze(['react-external']),
+      }),
+      Object.freeze({
+        filename: 'baseline.client-bundle-disposition.v2.json',
+        profileIds: Object.freeze(['external-react-application']),
+      }),
+    ]),
+    authorities: Object.freeze([
+      'LLP 0063#workstream-8--performance-and-packaging-budgets',
+      'LLP 0145#phase-a--establish-a-size-ratchet',
+      'LLP 0155#local-read-admission',
+      'LLP 0179#surfaces',
+    ]),
+    rationale: Object.freeze({
+      date: '2026-08-07',
+      fix: 'Three Charlie-directed diary-0066 defect fixes in the client/react packages: declarative mutations degrade to server-delegated dispatch without a durable outbox (25e9674b0), one bounded retry on typed-retryable anonymous stream-reset refusals (37af8f9aa), and omitted optional surface inputs dropped from composed payloads (16a0e140c).',
+      ticket: 'issues/20260807-main-red-client-bundle-ratchet-react-external.md',
+      byteDeltas: 'react-external min 92,541 -> 92,673 (+132), gzip 28,751 -> 28,802 (+51), brotli 25,034 -> 25,099 (+65); external-react-application min 92,764 -> 92,848 (+84), gzip 28,792 -> 28,850 (+58), brotli 25,118 -> 25,143 (+25).',
+      summary: 'Advance the two react profiles for the dispatch-degrade, bounded-retry, and omission-semantics corrections landed 2026-08-07; every other active ceiling and both predecessors remain immutable.',
+    }),
+    beforeAfterProfileIds: Object.freeze(['react-external', 'external-react-application']),
+    behaviorCommands: Object.freeze([
+      ['node', ['packages/snapback-react/package.test.mjs']],
+      ['node', ['--test', 'packages/snapback-client/generated-mutation-ir.test.mjs']],
+      ['node', ['--test', 'packages/snapback-client/connection-open-stream-reset-retry.test.mjs']],
+    ]),
+  }),
 ]);
 
 function fail(message) {

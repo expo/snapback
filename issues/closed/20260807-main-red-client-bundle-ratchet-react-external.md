@@ -1,6 +1,6 @@
 # main red: react-external client bundle grew 13 brotli bytes past the ratchet
 
-**Status:** Open
+**Status:** Closed — resolved 2026-08-07 by blessed rollover
 **Systems:** Client integration, Testing, Packaging
 **Date:** 2026-08-07
 **Related:** LLP 0145, LLP 0189, `scripts/client-bundle-metrology.mjs`
@@ -29,3 +29,11 @@ owned fix-forward work, and the backstop will keep re-filing until resolved.
 
 Close when `--check` is green under the pinned runtime on `main`, via a
 declared+blessed rollover naming the causal landing or a byte reduction.
+
+## Resolution — 2026-08-07
+
+Absorbed by the declared 
+rollover (workload ), covering
+both react profiles for the three Charlie-directed diary-0066 defect fixes
+(25e9674b0 dispatch degrade, 37af8f9aa bounded stream-reset retry,
+16a0e140c omission semantics).  green under pinned node 24.18.0.
