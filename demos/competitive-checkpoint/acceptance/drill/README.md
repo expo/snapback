@@ -19,11 +19,12 @@ LLP 0074 gate 2, including the durable-row secret scans.
   `hermes-linux-x64-<hermes-commit-12>-<patch-digest-12>.tar.gz` published by
   `vendor/ibex`'s `hermes-artifacts` workflow for the exact pinned submodule
   commit, checksum-verified in the Dockerfile. Stage it (untracked) under
-  `hermes/` before deploying:
+  `hermes/` from the repository root before deploying, or re-verify an already
+  staged carrier without downloading it again:
 
   ```sh
-  gh release download "hermes-<identity>" --repo ccheever/ibex \
-    --pattern 'hermes-linux-x64-*' --dir hermes/
+  node scripts/stage-linux-hermes-release.mjs
+  node scripts/stage-linux-hermes-release.mjs --check
   ```
 
   The 2026-08-03 vector qualification could not use that download path: no
@@ -36,6 +37,12 @@ LLP 0074 gate 2, including the durable-row secret scans.
   `sha256-9a846368e13304659cb6e0d4be78853bad6415de01f68a4191f7cd9b3af2c7d7`.
   `issues/20260803-linux-hermes-release-carrier-gap.md` tracks restoring the
   ordinary published-artifact path.
+
+  On 2026-08-07, the `hermes-artifacts` workflow publishes on every Ibex
+  `main` push, with name-keyed cache assets rebuilt only when absent. The
+  current vendored identity `e639a7bad8bf-9a846368e133` has a published,
+  checksum- and attestation-verified Linux x64 asset whose SHA-256 is
+  `fed145eaf0fcd1f7e80a4fa8f3701c46b47c2f06c0b63d3e8f6ad0a6254286a5`.
 
 ## Honest posture (recorded in every receipt)
 
@@ -76,7 +83,17 @@ LLP 0074 gate 2, including the durable-row secret scans.
    ignored release closure under `drill/prebuilt/`, and create
    `prebuilt/SHA256SUMS` plus `prebuilt/source-revision`. The alternate carrier
    verifies every staged byte and the clean revision before assembling the
-   runtime image:
+   runtime image. The maintained stager automates the Hermes-library half of
+   that handoff: `node scripts/stage-linux-hermes-release.mjs --prebuilt-lib`
+   copies the verified bundle's `lib/` tree into `drill/prebuilt/lib/`, prints
+   ready-to-append `sha256  lib/<name>` lines, and records every library digest
+   in `hermes/staging-receipt.json`.
+
+   The independent Linux host still contributes the three Rust binaries
+   (`snapback`, `snapback-lib-tests`, and `drill-stream-source`), their remaining
+   `SHA256SUMS` lines, and `source-revision` from `git rev-parse HEAD` in the
+   exact clean checkout. That Rust half is not yet automated by this command.
+   Once both halves are staged:
 
    ```sh
    fly deploy . \

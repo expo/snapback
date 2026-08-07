@@ -37,3 +37,37 @@ Hermes and Rust release closures.
   `Dockerfile.prebuilt`.
 - A clean qualification dry run exercises the maintained path without relying
   on operator-local ignored artifacts left by an earlier run.
+
+## 2026-08-07 update
+
+- Exit bullet 1 is met: a published asset exists for the current vendored
+  identity `e639a7bad8bf-9a846368e133`; its attestation, checksum, and in-bundle
+  profile-provenance receipt were verified. The receipt binds Hermes source
+  commit `e639a7bad8bfca844d982afa54fac786c65a8856`, patch-stack digest
+  `sha256-9a846368e13304659cb6e0d4be78853bad6415de01f68a4191f7cd9b3af2c7d7`,
+  and Linux cache key
+  `e639a7bad8bf-p9a846368e133-ba60b2b604a01c-blaf521ddda077-a4d422defe361-i6e939803e5b0-olinux`.
+  The tarball SHA-256 is
+  `fed145eaf0fcd1f7e80a4fa8f3701c46b47c2f06c0b63d3e8f6ad0a6254286a5`.
+- Exit bullet 2 is met by `scripts/stage-linux-hermes-release.mjs`, which derives
+  identity from committed Ibex gitlink `4c34c831aa087d6783b0d68f281cdb374ed7fc89`
+  through Ibex's own helpers, verifies the exact release carrier, and refuses
+  stale or ambiguous staging state.
+- Exit bullet 3 is partially met: the Hermes `lib/` half of the prebuilt closure
+  is automated and documented. The Rust-binary half remains a documented manual
+  independent build, and the Fly builder memory shape is unchanged.
+- Exit bullet 4: a dry run of resolve + verify + stage was performed against the
+  published asset on 2026-08-07 on a macOS host with an uninitialized submodule
+  (identity derived from the `SNAPBACK_IBEX_CHECKOUT` object database at the
+  committed gitlink). `stage`, `--check`, and `--check --prebuilt-lib` all
+  succeeded; the staging receipt recorded `stagedAt` 2026-08-07T19:07:25.880Z,
+  tarball SHA-256
+  `fed145eaf0fcd1f7e80a4fa8f3701c46b47c2f06c0b63d3e8f6ad0a6254286a5`, and
+  attestation verified against the reviewed workflow. The staged
+  `lib/libhermesvm.so` digest
+  (`647edffe66af5c886dac71e0021a7b30495969896f38efbcf62a700fa2c489d9`)
+  independently matches the bundle receipt's `binaryDigest`. Removing the
+  object-database source refused with
+  `SNAPBACK_HERMES_CARRIER_IDENTITY_SOURCE_UNAVAILABLE`. A full Fly deploy was
+  not exercised in this dry run; the remaining tail is one routine drill using
+  the staged carrier.

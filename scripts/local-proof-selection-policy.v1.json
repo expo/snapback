@@ -917,6 +917,7 @@
         "expo-chat-template-install",
         "expo-chat-template-typecheck",
         "github-latest-proof-fixtures",
+        "hermes-carrier-staging-fixtures",
         "local-source-package-closure",
         "package-cold-install-fixtures",
         "package-export-types",
