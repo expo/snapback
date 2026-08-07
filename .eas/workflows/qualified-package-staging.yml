@@ -2,7 +2,7 @@ name: qualified-package-staging
 
 # @ref LLP 0041#nine-package-candidate-promotion--2026-07-28 — build both
 # native runtimes independently at one clean revision, assemble one immutable
-# nine-package candidate, then prove those exact tarballs on both platforms.
+# full-closure candidate, then prove those exact tarballs on both platforms.
 
 on:
   push:
@@ -219,8 +219,9 @@ jobs:
             --version "$RELEASE_VERSION" \
             --tag "$candidate_tag" \
             --out "$SNAPBACK_PACKAGE_OUT"
-          SOURCE_REVISION="$source_revision" CANDIDATE_TAG="$candidate_tag" node -e '
-            const fs = require("node:fs");
+          SOURCE_REVISION="$source_revision" CANDIDATE_TAG="$candidate_tag" node --input-type=module -e '
+            import fs from "node:fs";
+            import { PACKAGE_INVENTORY } from "./scripts/snapback-publish-core.mjs";
             const ledger = JSON.parse(fs.readFileSync(
               process.env.SNAPBACK_PACKAGE_OUT + "/publish-ledger.json",
               "utf8",
@@ -230,7 +231,7 @@ jobs:
                 || ledger.sourceDirty !== false
                 || ledger.revision !== process.env.SOURCE_REVISION
                 || ledger.tag !== process.env.CANDIDATE_TAG
-                || ledger.packages.length !== 9) {
+                || ledger.packages.length !== PACKAGE_INVENTORY.length) {
               throw new Error("qualified staging ledger did not close");
             }
           '
@@ -362,7 +363,11 @@ jobs:
           test -f "$release_root/publish-ledger.json"
           test -f "$release_root/receipts/snapback-darwin-arm64-staged-receipt.json"
           test -f "$release_root/receipts/snapback-linux-x64-staged-receipt.json"
-          test "$(find "$release_root" -maxdepth 1 -name '*.tgz' | wc -l | tr -d ' ')" = 9
+          expected_package_count=$(node --input-type=module -e '
+            import { PACKAGE_INVENTORY } from "./scripts/snapback-publish-core.mjs";
+            process.stdout.write(String(PACKAGE_INVENTORY.length));
+          ')
+          test "$(find "$release_root" -maxdepth 1 -name '*.tgz' | wc -l | tr -d ' ')" = "$expected_package_count"
           mkdir -p .eas-artifacts
           tar -czf .eas-artifacts/snapback-qualified-release.tar.gz \
             -C "$release_root" .

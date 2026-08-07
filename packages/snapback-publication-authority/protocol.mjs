@@ -23,7 +23,6 @@ export const HEAD_DOMAIN = Buffer.from('snapback-publication-authority-head-v3\0
 export const RECEIPT_DOMAIN = Buffer.from(
   'snapback-publication-authority-transition-receipt-v2\0',
 );
-export const PACKAGE_COUNT = 9;
 // @ref LLP 0115#open-questions — decision 9: the terminal npm scope is
 // @expo/snapback-*. v4 leases bind the terminal names; v2/v3 leases keep
 // binding the recorded @ccheever/snapback-* interim scope so pre-migration
@@ -36,9 +35,12 @@ export const PROMOTION_PACKAGE_NAMES = Object.freeze([
   '@expo/snapback-codegen',
   '@expo/snapback-vite',
   '@expo/snapback-react',
+  '@expo/snapback-expo',
   '@expo/snapback-app-cli',
   '@expo/snapback-cli',
+  'create-snapback-app',
 ]);
+export const PACKAGE_COUNT = PROMOTION_PACKAGE_NAMES.length;
 export const LEGACY_PROMOTION_PACKAGE_NAMES = Object.freeze([
   '@ccheever/snapback-runtime-darwin-arm64',
   '@ccheever/snapback-runtime-linux-x64',
@@ -50,10 +52,21 @@ export const LEGACY_PROMOTION_PACKAGE_NAMES = Object.freeze([
   '@ccheever/snapback-app-cli',
   '@ccheever/snapback-cli',
 ]);
-// Decision-9 lineage record: terminal name -> the identities every
-// pre-migration ledger, lease, and receipt recorded for the same package.
+// Decision-9 lineage covers only the original nine packages that actually had
+// @snapback/* and @ccheever/snapback-* identities before the terminal rename.
+const PACKAGE_NAME_LINEAGE_BASIS = Object.freeze([
+  '@expo/snapback-runtime-darwin-arm64',
+  '@expo/snapback-runtime-linux-x64',
+  '@expo/snapback-contract',
+  '@expo/snapback-client',
+  '@expo/snapback-codegen',
+  '@expo/snapback-vite',
+  '@expo/snapback-react',
+  '@expo/snapback-app-cli',
+  '@expo/snapback-cli',
+]);
 export const PACKAGE_NAME_LINEAGE = Object.freeze(Object.fromEntries(
-  PROMOTION_PACKAGE_NAMES.map((name) => {
+  PACKAGE_NAME_LINEAGE_BASIS.map((name) => {
     const suffix = name.slice('@expo/snapback-'.length);
     return [name, Object.freeze({
       sourceName: `@snapback/${suffix}`,
@@ -61,7 +74,7 @@ export const PACKAGE_NAME_LINEAGE = Object.freeze(Object.fromEntries(
     })];
   }),
 ));
-const TERMINAL_NAME_PATTERN = /^@expo\/snapback-[a-z0-9-]+$/u;
+const TERMINAL_NAME_PATTERN = /^(?:@expo\/snapback-[a-z0-9-]+|create-snapback-app)$/u;
 const LEGACY_NAME_PATTERN = /^@ccheever\/snapback-[a-z0-9-]+$/u;
 
 export const LEASE_KEYS = Object.freeze([
@@ -357,8 +370,8 @@ export function validateLeasePackages(
   const namePattern = packageNames === LEGACY_PROMOTION_PACKAGE_NAMES
     ? LEGACY_NAME_PATTERN
     : TERMINAL_NAME_PATTERN;
-  if (!Array.isArray(packages) || packages.length !== PACKAGE_COUNT) {
-    throw new Error(`${field} must bind exactly ${PACKAGE_COUNT} packages`);
+  if (!Array.isArray(packages) || packages.length !== packageNames.length) {
+    throw new Error(`${field} must bind exactly ${packageNames.length} packages`);
   }
   const names = new Set();
   for (const [index, row] of packages.entries()) {

@@ -57,16 +57,19 @@ function fixture() {
     defaultTag: 'latest',
     priorDefaultClosureReceiptSha256: 'b'.repeat(64),
     lifetimeSeconds: 900,
-    packages: PROMOTION_PACKAGE_NAMES.map((name, index) => ({
+    packages: PROMOTION_PACKAGE_NAMES.map((name) => ({
       name,
-      expectedPriorVersion: index === 6 ? null : '0.1.0',
+      expectedPriorVersion: name === '@expo/snapback-expo'
+        || name === 'create-snapback-app'
+        ? null
+        : '0.1.0',
       newVersion: '0.1.1',
     })),
   };
   return { authority, context, privateKey, publicKey, request, store };
 }
 
-test('issue allocates and signs one exact short-lived nine-package epoch', () => {
+test('issue allocates and signs one exact short-lived promotion epoch', () => {
   const { authority, publicKey, request } = fixture();
   const lease = authority.issue(request);
   assert.equal(lease.publicationEpoch, 1);
@@ -496,6 +499,6 @@ test('request builder closes candidate-ledger and observed-prior-vector inventor
       operationId: request.operationId,
       publisherInstanceId: request.publisherInstanceId,
     }),
-    /exact nine-package inventory/u,
+    /exact promotion package inventory/u,
   );
 });

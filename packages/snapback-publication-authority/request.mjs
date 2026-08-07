@@ -116,7 +116,7 @@ export function validateObservedPriorVector(
     actual.length !== expected.length
     || actual.some((name, index) => name !== expected[index])
   ) {
-    throw new Error('prior vector must contain the exact nine-package inventory');
+    throw new Error('prior vector must contain the exact promotion package inventory');
   }
   for (const name of packageNames) {
     const value = vector[name];

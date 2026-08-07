@@ -5,6 +5,7 @@ import test from 'node:test';
 
 import {
   createPublicationAuthorityReceipt,
+  PROMOTION_PACKAGE_NAMES,
   publicationAuthorityHeadSha256,
   publicationAuthoritySigningKeyId,
   signPublicationAuthorityHead,
@@ -28,17 +29,7 @@ import {
   waitForPromotedInstallability,
 } from './snapback-promotion-core.mjs';
 
-const names = [
-  '@expo/snapback-runtime-darwin-arm64',
-  '@expo/snapback-runtime-linux-x64',
-  '@expo/snapback-contract',
-  '@expo/snapback-client',
-  '@expo/snapback-codegen',
-  '@expo/snapback-vite',
-  '@expo/snapback-react',
-  '@expo/snapback-app-cli',
-  '@expo/snapback-cli',
-];
+const names = PROMOTION_PACKAGE_NAMES;
 const authorityInstallationId = 'snapback-publication-promotion';
 const authorityOrigin = 'https://publication-authority.example';
 
@@ -164,7 +155,7 @@ function acquiredHead(lease, privateKey, overrides = {}) {
   return signPublicationAuthorityHead({ unsigned, privateKey });
 }
 
-test('lease is signature, candidate, time, and nine-package bound', () => {
+test('lease is signature, candidate, time, and promotion-inventory bound', () => {
   const { lease, publicKey } = fixture();
   assert.equal(
     validatePublicationLease({
@@ -257,9 +248,9 @@ test('promotion checks the complete vector around each tag mutation', async () =
   assert.equal(result.ok, true);
   assert.deepEqual(
     Object.values(result.vector),
-    Array(9).fill('0.1.1'),
+    Array(names.length).fill('0.1.1'),
   );
-  assert.equal(result.events.length, 9);
+  assert.equal(result.events.length, names.length);
 });
 
 test('forward and rollback mutations are preceded by vector then fresh head', async () => {
@@ -331,14 +322,14 @@ test('a first-publication package already on the new version is a verified no-op
     now: () => Date.parse('2026-07-28T19:05:00.000Z'),
   });
   assert.equal(result.ok, true);
-  assert.equal(writes.length, 8);
+  assert.equal(writes.length, names.length - 1);
   assert.deepEqual(
     result.events.map((event) => event.package),
     names,
   );
   assert.equal(result.events[5].alreadyAtNewVersion, true);
   assert.deepEqual(result.events[5].before, result.events[5].after);
-  assert.deepEqual(Object.values(result.vector), Array(9).fill('0.1.1'));
+  assert.deepEqual(Object.values(result.vector), Array(names.length).fill('0.1.1'));
 });
 
 test('promotion tolerates bounded official-registry propagation lag', async () => {
@@ -459,14 +450,17 @@ test('promotion fails closed on a refused convergence observation', async () => 
 test('only an already-candidate prior package may bind aliases to the new vector', () => {
   const base = fixture();
   const unsigned = unsignedLease(base.lease);
-  unsigned.packages[5].expectedPriorVersion = unsigned.packages[5].newVersion;
+  const owner = unsigned.packages.find(
+    (row) => row.name === '@expo/snapback-vite',
+  );
+  owner.expectedPriorVersion = owner.newVersion;
   const lease = signPublicationLease({ unsigned, privateKey: base.privateKey });
   assert.deepEqual(
     validatePriorDependencyAlias({
       lease,
-      ownerName: names[5],
+      ownerName: owner.name,
       dependency: '@expo/snapback-cli',
-      target: names[8],
+      target: '@expo/snapback-cli',
       version: '0.1.1',
     }),
     { sectionVector: 'new', selectedVersion: '0.1.1' },
@@ -695,7 +689,7 @@ test('failed final latest-root proof rolls the complete promoted vector back', a
     }),
     (error) => {
       assert.match(error.message, /linux latest-root proof refused/u);
-      assert.equal(error.result.rollback.length, 9);
+      assert.equal(error.result.rollback.length, names.length);
       return true;
     },
   );
@@ -765,7 +759,7 @@ test('rollback reconciles an apply-then-throw response loss and continues in rev
       },
     }),
     (error) => {
-      assert.equal(error.result.rollback.length, 9);
+      assert.equal(error.result.rollback.length, names.length);
       assert.ok(error.result.rollback.every((row) => row.ok));
       assert.equal(
         error.result.rollback[0].commandReportedError,
@@ -850,7 +844,7 @@ test('rollback advances after one bounded retry proves an apply-then-throw rever
         error.result.rollback[0].reconciliationRegistryObservations,
         1,
       );
-      assert.equal(error.result.rollback.length, 9);
+      assert.equal(error.result.rollback.length, names.length);
       assert.ok(error.result.rollback.slice(1).every((row) => row.ok === true));
       assert.equal(
         error.result.rollback[1].preMutationRegistryConvergenceAttempts,
@@ -859,7 +853,7 @@ test('rollback advances after one bounded retry proves an apply-then-throw rever
       return true;
     },
   );
-  assert.equal(rollbackWrites, 9);
+  assert.equal(rollbackWrites, names.length);
   assert.deepEqual(vector, prior);
 });
 
@@ -902,7 +896,7 @@ test('rollback refuses earlier writes when both bounded observations fail', asyn
       },
     }),
     (error) => {
-      assert.equal(error.result.rollback.length, 9);
+      assert.equal(error.result.rollback.length, names.length);
       assert.match(error.result.rollback[0].error, /observation outage 1/u);
       assert.match(error.result.rollback[0].observationError, /observation outage 2/u);
       assert.equal(error.result.rollback[0].checkpointAdvanced, false);
@@ -1636,7 +1630,7 @@ test('exhausted promoted installability enters the complete vector rollback', as
     }),
     (error) => {
       assert.match(error.message, /did not converge after 2 attempts/u);
-      assert.equal(error.result.rollback.length, 9);
+      assert.equal(error.result.rollback.length, names.length);
       assert.ok(error.result.rollback.every((event) => event.ok));
       return true;
     },

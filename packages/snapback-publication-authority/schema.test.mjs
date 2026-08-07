@@ -60,6 +60,14 @@ test('closed JSON Schemas and runtime validators share every endpoint key set', 
     'schemaVersion',
   ]);
   const leaseSchema = schema('authorized-publication-lease.schema.json');
+  assert.equal(
+    leaseSchema.properties.packages.minItems,
+    PROMOTION_PACKAGE_NAMES.length,
+  );
+  assert.equal(
+    leaseSchema.properties.packages.maxItems,
+    PROMOTION_PACKAGE_NAMES.length,
+  );
   assert.deepEqual(
     leaseSchema.properties.packages.prefixItems.map(
       (item) => item.allOf[1].properties.name.const,
@@ -67,6 +75,14 @@ test('closed JSON Schemas and runtime validators share every endpoint key set', 
     PROMOTION_PACKAGE_NAMES,
   );
   const requestSchema = schema('publication-lease-issue-request.schema.json');
+  assert.equal(
+    requestSchema.properties.packages.minItems,
+    PROMOTION_PACKAGE_NAMES.length,
+  );
+  assert.equal(
+    requestSchema.properties.packages.maxItems,
+    PROMOTION_PACKAGE_NAMES.length,
+  );
   assert.deepEqual(
     requestSchema.properties.packages.prefixItems.map((item) => (
       requestSchema.$defs[item.$ref.split('/').at(-1)]

@@ -828,4 +828,4 @@ try {
 receipt.finishedAt = new Date().toISOString();
 receipt.receiptSha256 = sha256Hex(canonicalJcs(receipt));
 writeFileSync(options.out, `${JSON.stringify(receipt, null, 2)}\n`, { mode: 0o600 });
-console.log(`promoted and externally closed nine-package default vector; receipt: ${options.out}`);
+console.log(`promoted and externally closed the full default-tag vector; receipt: ${options.out}`);

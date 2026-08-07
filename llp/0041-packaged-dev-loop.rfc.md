@@ -6,6 +6,13 @@
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
 
+**Revised (promotion closure reconciled):** 2026-08-07 (the leased-promotion
+vector now equals the full eleven-package publishable closure, including
+`@expo/snapback-expo` and `create-snapback-app`; first-publication members use
+`null` `expectedPriorVersion` rows per §First-publication `latest` bootstrap
+lineage. The v4 lease width is widened in place because no v4 lease was ever
+issued against the public registry.)
+
 **Revised (closure widened to ten):** 2026-08-06 (sitting #4 ruling 2:
 `@expo/snapback-expo` joins the publishable staging closure at 0.1.10 —
 inventory, publish script, and closure tests now carry ten packages; the

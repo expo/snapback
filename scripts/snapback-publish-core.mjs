@@ -10,7 +10,16 @@ import {
 } from 'node:fs';
 import { join } from 'node:path';
 
+import {
+  LEGACY_PROMOTION_PACKAGE_NAMES,
+  PROMOTION_PACKAGE_NAMES,
+} from '../packages/snapback-publication-authority/protocol.mjs';
 import { canonicalJcs, sha256Hex } from './snapback-promotion-core.mjs';
+
+export {
+  LEGACY_PROMOTION_PACKAGE_NAMES,
+  PROMOTION_PACKAGE_NAMES,
+};
 
 // @ref LLP 0041#nine-package-candidate-promotion--2026-07-28 — the public
 // closure is an exact source/public-name vector whose qualified bytes are
@@ -61,31 +70,6 @@ export const LEGACY_PACKAGE_INVENTORY = Object.freeze([
   ['@snapback/app-cli', '@ccheever/snapback-app-cli'],
   ['@snapback/cli', '@ccheever/snapback-cli'],
   ['@snapback/vite', '@ccheever/snapback-vite'],
-]);
-
-export const PROMOTION_PACKAGE_NAMES = Object.freeze([
-  '@expo/snapback-runtime-darwin-arm64',
-  '@expo/snapback-runtime-linux-x64',
-  '@expo/snapback-contract',
-  '@expo/snapback-client',
-  '@expo/snapback-codegen',
-  '@expo/snapback-vite',
-  '@expo/snapback-react',
-  '@expo/snapback-app-cli',
-  '@expo/snapback-cli',
-  'create-snapback-app',
-]);
-
-export const LEGACY_PROMOTION_PACKAGE_NAMES = Object.freeze([
-  '@ccheever/snapback-runtime-darwin-arm64',
-  '@ccheever/snapback-runtime-linux-x64',
-  '@ccheever/snapback-contract',
-  '@ccheever/snapback-client',
-  '@ccheever/snapback-codegen',
-  '@ccheever/snapback-vite',
-  '@ccheever/snapback-react',
-  '@ccheever/snapback-app-cli',
-  '@ccheever/snapback-cli',
 ]);
 
 export const RELEASE_SCOPE_PRESETS = Object.freeze(['identity', 'ccheever']);

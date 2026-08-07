@@ -18,6 +18,10 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 import {
+  PACKAGE_NAME_LINEAGE,
+  PROMOTION_PACKAGE_NAMES as AUTHORITY_PROMOTION_PACKAGE_NAMES,
+} from '../packages/snapback-publication-authority/protocol.mjs';
+import {
   aggregatePublicPackageProofs,
   BROWSER_PROOF_INVOKED_HOST_COLLECTION_APIS,
   boundedSerializeBrowserValue,
@@ -1625,6 +1629,31 @@ test('create-snapback-app is the terminal publication row with a closed CLI depe
     name: 'create-snapback-app',
     dependencies: { '@expo/snapback-cli': '0.1.1' },
   }, '0.1.1'), undefined);
+});
+
+test('promotion inventory is the full public package inventory from one authority', () => {
+  assert.strictEqual(PROMOTION_PACKAGE_NAMES, AUTHORITY_PROMOTION_PACKAGE_NAMES);
+  assert.deepEqual(PROMOTION_PACKAGE_NAMES, [
+    '@expo/snapback-runtime-darwin-arm64',
+    '@expo/snapback-runtime-linux-x64',
+    '@expo/snapback-contract',
+    '@expo/snapback-client',
+    '@expo/snapback-codegen',
+    '@expo/snapback-vite',
+    '@expo/snapback-react',
+    '@expo/snapback-expo',
+    '@expo/snapback-app-cli',
+    '@expo/snapback-cli',
+    'create-snapback-app',
+  ]);
+  assert.equal(PROMOTION_PACKAGE_NAMES.length, PACKAGE_INVENTORY.length);
+  assert.deepEqual(
+    [...PROMOTION_PACKAGE_NAMES].sort(),
+    PACKAGE_INVENTORY.map(([, publicName]) => publicName).sort(),
+  );
+  assert.equal(Object.keys(PACKAGE_NAME_LINEAGE).length, 9);
+  assert.equal(PACKAGE_NAME_LINEAGE['@expo/snapback-expo'], undefined);
+  assert.equal(PACKAGE_NAME_LINEAGE['create-snapback-app'], undefined);
 });
 
 test('public-install ledger validation requires the complete immutable closure', () => {
