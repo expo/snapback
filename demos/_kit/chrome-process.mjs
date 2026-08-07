@@ -19,6 +19,7 @@ const LIFECYCLE_OWNED_FLAGS = [
   '--user-data-dir',
 ];
 const INDEXEDDB_BACKING_STORE_FAILURE = /internal error opening backing store/i;
+const CHROME_LOADER_RESOURCE_EXHAUSTED = /\bnet::ERR_INSUFFICIENT_RESOURCES\b/;
 
 // JavaScript permits `throw null` and `throw undefined`; neither may be
 // confused with the absence of a primary run failure.
@@ -35,12 +36,59 @@ function cleanupMessage(error) {
 function errorChainMatches(error, predicate, seen = new Set()) {
   if (error === null || error === undefined || seen.has(error)) return false;
   if ((typeof error === 'object' || typeof error === 'function')) seen.add(error);
-  if (predicate(cleanupMessage(error))) return true;
+  if (predicate(cleanupMessage(error), error)) return true;
   if (error?.cause && errorChainMatches(error.cause, predicate, seen)) return true;
   if (Array.isArray(error?.errors)) {
     return error.errors.some((entry) => errorChainMatches(entry, predicate, seen));
   }
   return false;
+}
+
+/**
+ * Retry only Chrome's exact loader-resource diagnostic. The operation must own
+ * a fresh browser process and its cleanup on every attempt; product failures
+ * and every other infrastructure failure retain their original identity.
+ *
+ * @ref LLP 0010#ci-and-review-gates — acceptance failures stay visible while
+ * one bounded, diagnostic-specific infrastructure recovery is permitted.
+ */
+export async function retryChromeResourceExhaustion(operation, {
+  maxAttempts = process.platform === 'linux' ? 3 : 1,
+  delayMs = 250,
+  sleepImpl = sleep,
+} = {}) {
+  if (typeof operation !== 'function') {
+    throw new TypeError('retryChromeResourceExhaustion requires an operation function');
+  }
+  if (!Number.isInteger(maxAttempts) || maxAttempts < 1) {
+    throw new TypeError('retryChromeResourceExhaustion maxAttempts must be a positive integer');
+  }
+  if (!Number.isFinite(delayMs) || delayMs < 0) {
+    throw new TypeError('retryChromeResourceExhaustion delayMs must be a non-negative number');
+  }
+  if (typeof sleepImpl !== 'function') {
+    throw new TypeError('retryChromeResourceExhaustion sleepImpl must be a function');
+  }
+
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      return await operation({ attempt, maxAttempts });
+    } catch (error) {
+      const resourceExhausted = errorChainMatches(
+        error,
+        (message) => CHROME_LOADER_RESOURCE_EXHAUSTED.test(message),
+      );
+      const cleanupFailed = errorChainMatches(
+        error,
+        (_message, candidate) => (
+          typeof candidate?.code === 'string'
+          && (candidate.code.includes('CLEANUP') || candidate.code.includes('PROCESS_TREE'))
+        ),
+      );
+      if (!resourceExhausted || cleanupFailed || attempt >= maxAttempts) throw error;
+      await sleepImpl(delayMs * attempt);
+    }
+  }
 }
 
 /**

@@ -666,3 +666,42 @@ not-selected gate. Every independent gate completed.
 
 Owner close condition: make concurrent app-root identity publication atomic
 and rerun the exact 15-test live-server suite plus the complete local proof.
+
+### Exact-head recurrence — GitHub run 31147355293 (completed 2026-08-07 UTC)
+
+The PR #18 exact-head KEEP-GOING proof reproduced the same F0a-owned race in
+`instance_fork_cli_v1::concurrent_fork_creates_bind_distinct_ports_and_drop_cleanly`.
+One concurrent `fork create` again read the app-root identity as an empty JSON
+file and refused with `SNAPBACK_FORK_APP_BINDING_REQUIRED` / `EOF while parsing
+a value at line 1 column 0`; the other 14 live-server fork cases passed. This
+drift lane records the recurrence and makes no fork-code correctness change.
+Owner close condition remains unchanged.
+
+### Post-main-merge exact-head recurrence — 2026-08-07 UTC
+
+The complete affected KEEP-GOING proof at clean, coded-bootstrap-qualified
+merge revision `b3034f9d24237f64bb0ff6c0085dd3c6945fa690` again reproduced the
+F0a-owned race in
+`instance_fork_cli_v1::concurrent_fork_creates_bind_distinct_ports_and_drop_cleanly`.
+One concurrent `fork create` read
+`.snapback/instance-fork-app-identity.v1.json` as empty JSON and refused with
+`SNAPBACK_FORK_APP_BINDING_REQUIRED` / `EOF while parsing a value at line 1
+column 0`; the other 14 live-server fork cases passed. The proof recorded one
+root failure (`rust-tests`), one dependent block (`auth-invalidation-report`),
+and completed every independent gate, including the previously failing
+versioned-seed, asset, app-CLI, todo, and workout chain. Structured results:
+`target/proof/local-proof-results.jsonl` in the proving worktree. This drift
+lane makes no fork-code correctness change. Owner close condition remains
+unchanged.
+
+### Exact-head live-server rerun recurrence — 2026-08-07 UTC
+
+After recording the merge-proof recurrence, the complete 15-test
+`instance_fork_cli_v1` suite was rerun at clean, coded-bootstrap-qualified
+revision `483f943b6a663cee8a99d01cb10b09a156891483` with four test threads. The
+concurrent-create case passed on this execution, but
+`detached_fork_server_closes_unrelated_inherited_descriptors_on_exec` failed
+because the detached server retained an unrelated caller descriptor after the
+create CLI exited. The other 14 live-server cases passed. This is another
+actively owned F0a fork-correctness recurrence, not wave drift; this lane makes
+no fork-code change. Owner close condition remains unchanged.

@@ -25,15 +25,18 @@ schema- or function-divergent development against realistic rows. The fork has
 the same logical `appId`, but fresh instance, authorization-stream,
 data-stream, admin-token, and resume-keyring identities.
 
-This is a **partial contributor-source local surface**, published for exactly
-the two measured release platforms, `macos/aarch64` and `linux/x86_64`, by the
-[dated digest-bound receipt](repo:tests/acceptance/receipts/agent-safe-derived-deployment-fork-publication.2026-08-04.v1.json).
-The separate `agent_safe_derived_deployment_fork_v1` target-manifest tuple
-remains wholly `Missing` by the author's ruling; the capability-index row is
-the claim carrier. The guide teaches the implemented source-checkout workflow.
-Released-binary/npm parity and the Phase 6 normal-installation exit remain
-open. This claim includes no public package, hosted/Cloudflare/remote target,
-promotion or merge-back, or process sandbox.
+This is a **partial, unpublished surface**. A contributor-source local claim
+published on 2026-08-07, but later proof-fixture changes inside its qualified
+implementation digest made that evidence inapplicable to the current tree.
+The source anchor is therefore withheld and the capability-index target is
+`none`; the
+[dated digest-bound receipt](repo:tests/acceptance/receipts/agent-safe-derived-deployment-fork-publication.2026-08-04.v1.json)
+is retained as historical evidence, not a current claim. Fresh qualification
+on `macos/aarch64` and `linux/x86_64`, fresh review heads, and named-author
+acceptance are required before republishing. The separate
+`agent_safe_derived_deployment_fork_v1` target-manifest tuple remains wholly
+`Missing`. The guide teaches the implemented source workflow; it does not
+claim a packaged, hosted, promotable, or process-sandboxed capability.
 
 ## Give a worktree its own backend
 
@@ -432,14 +435,11 @@ OS/container/filesystem authority boundary for that threat.
   deny-all posture; autonomous workers are also inert.
 - There is no fork promotion or merge-back. Move conclusions or app-level
   changes, not fork storage, into the parent.
-- There is no hosted/Cloudflare/remote fork contract, released-binary/npm
-  parity, normal-installation proof, or public-package claim.
-- Publication artifacts are unsigned and not transparency-logged. A
-  commit-capable actor who fabricates both reviewer histories and the named
-  author acceptance is outside the guarantee. The known weakness that review
-  prose is bound only as a current complete artifact, not frozen per round, is
-  tracked in
-  [`issues/20260807-review-prose-history-not-frozen.md`](repo:issues/20260807-review-prose-history-not-frozen.md).
+- There is no current derived-fork capability publication, hosted fork
+  contract, released-binary/npm parity, normal-installation proof, or
+  public-package claim. The withdrawn publication and required
+  requalification are tracked in
+  [`issues/20260807-derived-fork-publication-wave-drift-requalification.md`](repo:issues/20260807-derived-fork-publication-wave-drift-requalification.md).
 
 ## Anti-patterns
 

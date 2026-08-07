@@ -113,11 +113,13 @@ jobs:
       # an ambient node_modules tree (ENG-24385).
       - name: Install JavaScript dependencies
         if: steps.selection.outputs.requires_javascript_dependencies == 'true'
-        run: bun install --frozen-lockfile
+        run: |
+          bun install --frozen-lockfile
+          node scripts/ensure-workspace-hoist.mjs
 
       - name: Install native build dependencies
         if: steps.selection.outputs.requires_native == 'true'
-        run: sudo apt-get update && sudo apt-get install -y cmake ninja-build libcurl4-openssl-dev
+        run: sudo apt-get update && sudo apt-get install -y cmake ninja-build libcurl4-openssl-dev lsof
 
       # @ref LLP 0010#ci-and-review-gates — the admin behavior lane is required.
       # @ref LLP 0015#acceptance-rules — a missing required browser is a failure,

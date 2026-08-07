@@ -172,7 +172,6 @@ run runtime-readiness-fixtures -- node --test tests/runtime_readiness_receipt_v0
 run proof-runner-fixtures -- node --test tests/proof_runner_v0.mjs
 run local-proof-inventory -- node --test tests/local_proof_inventory_v0.mjs
 run affected-selector-fixtures -- node --test tests/local_proof_selection_v0.mjs
-run drift-prone-gate-fixtures -- node --test tests/drift_prone_gates_v0.mjs
 run package-test-inventory -- node scripts/check-package-test-inventory.mjs
 # @ref LLP 0134#9-acceptance — closed maturity records and the pushed-range
 # transition pin are checked before generated artifacts or native builds.
@@ -229,6 +228,11 @@ run revision-set-fixtures -- node --test demos/partiful-matrix/tests/acceptance/
 # requires this ordering (LLP 0061 §3); review manifests and policy-required
 # committed projections still fail closed on any diff.
 run generated-artifacts -- scripts/check-generated-artifacts
+# The isolated committed-history fixtures copy generated Guide inputs into
+# their disposable clones. Those inputs are intentionally ignored, so a clean
+# runner must execute the canonical producer before the fixtures classify
+# missing dependencies versus stale records.
+run drift-prone-gate-fixtures --requires generated-artifacts -- node --test tests/drift_prone_gates_v0.mjs
 # @ref LLP 0061#3-verification-snippets-that-ran — published-closure fixtures
 # keep released, unreleased, stale-fence, banner, and record failures executable.
 run guide-published-closure-fixtures -- node --test scripts/guide-published-closure.test.mjs
@@ -360,10 +364,48 @@ true|TRUE|True|1|yes|YES|on|ON)
     not_selected cargo-test-profile-clean "CI-only disk-pressure guard"
     ;;
 esac
-# cargo test builds test harnesses, not the normal server executable. Build it
-# visibly and outside the 60 s runtime-ready deadline; startServer's cargo run
-# sees the same identity stamp and measures startup rather than a cold link.
-run current-binary-build --requires native-runtime-bootstrap -- cargo build --locked --bin snapback
+# cargo test builds test harnesses, not the normal server executable. A restored
+# Cargo cache can retain the root build-script output from the pre-proof
+# bootstrap even after stamp_snapback_build_identity establishes the final
+# clean identity. Remove only the root package's completed artifacts so
+# build.rs must replay that deterministic stamp; dependency and vendored-Ibex
+# artifacts remain warm. Then build visibly and outside the 60 s runtime-ready
+# deadline, so startServer measures startup rather than a cold link.
+build_current_binary() {
+    case "${SNAPBACK_BUILD_GIT_COMMIT:-}" in
+        '')
+            printf 'SNAPBACK_BUILD_IDENTITY_MISMATCH: final build has no commit stamp\n' >&2
+            return 1
+            ;;
+    esac
+    case "${SNAPBACK_BUILD_GIT_DIRTY:-}" in
+        true|false) ;;
+        *)
+            printf 'SNAPBACK_BUILD_IDENTITY_MISMATCH: final build has no boolean dirty stamp\n' >&2
+            return 1
+            ;;
+    esac
+    cargo clean -p snapback
+    env \
+        SNAPBACK_BUILD_GIT_COMMIT="$SNAPBACK_BUILD_GIT_COMMIT" \
+        SNAPBACK_BUILD_GIT_DIRTY="$SNAPBACK_BUILD_GIT_DIRTY" \
+        cargo build --locked --bin snapback
+    local identity_json
+    identity_json="$("$ROOT/target/debug/snapback" build-identity)"
+    node -e '
+const identity = JSON.parse(process.argv[1])?.binary;
+const expectedCommit = process.argv[2];
+const expectedDirty = process.argv[3] === "true";
+if (identity?.gitCommit !== expectedCommit || identity?.gitDirty !== expectedDirty) {
+  console.error("SNAPBACK_BUILD_IDENTITY_MISMATCH: final binary did not retain the deterministic proof stamp", {
+    expected: { gitCommit: expectedCommit, gitDirty: expectedDirty },
+    actual: identity ?? null,
+  });
+  process.exit(1);
+}
+' "$identity_json" "$SNAPBACK_BUILD_GIT_COMMIT" "$SNAPBACK_BUILD_GIT_DIRTY"
+}
+run current-binary-build --requires native-runtime-bootstrap -- build_current_binary
 # The early bootstrap proves its own authoritative binary. Cargo tests and the
 # measured cleanup policy may change the later target closure, so qualify the
 # final acceptance binary directly:

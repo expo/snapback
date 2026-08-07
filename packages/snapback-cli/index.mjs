@@ -755,6 +755,8 @@ function runGit(projectRoot, args, code) {
     throw diagnosticError(code, 'release source identity could not be resolved from git', {
       operation: args.join(' '),
       status: result.status,
+      signal: result.signal ?? null,
+      errorCode: result.error?.code ?? null,
       stderr: result.stderr?.slice(0, 2_000) ?? '',
     });
   }
@@ -1489,6 +1491,11 @@ export function scaffoldApp(target, options = {}) {
     throw diagnosticError('SNAPBACK_NEW_TEMPLATE_UNKNOWN', `unknown template ${template}`, { template });
   }
   cpSync(templateRoot, destination, { recursive: true, errorOnExist: true });
+  const packedGitignore = join(destination, 'gitignore.template');
+  if (existsSync(packedGitignore)) {
+    cpSync(packedGitignore, join(destination, '.gitignore'));
+    rmSync(packedGitignore);
+  }
   const manifestPath = join(destination, 'package.json');
   const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
   manifest.name = destination.split(/[/\\]/).pop().toLowerCase();

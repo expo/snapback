@@ -40,6 +40,18 @@ assert(
   'deployment-identity CI must materialize ignored All Aboard inputs and refuse review drift before checking identity',
 );
 
+const coldCloneCheck = readFileSync(join(ROOT, 'scripts', 'cold-clone-check.sh'), 'utf8');
+assert.match(
+  coldCloneCheck,
+  /run "\$ROOT\/scripts\/bootstrap-ibex-runtime"/u,
+  'cold-clone CI must enter native readiness through the coded bootstrap',
+);
+assert.doesNotMatch(
+  coldCloneCheck,
+  /SNAPBACK_BOOTSTRAP_CHECK/u,
+  'cold-clone CI must not disable the bootstrap link, launch, VM, or readiness checks',
+);
+
 const activeCheckoutUse = /^\s*(?:-\s+)?uses:\s+actions\/checkout@[^\s#]+(?:\s+#.*)?$/;
 const activeCredentialCheck = /^\s*run:\s*scripts\/check-checkout-credentials\s*(?:#.*)?$/m;
 const activePersistCredentialsFalse = /^\s+persist-credentials:\s*false\s*(?:#.*)?$/m;
@@ -262,6 +274,16 @@ assert.match(
 
 const localProof = readFileSync(join(workflowDir, 'local-proof.yml'), 'utf8');
 assert.match(localProof, /SNAPBACK_VERIFY_EXACT:\s*"1"/, 'canonical CI must require Exact/admin checks');
+assert.match(
+  localProof,
+  /bun install --frozen-lockfile\s+node scripts\/ensure-workspace-hoist\.mjs/u,
+  'canonical CI must materialize the root workspace links its clean-clone fixtures consume',
+);
+assert.match(
+  localProof,
+  /apt-get install -y[^\n]*\blsof\b/u,
+  'canonical CI must provision the listener inventory tool required by Expo supervision',
+);
 assert.match(
   localProof,
   /schedule:[\s\S]*cron:[\s\S]*workflow_dispatch:/u,

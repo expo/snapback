@@ -1876,6 +1876,17 @@ both reviewer histories and the named-author acceptance is outside the
 guarantee. The current-state-only prose binding weakness remains disclosed in
 `issues/20260807-review-prose-history-not-frozen.md`.
 
+**2026-08-07 — publication withdrawn after wave drift.** The publication at
+`7cada777b` was valid for qualification C's exact implementation digest. The
+later wave changes nine covered proof/checker/metrology leaves, so the
+combined-tree oracle refused instead of extending the old evidence to new
+bytes. The source anchor is now `withheld`, the LLP 0061 capability row is
+target `none`, and the dated receipt/carrier/reviews/benchmarks/author
+acceptance are retained only as historical evidence. No fork runtime
+correctness code changed. Republishing requires a fresh C, both canonical
+platform receipts, fresh accepted review heads, and named-author acceptance;
+see `issues/20260807-derived-fork-publication-wave-drift-requalification.md`.
+
 ## Status
 
 **Accepted 2026-08-06.** F0a, F0b, and F1 implement the local safety
@@ -1888,9 +1899,9 @@ wide completeness, and F2 hosted work stay open under LLP 0185. The local
 app-row net diff's authorizer-backed completeness slice is recorded above.
 Acceptance records the approved design, the
 same-`appId` derived-deployment amendment, and the landed local substrate. The
-2026-08-06 author-directed publication now advertises only the partial local
-contributor-source `operating.instance-forks` claim through the LLP 0061 guide
-row, for exactly the two measured release platforms. The separately reserved
+2026-08-07 publication was withdrawn after covered wave drift, so the current
+LLP 0061 `operating.instance-forks` row is target `none` pending fresh
+qualification and acceptance. The separately reserved
 `agent_safe_derived_deployment_fork_v1` target-manifest predicate remains
 wholly `Missing`; released-binary/npm, normal-installation, hosted,
 promotion/merge-back, process-containment, and broader storage claims remain

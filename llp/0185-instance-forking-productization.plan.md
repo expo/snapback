@@ -728,6 +728,24 @@ reinstated a defence its reviewer had retracted. All were recovered and the
 losses are recorded rather than papered over, but the lesson is mechanical —
 commit review artifacts the moment a round returns.
 
+#### Phase 6 publication withdrawal — 2026-08-07
+
+The wave-drift integration changed nine proof/checker/metrology files inside
+qualification C's v2 implementation digest. On the combined tree the actual
+publication oracle refused C digest
+`sha256:fc6e3e58453b4700ce06c647aaef87132879e0da336e560eca834d1d42c5459a`
+versus P digest
+`sha256:5e6ed9beda2067a7da8dbb6a3a133f91f532bb4323fd6b24805be18d0a74e9ab`.
+This is a qualification invalidation, not a fork correctness regression.
+
+The anchor is withheld and the capability-index row returns to target `none`.
+Historical evidence remains byte-retained, but items 1 and 6 are reopened;
+item 2 and normal installation were already open. Fresh macOS/aarch64 and
+Linux/x86_64 qualification receipts, fresh accepted review heads, and new
+named-author acceptance are required before publication may return. The work
+is tracked in
+`issues/20260807-derived-fork-publication-wave-drift-requalification.md`.
+
 ### Phase 7 — Expose bounded agent-control operations
 
 Once the local contract is published, make it available through LLP 0184’s

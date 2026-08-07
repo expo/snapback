@@ -19,7 +19,7 @@
   "predecessors": [
     {
       "filename": "baseline.client-bundle-disposition.v2.json",
-      "sha256": "95ec272a8957afa27e052f1b591aabfcbae1ef61d8f6264d09f120331e4561a8",
+      "sha256": "780120e22d36bf761ee5b5064b8eef5ae3f39dccf80e8f3f8a04c3113c38d9b3",
       "profileIds": [
         "react-external"
       ]

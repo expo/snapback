@@ -197,6 +197,16 @@ console.log(JSON.stringify({
   assert.equal(manifest.scripts.test, 'node acceptance.mjs');
   assert.equal(manifest.scripts['test:static'], 'node acceptance.static.mjs');
   assert.equal(manifest.scripts['test:live'], manifest.scripts.test);
+  assert.match(
+    readFileSync(join(project, '.gitignore'), 'utf8'),
+    /^node_modules\/$/mu,
+    'the todo starter must keep installed package trees out of release source identity',
+  );
+  assert.equal(
+    existsSync(join(project, 'gitignore.template')),
+    false,
+    'the packed template carrier must materialize only as .gitignore',
+  );
   const todoAgentInstructions = readFileSync(join(project, 'AGENTS.md'), 'utf8');
   assert.match(todoAgentInstructions, /capability index first/u);
   assert.match(todoAgentInstructions, /snapback guide <query>/u);
