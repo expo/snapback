@@ -58,3 +58,33 @@ The derived-fork requalification consumes piece 1+2 (its digest re-scope) and
 should be the first user; do not close this ticket until that requalification
 has landed on the scoped digest and survived at least one subsequent wave
 landing without rotation.
+
+## 2026-08-07 implementation record — pieces 1 and 2
+
+Pieces 1 and 2 are implemented in the publication oracle. A v3 qualification
+digest binds a canonical `implementationScope` from the receipt itself; the
+derived-fork scope is `src/`, Cargo/build/submodule authority, and the two
+publication-checker modules. Ambient v2 receipts remain readable while
+withheld, but cannot publish without a fresh scoped qualification.
+
+The exact nine wave-shared leaves behind the withdrawn 2026-08-07 digest now
+transfer to registered canonical gates:
+
+- `tests/agent_safe_publication_checker_v1.mjs` →
+  `agent-safe-publication-fixtures`;
+- `tests/ci_workflows_v0.mjs` → `ci-workflow-fixtures`;
+- both versioned-seed conformance scripts and
+  `tests/local_proof_inventory_v0.mjs` → `local-proof-inventory`;
+- the four changed client-bundle baseline ledgers →
+  `client-bundle-metrology`.
+
+The transfer validator refuses a missing or falsely named gate. Combined-tree
+evaluation now returns `stands` with enumerated out-of-scope drift, or
+`invalid` with enumerated scoped drift. Fixtures prove both directions and
+reproduce all nine wave changes standing while a one-byte `src/` change
+refuses.
+
+Piece 3 (battery-red ticket automation) remains open. The live storage and
+derived-fork anchors remain `withheld`; the upcoming requalification must mint
+a fresh C, v3 receipt, evidence, reviews, and named-author acceptance before
+any publication state changes.

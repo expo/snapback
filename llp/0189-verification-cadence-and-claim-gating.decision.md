@@ -15,7 +15,11 @@ LLP 0175 Acceptance #10 and D2.4 re-scoped in the same landing.) 2026-08-07
 (round-2 delta review, dual-READY: convergent minors only — signature-slug
 ticket filenames, pending-marker escalation mirror, D-4 categorical sentence
 qualified by semantic role, D-6 "eligible" wording, derived-fork sequencing
-repair, legacy-digest temporary-scope fallback.)
+repair, legacy-digest temporary-scope fallback.) 2026-08-07
+(D-3/D-4 implemented: claim-scoped v3 digests, nine-file coverage
+transfer to registered canonical gates, and stands/invalid snapshot
+classification — see the implementation ticket; battery-red automation,
+piece 3, remains open.)
 **Related:** LLP 0005, LLP 0010, LLP 0061, LLP 0154, LLP 0158, LLP 0162, LLP
 0175, LLP 0185,
 issues/20260807-derived-fork-publication-wave-drift-requalification.md,
@@ -219,6 +223,7 @@ decision; extra strictness is opt-in per claim, never ambient.
   D2.4 release-claim sentence to the D-6 form, with the exact-current
   telemetry authority explicitly preserved under D-7 — done in this landing.
 - `scripts/check-agent-safe-publication.mjs` digest scoping (D-4) and
-  snapshot/withdrawal semantics (D-3), plus battery-red ticket automation
-  (D-1) — `issues/20260807-llp-0189-claim-snapshot-implementation.md`.
+  snapshot/withdrawal semantics (D-3) — implemented 2026-08-07; battery-red
+  ticket automation (D-1) remains open in
+  `issues/20260807-llp-0189-claim-snapshot-implementation.md`.
 - Ticket amendments (requalification, npm promotion) — done in this landing.
