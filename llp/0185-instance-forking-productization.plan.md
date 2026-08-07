@@ -6,7 +6,7 @@
 experience, Developer experience, CLI, MCP, Documentation, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-05
-**Revised:** 2026-08-06 (author-directed Phase 6 publication result: Charlie accepted LLPs 0163–0165, authorized the exact acceptance fixture, and confirmed exactly `macos/aarch64` plus `linux/x86_64` release profile; the nine-item receipt, final carrier, and source anchor publish only the local/partial contributor-source `operating.instance-forks` guide claim. Item 2 and the normal-installation exit remain open; the target-manifest tuple, public package, hosted targets, promotion/merge-back, process containment, and broader agent-safe-storage facts remain `Missing` or explicit nonclaims); 2026-08-06 (execution reconciliation — body dated to the landed implementation: Phase 1 automatic expiry and `fork recover`, Phase 3 renewal and resource limits, Phase 4's completeness upgrade, and Phase 5's live asset lifecycle are marked implemented; stale guide-absent/recovery-unwired/asset-refusal claims corrected. Phase 6 outcome recorded: qualification commit 0ee1fadc1, dual-family READY over three review rounds, dual-platform row-13 receipts and executable suites, a digest-bound nine-item witness chain — but NOT published. `operating.instance-forks` stays target `none` and the manifest tuple stays `Missing` on three author-gated items: 0163/0164/0165 acceptance, the author-acceptance artifact, and the claimed platform set. Released-binary/npm parity remains open Phase 6 work, not re-scoped. Phases 7 and 8 remain deferred.); 2026-08-05 (Phase 0 items 2/6 closed by author ruling: LLP
+**Revised:** 2026-08-07 (v2 Phase 6 publication at qualification C `ad0ad58748981010204b61eb5002e35b887a5093`: all four contiguous 12-round histories end dual-family `READY`; Charlie's v2 acceptance binds their heads, the complete evidence set, and the recomputed v2 implementation digest; the anchor publishes only the local/partial contributor-source guide row for exactly `macos/aarch64` and `linux/x86_64`. Phase 6 item 2 and normal-installation remain open, while the target-manifest tuple, public package, hosted/Cloudflare/remote targets, promotion/merge-back, and process containment remain `Missing` or explicit nonclaims); 2026-08-06 (author-directed Phase 6 publication result: Charlie accepted LLPs 0163–0165, authorized the exact acceptance fixture, and confirmed exactly `macos/aarch64` plus `linux/x86_64` release profile; the nine-item receipt, final carrier, and source anchor publish only the local/partial contributor-source `operating.instance-forks` guide claim. Item 2 and the normal-installation exit remain open; the target-manifest tuple, public package, hosted targets, promotion/merge-back, process containment, and broader agent-safe-storage facts remain `Missing` or explicit nonclaims); 2026-08-06 (execution reconciliation — body dated to the landed implementation: Phase 1 automatic expiry and `fork recover`, Phase 3 renewal and resource limits, Phase 4's completeness upgrade, and Phase 5's live asset lifecycle are marked implemented; stale guide-absent/recovery-unwired/asset-refusal claims corrected. Phase 6 outcome recorded: qualification commit 0ee1fadc1, dual-family READY over three review rounds, dual-platform row-13 receipts and executable suites, a digest-bound nine-item witness chain — but NOT published. `operating.instance-forks` stays target `none` and the manifest tuple stays `Missing` on three author-gated items: 0163/0164/0165 acceptance, the author-acceptance artifact, and the claimed platform set. Released-binary/npm parity remains open Phase 6 work, not re-scoped. Phases 7 and 8 remain deferred.); 2026-08-05 (Phase 0 items 2/6 closed by author ruling: LLP
 0158's local design is Accepted after its independent review; the Phase 6
 publication mechanism is the LLP 0061 guide capability-index claim, so
 Phase 6 item 1's gate set binds to the capability-index row rather than an
@@ -629,6 +629,32 @@ This result does **not** complete all of Phase 6. Item 2 — released-binary and
 npm-distributed tooling parity — remains open, as does the exit clause that a
 normal installation rather than a source checkout can follow the guide and
 pass the same workflow. Those conditions were not re-scoped by publication.
+
+#### Phase 6 v2 publication result — 2026-08-07
+
+Qualification C is
+`ad0ad58748981010204b61eb5002e35b887a5093`, with implementation digest version
+`snapback:agent-safe-implementation-tree:v2` and recomputed digest
+`sha256:fc6e3e58453b4700ce06c647aaef87132879e0da336e560eca834d1d42c5459a`.
+The pre-existing canonical lifecycle receipts bind C on exactly
+`macos/aarch64` and `linux/x86_64`, both release profile. The four structured
+Codex/Fable histories are contiguous through round 12 and every round-12 head
+names C with Scope 1 and Scope 2 `READY`. The v2 named-author acceptance binds
+those four heads, every non-self evidence digest, the v2 implementation
+digest, candidate facts, and qualified component. The final receipt, carrier,
+and anchor publish `operating.instance-forks` only as target `local`, maturity
+`partial`, through the LLP 0061 guide row and its dated digest-bound witness.
+
+The result is finite-TTL, fail-closed, non-promotable, and host-mediated; it
+claims no process or OS containment, hosted/Cloudflare/remote target,
+promotion or merge-back, public package, released-binary/npm parity, or normal
+installation. Phase 6 item 2 and the normal-installation exit clause remain
+OPEN. Per the Phase 0 ruling, `agent_safe_derived_deployment_fork_v1` stays
+wholly `Missing` in every LLP 0113 target manifest. Publication artifacts are
+unsigned and not transparency-logged; a commit-capable actor fabricating both
+reviewer histories and the named-author acceptance is outside the guarantee.
+The per-round prose-freezing weakness remains filed as
+`issues/20260807-review-prose-history-not-frozen.md`.
 
 ### Phase 7 — Expose bounded agent-control operations
 

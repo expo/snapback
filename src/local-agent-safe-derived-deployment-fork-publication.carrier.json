@@ -1,12 +1,13 @@
 {
-  "schemaVersion": "snapback.local-agent-safe-publication.v1",
+  "schemaVersion": "snapback.local-agent-safe-publication.v2",
   "capabilityId": "agent_safe_derived_deployment_fork_v1",
   "targetProfileId": "local-dev-sqlite-ibex",
   "maturity": "experimental",
-  "qualifiedSourceCommit": "0ee1fadc136e837f430556374a5842ac82069004",
-  "implementationTreeSha256": "sha256:2cad36279fbb319c4b828026c1fc0c2ed2d8ac38bffc14bd2ba39b3849eedf33",
+  "qualifiedSourceCommit": "ad0ad58748981010204b61eb5002e35b887a5093",
+  "implementationDigestVersion": "snapback:agent-safe-implementation-tree:v2",
+  "implementationTreeSha256": "sha256:fc6e3e58453b4700ce06c647aaef87132879e0da336e560eca834d1d42c5459a",
   "candidateFactsSha256": "sha256:b487d69d7a0392626e01f39e7fa81bd85251291c5ed119cd38a6cc30e50bfc88",
-  "qualificationReceiptSha256": "sha256:054b4c5090ad40bd5edca9984bddf679417741a1aa81018b09d3718d13f03e7e",
+  "qualificationReceiptSha256": "sha256:12a5630da0f8ab9d82f7506752c9c2c5a9d434f4d2eae4ca743eeb43a756dc96",
   "buildProvenanceRequirement": "known-clean-contributor-source",
   "candidateFacts": {
     "envelope": {

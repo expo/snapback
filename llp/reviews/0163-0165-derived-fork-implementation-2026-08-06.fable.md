@@ -2813,3 +2813,798 @@ cannot be recovered intact, say so in the gate issue and take a fresh round from
 each family rather than closing the gap by renumbering — and either way, R9-2's
 frozen per-round prose digest is now the fix that would have made this whole
 question answerable by the gate instead of by whoever still has the files.
+
+
+## Round 11 — 2026-08-07, qualification commit a127e9b47
+
+**Family:** fable
+**Provider/runtime:** Anthropic / Claude (Opus 5, Fable family), Claude Code
+agent session
+**Date:** 2026-08-07
+**Redacted:** no
+**Method:** fresh clean-context session; read-only worktree pinned at
+`a127e9b47`. Bounded delta round: verify `fac516e9a..a127e9b47`, attack the
+repaired Rust structural mirror specifically for vacuity, confirm the spliced
+rounds 1–10 are intact, then carry forward or block. I read the committed rounds
+1–10 of both families under `llp/reviews/` and stayed blind to the codex
+family's round-11 work — I did not open
+`/Users/ccheever/projects/snapback-review-codex`. Cargo was not run:
+`vendor/ibex` is uninitialized in this worktree and there is no `target/`, so
+every Rust claim below is static and I say so where it matters. This same
+section is appended to both of my dated fork artifacts; the findings are
+identical.
+
+### Summary
+
+The lifecycle unpinning is sound. It is the right fix, it is not vacuous, and
+the distribution guard was not weakened — it was strengthened. R10-1 is
+resolved: rounds 9 and 10 are spliced into all four histories and rounds 1–8 are
+byte-identical in every field that carries meaning.
+
+But the fix carries a second half that did not land. `src/manifest.rs` changed
+the serde wire spellings of `AgentSafeForkEgressV1` and
+`AgentSafeForkPromotionV1` to `denyAll` / `captureOnly` / `notPromotable` /
+`promotable`, and the four committed schemas those Rust types generate still
+say `DenyAll` / `CaptureOnly` / `NotPromotable` / `Promotable`. `tests/artifact_
+schemas_v0.rs`'s drift gate compares exactly those files against exactly those
+types, and `scripts/verify-local-proof` runs the whole `cargo test`. So C
+appears to fail its own local proof. I record this as **R11-1** and it blocks:
+a qualification commit whose own gate is red cannot certify a publication.
+
+**Scope 1 (LLP 0163/0164/0165 conformance): `READY` at `a127e9b47`.**
+**Scope 2 (derived-fork publication): `NOT_READY` at `a127e9b47`, on R11-1
+alone.** Everything round 9 and round 10 found still holds; this is a one-line
+regeneration away from the READY I would otherwise have re-issued.
+
+### The delta, verified
+
+`fac516e9a..a127e9b47` is nine commits, not two. Seven are ordinary mainline
+(`318d08396` … `dba61a66a`: the 0.1.12 close-out, the strict-URL asset delivery
+work, the CLI skill distribution). Then `e38be3337` (the review splice) and
+`a127e9b47` (the fix). The brief describes only the last two; I checked the rest
+rather than assume the mainline half is inert.
+
+Restricted to the ten `IMPLEMENTATION_ROOTS` entries plus the `vendor/ibex`
+gitlink, the whole nine-commit range is **four files**:
+
+```
+M  src/agent_safe_publication.rs                                    (fix)
+M  src/manifest.rs                                                  (fix, 6 +)
+M  tests/fixtures/client-bundle-metrology/current.v1.json           (mainline)
+A  tests/fixtures/client-bundle-metrology/baseline.asset-delivery-selection.v1.json (mainline)
+```
+
+`vendor/ibex` did not move. Nothing else in `src/`, `tests/`, `Cargo.*`,
+`build.rs`, `packages/snapback-codegen`, `packages/snapback-contract` or the two
+allowlisted scripts changed.
+
+The two metrology files are the same class as round 10's single-file delta and
+inert for the same reason: a declared then frozen `asset-delivery-selection`
+rollover carrying a new baseline plus re-measured `@expo/snapback-react` bytes
+(49 652 → 49 738 minified, and the matching gzip/brotli/`outputSha256` moves).
+Real measurements, not a re-pin this time, but no fork code path reads them.
+
+Outside the roots, the fork surface itself is untouched: `llp/0158`, `llp/0163`,
+`llp/0164`, `llp/0165`, `guide/operating/` and `schemas/` are all byte-identical
+across the range, and the `operating.instance-forks` row in
+`guide/capabilities.md` is still `none` / `partial` / `GAP` — the only edited row
+in that file is `backend.assets`, which gained retrieval keywords. Both anchors
+are still `withheld` with `carrierSha256: null`.
+
+### The lifecycle unpinning, attacked for vacuity
+
+This is what I was asked to break, so I will state the ledger in both
+directions.
+
+**The guard held, and is load-bearing.**
+`derived_fork_publication_verified_for_distribution` is still
+`let _ = build_distribution; false` (`src/agent_safe_publication.rs:257`), and it
+is still consumed by the production declared manifest at
+`src/manifest.rs:11056`, where its value becomes
+`local_agent_safe_derived_fork_publication_v1_verified`. The old test asserted
+only `!derived_fork_publication_verified()` — the ambient-build-distribution
+form. The new test asserts the predicate false for *both*
+`BUILD_DISTRIBUTION_CONTRIBUTOR_SOURCE` and `BUILD_DISTRIBUTION_PUBLIC_PACKAGE`
+explicitly. That is strictly stronger. Yes, it is trivially true today because
+the function is a constant — that is the point of it: it is the tripwire that
+fires the moment someone wires the predicate to the JSON chain, which is
+precisely the act the whole design forbids. Note also that
+`DERIVED_FORK_ANCHOR_BYTES` and the new `DERIVED_FORK_CARRIER_BYTES` are both
+`#[cfg(test)]`, so the production binary does not even embed the derived chain.
+
+**The Missing tuple check is real.** The test compares
+`manifest.agent_safe.target.forks.derived_deployment` and
+`manifest.agent_safe.app_effective.forks.derived_deployment` against
+`AgentSafeCapabilityFactsV1::missing().forks.derived_deployment`, which is
+independently constructed at `src/manifest.rs:11586` as all four axes `Missing`.
+`AgentSafeForkAxesV1` derives `PartialEq` over all four fields, so this is a
+whole-tuple equality against a constant that does not move when the manifest
+does — it is not a self-comparison. It additionally requires `DERIVED_FORK_ID`
+present in `capability_gaps` and absent from `supported_capabilities`.
+
+**The withheld/published split is not trivially satisfiable.** About twenty-five
+assertions run in *both* states, on the live records, through closed
+`deny_unknown_fields` structs: the three capability ids, anchor schema, carrier
+and receipt schema each pinned to a known v1-or-v2 pair with the
+`implementationDigestVersion` presence that each version implies, the two
+versions forced equal to each other, target profile, `experimental` maturity,
+`known-clean-contributor-source` provenance, source-commit shape, carrier↔receipt
+equality of commit / tree digest / candidate-facts digest, exact candidate-facts
+equality against `derived_fork_target_candidate()`, the candidate digest
+recomputed over the Rust canonical bytes, the qualified and both negative target
+profiles, the negative build distribution, the component list, and all thirteen
+evidence locator kinds and paths in order. Only then does the anchor state
+select a branch, and each branch asserts something the other cannot satisfy:
+`Withheld` requires `carrierSha256: null`; `Published` requires both schemas at
+v2, `carrier.qualificationReceiptSha256 == sha256(receipt bytes)`,
+`anchor.carrierSha256 == sha256(carrier bytes)`, a non-zero commit and non-zero
+tree and candidate digests. The helper *returns* the state and both synthetic
+calls assert the expected discriminant, so a fixture that silently landed in the
+wrong branch fails rather than passing quietly. The published fixture is a real
+published chain (anchor `Published`, both schemas v2, all three digests bound),
+and it is fed to `publication_verified_for` in the same test, which still
+demands v2 schemas and the full tuple.
+
+**What was genuinely loosened, and why I accept it.** Two assertions moved into
+the `Published` arm only: `is_nonzero_sha256` on the receipt's digests and
+evidence bindings, and the carrier→receipt byte binding. I checked whether that
+hides anything today. It does not hide the digests — the live receipt's tree and
+candidate digests are non-zero anyway. It does hide one real mismatch: the live
+carrier's `qualificationReceiptSha256` is
+`sha256:054b4c5090ad40bd…`, and `sha256` of the live receipt bytes is not that
+value. But that mismatch is structural and unavoidable in the withheld state,
+because the receipt's own evidence list binds the four review artifacts, whose
+digests rotate every time a family appends a round — including this one.
+Asserting that binding under `withheld` would rebuild exactly the cycle this
+commit exists to break. I record it as a fact, not a finding.
+
+**One thing the repair fixes that round 10 (mine) missed.** Before this commit
+the Rust `AgentSafeForkEgressV1`/`AgentSafeForkPromotionV1` had no serde
+renames, so they deserialized `"DenyAll"`, while the live carrier's
+`candidateFacts.forks.derivedDeployment` has said `"denyAll"` /
+`"notPromotable"` all along and `scripts/check-agent-safe-publication.mjs` reads
+it that way. At `fac516e9a` the Rust mirror could not have parsed the very
+carrier it certifies; `publication_verified_for` would have failed closed on the
+parse. The sibling axes (`AgentSafeForkBaseV1`, `AgentSafeForkIsolationV1`)
+already carried lower-camel renames, so this was an inconsistency inside one
+enum family. The direction of the fix is right and I have no objection to it.
+
+### R11-1 — the serde rename did not reach the four generated schemas (blocking)
+
+`a127e9b47` renames four enum variants in `src/manifest.rs` and changes no file
+under `schemas/`. At C, all four of
+
+- `schemas/capability.manifest.schema.json`
+- `schemas/inspect.schema.json`
+- `schemas/inspect.public.schema.json`
+- `schemas/inspect.admin.schema.json`
+
+still carry `"AgentSafeForkEgressV1": {"enum": ["Missing", "DenyAll",
+"CaptureOnly"]}` and `"AgentSafeForkPromotionV1": {"enum": ["Missing",
+"NotPromotable", "Promotable"]}`.
+
+Those four files are generated from these exact Rust types —
+`src/schema_export.rs:173` (`capability.manifest.schema.json` from
+`CapabilityManifest`), `:668`, `:743`, `:773` — and
+`tests/artifact_schemas_v0.rs::dk7_committed_schemas_match_rust_types` asserts
+`committed(file) == generated` for every entry of `artifact_schemas()`, with the
+message "regenerate with `cargo run --bin snapback-schemagen`".
+`scripts/verify-local-proof:323` runs the full `cargo test`.
+
+I could not compile here, so I did not observe the failure. The static case is:
+
+1. schemars honours `#[serde(rename)]` in this codebase, one-to-one. Renamed
+   variants appear renamed in the committed schemas (`currentHead`,
+   `namedCheckpoint`, `hostMediated`, `endToEnd`, `verifiedCopyFidelity`);
+   unrenamed ones appear PascalCase (`RecordedInventory`,
+   `IndependentBoundaryProof`, `Covered`, `Exact`). There is no counterexample
+   in the file.
+2. Precedent: `9b485fdb4`, the commit that introduced this enum family, touched
+   `src/manifest.rs` and all four schema files together.
+3. The drift gate is a plain `assert_eq!` on `serde_json::Value`; enum members
+   are values, so `sorted_keys` and the `$id` stamp cannot absorb the change.
+
+Falsify or confirm in one command:
+`cargo test --test artifact_schemas_v0 dk7_committed_schemas_match_rust_types`.
+If it passes at `a127e9b47`, R11-1 is wrong and my Scope 2 verdict should be
+read as the `READY` the rest of this section supports.
+
+Repair: `cargo run --bin snapback-schemagen` and commit the four schemas. Worth
+noting for the sequencing — `schemas/` is **not** in `IMPLEMENTATION_ROOTS`, so
+the repair does not rotate the implementation digest and does not invalidate any
+digest already computed at C. It does still need a commit, and the last verdict
+entry in each history must name the qualification commit, so it produces a new C
+and a round 12 unless the drift gate is shown green at this one. That is
+annoying and it is still the right order: the alternative is publishing from a
+commit whose own proof is red.
+
+Two smaller notes attached to the same cause, neither blocking: no committed
+capability-manifest *instance* carries a positive fork axis (every one is
+`Missing`), so no instance drifted; and `schemas/branch.receipt-v1.schema.json`,
+LLP 0164's own wire projection, already said `denyAll` and is unaffected.
+
+### R10-1 is resolved; the spliced histories are intact
+
+`e38be3337` appends 710 lines to each fable prose artifact and 306 to each codex
+one, and deletes nothing — in each of the four prose diffs the only `-` line is
+the header — so the round-9 and round-10 sections are pure appends. In the
+sidecars, rounds 1–8 are
+unchanged in `round`, `reviewedCommit`, `family`, `verdict` and `reviewArtifact`
+in both of my histories; only `reviewArtifactSha256` and the chained
+`previousEntrySha256` moved, which is forced by the prose append and is exactly
+what R9-2 describes.
+
+Re-derived independently at C, all four histories: canonical JSON under the
+checker's `JSON.stringify(value, null, 2) + "\n"` rule; ten entries; rounds
+strictly `1 … 10`; `previousEntrySha256` chain reproduces from
+`sha256(JSON.stringify(entry, null, 2) + "\n")` at every link; and every entry's
+`reviewArtifactSha256` equals the current digest of its prose artifact. My own
+round-9 and round-10 verdicts read back as recorded (Scope 1 `READY`, Scope 2
+`READY` at `42f699749` and `fac516e9a`). Nothing was altered under cover of the
+splice.
+
+### Carried forward, unchanged
+
+- **R9-1** — the two platform lifecycle receipts bind `17366d2a4`, not C.
+  Material, not blocking, closed by the P-time re-mint. Still true at C; the
+  derived receipt's `qualifiedSourceCommit` is still `0ee1fadc1`, which is the
+  expected pre-publication state, not a finding.
+- **R9-2** — `reviewArtifactSha256` is a current-state binding, so the chain
+  cannot attest what an earlier round said, or notice a round removed from the
+  record. Filed as `issues/20260807-review-prose-history-not-frozen.md`. This
+  round is the third consecutive one to depend on that weakness being benign.
+- The `build.rs` allowlist mirror test could be made two-directional.
+
+### Scope 1 verdict — LLP 0163 / 0164 / 0165 conformance
+
+**`READY` at `a127e9b47` for all three Specs.** The three Specs, LLP 0158, the
+fork sources, the fork suites, `schemas/` and the governing guide pages are
+byte-identical across the delta. The only fork-adjacent change is the serde
+spelling of two capability-registry enums, which belongs to LLP 0158's registry
+record and LLP 0162 §8, not to 0164's owned artifacts, and which moves the Rust
+mirror *towards* the tuple the Specs and the carrier already document. R11-1 is
+a generated-artifact regeneration defect, not a spec-conformance defect. As in
+round 10, I did not re-derive conformance from the Specs and could not execute
+the Rust fork suites; if the surface changes, this verdict does not carry.
+
+### Scope 2 verdict — derived-fork publication
+
+**`NOT_READY` at `a127e9b47`, on R11-1 alone.**
+
+I want to be precise about how narrow this is, because it is not a retraction of
+round 9 or round 10. The oracle is unchanged. The anchors and the guide row are
+withheld. The distribution guard is intact and now better tested. The digest
+chain is still parameterised rather than hard-coded, and the lifecycle
+self-cycle that stopped the last publication really is closed — I attacked the
+replacement for vacuity and it survived. If the four schemas are regenerated,
+everything I checked this round supports `READY`.
+
+What I cannot do is sign a publication whose qualification commit does not pass
+its own local proof. The publication's entire claim is that C was qualified;
+`scripts/verify-local-proof` runs `cargo test`, and on the static evidence above
+the drift gate in `tests/artifact_schemas_v0.rs` — a file inside
+`IMPLEMENTATION_ROOTS`, failing because of a change to another file inside
+`IMPLEMENTATION_ROOTS` — is red at C. That is a defect of C, introduced by the
+commit under review, and it is mine to report. The remaining P-time ceremony is
+unchanged and still not mine to supply: both platform lifecycle receipts and the
+fork receipt/carrier re-minted at the qualification commit, the codex family's
+own round naming it, and Charlie's new v2 acceptance binding the four history
+heads, the evidence digest set and the implementation digest.
+
+### Verification actually performed
+
+- `git log`, `git diff --stat` and `--name-status` for
+  `fac516e9a..a127e9b47`, whole-repo and restricted to the ten
+  `IMPLEMENTATION_ROOTS` entries plus `vendor/ibex`; full read of both fix
+  commits and of `e38be3337`'s stat.
+- Full read of the `src/agent_safe_publication.rs` diff and of the surrounding
+  production predicates (`derived_fork_publication_verified_for_distribution`,
+  `embedded_publication_verified`, `publication_verified_for`), plus the two
+  call sites in `src/manifest.rs`.
+- Read of `AgentSafeCapabilityFactsV1::missing()` and the four fork-axis enums;
+  confirmed `AgentSafeForkBaseV1`/`AgentSafeForkIsolationV1` already carried
+  lower-camel renames.
+- Live anchor / carrier / receipt read and cross-checked by hand: schemas,
+  `implementationDigestVersion` absence, commit / tree / candidate-facts digest
+  equality across carrier and receipt, the thirteen evidence locators, and the
+  carrier→receipt digest mismatch noted above.
+- `schemas/{capability.manifest,inspect,inspect.public,inspect.admin}.schema.json`
+  parsed and the fork-axis and proof-class enums extracted; cross-referenced
+  against `src/schema_export.rs` and `tests/artifact_schemas_v0.rs`; repo-wide
+  search for the PascalCase spellings and for positive fork axes in committed
+  instances; `git log -S` to find the introducing commit and its file set.
+- Independent re-derivation of all four verdict histories: canonicality, round
+  contiguity, `previousEntrySha256` chain, and `reviewArtifactSha256` against
+  the current prose digests; field-by-field comparison of rounds 1–8 across
+  `fac516e9a` and C.
+- Read of the metrology delta and of `guide/capabilities.md`'s changed row.
+- Not done: any `cargo` command (`vendor/ibex` uninitialized, no `target/`) —
+  so R11-1 is asserted statically and explicitly falsifiable; the round-9
+  adversarial corpus and satisfiability construction (deliberately not re-run,
+  bounded delta round); any de-novo derivation of spec conformance.
+
+### Recommended next step
+
+Run `cargo run --bin snapback-schemagen`, commit the four regenerated schemas,
+and re-run `cargo test --test artifact_schemas_v0`. If that is the only red
+gate, the resulting commit is the C to take to both families for a short round
+12, and I expect my Scope 2 verdict there to be `READY` on this record. If the
+drift gate is instead green at `a127e9b47`, R11-1 is wrong and my recorded
+`NOT_READY` was unjustified: do not reinterpret the sidecar entry — record the
+falsifying command output and take a fresh short round from each family at this
+same C, which costs one round and leaves the chain honest. I would rather be
+shown wrong by one command than have blocked a sound publication.
+
+## Round 12 — 2026-08-07, qualification commit ad0ad5874
+
+**Family:** fable
+**Provider/runtime:** Anthropic / Claude (Opus 5, Fable family), Claude Code
+agent session
+**Date:** 2026-08-07
+**Redacted:** no
+**Method:** fresh clean-context session; read-only worktree pinned at
+`ad0ad5874`, clean. Bounded delta round: verify that the two repairs to R11-1
+are complete and correct, hunt specifically for a third artifact generated from
+or declared against the renamed types that neither family found, verify the
+delta over `IMPLEMENTATION_ROOTS` plus the `vendor/ibex` gitlink, and confirm
+the round-11 structural conclusions carry. I read the committed rounds 1–10 of
+both families under `llp/reviews/`, plus my own round-11 section (see the note
+below on where it was), and stayed blind to the codex family's round-12 work — I
+did not open `/Users/ccheever/projects/snapback-review-codex`. Cargo was not
+run: `vendor/ibex` is uninitialized here and there is no `target/`, so every
+Rust-execution claim below is static and I say so where it matters. This same
+section is appended to both of my dated fork artifacts; the findings are
+identical.
+
+### Summary
+
+**Both repairs are complete and correct, and I checked rather than assumed.**
+The four regenerated schemas now agree with the Rust serde renames exactly; the
+TypeScript fork unions do too; nothing else drifted; the delta over
+`IMPLEMENTATION_ROOTS` is a single two-line hunk; the distribution guard is
+still hard-false for both build kinds; the lifecycle-independent test is still
+non-vacuous. R11-1 is closed. On the record I built this round, Scope 2 is the
+`READY` my round 11 said it would be.
+
+**And there is a third stale artifact.** The brief asked me to assume one exists
+rather than trust the two-item list, and one does — in the same file as the
+second, twelve lines below it. `packages/snapback-codegen/index.d.mts` declares
+`AgentSafeCapabilityFactsV1.envelope` and `.explanation` in a shape the Rust
+types abandoned on 2026-08-04 at `b6a668a74`, three days and one whole
+capability vocabulary ago. It is not an enum-spelling drift; it is shape drift,
+and it is strictly larger than the one Codex caught. I record it as **R12-1**.
+
+I do not block on it, and I want to be explicit about why, because the
+distinguishing line matters more than the verdict: R11-1 was a defect
+*introduced by the commit under review*, inside the fork surface, that made a
+gate in `scripts/verify-local-proof` red at C. R12-1 is a pre-existing defect in
+an adjacent surface (the LLP 0162 storage vocabulary), it does not touch the
+fork tuple — which is now correct in that file — and it breaks no gate, because
+nothing gates that file at all. That last clause is the real finding, and it is
+why this happened twice in one week: `packages/snapback-codegen/index.d.mts` is
+inside `IMPLEMENTATION_ROOTS` and has no drift gate, while `schemas/` — outside
+the roots — has `dk7_committed_schemas_match_rust_types`. The protection is on
+the wrong file.
+
+**Scope 1 (LLP 0163/0164/0165 conformance): `READY` at `ad0ad5874`.**
+**Scope 2 (derived-fork publication): `READY` at `ad0ad5874`,** subject to the
+unchanged P-time ceremony and to **R12-2** below.
+
+### The delta, verified
+
+`a127e9b47..ad0ad5874` is two commits and **five files**, whole-repo:
+
+```
+M  packages/snapback-codegen/index.d.mts     (2 +, 2 -)   ad0ad5874
+M  schemas/capability.manifest.schema.json   (5 +, 4 -)   3664973bc
+M  schemas/inspect.schema.json               (5 +, 4 -)   3664973bc
+M  schemas/inspect.public.schema.json        (5 +, 4 -)   3664973bc
+M  schemas/inspect.admin.schema.json         (5 +, 4 -)   3664973bc
+```
+
+Restricted to the ten `IMPLEMENTATION_ROOTS` entries plus the `vendor/ibex`
+gitlink, it is **one file** — the two-line `index.d.mts` hunk. There is no
+mainline churn in this delta at all, in or out of the roots; unlike rounds 10
+and 11 there are no metrology fixtures, no lockfile re-pins, nothing to
+adjudicate. `vendor/ibex` is `4c34c831aa087d6783b0d68f281cdb374ed7fc89` at both
+commits, the same value every round since `cdc0fe03e`. `src/`, `tests/`,
+`Cargo.*`, `build.rs`, `packages/snapback-contract` and the two allowlisted
+scripts are byte-identical across the range, and so are `llp/0158`, `llp/0163`,
+`llp/0164`, `llp/0165`, `guide/` and every schema except the four.
+
+The digest arithmetic the brief describes is exactly right, and I recomputed it
+through the shipped `implementationDigestAt` rather than taking it:
+
+```
+a127e9b47  sha256:0b5d8e7f88cf7899d8c1d53aac04a331da0fa8e2a147c17e55625af0e52ee577
+3664973bc  sha256:0b5d8e7f88cf7899d8c1d53aac04a331da0fa8e2a147c17e55625af0e52ee577   (unchanged — schemas/ is outside the roots)
+ad0ad5874  sha256:fc6e3e58453b4700ce06c647aaef87132879e0da336e560eca834d1d42c5459a   (rotated — packages/snapback-codegen is inside)
+```
+
+So C moved for the second repair and not the first, which is the correct
+behaviour of a digest that is parameterised by a declared root set.
+
+### Repair 1 — the four schemas
+
+The schema half is right, and the diff carries its own proof that it was
+machine-regenerated rather than hand-patched. `a127e9b47` added exactly six
+lines to `src/manifest.rs`: four `#[serde(rename = …)]` attributes and a
+two-line `/// @ref LLP 0158#capability-registry-record` doc comment above
+`AgentSafeForkEgressV1`. Each of the four regenerated schema files shows exactly
+that and nothing else — the four enum members respelled, plus a new
+`"description"` on `AgentSafeForkEgressV1` whose text is verbatim the doc
+comment, inserted in the correct sorted-key position. A hand-editor fixing an
+enum does not invent a description; schemars does. The four files' committed
+state now says `["Missing","denyAll","captureOnly"]` and
+`["Missing","notPromotable","promotable"]`, matching
+`src/manifest.rs:11275`/`11284` variant-for-variant.
+
+I did not stop at the four fork enums, because R11-1 was a case of a regeneration
+that reached one artifact class and not another, and the same run could have
+been partial in the other direction. I parsed all 242 committed
+`schemas/*.schema.json` files, extracted all **198** enum definitions, parsed
+every `JsonSchema`-deriving unit enum under `src/` including multi-line derive
+attributes and `rename_all`, and compared them: **194 compared, 0 mismatches.**
+The four unpaired names are `control-catalog.v1.schema.json`'s
+`SurfaceAccess`/`Operability`/`ApprovalPosture`/`RouteClassDomain`, which have
+no Rust unit-enum counterpart in `src/`. One cross-schema name collision turned
+up — `EffectSettlementCapabilityV1` denotes two different Rust types, the
+five-variant `src/commit_envelope.rs` one and the three-variant
+`src/fork_promotion.rs` one — and each schema matches *its own* source, so it is
+a naming hazard in the schema namespace rather than a drift. I record it as a
+nit and nothing more; it is pre-existing and outside this delta.
+
+I could not compile, so I did not observe `dk7_committed_schemas_match_rust_types`
+pass, and I am not claiming I did. The static case that it passes is: the only
+schema-affecting Rust change since the last green C is those six lines
+(`src/agent_safe_publication.rs`, the other file `a127e9b47` touched, contains
+no `JsonSchema`-deriving type and is not referenced by `src/schema_export.rs`);
+the four files reflect those six lines exactly and completely; and every enum in
+every committed schema agrees with its Rust source. Falsify or confirm with the
+same one command I named in round 11:
+`cargo test --test artifact_schemas_v0 dk7_committed_schemas_match_rust_types`.
+
+### Repair 2 — the TypeScript unions, and what it did not cover
+
+`ad0ad5874` corrects the two unions Codex caught. All four fork axes in
+`packages/snapback-codegen/index.d.mts` now read `'Missing' | 'denyAll' |
+'captureOnly'`, `'Missing' | 'notPromotable' | 'promotable'`, `'Missing' |
+'currentHead' | 'namedCheckpoint'`, `'Missing' | 'hostMediated' | 'endToEnd'` —
+the last two were already correct, which is what made the first two an
+inconsistency inside one enum family rather than a whole-family miss.
+
+I then compared every string-literal union alias in that file against the
+generated schemas mechanically: **11 unions, 10 with a schema counterpart, 0
+mismatches.** (`SnapbackTargetProfile` is codegen-local and has no schema
+definition.) So on the enum axis the file is now fully aligned.
+
+That is where the two-item list ends and R12-1 begins.
+
+### R12-1 — a third stale declaration in the same file (Material; not blocking)
+
+`packages/snapback-codegen/index.d.mts:185–222` declares
+
+```ts
+export interface AgentSafeCapabilityFactsV1 {
+  readonly envelope: Readonly<{
+    ordinaryIbexMutation: AgentSafeEnvelopeCoverageV1;
+    hostPlanSettlement: AgentSafeEnvelopeCoverageV1;
+    migration: …; durableBackgroundWork: …; push: …; auth: …;
+  }>;
+  readonly explanation: Readonly<{
+    ordinaryIbexMutation: AgentSafeExplanationClassV1;
+    hostPlanSettlement: AgentSafeExplanationClassV1;
+    migration: …; durableBackgroundWork: …; push: …; auth: …;
+  }>;
+  …
+}
+```
+
+The Rust types, and therefore the four generated schemas, say something else:
+
+- `envelope` is `AgentSafeEnvelopeCoverageByScopeV1` —
+  `{ordinaryMutation, hostChildMutation, migration, durableBackgroundWork, push,
+  auth}`, where the first two are not scalars at all but
+  `AgentSafeEnvelopeCoverageByAdapterV1` objects `{hostPlan, ibexBuffered}`. So
+  two of the six keys have the wrong *name* and the wrong *type*.
+- `explanation` is `AgentSafeExplanationFactsV1` — `{scopedFacts:
+  AgentSafeScopedExplanationFactV1[]}`, a sparse array projection. The declared
+  six-key per-lane map does not exist anywhere. The whole
+  `AgentSafeExplanationScopeV1` / `…ProfileV1` / `…AccessV1` /
+  `…AdapterV1` / `…LogicalLaneV1` vocabulary those entries carry is absent from
+  the declaration file entirely.
+
+The live evidence agrees with the schemas, not the declaration:
+`src/local-agent-safe-derived-deployment-fork-publication.carrier.json`'s
+`candidateFacts.envelope` is
+`{ordinaryMutation:{hostPlan,ibexBuffered}, hostChildMutation:{hostPlan,ibexBuffered}, …}`
+and its `explanation` is `{scopedFacts: []}`.
+
+I dated it. `b6a668a74` ("Register agent-safe storage capability vocabulary",
+2026-08-04) reshaped these two members in `src/manifest.rs` and regenerated all
+four schemas — 222 changed lines in each — and did not touch
+`packages/snapback-codegen/index.d.mts`, which has carried the `9b485fdb4`
+scaffold shape ever since. `b6a668a74` is an ancestor of C. The dead key names
+`ordinaryIbexMutation` and `hostPlanSettlement` appear nowhere else in the
+repository — four lines in one file, referenced by nothing.
+
+I bounded it rather than leaving it open-ended. Comparing every `AgentSafe*`
+interface in the declaration file against its schema definition, key set by key
+set: `AgentSafeExplanationClassV1`, `AgentSafeForkAxesV1`,
+`AgentSafeCapabilityExtensionV1` and the ten top-level members of
+`AgentSafeCapabilityFactsV1` all match; of the nested members, `forks`, `diff`,
+`replay`, `aggregate`, `history`, `proof`, `schemaEvolution` and
+`resourceBounds` all match the schema exactly, including the two replay
+sub-enums. **Exactly two members are stale, both from `b6a668a74`. There is no
+fourth.** `TargetCapabilityManifest` is a deliberate partial view — every key it
+declares exists in the schema and it declares no key the schema lacks — so it is
+not drifted, just narrow.
+
+Why this is Material and not blocking:
+
+- It is not in the fork surface. `forks`, `AgentSafeForkAxesV1` and all four
+  fork axis unions are correct at C. A TypeScript consumer reading the derived
+  fork tuple — which is the entire subject of this publication — gets correct
+  types.
+- It breaks no gate. Unlike R11-1, nothing in `scripts/verify-local-proof`,
+  `tests/` or `build.rs` compares this file to anything, so C's own proof is not
+  red on its account. I checked: the only references to `index.d.mts` anywhere
+  are `package.json` `types:` fields.
+- Nothing in the publication chain reads it. The checker, the Rust mirror, the
+  anchor, the carrier and the receipt bind its *digest* as one leaf of the
+  qualified tree; the claim is "this is the tree that was qualified", not "every
+  declaration in this tree is correct".
+- The storage capability whose vocabulary it mis-declares is `withheld` and
+  unpublished, so no published claim depends on it.
+
+If the author prefers the stricter standard — no declared-type drift anywhere in
+`IMPLEMENTATION_ROOTS` at a qualification commit — this is a four-line fix, it
+rotates the implementation digest again, and it costs a round 13. I would not
+object to that ruling. I am simply not making it on my own authority, because
+blocking a sound publication on a three-day-old defect in an adjacent surface
+that no gate checks and no claim depends on would be scope creep, and the last
+two rounds have each cost a C.
+
+**The structural repair worth a ticket, independent of the above.**
+`packages/snapback-codegen/index.d.mts` is a hand-maintained mirror of Rust
+types, sits inside `IMPLEMENTATION_ROOTS`, and has no drift gate — while
+`schemas/`, which sits *outside* the roots, has a byte-exact one. That asymmetry
+is the reason this file has now produced two findings in two rounds from two
+families, and it will produce more. The gate is cheap: the comparison that found
+R12-1 is about twenty lines of Node that reads the committed
+`capability.manifest.schema.json` and the declaration file and diffs the union
+members and interface key sets. It runs in under a second, needs no Rust
+toolchain, and would have caught both the Codex round-11 finding and this one at
+authoring time. Second-best is to generate the declaration from the schema. Note
+the sequencing consequence either way: any fix to this file rotates C, so it
+wants to land in a cycle that is already taking a new C, exactly as R9-2 was
+deferred for the same reason.
+
+### The round-11 conclusions carry
+
+**The distribution guard is still hard-false for both build kinds.**
+`derived_fork_publication_verified_for_distribution` at
+`src/agent_safe_publication.rs:257` is still `let _ = build_distribution;
+false`, and `derived_fork_publication_is_unpublished_and_gap_marked` still
+asserts it false for both `BUILD_DISTRIBUTION_CONTRIBUTOR_SOURCE` and
+`BUILD_DISTRIBUTION_PUBLIC_PACKAGE` explicitly, in a loop, in addition to the
+ambient `derived_fork_publication_verified()` form. `src/` is byte-identical
+across this delta, so this is the same text round 11 attacked, not a re-reading
+of a changed one. `exact_storage_chain_qualifies_without_minting_derived_authority`
+still re-asserts the same predicate false after a *successful* storage
+publication, which is the cross-capability leak check.
+
+**The lifecycle-independent test is still non-vacuous** — same file, same bytes,
+same argument as round 11: the Missing-tuple comparison is against an
+independently constructed `AgentSafeCapabilityFactsV1::missing()` rather than
+against the manifest, `AgentSafeForkAxesV1` derives `PartialEq` over all four
+fields, roughly twenty-five assertions run in both anchor states before the
+branch, and each branch demands something the other cannot satisfy. I did not
+re-run round 11's vacuity attack, because nothing it depends on moved.
+
+**The chain is otherwise where round 11 left it.** Both anchors are still
+`withheld` with `carrierSha256: null`. The `operating.instance-forks` row in
+`guide/capabilities.md` is unchanged — `none` / `partial` / `GAP`, with the
+explicit "this source evidence is not a claim". `node --test
+tests/agent_safe_publication_checker_v1.mjs` at C is **66 pass, 0 fail**,
+identical to rounds 10 and 11.
+
+One thing I verified this round that earlier rounds asserted structurally: the
+carrier's `candidateFactsSha256` actually reproduces at C. Running the shipped
+`exactCandidate('agent_safe_derived_deployment_fork_v1')` and hashing its
+canonical bytes gives
+`sha256:b487d69d7a0392626e01f39e7fa81bd85251291c5ed119cd38a6cc30e50bfc88`, which
+is exactly the carrier's value, and the fact objects are byte-identical. This is
+the digest whose lower-camel spellings the renames existed to match, so it is
+the direct positive confirmation that the rename went the right way.
+
+No committed capability-manifest *instance* is affected by the rename: I dumped
+`agentSafe.target.forks` from all eleven committed manifests (three
+`schemas/capability.manifest.*.json` public instances, the Cloudflare generated
+manifest, four demo manifests, three package fixtures) and every one of the
+eighty-eight axis values is `Missing`. The only positive fork axes in committed
+data are the four in the publication carrier, and they were lower-camel all
+along.
+
+### R12-2 — round 11 is absent from all four histories at C (Material; mechanically blocking at P)
+
+This is R10-1 recurring, for the third time in this loop (round 7, round 9, now
+round 11), and I am recording it as a finding rather than a housekeeping note
+because that is now a pattern with a known cause and a filed, deferred fix.
+
+All four `*.verdicts.v1.json` histories at C contain exactly ten entries, rounds
+1–10, head `reviewedCommit` `fac516e9a`. All four prose artifacts end at `##
+Round 10`. Round 11 happened — it is why `3664973bc` and `ad0ad5874` exist, and
+both commit messages name it — but no version of any sidecar in this repository
+has ever had eleven entries. This worktree's reflog shows the mechanism plainly:
+`a127e9b47` was checked out at 04:47, `ad0ad5874` at 05:18, and the round-11
+appends did not survive the second checkout.
+
+Running the shipped `validateDerivedForkReview` at C against all four histories
+with `qualificationCommit = ad0ad5874`, every one fails with exactly one message
+— `authoritative verdict does not name qualification C` — and nothing else. So
+the chains, the round contiguity, the prose bindings, the family constancy and
+the reviewed-commit ancestry all pass at ten entries; only the head is stale.
+Appending a `"round": 12` entry at index 10 would trip
+`entry.round === index + 1` and refuse, exactly as it did in round 10.
+
+**What I did about it, and what remains.** I recovered my genuine round-11
+prose section — it survives outside git in the orchestrator's shared scratchpad
+as `round11.md`, 320 lines, dated 2026-08-07, naming qualification commit
+`a127e9b47`, recording Scope 1 `READY` and Scope 2 `NOT_READY` on R11-1 alone —
+and I have spliced it verbatim into both of my prose artifacts ahead of this
+section, with its verdict entries in both of my sidecars, before appending round
+12. My two histories are therefore contiguous 1–12 with the head naming C. I did
+not invent a word of it; it is the section the round-11 reviewer wrote, and its
+recorded verdicts are the ones the repair commits acted on.
+
+**The codex family's two histories still end at round 10 and are not mine to
+repair.** They need the same splice from whatever record survives, and if it
+does not survive intact the honest course is the one round 10 named: take a
+fresh round rather than renumber. I am blind to the codex round-12 work by
+instruction, so I cannot say whether that has already happened.
+
+I am not treating this as a Scope 2 blocker, consistent with round 10's
+treatment of the identical defect: it is an assembly defect in the publication
+package, not in the code, the evidence, the oracle or the fork surface; it fails
+closed, so no false claim can reach the world through it; and the gate itself
+enforces it at P.
+
+### Carried forward, unchanged
+
+- **R9-1** — the two platform lifecycle receipts bind `17366d2a4`, and the fork
+  carrier/receipt bind `qualifiedSourceCommit 0ee1fadc1` with
+  `implementationTreeSha256 sha256:2cad3627…`, neither of which is C. Still true
+  at C and still the expected pre-publication state; every one of those paths is
+  in `PUBLICATION_CYCLE_ALLOWLIST` and they are re-minted at P. Material, not
+  blocking.
+- **R9-2** — `reviewArtifactSha256` is a current-state binding, so the chain
+  cannot attest what an earlier round said, nor notice a round removed from the
+  record. Filed as `issues/20260807-review-prose-history-not-frozen.md`. R12-2
+  is its fourth consecutive appearance; R12-1 is the same weakness in a
+  different file.
+- The `build.rs` allowlist mirror test could be made two-directional.
+
+### Scope 1 verdict — LLP 0163 / 0164 / 0165 conformance
+
+**`READY` at `ad0ad5874` for all three Specs.** The three Specs, LLP 0158, the
+fork sources, the fork suites, `schemas/branch.*` and the governing guide pages
+are byte-identical across `a127e9b47..ad0ad5874`. The delta touches only
+generated and declared artifacts, and it moves both of them *towards* the tuple
+the Specs already document — LLP 0158's capability-registry-record section has
+said `denyAll / notPromotable / currentHead / hostMediated` in prose since
+before the rename, and `schemas/branch.receipt-v1.schema.json`, LLP 0164's own
+wire projection, said `denyAll` all along. R12-1 belongs to LLP 0162 §8's
+storage vocabulary, not to any artifact these three Specs own. As in rounds 10
+and 11, I did not re-derive conformance from the Specs and could not execute the
+Rust fork suites; if the surface changes, this verdict does not carry.
+
+### Scope 2 verdict — derived-fork publication
+
+**`READY` for publication of the narrow local `operating.instance-forks`
+capability at `ad0ad5874`,** subject to the P-time steps the checker itself
+enforces.
+
+Round 11 said: "If the four schemas are regenerated, everything I checked this
+round supports `READY`." They were regenerated, I verified the regeneration
+three independent ways rather than accepting it, and the TypeScript half Codex
+caught was fixed too. R11-1 is closed. The oracle is unchanged and green at
+66/66, the anchors and the guide row are withheld, the distribution guard is
+intact and asserted false for both build kinds, the digest chain is
+parameterised rather than hard-coded, the carrier's candidate-facts digest
+reproduces exactly at C, and no committed manifest instance was ever exposed to
+the rename.
+
+The two things I found this round do not change that. R12-1 is real and I would
+fix it, but it is outside the fork surface, breaks no gate, and no published
+claim depends on it. R12-2 is bookkeeping the gate already enforces, and I have
+repaired my half of it.
+
+What I could not do here and am not claiming: any `cargo` command, so the
+schema drift gate's green state is asserted statically and is explicitly
+falsifiable by the one command named above; the Rust fork suites; the
+working-tree digest comparison; and round 9's adversarial corpus and
+satisfiability construction, deliberately not re-run in a bounded delta round.
+The remaining P-time ceremony is unchanged and still not mine to supply: both
+platform lifecycle receipts and the fork receipt/carrier re-minted at
+`ad0ad5874`, the codex family's own round naming C on a contiguous history, and
+Charlie's new v2 acceptance binding the four history heads, the exact evidence
+digest set, and the implementation digest `sha256:fc6e3e58…`.
+
+### Verification actually performed
+
+- `git log`, `git diff --stat` and `--name-status` for `a127e9b47..ad0ad5874`,
+  whole-repo and restricted to the ten `IMPLEMENTATION_ROOTS` entries plus
+  `vendor/ibex`; full read of both repair diffs and of `a127e9b47`'s
+  `src/manifest.rs` hunk.
+- `implementationDigestAt` through the shipped module at `0ee1fadc1`,
+  `a127e9b47`, `3664973bc` and `ad0ad5874`; `git ls-tree vendor/ibex` at both
+  ends of the delta.
+- Mechanical comparison of **all 198 enum definitions in all 242 committed
+  schemas** against every `JsonSchema`-deriving unit enum under `src/`: 194
+  compared, 0 mismatches; the four unpaired names and the one cross-schema name
+  collision identified and dispositioned.
+- Mechanical comparison of all 11 string-literal union aliases in
+  `packages/snapback-codegen/index.d.mts` against the generated schemas: 10
+  compared, 0 mismatches.
+- Structural comparison of every `AgentSafe*` interface in that file against its
+  schema definition, top-level and nested key sets — the comparison that found
+  R12-1 and bounded it to exactly two members.
+- Repo-wide sweeps for the old and new spellings: type names, quoted wire
+  values, case-insensitive forms, and Rust string literals that could parse or
+  emit them outside serde. Every hit classified — the four schemas, the
+  declaration file, the two prose-only strings in the checker and its suite, the
+  `DenyAllAttemptMarkerV1` schema *title* (a struct name, unrelated), the
+  distinct already-camelCase `ForkEgressPolicyV1`, and the two
+  negative-tampering probes noted below.
+- `agentSafe.target.forks` dumped from all eleven committed capability
+  manifests; all 88 axis values `Missing`.
+- `exactCandidate('agent_safe_derived_deployment_fork_v1')` run through the
+  shipped checker and hashed; compared against the carrier's
+  `candidateFactsSha256` and `candidateFacts` bytes.
+- `node --test tests/agent_safe_publication_checker_v1.mjs` at C — 66 pass, 0
+  fail.
+- `validateDerivedForkReview` at C against all four histories with
+  `qualificationCommit = ad0ad5874`: all four fail only with `authoritative
+  verdict does not name qualification C`.
+- Read of `derived_fork_publication_verified_for_distribution`, the two build-
+  kind assertions, `exact_storage_chain_qualifies_without_minting_derived_authority`,
+  both anchors, the carrier, and the `operating.instance-forks` guide row at C.
+- `git log -S` to date the R12-1 drift to `b6a668a74` and confirm that commit
+  regenerated the four schemas without touching the declaration file; ancestry
+  check of `b6a668a74` against C.
+- Not done: any `cargo` command (`vendor/ibex` uninitialized, no `target/`), the
+  Rust fork suites, the working-tree digest, round 9's adversarial corpus, and
+  any de-novo derivation of spec conformance.
+
+### Nits (non-blocking, recorded because I found them)
+
+- The two negative-tampering probes at `src/manifest.rs:13381` and
+  `tests/artifact_schemas_v0.rs:3288` inject `json!({"DenyAll": true,
+  "CaptureOnly": true})` into a fork axis and assert rejection. They still pass
+  and are still non-vacuous — an object is never a valid unit-enum
+  serialization — but their stated intent ("one scalar closed enum makes
+  fork-axis alternatives mutually exclusive") now reads oddly, because the
+  injected keys are no longer the wire spellings of the alternatives. Respelling
+  them to `denyAll`/`captureOnly` would restore the sentence to matching the
+  code. Cosmetic; both live inside `IMPLEMENTATION_ROOTS`, so it wants the same
+  cycle as R12-1.
+- `EffectSettlementCapabilityV1` names two different Rust types with different
+  variant sets, in `src/commit_envelope.rs` and `src/fork_promotion.rs`, which
+  produce two different `$defs` entries under one name across
+  `commit.envelope-v1` and `promotion.effect-intent-v1`. Each is internally
+  correct. Pre-existing, outside this delta, and a readability hazard for anyone
+  reading the schema corpus as one namespace.
+
+### Recommended next step
+
+Splice round 11 into the codex family's two artifacts as I have done for mine,
+take the codex round-12 verdict at this same C, and then finish the ceremony:
+re-mint both platform lifecycle receipts and the fork receipt/carrier at
+`ad0ad5874`, and take Charlie's v2 acceptance binding the four twelve-entry
+history heads, the evidence digest set and the implementation digest
+`sha256:fc6e3e58…`. File R12-1 and the missing `index.d.mts` drift gate as a
+ticket; land the four-line declaration fix in whichever cycle next takes a new C
+rather than spending one on it now — unless the author prefers the strict
+reading, in which case fix it, rotate C, and take a short round 13, and I will
+say the same thing about it that I am saying here.

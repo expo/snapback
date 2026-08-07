@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "c5a18506deb80a0313098fdb8088085036257289"
+    "commit": "d246d2e4e7b3359fd453509e9652b2127af0156a"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -1527,7 +1527,7 @@
       "examples": [],
       "reviewed": "2026-08-07",
       "reviewedCommit": "cca0db7d8e94c8d4943eb808d4e10238a506c70c",
-      "sha256": "702fe38c666bdc0ccbe515be8d18f0c4bec3e30de7f7c4ffabaa9c741fa37ca5",
+      "sha256": "0b97625c9d3aec293de0a1bcad5163ba99e7eaedf85b76426ab7575e686bad2f",
       "snippets": []
     },
     "clients.app-cli": {
@@ -2587,7 +2587,7 @@
       ],
       "reviewed": "2026-08-06",
       "reviewedCommit": "0ee1fadc136e837f430556374a5842ac82069004",
-      "sha256": "0222b9e3b20eb2bf94c819cc9410249beaa923098822887b914d829f6e9ac95d",
+      "sha256": "7461931306e2ce29ca463f0ee592deca173f5420d67e0177995c08fe98735288",
       "snippets": [
         {
           "lang": "js",
@@ -3570,6 +3570,7 @@
       "operating.guide-mcp",
       "operating.host-ops",
       "operating.inspect",
+      "operating.instance-forks",
       "operating.network-profiles",
       "operating.packaged-dev-loop",
       "operating.secrets-config",
@@ -3596,7 +3597,6 @@
       "clients.poll-hosted",
       "operating.agent-safe-storage",
       "operating.declaration-conformance",
-      "operating.instance-forks",
       "sync.offline-js-arm",
       "sync.offline-js-arm-protected",
       "sync.settlement-bounded-skew"
@@ -3606,5 +3606,5 @@
     "routes": 122,
     "hostOps": 43
   },
-  "contentHash": "7aadba01eefafb5c5f23168d9c9e5362b26f9c31e4f8b978b66d175420df0c5f"
+  "contentHash": "6322feedc20eec2222ca3c40d7704b19a27d9482346c80e7bb38fd34df30dd97"
 }

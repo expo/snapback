@@ -6,7 +6,7 @@
 experience, Developer experience, CLI, Documentation, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-03
-**Revised:** 2026-08-06 (author-directed narrow local publication: LLPs 0163–0165 accepted after three mutually blind dual-family `READY` rounds; Charlie's exact two-platform release set and authorized acceptance fixture close the nine-item witness; `operating.instance-forks` publishes at local/partial through the guide row for contributor source only. The target-manifest tuple, broader agent-safe-storage aggregate, released-binary/npm parity, normal-installation exit, hosted targets, promotion/merge-back, and process containment remain `Missing` or explicit nonclaims); 2026-08-06 (row-13 concurrent-create hang repair: root admission
+**Revised:** 2026-08-07 (v2 derived-fork publication at qualification C `ad0ad58748981010204b61eb5002e35b887a5093`: the recomputed v2 implementation digest, canonical dual-platform receipts, all four contiguous 12-round dual-family `READY` histories, their accepted heads, and Charlie's exact 2026-08-06 author line close the dated receipt/carrier/anchor chain. The guide row publishes only a partial contributor-source local claim for exactly `macos/aarch64` and `linux/x86_64`; the target-manifest tuple stays wholly `Missing`, and released-binary/npm parity, normal installation, public packages, hosted/Cloudflare/remote targets, promotion/merge-back, and process containment remain open or unclaimed); 2026-08-06 (author-directed narrow local publication: LLPs 0163–0165 accepted after three mutually blind dual-family `READY` rounds; Charlie's exact two-platform release set and authorized acceptance fixture close the nine-item witness; `operating.instance-forks` publishes at local/partial through the guide row for contributor source only. The target-manifest tuple, broader agent-safe-storage aggregate, released-binary/npm parity, normal-installation exit, hosted targets, promotion/merge-back, and process containment remain `Missing` or explicit nonclaims); 2026-08-06 (row-13 concurrent-create hang repair: root admission
 now uses a 30-second monotonic nonblocking-acquisition deadline with stable
 `SNAPBACK_FORK_ADMISSION_TIMEOUT`, while detached server exec marks every
 non-stdio inherited descriptor close-on-exec. This closes the macOS concurrent
@@ -1849,6 +1849,32 @@ hosted/Cloudflare/remote targets, promotion/merge-back, and process containment
 remain unclaimed. LLP 0185 Phase 6 item 2 (released-binary/npm parity) and the
 normal-installation exit clause also remain open; no public-package claim is
 made.
+
+**2026-08-07 — v2 qualification publication.** Qualification commit
+`ad0ad58748981010204b61eb5002e35b887a5093` has implementation digest version
+`snapback:agent-safe-implementation-tree:v2` and recomputed digest
+`sha256:fc6e3e58453b4700ce06c647aaef87132879e0da336e560eca834d1d42c5459a`.
+The canonical lifecycle receipts bind exactly `macos/aarch64` and
+`linux/x86_64`, both release profile. Each of the Codex- and Fable-family Spec
+and implementation verdict histories is contiguous through round 12; all four
+round-12 heads name C and are `READY`. Charlie's v2 acceptance uses the exact
+line `Charlie Cheever — accepted 2026-08-06` and binds the four 12-round heads,
+the complete non-self evidence digest set, the v2 implementation digest, and
+the exact `denyAll / notPromotable / currentHead / hostMediated` candidate.
+The dated receipt, carrier, and source anchor therefore publish the LLP 0061
+`operating.instance-forks` guide row at target `local`, maturity `partial`.
+
+The published claim is contributor-source local, finite-TTL, fail-closed,
+non-promotable, and host-mediated without process or OS containment. It makes
+no hosted, Cloudflare, remote, merge-back, public-package, released-binary/npm,
+or normal-installation claim. LLP 0185 Phase 6 item 2 and its normal-installation
+exit clause remain open. Per the author's Phase 0 ruling,
+`agent_safe_derived_deployment_fork_v1` remains wholly `Missing` in every LLP
+0113 target manifest; the guide row is the claim carrier. The artifacts are
+unsigned and not transparency-logged, so a commit-capable actor fabricating
+both reviewer histories and the named-author acceptance is outside the
+guarantee. The current-state-only prose binding weakness remains disclosed in
+`issues/20260807-review-prose-history-not-frozen.md`.
 
 ## Status
 
