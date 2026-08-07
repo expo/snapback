@@ -100,3 +100,42 @@ are order-independent and hit JS and declarative mutations equally
 (swapped-order probe runs). Strengthens the ready-file-gating fix shape:
 readiness should cover auth-mode settlement, not just the listener.
 
+## Independent re-verification (2026-08-07)
+
+The supplied `origin/main` already contained the resolution above. A fresh
+source audit reconfirmed the seam: `run_composed` builds the coordinator,
+reserves the invalidation boot issuer, and starts the expiry worker before
+`bind_listener`; the ready descriptor is published only after bind. Managed
+forks exec the same `start --db ... --port 0 --ready-file ...` path, so there is
+no fork-specific auth-readiness ordering seam.
+
+The reset window remains intentional LLP 0059 behavior: a versioned-seed reset
+premarks the authorization stream after readiness and must refuse predecessor
+publication. The anonymous typed hint and the client's one bounded retry are
+therefore still the correct fix; delaying process readiness cannot eliminate
+later schema-change resets.
+
+Re-verification results in the constrained checkout:
+
+- `cargo test --lib auth::coordinator`: 22 passed;
+- `cargo test --lib live_wire`: 5 passed;
+- `cargo test --test auth_invocation_v1`: 4 passed;
+- `connection-open-stream-reset-retry.test.mjs`: passed directly and in 20/20
+  repeated runs;
+- complete `@expo/snapback-client` package suite: passed;
+- package test inventory: 232 declared test files, passed;
+- `./ref-check --verbose`: 190 LLPs, 3,599 refs, zero errors.
+
+This sandbox refuses all loopback listener creation with `EPERM`. Consequently,
+the exact HTTP-race fixture, `admin_v0`, fork live tests, and a newly attempted
+live-loop harness stop at fixture bind before their assertions. The original
+landing's retained unsandboxed live evidence remains the executable result:
+20/20 pre-fix resets and 20/20 post-fix successes. The broader auth-mode
+symptoms in “Additional evidence” are not evidence that the anonymous
+stream-reset repair regressed; they require their own readiness diagnosis.
+
+**Supervisor live verification (2026-08-07, unsandboxed):** the two
+loopback-bound tests the audit sandbox could not execute pass with real
+listeners at this tree: `cargo test --lib stream_reset` 7/7 and
+`prepared_connection_act_loses_to_concurrent_stream_premark` 1/1
+(macOS, `DYLD_FRAMEWORK_PATH` set). This closes the audit's only open leg.
