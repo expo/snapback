@@ -6,7 +6,10 @@
 Live queries, Relational queries, Optimistic updates, Auth, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-08-03
-**Revised:** 2026-08-06 (author ruling: public-package advertisement
+**Revised:** 2026-08-06 (LLP 0043 sessions-custody reconciliation: authority
+transitions preserve the resolved store's outbox only for the ratified
+per-record strand/privacy-delete matrix; the client-wide file-carrier cut
+still sweeps sibling identity blobs); 2026-08-06 (author ruling: public-package advertisement
 amendment — `single_table_v1` may be advertised by clean-release
 public-package builds under LLP 0110's dated conjunction including the
 packaged-closure qualification receipt; see dated section.) 2026-08-06,
@@ -529,10 +532,20 @@ it is not compaction and not a general cleanup:
   acknowledgements are untouched).
 - **What it clears, atomically:** the **resident** sections —
   `materializations`, `pageSets`, `memberships`, `entries`, and the
-  `outbox` — plus, within `storeMeta`, exactly the durable
+  `outbox` (for a caller-authorized explicit reset; see the authority-transition
+  exception below) — plus, within `storeMeta`, exactly the durable
   (`programmatic`) registrations, the policy/budget facts, and the broker
-  context roster, in one transaction; another identity must never replay
-  this one's queued mutations or re-hydrate its registrations. The legacy
+  context roster, in one transaction. **Reconciled 2026-08-06:** at an
+  authority transition, the resolved store's outbox bytes are now governed by
+  LLP 0043 §Auth posture, “JS-arm sessions-custody queue,” and its ratified
+  per-record custody matrix: a same-principal instance change strands
+  rerecordable work, while a principal change privacy-deletes predecessor
+  records before successor observation. This consumes unchanged the same
+  subsection's LLP 0166 interaction boundary (“the store Spec consumes this
+  RFC's custody, outbox, and settlement contracts unchanged”); a client-wide
+  file-carrier transition still sweeps sibling identity blobs. Another identity
+  must never replay this one's queued mutations or re-hydrate its
+  registrations. The legacy
   lease artifact is **outside** this transaction domain: it is cleared by its own owner as a registered
   participant in the same LLP 0059 `AuthCoordinator` barrier (LLP 0053's
   store-wide barrier already names the LLP 0039/0053 stores as

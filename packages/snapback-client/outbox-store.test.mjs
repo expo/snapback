@@ -281,6 +281,117 @@ async function exerciseOutboxContract(store, { label }) {
   await store.outboxEnqueue({ id: 'cm-3', function: 'createThing' });
   await store.wipe();
   assert.deepEqual(await store.outboxPending(), [], `${label}: wipe clears the queue`);
+
+  const predecessorScope = {
+    authMode: 'sessions',
+    authorizationStreamIncarnation: 'stream-a',
+    userId: 'user-a',
+  };
+  const predecessorDescriptor = {
+    descriptorVersion: 1,
+    authorityInstanceId: 'authority-a',
+    sessionGeneration: 1,
+  };
+  const fenced = (id) => ({
+    id,
+    function: 'createThing',
+    args: { privateValue: id },
+    authorityDescriptor: predecessorDescriptor,
+    principalScope: predecessorScope,
+    custody: { authorityEpoch: 1, authorityKey: 'authority-key-a' },
+  });
+  await store.outboxEnqueue(fenced('cm-strand-pending'));
+  await store.outboxEnqueue(fenced('cm-strand-failed'));
+  await store.outboxEnqueue(fenced('cm-custody-settled'));
+  await store.outboxMarkFailed('cm-strand-failed', { code: 'X', message: 'failed first' });
+  await store.outboxDurablyConsume('cm-custody-settled', {
+    result: { privateValue: 'settled-predecessor-result' },
+    authorityDescriptor: predecessorDescriptor,
+  }, predecessorScope.userId);
+  await store.outboxMarkAcknowledgementsReady(['cm-custody-settled']);
+  const stranded = await store.outboxReconcileCustody(predecessorScope, {
+    ...predecessorDescriptor,
+    authorityInstanceId: 'authority-b',
+    sessionGeneration: 2,
+  }, { authorityEpoch: 2, authorityKey: 'authority-key-b' });
+  assert.equal(stranded.stranded, 2, `${label}: pending and failed strand atomically`);
+  assert.deepEqual(await store.outboxPending(), [], `${label}: stranded is never replay pending`);
+  assert.equal(await store.outboxEmpty(), true, `${label}: stranded does not hold D3 resume`);
+  const strandedRecords = await store.outboxRecords();
+  assert.deepEqual(
+    strandedRecords.map((record) => record.status),
+    ['stranded', 'stranded', 'settled'],
+    `${label}: same-principal instance changes retain settled cohorts`,
+  );
+  assert.equal(
+    strandedRecords.filter((record) => record.status === 'stranded')
+      .every((record) => record.rerecordable === true),
+    true,
+  );
+  assert.deepEqual(strandedRecords[0].predecessorPrincipalScope, predecessorScope);
+  assert.deepEqual(
+    await store.outboxPendingAcknowledgements(
+      predecessorScope.userId,
+      64,
+      predecessorDescriptor,
+    ),
+    ['cm-custody-settled'],
+    `${label}: same-principal instance changes retain settlement acknowledgements`,
+  );
+  const discarded = await store.outboxDiscardStranded(
+    ['cm-strand-pending'],
+    predecessorScope,
+  );
+  assert.deepEqual(discarded.clientMutationIds, ['cm-strand-pending']);
+  const deleted = await store.outboxReconcileCustody(
+    { ...predecessorScope, userId: 'user-b' },
+    { ...predecessorDescriptor, authorityInstanceId: 'authority-c' },
+    { authorityEpoch: 3, authorityKey: 'authority-key-c' },
+  );
+  assert.equal(
+    deleted.deleted,
+    2,
+    `${label}: principal change counts stranded and settled predecessor payloads`,
+  );
+  assert.deepEqual(await store.outboxRecords(), []);
+  assert.deepEqual(
+    await store.outboxPendingAcknowledgements(
+      predecessorScope.userId,
+      64,
+      predecessorDescriptor,
+    ),
+    [],
+    `${label}: principal change deletes predecessor acknowledgement rows`,
+  );
+
+  const agentScope = {
+    authMode: 'sessions',
+    authorizationStreamIncarnation: 'stream-agent',
+    userId: 'effective-agent-user',
+  };
+  await store.outboxEnqueue({
+    id: 'cm-agent-grant-change',
+    function: 'agentIntent',
+    authorityDescriptor: {
+      descriptorVersion: 1,
+      authorityInstanceId: 'agent-authority-a',
+      sessionGeneration: 0,
+    },
+    principalScope: agentScope,
+    custody: { authorityEpoch: 1, authorityKey: 'grant-tuple-a' },
+  });
+  const agentDeleted = await store.outboxReconcileCustody(
+    agentScope,
+    {
+      descriptorVersion: 1,
+      authorityInstanceId: 'agent-authority-b',
+      sessionGeneration: 0,
+    },
+    { authorityEpoch: 2, authorityKey: 'grant-tuple-b' },
+  );
+  assert.equal(agentDeleted.deleted, 1, `${label}: agent grant-tuple change is principal deletion`);
+  assert.equal(agentDeleted.stranded, 0, `${label}: agent grant-tuple change never strands`);
+  assert.deepEqual(await store.outboxRecords(), []);
 }
 
 test('memory arm carries the outbox contract', async () => {
@@ -724,8 +835,14 @@ test('checked sidecar adoption drains one injected store against the candidate o
   assert.equal(receipt.replayed, 1);
   assert.equal(receipt.remaining, 0);
   assert.equal(receipt.stopped, false);
-  assert.deepEqual(receipt.before, { pending: 1, failed: 0, quarantined: 0, resultGone: 0 });
-  assert.deepEqual(receipt.after, { pending: 0, failed: 0, quarantined: 0, resultGone: 0 });
+  assert.deepEqual(
+    receipt.before,
+    { pending: 1, failed: 0, stranded: 0, quarantined: 0, resultGone: 0 },
+  );
+  assert.deepEqual(
+    receipt.after,
+    { pending: 0, failed: 0, stranded: 0, quarantined: 0, resultGone: 0 },
+  );
   assert.equal(delivered[0].url, 'http://127.0.0.1:41002/mutation/createThing');
   assert.equal(delivered[0].body.clientMutationId, 'cm-sidecar-adoption');
   assert.equal(Object.isFrozen(receipt), true);
@@ -1993,7 +2110,10 @@ test('committed result-expired becomes durable result-gone and blocks ordered su
   );
   assert.deepEqual(
     { ...(await client.outboxStatus()) },
-    { supported: true, pending: 1, failed: 0, quarantined: 0, resultGone: 1, replaying: false },
+    {
+      supported: true, pending: 1, failed: 0, stranded: 0,
+      quarantined: 0, resultGone: 1, replaying: false,
+    },
   );
 });
 
@@ -2048,7 +2168,10 @@ test('recreated file-backed client preserves result-gone without redelivery', as
   });
   assert.deepEqual(
     { ...(await recreatedClient.outboxStatus()) },
-    { supported: true, pending: 1, failed: 0, quarantined: 0, resultGone: 1, replaying: false },
+    {
+      supported: true, pending: 1, failed: 0, stranded: 0,
+      quarantined: 0, resultGone: 1, replaying: false,
+    },
   );
   const replay = await recreatedClient.replayQueuedMutations();
   assert.deepEqual(
@@ -2218,14 +2341,20 @@ test('outboxStatus and subscribeOutbox project the queue facts (LLP 0114 React-a
   const disabled = new SnapbackClient('http://127.0.0.1:9', { rqsStore: null });
   assert.deepEqual(
     { ...(await disabled.outboxStatus()) },
-    { supported: false, pending: 0, failed: 0, quarantined: 0, resultGone: 0, replaying: false },
+    {
+      supported: false, pending: 0, failed: 0, stranded: 0,
+      quarantined: 0, resultGone: 0, replaying: false,
+    },
   );
 
   const events = [];
   const unsubscribe = client.subscribeOutbox(() => events.push('event'));
   assert.deepEqual(
     { ...(await client.outboxStatus()) },
-    { supported: true, pending: 0, failed: 0, quarantined: 0, resultGone: 0, replaying: false },
+    {
+      supported: true, pending: 0, failed: 0, stranded: 0,
+      quarantined: 0, resultGone: 0, replaying: false,
+    },
   );
 
   // Queue two intents offline: each transition notifies subscribers.
@@ -2235,7 +2364,10 @@ test('outboxStatus and subscribeOutbox project the queue facts (LLP 0114 React-a
   assert(events.length >= 2, 'queue transitions notified subscribers');
   assert.deepEqual(
     { ...(await client.outboxStatus()) },
-    { supported: true, pending: 2, failed: 0, quarantined: 0, resultGone: 0, replaying: false },
+    {
+      supported: true, pending: 2, failed: 0, stranded: 0,
+      quarantined: 0, resultGone: 0, replaying: false,
+    },
   );
 
   // Replay: first record refused (drop-and-mark-failed), second settles.
@@ -2264,7 +2396,10 @@ test('outboxStatus and subscribeOutbox project the queue facts (LLP 0114 React-a
   assert(events.length > drained, 'replay transitions notified subscribers');
   assert.deepEqual(
     { ...(await client.outboxStatus()) },
-    { supported: true, pending: 0, failed: 1, quarantined: 0, resultGone: 0, replaying: false },
+    {
+      supported: true, pending: 0, failed: 1, stranded: 0,
+      quarantined: 0, resultGone: 0, replaying: false,
+    },
     'failed records stay visible; settled records leave the counts',
   );
 

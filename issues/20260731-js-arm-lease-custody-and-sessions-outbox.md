@@ -20,15 +20,13 @@ owners:
    `authorized-lease.mjs` modules into `@snapback/client` or by an owned
    design saying why not. Guide GAP row: `sync.offline-js-arm-protected`.
 
-2. **Sessions-custody offline queue.** `#offlineQueueStore()` deliberately
-   returns null under browser/agent session custody (`authorityFence`
-   present): a sessions-mode mutation carrying `clientMutationId` must
-   present a current authority descriptor at settlement, and descriptor
-   capture-at-enqueue/strand-on-authority-change is the Contract arm's
-   shipped discipline (LLP 0043 §Auth posture). The JS-arm queue today
-   covers dev/external-bearer custody only. Either port the descriptor
-   custody or record the boundary as permanent with the Contract arm as
-   the sessions offline carrier.
+2. **Sessions-custody offline queue — IMPLEMENTED 2026-08-06.** The JS arm
+   now captures the server descriptor, principal scope, and durable fence
+   lineage per queued record under browser/agent custody; reconciles the
+   ratified strand/delete matrix before successor observation and replay;
+   and exposes explicit read/discard/re-record recovery. The acceptance
+   witness is
+   `demos/card-game/tests/acceptance/offline-sessions-custody.mjs`.
 
 3. **Default-store directory hygiene.** The node default store keys blobs
    and lock files by server origin under `~/.snapback/rqs` (or
@@ -76,9 +74,8 @@ auth-scoped subscription (full LLP 0053 scope/invalidation shape over a
 protocol-enabled client) refusing retention with that exact code, naming
 the lease machinery in its reason, and persisting nothing.
 
-**Legs 1 and 2 stay open — scoped out of this lane deliberately, not
-silently.** Both are LLP 0053/0043-governed custody protocol work, not
-composition chores:
+**Leg 1 stays open; leg 2's design history and implementation receipt follow.**
+Both are LLP 0053/0043-governed custody protocol work, not composition chores:
 
 - Leg 1 (M1 lease custody) means bringing the format-6 client-store
   discipline — query-authorization namespaces, composite witnesses, signed
@@ -115,10 +112,16 @@ composition chores:
   read/discard/re-record-as-new-`clientMutationId`). The design
   commission (`issues/closed/20260803-0043-sessions-custody-design.md`)
   is closed complete. **Leg 2 implementation is now an available lane**
-  — implement per the ratified LLP 0043 §Auth posture subsection; the
-  `SNAPBACK_OFFLINE_QUEUE_CUSTODY_UNSUPPORTED` fence stands until the
-  lane lands. This ticket stays open tracking the implementation legs.
+  — implement per the ratified LLP 0043 §Auth posture subsection; at that
+  date the `SNAPBACK_OFFLINE_QUEUE_CUSTODY_UNSUPPORTED` fence still stood.
+  **2026-08-06 — IMPLEMENTED.** The fence is replaced by capture-at-enqueue
+  descriptor/principal/fence custody; all RQS store arms carry `stranded`
+  plus atomic reconciliation/discard transitions; the client runs the
+  strand/delete matrix before successor observation and each drain; explicit
+  stranded read/discard/re-record-as-new-id affordances ship; and
+  `demos/card-game/tests/acceptance/offline-sessions-custody.mjs` covers cold
+  same-authority replay, same-user replacement recovery, and cross-principal
+  delete-with-diagnostic-count. The ticket remains open for leg 1 only.
 
-Next owner: leg 1 with its acceptance rows first (it unblocks the
-restart-witness conjunction), then leg 2's now-ratified implementation
-lane.
+Next owner: leg 1 with its acceptance rows first; it unblocks the
+restart-witness conjunction.

@@ -3,7 +3,7 @@ title: Offline retention and mutation replay
 id: sync.offline-and-retention
 order: 1
 audience: agent-first
-capabilities: [backend.single-table-v1, sync.offline, sync.offline-js-arm, sync.local-persistent-store]
+capabilities: [backend.single-table-v1, sync.offline, sync.offline-js-arm, sync.offline-js-arm-sessions, sync.local-persistent-store]
 authorities: [llp/0043-offline-replay-retention.rfc.md, llp/0052-contract-update-economy-and-host-state.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0090-resumable-query-snapshots.rfc.md, llp/0110-bounded-children-and-activity-patterns.spec.md, llp/0129-local-first-program.plan.md, llp/0133-local-settlement.spec.md, llp/0135-sequence-allocation-and-snapshot-batch.spec.md, llp/0157-composition-algebra-and-completeness.spec.md, llp/0166-local-persistent-store.spec.md, src/local-persistent-store-publication.v1.json, packages/snapback-codegen/index.mjs, packages/snapback-client/local-read-admission.mjs, packages/snapback-client/materialization-bridge.mjs, tests/acceptance/local-store-carrier-exit-v1.mjs, packages/snapback-contract/index.mjs, packages/snapback-contract/offline-replay.test.mjs, packages/snapback-client/index.mjs, packages/snapback-client/external-store.mjs, packages/snapback-client/external-store.test.mjs, packages/snapback-client/outbox-store.test.mjs, packages/snapback-react/index.mjs, demos/warble/snapback/functions.mjs, demos/warble/tests/acceptance/offline-local-first.mjs]
 examples: [demos/triage-graph, demos/card-game, demos/todo-v2/surfaces/contract, demos/public-dashboard, demos/warble, demos/browser-local-first, packages/snapback-contract/agent-authority-contract.test.mjs, packages/snapback-react/offline.test.mjs, packages/snapback-client/rqs-resume.test.mjs, tests/acceptance/desktop-sidecar-v1.mjs]
 status: current
@@ -154,11 +154,24 @@ proof of the same contracts. The headless witness proves:
   constructor (undici throws `TypeError`; Expo/RN fetch rejects a plain
   `Error`). Caller-owned aborts/timeouts and anything the server answered
   never queue.
+- **Per-record sessions and agent custody.** A settled authority fence adds
+  the exact server-issued `authorityDescriptor`, server-proven
+  `principalScope`, and durable fence lineage to the queued record; no bearer,
+  sender key/nonce, DPoP material, token id, carrier generation, or lease is
+  persisted. A same-principal replacement session strands pending and failed
+  records for explicit `strandedMutations()` / discard / re-record-as-new-id
+  recovery. Logout, user switch, auth-mode change, or authorization-stream
+  change deletes predecessor pending/failed/stranded bytes before the
+  successor is published and records only a diagnostic count. An unsettled or
+  terminal fence leaves records untouched and makes the drain inadmissible.
+  The real-server witness is
+  `demos/card-game/tests/acceptance/offline-sessions-custody.mjs`.
 - **Ordered exactly-once replay.** After reconnect completes a fresh
   authoritative snapshot (full resync first — LLP 0008 §Mutation Replay),
   the client drains the queue in sequence order; the server's settlement
-  ledger returns the original result on duplicate delivery. (A refused
-  replay is dropped and marked failed, visible in `outboxRecords()`. The
+  ledger returns the original result on duplicate delivery. (A content-refused
+  replay is dropped and marked failed, visible in `outboxRecords()`;
+  `SNAPBACK_AUTH_STALE_RESULT` instead becomes terminal `stranded` custody. The
   store transition and the client wiring that maps a server refusal onto it
   are covered by `packages/snapback-client/outbox-store.test.mjs`; the
   ordered drain itself is proven end-to-end in the browser carrier by the
@@ -698,9 +711,10 @@ eligible or send `acknowledgeMutations(...)` directly. Until then, automatic
 ACK delivery cannot delete the recovery copy. In authenticated mode recovery
 first re-attests the current session and returns only settlements from that
 exact server-echoed authority cohort; predecessor results remain opaque in the
-store until their authority returns. A typed server refusal is a
-visible terminal `failed` record and is never acknowledged as the current id;
-a receipt-less outcome stays pending.
+store until their authority returns. A typed content refusal is a visible
+terminal `failed` record and is never acknowledged as the current id; an
+authority-stale replay result is terminal `stranded` and rerecordable, while a
+receipt-less outcome stays pending.
 
 The client removes the retained settlement and ACK together only after the
 server proves it processed the acknowledgement. A later mutation normally

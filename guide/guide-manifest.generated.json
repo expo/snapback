@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "1ded1f716fb55c3a426bf2079fe6cce79c57af22"
+    "commit": "40b07d38a9d1bdbe19a17936080dc0c3660cda8e"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -1527,7 +1527,7 @@
       "examples": [],
       "reviewed": "2026-08-07",
       "reviewedCommit": "6a1de382fade55da910e3ab1f40115e1e0cfad48",
-      "sha256": "f9a602d783d6ce8c6f147d1010d8f960384fd80ee2ff0cf78877d60e3a964bed",
+      "sha256": "8e4df70a4ecaed04edb62126bb57c1324a56ce44e0c3ddf0eb4bf034a7e73566",
       "snippets": []
     },
     "clients.app-cli": {
@@ -3261,6 +3261,7 @@
         "backend.single-table-v1",
         "sync.offline",
         "sync.offline-js-arm",
+        "sync.offline-js-arm-sessions",
         "sync.local-persistent-store"
       ],
       "authorities": [
@@ -3303,7 +3304,7 @@
       ],
       "reviewed": "2026-08-07",
       "reviewedCommit": "6a1de382fade55da910e3ab1f40115e1e0cfad48",
-      "sha256": "c84592723fb8fc84a01a23122380fad11cf68ca4b4a95b1aafdcf999e73b823b",
+      "sha256": "e880e06941d05ed8da5c3ce471805e2853132a2f145908c487a711e2d8942c20",
       "snippets": [
         {
           "lang": "js",
@@ -3589,6 +3590,7 @@
       "sync.local-persistent-store",
       "sync.offline",
       "sync.offline-js-arm",
+      "sync.offline-js-arm-sessions",
       "testing.acceptance",
       "testing.large-fixtures"
     ],
@@ -3612,5 +3614,5 @@
     "routes": 122,
     "hostOps": 43
   },
-  "contentHash": "a24db49a99d0d48c07e671d13904ff5397c0fe3414c7ef352f928c7e6016b8ee"
+  "contentHash": "73c89e77ec16ab15d160c300908b595ecfe4ae91ecebda8f58049dae0183466b"
 }

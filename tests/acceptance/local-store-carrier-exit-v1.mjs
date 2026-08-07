@@ -1588,9 +1588,9 @@ async function runPublicLogoutBridgeEvidence() {
     let logoutPosted = false;
     let clearedBeforeAnonymousResume = false;
     const injectedStore = Object.create(store);
-    injectedStore.wipe = async () => {
+    injectedStore.wipeForAuthorityTransition = async () => {
       wipeCalls += 1;
-      return store.wipe();
+      return store.wipeForAuthorityTransition();
     };
     const coordinator = new AuthCoordinator({
       appId: LOGOUT_BRIDGE_APP,
@@ -1614,9 +1614,15 @@ async function runPublicLogoutBridgeEvidence() {
         if (logoutPosted) {
           const snapshot = await logoutBridgeResidentSnapshot(store, key);
           assert.equal(authenticated, false);
+          // LLP 0043 sessions-custody queue (2026-08-06): the authority
+          // transition clears resident state atomically, while queue bytes
+          // are reconciled by the per-record custody matrix between this
+          // successor handshake and publication — the unattributable pending
+          // record is still present here and privacy-deleted before
+          // authLogout returns.
           assert.deepEqual(snapshot, {
             retainedEntryPresent: false,
-            pendingOutboxIds: [],
+            pendingOutboxIds: ['logout-v3-pending'],
             sections: { materializations: 0, pageSets: 0, memberships: 0 },
           });
           clearedBeforeAnonymousResume = true;
@@ -1681,6 +1687,9 @@ async function runPublicLogoutBridgeEvidence() {
     assert.equal(await client.authLogout(), null);
     assert.equal(wipeCalls, wipeCallsBeforeLogout + 1);
     assert.equal(clearedBeforeAnonymousResume, true);
+    // The custody reconciliation ran inside the transition barrier: the
+    // unattributable queue record is privacy-deleted before publication.
+    assert.deepEqual(await store.outboxPending(), []);
     const after = await store.readStoreMeta();
     assert.equal(after.clientStoreId, before.clientStoreId);
     assert.equal(after.queryInstanceIdHighWater, before.queryInstanceIdHighWater);

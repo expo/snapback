@@ -54,6 +54,39 @@ const plainRecord = (value) => value !== null
   && !Array.isArray(value);
 const stringOrNull = (value) => typeof value === 'string' ? value : null;
 const authorityInstanceId = (descriptor) => stringOrNull(descriptor?.authorityInstanceId);
+const normalizePrincipalScope = (value) => (
+  plainRecord(value)
+  && typeof value.authMode === 'string'
+  && typeof value.authorizationStreamIncarnation === 'string'
+  && (value.userId == null || typeof value.userId === 'string')
+    ? {
+      authMode: value.authMode,
+      authorizationStreamIncarnation: value.authorizationStreamIncarnation,
+      userId: stringOrNull(value.userId),
+    }
+    : null
+);
+const normalizeCustody = (value) => (
+  plainRecord(value)
+  && Number.isSafeInteger(value.authorityEpoch)
+  && value.authorityEpoch >= 0
+  && typeof value.authorityKey === 'string'
+    ? {
+      authorityEpoch: value.authorityEpoch,
+      authorityKey: value.authorityKey,
+    }
+    : null
+);
+const samePrincipalScope = (left, right) => (
+  left?.authMode === right?.authMode
+  && left?.authorizationStreamIncarnation === right?.authorizationStreamIncarnation
+  && (left?.userId ?? null) === (right?.userId ?? null)
+);
+const isFencedRecord = (record) => (
+  plainRecord(record?.authorityDescriptor)
+  && normalizePrincipalScope(record?.principalScope) !== null
+  && normalizeCustody(record?.custody) !== null
+);
 const acknowledgementMatches = (ack, userId, descriptor) => (
   (userId === undefined || ack.userId === stringOrNull(userId))
   && (descriptor === undefined
@@ -110,6 +143,16 @@ export function normalizeOutboxRecordInput(record) {
   if (typeof functionName !== 'string' || !functionName) {
     throw invalidOutboxRecord('outbox record needs a function name');
   }
+  const principalScope = normalizePrincipalScope(record.principalScope);
+  const custody = normalizeCustody(record.custody);
+  if (
+    (record.principalScope != null || record.custody != null)
+    && (principalScope === null || custody === null)
+  ) {
+    throw invalidOutboxRecord(
+      'fenced outbox records require a complete principal scope and durable custody pair',
+    );
+  }
   const settlementLane = record.settlementLane ?? 'replay-accept';
   if (settlementLane !== 'replay-accept' && settlementLane !== 're-derive') {
     throw invalidOutboxRecord(
@@ -145,6 +188,8 @@ export function normalizeOutboxRecordInput(record) {
     // atomically adopt a fresh descriptor only after the client proves the
     // authenticated principal is unchanged.
     authorityDescriptor: record.authorityDescriptor ?? null,
+    ...(principalScope === null ? {} : { principalScope }),
+    ...(custody === null ? {} : { custody }),
     operationAuthorityPrincipalId: stringOrNull(record.operationAuthorityPrincipalId),
     // The captured replay environment, when one exists (LLP 0008 pins the
     // wire to {generatedIds, now} = the ctx-answer ledger). The plain JS arm
@@ -179,8 +224,22 @@ export function normalizeOutboxRecordInput(record) {
 }
 
 const durableReplayIdentity = (record) => {
-  const { capturedNow: _claimOnly, ...identity } = normalizeOutboxRecordInput(record);
-  return identity;
+  const { capturedNow: _claimOnly, authorityDescriptor, ...identity } = (
+    normalizeOutboxRecordInput(record)
+  );
+  // sessionGeneration is retained and transmitted for observability, but the
+  // ratified queue axis is the authority instance. Principal scope and the
+  // durable custody lineage remain identity inputs so one clientMutationId
+  // can never be rebound across a principal or custody transition.
+  // @ref LLP 0043#js-arm-sessions-custody-queue--recorded-design-2026-08-03-commissioned-at-author-sitting-2--ratified-2026-08-04-author-sitting-3-implementation-authorized-as-a-lane — descriptor instance is the
+  //   replay equality axis; session generation is observability only.
+  return {
+    ...identity,
+    authorityDescriptor: authorityDescriptor === null ? null : {
+      descriptorVersion: authorityDescriptor.descriptorVersion,
+      authorityInstanceId: authorityDescriptor.authorityInstanceId,
+    },
+  };
 };
 
 /// Serialized-size guard shared by every arm.
@@ -646,6 +705,138 @@ export const outboxOps = {
       existing.sequence,
     );
     return { state: cascaded.state, result: true };
+  },
+  markStranded(state, id, reason, now, predecessorPrincipalScope = null) {
+    const existing = state.records[id];
+    if (!existing) return { state, result: false };
+    if (existing.status === 'stranded') return { state, result: existing };
+    if (existing.status !== 'pending' && existing.status !== 'failed') {
+      return { state, result: false };
+    }
+    const scope = normalizePrincipalScope(
+      predecessorPrincipalScope ?? existing.principalScope,
+    );
+    if (scope === null) return { state, result: false };
+    const stored = {
+      ...existing,
+      status: 'stranded',
+      predecessorPrincipalScope: scope,
+      disposition: 'strand',
+      reason: typeof reason === 'string' && reason.length > 0
+        ? reason
+        : 'authority_instance_changed',
+      replayable: false,
+      discardOnly: false,
+      rerecordable: true,
+      strandedAt: now,
+    };
+    return {
+      state: { ...state, records: { ...state.records, [id]: stored } },
+      result: stored,
+    };
+  },
+  /// Reconcile every fenced queue record in one store transaction before the
+  /// current authority observes it. Same-principal instance changes strand;
+  /// any principal-axis change is a privacy deletion boundary.
+  ///
+  /// @ref LLP 0043#js-arm-sessions-custody-queue--recorded-design-2026-08-03-commissioned-at-author-sitting-2--ratified-2026-08-04-author-sitting-3-implementation-authorized-as-a-lane — strand-on-instance-change;
+  ///   delete-with-diagnostic-count at a cross-principal boundary.
+  reconcileCustody(state, principalScope, authorityDescriptor, custody, now) {
+    const currentScope = normalizePrincipalScope(principalScope);
+    const currentCustody = normalizeCustody(custody);
+    const currentInstance = authorityInstanceId(authorityDescriptor);
+    if (currentScope === null || currentCustody === null || currentInstance === null) {
+      throw invalidOutboxRecord('queue custody reconciliation requires a settled authority');
+    }
+    let working = state;
+    const deletedIds = [];
+    const strandedIds = [];
+    for (const record of Object.values(state.records).sort(outboxOrder)) {
+      if (!isFencedRecord(record)) {
+        // An unattributable record carries no captured principal or custody
+        // proof, so a fenced observer can neither attribute it to the current
+        // principal nor ever transmit it under a captured authority ("intent
+        // is never queued under unknown authority" extends to observation and
+        // replay). Privacy-delete it with the same diagnostic count.
+        deletedIds.push(record.id);
+        continue;
+      }
+      const recordIsAgent = record.authorityDescriptor?.sessionGeneration === 0
+        && record.principalScope?.userId !== null;
+      const currentIsAgent = authorityDescriptor?.sessionGeneration === 0
+        && currentScope.userId !== null;
+      const agentPrincipalChanged = recordIsAgent || currentIsAgent
+        ? !recordIsAgent
+          || !currentIsAgent
+          || record.custody.authorityKey !== currentCustody.authorityKey
+        : false;
+      if (agentPrincipalChanged || !samePrincipalScope(record.principalScope, currentScope)) {
+        // Every fenced disposition belongs to the predecessor principal.
+        // This includes settled records, whose args, settlement claims, and
+        // result remain payload-bearing until their acknowledgement is
+        // confirmed, plus any future terminal disposition added here.
+        deletedIds.push(record.id);
+        continue;
+      }
+      if (
+        authorityInstanceId(record.authorityDescriptor) !== currentInstance
+        && (record.status === 'pending' || record.status === 'failed')
+      ) {
+        const applied = outboxOps.markStranded(
+          working,
+          record.id,
+          'authority_instance_changed',
+          now,
+          record.principalScope,
+        );
+        working = applied.state;
+        if (applied.result) strandedIds.push(record.id);
+      }
+    }
+    if (deletedIds.length > 0) {
+      const deleted = new Set(deletedIds);
+      const records = { ...working.records };
+      for (const id of deletedIds) delete records[id];
+      working = {
+        ...working,
+        records,
+        acks: working.acks.filter((acknowledgement) => !deleted.has(acknowledgement.id)),
+      };
+    }
+    return {
+      state: working,
+      result: {
+        deleted: deletedIds.length,
+        deletedIds,
+        stranded: strandedIds.length,
+        strandedIds,
+      },
+    };
+  },
+  discardStranded(state, ids, principalScope) {
+    const currentScope = normalizePrincipalScope(principalScope);
+    if (currentScope === null) {
+      throw invalidOutboxRecord('stranded discard requires a settled principal scope');
+    }
+    const selected = new Set(Array.isArray(ids) ? ids : []);
+    const records = { ...state.records };
+    const discardedIds = [];
+    for (const record of Object.values(records).sort(outboxOrder)) {
+      if (
+        record.status !== 'stranded'
+        || !selected.has(record.id)
+        || record.rerecordable !== true
+        || !samePrincipalScope(record.predecessorPrincipalScope, currentScope)
+      ) continue;
+      delete records[record.id];
+      discardedIds.push(record.id);
+    }
+    return discardedIds.length === 0
+      ? { state, result: { discarded: 0, clientMutationIds: [] } }
+      : {
+        state: { ...state, records },
+        result: { discarded: discardedIds.length, clientMutationIds: discardedIds },
+      };
   },
   /// First-cut LLP 0081 quarantine: without generated successor-compatibility
   /// facts, one upgrade-required replay refusal quarantines every pending

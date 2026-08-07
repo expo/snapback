@@ -1,7 +1,7 @@
-// Public LLP 0039 logout -> LLP 0059 participant -> LLP 0166 v3 store-wide
-// transition coverage. Carrier-local wipe mechanics remain covered by the
-// rqs-store suites; this file proves the public bridge awaits that transition
-// before anonymous publication resumes.
+// Public LLP 0039 logout -> LLP 0059 participant -> LLP 0166 resident wipe
+// plus LLP 0043 queue reconciliation coverage. Carrier-local mechanics remain
+// covered by the rqs-store suites; this file proves resident state clears and
+// predecessor queue bytes privacy-delete before anonymous publication resumes.
 
 import assert from 'node:assert/strict';
 import { mkdtemp, readdir, rm } from 'node:fs/promises';
@@ -172,12 +172,33 @@ const assertCleared = (snapshot) => {
   assert.deepEqual(snapshot.sections, { materializations: 0, pageSets: 0, memberships: 0 });
 };
 
+const assertResidentClearedBeforeQueueReconcile = (snapshot) => {
+  assert.equal(snapshot.entry, null);
+  assert.deepEqual(snapshot.pendingOutbox.map((record) => record.id), ['logout-v3-pending']);
+  assert.equal(snapshot.receipt, null);
+  assert.deepEqual(snapshot.sections, { materializations: 0, pageSets: 0, memberships: 0 });
+};
+
 async function seedPredecessorState(store) {
   assert.equal(await store.allocateQueryInstanceId(), 1);
   assert.equal(await store.allocateQueryInstanceId(), 2);
   await store.writeStoreMeta(populatedMeta(await store.readStoreMeta()));
   assert.equal((await store.commit('logout-v3-entry', retainedEntry)).persisted, true);
-  await store.outboxEnqueue({ id: 'logout-v3-pending', function: 'writePredecessor' });
+  await store.outboxEnqueue({
+    id: 'logout-v3-pending',
+    function: 'writePredecessor',
+    authorityDescriptor: {
+      descriptorVersion: 1,
+      authorityInstanceId: AUTHORITY_INSTANCE,
+      sessionGeneration: 1,
+    },
+    principalScope: {
+      authMode: 'sessions',
+      authorizationStreamIncarnation: INCARNATION,
+      userId: USER,
+    },
+    custody: { authorityEpoch: 1, authorityKey: 'logout-v3-predecessor' },
+  });
   assert.equal(await store.commitReactBindingReceipt({ binding: 'logout-v3' }), true);
   await store.materializationTransaction('readwrite', (view) => {
     view.materializations.set('logout-v3-materialization', { occupied: true });
@@ -198,9 +219,9 @@ async function exercisePublicLogout({
 
   let wipeCalls = 0;
   const injectedStore = Object.create(store);
-  injectedStore.wipe = async () => {
+  injectedStore.wipeForAuthorityTransition = async () => {
     wipeCalls += 1;
-    return store.wipe();
+    return store.wipeForAuthorityTransition();
   };
 
   const appId = `snapback.test/logout-v3-${label}`;
@@ -228,7 +249,7 @@ async function exercisePublicLogout({
       const authenticated = headers.get('authorization') === `Bearer ${BEARER}`;
       if (logoutPosted) {
         assert.equal(authenticated, false, `${label}: logout resumes without predecessor bearer`);
-        assertCleared(await residentSnapshot(store));
+        assertResidentClearedBeforeQueueReconcile(await residentSnapshot(store));
         anonymousResumeObserved = true;
       }
       return Response.json(handshake(appId, authenticated));
@@ -251,7 +272,11 @@ async function exercisePublicLogout({
     const wipeCallsBeforeLogout = wipeCalls;
 
     assert.equal(await client.authLogout(), null);
-    assert.equal(wipeCalls, wipeCallsBeforeLogout + 1, `${label}: logout invokes one v3 wipe`);
+    assert.equal(
+      wipeCalls,
+      wipeCallsBeforeLogout + 1,
+      `${label}: logout invokes one authority-transition wipe`,
+    );
     assert.equal(anonymousResumeObserved, true, `${label}: wipe finishes before anonymous resume`);
     assertCleared(await residentSnapshot(store));
     const after = await store.readStoreMeta();
@@ -319,7 +344,7 @@ test('public authLogout runs the v3 client-wide wipe on memory, IndexedDB, and f
         assert.equal(
           (await readdir(directory)).filter((name) => name.endsWith('.v1.json')).length,
           1,
-          'file: public logout sweeps sibling identity blobs',
+          'file: authority-transition wipe sweeps sibling identity blobs',
         );
         const reopenedSibling = createFileRqsResumeStore({
           directory,
@@ -341,9 +366,9 @@ test('logout keeps the documented availability-only posture when the v3 wipe fai
   await store.whenLockSettled();
   let failWipe = false;
   const injectedStore = Object.create(store);
-  injectedStore.wipe = async () => {
+  injectedStore.wipeForAuthorityTransition = async () => {
     if (failWipe) throw new Error('fixture wipe failure');
-    return store.wipe();
+    return store.wipeForAuthorityTransition();
   };
   const appId = 'snapback.test/logout-v3-availability';
   const coordinator = new AuthCoordinator({
@@ -376,7 +401,11 @@ test('logout keeps the documented availability-only posture when the v3 wipe fai
     failWipe = true;
     assert.equal(await client.authLogout(), null);
     assert.equal(coordinator.authority.kind, 'anonymous');
-    assertPopulated(await residentSnapshot(store));
+    const retained = await residentSnapshot(store);
+    assert.notEqual(retained.entry, null);
+    assert.deepEqual(retained.pendingOutbox, []);
+    assert.notEqual(retained.receipt, null);
+    assert.deepEqual(retained.sections, { materializations: 1, pageSets: 1, memberships: 1 });
   } finally {
     globalThis.fetch = originalFetch;
     await client.closeAuth();

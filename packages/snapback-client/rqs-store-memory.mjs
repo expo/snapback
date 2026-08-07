@@ -247,6 +247,21 @@ export function createMemoryRqsResumeStore({
       return true;
     },
 
+    /// AuthCoordinator transitions clear retained/read projections while the
+    /// per-record LLP 0043 custody matrix keeps ownership of outbox bytes.
+    async wipeForAuthorityTransition() {
+      if (!requireWriter()) return false;
+      const storeMeta = wipeStoreMeta(state.storeMeta, { randomBytes });
+      if (storeMeta === null) return false;
+      state.entries.clear();
+      state.reactBindingReceipt = null;
+      state.materializations.clear();
+      state.pageSets.clear();
+      state.memberships.clear();
+      state.storeMeta = storeMeta;
+      return true;
+    },
+
     async resetCorruptStoreIdentity() {
       if (!requireWriter()) return { reset: false, reason: 'not_writer' };
       if (prepareStoreMeta(state.storeMeta) !== null) {
@@ -367,6 +382,39 @@ export function createMemoryRqsResumeStore({
       return applied.result;
     },
 
+    async outboxMarkStranded(id, reason, predecessorPrincipalScope = null) {
+      if (!requireWriter()) return false;
+      const applied = outboxOps.markStranded(
+        state.outbox,
+        id,
+        reason,
+        now(),
+        predecessorPrincipalScope,
+      );
+      state.outbox = applied.state;
+      return structuredClone(applied.result);
+    },
+
+    async outboxReconcileCustody(principalScope, authorityDescriptor, custody) {
+      if (!requireWriter()) return false;
+      const applied = outboxOps.reconcileCustody(
+        state.outbox,
+        principalScope,
+        authorityDescriptor,
+        custody,
+        now(),
+      );
+      state.outbox = applied.state;
+      return structuredClone(applied.result);
+    },
+
+    async outboxDiscardStranded(ids, principalScope) {
+      if (!requireWriter()) return false;
+      const applied = outboxOps.discardStranded(state.outbox, ids, principalScope);
+      state.outbox = applied.state;
+      return structuredClone(applied.result);
+    },
+
     async outboxMarkQuarantined(id, refusal) {
       if (!requireWriter()) return false;
       const applied = outboxOps.markQuarantined(state.outbox, id, refusal, now());
@@ -433,6 +481,8 @@ export function createMemoryRqsResumeStore({
         outbox: Object.freeze({
           pending: pendingOutboxRecords(state.outbox).length,
           failed: allOutboxRecords(state.outbox).filter((r) => r.status === 'failed').length,
+          stranded: allOutboxRecords(state.outbox)
+            .filter((r) => r.status === 'stranded').length,
           quarantined: allOutboxRecords(state.outbox)
             .filter((r) => r.status === 'quarantined').length,
           resultGone: allOutboxRecords(state.outbox)

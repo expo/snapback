@@ -140,7 +140,8 @@
       "ok": true,
       "details": {
         "updateKinds": [
-          "persisted"
+          "persisted",
+          "snapshot"
         ],
         "rows": 3
       }

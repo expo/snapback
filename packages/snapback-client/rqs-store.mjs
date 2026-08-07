@@ -564,6 +564,34 @@ export function createIndexedDbRqsResumeStore({
       return outboxWrite((state) => outboxOps.markFailed(state, id, failure));
     },
 
+    async outboxMarkStranded(id, reason, predecessorPrincipalScope = null) {
+      return outboxWrite((state) => outboxOps.markStranded(
+        state,
+        id,
+        reason,
+        now(),
+        predecessorPrincipalScope,
+      ));
+    },
+
+    async outboxReconcileCustody(principalScope, authorityDescriptor, custody) {
+      return outboxWrite((state) => outboxOps.reconcileCustody(
+        state,
+        principalScope,
+        authorityDescriptor,
+        custody,
+        now(),
+      ));
+    },
+
+    async outboxDiscardStranded(ids, principalScope) {
+      return outboxWrite((state) => outboxOps.discardStranded(
+        state,
+        ids,
+        principalScope,
+      ));
+    },
+
     async outboxMarkQuarantined(id, refusal) {
       return outboxWrite((state) => outboxOps.markQuarantined(state, id, refusal, now()));
     },
@@ -808,6 +836,28 @@ export function createIndexedDbRqsResumeStore({
       return true;
     },
 
+    async wipeForAuthorityTransition() {
+      pendingReactBindingReceipt = null;
+      if (!this.isWriter()) return false;
+      const db = await database();
+      const tx = db.transaction(ALL_STORES, 'readwrite');
+      const nextMeta = wipeStoreMeta(
+        await readMetaFromStore(tx.objectStore(STORE_META)),
+        { randomBytes },
+      );
+      if (nextMeta === null) {
+        tx.abort();
+        throw storeError('SNAPBACK_RQS_STORE_CORRUPT', 'RQS store metadata is invalid');
+      }
+      for (const storeName of RESIDENT_STORES) {
+        if (storeName !== OUTBOX) tx.objectStore(storeName).clear();
+      }
+      tx.objectStore(OUTBOX).delete(REACT_BINDING_RECEIPT_KEY);
+      tx.objectStore(STORE_META).put(nextMeta, RQS_STORE_META_KEY);
+      await transactionDone(tx);
+      return true;
+    },
+
     /// Caller-authorized recovery for a database whose metadata/schema cannot
     /// be interpreted. The hook is the LLP 0059 participant integration cut;
     /// this carrier consumes its authorization and does not implement it.
@@ -862,6 +912,8 @@ export function createIndexedDbRqsResumeStore({
         outbox: Object.freeze({
           pending: pendingOutboxRecords(outboxState).length,
           failed: allOutboxRecords(outboxState).filter((r) => r.status === 'failed').length,
+          stranded: allOutboxRecords(outboxState)
+            .filter((r) => r.status === 'stranded').length,
           quarantined: allOutboxRecords(outboxState)
             .filter((r) => r.status === 'quarantined').length,
           resultGone: allOutboxRecords(outboxState)

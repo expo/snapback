@@ -123,6 +123,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'micro.test.mjs',
       'optimistic-rebase-acceptance.test.mjs',
       'optimistic-rebase.test.mjs',
+      'outbox-custody.test.mjs',
       'outbox-quarantine.test.mjs',
       'outbox-store.test.mjs',
       'package.test.mjs',
@@ -443,7 +444,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 232,
+  expectedTotal = 233,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -719,6 +720,9 @@ export function checkPackageTestInventories(options = {}) {
 // bootstrap exchange.
 // 231 -> 232 (2026-08-07, LLP 0114/0181 offline binding): @expo/snapback-expo
 // gains the supervised warm-receipt and cold persisted-receipt fallback suite.
+// 232 -> 233 (2026-08-06, LLP 0043 sessions-custody queue):
+// @expo/snapback-client gains the custody matrix, cold replay, recovery,
+// privacy deletion, and zerobugs regression suite.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');

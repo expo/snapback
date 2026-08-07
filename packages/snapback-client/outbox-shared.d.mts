@@ -25,12 +25,26 @@ export interface OutboxRecordInput {
     bundleHash: string;
     inputsHash: string;
   }> | null;
+  readonly authorityDescriptor?: Readonly<{
+    descriptorVersion: 1;
+    authorityInstanceId: string;
+    sessionGeneration: number;
+  }> | null;
+  readonly principalScope?: Readonly<{
+    authMode: string;
+    authorizationStreamIncarnation: string;
+    userId: string | null;
+  }>;
+  readonly custody?: Readonly<{
+    authorityEpoch: number;
+    authorityKey: string;
+  }>;
   readonly [key: string]: unknown;
 }
 
 export interface StoredOutboxRecord extends OutboxRecordInput {
   readonly sequence: number;
-  readonly status: 'pending' | 'settled' | 'failed' | 'result-gone' | 'quarantined';
+  readonly status: 'pending' | 'settled' | 'failed' | 'result-gone' | 'quarantined' | 'stranded';
 }
 
 export interface OutboxQuarantineTombstone {

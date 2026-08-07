@@ -180,6 +180,8 @@ const makeFixture = () => {
     authCoordinator: coordinator,
     authClientProtocol: 1,
     authorityDescriptorProtocol: 1,
+    rqsStore: null,
+    offlineQueue: false,
   });
   return {
     client,

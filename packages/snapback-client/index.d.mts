@@ -800,6 +800,7 @@ export interface RqsStoreInfo {
 export interface OutboxReplayOutcome {
   readonly replayed: number;
   readonly failed: number;
+  readonly stranded: number;
   readonly quarantined: number;
   readonly remaining: number;
   readonly stopped?: boolean;
@@ -814,6 +815,7 @@ export interface OutboxFreshSnapshotBarrierV1 {
 export interface OutboxDispositionCounts {
   readonly pending: number;
   readonly failed: number;
+  readonly stranded: number;
   readonly quarantined: number;
   readonly resultGone: number;
 }
@@ -833,6 +835,7 @@ export interface OutboxAdoptionReceipt {
   readonly pendingBefore: number;
   readonly replayed: number;
   readonly failedDelta: number;
+  readonly strandedDelta: number;
   readonly quarantinedDelta: number;
   readonly resultGoneDelta: number;
   readonly remaining: number;
@@ -866,6 +869,34 @@ export interface QuarantinedMutationReentryOutcome {
   readonly clientMutationIds: readonly string[];
 }
 
+export interface OutboxPrincipalScope {
+  readonly authMode: string;
+  readonly authorizationStreamIncarnation: string;
+  readonly userId: string | null;
+}
+
+/** Full-byte rerecordable custody outcome owned by the current principal.
+ * Credential, sender, token/carrier, and lease material is never present. */
+export interface StrandedMutation {
+  readonly status: 'stranded';
+  readonly id: string;
+  readonly clientMutationId: string;
+  readonly function: string;
+  readonly args: unknown;
+  readonly sequence: number;
+  readonly reason: 'authority_instance_changed' | 'server_authority_stale_result' | string;
+  readonly strandedAt: number;
+  readonly predecessorPrincipalScope: OutboxPrincipalScope;
+  readonly replayable: false;
+  readonly rerecordable: true;
+  readonly [key: string]: unknown;
+}
+
+export interface StrandedMutationDiscardOutcome {
+  readonly discarded: number;
+  readonly clientMutationIds: readonly string[];
+}
+
 /** Live outbox facts (pure projection of the durable store's records plus
  * the single-flight drain flag). `supported: false` means this client
  * resolved no outbox-capable store. */
@@ -873,6 +904,8 @@ export interface OutboxStatus {
   readonly supported: boolean;
   readonly pending: number;
   readonly failed: number;
+  /** Same-principal predecessor intents held across an authority-instance cut. */
+  readonly stranded: number;
   /** Upgrade-incompatible intents held for explicit successor re-entry. */
   readonly quarantined: number;
   /** Outcome-known operations whose retained result payload is gone. These
@@ -1297,6 +1330,17 @@ export class SnapbackClient {
   /** Explicitly return the whole quarantine to pending after successor
    * artifact admission. This first cut does no per-intent transformation. */
   reenterQuarantinedMutations(): Promise<QuarantinedMutationReentryOutcome>;
+  /** Current-principal, full-byte intents stranded by an authority change. */
+  strandedMutations(): Promise<readonly StrandedMutation[]>;
+  /** Explicitly discard current-principal stranded intent. */
+  discardStrandedMutations(
+    clientMutationIds: readonly string[],
+  ): Promise<StrandedMutationDiscardOutcome>;
+  /** Discard one predecessor and issue it as a new intent/new mutation id. */
+  reRecordStrandedMutation(
+    clientMutationId: string,
+    options?: Readonly<Record<string, unknown>>,
+  ): Promise<string>;
   /** Complete settlements recoverable after a crash before caller publication. */
   settledMutations(options?: { readonly userId?: string | null }): Promise<readonly SettledMutation[]>;
   /** Make recovered settlements eligible for same-authority ACK piggyback. */

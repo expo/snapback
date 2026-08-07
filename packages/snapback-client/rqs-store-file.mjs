@@ -468,6 +468,22 @@ export function createFileRqsResumeStore({
     if (closed) throw storeError('SNAPBACK_RQS_STORE_CLOSED', 'RQS resume store is closed');
   };
 
+  const sweepSiblingIdentityBlobs = async () => {
+    const ownBlobName = blobPath.slice(blobPath.lastIndexOf(sep) + 1);
+    const names = await files.readdir(directory);
+    for (const name of names) {
+      const sweep = name.includes(TMP_MARKER)
+        || (BLOB_FILE_PATTERN.test(name) && name !== ownBlobName);
+      if (!sweep) continue;
+      try {
+        await files.unlink(`${directory}${sep}${name}`);
+      } catch {
+        // Best-effort per sibling; the wipe itself must not throw for an
+        // already-gone file.
+      }
+    }
+  };
+
   // @ref LLP 0166#d6--resume-delta-and-the-shipped-rqs-machinery — legacy
   // entries, outbox, and QMK sections share the adoption commit domain.
   const materializationTransaction = (mode, operation) => import(
@@ -620,6 +636,39 @@ export function createFileRqsResumeStore({
       requireOpen();
       return serialized(async () => (await outboxWrite(
         (outbox) => outboxOps.markFailed(outbox, id, failure),
+      )).result);
+    },
+
+    async outboxMarkStranded(id, reason, predecessorPrincipalScope = null) {
+      requireOpen();
+      return serialized(async () => (await outboxWrite(
+        (outbox) => outboxOps.markStranded(
+          outbox,
+          id,
+          reason,
+          now(),
+          predecessorPrincipalScope,
+        ),
+      )).result);
+    },
+
+    async outboxReconcileCustody(principalScope, authorityDescriptor, custody) {
+      requireOpen();
+      return serialized(async () => (await outboxWrite(
+        (outbox) => outboxOps.reconcileCustody(
+          outbox,
+          principalScope,
+          authorityDescriptor,
+          custody,
+          now(),
+        ),
+      )).result);
+    },
+
+    async outboxDiscardStranded(ids, principalScope) {
+      requireOpen();
+      return serialized(async () => (await outboxWrite(
+        (outbox) => outboxOps.discardStranded(outbox, ids, principalScope),
       )).result);
     },
 
@@ -913,19 +962,7 @@ export function createFileRqsResumeStore({
       return serialized(async () => {
         await acquireLock();
         if (!writer) return false;
-        const ownBlobName = blobPath.slice(blobPath.lastIndexOf(sep) + 1);
-        const names = await files.readdir(directory);
-        for (const name of names) {
-          const sweep = name.includes(TMP_MARKER)
-            || (BLOB_FILE_PATTERN.test(name) && name !== ownBlobName);
-          if (!sweep) continue;
-          try {
-            await files.unlink(`${directory}${sep}${name}`);
-          } catch {
-            // Best-effort per sibling; the wipe itself must not throw for
-            // an already-gone file.
-          }
-        }
+        await sweepSiblingIdentityBlobs();
         let state;
         try {
           state = await readState();
@@ -935,6 +972,31 @@ export function createFileRqsResumeStore({
         const storeMeta = wipeStoreMeta(state.storeMeta, { randomBytes });
         if (storeMeta === null) return false;
         await writeState(emptyState(storeMeta));
+        return true;
+      });
+    },
+
+    async wipeForAuthorityTransition() {
+      requireOpen();
+      return serialized(async () => {
+        await acquireLock();
+        if (!writer) return false;
+        // LLP 0166's client-wide cut still destroys every sibling identity
+        // blob. Only this resolved store's outbox receives LLP 0043's
+        // per-record custody carve-out.
+        await sweepSiblingIdentityBlobs();
+        let state;
+        try {
+          state = await readState();
+        } catch {
+          return false;
+        }
+        const storeMeta = wipeStoreMeta(state.storeMeta, { randomBytes });
+        if (storeMeta === null) return false;
+        await writeState({
+          ...emptyState(storeMeta),
+          outbox: state.outbox,
+        });
         return true;
       });
     },
@@ -1010,6 +1072,8 @@ export function createFileRqsResumeStore({
           outbox: Object.freeze({
             pending: pendingOutboxRecords(state.outbox).length,
             failed: allOutboxRecords(state.outbox).filter((r) => r.status === 'failed').length,
+            stranded: allOutboxRecords(state.outbox)
+              .filter((r) => r.status === 'stranded').length,
             quarantined: allOutboxRecords(state.outbox)
               .filter((r) => r.status === 'quarantined').length,
             resultGone: allOutboxRecords(state.outbox)

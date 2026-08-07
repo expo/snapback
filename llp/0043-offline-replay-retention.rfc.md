@@ -5,7 +5,7 @@
 **Systems:** Sync, Storage, Client integration, Auth, API, Realtime, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-08-05 (C28 lifecycle reconciliation — two-digest tombstones, contiguous closed-prefix floors, and four-range/1,024-identity client epoch capacity); 2026-08-04 (author decision sitting #3
+**Revised:** 2026-08-06 (JS-arm sessions-custody queue implemented: per-record descriptor/principal/fence capture, strand/delete reconciliation, explicit recovery affordances, and card-game acceptance witness; commit noted below); 2026-08-05 (C28 lifecycle reconciliation — two-digest tombstones, contiguous closed-prefix floors, and four-range/1,024-identity client epoch capacity); 2026-08-04 (author decision sitting #3
 (`issues/closed/20260804-author-decision-sitting-3.md`): the JS-arm
 sessions-custody queue recorded design is **RATIFIED** — all four open
 points ruled: (1) v1 stays server-refusal-only, no LLP 0053
@@ -16,9 +16,7 @@ re-record recovery, content refusals stay drop-and-mark-failed;
 (3) cross-principal disposition is delete-with-diagnostic-count, no
 redacted tombstones; (4) recovery affordance is
 read/discard/re-record-as-new-`clientMutationId`, no exactly-once bridge
-across authorities. Implementation is now authorized as a lane; the
-`SNAPBACK_OFFLINE_QUEUE_CUSTODY_UNSUPPORTED` refusal remains the shipped
-behavior only until that lane lands.) 2026-08-03 (LLP 0163 implementation parameters — v1 authenticated
+across authorities. Implemented by the 2026-08-06 lane noted above.) 2026-08-03 (LLP 0163 implementation parameters — v1 authenticated
 client ranges admit at most 256 counters over at most 30 days; unacknowledged
 results have no time eviction; ACK makes the result payload immediately
 reclaimable but requires a tombstone until the audience floor passes the
@@ -30,9 +28,7 @@ JS-arm sessions-custody offline queue: capture-at-enqueue authority
 descriptors + strand-on-authority-change, per the commissioned design pass
 at author sitting #2; see §Auth posture's dated subsection. Recorded
 awaiting author ratification; **ratified 2026-08-04 at author sitting #3**
-— see that entry. The JS arm's
-`SNAPBACK_OFFLINE_QUEUE_CUSTODY_UNSUPPORTED` fence stands until the
-authorized implementation lane lands.)
+— see that entry and the 2026-08-06 implementation note.)
 2026-08-03 (terminology note: "cold process" in this document
 names the fresh-wrappers-over-retained-state-in-one-process proof class;
 no claim change.) 2026-08-03 (Accepted LLP 0166 boundary: v1 lease-family
@@ -490,9 +486,18 @@ outbox record on the JS arm's RQS store, not by porting the Contract store's
 format-6 epoch machinery wholesale. **The author ratified this recording on
 2026-08-04 at author decision sitting #3
 (`issues/closed/20260804-author-decision-sitting-3.md`), ruling all four
-open points below; implementation is now authorized as a lane.** Until that
-implementation lands, the refusal above remains the shipped behavior;
-nothing in this subsection changes a claim ahead of the landed lane.
+open points below; implementation is now authorized as a lane.** **Implemented
+2026-08-06 by the JS-arm sessions-custody lane (commit noted below):** the
+refusal above is removed, the per-record custody matrix and recovery surfaces
+ship across every RQS store arm, and the card-game acceptance suite witnesses
+the sessions-mode rows. One implementation consequence recorded for
+completeness: an *unattributable* queue record (no captured
+descriptor/principal/custody triple — dev-era or foreign-writer bytes) in a
+store observed under a settled authority fence is privacy-deleted at
+reconciliation with the same diagnostic count, because it can neither prove
+the current principal nor ever be transmitted under a captured authority —
+"intent is never queued under unknown authority" extends to observation and
+replay.
 
 **Captured at enqueue.** A sessions-custody enqueue is admitted only while the
 authority fence is settled (a clearing/unsettled fence —

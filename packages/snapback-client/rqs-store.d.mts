@@ -156,6 +156,28 @@ export interface RqsResumeStore {
   whenLockSettled(): Promise<void>;
   outboxEmpty(): Promise<boolean>;
   outboxRecords(): Promise<readonly Readonly<Record<string, unknown>>[]>;
+  outboxMarkStranded(
+    id: string,
+    reason: string,
+    predecessorPrincipalScope?: Readonly<Record<string, unknown>> | null,
+  ): Promise<false | Readonly<Record<string, unknown>>>;
+  outboxReconcileCustody(
+    principalScope: Readonly<Record<string, unknown>>,
+    authorityDescriptor: Readonly<Record<string, unknown>>,
+    custody: Readonly<{ authorityEpoch: number; authorityKey: string }>,
+  ): Promise<false | Readonly<{
+    deleted: number;
+    deletedIds: readonly string[];
+    stranded: number;
+    strandedIds: readonly string[];
+  }>>;
+  outboxDiscardStranded(
+    ids: readonly string[],
+    principalScope: Readonly<Record<string, unknown>>,
+  ): Promise<false | Readonly<{
+    discarded: number;
+    clientMutationIds: readonly string[];
+  }>>;
   outboxMarkQuarantined?(
     id: string,
     refusal: Readonly<{ code: string }>,
@@ -205,6 +227,9 @@ export interface RqsResumeStore {
   markResumed(key: string, at?: number): Promise<boolean>;
   remove(key: string): Promise<boolean>;
   wipe(): Promise<boolean>;
+  /** Clear resident/read projections for a session authority transition while
+   * preserving the outbox for per-record descriptor reconciliation. */
+  wipeForAuthorityTransition(): Promise<boolean>;
   resetCorruptStoreIdentity(): Promise<RqsStoreIdentityResetResult>;
   inspection(): Promise<RqsStoreInspection>;
   close(): Promise<void>;

@@ -23,7 +23,7 @@
       "logicalBytes": 51027,
       "resultBytes": 49652,
       "proofBytes": 1375,
-      "physicalCarrierBytes": 129336
+      "physicalCarrierBytes": 129338
     },
     "releasedCustody": {
       "materializationRecords": 21,
@@ -32,15 +32,15 @@
       "fragments": 0,
       "retainedTopLevelRows": 0,
       "retainedProjectedRows": 0,
-      "physicalCarrierBytes": 48729
+      "physicalCarrierBytes": 48731
     },
     "hydration": {
       "attempts": 1,
       "firstUsefulRows": 100,
       "rowsInstalled": 200,
       "payloadBytes": 49652,
-      "firstUsefulMs": 178.915,
-      "authoritativeCompleteMs": 178.915
+      "firstUsefulMs": 221.448,
+      "authoritativeCompleteMs": 221.448
     }
   },
   "frozenCeilings": {
