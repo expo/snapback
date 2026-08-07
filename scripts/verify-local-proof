@@ -215,6 +215,8 @@ run result-transform-ship-gate -- node tests/conformance/result-transform-ship-g
 # the latter is full-vector guarded and reverse-rolls back without clobbering
 # a concurrent release.
 run promotion-fixtures -- node --test scripts/snapback-promotion-core.test.mjs
+run latest-proof-plan-generator-fixtures -- node --test scripts/snapback-generate-latest-proof-plan.test.mjs
+run prior-vector-observer-fixtures -- node --test scripts/snapback-observe-prior-vector.test.mjs
 # @ref LLP 0041#nine-package-candidate-promotion--2026-07-28 — the final
 # latest-root proof collector admits only the exact correlated GitHub-hosted
 # macOS/Linux run and hands the promoter two reopenable receipt files.
