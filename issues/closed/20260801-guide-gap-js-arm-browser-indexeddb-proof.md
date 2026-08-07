@@ -1,6 +1,6 @@
 # Guide gap: JS-arm browser/IndexedDB claims exceed retained proof
 
-**Status:** Open
+**Status:** Resolved (2026-08-07)
 **Impact:** 4
 **Urgency:** 3
 **Ease:** 3
@@ -52,6 +52,46 @@ When that witness passes, update the capability row and guide prose in the same
 landing change and close this ticket.
 
 ## Running log
+
+- **2026-08-07 — RESOLVED: the full resolution witness passes in a real
+  browser against the real server.**
+  `demos/browser-local-first/tests/acceptance/browser-public-witness.mjs`
+  runs a generated todo-style React app (real `@expo/snapback-react` hooks
+  over `@expo/snapback-client`) through the `@expo/snapback-vite` relay in
+  system Chrome via CDP, against the qualified `snapback` runtime binary,
+  and passes 8/8 checks; the dated receipt is retained at
+  `tests/acceptance/fixtures/browser-lane/browser-public-witness.2026-08-07.v1.json`
+  with browser executable sha256/version, profile path (literal `/tmp` —
+  see the Chrome `/var/folders` IndexedDB finding), store, source-file and
+  generated-artifact digests, per-check outcomes, and scoped-cleanup
+  attestation. Coverage against this ticket's witness list: retained/current
+  labeling incl. whole-process SIGKILL + same-profile relaunch with authority
+  unreachable (never presented as current offline); durable queued mutations
+  with full-resync-before-replay proven by event ordinals; ordered
+  exactly-once settlement incl. exact duplicate redelivery republishing the
+  stored settlement with zero dispatch; independent-observer convergence
+  (Node client, shared null-vs-absent canonicalizer); and the
+  protected/opaque refusal proven in the browser carrier without borrowing
+  the Node result — an anonymous sessions-mode phase on the same
+  origin/profile asserts `SNAPBACK_RETENTION_NOT_RETAINABLE` on the handle,
+  the hook, and the DOM, with no IndexedDB entry for the protected query in
+  any phase (the retained entry present beside it as positive control). The
+  "third half" auth-scoped refusal also has its Node-carrier interim receipt
+  (`packages/snapback-client/rqs-resume.test.mjs`), so both carriers now
+  assert it. A same-process full-page SPA reconstruction check and a
+  render-stability ceiling ride along.
+
+  The witness found and fixed three shipped-client defects invisible to Node
+  suites (see diary 0067 for detail): the IndexedDB store's
+  `whenLockSettled()` resolved only at lock release, wedging every browser
+  outbox drain forever; warm online establishment never re-delivered
+  authoritative rows through `onUpdate` after a persisted seed frame, so
+  React stayed on retained rows after a reload; and anonymous-public custody
+  omitted the authorization-invalidation header on `/live/*`, refusing every
+  anonymous auth-scoped subscribe. The classification mode boundary
+  (`NOT_RQS_ELIGIBLE` under dev custody vs `NOT_RETAINABLE` under sessions
+  for the same declaration) is now stated in the guide. Capability row and
+  guide prose updated in this landing; ticket closed.
 
 - **2026-08-02 — prerequisite harness landed, resolution witness remains
   open.** LLP 0155 Stage 0 added

@@ -1958,6 +1958,8 @@ test('generated-artifact registry covers every codegen job exactly once', () => 
   assert.ok(REVIEW_CACHE_ROOTS.includes('demos/party-wall/snapback/generated'));
   assert.ok(REVIEW_CACHE_ROOTS.includes('demos/triage-graph/snapback/generated'));
   assert.ok(REVIEW_CACHE_ROOTS.includes('demos/chirp/snapback/generated'));
+  assert.ok(REVIEW_CACHE_ROOTS.includes('demos/browser-local-first/snapback/generated'));
+  assert.ok(REVIEW_CACHE_ROOTS.includes('demos/browser-local-first/snapback-sessions/generated'));
   assert.ok(FULLY_COMMITTED_ROOTS.includes(
     'demos/zero-bakeoff/apps/contention-calendar/snapback/generated',
   ));
@@ -2024,6 +2026,8 @@ const REVIEWED_GENERATED_PUBLICATION_PATHS = new Set([
   'demos/access-desk/snapback/generated/artifacts.json',
   'demos/all-aboard/snapback/generated/artifacts.json',
   'demos/all-aboard/tests/egress-probe/generated/artifacts.json',
+  'demos/browser-local-first/snapback/generated/artifacts.json',
+  'demos/browser-local-first/snapback-sessions/generated/artifacts.json',
   'demos/campfire/snapback/generated/artifacts.json',
   'demos/card-game/snapback/generated/artifacts.json',
   'demos/catalog-lens/snapback/generated/artifacts.json',

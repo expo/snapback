@@ -1,7 +1,7 @@
 # LLP 0166 local-store carrier-exit v1 evidence
 
 **Run date:** 2026-08-06
-**Source revision:** `ce7e3308a2cf28b4b2a724743ee3d0abebd1bdcf` (clean)
+**Source revision:** `18ed09d8557efc2c9497e908cf16f0d99ba4eb71` (dirty evidence worktree)
 **Machine:** darwin/arm64, Node v24.18.0
 
 This is the standards-real Move-2 carrier exit consumed by LLP 0157 and LLP
@@ -13,10 +13,10 @@ publication.
 
 | Leg | Carrier | Status | Measured result or stable GAP reason |
 | --- | --- | --- | --- |
-| browser-terminate-relaunch | browser-indexeddb-v3 | PASS | relaunch-to-readable 1633.073 ms |
+| browser-terminate-relaunch | browser-indexeddb-v3 | PASS | relaunch-to-readable 1531.171 ms |
 | two-tabs-one-profile | browser-indexeddb-web-locks-broadcastchannel | PASS | suppression true → false; undefined |
 | file-process-terminate-relaunch | node-file-v3-outbox | PASS | 2 SIGKILL write-boundary cuts; allocator next 3 |
-| retained-render-server-unreachable | live-backend-plus-node-file-v3 | PASS | {"serverBinary":"target/debug/snapback","serverBinarySha256":"4c25af8abd8bdbde93e90be94d5d937ffd16f5d9865afa41b35c3f5975399a92","launchRung":"configured","backendStoppedBeforeRelaunch":true,"activationPreparation":{"format":"snapback.composition-activation-preparation.v1","activationHash":"sha256:38e3fa9f0e6bed88934deb5c8568659e5eae314867edb5bc418f259c682de5f1","sourceClass":"temporary-backend-source","next":"rerun Snapback codegen for this backend"},"generatedArtifactGraph":{"trustedActivationPresent":true,"directReferenceIdentity":true},"live":{"answerClass":"authoritative","freshness":"current","rows":[{"title":"proof-backed","authorName":"Ada"}],"retention":{"retainable":true,"code":null,"reason":null,"store":{"source":"injected","implementation":"file","durable":true,"reason":null}}},"relaunch":{"answerClass":"authoritative","freshness":"retained","rows":[{"authorName":"Ada","title":"proof-backed"}],"firstUpdate":null},"materialization":{"records":1,"qmk1":"qmk1.rxGzbU3wWgWiN7veyPkHuHWR6Jji_CEz8NCRqhot7iI","freshness":"retained","fragments":1,"leaseCustody":1},"endToEndRenderedByPublicClient":true} |
+| retained-render-server-unreachable | live-backend-plus-node-file-v3 | PASS | {"serverBinary":"target/debug/snapback","serverBinarySha256":"a41ebcf0eef7a3f717585175564c0d1ab557f475ec75eef8b4a02b329871053f","launchRung":"configured","backendStoppedBeforeRelaunch":true,"activationPreparation":{"format":"snapback.composition-activation-preparation.v1","activationHash":"sha256:60187d3d01df1aa68656a6738fa56378bf6bdff0f499d7330b93f2911b1a5ef5","sourceClass":"temporary-backend-source","next":"rerun Snapback codegen for this backend"},"generatedArtifactGraph":{"trustedActivationPresent":true,"directReferenceIdentity":true},"live":{"answerClass":"authoritative","freshness":"current","rows":[{"title":"proof-backed","authorName":"Ada"}],"retention":{"retainable":true,"code":null,"reason":null,"store":{"source":"injected","implementation":"file","durable":true,"reason":null}}},"relaunch":{"answerClass":"authoritative","freshness":"retained","rows":[{"authorName":"Ada","title":"proof-backed"}],"firstUpdate":null},"materialization":{"records":1,"qmk1":"qmk1.17ytVDcYei3y1oWP5zwzj6gUn5TkHSgiaffU2tMXPho","freshness":"retained","fragments":1,"leaseCustody":1},"endToEndRenderedByPublicClient":true} |
 | authority-logout | node-public-client-to-file-v3 | PASS | {"publicMethod":"SnapbackClient.authLogout","transitionParticipant":"AuthCoordinator.commitDurable","nodeLevelBridge":true,"pageLevelBridge":false,"wipeCallsDuringLogout":1,"retainedAndOutboxClearedBeforeAnonymousResume":true,"clientStoreIdPreserved":true,"allocatorHighWaterPreserved":true,"generationHighWatersPreserved":true,"fenceTombstoneBarrierHighWatersPreserved":true,"storeMetaPolicyProjectionCleared":true,"handleKeyRotated":true,"nextAllocatedQueryInstanceId":3,"siblingIdentityBlobs":{"before":2,"after":1},"destroyedSiblingReopenedWithFreshIdentity":true} |
 | authority-user-switch | node-file-v3-multi-identity | PASS | {"blobsBefore":2,"blobsAfter":1,"wipingIdentityPreserved":true,"handleKeyRotated":true,"destroyedSiblingReopenedWithFreshIdentity":true} |
 | authority-revocation | node-file-v3-materialization | PASS | {"effectiveDisposition":"quarantine","queryGeneration":2} |
@@ -25,11 +25,11 @@ publication.
 | authority-corrupt-store-recovery | node-file-v3 | PASS | {"refusal":"SNAPBACK_RQS_STORE_CORRUPT","ordinaryWipeRefused":true,"originalBytesSeenByBarrierHook":true,"storeIdentityRotated":true,"replacementFormat":"snapback-rqs-store-file.v3"} |
 | authority-corrupt-store-recovery | browser-indexeddb-v3 | PASS | {"refusal":"SNAPBACK_RQS_STORE_CORRUPT","hookSawMalformed":true,"reset":{"reset":true,"previousClientStoreId":"browser-corrupt-predecessor","clientStoreId":"cs1_02020202020202020202020202020202"},"formatVersion":3} |
 | authority-revocation | browser-indexeddb-v3-materialization | PASS | {"disposition":"delete","fragments":0,"renderedBytes":0} |
-| bounded-custody-query-churn | node-file-v3 | PASS | 38804851 → 32506933 logical bytes in 92611.556 ms |
+| bounded-custody-query-churn | node-file-v3 | PASS | 38804851 → 32506933 logical bytes in 105976.272 ms |
 | bounded-custody-query-churn | browser-indexeddb-v3 | PASS | {"injectedLimits":{"byteCeiling":1048576,"recordCeiling":32,"fragmentCeiling":2},"committedRecords":6,"retainedPayloadRecords":2,"retainedFragments":2,"compactedStubs":4,"durableRegistrations":6,"compactionCount":4,"allocatorHighWater":6,"commits":[{"queryInstanceId":1,"registration":{"committed":true}},{"queryInstanceId":2,"registration":{"committed":true}},{"queryInstanceId":3,"registration":{"committed":true}},{"queryInstanceId":4,"registration":{"committed":true}},{"queryInstanceId":5,"registration":{"committed":true}},{"queryInstanceId":6,"registration":{"committed":true}}]} |
-| footprint-hydration-triage | triage-graph-budget-freeze-v1 | PASS | {"applicationExists":true,"application":"demos/triage-graph","qualificationStatus":"PASS","measurements":{"materializations":21,"storedResultRows":100,"logicalBytes":16205,"hydrationAttempts":1,"hydrationRows":100,"hydrationPayloadBytes":14981,"hydrationElapsedMs":387.905,"hydrationCeilingMs":1000},"receipts":{"budgetFreeze":"tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-06.v1.json","budgetFreezeSha256":"cfd9e65206f6c8db9ffb0ebba742373ee9f5a385b7d069e87a7c50c3d198ed2b","move1Exit":"tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-06.v1.json","move1ExitSha256":"417655401e10603de3d638322d22c86f700f395076e166320ba8a80748df1527"}} |
-| footprint-hydration-fleet | fleet-observatory-budget-freeze-v1 | PASS | {"applicationExists":true,"application":"demos/fleet-observatory-move1","qualificationStatus":"PASS","measurements":{"activeMaterializations":21,"activeProjectedRows":200,"activeLogicalBytes":51027,"releasedProjectedRows":0,"hydrationAttempts":1,"hydrationRows":200,"hydrationPayloadBytes":49652,"hydrationElapsedMs":171.143,"hydrationCeilingMs":1000},"receipts":{"budgetFreeze":"tests/acceptance/fixtures/fleet-observatory/budget-freeze.2026-08-06.v1.json","budgetFreezeSha256":"4c888b038745d26ac32d1c5e92e7e629b5b2459d566533d3ac27048ef39fc1a0","move1Exit":"tests/acceptance/fixtures/fleet-observatory/move1-exit.2026-08-06.v1.json","move1ExitSha256":"efeeaeb5037150063074c5f0cbf6253a46ec278f25623688d31522fd6e1f4c09"}} |
-| bundle-attribution | full-client-store-closure | PASS | {"artifact":"tests/acceptance/fixtures/local-persistent-store/bundle-attribution.2026-08-06.v1.json","minifiedBytes":693618,"measuredModuleOwnBytes":112243,"modules":9,"browserClosureQualification":{"status":"PASS","materializationStoreResolved":true,"resolved":true,"outputBytes":73241,"externalImports":[]}} |
+| footprint-hydration-triage | triage-graph-budget-freeze-v1 | PASS | {"applicationExists":true,"application":"demos/triage-graph","qualificationStatus":"PASS","measurements":{"materializations":21,"storedResultRows":100,"logicalBytes":16205,"hydrationAttempts":1,"hydrationRows":100,"hydrationPayloadBytes":14981,"hydrationElapsedMs":183.906,"hydrationCeilingMs":1000},"receipts":{"budgetFreeze":"tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-06.v1.json","budgetFreezeSha256":"126819a76ef59a370dc29aa6b102448199ddc527a38547b3cdeceedbcc1e4532","move1Exit":"tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-06.v1.json","move1ExitSha256":"3f3de248247f27a94e50e73ca6a71f6f302852149ef100c65d5925ffb365f5ef"}} |
+| footprint-hydration-fleet | fleet-observatory-budget-freeze-v1 | PASS | {"applicationExists":true,"application":"demos/fleet-observatory-move1","qualificationStatus":"PASS","measurements":{"activeMaterializations":21,"activeProjectedRows":200,"activeLogicalBytes":51027,"releasedProjectedRows":0,"hydrationAttempts":1,"hydrationRows":200,"hydrationPayloadBytes":49652,"hydrationElapsedMs":178.915,"hydrationCeilingMs":1000},"receipts":{"budgetFreeze":"tests/acceptance/fixtures/fleet-observatory/budget-freeze.2026-08-06.v1.json","budgetFreezeSha256":"76c635bc98824491d4cd5d49afd3aa2bef4d485b2b78bbbd52bff99a9335f0e6","move1Exit":"tests/acceptance/fixtures/fleet-observatory/move1-exit.2026-08-06.v1.json","move1ExitSha256":"eb3e1ee953ac01f869cd75497d9e91b8d372ebe036e029eb878c972b44f95189"}} |
+| bundle-attribution | full-client-store-closure | PASS | {"artifact":"tests/acceptance/fixtures/local-persistent-store/bundle-attribution.2026-08-06.v1.json","minifiedBytes":695422,"measuredModuleOwnBytes":112230,"modules":9,"browserClosureQualification":{"status":"PASS","materializationStoreResolved":true,"resolved":true,"outputBytes":73241,"externalImports":[]}} |
 
 ## Bundle attribution
 
@@ -40,20 +40,20 @@ browser closure resolves the shipped materialization store with no
 
 | Store module | Minified module-own bytes | Source bytes |
 | --- | ---: | ---: |
-| `materialization-store` | 45,528 | 85,627 |
-| `materialization-bridge` | 10,598 | 17,969 |
-| `registration-ledger` | 19,275 | 38,537 |
-| `demand-broker` | 15,847 | 30,790 |
+| `materialization-store` | 45,516 | 85,627 |
+| `materialization-bridge` | 10,599 | 17,969 |
+| `registration-ledger` | 19,276 | 38,537 |
+| `demand-broker` | 15,844 | 30,790 |
 | `store-policy` | 13,334 | 23,705 |
 | `answer-classes` | 2,528 | 4,865 |
 | `evaluation-floor` | 682 | 1,710 |
 | `lease-convergence` | 1,407 | 3,346 |
 | `rqs-store-meta` | 3,044 | 5,550 |
 
-Full measured closure: 693,618
-minified bytes, 192,638 gzip bytes,
-154,843 Brotli bytes. The nine
-store modules account for 112,243
+Full measured closure: 695,422
+minified bytes, 193,251 gzip bytes,
+155,163 Brotli bytes. The nine
+store modules account for 112,230
 module-own minified bytes.
 
 ## Receipt interpretation

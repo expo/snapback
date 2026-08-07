@@ -5,7 +5,7 @@ order: 1
 audience: agent-first
 capabilities: [backend.single-table-v1, sync.offline, sync.offline-js-arm, sync.local-persistent-store]
 authorities: [llp/0043-offline-replay-retention.rfc.md, llp/0052-contract-update-economy-and-host-state.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0090-resumable-query-snapshots.rfc.md, llp/0110-bounded-children-and-activity-patterns.spec.md, llp/0129-local-first-program.plan.md, llp/0133-local-settlement.spec.md, llp/0135-sequence-allocation-and-snapshot-batch.spec.md, llp/0157-composition-algebra-and-completeness.spec.md, llp/0166-local-persistent-store.spec.md, src/local-persistent-store-publication.v1.json, packages/snapback-codegen/index.mjs, packages/snapback-client/local-read-admission.mjs, packages/snapback-client/materialization-bridge.mjs, tests/acceptance/local-store-carrier-exit-v1.mjs, packages/snapback-contract/index.mjs, packages/snapback-contract/offline-replay.test.mjs, packages/snapback-client/index.mjs, packages/snapback-client/external-store.mjs, packages/snapback-client/external-store.test.mjs, packages/snapback-client/outbox-store.test.mjs, packages/snapback-react/index.mjs, demos/warble/snapback/functions.mjs, demos/warble/tests/acceptance/offline-local-first.mjs]
-examples: [demos/triage-graph, demos/card-game, demos/todo-v2/surfaces/contract, demos/public-dashboard, demos/warble, packages/snapback-contract/agent-authority-contract.test.mjs, packages/snapback-react/offline.test.mjs, packages/snapback-client/rqs-resume.test.mjs, tests/acceptance/desktop-sidecar-v1.mjs]
+examples: [demos/triage-graph, demos/card-game, demos/todo-v2/surfaces/contract, demos/public-dashboard, demos/warble, demos/browser-local-first, packages/snapback-contract/agent-authority-contract.test.mjs, packages/snapback-react/offline.test.mjs, packages/snapback-client/rqs-resume.test.mjs, tests/acceptance/desktop-sidecar-v1.mjs]
 status: current
 targets: [local]
 maturity: partial
@@ -100,18 +100,30 @@ has a standards-real **store-substrate** harness at
 `demos/zero-bakeoff/stage0/browser/run.mjs`: it drives the shipped IndexedDB
 store in system Chrome, kills the owned browser process group with `SIGKILL`,
 relaunches the same profile, verifies the stored entry, and proves two-tab Web
-Locks writer/refusal/takeover behavior. That is real carrier-mechanism evidence,
-but it intentionally runs no Snapback server or React surface.
+Locks writer/refusal/takeover behavior. That is real carrier-mechanism evidence
+with no Snapback server or React surface. The **browser public witness** at
+`demos/browser-local-first/tests/acceptance/browser-public-witness.mjs`
+(2026-08-07, receipt retained at
+`tests/acceptance/fixtures/browser-lane/browser-public-witness.2026-08-07.v1.json`)
+closes the former end-to-end browser GAP
+(`issues/closed/20260801-guide-gap-js-arm-browser-indexeddb-proof.md`): a
+generated React todo app served through the `@expo/snapback-vite` relay in
+system Chrome, against the real runtime binary, proves in the browser carrier
+retained/current labeling across whole-process `SIGKILL` and same-profile
+relaunch with authority unreachable (retained state is never presented as
+current), the durable outbox with full-resync-before-replay by event
+ordinals, ordered exactly-once settlement including an exact duplicate
+redelivery republishing the stored settlement with zero dispatch,
+independent-observer convergence, same-process full-page SPA reconstruction,
+bounded render/effect counts, and the protected refusal with nothing
+persisted (below). The authenticated/authorized retention-and-replay
+conjunction is NOT part of that witness — it remains the lease-custody
+ticket's (`issues/20260731-js-arm-lease-custody-and-sessions-outbox.md`).
 
 The retained
 `demos/public-dashboard/tests/acceptance/offline-local-first.mjs` witness runs
-headlessly on Node and forces the file store. It does **not** certify React,
-end-to-end retained/current behavior over IndexedDB, or the server replay and
-authorization path after a browser-process restart. Those product facts remain
-an evidence GAP under
-`issues/20260801-guide-gap-js-arm-browser-indexeddb-proof.md`; do not infer
-them from either the Node receipt or the Stage 0 substrate receipt. The headless
-witness proves:
+headlessly on Node and forces the file store; it remains the Node-carrier
+proof of the same contracts. The headless witness proves:
 
 - **Retained render for the rqsEligible subset on the Node/file
   carrier, by a fresh client instance in the same process.** (Not a
@@ -124,15 +136,15 @@ witness proves:
   (LLP 0090 Channel B). Non-`rqsEligible` queries are NOT retainable: the
   handle's `retention` fact names the refusal
   (`SNAPBACK_RETENTION_NOT_RQS_ELIGIBLE`) instead of silently acting
-  local-first. **Not proven by this witness:** the protected/auth-scoped
-  and opaque refusal (`SNAPBACK_RETENTION_NOT_RETAINABLE`) is pinned by an
-  interim Node-carrier receipt in
-  `packages/snapback-client/rqs-resume.test.mjs` — an auth-scoped
-  subscription over the real client names the refusal code and a
-  lease-naming reason and persists zero entries — but no browser-carrier
-  test asserts it, so that half of LLP 0053's retainability boundary stays
-  a GAP under the ticket above. Lease-bounded protected retention remains
-  the Contract arm's.
+  local-first. The protected/auth-scoped and opaque refusal
+  (`SNAPBACK_RETENTION_NOT_RETAINABLE`) is asserted on both carriers: the
+  Node receipt in `packages/snapback-client/rqs-resume.test.mjs` (an
+  auth-scoped subscription over the real client names the refusal code and
+  persists zero entries) and the browser public witness's anonymous
+  sessions-mode phase (handle, hook, and DOM, with no IndexedDB entry ever
+  written for the protected query while the retained entry persists beside
+  it). LLP 0053's retainability invariant is the boundary both assert;
+  lease-bounded protected retention remains the Contract arm's.
 - **A durable LLP 0043 M2 outbox.** A mutation refused by connectivity is
   queued durably under a client-minted `clientMutationId` (protocol-lane
   identity) with a monotonic local sequence, and returns
@@ -148,8 +160,9 @@ witness proves:
   ledger returns the original result on duplicate delivery. (A refused
   replay is dropped and marked failed, visible in `outboxRecords()`. The
   store transition and the client wiring that maps a server refusal onto it
-  are covered by `packages/snapback-client/outbox-store.test.mjs`; neither is
-  covered by the headless acceptance above.)
+  are covered by `packages/snapback-client/outbox-store.test.mjs`; the
+  ordered drain itself is proven end-to-end in the browser carrier by the
+  browser public witness.)
 - **Lane-L reconciliation substrate, without local execution.** A composing
   layer may enqueue a synthetic `re-derive` intent with an LLP 0133 mint-claim
   ledger. The server response's private `idMap` atomically rewrites exact
@@ -442,9 +455,17 @@ ambient authority, so a caller-selected viewer key can still qualify when the
 rest of the plan satisfies the proof:
 
 - `eq('userHandle', arg('handle'))` can be `rqsEligible` and cold-retained;
-- `eq('userHandle', authUserId())` depends on server authority, is not
-  `rqsEligible`, and is classified
-  `SNAPBACK_RETENTION_NOT_RETAINABLE` on this JS-arm path.
+- `eq('userHandle', authUserId())` depends on server authority and is never
+  `rqsEligible`. The refusal CODE is mode-dependent: an authorization scope
+  is minted only by a sessions-mode server, so under sessions mode the
+  subscription classifies `SNAPBACK_RETENTION_NOT_RETAINABLE`, while under
+  dev custody (where no subscription ever carries a scope) the same
+  declaration truthfully reports `SNAPBACK_RETENTION_NOT_RQS_ELIGIBLE`.
+  Either way nothing persists. (An `authUserId()` filter also refuses an
+  anonymous sessions caller outright with `SNAPBACK_AUTH_USER_MISSING`; a
+  plain non-`authorityIndependent` public query is the anonymous-admissible
+  shape that exhibits the sessions-mode `NOT_RETAINABLE` classification —
+  see `demos/browser-local-first/snapback/functions.mjs` `todosFeed`.)
 
 For a public social feed, split the data into two retainable live queries:
 keep posts and their public `likeCount` in the timeline, keep public like rows

@@ -332,13 +332,32 @@ export function createIndexedDbRqsResumeStore({
   // transfers when the holder closes or its context dies. close() aborts a
   // still-queued request so a reader can shut down without waiting for the
   // writer to release.
+  //
+  // Two distinct settling points, deliberately separated (2026-08-07,
+  // browser-carrier public witness): the Web Locks request promise resolves
+  // only when the CALLBACK'S RETURNED PROMISE settles — for the granted
+  // writer that is lock RELEASE at close, not acquisition. `whenLockSettled`
+  // consumers (the LLP 0043 M2 outbox drain awaits it before its writer
+  // check) need ADJUDICATION: "this context's initial writer-or-reader role
+  // is known". Handing them the request promise wedged every browser drain
+  // forever — replay was unreachable on the default browser carrier. Node
+  // suites missed it because their fake lock managers resolve request() at
+  // callback return and the drain is exercised on the file/memory arms.
   const lockAbort = typeof AbortController === 'function' ? new AbortController() : null;
-  const lockSettled = Promise.resolve(lockManager.request(
+  let adjudicateLock = null;
+  const lockAdjudicated = new Promise((resolve) => {
+    adjudicateLock = resolve;
+  });
+  const lockReleased = Promise.resolve(lockManager.request(
     lockName,
     { mode: 'exclusive', ...(lockAbort ? { signal: lockAbort.signal } : {}) },
     () => {
-      if (closed) return undefined;
+      if (closed) {
+        adjudicateLock();
+        return undefined;
+      }
       writer = true;
+      adjudicateLock();
       void flushPendingReactBindingReceipt().catch((error) => {
         warnReactBindingReceiptNotPersisted({ error });
       });
@@ -346,7 +365,22 @@ export function createIndexedDbRqsResumeStore({
         releaseLock = resolve;
       });
     },
-  )).catch(() => {});
+  )).catch(() => {}).finally(() => adjudicateLock());
+  // Reader adjudication: same-name lock requests are serviced in request
+  // order, so this ifAvailable probe runs strictly after the main request is
+  // enqueued. `null` means the lock was held at probe time — if this context
+  // is not the holder, its initial role is reader, adjudicated without
+  // waiting for a takeover grant. (When the main request was granted first,
+  // adjudication already happened and this is a no-op.)
+  if (lockManager && typeof lockManager.request === 'function') {
+    void Promise.resolve(lockManager.request(
+      lockName,
+      { mode: 'exclusive', ifAvailable: true },
+      (probe) => {
+        if (probe === null && !writer) adjudicateLock();
+      },
+    )).catch(() => {});
+  }
 
   const database = () => {
     if (closed) throw storeError('SNAPBACK_RQS_STORE_CLOSED', 'RQS resume store is closed');
@@ -421,9 +455,10 @@ export function createIndexedDbRqsResumeStore({
       return writer && !closed;
     },
 
-    /// The single-writer lock settling point (tests and orderly shutdown).
+    /// Initial writer-or-reader adjudication (never the release promise: a
+    /// granted writer's Web Locks request promise resolves only at close).
     whenLockSettled() {
-      return lockSettled;
+      return lockAdjudicated;
     },
 
     /// Degradation-mode capability fact (DK-9: capability reports name the
@@ -844,7 +879,7 @@ export function createIndexedDbRqsResumeStore({
       releaseLock?.();
       releaseLock = null;
       writer = false;
-      if (wasWriter) await lockSettled;
+      if (wasWriter) await lockReleased;
       else lockAbort?.abort();
       if (databasePromise) {
         try {

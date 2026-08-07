@@ -996,6 +996,60 @@ const ROLLOVER_LEDGER_SPECS = Object.freeze([
       ['node', ['--test', 'packages/snapback-client/connection-open-stream-reset-retry.test.mjs']],
     ]),
   }),
+  Object.freeze({
+    filename: 'baseline.browser-witness-store-fixes.v1.json',
+    profileFilename: 'browser-witness-store-fixes-profiles.v1.json',
+    workloadVersion: 'browser-carrier-witness-store-fixes.2026-08-07.v1',
+    profileIds: Object.freeze([
+      'public-subpath-rqs-store',
+      'public-subpath-rqs-store-default',
+      'public-subpath-rqs-store-file',
+    ]),
+    predecessors: Object.freeze([
+      Object.freeze({
+        filename: 'baseline.client-bundle-disposition.v1.json',
+        profileIds: Object.freeze([
+          'public-subpath-rqs-store',
+          'public-subpath-rqs-store-default',
+          'public-subpath-rqs-store-file',
+        ]),
+      }),
+    ]),
+    authorities: Object.freeze([
+      'LLP 0063#workstream-8--performance-and-packaging-budgets',
+      'LLP 0145#phase-a--establish-a-size-ratchet',
+      'LLP 0166#d9--carriers-storage-profiles-arms-and-the-bundle',
+    ]),
+    rationale: Object.freeze({
+      date: '2026-08-07',
+      fix: 'Browser-carrier public witness defect fix (diary 0067): the IndexedDB '
+        + 'store whenLockSettled() resolved only at Web Locks release, wedging '
+        + 'every browser outbox drain forever; the fix separates writer/reader '
+        + 'adjudication (grant callback or an ordered ifAvailable probe) from '
+        + 'the release promise.',
+      ticket: 'issues/closed/20260801-guide-gap-js-arm-browser-indexeddb-proof.md',
+      byteDeltas: 'public-subpath-rqs-store min 37,597 -> 37,808 (+211), gzip '
+        + '13,123 -> 13,199 (+76), brotli 11,580 -> 11,654 (+74); '
+        + 'public-subpath-rqs-store-default min 57,291 -> 57,487 (+196), gzip '
+        + '17,435 -> 17,456 (+21); public-subpath-rqs-store-file brotli '
+        + '11,368 -> 11,416 (+48).',
+      summary: 'Advance the three rqs-store closures for the lock-adjudication '
+        + 'correctness bytes landed with the 2026-08-07 browser public witness; '
+        + 'every other active ceiling and the predecessor remain immutable.',
+    }),
+    beforeAfterProfileIds: Object.freeze([
+      'public-subpath-rqs-store',
+      'public-subpath-rqs-store-default',
+      'public-subpath-rqs-store-file',
+    ]),
+    behaviorCommands: Object.freeze([
+      ['node', ['packages/snapback-client/package.test.mjs']],
+      ['node', ['packages/snapback-client/browser-closure.test.mjs']],
+      ['node', ['packages/snapback-client/outbox-store.test.mjs']],
+      ['node', ['packages/snapback-client/rqs-store-file.test.mjs']],
+      ['node', ['packages/snapback-client/rqs-resume.test.mjs']],
+    ]),
+  }),
 ]);
 
 function fail(message) {

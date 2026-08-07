@@ -10855,7 +10855,7 @@ fn local_persistent_store_contributor_chain_verified(
         && carrier.schema_source_sha256
             == BTreeMap::from([(
                 "packages/snapback-codegen/index.mjs".to_owned(),
-                "sha256:8467070d044813973f656324e179615628e0c9f6f09e02e9c1f4967fea381b76"
+                "sha256:82a3d4ae0bdb82bc79b41216c63528639177df1be63a1427fb9db29b69dfca3e"
                     .to_owned(),
             )])
         && carrier.client_source_sha256
@@ -10887,7 +10887,7 @@ fn local_persistent_store_contributor_chain_verified(
                 ),
                 (
                     "packages/snapback-client/store-runtime.mjs".to_owned(),
-                    "sha256:07f7d68a8e9a34cd1232a21b54c7a486a86d6414b21cc9b1d0f47daa6b092731"
+                    "sha256:cf7a65f7b83eb4308b3cad526dc2401c2a3fe7d45665acd0247b594bea8533b8"
                         .to_owned(),
                 ),
             ])

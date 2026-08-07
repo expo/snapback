@@ -2,9 +2,21 @@
   "schemaVersion": "snapback.local-persistent-store.bundle-attribution.v1",
   "date": "2026-08-06",
   "source": {
-    "revision": "ce7e3308a2cf28b4b2a724743ee3d0abebd1bdcf",
-    "dirty": false,
-    "dirtyPaths": [],
+    "revision": "18ed09d8557efc2c9497e908cf16f0d99ba4eb71",
+    "dirty": true,
+    "dirtyPaths": [
+      "demos/fleet-observatory-move1/snapback/generated/artifacts.json",
+      "demos/fleet-observatory-move1/snapback/trusted-composition-activation.json",
+      "demos/triage-graph/snapback/generated/artifacts.json",
+      "demos/triage-graph/snapback/trusted-composition-activation.json",
+      "tests/acceptance/fixtures/fleet-observatory/budget-freeze.2026-08-06.v1.json",
+      "tests/acceptance/fixtures/fleet-observatory/move1-exit.2026-08-06.v1.json",
+      "tests/acceptance/fixtures/fleet-observatory/runtime-readiness.2026-08-06.v1.json",
+      "tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-06.v1.json",
+      "tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-06.v1.json",
+      "tests/acceptance/fleet-observatory-move1-v1-evidence.md",
+      "tests/acceptance/triage-graph-move1-v1-evidence.md"
+    ],
     "files": [
       {
         "path": "tests/acceptance/local-store-carrier-exit-v1.mjs",
@@ -56,15 +68,15 @@
       },
       {
         "path": "packages/snapback-client/store-runtime.mjs",
-        "sha256": "07f7d68a8e9a34cd1232a21b54c7a486a86d6414b21cc9b1d0f47daa6b092731"
+        "sha256": "cf7a65f7b83eb4308b3cad526dc2401c2a3fe7d45665acd0247b594bea8533b8"
       },
       {
         "path": "packages/snapback-client/index.mjs",
-        "sha256": "688ec4d231dd23e02ea0311d91ec0da89c6659074d0274e282b82e194187c0ae"
+        "sha256": "cb055cd75a74b5c26cfa1fe821c4db263b3a8ba7e4b7712317823c965f02961b"
       },
       {
         "path": "packages/snapback-client/rqs-store.mjs",
-        "sha256": "1f8cd7e5aad078e86abdda7fca5bb50fe6c23a9b12120eb2b35484918b17fc10"
+        "sha256": "a49f985a22281f7a9801afd9483ee5ca437b1a6284214a8ea8f00dd87dddc63a"
       },
       {
         "path": "packages/snapback-client/rqs-store-file.mjs",
@@ -96,19 +108,19 @@
       },
       {
         "path": "tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-06.v1.json",
-        "sha256": "cfd9e65206f6c8db9ffb0ebba742373ee9f5a385b7d069e87a7c50c3d198ed2b"
+        "sha256": "126819a76ef59a370dc29aa6b102448199ddc527a38547b3cdeceedbcc1e4532"
       },
       {
         "path": "tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-06.v1.json",
-        "sha256": "417655401e10603de3d638322d22c86f700f395076e166320ba8a80748df1527"
+        "sha256": "3f3de248247f27a94e50e73ca6a71f6f302852149ef100c65d5925ffb365f5ef"
       },
       {
         "path": "tests/acceptance/fixtures/fleet-observatory/budget-freeze.2026-08-06.v1.json",
-        "sha256": "4c888b038745d26ac32d1c5e92e7e629b5b2459d566533d3ac27048ef39fc1a0"
+        "sha256": "76c635bc98824491d4cd5d49afd3aa2bef4d485b2b78bbbd52bff99a9335f0e6"
       },
       {
         "path": "tests/acceptance/fixtures/fleet-observatory/move1-exit.2026-08-06.v1.json",
-        "sha256": "efeeaeb5037150063074c5f0cbf6253a46ec278f25623688d31522fd6e1f4c09"
+        "sha256": "eb3e1ee953ac01f869cd75497d9e91b8d372ebe036e029eb878c972b44f95189"
       }
     ]
   },
@@ -132,38 +144,38 @@
     "external": []
   },
   "output": {
-    "minifiedBytes": 693618,
-    "gzipBytes": 192638,
-    "brotliBytes": 154843,
-    "sha256": "374f1bd80a4d8c0265d0884ca1a283147b843d7652a0d15fb4b283b2bd2746cb"
+    "minifiedBytes": 695422,
+    "gzipBytes": 193251,
+    "brotliBytes": 155163,
+    "sha256": "907e7d8d6d42ec44eab25abd27ffbb57ded26946d8f5702ade3e416ee533d518"
   },
   "modules": [
     {
       "module": "materialization-store",
       "path": "packages/snapback-client/materialization-store.mjs",
       "sourceBytes": 85627,
-      "minifiedModuleOwnBytes": 45528,
+      "minifiedModuleOwnBytes": 45516,
       "sourceSha256": "34ebc65b3632869e39fd9587bd79a36e0a85316c4c660d8f1b12497668652310"
     },
     {
       "module": "materialization-bridge",
       "path": "packages/snapback-client/materialization-bridge.mjs",
       "sourceBytes": 17969,
-      "minifiedModuleOwnBytes": 10598,
+      "minifiedModuleOwnBytes": 10599,
       "sourceSha256": "5e8681971300b089e29b43b1ecd1bf4b3f7ad0ce7966e2dfc5a6f69d4cda27a1"
     },
     {
       "module": "registration-ledger",
       "path": "packages/snapback-client/registration-ledger.mjs",
       "sourceBytes": 38537,
-      "minifiedModuleOwnBytes": 19275,
+      "minifiedModuleOwnBytes": 19276,
       "sourceSha256": "620ee29ef2cbf27a1c08d65ec99049618743668bf1009b2c84e880e72b785989"
     },
     {
       "module": "demand-broker",
       "path": "packages/snapback-client/demand-broker.mjs",
       "sourceBytes": 30790,
-      "minifiedModuleOwnBytes": 15847,
+      "minifiedModuleOwnBytes": 15844,
       "sourceSha256": "bcae730e18c5a9f45b74ea205c32837d37a1e162bfd029674471e807076755ba"
     },
     {
@@ -202,7 +214,7 @@
       "sourceSha256": "a28a5013b99f7373f991c9decb4bfbc7c4ccc77bee47642bd2d0b831fd83e3f9"
     }
   ],
-  "totalMeasuredModuleOwnBytes": 112243,
+  "totalMeasuredModuleOwnBytes": 112230,
   "browserClosureQualification": {
     "status": "PASS",
     "materializationStoreResolved": true,

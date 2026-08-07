@@ -9,7 +9,7 @@
     "LLP 0138#status"
   ],
   "source": {
-    "revision": "1250b7a6a8e918bb3ca3fe3b2f50da45aec5e9f8",
+    "revision": "18ed09d8557efc2c9497e908cf16f0d99ba4eb71",
     "dirty": true,
     "files": [
       {
@@ -26,11 +26,11 @@
       },
       {
         "path": "demos/fleet-observatory-move1/snapback/trusted-composition-activation.json",
-        "sha256": "2930b5d45f78dc81b91ca022c4cc17ee1f74da7264e899a75aff2dcb1179de8f"
+        "sha256": "793585dc164e4713b6e5fe3fb7461438b8b9801569402c43e9105bd0cce8a98a"
       },
       {
         "path": "demos/fleet-observatory-move1/snapback/generated/artifacts.json",
-        "sha256": "63bf6556b894979aaea6989296c309fd89227dfffa2f33298d0d2f5012df5456"
+        "sha256": "e69f8b483db436c6780230950f021af367dbd94d3c7dce739b9cb40e14af36ab"
       },
       {
         "path": "demos/fleet-observatory-move1/demo.snapback.json",
@@ -50,7 +50,7 @@
       },
       {
         "path": "packages/snapback-client/index.mjs",
-        "sha256": "688ec4d231dd23e02ea0311d91ec0da89c6659074d0274e282b82e194187c0ae"
+        "sha256": "cb055cd75a74b5c26cfa1fe821c4db263b3a8ba7e4b7712317823c965f02961b"
       },
       {
         "path": "packages/snapback-client/materialization-store.mjs",
@@ -66,7 +66,7 @@
       },
       {
         "path": "packages/snapback-client/store-runtime.mjs",
-        "sha256": "07f7d68a8e9a34cd1232a21b54c7a486a86d6414b21cc9b1d0f47daa6b092731"
+        "sha256": "cf7a65f7b83eb4308b3cad526dc2401c2a3fe7d45665acd0247b594bea8533b8"
       }
     ]
   },
@@ -74,16 +74,16 @@
     "status": "PASS",
     "runtime": {
       "serverBinary": "target/debug/snapback",
-      "serverBinarySha256": "7a08f72d17387896ec9f4ad51d182e2525f5aa4a32fa7aaa5e0b615fd33b7a84",
+      "serverBinarySha256": "a41ebcf0eef7a3f717585175564c0d1ab557f475ec75eef8b4a02b329871053f",
       "launchRung": "configured",
       "readinessReceipt": {
         "path": "tests/acceptance/fixtures/fleet-observatory/runtime-readiness.2026-08-06.v1.json",
-        "sha256": "28bcf0e536e766f7fab74dad54026a0f0d33644e1600b11cf61b14e245bb3c45"
+        "sha256": "c9901a582ce8f971e26cab9f2715ae220813f742295f465d605e9e04b696dea2"
       }
     },
     "activation": {
       "format": "snapback.composition-activation-preparation.v1",
-      "activationHash": "sha256:3098592ec29a0b8b78180a34bb219c68ffc697f8d5bb5ef1f4ec275fd64bd856",
+      "activationHash": "sha256:1fa95a96916caec1021f3d29f4a44e1e90e7d612893fa1a954b73614ee6e7712",
       "deploymentId": "fleet-observatory-move1-controlled-run"
     }
   },
@@ -113,7 +113,7 @@
         "logicalBytes": 51027,
         "resultBytes": 49652,
         "proofBytes": 1375,
-        "physicalCarrierBytes": 129338
+        "physicalCarrierBytes": 129336
       },
       "releasedCustody": {
         "materializationRecords": 21,
@@ -122,15 +122,15 @@
         "fragments": 0,
         "retainedTopLevelRows": 0,
         "retainedProjectedRows": 0,
-        "physicalCarrierBytes": 48731
+        "physicalCarrierBytes": 48729
       },
       "hydration": {
         "attempts": 1,
         "firstUsefulRows": 100,
         "rowsInstalled": 200,
         "payloadBytes": 49652,
-        "firstUsefulMs": 171.143,
-        "authoritativeCompleteMs": 171.143
+        "firstUsefulMs": 178.915,
+        "authoritativeCompleteMs": 178.915
       }
     },
     "frozenCeilings": {
@@ -175,7 +175,7 @@
       "logicalBytes": 51027,
       "resultBytes": 49652,
       "proofBytes": 1375,
-      "physicalCarrierBytes": 129338
+      "physicalCarrierBytes": 129336
     },
     "releasedCustody": {
       "materializationRecords": 21,
@@ -184,15 +184,15 @@
       "fragments": 0,
       "retainedTopLevelRows": 0,
       "retainedProjectedRows": 0,
-      "physicalCarrierBytes": 48731
+      "physicalCarrierBytes": 48729
     },
     "hydration": {
       "attempts": 1,
       "firstUsefulRows": 100,
       "rowsInstalled": 200,
       "payloadBytes": 49652,
-      "firstUsefulMs": 171.143,
-      "authoritativeCompleteMs": 171.143
+      "firstUsefulMs": 178.915,
+      "authoritativeCompleteMs": 178.915
     }
   },
   "summary": {
@@ -251,7 +251,7 @@
           "logicalBytes": 51027,
           "resultBytes": 49652,
           "proofBytes": 1375,
-          "physicalCarrierBytes": 129338
+          "physicalCarrierBytes": 129336
         },
         "released": {
           "materializationRecords": 21,
@@ -260,17 +260,17 @@
           "fragments": 0,
           "retainedTopLevelRows": 0,
           "retainedProjectedRows": 0,
-          "physicalCarrierBytes": 48731
+          "physicalCarrierBytes": 48729
         },
         "activePolicy": {
-          "addressKey": "qmk1.F6-iJV4xwjiD3vC3dv6-_YkEL8hSqS2f0vsS0fKUVRU",
+          "addressKey": "qmk1.QZ5AcrYlfDqssxRIjZux92oq4TDVS2j5qHLpsm8j5YA",
           "demandState": "demanded-active",
           "effectiveRetentionRequest": "none",
           "retainingReason": {
             "kind": "registrations",
             "entries": [
               {
-                "registrationId": "qreg1_07ae83773ab60371236f257e4fb112f7",
+                "registrationId": "qreg1_1282b203dbdeefbd9cdd49b9067546b5",
                 "source": "active",
                 "ownerContextKind": "subscription"
               }
@@ -344,8 +344,8 @@
         "updates": 1000,
         "activeEventMatches": 100,
         "activeRollupMatches": 100,
-        "serverSettlementMs": 6706.766,
-        "clientSettlementMs": 6743.984,
+        "serverSettlementMs": 4421.993,
+        "clientSettlementMs": 4451.909,
         "liveFramesObserved": 1
       }
     },

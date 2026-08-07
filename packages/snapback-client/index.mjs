@@ -4261,8 +4261,21 @@ export class SnapbackClient {
           this.authorityFence ? bearerUsed : undefined,
         ) : this.custody === 'anonymous-public'
           // No handshake session exists to flip sessionsMode; the offer
-          // header itself is the anonymous contract (0137 A4-f6).
-          ? this.#authOfferHeaders(false)
+          // header itself is the anonymous contract (0137 A4-f6). Live and
+          // ephemeral work additionally carries the negotiated
+          // authorization-invalidation offer, exactly like the sessions
+          // header path: on a sessions-mode server an anonymous caller's
+          // auth-scoped subscription is admitted only with that header, and
+          // omitting it made every such subscribe refuse with
+          // SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED (found by the
+          // 2026-08-07 browser-carrier public witness).
+          ? {
+              ...this.#authOfferHeaders(false),
+              ...((path.startsWith('/live/') || path.startsWith('/ephemeral/'))
+                && this.authProtocols.authInvalidation != null
+                ? { [AUTH_INVALIDATION_PROTOCOL_HEADER]: String(this.authProtocols.authInvalidation) }
+                : {}),
+            }
           : {}),
         ...(headers ?? {}),
       };
@@ -8813,6 +8826,13 @@ export class SnapbackClient {
     // resume" recency bookkeeping (LLP 0091 §0A.5 eviction rule).
     let pendingResumeConfirmation = false;
     let seededFromResumeState = false;
+    // True once a persisted/preloaded seed frame reached onUpdate. An
+    // establishment that lands AFTER that frame must re-deliver the
+    // authoritative rows through onUpdate: frame-driven consumers (the React
+    // binding) otherwise keep rendering the retained seed while the handle
+    // is already current (found by the 2026-08-07 browser-carrier public
+    // witness: warm online reload over a retained IndexedDB entry).
+    let seedFrameDelivered = false;
     let seededFromMaterialization = false;
     let legacyAdoptionCandidate = null;
 
@@ -8976,6 +8996,7 @@ export class SnapbackClient {
       handle.answerClass = retainedAnswer.answerClass;
       handle.pendingIntentsAtSeed = pendingIntentsAtSeed;
       seededFromResumeState = winner === persisted;
+      seedFrameDelivered = true;
       deliverAuthorityObservation(() => {
         onUpdate?.(handle.rows, {
           version: handle.version,
@@ -10480,6 +10501,17 @@ export class SnapbackClient {
       // full-resync barrier — schedule the single-flight outbox drain
       // (LLP 0008 §Mutation Replay: resync first, then ordered replay).
       if (sub.snapshot) client.#scheduleOutboxReplay();
+      // A retained seed frame already reached onUpdate before this
+      // establishment: re-deliver the authoritative rows the same way the
+      // resubscribe path does, so frame-driven consumers observe the
+      // retained -> current transition (identical bytes still change
+      // freshness). Auth-scoped delivery stays with the fence machinery.
+      if (seedFrameDelivered && sub.snapshot && !sub.authorizationScope && !disposed) {
+        seedFrameDelivered = false;
+        deliverAuthorityObservation(() => {
+          onUpdate?.(handle.rows, { version: handle.version, kind: 'snapshot' });
+        });
+      }
       return sub;
     };
 

@@ -14,6 +14,8 @@ __pycache__/
 # the digest-bound graph from each app's .snapback/codegen-cache.
 demos/*/snapback/generated/*
 !demos/*/snapback/generated/artifacts.json
+demos/*/snapback-sessions/generated/*
+!demos/*/snapback-sessions/generated/artifacts.json
 !demos/competitive-checkpoint/snapback/generated/api.d.ts
 !demos/competitive-checkpoint/snapback/generated/api.mjs
 !demos/partiful-matrix/snapback/generated/api.mjs

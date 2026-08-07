@@ -5,17 +5,17 @@
     "single_table_v1"
   ],
   "maturity": "experimental",
-  "qualificationReceiptSha256": "sha256:1fd1194237eaf1062b838d8395106bb845a63f70694e330c3e98cb3930e70268",
+  "qualificationReceiptSha256": "sha256:aba3d79424660b9df705915c84fbfe98151f1219e72b52db66324e5576f40965",
   "supportingReceiptSha256": {
-    "triageBudgetFreeze": "sha256:cfd9e65206f6c8db9ffb0ebba742373ee9f5a385b7d069e87a7c50c3d198ed2b",
-    "triageMove1Exit": "sha256:417655401e10603de3d638322d22c86f700f395076e166320ba8a80748df1527"
+    "triageBudgetFreeze": "sha256:126819a76ef59a370dc29aa6b102448199ddc527a38547b3cdeceedbcc1e4532",
+    "triageMove1Exit": "sha256:3f3de248247f27a94e50e73ca6a71f6f302852149ef100c65d5925ffb365f5ef"
   },
   "executorSourceSha256": {
     "src/local.rs": "sha256:a9878184772249a86ea934c794c2960c1ed9dd21b45aa5c6d211e17b119d62b4",
     "src/storage.rs": "sha256:975d82019b536561573a6edaffa8fe42521ed8277c9c366a73a1c0d57ccf28ff"
   },
   "schemaSourceSha256": {
-    "packages/snapback-codegen/index.mjs": "sha256:8467070d044813973f656324e179615628e0c9f6f09e02e9c1f4967fea381b76"
+    "packages/snapback-codegen/index.mjs": "sha256:82a3d4ae0bdb82bc79b41216c63528639177df1be63a1427fb9db29b69dfca3e"
   },
   "clientSourceSha256": {
     "packages/snapback-client/local-read-admission.mjs": "sha256:7ffaf2ad7e59d98c3e4dd2a8195da7705882f11c187b1239725e33d84a04bc54",
@@ -23,7 +23,7 @@
     "packages/snapback-client/materialization-store.mjs": "sha256:34ebc65b3632869e39fd9587bd79a36e0a85316c4c660d8f1b12497668652310",
     "packages/snapback-client/materialization-store-runtime.mjs": "sha256:525ffb0bee554a6b9c2e65256e0668ebfbcc23c43b0d4ae046c399aed410c049",
     "packages/snapback-client/rqs-preload-core.mjs": "sha256:6635964dd97069c68e42f88ff7d0ac74431b88204855afce30aa3def5b4d5286",
-    "packages/snapback-client/store-runtime.mjs": "sha256:07f7d68a8e9a34cd1232a21b54c7a486a86d6414b21cc9b1d0f47daa6b092731"
+    "packages/snapback-client/store-runtime.mjs": "sha256:cf7a65f7b83eb4308b3cad526dc2401c2a3fe7d45665acd0247b594bea8533b8"
   },
   "packageClosureSha256": null,
   "buildProvenanceRequirement": "source-commit-and-embedded-carrier-sha256"

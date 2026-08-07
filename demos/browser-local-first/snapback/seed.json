@@ -1,0 +1,19 @@
+{
+  "tables": {
+    "todos": [
+      {
+        "_id": "todo_anchor",
+        "listId": "witness",
+        "title": "A retained anchor",
+        "done": false,
+        "note": "present optional"
+      },
+      {
+        "_id": "todo_without_note",
+        "listId": "witness",
+        "title": "B absent optional",
+        "done": false
+      }
+    ]
+  }
+}

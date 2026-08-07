@@ -1,0 +1,52 @@
+{
+  "id": "browser-local-first",
+  "title": "Browser local-first public witness",
+  "description": "A deliberately small React todo surface whose real-Chrome acceptance proves the public authority-independent IndexedDB retention and queued-replay slice.",
+  "artifactSchemaVersion": "snapback.v0",
+  "targetProfile": "local-dev-sqlite-ibex",
+  "systems": ["Sync", "Realtime", "React", "Storage", "Testing"],
+  "requiredCapabilities": {
+    "storageEngine": "sqlite",
+    "runtimeEngine": "ibex",
+    "liveSubscriptions": true,
+    "syncableLiveQuery": true
+  },
+  "backend": {
+    "source": "snapback/schema.mjs + snapback/functions.mjs + snapback/seed.json",
+    "codegen": "node packages/snapback-codegen/index.mjs demos/browser-local-first/snapback",
+    "generated": ["snapback/generated/artifacts.json"],
+    "stalenessPolicy": "regenerate with codegen; freshness tracked by artifacts.json inputsHash"
+  },
+  "seed": {
+    "profile": "deterministic",
+    "file": "snapback/seed.json",
+    "rows": { "todos": 2 }
+  },
+  "surfaces": {
+    "browser-public-witness": {
+      "requirement": "integration",
+      "buildTargets": ["web"],
+      "runner": "node demos/browser-local-first/tests/acceptance/browser-public-witness.mjs",
+      "toolchain": "node>=24, Vite, a qualified Snapback runtime, and system Chrome"
+    }
+  },
+  "acceptanceChecks": {
+    "browser-public-witness": [
+      "current authoritative public rows persist in the default IndexedDB carrier",
+      "a full Chrome SIGKILL and same-profile relaunch renders pre-intent retained rows while authority is unreachable",
+      "offline add/toggle intents survive process death and replay only after a fresh authoritative snapshot",
+      "settlement follows durable sequence order and duplicate delivery republishes without re-execution",
+      "a storeless independent Node observer converges to the browser rows and version",
+      "under dev custody an authUserId-scoped browser query truthfully reports SNAPBACK_RETENTION_NOT_RQS_ELIGIBLE and leaves no IndexedDB entry",
+      "a same-process SPA reload reconstructs the React surface without a render storm",
+      "on the same browser and origin, an anonymous sessions-mode server makes the authUserId query report SNAPBACK_RETENTION_NOT_RETAINABLE while the authority-independent query remains retained"
+    ]
+  },
+  "notClaiming": [
+    "authenticated or authorized retention/replay conjunction",
+    "AuthorizedLease custody",
+    "Parity claim or local mutation execution",
+    "phase-advancement claim",
+    "hosted topology"
+  ]
+}
