@@ -18,6 +18,7 @@ import {
   leaseSha256,
   publicationAuthorityTransition,
   promoteDefaultVector,
+  readDefaultTagVector,
   unsignedLease,
   validatePublicationLease,
   validatePublicationAuthorityReceipt,
@@ -32,6 +33,52 @@ import {
 const names = PROMOTION_PACKAGE_NAMES;
 const authorityInstallationId = 'snapback-publication-promotion';
 const authorityOrigin = 'https://publication-authority.example';
+
+test('default-tag vector observations run concurrently and preserve missing tags', async () => {
+  const packageNames = ['package-a', 'package-b', 'package-c'];
+  let inFlight = 0;
+  let maximumInFlight = 0;
+  const vector = await readDefaultTagVector({
+    names: packageNames,
+    defaultTag: 'latest',
+    readDistTags: async (name) => {
+      inFlight += 1;
+      maximumInFlight = Math.max(maximumInFlight, inFlight);
+      await new Promise((resolveWait) => setTimeout(resolveWait, 20));
+      inFlight -= 1;
+      if (name === 'package-b') return '{}';
+      return JSON.stringify({ latest: `${name}-version` });
+    },
+  });
+  assert.equal(maximumInFlight, packageNames.length);
+  assert.deepEqual(vector, {
+    'package-a': 'package-a-version',
+    'package-b': null,
+    'package-c': 'package-c-version',
+  });
+});
+
+test('one failed default-tag observation rejects only after the whole read settles', async () => {
+  const packageNames = ['package-a', 'package-b', 'package-c'];
+  let settled = 0;
+  await assert.rejects(
+    readDefaultTagVector({
+      names: packageNames,
+      defaultTag: 'latest',
+      readDistTags: async (name) => {
+        await new Promise((resolveWait) => setTimeout(
+          resolveWait,
+          name === 'package-b' ? 5 : 20,
+        ));
+        settled += 1;
+        if (name === 'package-b') throw new Error('package-b view failed');
+        return '{"latest":"0.1.0"}';
+      },
+    }),
+    /package-b view failed/u,
+  );
+  assert.equal(settled, packageNames.length);
+});
 
 test('promotion executable imports the lease digest used by plan preflight', () => {
   const source = readFileSync(

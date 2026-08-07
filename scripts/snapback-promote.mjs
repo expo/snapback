@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { execFileSync, spawnSync } from 'node:child_process';
+import { execFile, execFileSync, spawnSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import {
   existsSync,
@@ -15,11 +15,17 @@ import { fileURLToPath } from 'node:url';
 
 import {
   CURRENT_LEASE_SCHEMA_VERSION,
+  LATEST_ROOT_PROBE_ATTEMPTS,
+  LATEST_ROOT_PROBE_DELAY_MS,
+  LATEST_ROOT_PROBE_TIMEOUT_MS,
+  LATEST_ROOT_REQUIRED_SUCCESSES,
+  PROMOTION_ROLLBACK_RESERVE_MS,
   buildPostPromotionLedger,
   canonicalJcs,
   leaseSha256,
   publicationAuthorityTransition,
   promoteDefaultVector,
+  readDefaultTagVector,
   sha256Hex,
   validatePublicationAuthorityHead,
   validatePublicationLease,
@@ -48,11 +54,6 @@ import {
 } from '../packages/snapback-publication-authority/request.mjs';
 
 const registry = 'https://registry.npmjs.org';
-const LATEST_ROOT_PROBE_ATTEMPTS = 6;
-const LATEST_ROOT_PROBE_DELAY_MS = 30_000;
-const LATEST_ROOT_PROBE_TIMEOUT_MS = 45_000;
-const LATEST_ROOT_REQUIRED_SUCCESSES = 2;
-const PROMOTION_ROLLBACK_RESERVE_MS = 120_000;
 let promotionRegistryCacheRoot = null;
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const latestProofHelper = join(
@@ -137,7 +138,7 @@ function parseArgs(argv) {
   return options;
 }
 
-function runNpm(args) {
+function buildNpmArgs(args) {
   const observationArgs = args[0] === 'view'
     ? [
       '--cache',
@@ -145,12 +146,16 @@ function runNpm(args) {
       '--prefer-online',
     ]
     : [];
-  const result = spawnSync('npm', [
+  return [
     ...args,
     '--registry',
     registry,
     ...observationArgs,
-  ], {
+  ];
+}
+
+function runNpm(args) {
+  const result = spawnSync('npm', buildNpmArgs(args), {
     encoding: 'utf8',
     maxBuffer: 8 * 1024 * 1024,
     timeout: 120_000,
@@ -159,6 +164,28 @@ function runNpm(args) {
     throw new Error(`npm ${args[0]} failed with ${result.status ?? result.signal ?? 'unknown'}`);
   }
   return result.stdout;
+}
+
+function runNpmAsync(args) {
+  return new Promise((resolveRun, rejectRun) => {
+    execFile('npm', buildNpmArgs(args), {
+      encoding: 'utf8',
+      maxBuffer: 8 * 1024 * 1024,
+      shell: false,
+      timeout: 120_000,
+    }, (error, stdout, stderr) => {
+      if (error) {
+        const detail = stderr.trim().slice(-2_000);
+        rejectRun(new Error(
+          `npm ${args[0]} failed with ${error.code ?? error.signal ?? 'unknown'}`
+            + (detail ? `: ${detail}` : ''),
+          { cause: error },
+        ));
+        return;
+      }
+      resolveRun(stdout);
+    });
+  });
 }
 
 const options = parseArgs(process.argv.slice(2));
@@ -269,14 +296,18 @@ try {
   fail(`prior default closure refused: ${error.message}`);
 }
 
+// Semantics audit: promoteDefaultVector/readConvergedVector, its rollback
+// path, waitForPromotedInstallability, observeVector, and the pre-close gate
+// compare complete before/intended/observed snapshots across separate reads;
+// none consumes per-name observation order within one read. The old serial
+// read was not atomic and had ~14 seconds of skew. Parallel reads tighten that
+// window, while each full read still settles before any serial tag mutation.
 async function readVector(names) {
-  const vector = {};
-  for (const name of names) {
-    const output = runNpm(['view', name, 'dist-tags', '--json']);
-    const tags = output.trim() ? JSON.parse(output) : {};
-    vector[name] = Object.hasOwn(tags, lease.defaultTag) ? tags[lease.defaultTag] : null;
-  }
-  return vector;
+  return readDefaultTagVector({
+    names,
+    defaultTag: lease.defaultTag,
+    readDistTags: (name) => runNpmAsync(['view', name, 'dist-tags', '--json']),
+  });
 }
 
 async function observePublicLatestRootInstallability({ expectedVector }) {

@@ -30,6 +30,21 @@ export {
   vectorFromLease,
 };
 
+export const LEASE_LIFETIME_MS = 900_000;
+export const LATEST_ROOT_PROBE_ATTEMPTS = 6;
+export const LATEST_ROOT_PROBE_DELAY_MS = 30_000;
+export const LATEST_ROOT_PROBE_TIMEOUT_MS = 45_000;
+export const LATEST_ROOT_REQUIRED_SUCCESSES = 2;
+export const PROMOTION_ROLLBACK_RESERVE_MS = 120_000;
+export const BARRIER_STABILITY_RESERVE_MS =
+  LATEST_ROOT_REQUIRED_SUCCESSES * LATEST_ROOT_PROBE_TIMEOUT_MS
+  + (LATEST_ROOT_REQUIRED_SUCCESSES - 1) * LATEST_ROOT_PROBE_DELAY_MS;
+// Eleven serial package steps each need a paired pre/post parallel-vector-read
+// window (~3-5 seconds combined in target conditions), challenge-bound head
+// reads, and one dist-tag add. The target phase is <=60 seconds; 120 seconds
+// keeps 2x headroom.
+export const MODELED_TAG_MOVE_PHASE_MS = 120_000;
+
 const POST_PROMOTION_LEDGER_KEYS = [
   'candidateTag',
   'defaultTag',
@@ -114,6 +129,28 @@ function vectorsEqual(left, right, names) {
 
 function changedNames(before, after, names) {
   return names.filter((name) => (before[name] ?? null) !== (after[name] ?? null));
+}
+
+export async function readDefaultTagVector({ names, defaultTag, readDistTags }) {
+  // Convert failures to values until every observation settles. A rejected
+  // vector read therefore cannot leave sibling observers running while its
+  // caller advances to rollback or another registry mutation.
+  const observations = await Promise.all(names.map(async (name) => {
+    try {
+      const output = await readDistTags(name);
+      const tags = output.trim() ? JSON.parse(output) : {};
+      return {
+        error: null,
+        name,
+        value: Object.hasOwn(tags, defaultTag) ? tags[defaultTag] : null,
+      };
+    } catch (error) {
+      return { error, name, value: null };
+    }
+  }));
+  const failure = observations.find((observation) => observation.error !== null);
+  if (failure) throw failure.error;
+  return Object.fromEntries(observations.map(({ name, value }) => [name, value]));
 }
 
 async function observeVector(readVector, names) {
@@ -227,7 +264,7 @@ export async function waitForPromotedInstallability({
     || probeBoundMs > 120_000
     || !Number.isSafeInteger(requiredRemainingMs)
     || requiredRemainingMs < 0
-    || requiredRemainingMs > 15 * 60_000
+    || requiredRemainingMs > LEASE_LIFETIME_MS
   ) {
     throw new TypeError('promoted installability barrier bounds are invalid');
   }

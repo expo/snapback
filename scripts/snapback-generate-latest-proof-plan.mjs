@@ -18,7 +18,11 @@ import { dirname, posix, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
+  BARRIER_STABILITY_RESERVE_MS,
   CURRENT_LEASE_SCHEMA_VERSION,
+  LEASE_LIFETIME_MS,
+  MODELED_TAG_MOVE_PHASE_MS,
+  PROMOTION_ROLLBACK_RESERVE_MS,
   leaseSha256,
   validateClosedLatestProofPlan,
 } from './snapback-promotion-core.mjs';
@@ -33,6 +37,7 @@ const latestProofHelper = resolve(
   repositoryRoot,
   'scripts/snapback-github-latest-proof.mjs',
 );
+const DEFAULT_DISPATCH_TIMEOUT_MS = 400_000;
 
 const usage = `usage: node scripts/snapback-generate-latest-proof-plan.mjs
   --lease <authorized-lease.json>
@@ -66,7 +71,7 @@ function parseArgs(argv) {
   const options = {
     collection: 'proof/collection.json',
     darwinReceipt: 'proof/darwin.json',
-    dispatchTimeoutMs: 540_000,
+    dispatchTimeoutMs: DEFAULT_DISPATCH_TIMEOUT_MS,
     linuxReceipt: 'proof/linux.json',
     ref: 'main',
     repository: 'expo/snapback',
@@ -125,6 +130,35 @@ function ledgerPathUnderRoot(root, ledgerFile) {
   return normalizedRelativePath(value, 'candidate ledger path');
 }
 
+function requireModeledPublicationLeaseBudget({
+  dispatchTimeoutMs,
+  verifyTimeoutMs,
+}) {
+  if (
+    !Number.isSafeInteger(dispatchTimeoutMs)
+    || !Number.isSafeInteger(verifyTimeoutMs)
+  ) {
+    return;
+  }
+  const totalMs =
+    dispatchTimeoutMs
+    + verifyTimeoutMs
+    + PROMOTION_ROLLBACK_RESERVE_MS
+    + BARRIER_STABILITY_RESERVE_MS
+    + MODELED_TAG_MOVE_PHASE_MS;
+  if (totalMs > LEASE_LIFETIME_MS) {
+    throw new Error(
+      'latest-proof plan modeled publication lease budget cannot close: '
+        + `dispatchTimeoutMs=${dispatchTimeoutMs} + `
+        + `verifyTimeoutMs=${verifyTimeoutMs} + `
+        + `PROMOTION_ROLLBACK_RESERVE_MS=${PROMOTION_ROLLBACK_RESERVE_MS} + `
+        + `BARRIER_STABILITY_RESERVE_MS=${BARRIER_STABILITY_RESERVE_MS} + `
+        + `MODELED_TAG_MOVE_PHASE_MS=${MODELED_TAG_MOVE_PHASE_MS} = `
+        + `${totalMs} > LEASE_LIFETIME_MS=${LEASE_LIFETIME_MS}`,
+    );
+  }
+}
+
 /**
  * Build the closed plan consumed by validateClosedLatestProofPlan.
  *
@@ -142,12 +176,13 @@ export function buildLatestProofPlan({
   ref = 'main',
   repository = 'expo/snapback',
   workflow = 'public-package-proof.yml',
-  dispatchTimeoutMs = 540_000,
+  dispatchTimeoutMs = DEFAULT_DISPATCH_TIMEOUT_MS,
   verifyTimeoutMs = 30_000,
   darwinReceipt = 'proof/darwin.json',
   linuxReceipt = 'proof/linux.json',
   collection = 'proof/collection.json',
 }) {
+  requireModeledPublicationLeaseBudget({ dispatchTimeoutMs, verifyTimeoutMs });
   validateCandidateLedger(ledger);
   const issuedAt = Date.parse(lease?.issuedAt ?? '');
   const expiresAt = Date.parse(lease?.expiresAt ?? '');
@@ -156,7 +191,7 @@ export function buildLatestProofPlan({
     || !Number.isFinite(issuedAt)
     || !Number.isFinite(expiresAt)
     || expiresAt <= issuedAt
-    || expiresAt - issuedAt > 15 * 60_000
+    || expiresAt - issuedAt > LEASE_LIFETIME_MS
   ) {
     throw new Error('authorized lease has an unsupported generation or lifetime');
   }

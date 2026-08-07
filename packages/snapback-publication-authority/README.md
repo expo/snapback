@@ -117,8 +117,10 @@ attempt ceiling. The release plan uses a 400-second dispatch bound: with
 30-second verification, 120-second rollback, and the 120-second stability
 window, 670 seconds of the 900-second lease remain reserved. It is still not
 cross-host authority. Fresh-clock gates run after each retained success and
-immediately before dispatch. The helper then dispatches the
-pinned workflow; each
+immediately before dispatch. The plan generator now refuses at generation
+when the modeled lease budget cannot close, and each complete-vector read runs
+its per-package registry observations in parallel. The helper then dispatches
+the pinned workflow; each
 hosted platform uses distinct empty caches to retry only a structurally valid
 signed-prior root under one package-owned wall bound before running the full
 proof once. Receipts retain the closed retry policy and lease-bound attempt
