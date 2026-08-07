@@ -1696,3 +1696,29 @@ persistent-store carrier SHA-256
 `58d126434325cf9516dea998df6b33076af78acca3d544d30ff719365c4b25db`.
 The retained receipt check, persistent-store conformance check, and both
 agent-safe publication states now pass without changing a capability claim.
+
+### Post-Fleet final integration — 2026-08-06
+
+Completed main advanced again through `a18a1556e` while the closing checks ran.
+The merge retained main's requalified Fleet Move-1 chain (8/8 PASS) and its new
+same-change drift-gate enforcement. That Fleet budget receipt is itself a
+declared input to the local-store carrier, so the local-store check correctly
+became stale rather than silently accepting the newer dependency bytes.
+
+After a clean coded bootstrap at `938db9b45`, the full Chrome-backed recorder
+passed 17 PASS / 0 GAP / 0 SKIPPED. Its retained receipt SHA-256 is
+`41a32f0af2c1d41347aee3d4547f8800d236da228c32d380ea24cdab223a1ae7`;
+the bundle-attribution receipt SHA-256 is
+`5499983e30b409db12c59588073eb8f46ccd6f37d1266c4f17e2b6676f0ed5bb`.
+The finalizer minted persistent-store carrier SHA-256
+`e634c395581f4c3d13b7d1c1857e641c03246aabe6c5d2bd443e7be0704dd601`.
+The retained receipt, all three source publication carriers, both honestly
+withheld agent-safe claims, the Fleet receipt, the 227-file package inventory,
+and the new drift-gate fixtures pass on the combined tree.
+
+The same main batch exposed five package-qualification literals in the broad
+Rust diagnostic inventory. Landing `dbfeee26a` introduced two environment
+variable names and three CLI-local receipt-minting diagnostics; none is an
+HTTP-server diagnostic. Their reason-bearing non-HTTP classification and full
+landing attribution are recorded in
+`issues/closed/20260806-packaged-store-diagnostic-inventory-drift.md`.

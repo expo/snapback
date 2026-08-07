@@ -6,8 +6,8 @@
     "LLP 0166#executable-acceptance",
     "LLP 0166#d9--carriers-storage-profiles-arms-and-the-bundle"
   ],
-  "startedAt": "2026-08-06T23:41:51.277Z",
-  "completedAt": "2026-08-06T23:43:50.685Z",
+  "startedAt": "2026-08-07T00:04:01.850Z",
+  "completedAt": "2026-08-07T00:06:00.784Z",
   "runtime": {
     "node": "v24.18.0",
     "platform": "darwin",
@@ -15,7 +15,7 @@
     "hostnameClass": "local-evidence-machine"
   },
   "source": {
-    "revision": "f3ba4492ccaec3ac8d5a7ec83a8f63e1d62e03c7",
+    "revision": "938db9b45a47a89bf59d4101fefcd9e9f430328d",
     "dirty": false,
     "dirtyPaths": [],
     "files": [
@@ -117,11 +117,11 @@
       },
       {
         "path": "tests/acceptance/fixtures/fleet-observatory/budget-freeze.2026-08-06.v1.json",
-        "sha256": "26fac1504bfeef4f31a51a88936d980c139c41d9a40ba28265cb031b4781670f"
+        "sha256": "4c888b038745d26ac32d1c5e92e7e629b5b2459d566533d3ac27048ef39fc1a0"
       },
       {
         "path": "tests/acceptance/fixtures/fleet-observatory/move1-exit.2026-08-06.v1.json",
-        "sha256": "b81e8a6a371d4748c785885649f240770b8b380da589c9de1c56dc33f20a673d"
+        "sha256": "efeeaeb5037150063074c5f0cbf6253a46ec278f25623688d31522fd6e1f4c09"
       }
     ]
   },
@@ -271,7 +271,7 @@
           2,
           3
         ],
-        "relaunchToReadableMs": 1537.406,
+        "relaunchToReadableMs": 1602.794,
         "browser": {
           "executable": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
           "version": "Google Chrome 151.0.7922.76",
@@ -284,12 +284,12 @@
         },
         "cleanup": {
           "firstBrowser": {
-            "pid": 77379,
+            "pid": 37681,
             "requestedSignal": "SIGKILL",
             "processTreeExitAttested": true
           },
           "finalBrowser": {
-            "pid": 77728,
+            "pid": 37934,
             "requestedSignal": "SIGTERM",
             "processTreeExitAttested": true
           },
@@ -387,7 +387,7 @@
           {
             "type": "boundary",
             "boundary": "before-rename",
-            "pid": 57699,
+            "pid": 21939,
             "exit": {
               "code": null,
               "signal": "SIGKILL"
@@ -398,7 +398,7 @@
           {
             "type": "boundary",
             "boundary": "after-rename-before-directory-sync",
-            "pid": 57707,
+            "pid": 21957,
             "exit": {
               "code": null,
               "signal": "SIGKILL"
@@ -431,12 +431,12 @@
       "status": "PASS",
       "evidence": {
         "serverBinary": "target/debug/snapback",
-        "serverBinarySha256": "f4462e9e96cb96af49b05a5f69a7b0be6acbcb2d63375f96acae425cb69f091e",
+        "serverBinarySha256": "c023eadd39af126bac364a16e1be9495c4b091110d74fa29d81f644d627cade0",
         "launchRung": "configured",
         "backendStoppedBeforeRelaunch": true,
         "activationPreparation": {
           "format": "snapback.composition-activation-preparation.v1",
-          "activationHash": "sha256:ce5ec269d295c2713e316c857705c357fcf657c361e6d498b53dee63f92df8f0",
+          "activationHash": "sha256:fa5fcfa3f45eb704586c7dfe625c297727c0ad7821dd4a60cf47767e0fc0d4a7",
           "sourceClass": "temporary-backend-source",
           "next": "rerun Snapback codegen for this backend"
         },
@@ -478,7 +478,7 @@
         },
         "materialization": {
           "records": 1,
-          "qmk1": "qmk1.Uo_LN1nk-c_2vMm111WkmLrobxAaqZja1T2iaT6zPWY",
+          "qmk1": "qmk1.bCA7pR65eI25rBN61kdABH3xKD9UKyZVdEEUJN-sfRw",
           "freshness": "retained",
           "fragments": 1,
           "leaseCustody": 1
@@ -647,7 +647,7 @@
           "version": 7,
           "token": "sbrt1.carrier-exit.7"
         },
-        "maintenanceMs": 93722.289
+        "maintenanceMs": 92842.563
       }
     },
     {
@@ -749,14 +749,14 @@
           "hydrationAttempts": 1,
           "hydrationRows": 200,
           "hydrationPayloadBytes": 49652,
-          "hydrationElapsedMs": 347.455,
+          "hydrationElapsedMs": 171.143,
           "hydrationCeilingMs": 1000
         },
         "receipts": {
           "budgetFreeze": "tests/acceptance/fixtures/fleet-observatory/budget-freeze.2026-08-06.v1.json",
-          "budgetFreezeSha256": "26fac1504bfeef4f31a51a88936d980c139c41d9a40ba28265cb031b4781670f",
+          "budgetFreezeSha256": "4c888b038745d26ac32d1c5e92e7e629b5b2459d566533d3ac27048ef39fc1a0",
           "move1Exit": "tests/acceptance/fixtures/fleet-observatory/move1-exit.2026-08-06.v1.json",
-          "move1ExitSha256": "b81e8a6a371d4748c785885649f240770b8b380da589c9de1c56dc33f20a673d"
+          "move1ExitSha256": "efeeaeb5037150063074c5f0cbf6253a46ec278f25623688d31522fd6e1f4c09"
         }
       }
     },

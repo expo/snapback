@@ -2,7 +2,7 @@
   "schemaVersion": "snapback.local-persistent-store.bundle-attribution.v1",
   "date": "2026-08-06",
   "source": {
-    "revision": "f3ba4492ccaec3ac8d5a7ec83a8f63e1d62e03c7",
+    "revision": "938db9b45a47a89bf59d4101fefcd9e9f430328d",
     "dirty": false,
     "dirtyPaths": [],
     "files": [
@@ -104,11 +104,11 @@
       },
       {
         "path": "tests/acceptance/fixtures/fleet-observatory/budget-freeze.2026-08-06.v1.json",
-        "sha256": "26fac1504bfeef4f31a51a88936d980c139c41d9a40ba28265cb031b4781670f"
+        "sha256": "4c888b038745d26ac32d1c5e92e7e629b5b2459d566533d3ac27048ef39fc1a0"
       },
       {
         "path": "tests/acceptance/fixtures/fleet-observatory/move1-exit.2026-08-06.v1.json",
-        "sha256": "b81e8a6a371d4748c785885649f240770b8b380da589c9de1c56dc33f20a673d"
+        "sha256": "efeeaeb5037150063074c5f0cbf6253a46ec278f25623688d31522fd6e1f4c09"
       }
     ]
   },
