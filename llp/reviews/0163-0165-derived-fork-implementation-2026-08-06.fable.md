@@ -505,3 +505,187 @@ connections or checkpoint before installing the authorizer; give the journal
 prune a system-lane token) plus the two tests that would have caught them: a
 renew of an armed complete-pair fork, and one maintenance sweep against an
 armed fork.
+
+---
+
+## Round 3 — 2026-08-06, commit cdc0fe03e
+
+**Family:** fable
+**Provider/runtime:** Anthropic / Claude (Fable 5), Claude Code agent session
+**Date:** 2026-08-06
+**Redacted:** no
+**Method:** fresh clean-context session; read-only worktree pinned at
+`cdc0fe03e`. Declared **delta round**: I read both families' round-1 and
+round-2 artifacts under `llp/reviews/` and remained blind to the other
+family's round-3 work (I did not open the codex review worktree). I read the
+three new slices as diffs (`5d1f6aab9`, `73af11d4e`, `0ee1fadc1`) and then the
+resulting code directly: `src/storage/write_authority.rs`, `src/storage.rs`,
+`src/operation_ledger.rs`, `src/instance_fork.rs`, `src/cli.rs`,
+`src/proof_checkpoint.rs`, `tests/instance_fork_cli_v1.rs`, against LLP
+0158/0163/0164/0165 and `guide/operating/instance-forks.md`. Tests were read
+for non-vacuity, not executed (`vendor/ibex` uninitialized, no `target/`).
+Every cite is file:line at this commit.
+
+### Re-verdicts (fork-relevant surface)
+
+| Document | Round 2 | Round 3 |
+| --- | --- | --- |
+| LLP 0163 | READY | **READY** (unchanged; untouched by these slices and still accurate) |
+| LLP 0164 | READY | **READY** (untouched; its delegation still holds — see nit R3-7) |
+| LLP 0165 | READY (fable) / NOT READY (codex) | **READY** — the codex continuity exploit is closed and 0165's revised text describes the closure accurately, with one precision nit (R3-1) |
+
+### The codex manifest-continuity exploit — reconstruction attempts
+
+I tried to rebuild the round-2 codex chain (delete the durable manifest →
+open an unarmed registered writer → forge a matching app row / `_snapback_version`
+/ `_snapback_changes` → restore the exact manifest → re-earn
+`registered-connection-defensive-app-rows-v1`) and four variants of it. All
+fail closed inside the class the Spec names.
+
+- **Step 1 is now denied.** `_snapback_operation_coverage_v1` and
+  `_snapback_operation_coverage_continuity_v1` are their own protected class
+  (`src/storage/write_authority.rs:697-700, 733-742`); while armed, only an
+  `OperationLedger` token may touch them
+  (`permits_coverage_carrier_write`, `:336-338`). No registered-writer purpose
+  maps to that lane (`src/storage.rs:11087-11097` — `BranchRegistry`,
+  `AdminControl`, `VectorIndex` only), so no registered writer can reach it.
+- **Step 2 is now fail-closed rather than fail-open.**
+  `registered_writer_coverage_manifest` (`src/storage.rs:10878-11061`) requires
+  agreement between the database receipt, the file receipt, the active stream,
+  the active manifest, the `continuous` continuity row, and the absence of the
+  gap sidecar; every contradiction routes through
+  `break_registered_writer_coverage` (`:10821-10876`), which writes the durable
+  gap file and flips the continuity row to `broken` **before** returning `Err`.
+  There is no path that returns an unarmed-but-tokened writer on a database
+  that carries fork coverage evidence, which also closes my round-2 N3.
+- **Step 4 cannot re-arm.** `register_coverage_in` refuses a non-advancing
+  manifest version and refuses outright once continuity is `broken`
+  (`src/operation_ledger.rs:586-606`), and `verified_fork_app_row_coverage`
+  now requires the continuity row to exist, be `continuous`, and match the
+  fork-point receipt's version and digest (`src/instance_fork.rs:3686-3706`),
+  refusing `SNAPBACK_FORK_WRITER_COVERAGE_GAP` otherwise. It also short-circuits
+  on the gap sidecar first (`:3632-3636`), so a partial break (sidecar written,
+  continuity update lost) still refuses rather than silently re-awarding —
+  I looked for exactly that divergence and it is covered.
+- **Variant A — do it with the `OperationLedger` token.** An in-crate holder
+  of that token can delete both carriers, and `_snapback_meta` DML is admitted
+  by the system-table arm (`write_authority.rs:779-786`), so the database-side
+  coverage receipt can go too. The next registered-writer open then reads
+  `(None, Some(file))` and breaks with `fork-coverage-database-receipt-missing`
+  (`src/storage.rs:10957-10980`). To reach `Ok(None)` — the only unarmed exit —
+  the attacker must also delete the fork-local receipt *file*, which is
+  filesystem access, explicitly outside the class 0165 names
+  (`llp/0165-…spec.md:442-447`).
+- **Variant B — never open a second writer; mutate through the armed primary.**
+  The primary's in-memory authority still holds the old manifest, so app-row
+  DML without a token is still denied; `refresh_writer_authority_manifest`
+  now routes through the same validator (`src/storage.rs:2424-2429`), so it
+  cannot produce an unarmed window either.
+- **Variant C — exact restore, byte for byte.** Even with an identical manifest
+  row restored, the activation-time cross-check
+  (`src/instance_fork.rs:3707-3720`) and the monotonic continuity row both have
+  to agree; the continuity row is the fact the restore cannot reach without
+  first passing through a `broken` transition.
+
+**The committed negative proves what it claims.**
+`registered_manifest_gap_and_exact_restore_cannot_reearn_completeness`
+(`src/instance_fork.rs:8097-8217`) does three separate things: it proves a
+registered writer is denied the manifest delete; it then *labels* the gap
+simulation as out-of-class (a raw `Connection::open`) rather than pretending it
+is in-class, and proves the next registered factory refuses with
+`SNAPBACK_FORK_WRITER_COVERAGE_GAP` and writes the sidecar; and it performs the
+full matching app/version/journal forgery plus exact manifest restore and
+proves `net_diff_receipt` still refuses. The honesty of the middle step is the
+right call — it is the only way to test the poisoning behaviour, and the
+comment says so. What it does *not* prove is that no in-class route exists to
+create the gap; that follows from the authorizer arms above, which are proven
+separately at `src/storage.rs:27948-27960`.
+
+### Codex round-2 finding 2 (post-allocation scan bytes) — closed in kind
+
+`preflight_app_row_work` (`src/instance_fork.rs:4255-4301`) charges from
+borrowed `ValueRef`s before any owned decode, `observe_scan` refuses first
+(`:4193-4194`), and `verify_bounded_row_serialization` (`:4458-4488`) re-checks
+the realised serialization against the same per-row bound through a counting
+writer. Text escaping, blob hex expansion, vector decode, and JSON parse each
+have an explicit multiplier. The new fixture proves refusal from borrowed
+lengths for oversized text, blob, and vector values
+(`:7639-7736`). One residual precision concern is R3-2 below.
+
+### New findings in the round-3 slices
+
+1. **R3-1 (Low — one sentence reads stronger than the authorizer).** 0165 now
+   says "Exact coverage activation is the only manifest/continuity transition
+   admitted under the operation-ledger token"
+   (`llp/0165-…spec.md:416-419`). The authorizer admits *any* `Insert`/`Update`/
+   `Delete` on both carriers to an `OperationLedger`-token holder
+   (`src/storage/write_authority.rs:336-338, 733-742`); monotonicity is
+   enforced by `register_coverage_in`
+   (`src/operation_ledger.rs:569-607`), a code path, not by the policy. The
+   surrounding conclusion ("deleting the manifest … and restoring identical
+   bytes cannot re-earn this class") is still true, because the file receipt
+   and gap sidecar carry it. *Resolves:* one clause — "the operation ledger is
+   the only lane admitted to those carriers, and its only production
+   transition is the monotonic activation in `register_coverage_in`".
+2. **R3-2 (Low — the JSON preflight multiplier is not conservative, and is
+   untested).** `manifest_value_work_bound` charges `bytes.len() * 8 + 2` for a
+   `FieldType::Json` value before `serde_json` parses it
+   (`src/instance_fork.rs:4335-4348`). For number-dense input the parsed
+   representation is larger than that: `[0,0,0,…]` of *n* bytes yields ≈ n/2
+   `Value`s in a `Vec<Value>`; `size_of::<serde_json::Value>()` is 32 bytes on
+   64-bit, so the array alone is ≈16 n bytes before `Vec` growth slack, against
+   an 8 n charge — a 2–4× under-charge of the declared in-flight bound. The
+   vector arm has the same shape at a smaller factor (`bytes.len() + 40/dim`,
+   `:4349-4372`, versus 8 bytes of `f64` plus a 32-byte `Value` per dimension
+   plus growth slack). The new fixture covers text, blob, and vector but no
+   JSON column (`:7639-7736`), so the multiplier is unproven either way.
+   *Resolves:* raise the JSON factor (or parse into a bounded reader as the
+   serialization side already does) and add one number-dense JSON row to the
+   fixture. This is a constant-factor accounting precision item on a dev
+   surface, not a re-opening of the codex finding.
+3. **R3-7 (Low — 0164 nit, non-blocking, verdict unchanged).** 0164's receipt
+   record enumerates the class outcomes as "unarmed, late-armed, or
+   retention-gap forks fail closed to `journal-enumerated-v1`"
+   (`llp/0164-…spec.md:506-509`). Since `73af11d4e` there is a fourth outcome
+   it does not name: a registered-writer continuity gap *refuses* with
+   `SNAPBACK_FORK_WRITER_COVERAGE_GAP` rather than downgrading. 0164 explicitly
+   delegates class semantics to 0165 in the same paragraph (`:511-513`) and
+   0165 names the refusal (`llp/0165-…spec.md:452-454`), so the corpus is
+   accurate and 0164 stays READY. Fold the fourth outcome in whenever 0164 is
+   next touched, alongside my still-open round-1/2 Low (which §Diff clauses
+   bind the derived class versus the in-app branch class).
+
+### Round-2 residuals, re-checked
+
+- **Guide overstates the journal receipt's bounds (round-2 Low 3): CLOSED**,
+  and closed the honest way rather than by widening the claim — the guide now
+  says "The default journal receipt pre-counts and bounds rows before
+  materialization; it does not have a byte-work budget"
+  (`guide/operating/instance-forks.md:378-380`).
+- **Receipt digest shipped without a way to check it (round-2 Low 4): CLOSED.**
+  The guide publishes the exact recipe — drop `receiptDigest`, JCS, prefix with
+  `snapback:fork-journal-diff-receipt:v3\n` or
+  `snapback:fork-net-diff-receipt:v3\n`, SHA-256, `sha256:<64-hex>`
+  (`guide/operating/instance-forks.md:340-348`) — and it matches the code
+  byte for byte (`src/instance_fork.rs:1152-1187`).
+- **`permits_schema_catalog_write` asymmetry (round-2 Low): NOT addressed.**
+  Still admits `sqlite_schema` DML for any target under
+  `internal_schema_maintenance`, while the DDL arm restricts internal
+  maintenance to `_snapback_`-owned targets
+  (`src/storage/write_authority.rs:328-334`). Unchanged severity;
+  defence-in-depth only.
+- **`fork_app_row_coverage_digest` is not JCS (round-2 Low): NOT addressed**
+  (`src/instance_fork.rs:1103-1130`). I am downgrading this to a note rather
+  than a concern: the preimage is a `json!` literal, and without serde_json's
+  `preserve_order` feature the backing map is a `BTreeMap`, so key order is
+  already deterministic. Pinning JCS remains a consistency improvement, not a
+  hazard.
+
+### Recommended next step
+
+Accept LLP 0163, 0164, and 0165 for this fork-relevant publication surface.
+The codex round-2 blocker is genuinely closed rather than argued away, the
+continuity carrier is the right shape (monotonic, irreversible, checked at
+both writer construction and receipt time), and 0165's revised text is accurate
+modulo one clause. R3-1, R3-2, and R3-7 are all one-paragraph or one-fixture
+items that can ride the next dated touch; none of them blocks acceptance.

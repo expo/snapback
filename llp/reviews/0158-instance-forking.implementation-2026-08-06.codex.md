@@ -154,3 +154,85 @@ The temporary registered-manifest-gap exploit test passed and produced the upgra
 ### Recommended next step
 
 Keep `operating.instance-forks` at target `none`. Preserve the closed lifecycle, v3 receipt, defensive-authorizer, registered-writer, and root-admission work; repair the manifest-continuity gap and make scanned-row byte enforcement pre-allocation. Then run the two new adversarial negatives and the existing exact-revision lifecycle/security suite before requesting a fresh implementation verdict. LLP 0163 and LLP 0164 need no further change for this fork slice; LLP 0165 and the corresponding guide class must stay unaccepted/unpublished until the registered-writer continuity claim is true.
+
+## Round 3 — 2026-08-06, commit cdc0fe03e
+
+### Provenance
+
+- **Family:** codex
+- **Provider/runtime:** OpenAI Codex, GPT-5 family runtime
+- **Date:** 2026-08-06
+- **Commit:** `cdc0fe03e8d75c4a1d1d25f79fe820f20b772ef7`
+- **Redacted:** no
+- **Method:** Independent round-3 delta implementation/security review. I read both families' prior committed review rounds and verified their open findings against the pinned implementation, governing LLPs, guide, and committed tests. I reviewed only the three post-round-2 slices and their interactions with the previously closed surface. I qualified and tested an exact-revision disposable checkout and constructed one temporary continuity-carrier restoration variant there; this worktree was changed only by the two requested review appends.
+
+### Overall result
+
+**No new MATERIAL finding.** The round-2 manifest-continuity exploit, pre-expansion accounting gap, armed-renewal wedge, and armed journal-pruning denial are all closed. I found no regression in lifecycle binding, detached launch, admission release, or renewal consistency.
+
+### Round-2 finding dispositions
+
+1. **High — manifest deletion, unarmed registered writer, exact restoration: CLOSED.** Coverage manifest and continuity DML are now admitted only under the operation-ledger token (`src/storage/write_authority.rs:697-743`). The registered factory checks both receipt carriers, stream, manifest, continuity state, and prior sidecar before installing defensive authority or issuing its purpose token (`src/storage.rs:10871-11103`). A contradiction writes at least one durable irreversible carrier—a monotonic `broken` row and, for a fork, a synced create-once sidecar—and refuses (`src/storage.rs:10735-10799`; `src/storage.rs:10821-10869`). Activation refuses to re-arm a broken stream (`src/operation_ledger.rs:552-608`), and final diff verification separately requires no sidecar plus exact continuous state (`src/instance_fork.rs:3627-3705`).
+
+   The committed negative accurately proves its claim: registered manifest deletion is authorization-denied; a raw connection then simulates the former missing-manifest interval; the next registered factory refuses and persists the gap; raw app/version/journal forgery plus byte-identical manifest restoration still cannot regain completeness (`src/instance_fork.rs:8097-8219`). My temporary variant deleted the continuity row, triggered the same break, then raw-deleted the new broken row and restored the original continuous row exactly. Net diff still returned `SNAPBACK_FORK_WRITER_COVERAGE_GAP` because the sidecar remained. A raw same-user actor that also removes filesystem evidence is explicitly outside this registered-connection class, and already has enough authority for the documented coordinated page/journal forgery (`llp/0165-proof-domains-and-checkpoints.spec.md:436-447`).
+
+2. **Medium — row scan charged after owned expansion: CLOSED.** Scan work is computed from borrowed SQLite values and admitted before proportional decode or conversion (`src/instance_fork.rs:4160-4252`). JSON, text escaping, blob hex, and vector buffer/array costs are conservatively bounded before allocation, with a bounded serialization check afterward (`src/instance_fork.rs:4255-4484`). The committed huge-text, huge-blob, and vector negatives exercise refusal at `head-scan`, not after construction (`src/instance_fork.rs:7640-7734`).
+
+3. **High — armed renewal checkpoint denied after lineage mutation: CLOSED.** The authorizer grants only `wal_checkpoint(FULL)` to the lifecycle `BranchRegistry` token (`src/storage/write_authority.rs:344-349`), and renewal checkpoints before opening the lineage transaction (`src/instance_fork.rs:3137-3170`). Forward mutation is sentinel/intent-fenced and ordinary failures compensate every expiry carrier; a compensation failure remains explicitly quarantined for recovery (`src/instance_fork.rs:2969-3134`; `src/instance_fork.rs:3172-3217`). The unit crash matrix and executable armed-recovery test both passed (`src/instance_fork.rs:6836-6909`; `tests/instance_fork_cli_v1.rs:2342-2449`).
+
+4. **High — armed journal pruning denied: CLOSED.** A dedicated `JournalMaintenance` lane adds only retention deletion from `_snapback_changes` to the existing system-table authority, while application and journal-originating DML remain denied (`src/storage/write_authority.rs:40-84`; `src/storage/write_authority.rs:340-342`; `src/storage/write_authority.rs:755-775`). The production sweep enters that token, and the armed regression proves deletion plus floor advancement (`src/storage.rs:3183-3204`; `src/instance_fork.rs:7902-7939`).
+
+### Three-slice defect review
+
+#### Mint-time binding
+
+Managed publication now requires a non-forgeable-at-the-Rust-API opaque expected identity, revalidates its canonical app-root receipt, and carries it through staging intent, final digest-bound binding, and both registry states (`src/instance_fork.rs:93-110`; `src/instance_fork.rs:169-269`; `src/instance_fork.rs:1189-1269`; `src/instance_fork.rs:4487-4619`). The source mint's app id must match; recovery refuses missing, legacy, or foreign binding (`src/instance_fork.rs:1200-1205`; `src/instance_fork.rs:4929-4971`). The passing never-launched library-mint test proves the owner can diff immediately while a sibling canonical root with the same app id cannot select it (`tests/instance_fork_cli_v1.rs:765-873`). The receipts are not keyed against a malicious same-user filesystem editor, but that actor is outside this local cooperating-process authority boundary; within scope I found no forgery or legacy wildcard.
+
+#### Close-on-exec
+
+The Unix pre-exec hook sets `FD_CLOEXEC` on all observed descriptors above stderr, retries `EINTR`, ignores only `EBADF`, and calls `setsid` afterward (`src/cli.rs:3383-3433`). It does not close descriptors in the hook; therefore spawn-error reporting remains possible, while successful exec closes inherited capture writers. Fork logs are mapped to descriptors 1 and 2 before this hook, and the server opens its own DB/listener/readiness resources after exec (`src/cli.rs:3591-3630`). Host restart likewise hands off no non-stdio descriptor (`src/cli.rs:6982-6999`). The passing fd-198 EOF negative proves the original macOS `Command::output()` inheritance wedge is gone while the server is still alive (`tests/instance_fork_cli_v1.rs:1894-1980`); the three-way concurrent-create test also passed (`tests/instance_fork_cli_v1.rs:1983-2031`). I found no legitimate inherited server descriptor lost and no platform claim beyond the Unix macOS/Linux target pair.
+
+#### Admission deadline and release
+
+The admission guard owns the locked file, acquires `flock` nonblockingly against a monotonic deadline, and reports `SNAPBACK_FORK_ADMISSION_TIMEOUT` after 30 seconds (`src/instance_fork.rs:3323-3405`). The CLI holds it across observation and publication and explicitly releases it once registry intent and rename are durable; every earlier `?`/error path releases through RAII (`src/cli.rs:3477-3513`). The lock is not FIFO, but starvation is bounded into a typed refusal rather than an indefinite wait. The zero-timeout held/released regression passed (`src/instance_fork.rs:7110-7154`).
+
+#### Renewal compensation
+
+The durable intent contains the previous expiry, and the forward path writes database lineage, mint, registry, and renewal receipt before removing intent and sentinel (`src/instance_fork.rs:2969-3108`). Ordinary errors restore the previous database lineage after a checkpoint, then the mint, registry, and prior renewal receipt before clearing quarantine (`src/instance_fork.rs:3111-3217`). Crash paths intentionally do not compensate and recovery idempotently replays the exact intent (`src/instance_fork.rs:4977-5032`). I found no ordinary single-failure path that exposes DB/receipt/registry disagreement. A secondary I/O failure can return `incomplete-recover-required`, but the sentinel still fences the partial state; if failure occurs after sentinel removal, all forward carriers have already reached the renewed cut and rollback recreates quarantine before mutating them.
+
+### New findings
+
+None. No Critical, High, Medium, or Low defect was identified in the reviewed delta.
+
+### Scope 1 re-verdict
+
+| Document | Fork-relevant verdict | Basis |
+| --- | --- | --- |
+| LLP 0163 | **READY** | Both derived receipts remain explicitly non-attributed, and LLP 0163 excludes this fork consumer from its current acceptance scope (`llp/0163-operation-identity-and-commit-envelope.spec.md:992-1006`). |
+| LLP 0164 | **READY** | The retained-base v3 boundary, digest, and explicit absence contract remain aligned; the scan fix only makes its bounded execution honest (`llp/0164-fork-and-promotion.spec.md:489-513`). |
+| LLP 0165 | **READY** | The protected carriers, registered-factory reconstruction, irreversible gap state, no-rearm rule, and oracle check implement the stated narrow class (`llp/0165-proof-domains-and-checkpoints.spec.md:399-454`). Both the committed exploit negative and my continuity-row variant fail closed. |
+
+### Scope 2 verdict
+
+**READY for implementation/security publication of the narrow local `operating.instance-forks` surface.** This is not a capability-publication action or a claim that the other gates are complete. The guide and capability index correctly remain partial/unpublished and target `none` until separate qualification, author acceptance, and publication evidence is satisfied (`guide/operating/instance-forks.md:28-34`; `guide/capabilities.md:90`).
+
+### Verification actually performed
+
+In the exact-revision disposable checkout, `scripts/bootstrap-ibex-runtime` passed build, launch, dynamic loading, and restricted handler-VM qualification. These focused committed tests passed individually:
+
+- `registered_manifest_gap_and_exact_restore_cannot_reearn_completeness`
+- `net_diff_scan_preflights_huge_text_blob_and_vector_before_owned_decode`
+- `armed_derived_fork_maintenance_sweep_prunes_the_change_journal`
+- `root_wide_admission_deadline_is_stable_and_releases_cleanly`
+- `renewal_crash_matrix_recovers_to_one_consistent_expiry`
+- `detached_fork_server_closes_unrelated_inherited_descriptors_on_exec`
+- `concurrent_fork_creates_bind_distinct_ports_and_drop_cleanly`
+- `library_minted_never_launched_fork_diffs_only_for_its_owning_app_root`
+- `executable_fork_renew_extends_a_live_fork_within_the_maximum`
+- `executable_fork_recover_completes_interrupted_renewal_on_an_armed_fork`
+
+The temporary continuity-row deletion and exact-restoration variant also passed by refusing the upgraded class. I did not run the full repository suite and did not re-review closed round-1 items.
+
+### Recommended next step
+
+Accept the round-3 delta as clean and use both READY verdicts in the existing governance flow. Keep the public tuple `Missing`/target `none` until the remaining capability qualification and publication gates have been run against the landed commit and accepted by the owner; no further code fix is recommended from this delta review.

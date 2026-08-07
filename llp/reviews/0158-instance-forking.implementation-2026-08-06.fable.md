@@ -529,3 +529,318 @@ platforms. The three governing Specs are ready in my companion review, so once
 those two regressions close and the LLP 0185 Phase 6 item-0 acceptance gate is
 satisfied, this surface is publishable: B1–B4 are closed on their merits, and
 the honest-labeling discipline in this slice is stronger than what it replaced.
+
+---
+
+## Round 3 — 2026-08-06, commit cdc0fe03e
+
+**Family:** fable
+**Provider/runtime:** Anthropic / Claude (Fable 5), Claude Code agent session
+**Date:** 2026-08-06
+**Redacted:** no
+**Method:** fresh clean-context session; read-only worktree pinned at
+`cdc0fe03e`. Declared **delta round**: I read both families' round-1 and
+round-2 artifacts under `llp/reviews/` and remained blind to the other
+family's round-3 work (I did not open the codex review worktree). I read the
+three new slices as diffs — `5d1f6aab9` (bind managed mints before launch),
+`73af11d4e` (close derived-fork round-two findings), `0ee1fadc1` (prevent
+concurrent create hangs) — and then attacked the resulting code:
+`src/cli.rs`, `src/instance_fork.rs`, `src/storage.rs`,
+`src/storage/write_authority.rs`, `src/operation_ledger.rs`,
+`src/proof_checkpoint.rs`, `src/server.rs`, and
+`tests/instance_fork_cli_v1.rs`, plus LLP 0158/0165 and the guide page. Tests
+were read for non-vacuity, not executed (`vendor/ibex` uninitialized, no
+`target/`). Every finding cites file:line at this commit. Where I reached a
+conclusion by construction rather than execution I say so.
+
+### Overall verdict
+
+**READY for publication of the narrow local `operating.instance-forks` claim
+as a source/guide capability-index row — contingent, as in round 1, on the
+LLP 0185 Phase 6 item-0 governance gate, which is not the code's to satisfy.**
+This reverses my round-2 NOT READY. Both of my round-2 regressions are closed
+at the root cause, each with the specific test I said would have caught it;
+the codex round-2 blocker is closed within the class 0165 states, and I could
+not rebuild it or three variants of it. The three new slices did not introduce
+a MATERIAL defect that I could find. Everything below is Low.
+
+**This is a clean delta round.** I want to be plain about that rather than
+inflate the residue: I went looking hardest at the two things the brief
+flagged — whether the close-on-exec sweep can close something the detached
+server needs, and whether the renewal compensation can leave the three expiry
+carriers disagreeing — and the answer to both is no, for reasons I set out
+below rather than by assertion.
+
+### Disposition of the round-2 findings
+
+**N1 — `fork renew` fails and wedges an armed fork: CLOSED at the root cause.**
+`permits_maintenance_pragma` now admits exactly two non-mutating pragmas:
+`shrink_memory` unconditionally, and `wal_checkpoint(FULL)` only while the
+active writer holds the `BranchRegistry` lane
+(`src/storage/write_authority.rs:344-350`, wired into the pragma arm at
+`:850-851`). `RegisteredSystemWriterPurposeV1::DerivedForkLifecycle` maps to
+exactly that lane (`src/storage.rs:11087-11097`), and the renewal writer is
+now a named function that checkpoints *before* opening the lineage transaction
+(`write_renewal_database_lineage`, `src/instance_fork.rs:3137-3170`) — so the
+half-committed shape from round 2 (lineage `UPDATE` autocommitted, then the
+checkpoint denied) is structurally impossible. The scoping is tight: an
+ordinary app-write token cannot checkpoint, and the two admitted pragmas
+cannot mutate content.
+
+The two tests I asked for both exist and are non-vacuous. The live renewal
+acceptance now builds its app root with `copy_todo_app_root` and *asserts* the
+fork is armed before renewing — `assert_eq!(created["data"]["writerCoverageReceipt"]["schemaVersion"], "snapback.fork-app-row-coverage.v1", "renewal acceptance must exercise an armed complete-pair fork")`
+(`tests/instance_fork_cli_v1.rs:2207-2233`), which is the precise gap that hid
+the bug. And `executable_fork_recover_completes_interrupted_renewal_on_an_armed_fork`
+(`:2341-2450`) injects a crash cut after the armed database update, asserts the
+sentinel, runs `fork recover` through the executable, and then proves the fork
+still verifies its coverage receipt *and* still emits
+`registered-connection-defensive-app-rows-v1` on `--net`. That last assertion
+is the one that matters: it proves recovery did not silently degrade the class.
+
+**N2 — journal retention pruning denied on every armed fork: CLOSED.** A
+dedicated `JournalMaintenance` lane was added to `LocalWriterLaneV1`
+(`src/storage/write_authority.rs:50, 78, 108, 143, 227`), declared
+`retention-only-delete-never-originates-application-dml`, and
+`prune_change_journal` enters it before its transaction
+(`src/storage.rs:3202-3204`). The authorizer gives that lane exactly one new
+authority — `DELETE` on `_snapback_changes`, and nothing else
+(`write_authority.rs:755-765`); the lane cannot write app rows or
+`_snapback_version`. `armed_derived_fork_maintenance_sweep_prunes_the_change_journal`
+(`src/instance_fork.rs:7903-7938`) commits three buffered writes on an armed
+fork, prunes, and asserts `deleted > 0`, `after == before - deleted`, and that
+the monotonic retention floor advanced — not a smoke test.
+
+*Follow-through on the instance I flagged for checking while fixing:* see R3-5.
+
+**N3 — registered-writer factory fail-open on reconstruction failure: CLOSED,
+and inverted.** `registered_writer_coverage_manifest`
+(`src/storage.rs:10878-11061`) is now the single reconstruction path for both
+`open_registered_system_writer_v1` (`:11084`) and
+`refresh_writer_authority_manifest` (`:2424-2429`), and a database that carries
+fork coverage evidence but cannot reconstruct a matching manifest/continuity
+cut does not get an unarmed writer — it gets a durable, irreversible gap record
+and an `Err` (`break_registered_writer_coverage`, `:10821-10876`).
+
+**N4 — `arm_manifest` runs `PRAGMA shrink_memory` after publishing the
+manifest: CLOSED** by admitting the pragma unconditionally
+(`write_authority.rs:344-346`), which is the right shape: it releases cache
+memory and cannot change content.
+
+**N5 (legacy forks unreapable while counting against admission), N6 (one app
+root pins one logical app), N7 (every denied egress opens a registered
+connection): NOT addressed.** Unchanged and still Low. N7 is now marginally
+worse in cost — the factory does the full receipt/stream/manifest/continuity
+reconstruction per denial (`src/storage.rs:10878-11061`) — but still
+note-only; a handler looping on denied egress pays more, and nothing is
+incorrect.
+
+### The close-on-exec change — can it close something the server needs?
+
+**No.** I checked this four ways rather than by inspection of the sweep alone.
+
+1. **Ordering.** `configure_detached_child` registers a `pre_exec` closure
+   (`src/cli.rs:3406-3434`). Rust's `do_exec` performs the stdio `dup2` into
+   fds 0/1/2 *before* running `pre_exec` closures, so the child's own stdin,
+   stdout, and stderr are already installed below the sweep floor of 3 when the
+   loop runs. The duplicate originals at fd ≥ 3 are exactly what should be
+   marked.
+2. **Neither call site passes a descriptor.** `fork create` passes the database,
+   ready file, and startup-artifact carrier as argv paths and its two runner
+   disables as env, with stdout/stderr redirected into a log `File`
+   (`src/cli.rs:3596-3624`); `restart_start_result` uses `Stdio::null()` for all
+   three and argv for everything else (`src/cli.rs:6982-6997`). There is no
+   `SNAPBACK_*_FD`, no `LISTEN_FDS`, and no socket-activation convention —
+   I grepped `from_raw_fd`/`FromRawFd` across `src/` and every hit is a
+   same-process `File`/lock reconstruction, never a startup-time inheritance.
+3. **No lock is needed by the child.** The root-wide admission lock is
+   explicitly `drop(admission)`-ed after publication and well before the launch
+   (`src/cli.rs:3511-3513`), so the child never sees it; and even if it did,
+   `flock` is per open-file-description, so the child marking it close-on-exec
+   cannot release the parent's hold.
+4. **The negative test plants a real descriptor.** `detached_fork_server_closes_unrelated_inherited_descriptors_on_exec`
+   (`tests/instance_fork_cli_v1.rs:1894-1981`) dups a pipe writer to fd 198 in
+   the `fork create` child, runs the real executable, and after the CLI exits
+   asserts a non-blocking read on the reader reaches EOF — i.e. no surviving
+   process holds the writer. Because fd 198 is above every ordinary
+   descriptor, this also proves the ceiling scan reaches high descriptors.
+
+The diagnosis itself checks out: Rust's `anon_pipe` has no `pipe2` on Darwin
+and applies `FIOCLEX` after `pipe()`, so a concurrent `Command::output()` can
+leak a capture writer into a sibling fork. That is precisely the descriptor
+class this sweep catches, and such a descriptor is always present at CLI start
+(it crossed the CLI's own exec), so it is always inside the scan.
+
+One residual, R3-4 below, concerns descriptors that appear *after* the scan.
+
+### The renewal compensation path — can it still leave carriers disagreeing?
+
+**Not that I could construct.** I walked every cut point.
+
+- Forward order inside `apply_renewal` is database lineage → mint receipt →
+  registry row → renew receipt → intent removal → sentinel removal
+  (`src/instance_fork.rs:3053-3110`). The rollback bytes for all three carriers
+  are captured *before* the first mutation (`:3005-3051`), from state that
+  `managed_target` has just validated, so the compensation never has to
+  reconstruct from a torn read.
+- On any non-crash-cut failure, `rollback_renewal` (`:3172-3230`) re-creates the
+  sentinel *first*, restores database lineage, mint receipt, registry, and
+  renew receipt to the previous cut, and only then removes the intent and the
+  sentinel. So a rollback that fails partway always leaves sentinel **and**
+  intent, which is exactly the state `recover` forward-completes
+  (`:4998-5031`) — the three carriers converge on the intent's single lineage.
+- A rollback that fails only at the last step (sentinel removal) leaves
+  sentinel-without-intent, which `recover` handles by the evidence path:
+  `inspect_evidence` succeeds, the registry is reconciled, the sentinel clears
+  (`:5036-5048`). I specifically looked for a sentinel-without-intent branch
+  that would treat a published destination as reapable staging, and there is
+  none — the `remove_dir_all` branch is gated on the `.<name>.staging-<uuid>`
+  prefix plus a parseable UUID (`:5063-5088`).
+- A failure *before* `apply_renewal` mutates anything (e.g. the mint receipt
+  read) returns without compensation, leaving sentinel + intent and all three
+  carriers already agreeing at the previous cut. That is quarantined but
+  consistent, and `inspect_published_evidence` names the exact repair —
+  `SNAPBACK_FORK_PUBLICATION_PARTIAL` … "run `snapback fork recover` for the
+  exact destination" (`:1818-1826`).
+- The checkpoint cannot fail the renewal on a busy live fork:
+  `PRAGMA wal_checkpoint(FULL)` returns a row with a busy flag rather than an
+  error, `execute_batch` discards it, and the connection carries a 5s busy
+  timeout anyway (`src/storage.rs:11079`). I looked for this because the live
+  renewal acceptance runs against a serving fork.
+
+The one shape that still ends in "incomplete-recover-required" is a rollback
+whose own `write_renewal_database_lineage` cannot open a registered writer —
+but that only happens when coverage continuity is genuinely broken, where the
+product answer is "recreate the fork", and the fork remains removable because
+`recover`/`drop` do not need that writer to clear a sentinel.
+
+### The mint-binding slice
+
+`ExpectedForkAppV1`'s fields are now private with accessors
+(`src/instance_fork.rs:96-108`), so no caller outside the module can synthesise
+an identity from free-form strings; the only constructors are
+`ensure_expected_app` (`:169`) and `load_expected_app` (`:222`), and the latter
+still refuses a receipt that does not name its own canonical path. The two
+unbound `publish_managed*` entry points are gone; the single remaining managed
+publish and `managed_target` both re-validate the presented identity against
+the on-disk app-root receipt before acting
+(`validate_expected_app`, `:261-272`, called at `:2265` and `:2699`). The
+regression it repairs is real and now has a fixture:
+`library_minted_never_launched_fork_diffs_only_for_its_owning_app_root`
+(`tests/instance_fork_cli_v1.rs:768-860`) asserts the binding exists *before*
+any launch, asserts the fixture never publishes readiness, and then proves the
+diff is refused from a foreign app root. Legacy rows without a binding still
+fail closed with `SNAPBACK_FORK_APP_BINDING_REQUIRED` rather than acting as a
+wildcard — unchanged from round 2, and the LLP diagnostic table now states the
+never-launched case is explicitly not in that class
+(`llp/0158-…rfc.md:1465`). I found no forgery path that does not require
+writing the app-root identity file, which is the acknowledged local boundary.
+
+### New findings in the round-3 slices (all Low)
+
+1. **R3-3 (Low) — the bounded admission blocks a tokio worker and has no
+   fairness.** `admit_creation_with_timeout` polls `LOCK_EX|LOCK_NB` with
+   `std::thread::park_timeout` (`src/instance_fork.rs:3374-3401`), and
+   `fork create` calls it directly from the async fn (`src/cli.rs:3480-3485`)
+   while its immediate neighbour wraps publication in `startup_blocking`
+   (`:3501`). Three consequences: a worker thread can block for the full 30s;
+   `park_timeout` returns immediately if anything holds an unpark token for
+   that thread, degrading the 10ms poll to a spin (correct, just hot); and the
+   poll loop has no queue, so under sustained contention acquisition order is
+   arbitrary and a given creator can lose repeatedly until its deadline. The
+   30s budget is also a constant that does not scale with concurrency — N
+   creators each holding the lock through staging and publication of a large
+   source database will start refusing at roughly N × staging > 30s, and the
+   corpus only races tiny databases (`src/instance_fork.rs:7112-7160` uses a
+   zero deadline; `tests/instance_fork_cli_v1.rs:1987` races three small ones).
+   This is strictly better than round 2's unbounded blocking flock and it
+   refuses with a typed, correctly gateway-timeout-mapped code
+   (`src/server.rs:26401, 41756`). *Resolves:* run admission under
+   `startup_blocking`, and consider making the deadline scale with observed
+   source bytes or naming it as a flag.
+   *Release on every path is correct:* the timeout branch never acquired the
+   lock, and on any later `?` the `File` drops and closes, releasing the flock
+   — the test asserts a clean second acquisition after the holder drops
+   (`src/instance_fork.rs:7143-7155`).
+2. **R3-4 (Low) — the descriptor ceiling is computed before the fork, not
+   inside it.** `detached_child_descriptor_ceiling()` runs in the parent at
+   `Command`-configuration time (`src/cli.rs:3384-3404, 3409`), so a descriptor
+   another thread of the *CLI* allocates above the observed maximum between the
+   scan and the fork escapes the sweep; likewise a descriptor numbered above
+   65 536 when neither `/proc/self/fd` nor `/dev/fd` can be read. Neither
+   affects the shape the fix targets — a caller-inherited descriptor is present
+   from the CLI's own exec and is therefore always in the scan — and doing the
+   `readdir` inside `pre_exec` would be worse (it allocates, which is unsafe
+   after `fork` in a threaded process), so I regard the tradeoff as correct.
+   Worth one comment saying why the scan is in the parent, so a future reader
+   does not "fix" it into the closure.
+3. **R3-5 (Low, carry-over confirmed) — protected-record erasure still has no
+   writer lane, but is dormant.** In round 2 I flagged
+   `proof_checkpoint::erase_protected_record` as probably the same shape as N2
+   and said I had not confirmed reachability. I confirmed it now: the path runs
+   on the primary connection with no `writer_authority.enter(...)` anywhere
+   (`src/storage.rs:3390-3397`; `src/proof_checkpoint.rs:2750-2756`, canonical
+   row delete at `:2793-2799`), so on an armed fork the covered-table `DELETE`
+   would be denied by the authorizer with a raw SQLite error rather than a
+   typed diagnostic. It is *not* currently reachable: `LocalRuntime::erase_protected_record`
+   (`src/local.rs:4102-4107`) has no production caller — every other call site
+   in the tree is a test. So this is a latent lane gap that will bite the day
+   the route is wired, not a live defect. *Resolves:* give it a lane in the
+   same sweep that added `JournalMaintenance`, or add a test that the route
+   refuses with a typed code on an armed fork.
+4. **R3-6 (Low) — a pre-continuity-carrier fork database cannot be renewed.**
+   `open_registered_system_writer_v1` opens a bare connection and never runs
+   `create_infra` (`src/storage.rs:11073-11079`), and
+   `operation_coverage_continuity` uses `.optional()?`
+   (`src/operation_ledger.rs:420-441`), which converts only
+   `QueryReturnedNoRows` — a missing
+   `_snapback_operation_coverage_continuity_v1` table propagates as a raw
+   SQLite error. A fork minted by a binary older than `73af11d4e` has a
+   data-version stream and a coverage table but no continuity table, so a cold
+   `fork renew` (which reaches the factory through
+   `write_renewal_database_lineage` without ever opening a `LocalDatabase`)
+   fails, its rollback fails identically, and the fork is left sentinel-quarantined
+   — the round-2 N1 wedge shape, re-armed for the upgrade window only. It is
+   self-limiting (forks expire, and this surface is unreleased at target
+   `none`), and the fix is one line: treat a missing continuity table as
+   `None` (or run the additive infra migration in the factory).
+   *I reached this by construction, not by running an old binary.*
+
+### Round-1 concerns, re-checked
+
+- Round-1 #1 (tamper-evident, not tamper-proof) is now *narrower* rather than
+  merely renamed: the continuity carrier removes the in-class re-earn route,
+  and 0165's boundary paragraph still names raw-file forgery as outside the
+  class (`llp/0165-…spec.md:442-447`). My Scope-1 R3-1 is the only precision
+  nit left on that text.
+- Round-1 #2 (authorizer catch-all), #3 (unmetered runtime growth), #4
+  (lingering cleanup-lock files) are unchanged from round 2 — implemented,
+  documented, and deliberately retained respectively.
+
+### Suggestions (non-blocking)
+
+- `lock_cleanup` still takes a blocking `LOCK_EX` with no deadline
+  (`src/instance_fork.rs:2747`), so `drop`/`reap`/`renew` can still sleep
+  without bound behind a wedged peer even though create no longer can. The
+  fix's own `@ref` comment reasons about "every later lifecycle request"
+  (`:3376-3378`), so the asymmetry looks unintentional; giving the cleanup lock
+  the same monotonic deadline (with its own code) would finish the thought.
+- The registered-writer factory is still a convention rather than a type
+  boundary — `Connection::open` remains callable — and this round's guarantees
+  lean harder on it than round 2's did. A test that greps for writable opens
+  outside the factory would make 0165's "every additional process-owned
+  writable connection joins the same authority seam" executable.
+
+### Recommended next step
+
+Flip `operating.instance-forks` to target `local` once the LLP 0185 Phase 6
+item-0 gate is satisfied — i.e. once 0163/0164/0165 complete their own
+acceptance (my companion Scope-1 review marks all three READY at this commit)
+and the LLP 0162 row-13 rescope stands with receipts rebound to a post-fix
+commit, which `cdc0fe03e` does. Before or alongside the flip, run the
+executable fork suites on both supported platforms at the exact published
+commit — my verdict rests on reading, and the three slices touch process
+spawning, SQLite authority, and crash recovery, which are the three areas
+where reading is least sufficient. File one `issues/` ticket carrying R3-3
+through R3-6 plus the two suggestions; none of them blocks the narrow claim as
+scoped.
